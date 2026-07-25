@@ -116,6 +116,8 @@ alera orchestration task-cancel --id <task-id> --reason "No longer needed"
 alera orchestration task-recover --id <task-id> --status ready --reason "Worker inspected and stopped"
 ```
 
+When a run's approved policy sets `stallPolicy: ask`, a stalled worker opens a decision gate with diagnostics attached. Resolve it with `gate-resolve` using one of `Kill And Failover`, `Keep Waiting`, or `Abort Stage`. Never resolve a stall gate on the user's behalf: the whole point is that a worker which may still be running is not respawned without a decision.
+
 Cancellation propagates to unstarted descendants, including tasks created after a dependency was already cancelled. Lease expiry produces `stalled`, keeps the concurrency slot occupied, and never silently redispatches work. Recovery and forced lifecycle mutations require a reason and are audited. Transfer a complete run rather than one of its owned tasks.
 
 ```bash

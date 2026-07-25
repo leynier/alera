@@ -133,6 +133,10 @@ Runtime activity combines agent hooks, PTY output, and context-aware worker comm
 alera orchestration task-recover --id <task-id> --status ready --reason "Worker inspected and stopped"
 ```
 
+When the run has an approved policy, its `stallPolicy` decides what happens next. `wait` is the historical behavior and stays the default for runs without a policy. `ask`, the default under a policy, opens a decision gate on the stalled task carrying the last activity time, the profile in use, and a tail of the terminal output; resolving it either interrupts the dispatch and returns the task to `ready` so fallback selection picks the next profile, refreshes the lease and resumes waiting, or cancels the task. `auto-failover` takes the kill-then-respawn branch without asking.
+
+A stall gate is deliberately not an ordinary decision gate. `create_orchestration_gate` requires a live task and closes the active dispatch; here the worker may still be running, so `create_orchestration_stall_gate` accepts a `stalled` task and leaves both the task and the dispatch untouched. `coordinator_assert_gate_blocks` skips stalled tasks for the same reason. Failover is always confirm, kill, then respawn: the interrupt is sent before the task returns to `ready` so the old worker cannot keep writing to the worktree its replacement will use.
+
 Operational messages carry task/dispatch/run/workspace scope and may expire. Completing, failing, cancelling, or superseding a dispatch marks its queued operational messages obsolete. Inbox and outbox responses refresh and expose queued, delivered, read, expired, and obsolete state.
 
 Message admission is bounded at the storage boundary: handles and thread IDs are limited to 512 UTF-8 bytes, subjects to 256 bytes, lifecycle bodies to 8 KiB, and general bodies and serialized payloads to 64 KiB. Prompt injection truncates each body to 4 KiB and a complete batch to 16 KiB; omitted content remains available through `alera orchestration inbox`.

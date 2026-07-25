@@ -447,10 +447,15 @@ impl ServerActor {
                 .orchestration_task_by_id(&gate.task_id)
                 .await?
             {
+                // A stalled task keeps its status while its stall gate is
+                // pending. Flipping it to blocked would close the dispatch and
+                // claim the worker stopped, which is exactly what a stall
+                // cannot assert.
                 if task.status != OrchestrationTaskStatus::Blocked
                     && task.status != OrchestrationTaskStatus::Completed
                     && task.status != OrchestrationTaskStatus::Failed
                     && task.status != OrchestrationTaskStatus::Cancelled
+                    && task.status != OrchestrationTaskStatus::Stalled
                 {
                     let _ = self
                         .runtime_store
@@ -500,7 +505,9 @@ impl ServerActor {
                     .or(dispatch.dispatched_at.as_deref())
                     .unwrap_or("dispatch")
             ));
+            self.apply_stall_policy(&dispatch).await;
         }
+        self.coordinator_process_stall_decisions().await?;
         Ok(())
     }
 
