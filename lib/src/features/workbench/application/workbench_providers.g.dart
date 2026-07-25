@@ -202,6 +202,74 @@ final class SidebarOrderMemoryProvider
 String _$sidebarOrderMemoryHash() =>
     r'63af5266267a090aad55563c87262c6ea27d6a5b';
 
+/// The sidebar row list, recomputed once per state change instead of once per
+/// widget rebuild.
+///
+/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
+/// sidebar used to run it inline on every rebuild while also mutating the
+/// order memory during build.
+
+@ProviderFor(workbenchSidebarRows)
+final workbenchSidebarRowsProvider = WorkbenchSidebarRowsProvider._();
+
+/// The sidebar row list, recomputed once per state change instead of once per
+/// widget rebuild.
+///
+/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
+/// sidebar used to run it inline on every rebuild while also mutating the
+/// order memory during build.
+
+final class WorkbenchSidebarRowsProvider
+    extends
+        $FunctionalProvider<
+          List<WorkbenchSidebarRow>,
+          List<WorkbenchSidebarRow>,
+          List<WorkbenchSidebarRow>
+        >
+    with $Provider<List<WorkbenchSidebarRow>> {
+  /// The sidebar row list, recomputed once per state change instead of once per
+  /// widget rebuild.
+  ///
+  /// `buildSidebarRows` filters and multi-key sorts every workspace, and the
+  /// sidebar used to run it inline on every rebuild while also mutating the
+  /// order memory during build.
+  WorkbenchSidebarRowsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workbenchSidebarRowsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workbenchSidebarRowsHash();
+
+  @$internal
+  @override
+  $ProviderElement<List<WorkbenchSidebarRow>> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  List<WorkbenchSidebarRow> create(Ref ref) {
+    return workbenchSidebarRows(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(List<WorkbenchSidebarRow> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<List<WorkbenchSidebarRow>>(value),
+    );
+  }
+}
+
+String _$workbenchSidebarRowsHash() =>
+    r'f549c71cd45c77050faa6ce3d2908407e9911a01';
+
 @ProviderFor(workspaceActivityRepository)
 final workspaceActivityRepositoryProvider =
     WorkspaceActivityRepositoryProvider._();

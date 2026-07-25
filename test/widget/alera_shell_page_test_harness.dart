@@ -7,6 +7,11 @@ class _ShellTestAgentStatusController extends AgentStatusController {
 
   @override
   Map<String, AgentStatusEntry> build() => _entries;
+
+  /// Drives a live status change after the shell is pumped.
+  void setEntries(Map<String, AgentStatusEntry> entries) {
+    state = entries;
+  }
 }
 
 class _ShellTestWorkbenchController extends WorkbenchController {

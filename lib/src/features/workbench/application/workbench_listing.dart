@@ -4,8 +4,11 @@ import 'package:alera/src/features/workbench/application/workbench_agent_activit
 import 'package:alera/src/features/workbench/application/workbench_listing_tree.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_workspace_filters.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
 part 'workbench_sidebar_rows.dart';
 
@@ -194,6 +197,11 @@ List<WorkbenchSidebarRow> buildSidebarRows(
     );
     for (final entry in tree) {
       final indent = baseIndent + entry.depth;
+      final tabs = state.tabsFor(entry.workspace.id);
+      final agentRuns = visibleWorkspaceAgentRuns(
+        tabs: tabs,
+        agentStatuses: agentStatuses,
+      );
       rows.add(
         WorkbenchWorkspaceRow(
           project: projectOf(entry.workspace),
@@ -201,6 +209,11 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           showProjectChip: showProjectChip,
           indent: indent,
           expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
+          agentRuns: agentRuns,
+          agentRunGroups: groupWorkspaceAgentRuns(agentRuns),
+          hasTerminalTabs: tabs.any(
+            (tab) => tab.kind == WorkspaceTabKind.terminal,
+          ),
           visibleChildCount: entry.visibleChildCount,
           childrenCollapsed: entry.childrenCollapsed,
           isPinnedCopy: isPinnedCopy,

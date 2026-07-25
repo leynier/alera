@@ -19,6 +19,7 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
@@ -37,6 +38,7 @@ part 'alera_shell_page_workbench_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
+part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
 Future<AleraDatabase> _openMemoryDb() async {
   return AleraDatabase(executor: NativeDatabase.memory());
@@ -58,6 +60,7 @@ Future<_ShellPumpHarness> _pumpShell(
   final settingsController = _ShellSettingsController(
     settings ?? AleraSettings.defaults,
   );
+  final agentStatusController = _ShellTestAgentStatusController(agentStatuses);
   final db = await _openMemoryDb();
   addTearDown(db.close);
 
@@ -66,9 +69,7 @@ Future<_ShellPumpHarness> _pumpShell(
       overrides: [
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => shellController),
-        agentStatusControllerProvider.overrideWith(
-          () => _ShellTestAgentStatusController(agentStatuses),
-        ),
+        agentStatusControllerProvider.overrideWith(() => agentStatusController),
         agentQuotaStateProvider.overrideWith(
           (ref) async =>
               AgentQuotaState.empty(state.activeWorkspace?.hostId ?? 'local'),
@@ -92,7 +93,11 @@ Future<_ShellPumpHarness> _pumpShell(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 200));
-  return _ShellPumpHarness(controller: shellController, runtime: runtime);
+  return _ShellPumpHarness(
+    controller: shellController,
+    runtime: runtime,
+    agentStatus: agentStatusController,
+  );
 }
 
 void main() {
@@ -100,6 +105,7 @@ void main() {
   _registerAleraShellSidebarActionTests();
   _registerAleraShellSidebarStateTests();
   _registerAleraShellPinningTests();
+  _registerAleraShellSidebarIdentityTests();
 }
 
 WorkbenchState _stackedWorkbenchState() {
