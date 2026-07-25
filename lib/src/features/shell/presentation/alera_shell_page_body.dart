@@ -21,6 +21,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(agentAwakeCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
     ref.watch(workspaceActivityCoordinatorProvider);
+    ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
     ref.watch(workspaceActivityPersistenceCoordinatorProvider);
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {

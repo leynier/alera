@@ -117,9 +117,52 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                   child: CircularProgressIndicator(strokeWidth: 1.5),
                 ),
               ),
+            // Restoring an evicted terminal replays its whole scrollback over
+            // several frames. The corner spinner does not read as a wait that
+            // long, so cover the area until the history is back.
+            Positioned.fill(
+              child: ValueListenableBuilder<TerminalRestoreProgress?>(
+                valueListenable: widget.session.restoreProgress,
+                builder: (context, progress, _) {
+                  if (progress == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return _TerminalRestoreState(progress: progress);
+                },
+              ),
+            ),
           ],
         );
       },
+    );
+  }
+}
+
+class _TerminalRestoreState extends StatelessWidget {
+  const _TerminalRestoreState({required this.progress});
+
+  final TerminalRestoreProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AleraTokens.bg),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Restoring Terminal',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AleraTokens.space12),
+            SizedBox(
+              width: 180,
+              child: LinearProgressIndicator(value: progress.fraction),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

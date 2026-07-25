@@ -72,6 +72,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
+    this.bufferBudgetMegabytes = 256,
     this.keepRuntimeOpenOnAppQuit = false,
     this.loginShell,
   });
@@ -96,6 +97,9 @@ class TerminalSettings with TerminalSettingsMappable {
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
+
+  /// Terminal buffer ceiling; 0 is unbounded. See `TerminalBufferBudget`.
+  final int bufferBudgetMegabytes;
   final bool keepRuntimeOpenOnAppQuit;
 
   /// `null` keeps the platform default resolved by [resolvedLoginShell].

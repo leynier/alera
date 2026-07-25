@@ -455,6 +455,14 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 10 * 1000 * 1000,
   );
+  static int _$bufferBudgetMegabytes(TerminalSettings v) =>
+      v.bufferBudgetMegabytes;
+  static const Field<TerminalSettings, int> _f$bufferBudgetMegabytes = Field(
+    'bufferBudgetMegabytes',
+    _$bufferBudgetMegabytes,
+    opt: true,
+    def: 256,
+  );
   static bool _$keepRuntimeOpenOnAppQuit(TerminalSettings v) =>
       v.keepRuntimeOpenOnAppQuit;
   static const Field<TerminalSettings, bool> _f$keepRuntimeOpenOnAppQuit =
@@ -494,6 +502,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
     #hostScrollbackBytes: _f$hostScrollbackBytes,
+    #bufferBudgetMegabytes: _f$bufferBudgetMegabytes,
     #keepRuntimeOpenOnAppQuit: _f$keepRuntimeOpenOnAppQuit,
     #loginShell: _f$loginShell,
   };
@@ -524,6 +533,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
         _f$hostDetachedSessionShutdownDelaySeconds,
       ),
       hostScrollbackBytes: data.dec(_f$hostScrollbackBytes),
+      bufferBudgetMegabytes: data.dec(_f$bufferBudgetMegabytes),
       keepRuntimeOpenOnAppQuit: data.dec(_f$keepRuntimeOpenOnAppQuit),
       loginShell: data.dec(_f$loginShell),
     );
@@ -618,6 +628,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    int? bufferBudgetMegabytes,
     bool? keepRuntimeOpenOnAppQuit,
     bool? loginShell,
   });
@@ -664,6 +675,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    int? bufferBudgetMegabytes,
     bool? keepRuntimeOpenOnAppQuit,
     Object? loginShell = $none,
   }) => $apply(
@@ -694,6 +706,8 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
             hostDetachedSessionShutdownDelaySeconds,
       if (hostScrollbackBytes != null)
         #hostScrollbackBytes: hostScrollbackBytes,
+      if (bufferBudgetMegabytes != null)
+        #bufferBudgetMegabytes: bufferBudgetMegabytes,
       if (keepRuntimeOpenOnAppQuit != null)
         #keepRuntimeOpenOnAppQuit: keepRuntimeOpenOnAppQuit,
       if (loginShell != $none) #loginShell: loginShell,
@@ -741,6 +755,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     hostScrollbackBytes: data.get(
       #hostScrollbackBytes,
       or: $value.hostScrollbackBytes,
+    ),
+    bufferBudgetMegabytes: data.get(
+      #bufferBudgetMegabytes,
+      or: $value.bufferBudgetMegabytes,
     ),
     keepRuntimeOpenOnAppQuit: data.get(
       #keepRuntimeOpenOnAppQuit,

@@ -6,6 +6,7 @@ import 'dart:io' show File, Platform;
 import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
@@ -37,6 +38,8 @@ part 'terminal_runtime_interactive_view.dart';
 part 'terminal_runtime_shell_launches.dart';
 part 'terminal_login_shell_launch.dart';
 part 'terminal_runtime_posix_io.dart';
+part 'terminal_runtime_buffer_accounting.dart';
+part 'terminal_runtime_restore_progress.dart';
 part 'terminal_runtime_testing.dart';
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
@@ -52,6 +55,25 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// own notifier rebuilt the whole terminal view and every tab chip, so the
   /// tab strip listens here instead.
   ValueListenable<String> get titleListenable;
+
+  /// Whether a visibility lease is currently held for this terminal.
+  ///
+  /// Defaulted so the many test doubles of this class do not each have to
+  /// restate budget bookkeeping they have no buffer for.
+  bool get isVisible => false;
+
+  /// Estimated buffer cost and last-visible time, used by the memory budget.
+  TerminalBufferUsage get bufferUsage =>
+      TerminalBufferUsage(tabId: tabId, bytes: 0, lastVisibleAt: null);
+
+  /// Non-null while a restored scrollback snapshot is still being drained.
+  ///
+  /// Returning to an evicted terminal re-fetches its scrollback from the host
+  /// and replays it through the frame batcher, which can take several frames.
+  /// The surface shows a skeleton rather than an empty terminal so the wait
+  /// does not read as lost history.
+  ValueListenable<TerminalRestoreProgress?> get restoreProgress =>
+      _neverRestoring;
 
   bool get isRunning;
 
@@ -95,11 +117,45 @@ abstract interface class TerminalRuntime {
     required WorkspaceTabRecord tab,
   });
 
+  /// The live handle for [tabId], or null. Never creates one.
+  ///
+  /// The tab strip renders a chip for every tab of the active workspace, and
+  /// calling [sessionFor] there built a full handle, with its own xterm
+  /// buffer, for tabs the user never opened.
+  TerminalSessionHandle? peekSession(String tabId);
+
+  /// Pins the active workspace so switching tabs inside the workspace being
+  /// worked in never pays a restore.
+  void setActiveWorkspace(String? workspaceId);
+
   void closeTab(String tabId);
 
   void closeWorkspace(String workspaceId);
 
   void dispose();
+}
+
+/// Shared empty progress for handles that never restore a snapshot.
+final ValueNotifier<TerminalRestoreProgress?> _neverRestoring =
+    ValueNotifier<TerminalRestoreProgress?>(null);
+
+/// How much of a restored snapshot has reached the emulator.
+class TerminalRestoreProgress {
+  const TerminalRestoreProgress({
+    required this.writtenChars,
+    required this.totalChars,
+  });
+
+  final int writtenChars;
+  final int totalChars;
+
+  double get fraction {
+    if (totalChars <= 0) {
+      return 1;
+    }
+    final value = writtenChars / totalChars;
+    return value < 0 ? 0 : (value > 1 ? 1 : value);
+  }
 }
 
 typedef TerminalLaunchEnvironmentBuilder =

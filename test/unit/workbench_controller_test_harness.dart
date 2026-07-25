@@ -136,6 +136,12 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   @override
   Stream<TerminalRuntimeExitEvent> get exits => _exits.stream;
   @override
+  TerminalSessionHandle? peekSession(String tabId) => sessions[tabId];
+
+  @override
+  void setActiveWorkspace(String? workspaceId) {}
+
+  @override
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
     required WorkspaceTabRecord tab,

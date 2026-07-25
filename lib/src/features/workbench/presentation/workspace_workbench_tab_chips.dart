@@ -33,12 +33,18 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // peek, not sessionFor: building a handle here allocated a full xterm
+    // buffer for every tab of the active workspace, including ones the user
+    // never opened. Selecting the tab is what actually needs a session.
     final session = tab.kind == WorkspaceTabKind.terminal
-        ? terminalRuntime.sessionFor(workspace: workspace, tab: tab)
+        ? terminalRuntime.peekSession(tab.id)
         : null;
     void selectAndFocus() {
       onSelect();
-      session?.requestFocus();
+      if (tab.kind != WorkspaceTabKind.terminal) {
+        return;
+      }
+      terminalRuntime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }
 
     return Padding(

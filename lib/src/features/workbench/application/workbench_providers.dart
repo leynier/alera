@@ -120,6 +120,19 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   return rows;
 }
 
+/// Keeps the terminal runtime's pinned workspace in sync with the active one,
+/// so the memory budget never evicts a terminal in the workspace being worked
+/// in.
+@Riverpod(keepAlive: true)
+void terminalRuntimeActiveWorkspaceCoordinator(Ref ref) {
+  final runtime = ref.watch(terminalRuntimeProvider);
+  ref.listen<String?>(
+    workbenchControllerProvider.select((state) => state.activeWorkspaceId),
+    (previous, next) => runtime.setActiveWorkspace(next),
+    fireImmediately: true,
+  );
+}
+
 @Riverpod(keepAlive: true)
 WorkspaceActivityRepository workspaceActivityRepository(Ref ref) {
   final dbAsync = ref.watch(aleraDatabaseProvider);

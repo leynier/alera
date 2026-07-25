@@ -274,6 +274,21 @@ class TerminalSettingsPane extends StatelessWidget {
                   settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
                 ),
               ),
+              SettingsIntegerRow(
+                title: 'Terminal Memory Budget',
+                description:
+                    'Ceiling for terminal scrollback held in the app. Over it, '
+                    'terminals you have not looked at recently are unloaded '
+                    'and restored when you return. Their agents keep running. '
+                    'Use 0 for no limit.',
+                value: settings.bufferBudgetMegabytes,
+                min: 0,
+                max: 4096,
+                step: 64,
+                suffix: 'MB',
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(bufferBudgetMegabytes: value)),
+              ),
               SettingsTextRow(
                 title: 'Word Separators',
                 description:

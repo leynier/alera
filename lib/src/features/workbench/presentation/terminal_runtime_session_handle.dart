@@ -15,6 +15,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     this._interactionNotice,
     this._osc52Blocked,
     this._onExit,
+    this._onVisibilityChanged,
   ) {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
@@ -37,6 +38,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final void Function(String message, {bool error})? _interactionNotice;
   final VoidCallback _osc52Blocked;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
+
+  /// Lets the runtime re-run the memory budget when a terminal stops being
+  /// visible, which is the only moment a new eviction candidate appears.
+  final void Function(_XtermTerminalSessionHandle handle) _onVisibilityChanged;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
   late Osc8TerminalLinkTracker _osc8LinkTracker;
@@ -81,6 +86,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   );
   String? _errorMessage;
   bool _visible = false;
+  DateTime? _lastVisibleAt;
+  final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
+      ValueNotifier<TerminalRestoreProgress?>(null);
+  int _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
   bool _disposed = false;
 
@@ -95,6 +104,16 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   @override
   @override
   ValueListenable<String> get titleListenable => _titleNotifier;
+
+  @override
+  bool get isVisible => _visible;
+
+  @override
+  ValueListenable<TerminalRestoreProgress?> get restoreProgress =>
+      _restoreProgress;
+
+  @override
+  TerminalBufferUsage get bufferUsage => _estimateBufferUsage();
 
   @override
   String get displayTitle {
@@ -522,41 +541,20 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _flushPendingTerminalOutputNow() => _flushSessionTerminalOutputNow(this);
 
-  void _clearPendingTerminalOutput() {
-    _pendingTerminalOutput.clear();
-    _pendingTerminalOutputLength = 0;
-  }
-
   void _replaceTerminalWithSnapshot(
     List<int> data, {
     required bool resetInteractionModes,
   }) {
-    if (_disposed) {
-      return;
-    }
-    _clearPendingTerminalOutput();
-    _terminalController.clearSelection();
-    final previousTerminal = _terminal;
-    final viewWidth = previousTerminal.viewWidth;
-    final viewHeight = previousTerminal.viewHeight;
-    _detachTerminal(previousTerminal);
-    _osc8LinkTracker.dispose();
-
-    final nextTerminal = _createTerminal()..resize(viewWidth, viewHeight);
-    _terminal = nextTerminal;
-    _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: nextTerminal);
-    _attachTerminal(nextTerminal);
-    // Scrollback can reach the host's 10 MB cap, and parsing all of it in one
-    // synchronous write blocked the frame that showed the terminal. Go through
-    // the same per-frame batcher as live output instead.
-    _queueTerminalOutput(
-      const Utf8Decoder(allowMalformed: true).convert(data),
-      bounded: false,
+    _rebuildTerminalFromSnapshot(
+      data,
+      resetInteractionModes: resetInteractionModes,
     );
-    if (resetInteractionModes) {
-      _queueTerminalOutput(terminalInteractionModeReset, bounded: false);
-    }
     notifyListeners();
+  }
+
+  void _clearPendingTerminalOutput() {
+    _pendingTerminalOutput.clear();
+    _pendingTerminalOutputLength = 0;
   }
 
   void _syncPtyOutputVisibility() {
@@ -582,15 +580,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _errorMessage = message;
     _running = false;
     notifyListeners();
-  }
-
-  void _syncVisibilityFromLeases() {
-    final visible = _visibilityLeases.isNotEmpty;
-    if (_visible == visible) {
-      return;
-    }
-    _visible = visible;
-    _syncPtyOutputVisibility();
   }
 
   Future<void> _stopPtySession({required bool suppressExit}) async {
@@ -660,6 +649,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _scrollController.dispose();
     _focusNode.dispose();
     _titleNotifier.dispose();
+    _restoreProgress.dispose();
     super.dispose();
   }
 

@@ -194,6 +194,12 @@ class _E2eTerminalRuntime implements TerminalRuntime {
       .map((session) => session.displayTitle);
 
   @override
+  TerminalSessionHandle? peekSession(String tabId) => _sessions[tabId];
+
+  @override
+  void setActiveWorkspace(String? workspaceId) {}
+
+  @override
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
     required WorkspaceTabRecord tab,

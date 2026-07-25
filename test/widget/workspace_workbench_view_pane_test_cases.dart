@@ -131,10 +131,10 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       mergedGroups: mergedGroups,
       updatedRatios: updatedRatios,
     );
-    expect(terminalRuntime.visibilityByTab, <String, bool>{
-      'tab-1': true,
-      'tab-2': false,
-    });
+    // Only the rendered tab gets a session at all. The inactive tab used to
+    // appear here with visibility false because the tab strip built a handle,
+    // and its xterm buffer, for every chip.
+    expect(terminalRuntime.visibilityByTab, <String, bool>{'tab-1': true});
 
     await _pumpWorkbenchView(
       tester,
@@ -156,6 +156,11 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       'tab-1': false,
       'tab-2': true,
     });
+    expect(
+      terminalRuntime.requestedTabIds,
+      <String>['tab-1', 'tab-2'],
+      reason: 'a handle is created only when a tab is actually rendered',
+    );
   });
 
   testWidgets('dragging the split handle updates the split ratio', (
