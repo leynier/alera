@@ -33,7 +33,11 @@ class RuntimeProjectConfigRepository implements ProjectConfigRepository {
   @override
   Future<Map<String, ProjectConfig>> loadAll() async {
     await _ensureReady();
-    final payload = await _client.runtimeRequest('projectConfig.list');
+    final payload = await _client.runtimeRequest(
+      'projectConfig.list',
+      const <String, Object?>{},
+      runtimeSnapshotRequestTimeout,
+    );
     final map = _asMap(payload);
     return <String, ProjectConfig>{
       for (final entry in map.entries)

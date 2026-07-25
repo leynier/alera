@@ -103,7 +103,7 @@ void _registerTerminalHostClientResilienceTests() {
   });
 
   test(
-    'request timeout invalidates the connection before reconnecting',
+    'request timeout fails only that request, not the shared connection',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'alera-host-client-request-timeout-',
@@ -154,13 +154,11 @@ void _registerTerminalHostClientResilienceTests() {
         ),
       );
 
+      // Terminal output and every runtime watcher ride this one socket, so a
+      // slow request must not cost a reconnect: only one `hello` is sent.
+      releaseRequest.complete();
       await client.detach('session-1');
-      expect(server.requestTypes, <String>[
-        'hello',
-        'project.list',
-        'hello',
-        'detach',
-      ]);
+      expect(server.requestTypes, <String>['hello', 'project.list', 'detach']);
     },
   );
 

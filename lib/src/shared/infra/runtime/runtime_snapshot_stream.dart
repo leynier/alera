@@ -3,6 +3,14 @@ import 'dart:async';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 
+/// Timeout for the bulk list calls behind a snapshot stream.
+///
+/// The host actor is single-threaded, so a background refresh legitimately
+/// queues behind a coordinator sweep or a burst of PTY flushes. The default
+/// interactive timeout is too tight for that, and a premature timeout only
+/// buys a retry that queues up again.
+const Duration runtimeSnapshotRequestTimeout = Duration(seconds: 30);
+
 /// Matches an event payload that carries no scope, i.e. every watcher refreshes.
 bool _matchesAnyScope(Map<String, Object?> payload) => true;
 

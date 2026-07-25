@@ -25,6 +25,7 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
     final payload = await _client.runtimeRequest(
       'workspace.list',
       <String, Object?>{'projectId': projectId},
+      runtimeSnapshotRequestTimeout,
     );
     return _asList(payload).map(_workspaceFromJson).toList(growable: false);
   }
@@ -107,7 +108,7 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
     await _ensureReady();
     final payload = await _client.runtimeRequest('tab.list', <String, Object?>{
       'workspaceId': workspaceId,
-    });
+    }, runtimeSnapshotRequestTimeout);
     return _asList(payload).map(_tabFromJson).toList(growable: false);
   }
 

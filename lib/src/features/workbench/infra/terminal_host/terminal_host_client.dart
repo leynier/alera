@@ -18,20 +18,26 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
+part 'terminal_host_client_heartbeat.dart';
 
 final class SocketTerminalHostClient
+    with _TerminalHostClientHeartbeat
     implements TerminalHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
     Duration startupTimeout = const Duration(seconds: 8),
     TerminalHostConfig initialConfig = TerminalHostConfig.defaults,
+    Duration heartbeatInterval = _terminalHostHeartbeatInterval,
+    Duration heartbeatTimeout = _terminalHostHeartbeatTimeout,
   }) {
     return SocketTerminalHostClient._(
       launcher ?? DefaultTerminalHostProcessLauncher(),
       applicationSupportDirectory ?? getApplicationSupportDirectory,
       startupTimeout,
       initialConfig,
+      heartbeatInterval,
+      heartbeatTimeout,
     );
   }
 
@@ -40,11 +46,16 @@ final class SocketTerminalHostClient
     this._applicationSupportDirectory,
     this._startupTimeout,
     this._config,
+    this._heartbeatInterval,
+    this._heartbeatTimeout,
   );
 
   final TerminalHostProcessLauncher _launcher;
   final Future<Directory> Function() _applicationSupportDirectory;
   final Duration _startupTimeout;
+  @override
+  final Duration _heartbeatInterval;
+  final Duration _heartbeatTimeout;
   final StreamController<TerminalHostEvent> _events =
       StreamController<TerminalHostEvent>.broadcast();
   final StreamController<RuntimeHostEvent> _runtimeEvents =
@@ -639,6 +650,18 @@ final class SocketTerminalHostClient
     }
   }
 
+  @override
+  Future<void> _sendHeartbeatRequest(_TerminalHostConnection connection) async {
+    await _sendTerminalHostRequest(
+      this,
+      connection,
+      'status.get',
+      const <String, Object?>{},
+      timeout: _heartbeatTimeout,
+    );
+  }
+
+  @override
   void _handleConnectionClosed(
     _TerminalHostConnection connection, [
     Object? error,
@@ -646,6 +669,7 @@ final class SocketTerminalHostClient
     if (connection.isClosed) {
       return;
     }
+    _stopHeartbeatFor(connection);
     connection.completeAuthenticationError(
       StateError('Terminal host connection closed: $error'),
     );
@@ -747,6 +771,7 @@ final class SocketTerminalHostClient
       return;
     }
     _disposed = true;
+    _stopHeartbeat();
     final connections = <_TerminalHostConnection>{};
     if (_terminalConnection case final connection?) {
       connections.add(connection);
