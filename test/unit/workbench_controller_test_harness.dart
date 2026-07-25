@@ -606,6 +606,17 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     return _tabControllers.containsKey(workspaceId);
   }
 
+  /// Models a runtime watcher dying on a connection error: the stream errors
+  /// and completes, and the next `watchWorkspaceTabs` hands back a fresh one.
+  void killTabWatcher(String workspaceId) {
+    final controller = _tabControllers.remove(workspaceId);
+    if (controller == null) {
+      return;
+    }
+    controller.addError(StateError('terminal host connection closed'));
+    unawaited(controller.close());
+  }
+
   void emitTabs(String workspaceId) {
     _tabControllers[workspaceId]?.add(
       List<WorkspaceTabRecord>.from(

@@ -305,3 +305,12 @@ class _RuntimeRequest {
   final String type;
   final Map<String, Object?> payload;
 }
+
+/// These dialog tests assert UI behavior, not event coalescing, so they drive
+/// the runtime watchers without a debounce window to wait out.
+RuntimeChangeCoalescer _immediateCoalescer() {
+  return RuntimeChangeCoalescer(
+    debounce: Duration.zero,
+    maxDelay: Duration.zero,
+  );
+}

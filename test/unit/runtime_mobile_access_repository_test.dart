@@ -64,13 +64,17 @@ void main() {
       expect(status.tailscale!.error, isNull);
     });
 
-    test('watchStatus refetches on every mobile change event', () async {
+    test('watchStatus coalesces a burst of mobile change events', () async {
       final client = _FakeRuntimeHostClient();
       client.responses['mobile.status.get'] = _statusPayload();
       final repository = RuntimeMobileAccessRepository(client);
 
-      final statuses = repository.watchStatus().take(5).toList();
-      await Future<void>.delayed(Duration.zero);
+      final received = <MobileAccessStatus>[];
+      final subscription = repository.watchStatus().listen(received.add);
+      addTearDown(subscription.cancel);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(received, hasLength(1), reason: 'initial fetch');
+
       for (final name in <String>[
         'mobileSettingsChanged',
         'mobilePairingsChanged',
@@ -79,17 +83,15 @@ void main() {
         'projectsChanged',
       ]) {
         client.emit(RuntimeHostEvent(name, const <String, Object?>{}));
-        await Future<void>.delayed(Duration.zero);
       }
-      client.close();
+      await Future<void>.delayed(const Duration(milliseconds: 250));
 
-      final received = await statuses;
-      // Initial fetch plus one refetch per mobile event; the non-mobile
-      // event must not trigger a fetch.
-      expect(received, hasLength(5));
+      // The four mobile events collapse into a single refetch; the non-mobile
+      // event must not trigger one at all.
+      expect(received, hasLength(2));
       expect(
         client.requests.where((type) => type == 'mobile.status.get'),
-        hasLength(5),
+        hasLength(2),
       );
     });
 

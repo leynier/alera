@@ -103,7 +103,15 @@ mixin _WorkbenchControllerSync
       }
       _workspaceSubs[project.id] = _repository
           .watchWorkspaces(project.id)
-          .listen((workspaces) => _onWorkspacesChanged(project, workspaces));
+          .listen(
+            (workspaces) => _onWorkspacesChanged(project, workspaces),
+            // Re-subscription is guarded by `containsKey`, so a subscription
+            // that dies must drop out of the map or the project stops syncing
+            // for the rest of the session.
+            onError: (Object _) {},
+            onDone: () => _workspaceSubs.remove(project.id),
+            cancelOnError: false,
+          );
       unawaited(_ensureMainWorkspaceForProject(project));
     }
 
@@ -157,7 +165,15 @@ mixin _WorkbenchControllerSync
       unawaited(_loadLayoutForWorkspace(workspace.id));
       _tabSubs[workspace.id] = _repository
           .watchWorkspaceTabs(workspace.id)
-          .listen((tabs) => _onTabsChanged(workspace.id, tabs));
+          .listen(
+            (tabs) => _onTabsChanged(workspace.id, tabs),
+            onError: (Object _) {},
+            onDone: () {
+              _tabSubs.remove(workspace.id);
+              _tabSubProjectIds.remove(workspace.id);
+            },
+            cancelOnError: false,
+          );
     }
     // Preserve the active project while it is still valid; never silently jump
     // to a different project just because this project's workspaces changed.

@@ -5,12 +5,19 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 class RuntimeWorkbenchRepository implements WorkbenchRepository {
-  RuntimeWorkbenchRepository(this._client, {this.beforeAccess});
+  RuntimeWorkbenchRepository(
+    this._client, {
+    this.beforeAccess,
+    RuntimeChangeCoalescer? coalescer,
+  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   final RuntimeHostClient _client;
   final Future<void> Function()? beforeAccess;
+  final RuntimeChangeCoalescer _coalescer;
 
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
@@ -23,15 +30,19 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Stream<List<Workspace>> watchWorkspaces(String projectId) async* {
-    yield await listWorkspaces(projectId);
-    await for (final event in _client.runtimeEvents) {
-      if (event.name == 'workspacesChanged' ||
-          event.name == 'workspaceTagsChanged' ||
-          event.name == 'workspaceRelationsChanged') {
-        yield await listWorkspaces(projectId);
-      }
-    }
+  Stream<List<Workspace>> watchWorkspaces(String projectId) {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{
+        'workspacesChanged',
+        'workspaceTagsChanged',
+        'workspaceRelationsChanged',
+      },
+      readSnapshot: () => listWorkspaces(projectId),
+      coalesceKey: 'workspaces:$projectId',
+      coalescer: _coalescer,
+      matchesScope: runtimeScopeMatcher('projectId', projectId),
+    );
   }
 
   @override
@@ -101,15 +112,15 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(
-    String workspaceId,
-  ) async* {
-    yield await listWorkspaceTabs(workspaceId);
-    await for (final event in _client.runtimeEvents) {
-      if (event.name == 'workspaceTabsChanged') {
-        yield await listWorkspaceTabs(workspaceId);
-      }
-    }
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{'workspaceTabsChanged'},
+      readSnapshot: () => listWorkspaceTabs(workspaceId),
+      coalesceKey: 'tabs:$workspaceId',
+      coalescer: _coalescer,
+      matchesScope: runtimeScopeMatcher('workspaceId', workspaceId),
+    );
   }
 
   @override

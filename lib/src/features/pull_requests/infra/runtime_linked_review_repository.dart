@@ -3,15 +3,22 @@ import 'dart:async';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 /// [LinkedReviewRepository] over the runtime host RPC. Mirrors
 /// `RuntimeProjectConfigRepository`: the host owns the `linkedReviews` table and
 /// broadcasts `linkedReviewsChanged` on every mutation.
 class RuntimeLinkedReviewRepository implements LinkedReviewRepository {
-  RuntimeLinkedReviewRepository(this._client, {this.beforeAccess});
+  RuntimeLinkedReviewRepository(
+    this._client, {
+    this.beforeAccess,
+    RuntimeChangeCoalescer? coalescer,
+  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   final RuntimeHostClient _client;
   final Future<void> Function()? beforeAccess;
+  final RuntimeChangeCoalescer _coalescer;
 
   @override
   Future<LinkedReview?> find(String workspaceId) async {
@@ -27,13 +34,15 @@ class RuntimeLinkedReviewRepository implements LinkedReviewRepository {
   }
 
   @override
-  Stream<LinkedReview?> watch(String workspaceId) async* {
-    yield await find(workspaceId);
-    await for (final event in _client.runtimeEvents) {
-      if (event.name == 'linkedReviewsChanged') {
-        yield await find(workspaceId);
-      }
-    }
+  Stream<LinkedReview?> watch(String workspaceId) {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{'linkedReviewsChanged'},
+      readSnapshot: () => find(workspaceId),
+      coalesceKey: 'linkedReview:$workspaceId',
+      coalescer: _coalescer,
+      matchesScope: runtimeScopeMatcher('workspaceId', workspaceId),
+    );
   }
 
   @override

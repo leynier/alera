@@ -4,12 +4,19 @@ import 'package:alera/src/features/projects/application/project_repository.dart'
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 class RuntimeProjectRepository implements ProjectRepository {
-  RuntimeProjectRepository(this._client, {this.beforeAccess});
+  RuntimeProjectRepository(
+    this._client, {
+    this.beforeAccess,
+    RuntimeChangeCoalescer? coalescer,
+  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   final RuntimeHostClient _client;
   final Future<void> Function()? beforeAccess;
+  final RuntimeChangeCoalescer _coalescer;
 
   @override
   Future<List<Project>> listAll() async {
@@ -19,13 +26,14 @@ class RuntimeProjectRepository implements ProjectRepository {
   }
 
   @override
-  Stream<List<Project>> watchAll() async* {
-    yield await listAll();
-    await for (final event in _client.runtimeEvents) {
-      if (event.name == 'projectsChanged') {
-        yield await listAll();
-      }
-    }
+  Stream<List<Project>> watchAll() {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{'projectsChanged'},
+      readSnapshot: listAll,
+      coalesceKey: 'projects',
+      coalescer: _coalescer,
+    );
   }
 
   @override
