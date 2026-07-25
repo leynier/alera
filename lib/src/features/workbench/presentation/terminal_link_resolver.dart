@@ -123,6 +123,11 @@ class Osc8TerminalLinkTracker {
   final List<_TrackedOsc8Link> _links = <_TrackedOsc8Link>[];
   _PendingOsc8Link? _activeLink;
 
+  /// Links are only detached when their anchors scroll out of the buffer, so
+  /// pruning on every close was O(n) per link and quadratic over a session
+  /// with many hyperlinks. Prune on growth instead, which amortizes to O(1).
+  int _nextPruneThreshold = _osc8LinkPruneFloor;
+
   void handlePrivateOsc(String code, List<String> args) {
     if (code != '8') {
       return;
@@ -199,7 +204,10 @@ class Osc8TerminalLinkTracker {
     _pruneDetachedLinks();
   }
 
-  void _pruneDetachedLinks() {
+  void _pruneDetachedLinks({bool force = false}) {
+    if (!force && _links.length < _nextPruneThreshold) {
+      return;
+    }
     _links.removeWhere((link) {
       final keep = link.attached;
       if (!keep) {
@@ -207,6 +215,10 @@ class Osc8TerminalLinkTracker {
       }
       return !keep;
     });
+    final doubled = _links.length * 2;
+    _nextPruneThreshold = doubled > _osc8LinkPruneFloor
+        ? doubled
+        : _osc8LinkPruneFloor;
   }
 
   xterm.CellOffset _currentCursorOffset() {
@@ -425,6 +437,10 @@ final RegExp _visibleHttpUrlPattern = RegExp(
   r'https?:\/\/[^\s]+',
   caseSensitive: false,
 );
+
+/// Below this many tracked links the O(n) sweep is cheap enough to skip the
+/// growth heuristic entirely.
+const int _osc8LinkPruneFloor = 64;
 
 const Set<String> _alwaysTrimmedTrailingUrlCharacters = <String>{
   '.',

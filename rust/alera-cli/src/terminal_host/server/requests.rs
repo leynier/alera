@@ -495,11 +495,9 @@ impl ServerActor {
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
                 self.flush_all_output(&session_id);
-                let snapshot = if let Some(session) = self.sessions.get_mut(&session_id) {
-                    session.set_output_paused(client_id, paused);
-                    session.snapshot_payload()
-                } else {
-                    json!({})
+                let snapshot = match self.sessions.get_mut(&session_id) {
+                    Some(session) => session.set_output_paused_payload(client_id, paused),
+                    None => json!({}),
                 };
                 Ok(snapshot)
             }

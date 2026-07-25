@@ -19,9 +19,10 @@ part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
+part 'terminal_host_client_session_events.dart';
 
 final class SocketTerminalHostClient
-    with _TerminalHostClientHeartbeat
+    with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
     implements TerminalHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
@@ -622,31 +623,34 @@ final class SocketTerminalHostClient
     if (sessionId is! String || _events.isClosed) {
       return;
     }
+    void emit(TerminalHostEvent hostEvent) {
+      _events.add(hostEvent);
+      _emitSessionEvent(sessionId, hostEvent);
+    }
+
     switch (event) {
       case 'output':
-        _events.add(
+        emit(
           TerminalHostOutputEvent(
             sessionId,
             decodeTerminalHostBytes(payload['dataBase64']),
           ),
         );
       case 'outputResyncRequired':
-        _events.add(TerminalHostOutputResyncRequiredEvent(sessionId));
+        emit(TerminalHostOutputResyncRequiredEvent(sessionId));
       case 'exit':
-        _events.add(
+        emit(
           TerminalHostExitEvent(sessionId, (payload['exitCode'] as int?) ?? -1),
         );
       case 'error':
-        _events.add(
+        emit(
           TerminalHostErrorEvent(
             sessionId,
             payload['error'] ?? 'Unknown terminal host error.',
           ),
         );
       case 'terminalDriverChanged':
-        _events.add(
-          TerminalHostDriverChangedEvent.fromPayload(sessionId, payload),
-        );
+        emit(TerminalHostDriverChangedEvent.fromPayload(sessionId, payload));
     }
   }
 
@@ -772,6 +776,7 @@ final class SocketTerminalHostClient
     }
     _disposed = true;
     _stopHeartbeat();
+    _closeSessionEvents();
     final connections = <_TerminalHostConnection>{};
     if (_terminalConnection case final connection?) {
       connections.add(connection);

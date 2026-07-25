@@ -183,6 +183,11 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   String get displayTitle => 'Terminal';
 
   @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
+
+  @override
   bool get isRunning => _started;
 
   @override
@@ -231,6 +236,11 @@ class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
 
   @override
   String get displayTitle => 'Terminal';
+
+  @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
 
   @override
   bool get isRunning => true;
@@ -303,6 +313,11 @@ class _ErrorSessionHandle extends TerminalSessionHandle {
   String get displayTitle => 'Terminal';
 
   @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
+
+  @override
   bool get isRunning => false;
 
   @override
@@ -347,6 +362,11 @@ class _StartingSessionHandle extends TerminalSessionHandle {
 
   @override
   String get displayTitle => 'Terminal';
+
+  @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
 
   @override
   bool get isRunning => false;

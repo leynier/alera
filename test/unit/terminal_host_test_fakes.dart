@@ -54,6 +54,14 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   Stream<TerminalHostEvent> get events => _events.stream;
 
   @override
+  Stream<TerminalHostEvent> eventsForSession(String sessionId) {
+    return _events.stream.where((event) => event.sessionId == sessionId);
+  }
+
+  @override
+  void releaseSession(String sessionId) {}
+
+  @override
   Future<void> configure(TerminalHostConfig config) async {}
 
   @override

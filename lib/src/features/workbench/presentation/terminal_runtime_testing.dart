@@ -63,12 +63,12 @@ void flushTerminalOutputForTesting(TerminalSessionHandle session) {
 
 @visibleForTesting
 int terminalOutputFrameCutoffForTesting(String value) {
-  return _terminalOutputFrameCutoff(value);
+  return _terminalOutputChunkCutoff(value, _terminalOutputMaxCharsPerFrame);
 }
 
 @visibleForTesting
 int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
-  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutput.length;
+  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutputLength;
 }
 
 @visibleForTesting

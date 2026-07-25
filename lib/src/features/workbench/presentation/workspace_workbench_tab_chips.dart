@@ -120,9 +120,11 @@ class _WorkspaceTabChip extends StatelessWidget {
     if (session == null) {
       return _buildChip(context, tab.title);
     }
-    return AnimatedBuilder(
-      animation: session,
-      builder: (context, _) => _buildChip(context, session.displayTitle),
+    // Title only: listening to the whole session rebuilt every chip on each
+    // OSC title change, which shells emit per prompt.
+    return ValueListenableBuilder<String>(
+      valueListenable: session.titleListenable,
+      builder: (context, title, _) => _buildChip(context, title),
     );
   }
 

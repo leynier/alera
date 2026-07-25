@@ -53,7 +53,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
   late final StreamSubscription<String> _decodedOutputSub;
-  final StringBuffer _pendingTerminalOutput = StringBuffer();
+
+  /// Pending output held as whole chunks rather than one growing buffer: a
+  /// single buffer forced a full copy plus two substrings on every drain, so
+  /// draining a full backlog was quadratic in its size.
+  final Queue<String> _pendingTerminalOutput = Queue<String>();
+  int _pendingTerminalOutputLength = 0;
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
@@ -71,6 +76,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   bool _running = false;
   bool _terminalOutputFlushScheduled = false;
   String _title = '';
+  late final ValueNotifier<String> _titleNotifier = ValueNotifier<String>(
+    displayTitle,
+  );
   String? _errorMessage;
   bool _visible = false;
   bool _pendingInteractionModeReset = false;
@@ -83,6 +91,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   String get workspaceId => _workspace.id;
 
   String get terminalSessionId => _tab.terminalSessionId;
+
+  @override
+  @override
+  ValueListenable<String> get titleListenable => _titleNotifier;
 
   @override
   String get displayTitle {
@@ -117,6 +129,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _tab.hasManualTitle != tab.hasManualTitle;
     _workspace = workspace;
     _tab = tab;
+    _titleNotifier.value = displayTitle;
     if (metadataChanged) {
       // sync() is invoked from build(); defer the notification so listening
       // AnimatedBuilders are not marked dirty during the build phase.
@@ -267,7 +280,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _handleTitleChanged(String title) {
     _title = title;
-    notifyListeners();
+    _titleNotifier.value = displayTitle;
   }
 
   void _handleTerminalInput(String data) {
@@ -498,8 +511,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _writeToTerminal(String data) => _writeSessionTerminal(this, data);
 
-  void _queueTerminalOutput(String data) =>
-      _queueSessionTerminalOutput(this, data);
+  void _queueTerminalOutput(String data, {bool bounded = true}) =>
+      _queueSessionTerminalOutput(this, data, bounded: bounded);
 
   void _scheduleTerminalOutputFlush() =>
       _scheduleSessionTerminalOutputFlush(this);
@@ -509,7 +522,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _flushPendingTerminalOutputNow() => _flushSessionTerminalOutputNow(this);
 
-  void _clearPendingTerminalOutput() => _pendingTerminalOutput.clear();
+  void _clearPendingTerminalOutput() {
+    _pendingTerminalOutput.clear();
+    _pendingTerminalOutputLength = 0;
+  }
 
   void _replaceTerminalWithSnapshot(
     List<int> data, {
@@ -530,9 +546,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _terminal = nextTerminal;
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: nextTerminal);
     _attachTerminal(nextTerminal);
-    nextTerminal.write(const Utf8Decoder(allowMalformed: true).convert(data));
+    // Scrollback can reach the host's 10 MB cap, and parsing all of it in one
+    // synchronous write blocked the frame that showed the terminal. Go through
+    // the same per-frame batcher as live output instead.
+    _queueTerminalOutput(
+      const Utf8Decoder(allowMalformed: true).convert(data),
+      bounded: false,
+    );
     if (resetInteractionModes) {
-      nextTerminal.write(terminalInteractionModeReset);
+      _queueTerminalOutput(terminalInteractionModeReset, bounded: false);
     }
     notifyListeners();
   }
@@ -637,6 +659,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     unawaited(_ptyOutputController.close());
     _scrollController.dispose();
     _focusNode.dispose();
+    _titleNotifier.dispose();
     super.dispose();
   }
 

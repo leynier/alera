@@ -91,6 +91,9 @@ void _registerXtermRuntimeRemintTests() {
         resetInteractionModes: true,
       );
       await Future<void>.delayed(Duration.zero);
+      // A restored snapshot is drained by the frame batcher, not written
+      // synchronously, so it lands on the next flush.
+      flushTerminalOutputForTesting(session);
 
       final restored = terminalBufferTextForTesting(session);
       expect(restored.split('\n').first, 'fresh prompt');
@@ -141,6 +144,7 @@ void _registerXtermRuntimeRemintTests() {
         ),
       );
       await Future<void>.delayed(Duration.zero);
+      flushTerminalOutputForTesting(session);
 
       expect(terminalBufferTextForTesting(session), contains('fresh prompt'));
       expect(
