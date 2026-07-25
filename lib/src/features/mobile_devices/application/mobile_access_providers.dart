@@ -7,7 +7,10 @@ part 'mobile_access_providers.g.dart';
 
 @Riverpod(keepAlive: true)
 RuntimeMobileAccessRepository mobileAccessRepository(Ref ref) {
-  return RuntimeMobileAccessRepository(ref.watch(runtimeHostClientProvider));
+  return RuntimeMobileAccessRepository(
+    ref.watch(runtimeHostClientProvider),
+    coalescer: ref.watch(runtimeChangeCoalescerProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)

@@ -199,7 +199,7 @@ final class LinkedReviewRepositoryProvider
 }
 
 String _$linkedReviewRepositoryHash() =>
-    r'e4a5a933abb650b1e336a9db0d34c04e0049d96b';
+    r'87854e165f36a6db238c7c4c6bbd6466a35a37aa';
 
 /// The effective git-hosting-provider override for a project (UI override or
 /// repo `alera.toml`), or null when the project should auto-detect. Feeds the
