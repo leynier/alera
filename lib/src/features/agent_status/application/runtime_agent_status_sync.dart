@@ -8,15 +8,22 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'runtime_agent_status_sync.g.dart';
 
+const String _agentPresenceCoalesceKey = 'agentPresence';
+
 @Riverpod(keepAlive: true)
 void runtimeAgentStatusSync(Ref ref) {
   final client = ref.watch(runtimeHostClientProvider);
+  final coalescer = ref.watch(runtimeChangeCoalescerProvider);
   var disposed = false;
+  var generation = 0;
 
   Future<void> refresh() async {
+    final requested = ++generation;
     try {
       final payload = await client.runtimeRequest('agentPresence.list');
-      if (disposed) {
+      // Concurrent refreshes can land out of order, and an older snapshot
+      // would undo a newer one.
+      if (disposed || requested != generation) {
         return;
       }
       final entries = payload is List
@@ -36,13 +43,21 @@ void runtimeAgentStatusSync(Ref ref) {
   }
 
   final subscription = client.runtimeEvents.listen((event) {
-    if (event.name == 'agentPresenceChanged' ||
-        event.name == aleraRuntimeHostConnectedEvent) {
+    // The host broadcasts one event per hook, so an agent working through a
+    // task emits a steady stream of them. Each one costs a full snapshot RPC
+    // plus a rebuild of every listener, hence the coalescing.
+    if (event.name == 'agentPresenceChanged') {
+      coalescer.schedule(_agentPresenceCoalesceKey, refresh);
+    } else if (event.name == aleraRuntimeHostConnectedEvent) {
+      // Reconnecting means the local snapshot may be stale in either
+      // direction, so resync now instead of waiting out the debounce.
+      coalescer.cancel(_agentPresenceCoalesceKey);
       unawaited(refresh());
     }
   });
   ref.onDispose(() {
     disposed = true;
+    coalescer.cancel(_agentPresenceCoalesceKey);
     unawaited(subscription.cancel());
   });
   unawaited(refresh());

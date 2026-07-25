@@ -2,6 +2,7 @@ import 'package:alera/src/features/agent_status/application/agent_hook_lifecycle
 import 'package:alera/src/features/agent_status/application/agent_status_identity_resolver.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalizer.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -34,9 +35,14 @@ class AgentStatusController extends _$AgentStatusController
   late DateTime Function() _now;
   final AgentHookLifecycleGuard _lifecycleGuard = AgentHookLifecycleGuard();
 
+  /// When a terminal was cleared locally, so a stale host snapshot cannot
+  /// bring its status back.
+  final Map<String, DateTime> _clearedAt = <String, DateTime>{};
+
   @override
   Map<String, AgentStatusEntry> build() {
     _lifecycleGuard.reset();
+    _clearedAt.clear();
     _now = ref.watch(agentStatusClockProvider);
     return const <String, AgentStatusEntry>{};
   }
@@ -155,6 +161,7 @@ class AgentStatusController extends _$AgentStatusController
 
   void clearTerminal(String terminalSessionId) {
     _lifecycleGuard.clearTerminal(terminalSessionId);
+    _clearedAt[terminalSessionId] = _now();
     if (!state.containsKey(terminalSessionId)) {
       return;
     }
@@ -166,19 +173,54 @@ class AgentStatusController extends _$AgentStatusController
   /// Drops every in-memory status entry for a workspace (e.g. after delete).
   void clearWorkspace(String workspaceId) {
     _lifecycleGuard.clearWorkspace(workspaceId);
-    final next = <String, AgentStatusEntry>{
-      for (final entry in state.entries)
-        if (entry.value.workspaceId != workspaceId) entry.key: entry.value,
-    };
+    final clearedAt = _now();
+    final next = <String, AgentStatusEntry>{};
+    for (final entry in state.entries) {
+      if (entry.value.workspaceId == workspaceId) {
+        _clearedAt[entry.key] = clearedAt;
+      } else {
+        next[entry.key] = entry.value;
+      }
+    }
     if (next.length == state.length) {
       return;
     }
     state = next;
   }
 
+  /// Merges the host's presence snapshot over local state.
+  ///
+  /// The host keeps a `working` presence for the life of the PTY when a
+  /// terminating hook never arrives, so a plain replace would resurrect runs
+  /// that [markTerminalExited] or [clearTerminal] already resolved and leave
+  /// them spinning forever. A locally resolved run therefore wins until the
+  /// host reports something genuinely newer.
   void replaceRuntimeSnapshot(Iterable<AgentStatusEntry> entries) {
-    state = <String, AgentStatusEntry>{
-      for (final entry in entries) entry.terminalSessionId: entry,
-    };
+    final next = <String, AgentStatusEntry>{};
+    final reported = <String>{};
+    for (final entry in entries) {
+      reported.add(entry.terminalSessionId);
+      final sessionId = entry.terminalSessionId;
+      if (_clearedAt[sessionId] case final clearedAt?) {
+        if (!entry.updatedAt.isAfter(clearedAt)) {
+          continue;
+        }
+        _clearedAt.remove(sessionId);
+      }
+      final previous = state[sessionId];
+      final resolvedLocally =
+          previous != null &&
+          previous.state == AgentStatusState.done &&
+          entry.state != AgentStatusState.done &&
+          !entry.updatedAt.isAfter(previous.updatedAt);
+      next[sessionId] = resolvedLocally ? previous : entry;
+    }
+    // Only forget a local clear once the host stops reporting that session,
+    // otherwise the very next snapshot would resurrect what was cleared.
+    _clearedAt.removeWhere((sessionId, _) => !reported.contains(sessionId));
+    if (mapEquals(next, state)) {
+      return;
+    }
+    state = next;
   }
 }

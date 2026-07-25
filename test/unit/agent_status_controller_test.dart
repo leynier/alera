@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'grok_agent_status_controller_test_cases.dart';
 part 'agy_agent_status_controller_test_cases.dart';
+part 'agent_status_snapshot_test_cases.dart';
 part 'agent_status_controller_test_harness.dart';
 
 void main() {
@@ -38,6 +39,7 @@ void main() {
 
     _registerGrokAgentStatusControllerTests(() => container);
     _registerAgyAgentStatusControllerTests(() => container);
+    _registerAgentStatusSnapshotTests(() => container);
 
     test('normalizes Codex events and preserves state start time', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
