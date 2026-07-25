@@ -21,7 +21,8 @@ pub struct NewOrchestrationTask {
 
 const TASK_COLUMNS: &str = "id, parent_id, created_by_terminal_handle, task_title, \
      display_name, spec, status, deps, result, created_at, completed_at, run_id, workspace_id, \
-     coordinator_handle, result_schema, startup_failure_count, cancelled_at, stalled_at";
+     coordinator_handle, result_schema, startup_failure_count, cancelled_at, stalled_at, \
+     stage_id";
 
 pub(super) fn parse_string_array(raw: &str) -> Vec<String> {
     serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
@@ -50,6 +51,7 @@ fn task_from_row(row: SqliteRow) -> Result<OrchestrationTask> {
         startup_failure_count: row.try_get("startup_failure_count")?,
         cancelled_at: row.try_get("cancelled_at")?,
         stalled_at: row.try_get("stalled_at")?,
+        stage_id: row.try_get("stage_id")?,
         assignee_handle: None,
         dispatch_id: None,
     })
@@ -146,28 +148,6 @@ pub(super) async fn refresh_pending_dependents_after_task_status(
 }
 
 impl RuntimeStore {
-    pub async fn insert_orchestration_audit_event(
-        &self,
-        actor_handle: Option<&str>,
-        action: &str,
-        target_id: &str,
-        reason: &str,
-    ) -> Result<()> {
-        let id = orchestration_id("audit");
-        sqlx::query(
-            "INSERT INTO orchestrationAuditEvents (id, actor_handle, action, target_id, reason) \
-             VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(actor_handle)
-        .bind(action)
-        .bind(target_id)
-        .bind(reason)
-        .execute(self.pool())
-        .await?;
-        Ok(())
-    }
-
     pub async fn recover_stalled_orchestration_task(
         &self,
         id: &str,

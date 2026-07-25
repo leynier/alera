@@ -126,6 +126,21 @@ impl ServerActor {
                 .orchestration_agent_spawn_timeout(payload)
                 .await
                 .map(Some),
+            "orchestration.runPolicyPropose" => self
+                .orchestration_run_policy_propose(payload)
+                .await
+                .map(Some),
+            "orchestration.runPolicyShow" => {
+                self.orchestration_run_policy_show(payload).await.map(Some)
+            }
+            "orchestration.runPolicyApprove" => self
+                .orchestration_run_policy_resolve(payload, true)
+                .await
+                .map(Some),
+            "orchestration.runPolicyReject" => self
+                .orchestration_run_policy_resolve(payload, false)
+                .await
+                .map(Some),
             "orchestration.send" => self.orchestration_send(payload).await.map(Some),
             "orchestration.check" => {
                 self.orchestration_check(client_id, request_id, payload)
@@ -749,6 +764,24 @@ impl ServerActor {
             })
             .await
             .map_err(state_error)?;
+        // Binding the stage after creation keeps `create_orchestration_task`
+        // free of policy concerns; the stage is validated against the run's
+        // approved plan rather than trusted from the payload.
+        if let Some(stage) = optional_string(payload, "stage") {
+            self.bind_task_to_policy_stage(&task.id, task.run_id.as_deref(), &stage)
+                .await?;
+            // Re-read rather than returning task_show: taskCreate always answers
+            // with a bare task, and the stage must not change that shape.
+            let stored = self
+                .runtime_store
+                .orchestration_task_by_id(&task.id)
+                .await
+                .map_err(state_error)?
+                .ok_or_else(|| {
+                    HostError::state(format!("orchestration task not found: {}", task.id))
+                })?;
+            return Ok(json!(stored));
+        }
         Ok(json!(task))
     }
 

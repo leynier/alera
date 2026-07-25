@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
+import 'package:alera/src/features/orchestration/presentation/run_policy_review_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,6 +73,7 @@ class _NativeAppMenuBridgeState extends ConsumerState<_NativeAppMenuBridge> {
 
 enum _AppMenuAction {
   openSettings,
+  reviewExecutionPlans,
   checkForUpdates,
   undo,
   redo,
@@ -133,6 +135,10 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
           label: 'Settings',
         ),
         AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.reviewExecutionPlans,
+          label: 'Execution Plans',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
           value: _AppMenuAction.checkForUpdates,
           label: 'Check for Updates',
         ),
@@ -186,6 +192,8 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
     switch (selected) {
       case _AppMenuAction.openSettings:
         await openAppMenuSettings(context);
+      case _AppMenuAction.reviewExecutionPlans:
+        await showRunPolicyReviewDialog(context);
       case _AppMenuAction.checkForUpdates:
         await checkForUpdatesFromAppMenu(context, ref);
       case _AppMenuAction.undo:
@@ -261,6 +269,12 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
                   // accelerator can open Settings twice.
                   onSelected: () {
                     unawaited(openAppMenuSettings(context));
+                  },
+                ),
+                PlatformMenuItem(
+                  label: 'Execution Plans',
+                  onSelected: () {
+                    unawaited(showRunPolicyReviewDialog(context));
                   },
                 ),
                 PlatformMenuItem(

@@ -67,7 +67,8 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         result_schema TEXT,
         startup_failure_count INTEGER NOT NULL DEFAULT 0,
         cancelled_at TEXT,
-        stalled_at TEXT
+        stalled_at TEXT,
+        stage_id TEXT
     );",
     "CREATE INDEX IF NOT EXISTS orchestrationTasksStatusIdx ON orchestrationTasks(status);",
     "CREATE INDEX IF NOT EXISTS orchestrationTasksParentIdx ON orchestrationTasks(parent_id);",
@@ -119,7 +120,10 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         workspace_id TEXT NOT NULL,
         max_concurrent INTEGER NOT NULL DEFAULT 4,
         last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
-        stop_reason TEXT
+        stop_reason TEXT,
+        execution_policy TEXT,
+        execution_policy_status TEXT NOT NULL DEFAULT 'none',
+        execution_policy_updated_at TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS orchestrationCoordinatorRunsActiveWorkspaceIdx ON orchestrationCoordinatorRuns(workspace_id) WHERE status IN ('running','stopping');",
     "CREATE TABLE IF NOT EXISTS orchestrationAuditEvents (

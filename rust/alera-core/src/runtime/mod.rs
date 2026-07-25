@@ -5,14 +5,20 @@ mod agent_profile_store_tests;
 #[cfg(test)]
 mod mobile_store_tests;
 mod models;
+mod orchestration_audit_store;
 mod orchestration_dispatch_store;
 mod orchestration_message_store;
 mod orchestration_models;
+mod orchestration_policy_store;
+#[cfg(test)]
+mod orchestration_policy_store_tests;
+mod orchestration_run_store;
 #[cfg(test)]
 mod orchestration_store_tests;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
+mod runtime_schema;
 mod schema_migrations;
 mod settings_models;
 mod settings_store;

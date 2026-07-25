@@ -49,6 +49,38 @@ The quota group declares which profiles drain the same usage bucket. Alera never
 
 The app manages the catalog with `agentProfile.list`, `agentProfile.upsert`, and `agentProfile.remove`, and refreshes on the `agentProfilesChanged` event.
 
+## Execution Policy
+
+A run may carry an execution policy: a stage plan the user approves before the coordinator is allowed to dispatch. The policy names a preferred agent profile per stage plus an ordered fallback list, and tasks reference a stage through `task-create --stage`.
+
+```bash
+alera orchestration run-policy-propose --run <run-id> --policy-file plan.json
+alera orchestration run-policy-show --run <run-id>
+alera orchestration run-policy-approve --run <run-id>
+alera orchestration run-policy-reject --run <run-id> --reason "Wrong stage split"
+```
+
+```json
+{
+  "version": 1,
+  "stallPolicy": "ask",
+  "stages": [
+    {
+      "id": "implementation",
+      "title": "Implementation",
+      "profile": "Codex GPT-5.6-Sol",
+      "fallbacks": ["Claude Sonnet 5"]
+    }
+  ]
+}
+```
+
+Proposal validates the plan against the catalog: stages must be non-empty with unique ids, `stallPolicy` must be `ask`, `auto-failover`, or `wait`, and every referenced profile, preferred or fallback, must already exist. An unknown profile is an error rather than a warning, because it would otherwise only surface at dispatch, long after the user decided. A stage id a run does not declare is rejected by `task-create --stage` for the same reason.
+
+Approval state is `none`, `draft`, `approved`, or `rejected`. Only `draft` holds scheduling: `coordinator_dispatch_ready_tasks` returns early while a proposal is unresolved. A run with no policy, an approved one, or a rejected one all schedule exactly as runs did before policies existed, so the feature is opt-in and changes no existing behavior. Approving or rejecting twice is refused so a decision cannot be silently overwritten; revising a plan means proposing again. Approvals and rejections are recorded in `orchestrationAuditEvents`, and a rejection requires a reason.
+
+Decision gates are not reused for this: `orchestrationDecisionGates.task_id` is `NOT NULL`, so a run-scoped gate would need a destructive table rebuild, and creating a gate closes the active dispatch, which is the wrong semantics for a plan. The app surfaces pending plans through Execution Plans in the application menu.
+
 ## Agent Spawn And Readiness
 
 `agent-spawn` creates or selects a terminal, starts the requested agent, delivers its bootstrap through the registered adapter, and waits for acceptance. Codex receives a short positional bootstrap after the host creates the dispatch and installs its context, so its first turn does not depend on a prior readiness hook. Other adapters retain hook-based readiness injection.

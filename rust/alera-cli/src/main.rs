@@ -2,6 +2,7 @@ mod agent_quota;
 mod agent_status;
 mod cli;
 mod cli_orchestration;
+mod cli_orchestration_runs;
 mod cli_orchestration_terminal;
 #[cfg(test)]
 mod cli_tests;

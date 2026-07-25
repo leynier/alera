@@ -504,10 +504,30 @@ impl ServerActor {
         Ok(())
     }
 
+    async fn coordinator_policy_blocks_dispatch(&mut self, run_id: &str) -> anyhow::Result<bool> {
+        let Some(run) = self
+            .runtime_store
+            .orchestration_coordinator_run_by_id(run_id)
+            .await?
+        else {
+            return Ok(false);
+        };
+        Ok(run.execution_policy_status.blocks_dispatch())
+    }
+
     async fn coordinator_dispatch_ready_tasks(
         &mut self,
         config: &CoordinatorConfig,
     ) -> anyhow::Result<()> {
+        // A proposed but unresolved execution policy holds scheduling: the whole
+        // point of the plan is that the user approves it before work starts. A
+        // run with no policy is unaffected and schedules as it always did.
+        if self
+            .coordinator_policy_blocks_dispatch(&config.run_id)
+            .await?
+        {
+            return Ok(());
+        }
         let ready = self
             .runtime_store
             .list_scoped_orchestration_tasks(
