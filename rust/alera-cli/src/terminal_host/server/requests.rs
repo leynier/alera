@@ -35,8 +35,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RUN_POLICY_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
+    RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
@@ -575,6 +576,7 @@ impl ServerActor {
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+                        RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
                     ],
                     "authenticated": true,
                     "persistent": self.config.persistent,
@@ -582,6 +584,10 @@ impl ServerActor {
                     "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
                     "mobileGatewayEnabled": self.mobile_gateway.is_some(),
                 }))
+            }
+            "resources.snapshot" => {
+                self.require_auth(client_id)?;
+                self.handle_resource_snapshot(payload)
             }
             "runtimeMetadata.get" => {
                 self.require_auth(client_id)?;

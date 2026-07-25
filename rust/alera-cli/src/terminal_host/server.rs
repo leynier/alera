@@ -40,6 +40,8 @@ use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 
+use resource_requests::ResourceMonitorState;
+
 mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
@@ -61,6 +63,7 @@ mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
 mod requests;
+mod resource_requests;
 mod runtime_change_broadcasts;
 mod terminal_driver;
 mod terminal_input_requests;
@@ -195,6 +198,12 @@ pub enum ServerCommand {
     CoordinatorTick {
         run_id: String,
     },
+    /// One resource sampling iteration, enqueued by the ticker task.
+    ResourceSampleTick,
+    /// A finished sweep coming back from its blocking thread.
+    ResourceSampleReady {
+        snapshot: Value,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -279,6 +288,7 @@ pub async fn run_terminal_host_server(
         orchestration_delivery_backpressured: HashSet::new(),
         orchestration_activity_last_recorded: HashMap::new(),
         coordinators: HashMap::new(),
+        resources: ResourceMonitorState::default(),
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -370,6 +380,7 @@ struct ServerActor {
     orchestration_delivery_backpressured: HashSet<String>,
     orchestration_activity_last_recorded: HashMap<String, Instant>,
     coordinators: HashMap<String, CoordinatorHandle>,
+    resources: ResourceMonitorState,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -676,6 +687,10 @@ impl ServerActor {
                 self.handle_project_clone_finished(job_id).await
             }
             ServerCommand::CoordinatorTick { run_id } => self.handle_coordinator_tick(run_id).await,
+            ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
+            ServerCommand::ResourceSampleReady { snapshot } => {
+                self.handle_resource_sample_ready(snapshot)
+            }
         }
     }
 
@@ -1281,6 +1296,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1345,6 +1361,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1398,6 +1415,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1455,6 +1473,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1532,6 +1551,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1631,6 +1651,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1703,6 +1724,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1766,6 +1788,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,

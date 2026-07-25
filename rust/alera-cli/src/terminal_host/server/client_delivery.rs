@@ -174,6 +174,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

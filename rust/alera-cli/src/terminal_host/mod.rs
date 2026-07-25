@@ -7,5 +7,6 @@ pub mod host_error;
 pub mod mobile_gateway;
 pub mod orchestration;
 pub mod protocol;
+pub mod resources;
 pub mod server;
 pub mod session;
