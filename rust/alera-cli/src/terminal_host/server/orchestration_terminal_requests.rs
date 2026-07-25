@@ -193,10 +193,7 @@ impl ServerActor {
                 .map_err(state_error)?;
             self.store.delete(handle).await.map_err(state_error)?;
             self.remove_dispatch_context(handle);
-            self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                "workspaceTabsChanged",
-                json!({}),
-            ));
+            self.broadcast_workspace_tabs_changed(Some(&tab.workspace_id));
             return Ok(true);
         }
         self.cleanup_orchestration_for_closed_session(handle, "terminal pruned")

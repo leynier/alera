@@ -655,11 +655,9 @@ impl ServerActor {
         if self.orchestration_dispatch(&dispatch_payload).await.is_ok() {
             tab.payload["pendingOrchestration"] = Value::Null;
             tab.updated_at = chrono::Utc::now();
+            let workspace_id = tab.workspace_id.clone();
             let _ = self.runtime_store.upsert_workspace_tab(tab).await;
-            self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                "workspaceTabsChanged",
-                json!({}),
-            ));
+            self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         }
     }
 

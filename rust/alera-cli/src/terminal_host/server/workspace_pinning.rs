@@ -1,7 +1,6 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::event;
 
 use super::ServerActor;
 
@@ -26,9 +25,10 @@ impl ServerActor {
             .set_workspace_pinned(&request.id, request.is_pinned)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        let project_id = workspace.project_id.clone();
         let value = serde_json::to_value(workspace)
             .map_err(|error| HostError::format(error.to_string()))?;
-        self.broadcast_authenticated(event("workspacesChanged", json!({})));
+        self.broadcast_workspaces_changed(Some(&project_id));
         Ok(value)
     }
 }

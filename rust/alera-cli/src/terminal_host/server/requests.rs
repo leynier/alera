@@ -40,6 +40,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::{Session, SessionDriver};
 
 use super::mobile_terminal_requests::mobile_request_allowed;
+use super::runtime_change_broadcasts::string_scope;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -238,8 +239,9 @@ impl ServerActor {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
+                let project_id = string_scope(&payload, "projectId");
                 self.client_write(client_id, ok_response(request_id, payload));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(project_id.as_deref());
             }
             Err(error) => {
                 self.client_write(client_id, error_response(request_id, &error));
@@ -257,16 +259,14 @@ impl ServerActor {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
-                if let Some(id) = payload
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-                {
-                    self.terminate_sessions_for_workspace(&id).await;
+                let workspace_id = string_scope(&payload, "id");
+                let project_id = string_scope(&payload, "projectId");
+                if let Some(id) = workspace_id.as_deref() {
+                    self.terminate_sessions_for_workspace(id).await;
                 }
                 self.client_write(client_id, ok_response(request_id, payload));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspaces_changed(project_id.as_deref());
+                self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
             }
             Err(error) => {
                 self.client_write(client_id, error_response(request_id, &error));
@@ -722,8 +722,8 @@ impl ServerActor {
                 json_result(self.runtime_store.remove_project(&id).await)?;
                 self.terminate_sessions_for_workspaces(&workspace_ids).await;
                 self.broadcast_authenticated(event("projectsChanged", json!({})));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspaces_changed(Some(&id));
+                self.broadcast_workspace_tabs_changed(None);
                 self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
                 Ok(json!({}))
             }
@@ -779,8 +779,9 @@ impl ServerActor {
             "workspace.upsert" => {
                 self.require_auth(client_id)?;
                 let workspace: Workspace = parse_payload(payload)?;
+                let project_id = workspace.project_id.clone();
                 let value = json_result(self.runtime_store.upsert_workspace(workspace).await)?;
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(Some(&project_id));
                 Ok(value)
             }
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
@@ -798,8 +799,8 @@ impl ServerActor {
                     .unwrap_or(true);
                 json_result(self.runtime_store.remove_workspace(&id, cascade_tabs).await)?;
                 self.terminate_sessions_for_workspace(&id).await;
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
+                self.broadcast_workspace_tabs_changed(Some(&id));
                 Ok(json!({}))
             }
             "workspace.removeForProject" => {
@@ -819,8 +820,8 @@ impl ServerActor {
                         .await,
                 )?;
                 self.terminate_sessions_for_workspaces(&workspace_ids).await;
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspaces_changed(Some(&project_id));
+                self.broadcast_workspace_tabs_changed(None);
                 Ok(json!({}))
             }
             "tab.list" => {
@@ -854,15 +855,18 @@ impl ServerActor {
                 let title = require_string_key(payload, "title")?;
                 let value =
                     json_result(self.runtime_store.rename_workspace_tab(&id, &title).await)?;
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspace_tabs_changed(
+                    value.get("workspaceId").and_then(Value::as_str),
+                );
                 Ok(value)
             }
             "tab.remove" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
+                let workspace_id = self.workspace_id_for_tab(&id).await;
                 json_result(self.runtime_store.remove_workspace_tab(&id).await)?;
                 self.terminate_sessions_for_tab(&id).await;
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
                 Ok(json!({}))
             }
             "tab.removeForWorkspace" => {
@@ -870,7 +874,7 @@ impl ServerActor {
                 let workspace_id = require_string_key(payload, "workspaceId")?;
                 json_result(self.runtime_store.sleep_workspace(&workspace_id).await)?;
                 self.terminate_sessions_for_workspace(&workspace_id).await;
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
                 self.broadcast_authenticated(event("workbenchLayoutsChanged", json!({})));
                 Ok(json!({}))
             }
@@ -931,7 +935,7 @@ impl ServerActor {
                 let tag: WorkspaceTag = parse_payload(payload)?;
                 let value = json_result(self.runtime_store.upsert_tag(tag).await)?;
                 self.broadcast_authenticated(event("workspaceTagsChanged", json!({})));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(value)
             }
             "workspaceTag.remove" => {
@@ -939,7 +943,7 @@ impl ServerActor {
                 let id = require_string_key(payload, "id")?;
                 json_result(self.runtime_store.remove_tag(&id).await)?;
                 self.broadcast_authenticated(event("workspaceTagsChanged", json!({})));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(json!({}))
             }
             "workspaceTag.assign" => {
@@ -947,7 +951,7 @@ impl ServerActor {
                 let workspace_id = require_string_key(payload, "workspaceId")?;
                 let tag_id = require_string_key(payload, "tagId")?;
                 json_result(self.runtime_store.assign_tag(&workspace_id, &tag_id).await)?;
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(json!({}))
             }
             "workspaceTag.unassign" => {
@@ -959,7 +963,7 @@ impl ServerActor {
                         .unassign_tag(&workspace_id, &tag_id)
                         .await,
                 )?;
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(json!({}))
             }
             "workspaceRelation.list" => {
@@ -976,7 +980,7 @@ impl ServerActor {
                         .await,
                 )?;
                 self.broadcast_authenticated(event("workspaceRelationsChanged", json!({})));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(value)
             }
             "workspaceRelation.unlink" => {
@@ -989,7 +993,7 @@ impl ServerActor {
                         .await,
                 )?;
                 self.broadcast_authenticated(event("workspaceRelationsChanged", json!({})));
-                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_workspaces_changed(None);
                 Ok(json!({}))
             }
             "workspaceCascade.preview" => {

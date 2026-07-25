@@ -283,7 +283,7 @@ impl ServerActor {
         if let Some(mut session) = self.sessions.remove(session_id) {
             session.terminate(true, &self.store).await;
         }
-        self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+        self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         self.broadcast_authenticated(event("workspaceActivityChanged", json!({})));
         Ok(true)
     }
