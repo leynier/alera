@@ -156,6 +156,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Prefer isolate-backed workers, `compute`, streamed processing, or incremental batching for work that can grow with repository size, terminal output size, release artifact size, or user data size.
 - Keep main-isolate work limited to UI state coordination and small transformations needed for rendering.
 - When a main-isolate implementation is intentionally kept, document the reason in code or PR notes if the workload could plausibly become large.
+- On Linux a frame costs CPU whether or not it changed anything: the GTK3 embedder reads the rendered surface back and composites it in software on the platform thread (`gdk_cairo_draw_from_gl`), which no GDK setting avoids and which scales with the window's pixels. Reducing how many frames are produced therefore beats making a frame cheaper. Anything that streams (terminal output above all) MUST NOT request a frame per vsync for as long as data keeps arriving; pace it instead, and measure with the benchmarks under `integration_test/` rather than assuming. See `docs/performance.md`.
 
 ## Process And Terminal Safety
 

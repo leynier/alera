@@ -78,4 +78,63 @@ void _registerTerminalRuntimeOutputBackpressureTests() {
     expect(text, contains('😀'));
     expect(text, contains('tail line'));
   });
+
+  test(
+    'paces flushes under sustained output instead of one per frame',
+    () async {
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      final visibility = acquireTerminalVisibilityForTesting(session);
+      addTearDown(visibility.dispose);
+
+      // A terminal that has been quiet flushes on the very next frame: the
+      // cadence floor must not add latency to an echoed keystroke.
+      queueTerminalOutputForTesting(session, 'first\r\n');
+      expect(terminalOutputFlushScheduledForTesting(session), isTrue);
+      expect(terminalOutputFlushDeferredForTesting(session), isFalse);
+
+      flushTerminalOutputForTesting(session);
+
+      // Output arriving right behind a flush waits out the floor rather than
+      // driving another frame immediately.
+      queueTerminalOutputForTesting(session, 'second\r\n');
+      expect(terminalOutputFlushDeferredForTesting(session), isTrue);
+
+      await Future<void>.delayed(terminalOutputMinFlushIntervalForTesting * 2);
+
+      expect(terminalOutputFlushDeferredForTesting(session), isFalse);
+      expect(terminalOutputFlushScheduledForTesting(session), isTrue);
+    },
+  );
+
+  test('a deferred flush is dropped when the terminal goes hidden', () async {
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+
+    queueTerminalOutputForTesting(session, 'first\r\n');
+    flushTerminalOutputForTesting(session);
+    queueTerminalOutputForTesting(session, 'second\r\n');
+    expect(terminalOutputFlushDeferredForTesting(session), isTrue);
+
+    visibility.dispose();
+    await Future<void>.delayed(terminalOutputMinFlushIntervalForTesting * 2);
+
+    // The backlog is kept, but a hidden terminal must not pay frame time for
+    // it; it drains when it becomes visible again.
+    expect(terminalOutputFlushScheduledForTesting(session), isFalse);
+    expect(pendingTerminalOutputCharsForTesting(session), greaterThan(0));
+  });
 }

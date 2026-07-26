@@ -59,16 +59,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       StreamController<List<int>>();
   late final StreamSubscription<String> _decodedOutputSub;
 
-  /// Pending output held as whole chunks rather than one growing buffer: a
-  /// single buffer forced a full copy plus two substrings on every drain, so
-  /// draining a full backlog was quadratic in its size. The head chunk is
-  /// consumed in place through [_pendingTerminalOutputHead] for the same
-  /// reason; a restored snapshot arrives as one multi-megabyte chunk.
-  final Queue<String> _pendingTerminalOutput = Queue<String>();
-  int _pendingTerminalOutputHead = 0;
-
-  /// Chars still to write, already net of [_pendingTerminalOutputHead].
-  int _pendingTerminalOutputLength = 0;
+  final _TerminalOutputPipeline _output = _TerminalOutputPipeline();
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
@@ -84,7 +75,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   bool _starting = false;
   bool _started = false;
   bool _running = false;
-  bool _terminalOutputFlushScheduled = false;
   String _title = '';
   late final ValueNotifier<String> _titleNotifier = ValueNotifier<String>(
     displayTitle,
@@ -564,9 +554,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _clearPendingTerminalOutput() {
-    _pendingTerminalOutput.clear();
-    _pendingTerminalOutputHead = 0;
-    _pendingTerminalOutputLength = 0;
+    _output.cancelDeferredFlush();
+    _output.clear();
   }
 
   void _syncPtyOutputVisibility() {

@@ -61,6 +61,29 @@ void flushTerminalOutputForTesting(TerminalSessionHandle session) {
   (session as _XtermTerminalSessionHandle)._flushPendingTerminalOutputFrame();
 }
 
+/// Whether a flush is pending, either as a frame callback or as a deferred
+/// timer.
+@visibleForTesting
+bool terminalOutputFlushScheduledForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.flushScheduled;
+}
+
+/// Whether the pending flush is waiting on the cadence floor rather than on the
+/// next frame.
+@visibleForTesting
+bool terminalOutputFlushDeferredForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.flushTimer != null;
+}
+
+@visibleForTesting
+int terminalOutputFlushCountForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.flushCount;
+}
+
+@visibleForTesting
+Duration get terminalOutputMinFlushIntervalForTesting =>
+    _terminalOutputMinFlushInterval;
+
 @visibleForTesting
 int terminalOutputFrameCutoffForTesting(String value) {
   return _terminalOutputChunkCutoff(value, _terminalOutputMaxCharsPerFrame);
@@ -68,7 +91,7 @@ int terminalOutputFrameCutoffForTesting(String value) {
 
 @visibleForTesting
 int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
-  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutputLength;
+  return (session as _XtermTerminalSessionHandle)._output.length;
 }
 
 /// The head chunk itself, so a test can assert it is consumed in place rather
@@ -77,14 +100,13 @@ int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
 String? pendingTerminalOutputHeadChunkForTesting(
   TerminalSessionHandle session,
 ) {
-  final pending =
-      (session as _XtermTerminalSessionHandle)._pendingTerminalOutput;
+  final pending = (session as _XtermTerminalSessionHandle)._output.pending;
   return pending.isEmpty ? null : pending.first;
 }
 
 @visibleForTesting
 int pendingTerminalOutputHeadForTesting(TerminalSessionHandle session) {
-  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutputHead;
+  return (session as _XtermTerminalSessionHandle)._output.head;
 }
 
 @visibleForTesting

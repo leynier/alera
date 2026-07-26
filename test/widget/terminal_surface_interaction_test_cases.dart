@@ -18,7 +18,7 @@ void _registerTerminalSurfaceInteractionTests() {
 
       await _pumpTerminalSurface(tester, session);
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
-      await tester.pump();
+      await _pumpTerminalOutput(tester);
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
@@ -50,7 +50,7 @@ void _registerTerminalSurfaceInteractionTests() {
 
       await _pumpTerminalSurface(tester, session);
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
-      await tester.pump();
+      await _pumpTerminalOutput(tester);
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
       await tester.pump();

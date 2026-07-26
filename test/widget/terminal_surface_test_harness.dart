@@ -28,6 +28,13 @@ Workspace _workspace({String id = 'ws-1', String path = '/tmp/alera'}) {
   );
 }
 
+/// The runtime paces terminal flushes, so freshly emitted PTY output is not on
+/// screen after a single frame. Waits out that cadence, then renders it.
+Future<void> _pumpTerminalOutput(WidgetTester tester) async {
+  await tester.pump(terminalOutputMinFlushIntervalForTesting);
+  await tester.pump();
+}
+
 Future<void> _pumpTerminalSurface(
   WidgetTester tester,
   TerminalSessionHandle session,

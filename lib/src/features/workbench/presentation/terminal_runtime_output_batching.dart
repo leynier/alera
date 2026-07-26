@@ -15,8 +15,8 @@ void _queueSessionTerminalOutput(
   if (data.isEmpty || handle._disposed) {
     return;
   }
-  handle._pendingTerminalOutput.add(data);
-  handle._pendingTerminalOutputLength += data.length;
+  handle._output.pending.add(data);
+  handle._output.length += data.length;
   if (!bounded) {
     // A restored snapshot is a bounded one-shot payload, so it is exempt from
     // the backlog cap that exists to contain a runaway live process.
@@ -25,40 +25,62 @@ void _queueSessionTerminalOutput(
   }
   // Drop the oldest output rather than let a runaway process grow the backlog
   // without bound. Newer output is what the user is looking at.
-  while (handle._pendingTerminalOutputLength > _terminalOutputMaxPendingChars &&
-      handle._pendingTerminalOutput.length > 1) {
-    handle._pendingTerminalOutputLength -= _terminalOutputHeadRemaining(handle);
-    handle._pendingTerminalOutput.removeFirst();
-    handle._pendingTerminalOutputHead = 0;
+  while (handle._output.length > _terminalOutputMaxPendingChars &&
+      handle._output.pending.length > 1) {
+    handle._output.length -= handle._output.headRemaining;
+    handle._output.pending.removeFirst();
+    handle._output.head = 0;
   }
-  if (handle._pendingTerminalOutputLength > _terminalOutputMaxPendingChars) {
+  if (handle._output.length > _terminalOutputMaxPendingChars) {
     // A single chunk can exceed the cap on its own, so trim its head too.
-    final chunk = handle._pendingTerminalOutput.first;
+    final chunk = handle._output.pending.first;
     final start = _terminalOutputHeadTrimStart(
       chunk,
       chunk.length - _terminalOutputMaxPendingChars,
     );
-    handle._pendingTerminalOutputHead = start;
-    handle._pendingTerminalOutputLength = chunk.length - start;
+    handle._output.head = start;
+    handle._output.length = chunk.length - start;
   }
   handle._scheduleTerminalOutputFlush();
-}
-
-/// Chars left in the head chunk.
-int _terminalOutputHeadRemaining(_XtermTerminalSessionHandle handle) {
-  return handle._pendingTerminalOutput.first.length -
-      handle._pendingTerminalOutputHead;
 }
 
 void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
   // A hidden terminal keeps its backlog but pays no frame time for it; the
   // backlog is drained when it becomes visible again.
-  if (handle._terminalOutputFlushScheduled ||
-      handle._disposed ||
-      !handle._visible) {
+  if (handle._output.flushScheduled || handle._disposed || !handle._visible) {
     return;
   }
-  handle._terminalOutputFlushScheduled = true;
+  final clock = handle._output.sinceFlushRequest;
+  // An unstarted clock means nothing has been flushed yet, so the first chunk
+  // goes out on the next frame rather than waiting for a cadence it has not
+  // used up.
+  final sinceLastFlush = clock.isRunning
+      ? clock.elapsed
+      : _terminalOutputMinFlushInterval;
+  if (sinceLastFlush >= _terminalOutputMinFlushInterval) {
+    _requestSessionTerminalOutputFrame(handle);
+    return;
+  }
+  handle._output.flushScheduled = true;
+  handle._output.flushTimer = Timer(
+    _terminalOutputMinFlushInterval - sinceLastFlush,
+    () {
+      handle._output.flushTimer = null;
+      handle._output.flushScheduled = false;
+      if (handle._disposed || !handle._visible) {
+        return;
+      }
+      _requestSessionTerminalOutputFrame(handle);
+    },
+  );
+}
+
+void _requestSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
+  handle._output.flushScheduled = true;
+  // The cadence is measured from here rather than from the flush that follows,
+  // because the frame callback lands up to a vsync later: charging that wait to
+  // the next interval as well would pace the terminal at 20 Hz, not 30.
+  handle._output.restartFlushClock();
   SchedulerBinding.instance.scheduleFrameCallback((_) {
     handle._flushPendingTerminalOutputFrame();
   });
@@ -66,13 +88,14 @@ void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
 }
 
 void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
-  handle._terminalOutputFlushScheduled = false;
+  handle._output.flushScheduled = false;
+  handle._output.flushCount += 1;
   if (handle._disposed) {
     handle._clearPendingTerminalOutput();
     return;
   }
   _drainSessionTerminalOutputChunk(handle);
-  if (handle._pendingTerminalOutput.isNotEmpty) {
+  if (handle._output.pending.isNotEmpty) {
     handle._scheduleTerminalOutputFlush();
   }
 }
@@ -80,7 +103,7 @@ void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
 /// Writes at most one frame's worth of pending output, consuming the chunk
 /// that straddles the budget in place so the rest is never copied.
 void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
-  final pending = handle._pendingTerminalOutput;
+  final pending = handle._output.pending;
   if (pending.isEmpty) {
     return;
   }
@@ -88,13 +111,13 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   var written = 0;
   while (pending.isNotEmpty && written < _terminalOutputMaxCharsPerFrame) {
     final chunk = pending.first;
-    final head = handle._pendingTerminalOutputHead;
+    final head = handle._output.head;
     final available = chunk.length - head;
     final remaining = _terminalOutputMaxCharsPerFrame - written;
     if (available <= remaining) {
       pending.removeFirst();
-      handle._pendingTerminalOutputHead = 0;
-      handle._pendingTerminalOutputLength -= available;
+      handle._output.head = 0;
+      handle._output.length -= available;
       frame.write(head == 0 ? chunk : chunk.substring(head));
       written += available;
       continue;
@@ -105,8 +128,8 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
     if (cutoff <= head) {
       break;
     }
-    handle._pendingTerminalOutputHead = cutoff;
-    handle._pendingTerminalOutputLength -= cutoff - head;
+    handle._output.head = cutoff;
+    handle._output.length -= cutoff - head;
     frame.write(chunk.substring(head, cutoff));
     written += cutoff - head;
   }
@@ -118,13 +141,15 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
 }
 
 void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
-  if (handle._disposed || handle._pendingTerminalOutput.isEmpty) {
+  handle._output.cancelDeferredFlush();
+  if (handle._disposed || handle._output.pending.isEmpty) {
     return;
   }
-  final head = handle._pendingTerminalOutputHead;
+  handle._output.restartFlushClock();
+  final head = handle._output.head;
   final buffer = StringBuffer();
   var first = true;
-  for (final chunk in handle._pendingTerminalOutput) {
+  for (final chunk in handle._output.pending) {
     buffer.write(first && head > 0 ? chunk.substring(head) : chunk);
     first = false;
   }
@@ -163,3 +188,20 @@ int _terminalOutputChunkCutoff(String value, int limit) {
 
 const int _terminalOutputMaxCharsPerFrame = 64 * 1024;
 const int _terminalOutputMaxPendingChars = 1024 * 1024;
+
+/// Floor on the gap between two flushes, so a process writing without pause
+/// cannot drive the frame loop at full vsync.
+///
+/// Measured on Linux: a frame costs roughly the same whether it changes one
+/// line or a whole screen, because the fixed per-frame cost dominates - the GTK
+/// embedder reads the rendered surface back and composites it in software on
+/// the platform thread (`gdk_cairo_draw_from_gl`), which no GDK setting avoids.
+/// CPU therefore tracks the frame count almost linearly: 30 fps of streaming
+/// output cost 48% of a core against 31% at 20 fps, with a bare frame costing
+/// ~6 ms of CPU on its own. Nobody reads text scrolling at 60 Hz, so the cap
+/// buys back that difference with no visible loss.
+///
+/// This is a floor on cadence, not a delay on arrival: a terminal that has been
+/// quiet flushes on the very next frame, so echo latency while typing is
+/// unchanged.
+const Duration _terminalOutputMinFlushInterval = Duration(milliseconds: 33);
