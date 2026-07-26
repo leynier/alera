@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_sparkline.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/resource_manager/domain/machine_cpu_share.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
 import 'package:alera/src/features/resource_manager/presentation/resource_value_format.dart';
@@ -12,12 +13,24 @@ import 'package:flutter/material.dart';
 part 'resource_status_panel_chrome.dart';
 part 'resource_status_panel_rows.dart';
 
-const double resourcePanelWidth = 400;
+/// Wide enough that reserving [_actionColumnWidth] on every row costs the name
+/// column nothing next to a panel that carried no row actions.
+const double resourcePanelWidth = 400 + _actionColumnWidth;
 const double resourcePanelMaxHeight = 420;
 
 /// Width of the CPU and memory columns. Fixed so the numbers line up down the
 /// tree even though rows sit at different indent depths.
 const double _metricColumnWidth = 68;
+
+/// Icon size of a row's trailing action, and its real footprint: `IconButton`'s
+/// compact visual density shrinks the button's own minimum away, so it collapses
+/// onto the icon.
+const double _actionIconSize = 11;
+
+/// Width of the trailing action slot. Reserved on every row and on the sort
+/// header, even where there is no action, so the metric columns keep the same
+/// x position on the session rows that do carry one.
+const double _actionColumnWidth = _actionIconSize + AleraTokens.space6;
 
 /// Presentational resource panel. Data and callbacks arrive as parameters so it
 /// stays previewable and testable without a runtime host.

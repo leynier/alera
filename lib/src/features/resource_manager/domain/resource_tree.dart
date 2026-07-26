@@ -4,6 +4,10 @@
 /// Metrics are nullable because not every row can be measured. A workspace on
 /// an SSH host runs its PTYs on another machine, so its numbers are absent
 /// rather than zero, and the panel renders a dash instead of a misleading 0%.
+///
+/// CPU here is already a share of the machine, unlike the per-core percentages
+/// the host sends: `buildResourceTree` normalizes on the way in, so nothing
+/// downstream has to remember which unit it is holding.
 library;
 
 enum ResourceSortColumn { name, cpu, memory }
@@ -15,7 +19,7 @@ class ResourceSessionRow {
     required this.tabId,
     required this.running,
     required this.orphan,
-    required this.cpuPercent,
+    required this.cpuMachinePercent,
     required this.memoryBytes,
     required this.processCount,
     required this.history,
@@ -29,7 +33,9 @@ class ResourceSessionRow {
   /// The host still has this session but the app has no tab for it. Killing an
   /// orphan is safe without a confirmation: there is no pane to lose.
   final bool orphan;
-  final double? cpuPercent;
+
+  /// Percent of the machine's total CPU capacity.
+  final double? cpuMachinePercent;
   final int? memoryBytes;
   final int processCount;
   final List<int> history;
@@ -54,8 +60,8 @@ class ResourceWorkspaceRow {
   final bool remote;
   final List<ResourceSessionRow> sessions;
 
-  double? get cpuPercent =>
-      _sumDoubles(sessions.map((session) => session.cpuPercent));
+  double? get cpuMachinePercent =>
+      _sumDoubles(sessions.map((session) => session.cpuMachinePercent));
 
   int? get memoryBytes =>
       _sumInts(sessions.map((session) => session.memoryBytes));
@@ -72,8 +78,8 @@ class ResourceProjectGroup {
   final String name;
   final List<ResourceWorkspaceRow> workspaces;
 
-  double? get cpuPercent =>
-      _sumDoubles(workspaces.map((workspace) => workspace.cpuPercent));
+  double? get cpuMachinePercent =>
+      _sumDoubles(workspaces.map((workspace) => workspace.cpuMachinePercent));
 
   int? get memoryBytes =>
       _sumInts(workspaces.map((workspace) => workspace.memoryBytes));

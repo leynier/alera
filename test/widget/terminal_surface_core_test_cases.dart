@@ -262,7 +262,7 @@ void _registerTerminalSurfaceRuntimeTests() {
 
       await _pumpTerminalSurface(tester, session);
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
-      await tester.pump();
+      await _pumpTerminalOutput(tester);
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
       await tester.pump();
@@ -292,7 +292,7 @@ void _registerTerminalSurfaceRuntimeTests() {
 
       await _pumpTerminalSurface(tester, session);
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
-      await tester.pump();
+      await _pumpTerminalOutput(tester);
 
       await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
       await tester.pump();
@@ -341,7 +341,7 @@ void _registerTerminalSurfaceRuntimeTests() {
       factory.sessions.single.emitOutput(
         utf8.encode('not a link\r\nhttps://example.com'),
       );
-      await tester.pump();
+      await _pumpTerminalOutput(tester);
 
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(() => mouse.removePointer());

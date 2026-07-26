@@ -33,6 +33,8 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Set<String> _closingTabWorkspaceIds = <String>{};
   final Set<String> _workspaceIdsWithClearedLayout = <String>{};
 
+  final WorkspaceTabFocusHistory _tabFocusHistory = WorkspaceTabFocusHistory();
+
   bool _bootstrapStarted = false;
 
   Future<void> _persistViewPrefs() async {
@@ -234,6 +236,10 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
       layoutByWorkspace: nextLayouts,
       activeTabIdByWorkspace: _activeTabsWithLayout(layout),
     );
+    final activeTabId = layout.activeTabId;
+    if (activeTabId != null) {
+      _tabFocusHistory.record(layout.workspaceId, activeTabId);
+    }
     if (persist) {
       await _repository.upsertWorkbenchLayout(layout);
     }
@@ -301,6 +307,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     final next = Map<String, String>.from(state.activeTabIdByWorkspace)
       ..[workspaceId] = tabId;
     state = state.copyWith(activeTabIdByWorkspace: next);
+    _tabFocusHistory.record(workspaceId, tabId);
   }
 
   Future<void> _ensureMainWorkspaceForProject(Project project) async {

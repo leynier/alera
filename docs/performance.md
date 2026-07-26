@@ -12,6 +12,7 @@ Alera treats performance as a product contract. Optimization work starts with a 
 - Obsolete workspace searches are cancelled in Rust as soon as the query generation changes.
 - Bundled Inter and JetBrains Mono assets remove runtime font-network and font-loader work.
 - Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from the host's per-client delivery cursor when a client falls behind, so a tab switch or a backpressure resync costs the bytes that were missed rather than a replay of the scrollback. A cold attach still replays, capped to what the emulator will keep. RPC responses and runtime events use a separate control lane so terminal backpressure cannot disconnect the workbench.
+- Terminal output flushes are paced by a cadence floor (33 ms), so a process writing without pause cannot drive the frame loop at full vsync. The floor is measured from the moment a frame is requested, not from the flush that follows, or the vsync wait would be charged to the next interval too and pace the terminal at 20 Hz instead of 30. A terminal that has been quiet still flushes on the very next frame, so echo latency while typing is unchanged.
 - The mobile gateway gets a deeper terminal lane than the desktop socket, because a WAN send can stall for hundreds of milliseconds and the queue depth the local socket was tuned for turns one stall into a permanent pause. Depth only buys time: the mobile client answers the host's backpressure resync the same way the desktop does, which is what actually clears the pause.
 
 ## Linux Startup Harness
@@ -45,6 +46,29 @@ The report under `.dart_tool/performance/resources_<scenario>.json` contains 250
 Capture idle, a common workbench flow, a terminal-output burst, a quota refresh, and representative agent launches independently. Do not run `build_runner` during final captures. Its memory is development tooling and must be reported separately from the shipped app.
 
 The latest detailed macOS investigation and before/after results are recorded in [`performance-resource-profile-2026-07-19.md`](performance-resource-profile-2026-07-19.md).
+
+## Where A Frame's CPU Goes On Linux
+
+Measured on a Wayland session with an Intel Arc GPU, Flutter 3.44.8, with `perf` at thread granularity against the installed release build while agents streamed into a visible terminal:
+
+| thread | share of app CPU | what it is doing |
+| --- | --- | --- |
+| platform (`alera`) | 42.8% | pixman and `__memmove_avx`/`__memset_avx`; 23% of its samples are inside `gdk_cairo_draw_from_gl` |
+| `io.flutter.raster` | 27.7% | the Flutter engine drawing |
+| Rust threads | ~18% | the filesystem watcher and git work (sha1, zlib) |
+
+`gdk_cairo_draw_from_gl` is GTK3 drawing a GL texture into a cairo context. When it cannot blit directly it reads the rendered surface back to RAM and composites it in software, so its cost scales with the window's pixels rather than with what changed on screen. `GDK_BACKEND=x11`, `GTK_CSD=0` and `GDK_GL=gles` were each measured against the default and all four landed within noise of one another (37-41% of a core), so this is not avoidable from the app side.
+
+The lever that is available is the number of frames. CPU tracks the frame count almost linearly, and a frame that changes nothing still costs about 6 ms of CPU, so producing fewer frames is worth more than making any one of them cheaper. That is why the terminal has a flush cadence floor, and why the terminal painter was left alone: rendering a full screen of streaming text is 2.7-3.1 ms of raster out of 15-21 ms of CPU per frame.
+
+Two benchmarks back this up, both on a real device (Xvfb works but rasterizes in software, so its numbers only compare against other Xvfb runs):
+
+```bash
+flutter test integration_test/terminal_render_benchmark.dart -d linux
+flutter test integration_test/terminal_flush_cadence_benchmark.dart -d linux
+```
+
+The first drives xterm directly and pumps its own frames, reporting what a frame costs (`BENCH_PUMP_MS` sets the cadence). The second feeds output through `XtermTerminalRuntime` and lets the runtime schedule the flushes, reporting flushes per second and process CPU: 60.0 flushes/s and ~100% of a core before the cadence floor, 29.1 flushes/s and ~80% after. Neither is a pass/fail test; run one before and after a rendering change and compare.
 
 ## Measurement Rules
 

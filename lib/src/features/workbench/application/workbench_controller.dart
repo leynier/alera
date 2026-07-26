@@ -23,6 +23,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_focus_history.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:path/path.dart' as p;
@@ -32,6 +33,7 @@ import 'package:uuid/uuid.dart';
 part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_sync.dart';
@@ -41,6 +43,7 @@ class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerTabOpening,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSync {

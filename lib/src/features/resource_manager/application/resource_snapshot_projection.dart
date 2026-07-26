@@ -1,4 +1,5 @@
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/resource_manager/domain/machine_cpu_share.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -46,7 +47,11 @@ ResourceTree buildResourceTree({
       // being gone is not enough on its own: the host may simply be ahead of
       // an app that has not synced yet.
       orphan: tab == null,
-      cpuPercent: remote || !session.measured ? null : session.cpuPercent,
+      // The host measures CPU per core; every row below this point carries a
+      // share of the machine instead.
+      cpuMachinePercent: remote || !session.measured
+          ? null
+          : machineCpuShare(session.cpuPercent, snapshot.host.cpuCoreCount),
       memoryBytes: remote || !session.measured ? null : session.memoryBytes,
       processCount: session.processCount,
       history: session.history,
@@ -108,7 +113,7 @@ int Function(ResourceSessionRow, ResourceSessionRow) _sessionComparator(
   return (left, right) => switch (column) {
     ResourceSortColumn.name => _byName(left.label, right.label),
     ResourceSortColumn.cpu => _thenByName(
-      compareMetricDescending(left.cpuPercent, right.cpuPercent),
+      compareMetricDescending(left.cpuMachinePercent, right.cpuMachinePercent),
       left.label,
       right.label,
     ),
@@ -126,7 +131,7 @@ int Function(ResourceWorkspaceRow, ResourceWorkspaceRow) _workspaceComparator(
   return (left, right) => switch (column) {
     ResourceSortColumn.name => _byName(left.name, right.name),
     ResourceSortColumn.cpu => _thenByName(
-      compareMetricDescending(left.cpuPercent, right.cpuPercent),
+      compareMetricDescending(left.cpuMachinePercent, right.cpuMachinePercent),
       left.name,
       right.name,
     ),
@@ -144,7 +149,7 @@ int Function(ResourceProjectGroup, ResourceProjectGroup) _projectComparator(
   return (left, right) => switch (column) {
     ResourceSortColumn.name => _byName(left.name, right.name),
     ResourceSortColumn.cpu => _thenByName(
-      compareMetricDescending(left.cpuPercent, right.cpuPercent),
+      compareMetricDescending(left.cpuMachinePercent, right.cpuMachinePercent),
       left.name,
       right.name,
     ),

@@ -19,16 +19,18 @@ ResourceSnapshot _snapshot({bool warming = false, String? error}) {
       cpuCoreCount: 8,
       loadAverage1m: 2.4,
     ),
+    // Per-core percentages, the unit the host sends: the app row is busier
+    // than one core, which is exactly the case the panel has to normalize.
     hostProcess: const ResourceProcessSample(
       pid: 4100,
-      cpuPercent: 1.2,
+      cpuPercent: 4.8,
       memoryBytes: 42 * 1024 * 1024,
       processCount: 1,
       history: _history,
     ),
     appProcess: const ResourceProcessSample(
       pid: 4200,
-      cpuPercent: 0.6,
+      cpuPercent: 113.5,
       memoryBytes: 280 * 1024 * 1024,
       processCount: 1,
       history: _history,
@@ -42,7 +44,7 @@ ResourceSnapshot _snapshot({bool warming = false, String? error}) {
 
 ResourceSessionRow _session(
   String label, {
-  double? cpuPercent = 12.5,
+  double? cpuMachinePercent = 1.6,
   int? memoryBytes = 500 * 1024 * 1024,
   bool orphan = false,
 }) => ResourceSessionRow(
@@ -51,7 +53,7 @@ ResourceSessionRow _session(
   tabId: 'tab-$label',
   running: true,
   orphan: orphan,
-  cpuPercent: cpuPercent,
+  cpuMachinePercent: cpuMachinePercent,
   memoryBytes: memoryBytes,
   processCount: 7,
   history: _history,
@@ -73,7 +75,11 @@ ResourceTree _tree({
           remote: false,
           sessions: <ResourceSessionRow>[
             _session('Codex Agent'),
-            _session('Build', cpuPercent: 3.1, memoryBytes: 90 * 1024 * 1024),
+            _session(
+              'Build',
+              cpuMachinePercent: 0.4,
+              memoryBytes: 90 * 1024 * 1024,
+            ),
           ],
         ),
         if (remote)
@@ -83,7 +89,11 @@ ResourceTree _tree({
             projectId: 'p1',
             remote: true,
             sessions: <ResourceSessionRow>[
-              _session('Remote Shell', cpuPercent: null, memoryBytes: null),
+              _session(
+                'Remote Shell',
+                cpuMachinePercent: null,
+                memoryBytes: null,
+              ),
             ],
           ),
       ],
@@ -117,7 +127,7 @@ Widget resourceStatusPanelOrphansPreview() => _panel(
   _snapshot(),
   _tree(
     orphans: <ResourceSessionRow>[
-      _session('session-abc', orphan: true, cpuPercent: 0.2),
+      _session('session-abc', orphan: true, cpuMachinePercent: 0.2),
     ],
   ),
 );

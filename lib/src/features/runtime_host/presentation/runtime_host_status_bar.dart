@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
@@ -18,8 +19,7 @@ class RuntimeHostStatusBarControl extends ConsumerStatefulWidget {
 
 class _RuntimeHostStatusBarControlState
     extends ConsumerState<RuntimeHostStatusBarControl> {
-  final OverlayPortalController _overlay = OverlayPortalController();
-  final LayerLink _layerLink = LayerLink();
+  final AleraHoverCardController _hoverCard = AleraHoverCardController();
   bool _busy = false;
 
   @override
@@ -28,73 +28,46 @@ class _RuntimeHostStatusBarControlState
     final snapshot = statusAsync.value;
     final loading = statusAsync.isLoading && snapshot == null;
 
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: OverlayPortal(
-        controller: _overlay,
-        overlayChildBuilder: (context) {
-          return Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _overlay.hide,
-                  child: const ColoredBox(color: Colors.transparent),
-                ),
-              ),
-              CompositedTransformFollower(
-                link: _layerLink,
-                showWhenUnlinked: false,
-                targetAnchor: Alignment.topRight,
-                followerAnchor: Alignment.bottomRight,
-                offset: const Offset(0, -8),
-                child: RuntimeHostStatusPanel(
-                  snapshot: snapshot,
-                  loading: loading || statusAsync.isLoading,
-                  busy: _busy,
-                  onRefresh: () {
-                    ref.invalidate(runtimeHostStatusProvider);
-                  },
-                  onStart: () => unawaited(
-                    _runAction((_) async {
-                      await ref
-                          .read(runtimeHostLifecycleServiceProvider)
-                          .start();
-                      ref.invalidate(runtimeHostStatusProvider);
-                    }),
-                  ),
-                  onStop: () => unawaited(
-                    _runAction((confirm) async {
-                      await ref
-                          .read(runtimeHostLifecycleServiceProvider)
-                          .stop(confirmForce: confirm);
-                      ref.invalidate(runtimeHostStatusProvider);
-                    }),
-                  ),
-                  onUpdate: () => unawaited(
-                    _runAction((confirm) async {
-                      await ref
-                          .read(runtimeHostLifecycleServiceProvider)
-                          .updateIfNewer(confirmForce: confirm);
-                      ref.invalidate(runtimeHostStatusProvider);
-                    }),
-                  ),
-                ),
-              ),
-            ],
-          );
+    return AleraHoverCard(
+      controller: _hoverCard,
+      // The chip runs its own InkWell, which would win the gesture arena over
+      // the card's detector, so the chip drives pinning through the controller.
+      pinOnTap: false,
+      semanticsLabel: 'Runtime Host',
+      card: RuntimeHostStatusPanel(
+        snapshot: snapshot,
+        loading: loading || statusAsync.isLoading,
+        busy: _busy,
+        onRefresh: () {
+          ref.invalidate(runtimeHostStatusProvider);
         },
-        child: RuntimeHostStatusChip(
-          snapshot: snapshot,
-          loading: loading,
-          onPressed: () {
-            if (_overlay.isShowing) {
-              _overlay.hide();
-            } else {
-              _overlay.show();
-            }
-          },
+        onStart: () => unawaited(
+          _runAction((_) async {
+            await ref.read(runtimeHostLifecycleServiceProvider).start();
+            ref.invalidate(runtimeHostStatusProvider);
+          }),
         ),
+        onStop: () => unawaited(
+          _runAction((confirm) async {
+            await ref
+                .read(runtimeHostLifecycleServiceProvider)
+                .stop(confirmForce: confirm);
+            ref.invalidate(runtimeHostStatusProvider);
+          }),
+        ),
+        onUpdate: () => unawaited(
+          _runAction((confirm) async {
+            await ref
+                .read(runtimeHostLifecycleServiceProvider)
+                .updateIfNewer(confirmForce: confirm);
+            ref.invalidate(runtimeHostStatusProvider);
+          }),
+        ),
+      ),
+      child: RuntimeHostStatusChip(
+        snapshot: snapshot,
+        loading: loading,
+        onPressed: _hoverCard.togglePin,
       ),
     );
   }
