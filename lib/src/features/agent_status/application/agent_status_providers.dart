@@ -17,6 +17,8 @@ import 'package:alera/src/features/agent_status/infra/window_manager_agent_windo
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/agent_status/infra/codex_transcript_status_watcher.dart';
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -33,6 +35,13 @@ AgentHookReceiver agentHookReceiver(Ref ref) {
   final receiver = AgentHookReceiver(
     statusSink: ref.read(agentStatusControllerProvider.notifier),
     hookServer: ref.watch(agentHookServerProvider),
+    // The transcript watchdog is the one poller that scales with how many
+    // agents are running, so it is the one that parks while hidden.
+    codexTranscriptStatusWatcher: CodexTranscriptStatusWatcher(
+      ref.read(agentStatusControllerProvider.notifier),
+      const Duration(seconds: 5),
+      ref.watch(appForegroundProvider),
+    ),
     isAgentEnabled: (agentType) => isAgentStatusHookEnabled(
       ref.read(settingsControllerProvider).agents.agentStatusHooks,
       agentType,

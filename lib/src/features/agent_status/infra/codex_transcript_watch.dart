@@ -9,6 +9,7 @@ class _CodexTranscriptWatch {
     required this.transcriptPath,
     required this.turnId,
     required this.watchdogInterval,
+    required this.appForeground,
   });
 
   final AgentStatusSink _statusSink;
@@ -18,11 +19,18 @@ class _CodexTranscriptWatch {
   final String transcriptPath;
   final String? turnId;
   final Duration watchdogInterval;
+  final AppForeground appForeground;
   final Map<String, String> _pendingToolsByCallId = <String, String>{};
   final Set<String> _emittedCallIds = <String>{};
   StreamSubscription<FileSystemEvent>? _subscription;
+  StreamSubscription<bool>? _foregroundSubscription;
   Timer? _watchdogTimer;
   Timer? _pollTimer;
+
+  /// Whether polling was the active strategy when the app went to the
+  /// background, so returning restores the same one rather than upgrading a
+  /// degraded watch back to a file-event watch that already failed.
+  var _polling = false;
   var _offset = 0;
   var _partialLine = '';
   var _armed = false;
@@ -33,6 +41,7 @@ class _CodexTranscriptWatch {
   Completer<void>? _activeScan;
 
   void start() {
+    _foregroundSubscription = appForeground.changes.listen(_applyForeground);
     final file = File(transcriptPath);
     try {
       final length = file.existsSync() ? file.lengthSync() : 0;
@@ -91,11 +100,43 @@ class _CodexTranscriptWatch {
   void dispose() {
     _disposed = true;
     unawaited(_subscription?.cancel());
+    unawaited(_foregroundSubscription?.cancel());
     _watchdogTimer?.cancel();
     _pollTimer?.cancel();
     _subscription = null;
+    _foregroundSubscription = null;
     _watchdogTimer = null;
     _pollTimer = null;
+  }
+
+  /// Park the timers while the app is hidden, and catch up on return.
+  ///
+  /// This is the one poller in the app that scales with how many agents are
+  /// running: a stat plus an incremental read per transcript, every interval,
+  /// whether or not anyone can see the status it produces.
+  ///
+  /// The file watch keeps running while parked. It is event driven, so it costs
+  /// nothing idle, and leaving it subscribed means a transcript that changes
+  /// while hidden is still noticed. Only the safety net stops. Nothing is lost
+  /// either way: scanning resumes from the same byte offset, so returning to
+  /// the foreground reads whatever accumulated.
+  void _applyForeground(bool isForeground) {
+    if (_disposed) {
+      return;
+    }
+    if (!isForeground) {
+      _watchdogTimer?.cancel();
+      _watchdogTimer = null;
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    if (_polling) {
+      _startPollTimer();
+    } else {
+      _armWatchdog();
+    }
+    _scheduleScan();
   }
 
   void _scheduleScan() {
@@ -103,7 +144,7 @@ class _CodexTranscriptWatch {
   }
 
   void _armWatchdog() {
-    if (_disposed || _pollTimer != null) {
+    if (_disposed || _polling || !appForeground.isForeground) {
       return;
     }
     _watchdogTimer?.cancel();
@@ -114,13 +155,21 @@ class _CodexTranscriptWatch {
   }
 
   void _enablePolling() {
-    if (_disposed || _pollTimer != null) {
+    if (_disposed || _polling) {
       return;
     }
+    _polling = true;
     _watchdogTimer?.cancel();
     _watchdogTimer = null;
     unawaited(_subscription?.cancel());
     _subscription = null;
+    _startPollTimer();
+  }
+
+  void _startPollTimer() {
+    if (_disposed || _pollTimer != null || !appForeground.isForeground) {
+      return;
+    }
     _pollTimer = Timer.periodic(watchdogInterval, (_) => _scheduleScan());
   }
 

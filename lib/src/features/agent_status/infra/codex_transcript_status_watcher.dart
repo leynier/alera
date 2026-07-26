@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 
 part 'codex_transcript_watch.dart';
 
@@ -12,10 +13,12 @@ class CodexTranscriptStatusWatcher {
   CodexTranscriptStatusWatcher(
     this._statusSink, [
     this._watchdogInterval = const Duration(seconds: 5),
+    this._appForeground = const AlwaysForeground(),
   ]);
 
   final AgentStatusSink _statusSink;
   final Duration _watchdogInterval;
+  final AppForeground _appForeground;
   final Map<String, _CodexTranscriptWatch> _watches =
       <String, _CodexTranscriptWatch>{};
 
@@ -50,6 +53,7 @@ class CodexTranscriptStatusWatcher {
       transcriptPath: transcriptPath,
       turnId: _readString(event.payload, const <String>['turn_id', 'turnId']),
       watchdogInterval: _watchdogInterval,
+      appForeground: _appForeground,
     );
     _watches[event.terminalSessionId] = watch;
     watch.start();
