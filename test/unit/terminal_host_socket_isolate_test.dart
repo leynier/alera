@@ -59,7 +59,22 @@ void main() {
 
     socket.write('{"id":1,"ok":true}\n');
 
-    expect((await line)[1], '{"id":1,"ok":true}');
+    // Parsed here, not on the UI isolate: an attach reply carries the whole
+    // scrollback base64'd inside it.
+    expect((await line)[1], <String, Object?>{'id': 1, 'ok': true});
+  });
+
+  test('passes a line it cannot parse through untouched', () async {
+    final harness = await _startIsolate();
+    final socket = await harness.ready;
+    final line = harness.messages.stream
+        .where((message) => message.first == terminalHostIsolateLine)
+        .first;
+
+    socket.write('not json\n');
+
+    // The owner reports a malformed line the way it always did.
+    expect((await line)[1], 'not json');
   });
 
   test('decodes output off the main isolate once framed', () async {

@@ -27,25 +27,35 @@ void _queueSessionTerminalOutput(
   // without bound. Newer output is what the user is looking at.
   while (handle._pendingTerminalOutputLength > _terminalOutputMaxPendingChars &&
       handle._pendingTerminalOutput.length > 1) {
-    handle._pendingTerminalOutputLength -= handle._pendingTerminalOutput
-        .removeFirst()
-        .length;
+    handle._pendingTerminalOutputLength -= _terminalOutputHeadRemaining(handle);
+    handle._pendingTerminalOutput.removeFirst();
+    handle._pendingTerminalOutputHead = 0;
   }
   if (handle._pendingTerminalOutputLength > _terminalOutputMaxPendingChars) {
     // A single chunk can exceed the cap on its own, so trim its head too.
-    final chunk = handle._pendingTerminalOutput.removeFirst();
+    final chunk = handle._pendingTerminalOutput.first;
     final start = _terminalOutputHeadTrimStart(
       chunk,
       chunk.length - _terminalOutputMaxPendingChars,
     );
-    handle._pendingTerminalOutput.addFirst(chunk.substring(start));
+    handle._pendingTerminalOutputHead = start;
     handle._pendingTerminalOutputLength = chunk.length - start;
   }
   handle._scheduleTerminalOutputFlush();
 }
 
+/// Chars left in the head chunk.
+int _terminalOutputHeadRemaining(_XtermTerminalSessionHandle handle) {
+  return handle._pendingTerminalOutput.first.length -
+      handle._pendingTerminalOutputHead;
+}
+
 void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
-  if (handle._terminalOutputFlushScheduled || handle._disposed) {
+  // A hidden terminal keeps its backlog but pays no frame time for it; the
+  // backlog is drained when it becomes visible again.
+  if (handle._terminalOutputFlushScheduled ||
+      handle._disposed ||
+      !handle._visible) {
     return;
   }
   handle._terminalOutputFlushScheduled = true;
@@ -67,8 +77,8 @@ void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
   }
 }
 
-/// Writes at most one frame's worth of pending output, splitting only the
-/// chunk that straddles the budget so the rest stays untouched.
+/// Writes at most one frame's worth of pending output, consuming the chunk
+/// that straddles the budget in place so the rest is never copied.
 void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   final pending = handle._pendingTerminalOutput;
   if (pending.isEmpty) {
@@ -78,23 +88,27 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   var written = 0;
   while (pending.isNotEmpty && written < _terminalOutputMaxCharsPerFrame) {
     final chunk = pending.first;
+    final head = handle._pendingTerminalOutputHead;
+    final available = chunk.length - head;
     final remaining = _terminalOutputMaxCharsPerFrame - written;
-    if (chunk.length <= remaining) {
+    if (available <= remaining) {
       pending.removeFirst();
-      handle._pendingTerminalOutputLength -= chunk.length;
-      frame.write(chunk);
-      written += chunk.length;
+      handle._pendingTerminalOutputHead = 0;
+      handle._pendingTerminalOutputLength -= available;
+      frame.write(head == 0 ? chunk : chunk.substring(head));
+      written += available;
       continue;
     }
-    final cutoff = _terminalOutputChunkCutoff(chunk, remaining);
-    if (cutoff == 0) {
+    // Absolute index, because the budget is measured from the head, not from
+    // the start of the chunk.
+    final cutoff = _terminalOutputChunkCutoff(chunk, head + remaining);
+    if (cutoff <= head) {
       break;
     }
-    pending.removeFirst();
-    pending.addFirst(chunk.substring(cutoff));
-    handle._pendingTerminalOutputLength -= cutoff;
-    frame.write(chunk.substring(0, cutoff));
-    written += cutoff;
+    handle._pendingTerminalOutputHead = cutoff;
+    handle._pendingTerminalOutputLength -= cutoff - head;
+    frame.write(chunk.substring(head, cutoff));
+    written += cutoff - head;
   }
   if (written == 0) {
     return;
@@ -107,9 +121,17 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
   if (handle._disposed || handle._pendingTerminalOutput.isEmpty) {
     return;
   }
-  final pending = handle._pendingTerminalOutput.join();
+  final head = handle._pendingTerminalOutputHead;
+  final buffer = StringBuffer();
+  var first = true;
+  for (final chunk in handle._pendingTerminalOutput) {
+    buffer.write(first && head > 0 ? chunk.substring(head) : chunk);
+    first = false;
+  }
   handle._clearPendingTerminalOutput();
-  handle._writeToTerminal(pending);
+  handle._writeToTerminal(buffer.toString());
+  // Everything queued is on screen now, including a restore this bypassed.
+  handle._finishRestore();
 }
 
 /// Start index for a head trim that never lands inside a surrogate pair.

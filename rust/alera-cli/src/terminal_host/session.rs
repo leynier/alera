@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
@@ -116,6 +116,12 @@ pub struct Session {
     pub current_dims: (u16, u16),
     output_paused_clients: HashSet<u64>,
     output_resync_pending_clients: HashSet<u64>,
+    /// How far into the output stream each client has actually been served.
+    ///
+    /// It only advances when a frame is accepted by that client's queue, so a
+    /// pause or a full queue leaves it where the client really is. That is what
+    /// lets a resume send the gap instead of the whole scrollback.
+    delivered_output_cursors: HashMap<u64, u64>,
     pub(super) buffer: ScrollbackBuffer,
     running: bool,
     exit_code: Option<i32>,
@@ -231,6 +237,7 @@ impl Session {
             current_dims: (cols, rows),
             output_paused_clients: HashSet::new(),
             output_resync_pending_clients: HashSet::new(),
+            delivered_output_cursors: HashMap::new(),
             buffer: ScrollbackBuffer::new(max_bytes, initial_scrollback),
             running: true,
             exit_code: None,
@@ -287,12 +294,17 @@ impl Session {
         self.clients.insert(client_id);
         self.output_paused_clients.remove(&client_id);
         self.output_resync_pending_clients.remove(&client_id);
+        // The attach reply carries the whole buffer, so the client starts
+        // caught up with the stream as it stands right now.
+        self.delivered_output_cursors
+            .insert(client_id, self.output_stream_bytes);
     }
 
     pub fn detach(&mut self, client_id: u64) {
         self.clients.remove(&client_id);
         self.output_paused_clients.remove(&client_id);
         self.output_resync_pending_clients.remove(&client_id);
+        self.delivered_output_cursors.remove(&client_id);
     }
 
     pub fn resize(&mut self, cols: u16, rows: u16) {
@@ -354,29 +366,24 @@ impl Session {
         json!({ "sessionId": self.id, "error": message })
     }
 
-    pub fn attachment_payload(&self, created: bool) -> Value {
+    pub fn attachment_payload(&self, created: bool, restore_bytes: usize) -> Value {
         json!({
             "sessionId": self.id,
             "created": created,
             "running": self.running,
             "exitCode": self.exit_code,
             "driver": self.driver.payload(),
-            "snapshotBase64": encode_bytes(&self.buffer.to_bytes()),
+            "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
         })
     }
 
-    /// Applies a pause toggle and returns the payload the client needs.
-    ///
-    /// Only a resume needs the scrollback. Pausing used to ship the whole
-    /// buffer, up to 10 MB base64'd, for the client to decode on its UI thread
-    /// and then throw away.
-    pub fn set_output_paused_payload(&mut self, client_id: u64, paused: bool) -> Value {
-        self.set_output_paused(client_id, paused);
-        if paused {
-            json!({})
-        } else {
-            self.snapshot_payload()
-        }
+    /// What a client that lost its place should replay, capped so a resync does
+    /// not hand it more history than its emulator will keep.
+    pub fn restore_payload(&self, restore_bytes: usize) -> Value {
+        json!({
+            "sessionId": self.id,
+            "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
+        })
     }
 
     pub fn snapshot_payload(&self) -> Value {

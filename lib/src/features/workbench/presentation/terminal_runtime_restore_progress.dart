@@ -20,15 +20,27 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     }
     _restoreWrittenChars += chars;
     if (_restoreWrittenChars >= _restoreTotalChars) {
-      _restoreTotalChars = 0;
-      _restoreWrittenChars = 0;
-      _restoreProgress.value = null;
+      _finishRestore();
       return;
     }
     _restoreProgress.value = TerminalRestoreProgress(
       writtenChars: _restoreWrittenChars,
       totalChars: _restoreTotalChars,
     );
+  }
+
+  /// Takes the restore overlay down.
+  ///
+  /// Any path that empties the backlog without going through [_advanceRestore]
+  /// has to call this, or the overlay covers the terminal for good: nothing
+  /// else clears it short of another snapshot or disposal.
+  void _finishRestore() {
+    if (_restoreTotalChars <= 0) {
+      return;
+    }
+    _restoreTotalChars = 0;
+    _restoreWrittenChars = 0;
+    _restoreProgress.value = null;
   }
 
   void _rebuildTerminalFromSnapshot(

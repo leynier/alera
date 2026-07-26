@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -10,6 +11,7 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'terminal_host_test_fakes.dart';
 
 part 'terminal_host_pty_output_resync_cases.dart';
+part 'terminal_host_pty_resume_cases.dart';
 
 void main() {
   test('factory creates sessions with the provided ids', () {
@@ -133,47 +135,7 @@ void main() {
     },
   );
 
-  test('host PTY session pauses output and emits resume snapshots', () async {
-    final client = FakeTerminalHostClient(
-      attachment: TerminalHostAttachment(
-        sessionId: 'session-1',
-        created: true,
-        running: true,
-        snapshot: Uint8List(0),
-      ),
-    );
-    final session = TerminalHostPtySession(
-      client: client,
-      sessionId: 'session-1',
-      workspaceId: 'workspace-1',
-      tabId: 'tab-1',
-    );
-    addTearDown(session.dispose);
-    final events = <TerminalPtySessionEvent>[];
-    final sub = session.events.listen(events.add);
-    addTearDown(sub.cancel);
-
-    await session.start(
-      launch: _launch(),
-      workingDirectory: '/repo',
-      cols: 80,
-      rows: 24,
-    );
-    await session.setOutputPaused(true);
-    await session.setOutputPaused(false);
-    await _flushAsync();
-
-    expect(client.outputPaused, <(String, bool)>[
-      ('session-1', true),
-      ('session-1', false),
-    ]);
-    final snapshots = events.whereType<TerminalPtySnapshotEvent>().toList();
-    expect(snapshots, hasLength(2));
-    expect(snapshots.first.data, isEmpty);
-    expect(snapshots.first.resetInteractionModes, isTrue);
-    expect(snapshots.last.data, <int>[83, 78, 65, 80]);
-    expect(snapshots.last.resetInteractionModes, isFalse);
-  });
+  _registerTerminalHostPtyResumeTests();
 
   _registerTerminalHostPtyOutputResyncTests();
 

@@ -8,6 +8,7 @@ import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/application/terminal_host_settings_config.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -33,7 +34,6 @@ import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_cli
 import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -217,7 +217,7 @@ WorkspaceService workspaceService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 TerminalHostClient terminalHostClient(Ref ref) {
-  final initialConfig = _terminalHostConfigFor(
+  final initialConfig = terminalHostConfigFor(
     ref.read(settingsControllerProvider).terminal,
   );
   final client = ref.watch(runtimeHostClientProvider);
@@ -229,7 +229,7 @@ TerminalHostClient terminalHostClient(Ref ref) {
     (_, next) {
       unawaited(
         client
-            .configure(_terminalHostConfigFor(next))
+            .configure(terminalHostConfigFor(next))
             .catchError(_ignoreProviderAsyncError),
       );
     },
@@ -244,7 +244,7 @@ void terminalHostWarmupCoordinator(Ref ref) {
   unawaited(
     client
         .ensureStarted(
-          config: _terminalHostConfigFor(
+          config: terminalHostConfigFor(
             ref.read(settingsControllerProvider).terminal,
           ),
         )
@@ -361,16 +361,6 @@ void terminalRuntimeExitCoordinator(Ref ref) {
     disposed = true;
     unawaited(subscription.cancel());
   });
-}
-
-TerminalHostConfig _terminalHostConfigFor(TerminalSettings settings) {
-  return TerminalHostConfig(
-    emptyShutdownDelaySeconds: settings.hostEmptyShutdownDelaySeconds,
-    detachedSessionShutdownDelaySeconds:
-        settings.hostDetachedSessionShutdownDelaySeconds,
-    scrollbackBytes: settings.hostScrollbackBytes,
-    loginShell: settings.resolvedLoginShell,
-  );
 }
 
 Workspace? findWorkspaceById(WorkbenchState state, String workspaceId) {

@@ -115,7 +115,10 @@ Future<void> terminalHostSocketIsolateMain(
       for (final frame in reader.add(chunk)) {
         switch (frame) {
           case TerminalHostJsonFrame(:final json):
-            toMain.send(<Object?>[terminalHostIsolateLine, json]);
+            toMain.send(<Object?>[
+              terminalHostIsolateLine,
+              decodeHostLine(json),
+            ]);
           case TerminalHostOutputFrame(:final sessionId, :final data):
             emitOutput(sessionId, data);
         }
@@ -134,6 +137,20 @@ Future<void> terminalHostSocketIsolateMain(
   );
 
   toMain.send(<Object?>[terminalHostIsolateReady, commands.sendPort]);
+}
+
+/// Parses a control line here rather than on the UI isolate.
+///
+/// An attach reply carries the session's scrollback base64'd inside it, and
+/// parsing megabytes of JSON was the single largest main-isolate cost of
+/// opening a terminal. A line that will not parse is passed through as-is so
+/// the owner still reports it the way it always did.
+Object? decodeHostLine(String line) {
+  try {
+    return jsonDecode(line);
+  } catch (_) {
+    return line;
+  }
 }
 
 /// Spawns the reader and returns its command port, or null if spawning failed.
