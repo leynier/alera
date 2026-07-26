@@ -121,6 +121,22 @@ void main() {
       expect(tabOnly.body, 'Terminal Terminal 2');
     });
 
+    test('drops the project when it repeats the workspace name', () {
+      final sameName = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.waiting),
+        projectName: 'alera',
+        workspaceName: 'alera',
+      );
+      final sameNameDifferentCase = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.done),
+        projectName: 'Alera',
+        workspaceName: ' alera ',
+      );
+
+      expect(sameName!.body, 'Workspace alera');
+      expect(sameNameDifferentCase!.body, 'Workspace alera');
+    });
+
     test('deduplicates unchanged states by terminal and state start time', () {
       final tracker = AgentStatusNotificationTracker();
       final firstWaiting = _entry(AgentStatusState.waiting);

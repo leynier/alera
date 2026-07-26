@@ -193,7 +193,10 @@ String _notificationLocationBody({
 }) {
   final project = projectName?.trim() ?? '';
   final workspace = workspaceName?.trim() ?? '';
-  if (workspace.isNotEmpty && project.isNotEmpty) {
+  // A workspace named after its project reads as "Workspace alera in alera".
+  if (workspace.isNotEmpty &&
+      project.isNotEmpty &&
+      workspace.toLowerCase() != project.toLowerCase()) {
     return 'Workspace $workspace in $project';
   }
   if (workspace.isNotEmpty) {
