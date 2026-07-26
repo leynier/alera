@@ -127,13 +127,14 @@ impl ServerActor {
     }
 
     fn resend_output_snapshot(&mut self, session_id: &str, client_id: u64) -> Value {
+        let restore_bytes = self.config.restore_snapshot_bytes as usize;
         let Some(session) = self.sessions.get_mut(session_id) else {
             return json!({});
         };
         session.set_output_paused(client_id, false);
         let (_, end_cursor) = session.output_stream_range();
         session.set_delivered_output_cursor(client_id, end_cursor);
-        let mut payload = session.snapshot_payload();
+        let mut payload = session.restore_payload(restore_bytes);
         payload["delta"] = json!(false);
         payload
     }

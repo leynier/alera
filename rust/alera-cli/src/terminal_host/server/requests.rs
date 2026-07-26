@@ -1197,6 +1197,7 @@ impl ServerActor {
         let working_directory = require_string(payload, "workingDirectory")?;
 
         let max_bytes = self.config.scrollback_bytes as usize;
+        let restore_bytes = self.config.restore_snapshot_bytes as usize;
 
         // Live session: attach only. Dead session: remint with the same handle so
         // ALERA_TERMINAL_HANDLE / orchestration dispatch targets stay valid.
@@ -1206,7 +1207,7 @@ impl ServerActor {
                 self.flush_all_output(&session_id);
                 let session = self.sessions.get_mut(&session_id).expect("just checked");
                 session.attach(client_id);
-                return Ok(session.attachment_payload(false));
+                return Ok(session.attachment_payload(false, restore_bytes));
             }
         }
         let (initial_scrollback, initial_output_stream_bytes) = self
@@ -1232,7 +1233,7 @@ impl ServerActor {
         .await?;
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
         session.attach(client_id);
-        Ok(session.attachment_payload(true))
+        Ok(session.attachment_payload(true, restore_bytes))
     }
 }
 

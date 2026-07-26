@@ -131,6 +131,30 @@ async fn a_dropped_output_frame_does_not_advance_the_delivery_cursor() {
 }
 
 #[tokio::test]
+async fn a_snapshot_resend_is_capped_to_the_configured_restore_budget() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, _terminal_rx) = ClientHandle::test_terminal_channels();
+    let mut actor = actor_with_client(&dir, handle, 1024).await;
+    actor.config.restore_snapshot_bytes = 8;
+
+    // No delivery cursor for client 9, so it takes the snapshot path.
+    actor
+        .sessions
+        .get_mut("s1")
+        .unwrap()
+        .append_output(b"one\ntwo\nthree\nfour\n");
+
+    let payload = actor.resume_output_for_client("s1", 9);
+
+    assert_eq!(payload["delta"], false);
+    assert_eq!(
+        decode_bytes(payload.get("snapshotBase64")).unwrap(),
+        b"four\n",
+        "the tail is cut at a line break inside the budget",
+    );
+}
+
+#[tokio::test]
 async fn detaching_forgets_the_delivery_cursor() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, _terminal_rx) = ClientHandle::test_terminal_channels();

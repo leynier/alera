@@ -366,14 +366,23 @@ impl Session {
         json!({ "sessionId": self.id, "error": message })
     }
 
-    pub fn attachment_payload(&self, created: bool) -> Value {
+    pub fn attachment_payload(&self, created: bool, restore_bytes: usize) -> Value {
         json!({
             "sessionId": self.id,
             "created": created,
             "running": self.running,
             "exitCode": self.exit_code,
             "driver": self.driver.payload(),
-            "snapshotBase64": encode_bytes(&self.buffer.to_bytes()),
+            "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
+        })
+    }
+
+    /// What a client that lost its place should replay, capped so a resync does
+    /// not hand it more history than its emulator will keep.
+    pub fn restore_payload(&self, restore_bytes: usize) -> Value {
+        json!({
+            "sessionId": self.id,
+            "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
         })
     }
 

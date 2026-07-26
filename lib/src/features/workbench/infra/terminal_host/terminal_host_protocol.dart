@@ -30,6 +30,7 @@ final class TerminalHostConfig {
     this.detachedSessionShutdownDelaySeconds =
         defaultTerminalHostDetachedSessionShutdownDelaySeconds,
     this.scrollbackBytes = defaultTerminalHostScrollbackBytes,
+    this.restoreSnapshotBytes = defaultTerminalHostScrollbackBytes,
     this.loginShell = false,
   });
 
@@ -44,6 +45,10 @@ final class TerminalHostConfig {
         'detachedSessionShutdownDelaySeconds',
       ),
       scrollbackBytes: _positiveInt(json['scrollbackBytes'], 'scrollbackBytes'),
+      restoreSnapshotBytes: _positiveInt(
+        json['restoreSnapshotBytes'] ?? json['scrollbackBytes'],
+        'restoreSnapshotBytes',
+      ),
       loginShell: json['loginShell'] == true,
     );
   }
@@ -53,6 +58,10 @@ final class TerminalHostConfig {
   final int emptyShutdownDelaySeconds;
   final int detachedSessionShutdownDelaySeconds;
   final int scrollbackBytes;
+
+  /// Cap on what an attach or a resynchronising snapshot replays into the
+  /// emulator. Distinct from [scrollbackBytes], which is what the host retains.
+  final int restoreSnapshotBytes;
 
   /// Start interactive shells as login shells. Always sent explicitly so the
   /// host does not have to fall back to its own platform default.
@@ -64,6 +73,7 @@ final class TerminalHostConfig {
       'detachedSessionShutdownDelaySeconds':
           detachedSessionShutdownDelaySeconds,
       'scrollbackBytes': scrollbackBytes,
+      'restoreSnapshotBytes': restoreSnapshotBytes,
       'loginShell': loginShell,
     };
   }

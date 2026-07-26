@@ -94,6 +94,12 @@ pub struct TerminalHostConfig {
     pub empty_shutdown_delay_seconds: u64,
     pub detached_session_shutdown_delay_seconds: u64,
     pub scrollback_bytes: u64,
+    /// Cap on what an attach or a resynchronising snapshot replays into a
+    /// client's emulator. Distinct from `scrollback_bytes`, which is what the
+    /// host *retains* so `terminal.read` and checkpoints can page back through
+    /// it; replaying all of that costs a VT parse per byte for history the
+    /// emulator immediately drops.
+    pub restore_snapshot_bytes: u64,
     pub persistent: bool,
     pub login_shell: bool,
 }
@@ -105,6 +111,7 @@ impl Default for TerminalHostConfig {
             detached_session_shutdown_delay_seconds:
                 DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS,
             scrollback_bytes: DEFAULT_SCROLLBACK_BYTES,
+            restore_snapshot_bytes: DEFAULT_SCROLLBACK_BYTES,
             persistent: false,
             login_shell: default_login_shell(),
         }
@@ -115,6 +122,7 @@ impl TerminalHostConfig {
     /// Parse a `configure` payload, matching `TerminalHostConfig.fromJson`
     /// (every field must be a positive integer).
     pub fn from_json(value: &Value) -> HostResult<Self> {
+        let scrollback_bytes = positive_int(value.get("scrollbackBytes"), "scrollbackBytes")?;
         Ok(TerminalHostConfig {
             empty_shutdown_delay_seconds: positive_int(
                 value.get("emptyShutdownDelaySeconds"),
@@ -124,7 +132,14 @@ impl TerminalHostConfig {
                 value.get("detachedSessionShutdownDelaySeconds"),
                 "detachedSessionShutdownDelaySeconds",
             )?,
-            scrollback_bytes: positive_int(value.get("scrollbackBytes"), "scrollbackBytes")?,
+            scrollback_bytes,
+            // An app that predates snapshot trimming sends no cap, and must
+            // keep getting the whole buffer.
+            restore_snapshot_bytes: value
+                .get("restoreSnapshotBytes")
+                .and_then(Value::as_u64)
+                .filter(|bytes| *bytes > 0)
+                .unwrap_or(scrollback_bytes),
             persistent: false,
             login_shell: value
                 .get("loginShell")
@@ -140,6 +155,7 @@ impl TerminalHostConfig {
             "emptyShutdownDelaySeconds": self.empty_shutdown_delay_seconds,
             "detachedSessionShutdownDelaySeconds": self.detached_session_shutdown_delay_seconds,
             "scrollbackBytes": self.scrollback_bytes,
+            "restoreSnapshotBytes": self.restore_snapshot_bytes,
             "persistent": self.persistent,
             "loginShell": self.login_shell,
         })
@@ -284,6 +300,7 @@ mod tests {
             empty_shutdown_delay_seconds: 5,
             detached_session_shutdown_delay_seconds: 6,
             scrollback_bytes: 7,
+            restore_snapshot_bytes: 4,
             persistent: false,
             login_shell: !default_login_shell(),
         };
@@ -291,7 +308,21 @@ mod tests {
         assert_eq!(parsed.empty_shutdown_delay_seconds, 5);
         assert_eq!(parsed.detached_session_shutdown_delay_seconds, 6);
         assert_eq!(parsed.scrollback_bytes, 7);
+        assert_eq!(parsed.restore_snapshot_bytes, 4);
         assert_eq!(parsed.login_shell, !default_login_shell());
+    }
+
+    #[test]
+    fn config_without_a_restore_cap_replays_the_whole_buffer() {
+        // An app that predates snapshot trimming sends no cap.
+        let parsed = TerminalHostConfig::from_json(&json!({
+            "emptyShutdownDelaySeconds": 5,
+            "detachedSessionShutdownDelaySeconds": 6,
+            "scrollbackBytes": 7,
+        }))
+        .unwrap();
+
+        assert_eq!(parsed.restore_snapshot_bytes, 7);
     }
 
     #[test]
