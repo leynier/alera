@@ -9,9 +9,9 @@ mod history;
 mod process_tree;
 
 use history::ResourceHistory;
-use process_tree::{ProcessIndex, ProcessRow, SubtreeUsage};
+use process_tree::{ProcessRow, SubtreeUsage};
 
-pub use process_tree::ShellProcess;
+pub use process_tree::{ProcessIndex, ShellProcess};
 
 /// Sampling cadence while a client is watching. Matches the panel's refresh.
 pub const RESOURCE_SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
@@ -61,6 +61,24 @@ pub fn seal_shell_process(pid: u32) -> Option<ShellProcess> {
         pid,
         start_time: process.start_time(),
     })
+}
+
+/// Index the whole process table for identity and parent links only.
+///
+/// Skips the cpu and memory refresh the sampler needs, so a caller that only
+/// walks the tree (terminating a shell's descendants) pays for a much cheaper
+/// sweep. The usage fields on those rows read zero, since they were never
+/// collected.
+pub fn sweep_process_topology() -> ProcessIndex {
+    let mut system = System::new();
+    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    ProcessIndex::build(system.processes().iter().map(|(pid, process)| {
+        ProcessRow::topology_only(
+            pid.as_u32(),
+            process.parent().map(|parent| parent.as_u32()),
+            process.start_time(),
+        )
+    }))
 }
 
 /// Owns the `sysinfo` handle across samples.
