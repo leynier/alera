@@ -274,6 +274,11 @@ mixin _WorkbenchControllerTabs
     if (ids.isEmpty) {
       return;
     }
+    // Capture before closing: the tab watcher can sanitise the layout (and
+    // replace the active tab) synchronously while the close is in flight.
+    final priorActiveTabId = state.layoutFor(workspace.id)?.activeTabId;
+    final closedActiveTab =
+        priorActiveTabId != null && ids.contains(priorActiveTabId);
     try {
       _closingTabWorkspaceIds.add(workspace.id);
       for (final tabId in ids) {
@@ -290,8 +295,22 @@ mixin _WorkbenchControllerTabs
           layout = layout.removeTab(tabId);
         }
         layout = layout.sanitize(remaining);
+        if (closedActiveTab) {
+          final openTabIds = <String>{for (final tab in remaining) tab.id};
+          final mruTabId = _mostRecentlyFocusedOpenTab(
+            workspace.id,
+            openTabIds,
+          );
+          final mruGroupId = mruTabId == null
+              ? null
+              : layout.groupIdForTab(mruTabId);
+          if (mruTabId != null && mruGroupId != null) {
+            layout = layout.setActiveTab(groupId: mruGroupId, tabId: mruTabId);
+          }
+        }
         await _applyLayout(layout, persist: true);
       } else {
+        _tabFocusHistoryByWorkspace.remove(workspace.id);
         _setTabsForWorkspace(workspace.id, const <WorkspaceTabRecord>[]);
         final layout = WorkbenchLayout.single(
           workspaceId: workspace.id,

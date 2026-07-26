@@ -67,6 +67,7 @@ mixin _WorkbenchControllerProjects
     try {
       _closingTabWorkspaceIds.add(workspace.id);
       _workspaceIdsWithClearedLayout.add(workspace.id);
+      _tabFocusHistoryByWorkspace.remove(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
 
       final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
@@ -110,6 +111,9 @@ mixin _WorkbenchControllerProjects
 
   Future<void> removeProject(String projectId) async {
     try {
+      for (final workspace in state.workspacesFor(projectId)) {
+        _tabFocusHistoryByWorkspace.remove(workspace.id);
+      }
       await _projectsService.removeProject(projectId);
       state = state.copyWith(error: null);
     } catch (error) {
@@ -178,6 +182,7 @@ mixin _WorkbenchControllerProjects
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      _tabFocusHistoryByWorkspace.remove(workspace.id);
       ref
           .read(workspaceActivityControllerProvider.notifier)
           .removeWorkspace(workspace.id);
