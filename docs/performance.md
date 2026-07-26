@@ -64,8 +64,8 @@ The lever that is available is the number of frames. CPU tracks the frame count 
 Two benchmarks back this up, both on a real device (Xvfb works but rasterizes in software, so its numbers only compare against other Xvfb runs):
 
 ```bash
-flutter test integration_test/terminal_render_benchmark_test.dart -d linux
-flutter test integration_test/terminal_flush_cadence_benchmark_test.dart -d linux
+flutter test integration_test/terminal_render_benchmark.dart -d linux
+flutter test integration_test/terminal_flush_cadence_benchmark.dart -d linux
 ```
 
 The first drives xterm directly and pumps its own frames, reporting what a frame costs (`BENCH_PUMP_MS` sets the cadence). The second feeds output through `XtermTerminalRuntime` and lets the runtime schedule the flushes, reporting flushes per second and process CPU: 60.0 flushes/s and ~100% of a core before the cadence floor, 29.1 flushes/s and ~80% after. Neither is a pass/fail test; run one before and after a rendering change and compare.

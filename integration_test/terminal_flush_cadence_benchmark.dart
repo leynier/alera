@@ -1,13 +1,15 @@
 /// What a streaming terminal costs through the app's own scheduling.
 ///
-/// The sibling `terminal_render_benchmark_test.dart` drives xterm directly and
+/// The sibling `terminal_render_benchmark.dart` drives xterm directly and
 /// pumps its own frames, which measures what a frame costs. This one lets the
 /// runtime decide when frames happen: output is fed at a fixed real rate and
 /// `XtermTerminalSessionHandle` schedules the flushes, so the number it reports
 /// is the one that changes when the flush cadence changes.
 ///
-///     flutter test integration_test/terminal_flush_cadence_benchmark_test.dart -d linux
+///     flutter test integration_test/terminal_flush_cadence_benchmark.dart -d linux
 ///
+/// Deliberately not named `*_test.dart`: `flutter test integration_test`
+/// sweeps that pattern in CI, and this is a measurement tool, not a check.
 /// Not a pass/fail test. Run it, stash the flush-cadence change, run it again,
 /// and compare.
 library;

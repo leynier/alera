@@ -5,10 +5,12 @@
 /// and never plays them back, and a busy Alera spends its CPU in rasterization
 /// and in the GTK embedder, not in building widgets.
 ///
+/// Deliberately not named `*_test.dart`: `flutter test integration_test`
+/// sweeps that pattern in CI, and this is a measurement tool, not a check.
 /// Not a pass/fail test. It prints a report and asserts only that frames were
 /// produced, so it can be run before and after a rendering change and compared.
 ///
-///     flutter test integration_test/terminal_render_benchmark_test.dart -d linux
+///     flutter test integration_test/terminal_render_benchmark.dart -d linux
 ///
 /// `BENCH_PUMP_MS` sets the real delay between frames (default 16, so ~60 fps).
 /// Under Xvfb the numbers are software rasterization and are only comparable
