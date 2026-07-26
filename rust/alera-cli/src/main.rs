@@ -216,6 +216,7 @@ async fn run_version_command(command: crate::cli::VersionCommand) -> i32 {
         "dispatchPreambleVersion": terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
         "runtimeHostDispatchPreambleVersion": host_status.as_ref().and_then(|value| value.get("dispatchPreambleVersion")),
         "skillVersion": terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
+        "computerUseSkillVersion": terminal_host::protocol::COMPUTER_USE_SKILL_VERSION,
         "runtimeHostSkillVersion": host_status.as_ref().and_then(|value| value.get("skillVersion")),
     });
     print_value(&payload, command.output.json, "Alera version information");
