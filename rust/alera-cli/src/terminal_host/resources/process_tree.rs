@@ -6,9 +6,24 @@ use std::collections::{HashMap, HashSet, VecDeque};
 pub struct ProcessRow {
     pub pid: u32,
     pub parent_pid: Option<u32>,
+    /// Seconds since the UNIX epoch. Carried so a pid can be checked against
+    /// the process that was actually spawned at it.
+    pub start_time: u64,
     /// Percent of a single core, so it can exceed 100 on a multi-core machine.
     pub cpu_percent: f32,
     pub memory_bytes: u64,
+}
+
+/// A spawned shell's pid together with the start time observed at spawn.
+///
+/// The two travel together because a pid on its own is not an identity. The OS
+/// reaps a shell before the reader thread reports the exit, so in that window
+/// the pid may already belong to something else; the start time is what tells
+/// the two apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShellProcess {
+    pub pid: u32,
+    pub start_time: u64,
 }
 
 /// Aggregated usage of one process subtree.
@@ -42,8 +57,16 @@ impl ProcessIndex {
         }
     }
 
-    pub fn contains(&self, pid: u32) -> bool {
-        self.by_pid.contains_key(&pid)
+    /// Whether the pid still holds the process that was spawned at it.
+    ///
+    /// False for a pid that is gone, and false for one the OS has recycled onto
+    /// an unrelated process. The check has second resolution, so a pid reused
+    /// within the same second as the original spawn still matches: this bounds
+    /// the window rather than closing it.
+    pub fn holds(&self, shell: ShellProcess) -> bool {
+        self.by_pid
+            .get(&shell.pid)
+            .is_some_and(|row| row.start_time == shell.start_time)
     }
 
     /// Sum a process and every descendant, skipping pids already claimed by an
@@ -77,13 +100,22 @@ impl ProcessIndex {
 mod tests {
     use super::*;
 
+    /// Start time the tree-arithmetic cases share, since none of them turn on
+    /// identity.
+    const SPAWNED_AT: u64 = 1_000;
+
     fn row(pid: u32, parent_pid: Option<u32>, cpu_percent: f32, memory_bytes: u64) -> ProcessRow {
         ProcessRow {
             pid,
             parent_pid,
+            start_time: SPAWNED_AT,
             cpu_percent,
             memory_bytes,
         }
+    }
+
+    fn shell(pid: u32, start_time: u64) -> ShellProcess {
+        ShellProcess { pid, start_time }
     }
 
     #[test]
@@ -130,7 +162,23 @@ mod tests {
             index.collect_subtree(404, &mut HashSet::new()),
             SubtreeUsage::default()
         );
-        assert!(!index.contains(404));
+        assert!(!index.holds(shell(404, SPAWNED_AT)));
+    }
+
+    #[test]
+    fn a_pid_still_running_the_spawned_process_is_held() {
+        let index = ProcessIndex::build([row(1, None, 1.0, 100)]);
+
+        assert!(index.holds(shell(1, SPAWNED_AT)));
+    }
+
+    #[test]
+    fn a_recycled_pid_is_not_held() {
+        // Same pid, later start time: the shell exited and the OS handed the
+        // number to something else before the reader thread noticed.
+        let index = ProcessIndex::build([row(1, None, 1.0, 100)]);
+
+        assert!(!index.holds(shell(1, SPAWNED_AT + 1)));
     }
 
     #[test]
