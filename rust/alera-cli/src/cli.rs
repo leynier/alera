@@ -3,8 +3,10 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
+mod computer;
 mod mobile;
 
+pub use computer::*;
 pub use mobile::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -54,6 +56,9 @@ pub enum Command {
 
     /// Manage mobile companion access and pairing.
     Mobile(MobileCommand),
+
+    /// Read and drive local desktop application UI.
+    Computer(ComputerCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),

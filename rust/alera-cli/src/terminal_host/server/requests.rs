@@ -25,7 +25,8 @@ use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_COMPUTER_USE_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -555,6 +556,7 @@ impl ServerActor {
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                         RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
+                        RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
                     ],
                     "authenticated": true,
                     "persistent": self.config.persistent,
@@ -566,6 +568,16 @@ impl ServerActor {
             "resources.snapshot" => {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
+            }
+            _ if request_type.starts_with("computer.") => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                match self.handle_computer_request(request_type, payload)? {
+                    Some(value) => Ok(value),
+                    None => Err(HostError::state(format!(
+                        "Unknown computer-use request: {request_type}"
+                    ))),
+                }
             }
             "runtimeMetadata.get" => {
                 self.require_auth(client_id)?;
