@@ -79,7 +79,9 @@ class _TotalsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final warming = !snapshot.hasReading;
-    final cpu = warming ? null : snapshot.totalCpuPercent;
+    final cpu = warming
+        ? null
+        : machineCpuShare(snapshot.totalCpuPercent, snapshot.host.cpuCoreCount);
     final memory = warming ? null : snapshot.totalMemoryBytes;
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -95,8 +97,8 @@ class _TotalsRow extends StatelessWidget {
             label: 'CPU',
             value: formatResourceCpu(cpu),
             tooltip:
-                'Total CPU across Alera and every terminal it spawned. '
-                'Percent of one core, so it can exceed 100%.',
+                'Total CPU across Alera and every terminal it spawned, as a '
+                'share of everything this machine can run at once.',
           ),
           const SizedBox(width: AleraTokens.space16),
           _TotalsValue(

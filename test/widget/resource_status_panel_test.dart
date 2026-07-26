@@ -18,16 +18,18 @@ ResourceSnapshot _snapshot({bool warming = false, String? error}) =>
         cpuCoreCount: 8,
         loadAverage1m: 2.4,
       ),
+      // Per-core percentages, the unit the host sends. The app row is busier
+      // than a whole core, which is the case the panel has to normalize.
       hostProcess: const ResourceProcessSample(
         pid: 4100,
-        cpuPercent: 1.2,
+        cpuPercent: 4,
         memoryBytes: 42 * 1024 * 1024,
         processCount: 1,
         history: <int>[1, 2, 3],
       ),
       appProcess: const ResourceProcessSample(
         pid: 4200,
-        cpuPercent: 0.6,
+        cpuPercent: 96,
         memoryBytes: 280 * 1024 * 1024,
         processCount: 1,
         history: <int>[1, 2, 3],
@@ -41,7 +43,7 @@ ResourceSnapshot _snapshot({bool warming = false, String? error}) =>
 ResourceSessionRow _session(
   String label, {
   bool orphan = false,
-  double? cpuPercent = 12.5,
+  double? cpuMachinePercent = 12.5,
   int? memoryBytes = 500 * 1024 * 1024,
 }) => ResourceSessionRow(
   sessionId: 'session-$label',
@@ -49,7 +51,7 @@ ResourceSessionRow _session(
   tabId: 'tab-$label',
   running: true,
   orphan: orphan,
-  cpuPercent: cpuPercent,
+  cpuMachinePercent: cpuMachinePercent,
   memoryBytes: memoryBytes,
   processCount: 3,
   history: const <int>[1, 2, 3],
@@ -133,6 +135,31 @@ void main() {
     expect(find.text('Runtime Host'), findsOneWidget);
   });
 
+  testWidgets('cpu is shown as a share of the machine, not of one core', (
+    tester,
+  ) async {
+    // Eight cores, an app burning 96% of one of them and a sidecar at 4%.
+    await _pump(
+      tester,
+      snapshot: _snapshot(),
+      tree: _tree(
+        sessions: <ResourceSessionRow>[
+          _session('Codex Agent', cpuMachinePercent: 3),
+        ],
+      ),
+    );
+
+    // 96% of one core is 12% of the machine, never "96%" next to a memory
+    // column that already reads as a share of the machine.
+    expect(find.text('12.0%'), findsOneWidget);
+    expect(find.text('0.5%'), findsOneWidget);
+    // The Alera group row sums the two before normalizing.
+    expect(find.text('12.5%'), findsOneWidget);
+    // The totals strip: 12.5% of one core across eight of them.
+    expect(find.text('1.6%'), findsOneWidget);
+    expect(find.text('96.0%'), findsNothing);
+  });
+
   testWidgets('a remote session shows a dash instead of zero', (tester) async {
     await _pump(
       tester,
@@ -140,7 +167,7 @@ void main() {
       tree: _tree(
         remote: true,
         sessions: <ResourceSessionRow>[
-          _session('Remote Shell', cpuPercent: null, memoryBytes: null),
+          _session('Remote Shell', cpuMachinePercent: null, memoryBytes: null),
         ],
       ),
     );

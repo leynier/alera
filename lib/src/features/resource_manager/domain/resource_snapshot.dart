@@ -3,6 +3,12 @@
 /// Read-only data off the socket, so these parse defensively: the app can
 /// attach to an older sidecar that answers with fewer fields, and a missing
 /// value must degrade to "unknown" rather than throw.
+///
+/// Every `cpuPercent` here is what `sysinfo` measures, percent of a *single*
+/// core, so it exceeds 100% for anything spread over more than one. The wire
+/// keeps that unit because an already-running older sidecar sends it and the
+/// meaning must not depend on which side is newer; `machineCpuShare` converts it
+/// for display.
 library;
 
 class ResourceHostMetrics {

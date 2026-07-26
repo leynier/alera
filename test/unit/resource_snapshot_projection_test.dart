@@ -72,17 +72,29 @@ ResourceSessionSample _session(
   history: const <int>[1, 2],
 );
 
-ResourceSnapshot _snapshot(List<ResourceSessionSample> sessions) =>
-    ResourceSnapshot(
-      collectedAt: _now,
-      warming: false,
-      host: ResourceHostMetrics.empty,
-      hostProcess: null,
-      appProcess: null,
-      sessions: sessions,
-      totalCpuPercent: 0,
-      totalMemoryBytes: 0,
-    );
+/// One core by default, so the grouping and ordering cases below read the
+/// host's per-core percentages back unchanged. The unit conversion itself is
+/// covered separately, with a core count that actually divides.
+ResourceSnapshot _snapshot(
+  List<ResourceSessionSample> sessions, {
+  int cpuCoreCount = 1,
+}) => ResourceSnapshot(
+  collectedAt: _now,
+  warming: false,
+  host: ResourceHostMetrics(
+    totalMemoryBytes: 16 * 1024 * 1024 * 1024,
+    availableMemoryBytes: 8 * 1024 * 1024 * 1024,
+    usedMemoryBytes: 8 * 1024 * 1024 * 1024,
+    memoryUsagePercent: 50,
+    cpuCoreCount: cpuCoreCount,
+    loadAverage1m: 1,
+  ),
+  hostProcess: null,
+  appProcess: null,
+  sessions: sessions,
+  totalCpuPercent: 0,
+  totalMemoryBytes: 0,
+);
 
 void main() {
   group('buildResourceTree', () {
@@ -114,19 +126,68 @@ void main() {
 
       final project = tree.projects.single;
       expect(project.name, 'Alera');
-      expect(project.cpuPercent, 15);
+      expect(project.cpuMachinePercent, 15);
       expect(project.memoryBytes, 150);
 
       final workspace = project.workspaces.single;
       expect(workspace.name, 'Main');
       expect(workspace.remote, isFalse);
-      expect(workspace.cpuPercent, 15);
+      expect(workspace.cpuMachinePercent, 15);
       expect(workspace.memoryBytes, 150);
       expect(workspace.sessions.map((session) => session.label), <String>[
         'Agent',
         'Build',
       ]);
       expect(tree.orphanSessions, isEmpty);
+    });
+
+    test('cpu is projected as a share of the machine, not of one core', () {
+      // The host measures what `sysinfo` measures: percent of a single core, so
+      // a session spread over three of eight cores arrives as 320%.
+      final tree = buildResourceTree(
+        snapshot: _snapshot(<ResourceSessionSample>[
+          _session('s1', workspaceId: 'w1', tabId: 't1', cpuPercent: 320),
+          _session('s2', workspaceId: 'w1', tabId: 't2', cpuPercent: 8),
+        ], cpuCoreCount: 8),
+        projects: <Project>[_project('p1', 'Alera')],
+        workspaces: <Workspace>[_workspace('w1', 'Main')],
+        tabs: <WorkspaceTabRecord>[
+          _tab('t1', 'w1', sessionId: 's1', title: 'Agent'),
+          _tab('t2', 'w1', sessionId: 's2', title: 'Build'),
+        ],
+      );
+
+      final workspace = tree.projects.single.workspaces.single;
+      expect(
+        workspace.sessions.map((session) => session.cpuMachinePercent),
+        <double>[40, 1],
+      );
+      expect(workspace.cpuMachinePercent, 41);
+      expect(tree.projects.single.cpuMachinePercent, 41);
+    });
+
+    test('an unknown core count leaves cpu absent rather than raw', () {
+      // What an unavailable snapshot carries. Passing the per-core number
+      // through would label it as a machine share and read 8x too high here.
+      final tree = buildResourceTree(
+        snapshot: _snapshot(<ResourceSessionSample>[
+          _session(
+            's1',
+            workspaceId: 'w1',
+            tabId: 't1',
+            cpuPercent: 320,
+            memoryBytes: 100,
+          ),
+        ], cpuCoreCount: 0),
+        projects: <Project>[_project('p1', 'Alera')],
+        workspaces: <Workspace>[_workspace('w1', 'Main')],
+        tabs: <WorkspaceTabRecord>[_tab('t1', 'w1', sessionId: 's1')],
+      );
+
+      final session = tree.projects.single.workspaces.single.sessions.single;
+      expect(session.cpuMachinePercent, isNull);
+      // Memory does not depend on the core count and still reads.
+      expect(session.memoryBytes, 100);
     });
 
     test('a session with no tab becomes an orphan outside the tree', () {
@@ -191,9 +252,9 @@ void main() {
 
       final workspace = tree.projects.single.workspaces.single;
       expect(workspace.remote, isTrue);
-      expect(workspace.sessions.single.cpuPercent, isNull);
+      expect(workspace.sessions.single.cpuMachinePercent, isNull);
       expect(workspace.sessions.single.memoryBytes, isNull);
-      expect(workspace.cpuPercent, isNull);
+      expect(workspace.cpuMachinePercent, isNull);
       expect(workspace.memoryBytes, isNull);
       expect(tree.projects.single.memoryBytes, isNull);
     });
@@ -251,7 +312,10 @@ void main() {
   });
 
   group('sorting', () {
-    ResourceTree buildWithSort(ResourceSortColumn column) => buildResourceTree(
+    ResourceTree buildWithSort(
+      ResourceSortColumn column, {
+      int cpuCoreCount = 1,
+    }) => buildResourceTree(
       snapshot: _snapshot(<ResourceSessionSample>[
         _session(
           'low',
@@ -274,7 +338,7 @@ void main() {
           measured: false,
           running: false,
         ),
-      ]),
+      ], cpuCoreCount: cpuCoreCount),
       projects: <Project>[_project('p1', 'Alera')],
       workspaces: <Workspace>[_workspace('w1', 'Main')],
       tabs: <WorkspaceTabRecord>[
@@ -303,6 +367,17 @@ void main() {
 
       expect(sessions.last.label, 'Charlie');
       expect(sessions.first.label, 'Alpha');
+    });
+
+    test('the core count does not reorder the cpu column', () {
+      // Dividing every row by the same number cannot change their order, so a
+      // 16-core machine ranks terminals the same way a single-core one does.
+      List<String> labels(int cores) => buildWithSort(
+        ResourceSortColumn.cpu,
+        cpuCoreCount: cores,
+      ).projects.single.workspaces.single.sessions.map((s) => s.label).toList();
+
+      expect(labels(16), labels(1));
     });
 
     test('name sorts alphabetically regardless of usage', () {

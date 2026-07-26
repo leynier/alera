@@ -27,7 +27,7 @@ class _ProjectSection extends StatelessWidget {
         _MetricRow(
           indent: 0,
           label: project.name,
-          cpuPercent: project.cpuPercent,
+          cpuMachinePercent: project.cpuMachinePercent,
           memoryBytes: project.memoryBytes,
           leading: Icon(
             collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
@@ -70,7 +70,7 @@ class _WorkspaceSection extends StatelessWidget {
           indent: 1,
           label: workspace.name,
           suffix: workspace.remote ? 'remote' : null,
-          cpuPercent: workspace.cpuPercent,
+          cpuMachinePercent: workspace.cpuMachinePercent,
           memoryBytes: workspace.memoryBytes,
         ),
         for (final session in workspace.sessions)
@@ -99,7 +99,7 @@ class _OrphanSection extends StatelessWidget {
         _MetricRow(
           indent: 0,
           label: 'Unattributed Terminals',
-          cpuPercent: null,
+          cpuMachinePercent: null,
           memoryBytes: null,
           bold: true,
         ),
@@ -130,7 +130,7 @@ class _SessionRow extends StatelessWidget {
     return _MetricRow(
       indent: 2,
       label: session.label,
-      cpuPercent: session.cpuPercent,
+      cpuMachinePercent: session.cpuMachinePercent,
       memoryBytes: session.memoryBytes,
       onTap: onOpen,
       leading: AleraStatusDot(active: session.running, size: 6),
@@ -154,7 +154,7 @@ class _MetricRow extends StatelessWidget {
   const _MetricRow({
     required this.indent,
     required this.label,
-    required this.cpuPercent,
+    required this.cpuMachinePercent,
     required this.memoryBytes,
     this.leading,
     this.trailing,
@@ -166,7 +166,9 @@ class _MetricRow extends StatelessWidget {
 
   final int indent;
   final String label;
-  final double? cpuPercent;
+
+  /// Percent of the machine's total CPU capacity, never per core.
+  final double? cpuMachinePercent;
   final int? memoryBytes;
   final Widget? leading;
   final Widget? trailing;
@@ -220,7 +222,7 @@ class _MetricRow extends StatelessWidget {
             AleraSparkline(samples: sparkline),
             const SizedBox(width: AleraTokens.space8),
           ],
-          _MetricCell(value: formatResourceCpu(cpuPercent)),
+          _MetricCell(value: formatResourceCpu(cpuMachinePercent)),
           _MetricCell(value: formatResourceMemory(memoryBytes)),
           ?trailing,
         ],
@@ -269,6 +271,9 @@ class _AleraSection extends StatelessWidget {
     if (app == null && host == null) {
       return const SizedBox.shrink();
     }
+    // These two rows read the snapshot directly instead of coming through the
+    // tree, so they normalize here rather than inheriting it.
+    final cores = snapshot.host.cpuCoreCount;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -277,7 +282,10 @@ class _AleraSection extends StatelessWidget {
         _MetricRow(
           indent: 0,
           label: 'Alera',
-          cpuPercent: (app?.cpuPercent ?? 0) + (host?.cpuPercent ?? 0),
+          cpuMachinePercent: machineCpuShare(
+            (app?.cpuPercent ?? 0) + (host?.cpuPercent ?? 0),
+            cores,
+          ),
           memoryBytes: (app?.memoryBytes ?? 0) + (host?.memoryBytes ?? 0),
           bold: true,
         ),
@@ -285,7 +293,7 @@ class _AleraSection extends StatelessWidget {
           _MetricRow(
             indent: 1,
             label: 'App',
-            cpuPercent: app.cpuPercent,
+            cpuMachinePercent: machineCpuShare(app.cpuPercent, cores),
             memoryBytes: app.memoryBytes,
             sparkline: app.history,
           ),
@@ -293,7 +301,7 @@ class _AleraSection extends StatelessWidget {
           _MetricRow(
             indent: 1,
             label: 'Runtime Host',
-            cpuPercent: host.cpuPercent,
+            cpuMachinePercent: machineCpuShare(host.cpuPercent, cores),
             memoryBytes: host.memoryBytes,
             sparkline: host.history,
           ),
