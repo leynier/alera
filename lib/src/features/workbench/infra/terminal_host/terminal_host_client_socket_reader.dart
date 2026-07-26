@@ -47,13 +47,14 @@ final class _TerminalHostSocketReader {
 
   SendPort? _commands;
   final ReceivePort _fromIsolate;
-  final StreamController<String> _lines = StreamController<String>.broadcast();
+  final StreamController<Object?> _lines =
+      StreamController<Object?>.broadcast();
   final StreamController<TerminalHostOutputTextEvent> _output =
       StreamController<TerminalHostOutputTextEvent>.broadcast();
   final Completer<void> _done = Completer<void>();
   bool _closed = false;
 
-  Stream<String> get lines => _lines.stream;
+  Stream<Object?> get lines => _lines.stream;
   Stream<TerminalHostOutputTextEvent> get output => _output.stream;
   Future<void> get done => _done.future;
 
@@ -69,7 +70,7 @@ final class _TerminalHostSocketReader {
           }
         case terminalHostIsolateLine:
           if (!_lines.isClosed) {
-            _lines.add(message[1] as String);
+            _lines.add(message[1]);
           }
         case terminalHostIsolateOutput:
           if (!_output.isClosed) {

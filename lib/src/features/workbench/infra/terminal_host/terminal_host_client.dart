@@ -69,10 +69,10 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection>? _terminalConnectionFuture;
   _TerminalHostConnection? _terminalConnection;
-  StreamSubscription<String>? _terminalLineSub;
+  StreamSubscription<Object?>? _terminalLineSub;
   Future<_TerminalHostConnection>? _runtimeConnectionFuture;
   _TerminalHostConnection? _runtimeConnection;
-  StreamSubscription<String>? _runtimeLineSub;
+  StreamSubscription<Object?>? _runtimeLineSub;
   int _nextRequestId = 1;
   bool _disposed = false;
   TerminalHostConfig _config;
@@ -593,8 +593,9 @@ final class SocketTerminalHostClient
     return connection;
   }
 
-  void _handleLine(_TerminalHostConnection connection, String line) {
-    final decoded = jsonDecode(line);
+  void _handleLine(_TerminalHostConnection connection, Object? line) {
+    // The reader isolate parses; the fallback path hands over the raw line.
+    final decoded = line is String ? jsonDecode(line) : line;
     final message = asTerminalHostMap(decoded, 'Terminal host message');
     if (message['event'] case final String event) {
       _handleEvent(event, asTerminalHostMap(message['payload'], 'event'));

@@ -48,13 +48,14 @@ final class _TerminalHostConnection {
   /// handshake works against a host without the capability, and switches to
   /// length-prefixed frames once the hello response confirms the upgrade.
   final TerminalHostFrameReader _frameReader = TerminalHostFrameReader();
-  final StreamController<String> _lines = StreamController<String>();
+  final StreamController<Object?> _lines = StreamController<Object?>();
   final StreamController<TerminalHostOutputFrame> _output =
       StreamController<TerminalHostOutputFrame>();
   StreamSubscription<List<int>>? _socketSub;
 
-  /// Control traffic: responses and events, still JSON.
-  late final Stream<String> lines;
+  /// Control traffic: responses and events. Parsed already on the isolate
+  /// path; a raw line on the fallback path, which has nowhere else to parse it.
+  late final Stream<Object?> lines;
 
   /// PTY output as raw bytes. Empty on the isolate path, which delivers text.
   late final Stream<TerminalHostOutputFrame> outputFrames;
