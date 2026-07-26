@@ -1,10 +1,9 @@
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use serde_json::Value;
-use tokio::task::JoinHandle;
 
 use super::{ServerActor, ServerCommand};
+use crate::terminal_host::demand_driven_ticker::DemandDrivenTicker;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::resources::{
     warming_snapshot, ResourceSampler, SessionPidRoot, RESOURCE_IDLE_STOP, RESOURCE_SAMPLE_INTERVAL,
@@ -12,29 +11,31 @@ use crate::terminal_host::resources::{
 
 /// Resource sampling state, driven lazily: nothing sweeps the process table
 /// until a client asks, and the ticker stops itself once they stop asking.
-#[derive(Default)]
 pub(super) struct ResourceMonitorState {
     sampler: Arc<Mutex<ResourceSampler>>,
-    ticker: Option<JoinHandle<()>>,
+    ticker: DemandDrivenTicker,
     last_snapshot: Option<Value>,
-    last_request_at: Option<Instant>,
     sample_in_flight: bool,
     /// Pid of the app process to attribute, as reported by the last caller.
     app_pid: Option<u32>,
 }
 
-impl ResourceMonitorState {
-    fn stop_ticker(&mut self) {
-        if let Some(ticker) = self.ticker.take() {
-            ticker.abort();
+impl Default for ResourceMonitorState {
+    fn default() -> Self {
+        ResourceMonitorState {
+            sampler: Arc::default(),
+            ticker: DemandDrivenTicker::new(RESOURCE_IDLE_STOP),
+            last_snapshot: None,
+            sample_in_flight: false,
+            app_pid: None,
         }
-        self.sample_in_flight = false;
     }
 }
 
-impl Drop for ResourceMonitorState {
-    fn drop(&mut self) {
-        self.stop_ticker();
+impl ResourceMonitorState {
+    fn stop_ticker(&mut self) {
+        self.ticker.stop();
+        self.sample_in_flight = false;
     }
 }
 
@@ -49,8 +50,8 @@ impl ServerActor {
         if app_pid.is_some() {
             self.resources.app_pid = app_pid;
         }
-        self.resources.last_request_at = Some(Instant::now());
-        if self.resources.ticker.is_none() {
+        self.resources.ticker.note_request();
+        if !self.resources.ticker.is_running() {
             self.start_resource_ticker();
         }
         Ok(self
@@ -68,24 +69,17 @@ impl ServerActor {
             sampler.reset_cpu_baseline();
         }
         let inbox = self.inbox.clone();
-        self.resources.ticker = Some(tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(RESOURCE_SAMPLE_INTERVAL).await;
-                if inbox.send(ServerCommand::ResourceSampleTick).is_err() {
-                    break;
-                }
-            }
-        }));
+        self.resources
+            .ticker
+            .start(RESOURCE_SAMPLE_INTERVAL, move || {
+                inbox.send(ServerCommand::ResourceSampleTick).is_ok()
+            });
     }
 
     /// One tick: stop if nobody is watching, otherwise start a sweep on a
     /// blocking thread.
     pub(super) fn handle_resource_sample_tick(&mut self) {
-        let idle = self
-            .resources
-            .last_request_at
-            .is_none_or(|at| at.elapsed() > RESOURCE_IDLE_STOP);
-        if idle {
+        if self.resources.ticker.is_idle() {
             self.resources.stop_ticker();
             return;
         }
