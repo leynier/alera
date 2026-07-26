@@ -12,12 +12,14 @@ import 'package:path/path.dart' as p;
 part 'terminal_host_client_resilience_cases.dart';
 part 'terminal_host_client_timeout_cases.dart';
 part 'terminal_host_client_binary_frames_cases.dart';
+part 'terminal_host_client_protocol_mismatch_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
   _registerTerminalHostClientResilienceTests();
   _registerTerminalHostClientTimeoutTests();
   _registerTerminalHostClientBinaryFrameTests();
+  _registerTerminalHostClientProtocolMismatchTests();
 
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
@@ -977,6 +979,7 @@ Future<void> _writeControlFile({
   String fileName = 'host.json',
   required int port,
   required String token,
+  int protocolVersion = aleraTerminalHostProtocolVersion,
   bool includeRuntimeCapability = true,
   bool includeBootstrapCapability = true,
   bool includeManagedWorkspaceCapability = true,
@@ -986,7 +989,7 @@ Future<void> _writeControlFile({
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
   final payload = <String, Object?>{
-    'protocolVersion': aleraTerminalHostProtocolVersion,
+    'protocolVersion': protocolVersion,
     'port': port,
     'token': token,
   };

@@ -24,6 +24,7 @@ part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
 part 'terminal_host_client_session_events.dart';
 part 'terminal_host_client_socket_reader.dart';
+part 'terminal_host_control_file.dart';
 
 final class SocketTerminalHostClient
     with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
@@ -466,6 +467,7 @@ final class SocketTerminalHostClient
     File controlFile, {
     required bool requireOrchestration,
   }) async {
+    await _failIfIncompatibleHostHoldsRuntime(runtime);
     final token = _newToken();
     await _launcher.start(
       runtimeDir: runtime.runtimeDir.path,
@@ -697,49 +699,6 @@ final class SocketTerminalHostClient
       controlFile: File(p.join(runtimeDir.path, 'host.json')),
       runtimeControlFile: File(p.join(runtimeDir.path, 'runtime-host.json')),
     );
-  }
-
-  Future<_TerminalHostControl?> _readControl(File file) async {
-    try {
-      if (!await file.exists()) {
-        return null;
-      }
-      final decoded = jsonDecode(await file.readAsString());
-      final map = asTerminalHostMap(decoded, 'terminal host control');
-      if (map['protocolVersion'] != aleraTerminalHostProtocolVersion) {
-        return null;
-      }
-      final capabilities = asTerminalHostStringList(map['runtimeCapabilities']);
-      final port = map['port'];
-      final token = map['token'];
-      if (port is! int || token is! String || token.isEmpty) {
-        return null;
-      }
-      return _TerminalHostControl(
-        port: port,
-        token: token,
-        supportsRuntime:
-            capabilities.contains(aleraRuntimeHostCapability) &&
-            capabilities.contains(aleraRuntimeHostBootstrapCapability) &&
-            capabilities.contains(aleraRuntimeHostManagedWorkspaceCapability),
-        supportsOrchestration: capabilities.contains(
-          aleraRuntimeHostOrchestrationCapability,
-        ),
-        supportsBinaryFrames: capabilities.contains(
-          aleraRuntimeHostBinaryFramesCapability,
-        ),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> _deleteControlFile(File file) async {
-    try {
-      if (await file.exists()) {
-        await file.delete();
-      }
-    } catch (_) {}
   }
 
   String _newToken() {
