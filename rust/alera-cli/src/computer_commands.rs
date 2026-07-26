@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use serde_json::{json, Value};
 
-use crate::cli::{ComputerAction, ComputerCommand, ComputerPermissionsArgs};
+use crate::cli::{ComputerAction, ComputerAppStateArgs, ComputerCommand, ComputerPermissionsArgs};
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::terminal_host::protocol::RUNTIME_HOST_COMPUTER_USE_CAPABILITY;
 
@@ -14,6 +14,9 @@ pub async fn run(command: ComputerCommand) -> i32 {
     let (request_type, payload) = match &action {
         ComputerAction::Capabilities => ("computer.capabilities", json!({})),
         ComputerAction::Permissions(args) => ("computer.permissions", permissions_payload(args)),
+        ComputerAction::ListApps => ("computer.listApps", json!({})),
+        ComputerAction::ListWindows(args) => ("computer.listWindows", json!({ "app": args.app })),
+        ComputerAction::GetAppState(args) => ("computer.getAppState", app_state_payload(args)),
     };
     match request(runtime_dir, request_type, payload).await {
         Ok(value) => report(&value, json_output, &action),
@@ -22,6 +25,15 @@ pub async fn run(command: ComputerCommand) -> i32 {
             1
         }
     }
+}
+
+fn app_state_payload(args: &ComputerAppStateArgs) -> Value {
+    json!({
+        "app": args.app.app,
+        "windowId": args.window_id,
+        "windowIndex": args.window_index,
+        "includeScreenshot": !args.no_screenshot,
+    })
 }
 
 fn permissions_payload(args: &ComputerPermissionsArgs) -> Value {
@@ -67,6 +79,11 @@ fn report(value: &Value, json_output: bool, action: &ComputerAction) -> i32 {
     match action {
         ComputerAction::Capabilities => print!("{}", render_capabilities(&value["capabilities"])),
         ComputerAction::Permissions(_) => print!("{}", render_permissions(&value["permissions"])),
+        ComputerAction::ListApps => print!("{}", render_apps(&value["apps"])),
+        ComputerAction::ListWindows(_) => {
+            print!("{}", render_windows(&value["app"], &value["windows"]))
+        }
+        ComputerAction::GetAppState(_) => print!("{}", render_snapshot(&value["snapshot"])),
     }
     0
 }
@@ -165,6 +182,104 @@ fn render_permissions(permissions: &Value) -> String {
             out.push_str(&format!("    {detail}\n"));
         }
     }
+    out
+}
+
+fn render_apps(apps: &Value) -> String {
+    let Some(apps) = apps.as_array() else {
+        return String::new();
+    };
+    if apps.is_empty() {
+        return "No application with a window is on the accessibility bus.\n".to_string();
+    }
+    let mut out = String::new();
+    for app in apps {
+        let name = app["name"].as_str().unwrap_or("unknown");
+        let pid = app["pid"].as_u64().unwrap_or(0);
+        match app["bundleId"].as_str() {
+            Some(bundle_id) => out.push_str(&format!("{name} (pid {pid}, {bundle_id})\n")),
+            None => out.push_str(&format!("{name} (pid {pid})\n")),
+        }
+    }
+    out
+}
+
+fn render_windows(app: &Value, windows: &Value) -> String {
+    let mut out = format!(
+        "{} (pid {})\n",
+        app["name"].as_str().unwrap_or("unknown"),
+        app["pid"].as_u64().unwrap_or(0)
+    );
+    let Some(windows) = windows.as_array() else {
+        return out;
+    };
+    if windows.is_empty() {
+        out.push_str("  (no windows)\n");
+        return out;
+    }
+    for window in windows {
+        let index = window["index"].as_u64().unwrap_or(0);
+        let title = window["title"].as_str().unwrap_or("");
+        let active = if window["isActive"].as_bool().unwrap_or(false) {
+            ", active"
+        } else {
+            ""
+        };
+        out.push_str(&format!("  index:{index} \"{title}\"{active}"));
+        if let Some(bounds) = window["bounds"].as_object() {
+            let number = |key: &str| bounds.get(key).and_then(Value::as_f64).unwrap_or(0.0);
+            out.push_str(&format!(
+                " ({}x{} @ {},{})",
+                number("width"),
+                number("height"),
+                number("x"),
+                number("y")
+            ));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn render_snapshot(snapshot: &Value) -> String {
+    let mut out = format!(
+        "{} (pid {})\n  Window index:{} \"{}\"\n",
+        snapshot["app"]["name"].as_str().unwrap_or("unknown"),
+        snapshot["app"]["pid"].as_u64().unwrap_or(0),
+        snapshot["window"]["index"].as_u64().unwrap_or(0),
+        snapshot["window"]["title"].as_str().unwrap_or("")
+    );
+    out.push_str(&format!(
+        "  Elements: {}  Coordinates: {}\n",
+        snapshot["elementCount"].as_u64().unwrap_or(0),
+        snapshot["coordinateSpace"].as_str().unwrap_or("window")
+    ));
+    if let Some(index) = snapshot["focusedElementIndex"].as_u64() {
+        out.push_str(&format!("  Focused element: {index}\n"));
+    }
+    if snapshot["truncation"]["truncated"]
+        .as_bool()
+        .unwrap_or(false)
+    {
+        out.push_str(&format!(
+            "  Truncated at {} nodes\n",
+            snapshot["truncation"]["maxNodes"].as_u64().unwrap_or(0)
+        ));
+    }
+    match snapshot["screenshot"]["path"].as_str() {
+        Some(path) => out.push_str(&format!(
+            "  Screenshot: {path} (scale {})\n",
+            snapshot["screenshot"]["scale"].as_f64().unwrap_or(1.0)
+        )),
+        None => {
+            if let Some(error) = snapshot["screenshotError"].as_str() {
+                out.push_str(&format!("  No screenshot: {error}\n"));
+            }
+        }
+    }
+    out.push('\n');
+    out.push_str(snapshot["treeText"].as_str().unwrap_or(""));
+    out.push('\n');
     out
 }
 

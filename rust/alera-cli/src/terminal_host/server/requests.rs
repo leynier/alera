@@ -572,7 +572,7 @@ impl ServerActor {
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                match self.handle_computer_request(request_type, payload)? {
+                match self.handle_computer_request(request_type, payload).await? {
                     Some(value) => Ok(value),
                     None => Err(HostError::state(format!(
                         "Unknown computer-use request: {request_type}"

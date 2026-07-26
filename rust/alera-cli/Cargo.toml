@@ -50,11 +50,15 @@ axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"
 serde_urlencoded = "0.7"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
+async-trait = "0.1.91"
 
 # Signalling a PTY shell's descendants. Already in the tree through
 # portable-pty, so declaring it directly adds no crate.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+atspi = { version = "0.30", default-features = false, features = ["proxies", "connection", "tokio"] }
 
 [dev-dependencies]
 tempfile = "3"

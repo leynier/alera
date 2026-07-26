@@ -21,6 +21,37 @@ pub enum ComputerAction {
     ///
     /// Never opens a system prompt on its own.
     Permissions(ComputerPermissionsArgs),
+    /// List applications that have at least one window.
+    #[command(name = "list-apps")]
+    ListApps,
+    /// List one application's windows.
+    #[command(name = "list-windows")]
+    ListWindows(ComputerAppArgs),
+    /// Read one window: its accessibility tree, and a screenshot when available.
+    #[command(name = "get-app-state")]
+    GetAppState(ComputerAppStateArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ComputerAppArgs {
+    /// The application: a name, a bundle id, or pid:<number>.
+    #[arg(long = "app", value_name = "app")]
+    pub app: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ComputerAppStateArgs {
+    #[command(flatten)]
+    pub app: ComputerAppArgs,
+    /// Window handle, where the platform exposes one. Not available on Linux.
+    #[arg(long = "window-id", value_name = "id")]
+    pub window_id: Option<i64>,
+    /// Window position in `list-windows`. Defaults to the active window.
+    #[arg(long = "window-index", value_name = "n", conflicts_with = "window_id")]
+    pub window_index: Option<usize>,
+    /// Skip the screenshot. Use when only the tree is needed.
+    #[arg(long = "no-screenshot")]
+    pub no_screenshot: bool,
 }
 
 #[derive(Debug, Args)]
