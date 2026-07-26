@@ -33,12 +33,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Set<String> _closingTabWorkspaceIds = <String>{};
   final Set<String> _workspaceIdsWithClearedLayout = <String>{};
 
-  // MRU-first tab focus history per workspace, used to refocus the last
-  // focused tab when the active tab is closed. Session-only on purpose:
-  // focus order is ephemeral and unbounded growth is capped per workspace.
-  static const int _tabFocusHistoryLimit = 50;
-  final Map<String, List<String>> _tabFocusHistoryByWorkspace =
-      <String, List<String>>{};
+  final WorkspaceTabFocusHistory _tabFocusHistory = WorkspaceTabFocusHistory();
 
   bool _bootstrapStarted = false;
 
@@ -243,46 +238,11 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     );
     final activeTabId = layout.activeTabId;
     if (activeTabId != null) {
-      _recordTabFocus(layout.workspaceId, activeTabId);
+      _tabFocusHistory.record(layout.workspaceId, activeTabId);
     }
     if (persist) {
       await _repository.upsertWorkbenchLayout(layout);
     }
-  }
-
-  void _recordTabFocus(String workspaceId, String tabId) {
-    final history = _tabFocusHistoryByWorkspace.putIfAbsent(
-      workspaceId,
-      () => <String>[],
-    );
-    history.remove(tabId);
-    history.insert(0, tabId);
-    if (history.length > _tabFocusHistoryLimit) {
-      history.removeRange(_tabFocusHistoryLimit, history.length);
-    }
-  }
-
-  void _pruneTabFocusHistory(String workspaceId, Set<String> openTabIds) {
-    final history = _tabFocusHistoryByWorkspace[workspaceId];
-    if (history == null) {
-      return;
-    }
-    history.removeWhere((tabId) => !openTabIds.contains(tabId));
-    if (history.isEmpty) {
-      _tabFocusHistoryByWorkspace.remove(workspaceId);
-    }
-  }
-
-  String? _mostRecentlyFocusedOpenTab(
-    String workspaceId,
-    Set<String> openTabIds,
-  ) {
-    _pruneTabFocusHistory(workspaceId, openTabIds);
-    final history = _tabFocusHistoryByWorkspace[workspaceId];
-    if (history == null || history.isEmpty) {
-      return null;
-    }
-    return history.first;
   }
 
   void _applyLayoutInBackground(
@@ -347,7 +307,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     final next = Map<String, String>.from(state.activeTabIdByWorkspace)
       ..[workspaceId] = tabId;
     state = state.copyWith(activeTabIdByWorkspace: next);
-    _recordTabFocus(workspaceId, tabId);
+    _tabFocusHistory.record(workspaceId, tabId);
   }
 
   Future<void> _ensureMainWorkspaceForProject(Project project) async {
