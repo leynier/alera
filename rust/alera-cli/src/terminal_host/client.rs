@@ -221,6 +221,18 @@ async fn write_json_line(
 
 pub const CLIENT_TERMINAL_OUT_QUEUE_CAPACITY: usize = 8;
 
+/// The mobile gateway writes over a WAN socket where a single `send` can stall
+/// for hundreds of milliseconds. The desktop lane's 8 frames is roughly 64 ms of
+/// batches, so one stall fills it and parks the phone in the session's paused
+/// set; 32 buys around 256 ms without letting the phone render a long tail of
+/// stale output once a real stall ends.
+pub const MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY: usize = 32;
+
+const _: () = assert!(
+    MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY > CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
+    "the mobile lane exists to be deeper than the local desktop one"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,12 +1,14 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// Compose-mode input: type the full text, then send it as one write. Send
-/// appends Enter (`\r`); long-press Send offers sending without it.
+/// Compose-mode input: type the full text, then send it. Send submits with
+/// Enter; long-press Send offers sending without it.
 class TerminalComposeBar extends StatefulWidget {
   const TerminalComposeBar({super.key, required this.onSend});
 
-  /// Called with the composed text; [withEnter] appends Enter (`\r`).
+  /// Called with the composed text. How the text and the Enter reach the PTY is
+  /// the controller's decision, not this bar's; see
+  /// `terminal_compose_delivery.dart`.
   final void Function(String text, {required bool withEnter}) onSend;
 
   @override

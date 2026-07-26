@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
@@ -58,11 +58,7 @@ class TerminalTabView extends ConsumerWidget {
                 .toggle,
           ),
           if (inputMode == TerminalInputMode.compose)
-            TerminalComposeBar(
-              onSend: (text, {required bool withEnter}) {
-                notifier.write(utf8.encode(withEnter ? '$text\r' : text));
-              },
-            ),
+            TerminalComposeBar(onSend: notifier.sendComposedText),
         ],
       ),
       AsyncError(:final error) => _SessionError(
@@ -95,55 +91,144 @@ class _TerminalSurface extends StatefulWidget {
 }
 
 class _TerminalSurfaceState extends State<_TerminalSurface> {
-  late final Terminal _terminal;
-  late final TerminalController _controller;
-  late final TerminalOutputBatcher _batcher;
-  StreamSubscription<Uint8List>? _outputSub;
+  late Terminal _terminal;
+  final TerminalController _controller = TerminalController();
+  TerminalOutputBatcher? _batcher;
+  StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
+  bool _outputEnded = false;
 
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(
-      maxLines: 5000,
-      onOutput: widget.onInput,
-      onResize: (width, height, _, _) => widget.onViewportResize(width, height),
-    );
-    _controller = TerminalController();
-    // One write per frame. Writing every chunk straight through made a noisy
-    // build parse and repaint many times inside a single frame.
-    _batcher = TerminalOutputBatcher(write: _terminal.write);
-    if (widget.session.snapshot.isNotEmpty) {
-      _batcher.addSnapshot(
-        utf8.decode(widget.session.snapshot, allowMalformed: true),
-      );
+    _bindSession(widget.session, notify: false);
+  }
+
+  @override
+  void didUpdateWidget(_TerminalSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The session id is stable across re-attaches, so this State survives a
+    // reconnect that hands down a new session over a new client. Without
+    // rebinding, the subscription stays on the previous client's closed stream
+    // and the terminal freezes on whatever it had drawn.
+    if (!identical(oldWidget.session, widget.session)) {
+      _bindSession(widget.session, notify: true);
     }
-    _outputSub = widget.session.output.listen((data) {
-      _batcher.add(utf8.decode(data, allowMalformed: true));
-    });
   }
 
   @override
   void dispose() {
     unawaited(_outputSub?.cancel());
-    _batcher.dispose();
+    _batcher?.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  void _bindSession(TerminalTabSession session, {required bool notify}) {
+    unawaited(_outputSub?.cancel());
+    _outputSub = null;
+    _outputEnded = false;
+    _replaceEmulator(notify: notify);
+    if (session.snapshot.isNotEmpty) {
+      _batcher!.addSnapshot(
+        utf8.decode(session.snapshot, allowMalformed: true),
+      );
+    }
+    _outputSub = session.output.listen(
+      _handleOutput,
+      // A closed or errored source is otherwise indistinguishable from a
+      // terminal that simply has nothing to say.
+      onError: (Object _, StackTrace _) => _markOutputEnded(),
+      onDone: _markOutputEnded,
+    );
+  }
+
+  /// Builds a fresh emulator rather than writing clear sequences into the old
+  /// one, so alt-buffer, mouse reporting, and cursor modes reset too.
+  void _replaceEmulator({required bool notify}) {
+    _batcher?.dispose();
+    final next = Terminal(
+      maxLines: 5000,
+      onOutput: (data) => widget.onInput(data),
+      onResize: (width, height, _, _) => widget.onViewportResize(width, height),
+    );
+    // One write per frame. Writing every chunk straight through made a noisy
+    // build parse and repaint many times inside a single frame.
+    _batcher = TerminalOutputBatcher(write: next.write);
+    if (notify) {
+      setState(() => _terminal = next);
+    } else {
+      _terminal = next;
+    }
+  }
+
+  void _handleOutput(MobileTerminalOutputEvent event) {
+    final text = utf8.decode(event.data, allowMalformed: true);
+    if (event.replacesScrollback) {
+      _replaceEmulator(notify: true);
+      _batcher!.addSnapshot(text);
+      return;
+    }
+    _batcher!.add(text);
+  }
+
+  void _markOutputEnded() {
+    if (!mounted || _outputEnded) {
+      return;
+    }
+    setState(() => _outputEnded = true);
   }
 
   @override
   Widget build(BuildContext context) {
     final direct = widget.inputMode == TerminalInputMode.direct;
+    return Column(
+      children: <Widget>[
+        if (_outputEnded) const _OutputEndedBanner(),
+        Expanded(
+          child: ColoredBox(
+            color: AleraTokens.background,
+            child: TerminalView(
+              _terminal,
+              controller: _controller,
+              // Compose mode keeps the terminal read-only so tapping it scrolls
+              // instead of raising the soft keyboard; direct mode streams keys.
+              readOnly: !direct,
+              autofocus: direct,
+              backgroundOpacity: 0,
+              textStyle: const TerminalStyle(
+                fontFamily: AleraTokens.monoFontFamily,
+              ),
+              padding: const EdgeInsets.all(AleraTokens.spaceSm),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OutputEndedBanner extends StatelessWidget {
+  const _OutputEndedBanner();
+
+  @override
+  Widget build(BuildContext context) {
     return ColoredBox(
-      color: AleraTokens.background,
-      child: TerminalView(
-        _terminal,
-        controller: _controller,
-        // Compose mode keeps the terminal read-only so tapping it scrolls
-        // instead of raising the soft keyboard; direct mode streams keys.
-        readOnly: !direct,
-        autofocus: direct,
-        backgroundOpacity: 0,
-        textStyle: const TerminalStyle(fontFamily: AleraTokens.monoFontFamily),
-        padding: const EdgeInsets.all(AleraTokens.spaceSm),
+      color: AleraTokens.surfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.spaceLg,
+          vertical: AleraTokens.spaceXs,
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.link_off, size: AleraTokens.spaceLg),
+            const SizedBox(width: AleraTokens.spaceSm),
+            Text(
+              'Terminal Output Stopped',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
       ),
     );
   }

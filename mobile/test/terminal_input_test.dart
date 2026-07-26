@@ -64,13 +64,15 @@ void main() {
   testWidgets('Compose bar sends text with Enter and clears the field', (
     tester,
   ) async {
-    final sent = <String>[];
+    // The bar hands over the text and the intent; how they reach the PTY is
+    // TerminalComposeDelivery's decision, not this widget's.
+    final sent = <(String, bool)>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: TerminalComposeBar(
             onSend: (text, {required bool withEnter}) {
-              sent.add(withEnter ? '$text\\r' : text);
+              sent.add((text, withEnter));
             },
           ),
         ),
@@ -82,11 +84,11 @@ void main() {
     await tester.tap(find.byTooltip('Send'));
     await tester.pump();
 
-    expect(sent, <String>['ls -la\\r']);
+    expect(sent, <(String, bool)>[('ls -la', true)]);
     expect(find.text('ls -la'), findsNothing);
 
     // An empty send still presses Enter.
     await tester.tap(find.byTooltip('Send'));
-    expect(sent, <String>['ls -la\\r', '\\r']);
+    expect(sent, <(String, bool)>[('ls -la', true), ('', true)]);
   });
 }

@@ -20,6 +20,13 @@ const String mobileTabRenameCapability = 'mobileTabRenameV1';
 /// requires an exact `aleraMobileProtocolVersion` match, so bumping it would
 /// lock out every device that has not updated at the same moment.
 const String mobileBinaryFramesCapability = 'binaryFrames';
+
+/// The runtime accepts `bracketedPaste` and `deferredEnter` on `write`, so a
+/// composed prompt and its Enter reach the PTY as two separate writes. Agent
+/// TUIs run paste heuristics over input bursts and read a CR inside the burst
+/// as a literal newline instead of a submit. Unprefixed because the host
+/// capability is not mobile-scoped, same as [mobileBinaryFramesCapability].
+const String terminalDeferredInputCapability = 'terminalDeferredInputV1';
 const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
@@ -34,10 +41,19 @@ class MobileRuntimeEvent {
 }
 
 class MobileTerminalOutputEvent {
-  const MobileTerminalOutputEvent(this.sessionId, this.data);
+  const MobileTerminalOutputEvent(
+    this.sessionId,
+    this.data, {
+    this.replacesScrollback = false,
+  });
 
   final String sessionId;
   final Uint8List data;
+
+  /// A `delta: false` resume answer: the host could no longer place this client
+  /// in the output stream, so these bytes replace the emulator contents instead
+  /// of being appended to them.
+  final bool replacesScrollback;
 }
 
 const int defaultTerminalCols = 80;
@@ -47,6 +63,9 @@ abstract interface class MobileTerminalClient {
   Stream<MobileRuntimeEvent> get events;
   Stream<MobileTerminalOutputEvent> get terminalOutput;
   bool get supportsTerminalTitles;
+
+  /// Whether [writeTerminal] may use `bracketedPaste` and `deferredEnter`.
+  bool get supportsDeferredTerminalInput;
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
   Future<MobileTerminalSession> createTerminal(
     String workspaceId, {
@@ -59,7 +78,17 @@ abstract interface class MobileTerminalClient {
     int cols,
     int rows,
   });
-  Future<void> writeTerminal(String sessionId, List<int> bytes);
+
+  /// Raw keystrokes pass both flags as false. A composed prompt sets
+  /// [deferredEnter] so the host writes the submit CR separately, and
+  /// [bracketedPaste] when the text carries newlines or other control
+  /// characters that a line editor would otherwise treat as accept-line.
+  Future<void> writeTerminal(
+    String sessionId,
+    List<int> bytes, {
+    bool bracketedPaste = false,
+    bool deferredEnter = false,
+  });
   Future<void> resizeTerminal(String sessionId, int cols, int rows);
   Future<void> detachTerminal(String sessionId);
   Future<void> terminateSession(String sessionId);

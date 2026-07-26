@@ -12,6 +12,7 @@ Alera treats performance as a product contract. Optimization work starts with a 
 - Obsolete workspace searches are cancelled in Rust as soon as the query generation changes.
 - Bundled Inter and JetBrains Mono assets remove runtime font-network and font-loader work.
 - Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from the host's per-client delivery cursor when a client falls behind, so a tab switch or a backpressure resync costs the bytes that were missed rather than a replay of the scrollback. A cold attach still replays, capped to what the emulator will keep. RPC responses and runtime events use a separate control lane so terminal backpressure cannot disconnect the workbench.
+- The mobile gateway gets a deeper terminal lane than the desktop socket, because a WAN send can stall for hundreds of milliseconds and the queue depth the local socket was tuned for turns one stall into a permanent pause. Depth only buys time: the mobile client answers the host's backpressure resync the same way the desktop does, which is what actually clears the pause.
 
 ## Linux Startup Harness
 

@@ -11,6 +11,7 @@ import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_probe.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -43,6 +44,9 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
     final data = ref.watch(workspaceListControllerProvider(host.id));
     final prefs = ref.watch(mobileViewPrefsControllerProvider(host.id));
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
+    // Mounted here because this screen already keeps the connection alive
+    // underneath the terminal, so the probe outlives the terminal screen.
+    ref.watch(hostConnectionProbeProvider(host.id));
     final currentHost =
         ref
             .watch(pairedHostsControllerProvider)
@@ -61,7 +65,9 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
               right: -AleraTokens.space12,
               top: -AleraTokens.space2,
               child: AleraStatusDot(
-                active: connection.hasValue,
+                // Riverpod keeps the previous value on an error state, so
+                // hasValue alone would keep the dot green on a dead socket.
+                active: connection.hasValue && !connection.hasError,
                 size: AleraTokens.spaceSm,
               ),
             ),

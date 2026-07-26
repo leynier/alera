@@ -21,6 +21,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 part 'mobile_runtime_client_host_tools.dart';
+part 'mobile_runtime_terminal_requests.dart';
+part 'mobile_terminal_output_resync.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 // Managed workspace lifecycle mirrors the desktop client timeouts
@@ -32,7 +34,9 @@ class MobileRuntimeClient
     with
         MobileRuntimeWorkspaceSidebarClient,
         MobileRuntimeProjectClient,
-        MobileRuntimeClientHostTools
+        MobileRuntimeClientHostTools,
+        MobileRuntimeTerminalRequests,
+        MobileRuntimeTerminalOutputResync
     implements MobileTerminalClient, MobileWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {
@@ -110,6 +114,19 @@ class MobileRuntimeClient
       _terminalOutput.stream;
   int get debugPendingRequestCount => _pending.length;
 
+  @override
+  bool get isConnectionUsable => !_disposed && _closedError == null;
+
+  /// The single door onto the terminal output stream, so neither the binary nor
+  /// the base64 path can add to a closed controller.
+  @override
+  void emitTerminalOutput(MobileTerminalOutputEvent event) {
+    if (_terminalOutput.isClosed) {
+      return;
+    }
+    _terminalOutput.add(event);
+  }
+
   /// Capabilities advertised by the runtime in the `mobile.hello` response.
   /// Empty until [authenticate] completes.
   @override
@@ -125,6 +142,9 @@ class MobileRuntimeClient
   @override
   bool get supportsTerminalTitles =>
       _runtimeCapabilities.contains(mobileTerminalTitlesCapability);
+  @override
+  bool get supportsDeferredTerminalInput =>
+      _runtimeCapabilities.contains(terminalDeferredInputCapability);
   bool get supportsPortableSettings =>
       _runtimeCapabilities.contains(mobilePortableSettingsCapability);
   bool get supportsAgentQuotas =>
@@ -274,78 +294,6 @@ class MobileRuntimeClient
   }
 
   @override
-  Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
-    final payload = await requestList('tab.list', <String, Object?>{
-      'workspaceId': workspaceId,
-    });
-    return <WorkspaceTabSummary>[
-      for (final item in payload)
-        if (asJsonMap(item).isNotEmpty)
-          WorkspaceTabSummary.fromJson(asJsonMap(item)),
-    ];
-  }
-
-  @override
-  Future<MobileTerminalSession> createTerminal(
-    String workspaceId, {
-    String? title,
-    int cols = defaultTerminalCols,
-    int rows = defaultTerminalRows,
-  }) async {
-    final payload = await requestMap('terminal.create', <String, Object?>{
-      'workspaceId': workspaceId,
-      'title': title ?? 'Mobile Terminal',
-      'cols': cols,
-      'rows': rows,
-    });
-    return MobileTerminalSession.fromJson(payload);
-  }
-
-  @override
-  Future<MobileTerminalSession> attachTerminal(
-    String tabId, {
-    int cols = defaultTerminalCols,
-    int rows = defaultTerminalRows,
-  }) async {
-    final payload = await requestMap('terminal.attach', <String, Object?>{
-      'tabId': tabId,
-      'cols': cols,
-      'rows': rows,
-    });
-    return MobileTerminalSession.fromJson(payload);
-  }
-
-  @override
-  Future<void> writeTerminal(String sessionId, List<int> bytes) async {
-    if (bytes.isEmpty) {
-      return;
-    }
-    await request('write', <String, Object?>{
-      'sessionId': sessionId,
-      'dataBase64': base64Encode(bytes),
-    });
-  }
-
-  @override
-  Future<void> resizeTerminal(String sessionId, int cols, int rows) async {
-    await request('resize', <String, Object?>{
-      'sessionId': sessionId,
-      'cols': cols,
-      'rows': rows,
-    });
-  }
-
-  @override
-  Future<void> detachTerminal(String sessionId) async {
-    await request('detach', <String, Object?>{'sessionId': sessionId});
-  }
-
-  @override
-  Future<void> terminateSession(String sessionId) async {
-    await request('terminate', <String, Object?>{'sessionId': sessionId});
-  }
-
-  @override
   Future<Object?> request(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
@@ -434,8 +382,8 @@ class MobileRuntimeClient
     // it skips jsonDecode and base64Decode entirely.
     if (_binaryFrames && raw is List<int>) {
       final output = decodeMobileBinaryOutput(raw);
-      if (output != null && !_terminalOutput.isClosed) {
-        _terminalOutput.add(output);
+      if (output != null) {
+        emitTerminalOutput(output);
       }
       return;
     }
@@ -455,10 +403,12 @@ class MobileRuntimeClient
         final sessionId = payload['sessionId'];
         final encoded = payload['dataBase64'];
         if (sessionId is String && encoded is String && encoded.isNotEmpty) {
-          _terminalOutput.add(
+          emitTerminalOutput(
             MobileTerminalOutputEvent(sessionId, base64Decode(encoded)),
           );
         }
+      } else if (event == 'outputResyncRequired') {
+        handleOutputResyncRequired(payload);
       }
       return;
     }
@@ -488,6 +438,12 @@ class MobileRuntimeClient
       }
     }
     _pending.clear();
+    // Both lanes end here so listeners can tell a dead socket from an idle
+    // terminal. A half-open connection produces no error of its own, so a
+    // client that stays silently open looks exactly like one with nothing to
+    // deliver. `close` is idempotent, so `dispose` closing them again is fine.
+    unawaited(_events.close());
+    unawaited(_terminalOutput.close());
   }
 
   void _handleSocketClosed() {

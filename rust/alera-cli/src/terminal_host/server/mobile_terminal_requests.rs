@@ -5,7 +5,18 @@
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::int_or;
+use crate::terminal_host::protocol::{
+    int_or, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+};
 use alera_core::runtime::{Workspace, WorkspaceTabRecord};
 use chrono::Utc;
 use uuid::Uuid;
@@ -13,6 +24,33 @@ use uuid::Uuid;
 use super::requests::{optional_string_key, require_string_key, terminal_session_id_from_tab};
 use super::terminal_launch_defaults::default_terminal_launch;
 use super::ServerActor;
+
+/// What `mobile.hello` tells a phone this host can do.
+///
+/// A different list from the one `status.get` answers with, and the one the app
+/// feature-detects against. Named rather than inlined so a test can assert a
+/// capability is in it: the runtime enforces an exact `MOBILE_PROTOCOL_VERSION`
+/// match, so an omission here is invisible and silently leaves every phone on
+/// the older code path with no version to blame.
+pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
+    RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+];
 
 impl ServerActor {
     pub(super) fn mobile_workspace_tabs_payload(&self, tabs: Vec<WorkspaceTabRecord>) -> Value {
