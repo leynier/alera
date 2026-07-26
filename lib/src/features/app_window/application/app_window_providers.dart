@@ -1,6 +1,8 @@
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:alera/src/features/app_window/application/app_window_state_repository.dart';
+import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/app_window/infra/drift_app_window_state_repository.dart';
+import 'package:alera/src/features/app_window/infra/lifecycle_app_foreground.dart';
 import 'package:alera/src/features/app_window/infra/platform_app_window_close_strategy.dart';
 import 'package:alera/src/features/app_window/infra/screen_retriever_app_window_display_provider.dart';
 import 'package:alera/src/features/app_window/infra/window_manager_app_window_controller.dart';
@@ -43,4 +45,13 @@ AppWindowLifecycleCoordinator appWindowLifecycleCoordinator(Ref ref) {
     coordinator.stop();
   });
   return coordinator;
+}
+
+/// Observes the app lifecycle so recurring work can park while nobody can see
+/// its results.
+@Riverpod(keepAlive: true)
+AppForeground appForeground(Ref ref) {
+  final foreground = LifecycleAppForeground();
+  ref.onDispose(foreground.dispose);
+  return foreground;
 }

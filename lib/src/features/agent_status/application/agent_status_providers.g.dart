@@ -54,7 +54,7 @@ final class AgentHookReceiverProvider
   }
 }
 
-String _$agentHookReceiverHash() => r'f9ef39ed83de7482972c0e578165972d1d18d216';
+String _$agentHookReceiverHash() => r'ea63ae8465f9a04a8a74701313323480d861a1cc';
 
 @ProviderFor(agentHookServer)
 final agentHookServerProvider = AgentHookServerProvider._();

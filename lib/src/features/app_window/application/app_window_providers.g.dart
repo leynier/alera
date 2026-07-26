@@ -203,3 +203,52 @@ final class AppWindowLifecycleCoordinatorProvider
 
 String _$appWindowLifecycleCoordinatorHash() =>
     r'cd701c2b5038caf5c56604db638e08dcc663e6c1';
+
+/// Observes the app lifecycle so recurring work can park while nobody can see
+/// its results.
+
+@ProviderFor(appForeground)
+final appForegroundProvider = AppForegroundProvider._();
+
+/// Observes the app lifecycle so recurring work can park while nobody can see
+/// its results.
+
+final class AppForegroundProvider
+    extends $FunctionalProvider<AppForeground, AppForeground, AppForeground>
+    with $Provider<AppForeground> {
+  /// Observes the app lifecycle so recurring work can park while nobody can see
+  /// its results.
+  AppForegroundProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appForegroundProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$appForegroundHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppForeground> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AppForeground create(Ref ref) {
+    return appForeground(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppForeground value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppForeground>(value),
+    );
+  }
+}
+
+String _$appForegroundHash() => r'dceb40705264e2c77686d3c1eceb4b7a565bd934';
