@@ -7,11 +7,16 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 mod history;
 mod process_tree;
+mod snapshot_payload;
 
 use history::ResourceHistory;
 use process_tree::{ProcessRow, SubtreeUsage};
+use snapshot_payload::{
+    accumulate, memory_usage_percent, process_json, APP_HISTORY_KEY, HOST_HISTORY_KEY,
+};
 
 pub use process_tree::{ProcessIndex, ShellProcess};
+pub use snapshot_payload::warming_snapshot;
 
 /// Sampling cadence while a client is watching. Matches the panel's refresh.
 pub const RESOURCE_SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
@@ -69,9 +74,18 @@ pub fn seal_shell_process(pid: u32) -> Option<ShellProcess> {
 /// walks the tree (terminating a shell's descendants) pays for a much cheaper
 /// sweep. The usage fields on those rows read zero, since they were never
 /// collected.
+///
+/// `without_tasks` keeps threads out of the table. They would otherwise show up
+/// as child processes, which makes a shell's own threads read as its
+/// descendants: the kill walk would then signal the shell before the root killer
+/// runs, and `descendants` would stop meaning what its name says.
 pub fn sweep_process_topology() -> ProcessIndex {
     let mut system = System::new();
-    system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().without_tasks(),
+    );
     ProcessIndex::build(system.processes().iter().map(|(pid, process)| {
         ProcessRow::topology_only(
             pid.as_u32(),
@@ -121,10 +135,20 @@ impl ResourceSampler {
     ) -> Value {
         self.system.refresh_memory();
         self.system.refresh_cpu_usage();
+        // `nothing()` is not nothing: it defaults `tasks` on, and on Linux that
+        // puts every thread in the table as a child process of its own. Each one
+        // reports the whole process's RSS, because they share the address space,
+        // so a subtree total scales with the thread count instead of measuring
+        // memory: the app read 26x its real size at 97 threads. Thread CPU
+        // double counts the same way, since the leader's `/proc/<pid>/stat` is
+        // already the thread-group aggregate.
         self.system.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
-            ProcessRefreshKind::nothing().with_cpu().with_memory(),
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_cpu()
+                .with_memory(),
         );
         self.refreshes = self.refreshes.saturating_add(1);
         let warming = self.refreshes < REFRESHES_BEFORE_CPU_IS_VALID;
@@ -221,75 +245,11 @@ impl ResourceSampler {
     }
 }
 
-const HOST_HISTORY_KEY: &str = "__host__";
-const APP_HISTORY_KEY: &str = "__app__";
-
-/// The payload returned before the first sweep lands, so a client that asks the
-/// instant the ticker starts gets a well-formed answer instead of an error.
-pub fn warming_snapshot() -> Value {
-    json!({
-        "collectedAt": Utc::now().timestamp_millis(),
-        "warming": true,
-        "host": {
-            "totalMemoryBytes": 0,
-            "availableMemoryBytes": 0,
-            "usedMemoryBytes": 0,
-            "memoryUsagePercent": 0.0,
-            "cpuCoreCount": 0,
-            "loadAverage1m": 0.0,
-        },
-        "processes": { "host": Value::Null, "app": Value::Null },
-        "sessions": [],
-        "totals": { "cpuPercent": 0.0, "memoryBytes": 0 },
-    })
-}
-
-fn process_json(pid: u32, usage: SubtreeUsage, history: Vec<u64>) -> Value {
-    json!({
-        "pid": pid,
-        "cpuPercent": usage.cpu_percent,
-        "memoryBytes": usage.memory_bytes,
-        "processCount": usage.process_count,
-        "history": history,
-    })
-}
-
-fn accumulate(totals: &mut SubtreeUsage, usage: SubtreeUsage) {
-    totals.cpu_percent += usage.cpu_percent;
-    totals.memory_bytes = totals.memory_bytes.saturating_add(usage.memory_bytes);
-    totals.process_count += usage.process_count;
-}
-
-fn memory_usage_percent(total: u64, available: u64) -> f64 {
-    if total == 0 {
-        return 0.0;
-    }
-    (total.saturating_sub(available) as f64) * 100.0 / (total as f64)
-}
-
 #[cfg(test)]
 mod tests {
+    use std::sync::{mpsc, Arc, Barrier};
+
     use super::*;
-
-    #[test]
-    fn memory_usage_percent_handles_an_unknown_total() {
-        assert_eq!(memory_usage_percent(0, 0), 0.0);
-    }
-
-    #[test]
-    fn memory_usage_percent_reports_the_used_share() {
-        assert!((memory_usage_percent(1000, 250) - 75.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn the_warming_snapshot_is_shaped_like_a_real_one() {
-        let snapshot = warming_snapshot();
-
-        assert_eq!(snapshot["warming"], json!(true));
-        assert!(snapshot["sessions"].is_array());
-        assert!(snapshot["host"]["totalMemoryBytes"].is_number());
-        assert!(snapshot["totals"]["memoryBytes"].is_number());
-    }
 
     #[test]
     fn a_sample_measures_this_process_and_reports_warming_until_cpu_is_valid() {
@@ -379,6 +339,121 @@ mod tests {
         let session = &snapshot["sessions"][0];
         assert_eq!(session["measured"], json!(true));
         assert!(session["memoryBytes"].as_u64().unwrap() > 0);
+    }
+
+    /// Sample once and read back the subtree measured for `pid`.
+    fn host_subtree(sampler: &mut ResourceSampler, pid: u32) -> (u64, u64) {
+        let snapshot = sampler.sample(&[], pid, None);
+        let row = &snapshot["processes"]["host"];
+        (
+            row["memoryBytes"].as_u64().expect("memory is a number"),
+            row["processCount"].as_u64().expect("the count is a number"),
+        )
+    }
+
+    /// The regression case for counting threads as processes.
+    ///
+    /// A thread costs a stack, not an address space, so a batch of them must
+    /// barely move a subtree total. When the process refresh leaves `tasks` on,
+    /// every thread instead enters the table as a child process whose `statm`
+    /// repeats the whole process's RSS, and the total scales with the thread
+    /// count: this process measured 26x its real memory at 97 threads.
+    #[test]
+    fn a_subtree_does_not_scale_with_the_thread_count() {
+        const THREADS: usize = 64;
+        let mut sampler = ResourceSampler::default();
+        let self_pid = std::process::id();
+
+        let (memory_before, count_before) = host_subtree(&mut sampler, self_pid);
+
+        // Each thread reports in before parking on the gate, so the sample below
+        // cannot race a thread that has not started yet. The gate then holds all
+        // of them alive until the measurement is taken.
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let gate = Arc::new(Barrier::new(THREADS + 1));
+        let threads: Vec<_> = (0..THREADS)
+            .map(|_| {
+                let gate = Arc::clone(&gate);
+                let ready = ready_tx.clone();
+                std::thread::spawn(move || {
+                    ready.send(()).expect("the test is still listening");
+                    gate.wait();
+                })
+            })
+            .collect();
+        drop(ready_tx);
+        for _ in 0..THREADS {
+            ready_rx.recv().expect("every thread reports in");
+        }
+
+        let (memory_after, count_after) = host_subtree(&mut sampler, self_pid);
+
+        gate.wait();
+        for thread in threads {
+            thread.join().expect("the gated thread returns");
+        }
+
+        // The process count is the sharp signal, because a thread row simply is
+        // an extra row. Bounds are loose on purpose: the other cases in this
+        // binary run alongside this one and spawn their own children, and the
+        // whole-binary RSS moves under them. The bug multiplied this subtree by
+        // 8.6x when it was measured, so it clears both by a wide margin.
+        assert!(
+            count_after < count_before + 16,
+            "the subtree gained {} processes after spawning {THREADS} threads \
+             ({count_before} -> {count_after}), so thread rows are being counted",
+            count_after.saturating_sub(count_before),
+        );
+        assert!(
+            memory_after < memory_before.saturating_mul(4),
+            "subtree memory scaled with the thread count ({memory_before} -> \
+             {memory_after} after spawning {THREADS} threads), so thread rows are \
+             being summed"
+        );
+    }
+
+    /// Guards the two invariants a real machine cannot break. Neither is a tight
+    /// bound, which is the point: they only trip on double counting, and a
+    /// version bump that changes what the refresh returns trips them here rather
+    /// than in the panel.
+    #[test]
+    fn the_totals_stay_within_what_the_machine_has() {
+        let mut sampler = ResourceSampler::default();
+        let self_pid = std::process::id();
+        // CPU is a delta between refreshes, so it only carries a reading once
+        // the baseline has settled.
+        for _ in 0..REFRESHES_BEFORE_CPU_IS_VALID {
+            sampler.sample(&[], self_pid, None);
+        }
+
+        let snapshot = sampler.sample(&[], self_pid, None);
+
+        let machine_memory = snapshot["host"]["totalMemoryBytes"]
+            .as_u64()
+            .expect("the machine reports its memory");
+        let attributed_memory = snapshot["totals"]["memoryBytes"]
+            .as_u64()
+            .expect("the totals carry memory");
+        assert!(
+            attributed_memory <= machine_memory,
+            "attributed {attributed_memory} bytes, more than the {machine_memory} \
+             the machine has"
+        );
+
+        let cores = snapshot["host"]["cpuCoreCount"]
+            .as_u64()
+            .expect("the machine reports its cores");
+        let attributed_cpu = snapshot["totals"]["cpuPercent"]
+            .as_f64()
+            .expect("the totals carry cpu");
+        // `sysinfo` already caps a single row at `cores * 100`, so a total above
+        // it can only come from summing the same work twice.
+        let ceiling = (cores * 100) as f64;
+        assert!(
+            attributed_cpu <= ceiling,
+            "attributed {attributed_cpu}% cpu, more than the {ceiling}% \
+             {cores} cores can do"
+        );
     }
 
     #[test]

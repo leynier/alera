@@ -220,6 +220,32 @@ mod tests {
         assert!(!index.holds(shell(1, SPAWNED_AT + 1)));
     }
 
+    /// Why the defense against thread rows has to live in the refresh rather
+    /// than here.
+    ///
+    /// A thread looks exactly like a child process to this index: a pid whose
+    /// parent is the process, reporting the RSS of the shared address space. The
+    /// tree arithmetic cannot tell it apart from a real child that genuinely
+    /// costs that memory, so it sums it and the total scales with the thread
+    /// count. `claimed` does not help either, because every tid is a distinct pid
+    /// nothing has claimed. The refresh must therefore never hand these rows
+    /// over: see `without_tasks` in `sweep_process_topology` and `sample`.
+    #[test]
+    fn thread_shaped_rows_would_be_summed_as_real_children() {
+        // One 100-byte process, plus three "threads" each repeating that RSS.
+        let index = ProcessIndex::build([
+            row(1, None, 1.0, 100),
+            row(2, Some(1), 1.0, 100),
+            row(3, Some(1), 1.0, 100),
+            row(4, Some(1), 1.0, 100),
+        ]);
+
+        let usage = index.collect_subtree(1, &mut HashSet::new());
+
+        assert_eq!(usage.memory_bytes, 400, "100 bytes counted once per row");
+        assert_eq!(usage.process_count, 4);
+    }
+
     #[test]
     fn a_parent_cycle_terminates() {
         // Defensive: a recycled pid can make the table look cyclic mid-sweep.
