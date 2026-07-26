@@ -4,6 +4,7 @@ mod cli;
 mod cli_orchestration;
 mod cli_orchestration_runs;
 mod cli_orchestration_terminal;
+mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
 mod host_tools;

@@ -1,5 +1,6 @@
 use clap::Args;
 
+use crate::cli_orchestration_timeouts::parse_agent_spawn_timeout_ms;
 use crate::terminal_host::protocol::ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS;
 
 #[derive(Debug, Args)]
@@ -72,32 +73,4 @@ pub struct OrchestrationAgentSpawnArgs {
         value_parser = parse_agent_spawn_timeout_ms
     )]
     pub timeout_ms: u64,
-}
-
-fn parse_agent_spawn_timeout_ms(value: &str) -> Result<u64, String> {
-    let timeout = value
-        .parse::<u64>()
-        .map_err(|_| "timeout must be an integer number of milliseconds".to_string())?;
-    if !(1..=ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS).contains(&timeout) {
-        return Err(format!(
-            "timeout must be between 1 and {ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS} milliseconds"
-        ));
-    }
-    Ok(timeout)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn agent_spawn_timeout_respects_host_acceptance_limit() {
-        assert_eq!(parse_agent_spawn_timeout_ms("1").unwrap(), 1);
-        assert_eq!(
-            parse_agent_spawn_timeout_ms("90000").unwrap(),
-            ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS
-        );
-        assert!(parse_agent_spawn_timeout_ms("0").is_err());
-        assert!(parse_agent_spawn_timeout_ms("90001").is_err());
-    }
 }

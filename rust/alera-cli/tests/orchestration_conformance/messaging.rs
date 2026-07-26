@@ -122,4 +122,48 @@ fn check_wait_times_out_cleanly() {
     ));
     assert_eq!(timed_out["timedOut"], json!(true));
     assert_eq!(timed_out["messages"], json!([]));
+    // An honoured budget echoes back unchanged, which is what lets the clamped
+    // case below be recognised as a clamp.
+    assert_eq!(timed_out["effectiveTimeoutMs"], json!(700));
+}
+
+#[test]
+fn a_state_wait_timeout_also_reports_the_budget_the_host_applied() {
+    // State waits finish through their own timeout path, so the budget has to
+    // be echoed there too. Without it a caller that asked for more than the
+    // host ceiling cannot tell a server-side clamp from a real expiry, and the
+    // two call for opposite responses: wait again, or escalate.
+    //
+    // The clamp itself cannot be driven from here, since observing it would
+    // mean sitting out the full ceiling. It is pinned as a unit case on
+    // `state_wait_timeout_ms` instead.
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    // A freshly created task is pending, so waiting for a terminal state parks
+    // rather than answering straight away.
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        20,
+        "orchestration.taskCreate",
+        json!({
+            "spec": "never finishes",
+            "workspace": "ws",
+            "coordinator": "coord",
+            "createdBy": "coord",
+        }),
+    ));
+    let task_id = task["id"].as_str().expect("task id").to_string();
+
+    let timed_out = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        21,
+        "orchestration.taskWait",
+        json!({"task": task_id, "targets": ["completed"], "timeoutMs": 700}),
+    ));
+
+    assert_eq!(timed_out["timedOut"], json!(true));
+    assert_eq!(timed_out["effectiveTimeoutMs"], json!(700));
 }

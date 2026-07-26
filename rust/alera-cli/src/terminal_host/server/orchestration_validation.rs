@@ -4,8 +4,8 @@ use alera_core::runtime::{
 use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::protocol::ORCHESTRATION_MAX_WAIT_TIMEOUT_MS as MAX_WAIT_TIMEOUT_MS;
 
-const MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
 const DEFAULT_WAIT_TIMEOUT_MS: u64 = 120_000;
 
 pub(super) fn optional_string(payload: &Value, key: &str) -> Option<String> {

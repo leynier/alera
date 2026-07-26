@@ -13,6 +13,10 @@ pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
 pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
 pub const ORCHESTRATION_SKILL_VERSION: i64 = 3;
 pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
+/// Longest wait the host will hold a parked orchestration request for. Shared
+/// with the CLI so `--timeout-ms` can refuse a budget the host would silently
+/// cut down to this.
+pub const ORCHESTRATION_MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";

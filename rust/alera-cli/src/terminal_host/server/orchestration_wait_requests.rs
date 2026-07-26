@@ -90,7 +90,7 @@ impl ServerActor {
     pub(super) async fn finish_orchestration_state_wait_timeout(
         &mut self,
         waiter: MessageWaiter,
-        waited_ms: u64,
+        effective_timeout_ms: u64,
     ) {
         match self.state_wait_result(&waiter).await {
             Ok(Some(payload)) => {
@@ -107,10 +107,14 @@ impl ServerActor {
                     waiter.client_id,
                     ok_response(
                         waiter.request_id,
+                        // See the sibling finisher: the wait ran its whole
+                        // budget, so elapsed and budget coincide here, and both
+                        // are reported because they answer different questions.
                         json!({
                             "outcome": "timeout",
                             "timedOut": true,
-                            "waitedMs": waited_ms,
+                            "waitedMs": effective_timeout_ms,
+                            "effectiveTimeoutMs": effective_timeout_ms,
                         }),
                     ),
                 );

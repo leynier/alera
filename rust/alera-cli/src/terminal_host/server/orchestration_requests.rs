@@ -1911,7 +1911,7 @@ impl ServerActor {
     pub(super) async fn handle_orchestration_wait_timeout(
         &mut self,
         waiter_id: u64,
-        waited_ms: u64,
+        effective_timeout_ms: u64,
     ) {
         let Some(waiter) = self.orchestration_waiters.take_by_id(waiter_id) else {
             return;
@@ -1920,7 +1920,7 @@ impl ServerActor {
             &waiter.kind,
             WaitKind::TerminalState { .. } | WaitKind::TaskState { .. }
         ) {
-            self.finish_orchestration_state_wait_timeout(waiter, waited_ms)
+            self.finish_orchestration_state_wait_timeout(waiter, effective_timeout_ms)
                 .await;
             return;
         }
@@ -1931,17 +1931,22 @@ impl ServerActor {
         };
         payload["timedOut"] = Value::Bool(true);
         payload["outcome"] = Value::String("timeout".to_string());
-        payload["waitedMs"] = json!(waited_ms);
+        // Reaching the deadline means the wait ran its whole budget, so the two
+        // figures coincide. They are still reported apart, because they answer
+        // different questions and only one of them survives a future change to
+        // how the elapsed time is measured.
+        payload["waitedMs"] = json!(effective_timeout_ms);
+        payload["effectiveTimeoutMs"] = json!(effective_timeout_ms);
         self.client_write(waiter.client_id, ok_response(waiter.request_id, payload));
     }
 
-    pub(super) fn spawn_wait_timeout(&self, waiter_id: u64, timeout_ms: u64) {
+    pub(super) fn spawn_wait_timeout(&self, waiter_id: u64, effective_timeout_ms: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(timeout_ms)).await;
+            tokio::time::sleep(Duration::from_millis(effective_timeout_ms)).await;
             let _ = inbox.send(ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,
-                waited_ms: timeout_ms,
+                effective_timeout_ms,
             });
         });
     }
