@@ -1,10 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
-};
+use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
@@ -39,10 +36,14 @@ use crate::terminal_host::orchestration::message_formatter::format_messages_for_
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
+use crate::terminal_host::sleep_detector::SleepDetector;
+
+use client_accept_loop::spawn_accept_loop;
 
 use resource_requests::ResourceMonitorState;
 
 mod agent_hook_events;
+mod client_accept_loop;
 mod client_delivery;
 mod coordinator_requests;
 mod coordinator_stall_policy;
@@ -312,52 +313,24 @@ pub async fn run_terminal_host_server(
     actor.reconcile_spawn_on_create_tabs().await;
     actor.schedule_shutdown_if_idle();
 
+    // Lives with the loop rather than the actor: it describes the machine the
+    // host is running on, not any of the state the actor owns.
+    let mut sleep_detector = SleepDetector::default();
     while let Some(command) = rx.recv().await {
+        if let Some(slept) = sleep_detector.observe() {
+            // The first thing to happen after a wake says so, which is what
+            // keeps a lid closed overnight from being read later as a freeze.
+            eprintln!(
+                "alera terminal host resumed after {}s of system sleep",
+                slept.as_secs()
+            );
+        }
         actor.handle(command).await;
         if actor.disposed {
             break;
         }
     }
     Ok(())
-}
-
-fn spawn_accept_loop(
-    listener: TcpListener,
-    inbox: UnboundedSender<ServerCommand>,
-    next_client_id: Arc<AtomicU64>,
-) {
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            let _ = stream.set_nodelay(true);
-            let id = next_client_id.fetch_add(1, Ordering::Relaxed);
-            let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<ClientFrame>();
-            let (terminal_out_tx, terminal_out_rx) =
-                mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-            // Register the client before its lines can arrive: the
-            // ClientConnected command is enqueued before the connection loop
-            // (and thus any ClientLine) starts.
-            if inbox
-                .send(ServerCommand::ClientConnected {
-                    id,
-                    handle: ClientHandle {
-                        control_out: control_out_tx,
-                        terminal_out: terminal_out_tx,
-                    },
-                    kind: ClientKind::Local,
-                })
-                .is_err()
-            {
-                break;
-            }
-            tokio::spawn(connection_loop(
-                stream,
-                id,
-                inbox.clone(),
-                control_out_rx,
-                terminal_out_rx,
-            ));
-        }
-    });
 }
 
 struct ServerActor {
