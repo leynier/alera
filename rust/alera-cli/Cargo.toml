@@ -51,6 +51,11 @@ bytes = "1"
 serde_urlencoded = "0.7"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 
+# Signalling a PTY shell's descendants. Already in the tree through
+# portable-pty, so declaring it directly adds no crate.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3"
 serde_json = "1"

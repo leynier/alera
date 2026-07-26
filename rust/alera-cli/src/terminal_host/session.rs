@@ -19,6 +19,8 @@ mod driver_test_stub;
 mod input_queue;
 mod io_threads;
 mod output_backpressure;
+mod output_batching;
+mod shell_tree_termination;
 #[cfg(test)]
 mod tests;
 mod title_tracker;
@@ -27,6 +29,7 @@ mod title_tracker;
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
 use io_threads::{spawn_reader, spawn_writer};
+use shell_tree_termination::kill_shell_tree;
 use title_tracker::TerminalTitleTracker;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
@@ -334,54 +337,6 @@ impl Session {
         self.title_tracker.current_title()
     }
 
-    pub fn output_batch_len(&self) -> usize {
-        self.output_batch.len()
-    }
-
-    pub fn output_stream_range(&self) -> (u64, u64) {
-        (
-            self.output_stream_bytes
-                .saturating_sub(self.buffer.len() as u64),
-            self.output_stream_bytes,
-        )
-    }
-
-    pub fn output_batch_due(&self, generation: u64) -> bool {
-        self.output_batch_armed && self.output_batch_gen == generation
-    }
-
-    pub fn flush_output_batch(&mut self) -> Option<OutputBatch> {
-        if self.output_batch.is_empty() {
-            self.output_batch_armed = false;
-            return None;
-        }
-        self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
-        self.output_batch_armed = false;
-        let data = std::mem::take(&mut self.output_batch);
-        Some(OutputBatch { data })
-    }
-
-    pub fn durable_output_batch_len(&self) -> usize {
-        self.durable_output_batch.len()
-    }
-
-    pub fn durable_output_batch_due(&self, generation: u64) -> bool {
-        self.durable_output_batch_armed && self.durable_output_batch_gen == generation
-    }
-
-    pub fn flush_durable_output_batch(&mut self) -> Option<DurableOutputBatch> {
-        if self.durable_output_batch.is_empty() {
-            self.durable_output_batch_armed = false;
-            return None;
-        }
-        self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
-        self.durable_output_batch_armed = false;
-        let data = std::mem::take(&mut self.durable_output_batch);
-        let sequence = self.durable_output_batch_sequence;
-        self.durable_output_batch_sequence = self.durable_output_batch_sequence.wrapping_add(1);
-        Some(DurableOutputBatch { data, sequence })
-    }
-
     /// Mark the session as exited. Returns the `exit` event payload to broadcast,
     /// or `None` if the session had already exited.
     pub fn handle_exit(&mut self, exit_code: i32) -> Option<Value> {
@@ -431,15 +386,21 @@ impl Session {
         })
     }
 
-    /// Terminate the session: kill the child, release the PTY, and either delete
-    /// or finalize the checkpoint.
+    /// Terminate the session: kill the shell and everything it spawned, release
+    /// the PTY, and either delete or finalize the checkpoint.
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
         self.terminated = true;
         self.running = false;
-        self.shell = None;
+        // Read before clearing. The sweep needs the sealed shell to prove which
+        // tree it is allowed to signal, and it has to run before the root is
+        // killed: a dead root's children reparent away and stop being findable.
+        let shell = self.shell.take();
         if let Some(mut killer) = self.killer.take() {
-            // The child may have already exited between checks.
-            let _ = killer.kill();
+            kill_shell_tree(shell, move || {
+                // The child may have already exited between checks.
+                let _ = killer.kill();
+            })
+            .await;
         }
         self.input_tx = None;
         self.master = None;

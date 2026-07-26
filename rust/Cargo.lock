@@ -57,6 +57,7 @@ dependencies = [
  "git2",
  "hex",
  "jsonschema",
+ "libc",
  "portable-pty",
  "regex",
  "reqwest",

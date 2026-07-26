@@ -14,6 +14,20 @@ pub struct ProcessRow {
     pub memory_bytes: u64,
 }
 
+impl ProcessRow {
+    /// A row for callers that only walk identity and parent links, like process
+    /// tree termination. Usage reads zero because it was never refreshed.
+    pub fn topology_only(pid: u32, parent_pid: Option<u32>, start_time: u64) -> ProcessRow {
+        ProcessRow {
+            pid,
+            parent_pid,
+            start_time,
+            cpu_percent: 0.0,
+            memory_bytes: 0,
+        }
+    }
+}
+
 /// A spawned shell's pid together with the start time observed at spawn.
 ///
 /// The two travel together because a pid on its own is not an identity. The OS
@@ -67,6 +81,31 @@ impl ProcessIndex {
         self.by_pid
             .get(&shell.pid)
             .is_some_and(|row| row.start_time == shell.start_time)
+    }
+
+    /// Every pid below `root`, excluding `root` itself.
+    ///
+    /// Only meaningful while the root is alive in this snapshot. Once it exits,
+    /// its children reparent away and stop being reachable through it, and any
+    /// row still naming the vacated pid as its parent is a recycle coincidence
+    /// rather than a descendant. Callers prove liveness with `holds` first.
+    pub fn descendants(&self, root: u32) -> Vec<u32> {
+        let mut found = Vec::new();
+        let mut seen = HashSet::from([root]);
+        let mut pending = VecDeque::from([root]);
+        while let Some(pid) = pending.pop_front() {
+            let Some(children) = self.children_of.get(&pid) else {
+                continue;
+            };
+            for &child in children {
+                // `seen` also guards the cycle a mid-sweep recycle can fake.
+                if seen.insert(child) {
+                    found.push(child);
+                    pending.push_back(child);
+                }
+            }
+        }
+        found
     }
 
     /// Sum a process and every descendant, skipping pids already claimed by an
