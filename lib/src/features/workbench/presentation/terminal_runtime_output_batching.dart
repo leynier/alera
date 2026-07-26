@@ -130,6 +130,8 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
   }
   handle._clearPendingTerminalOutput();
   handle._writeToTerminal(buffer.toString());
+  // Everything queued is on screen now, including a restore this bypassed.
+  handle._finishRestore();
 }
 
 /// Start index for a head trim that never lands inside a surrogate pair.
