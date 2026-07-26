@@ -168,7 +168,7 @@ pub enum ServerCommand {
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
         waiter_id: u64,
-        waited_ms: u64,
+        effective_timeout_ms: u64,
     },
     OrchestrationStateWaitPoll(u64),
     /// Fires the deferred Enter after an injected orchestration banner.
@@ -643,9 +643,9 @@ impl ServerActor {
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
             ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,
-                waited_ms,
+                effective_timeout_ms,
             } => {
-                self.handle_orchestration_wait_timeout(waiter_id, waited_ms)
+                self.handle_orchestration_wait_timeout(waiter_id, effective_timeout_ms)
                     .await
             }
             ServerCommand::OrchestrationStateWaitPoll(waiter_id) => {

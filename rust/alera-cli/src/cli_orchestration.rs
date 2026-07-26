@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 use crate::cli::{OutputArgs, RuntimeDirArgs};
 pub use crate::cli_orchestration_runs::*;
 pub use crate::cli_orchestration_terminal::*;
+use crate::cli_orchestration_timeouts::parse_wait_timeout_ms;
 
 /// `alera orchestration ...` - inter-agent messaging, task DAG, dispatch,
 /// decision gates, and the coordinator loop. All verbs are RPC calls to the
@@ -216,7 +217,7 @@ pub struct OrchestrationCheckArgs {
     pub wait: bool,
 
     /// Wait timeout in milliseconds (default 120000).
-    #[arg(long = "timeout-ms", value_name = "ms")]
+    #[arg(long = "timeout-ms", value_name = "ms", value_parser = parse_wait_timeout_ms)]
     pub timeout_ms: Option<u64>,
 
     /// Maximum messages returned with --all.
@@ -268,7 +269,7 @@ pub struct OrchestrationAskArgs {
     pub options: Option<String>,
 
     /// Wait timeout in milliseconds (default 120000).
-    #[arg(long = "timeout-ms", value_name = "ms")]
+    #[arg(long = "timeout-ms", value_name = "ms", value_parser = parse_wait_timeout_ms)]
     pub timeout_ms: Option<u64>,
 }
 
@@ -343,7 +344,7 @@ pub struct OrchestrationTaskWaitArgs {
         default_value = "completed,failed,stalled,cancelled"
     )]
     pub targets: String,
-    #[arg(long = "timeout-ms", default_value_t = 120_000)]
+    #[arg(long = "timeout-ms", default_value_t = 120_000, value_parser = parse_wait_timeout_ms)]
     pub timeout_ms: u64,
 }
 
