@@ -51,7 +51,11 @@ int _terminalOutputHeadRemaining(_XtermTerminalSessionHandle handle) {
 }
 
 void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
-  if (handle._terminalOutputFlushScheduled || handle._disposed) {
+  // A hidden terminal keeps its backlog but pays no frame time for it; the
+  // backlog is drained when it becomes visible again.
+  if (handle._terminalOutputFlushScheduled ||
+      handle._disposed ||
+      !handle._visible) {
     return;
   }
   handle._terminalOutputFlushScheduled = true;

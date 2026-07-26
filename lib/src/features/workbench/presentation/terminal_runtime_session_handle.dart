@@ -457,16 +457,16 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     switch (event) {
+      // Output that arrives while hidden is queued, not dropped. The host
+      // counts a frame as delivered the moment the client's queue takes it, so
+      // discarding between losing visibility and the pause taking effect would
+      // leave a gap that no later resume knows to resend.
       case TerminalPtyOutputEvent(:final data):
-        if (_visible) {
-          _ptyOutputController.add(data);
-        }
+        _ptyOutputController.add(data);
       case TerminalPtyOutputTextEvent(:final text):
         // Already decoded by the reader isolate, so it skips the local
         // decoder entirely.
-        if (_visible) {
-          _handleTerminalOutput(text);
-        }
+        _handleTerminalOutput(text);
       case TerminalPtySnapshotEvent(:final data, :final resetInteractionModes):
         _pendingInteractionModeReset |= resetInteractionModes;
         if (_visible) {

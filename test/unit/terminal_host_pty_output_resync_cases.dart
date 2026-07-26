@@ -31,7 +31,9 @@ void _registerTerminalHostPtyOutputResyncTests() {
     await _flushAsync();
 
     expect(client.outputPaused, <(String, bool)>[('session-1', false)]);
-    expect(events.whereType<TerminalPtySnapshotEvent>(), hasLength(2));
+    // The resync costs a delta on the output lane, not another full replay:
+    // replaying the scrollback is what slowed the client into the next resync.
+    expect(events.whereType<TerminalPtySnapshotEvent>(), hasLength(1));
   });
 
   test(

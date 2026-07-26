@@ -33,6 +33,7 @@ impl Session {
             current_dims: (80, 24),
             output_paused_clients: HashSet::new(),
             output_resync_pending_clients: HashSet::new(),
+            delivered_output_cursors: HashMap::new(),
             buffer: ScrollbackBuffer::new(max_bytes, &checkpoint.buffer),
             running: false,
             exit_code,

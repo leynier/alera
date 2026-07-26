@@ -16,6 +16,7 @@ impl Session {
             current_dims: (cols, rows),
             output_paused_clients: HashSet::new(),
             output_resync_pending_clients: HashSet::new(),
+            delivered_output_cursors: HashMap::new(),
             buffer: ScrollbackBuffer::new(1024, &[]),
             running: true,
             exit_code: None,

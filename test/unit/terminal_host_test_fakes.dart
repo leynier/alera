@@ -50,6 +50,11 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   String? attachedWorkingDirectory;
   Object? writeError;
 
+  /// What `setOutputPaused(false)` answers with. A host that can still place
+  /// the client in the output stream answers with a delta and pushes the
+  /// missed bytes on the output lane, so the default carries no snapshot.
+  TerminalHostResume? resume;
+
   @override
   Stream<TerminalHostEvent> get events => _events.stream;
 
@@ -122,12 +127,12 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   }
 
   @override
-  Future<Uint8List> setOutputPaused({
+  Future<TerminalHostResume> setOutputPaused({
     required String sessionId,
     required bool paused,
   }) async {
     outputPaused.add((sessionId, paused));
-    return Uint8List.fromList(<int>[83, 78, 65, 80]);
+    return resume ?? TerminalHostResume(isDelta: true, snapshot: Uint8List(0));
   }
 
   @override

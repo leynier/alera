@@ -89,6 +89,23 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
     }
 }
 
+/// Appends an `output` event's bytes to `sink`. Returns whether it was one.
+fn collect_output(message: &Value, sink: &mut Vec<u8>) -> bool {
+    if message.get("event").and_then(Value::as_str) != Some("output") {
+        return false;
+    }
+    let encoded = message["payload"]["dataBase64"].as_str().unwrap();
+    sink.extend_from_slice(&STANDARD.decode(encoded).unwrap());
+    true
+}
+
+fn read_output_until(reader: &mut BufReader<TcpStream>, sink: &mut Vec<u8>, needle: &str) {
+    while !String::from_utf8_lossy(sink).contains(needle) {
+        let message = read_message(reader);
+        collect_output(&message, sink);
+    }
+}
+
 fn handshake(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &str) {
     send(
         writer,
@@ -154,11 +171,7 @@ fn assert_session_is_not_attached(
         }),
     );
     let write = read_response(reader, id);
-    assert_eq!(
-        write["ok"],
-        json!(false),
-        "write unexpectedly succeeded: {write}"
-    );
+    assert_eq!(write["ok"], json!(false), "write succeeded: {write}");
     assert!(
         write["error"]
             .as_str()
@@ -347,10 +360,7 @@ fn full_protocol_sequence() {
         }
         match message.get("event").and_then(Value::as_str) {
             Some("output") => {
-                let bytes = STANDARD
-                    .decode(message["payload"]["dataBase64"].as_str().unwrap())
-                    .unwrap();
-                output.extend_from_slice(&bytes);
+                collect_output(&message, &mut output);
             }
             Some("exit") => {
                 exit_code = message["payload"]["exitCode"].as_i64();
@@ -560,7 +570,7 @@ fn runtime_linked_review_persists_and_cascades_on_workspace_remove() {
 }
 
 #[test]
-fn pauses_output_per_client_and_resumes_from_snapshot() {
+fn pauses_output_per_client_and_resumes_from_a_delta() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("host.json");
     let token = "pause-token";
@@ -592,15 +602,7 @@ fn pauses_output_per_client_and_resumes_from_snapshot() {
     assert_eq!(create["ok"], json!(true), "create failed: {create}");
 
     let mut active_output = Vec::new();
-    while !String::from_utf8_lossy(&active_output).contains("READY") {
-        let message = read_message(&mut active_reader);
-        if message.get("event").and_then(Value::as_str) == Some("output") {
-            let bytes = STANDARD
-                .decode(message["payload"]["dataBase64"].as_str().unwrap())
-                .unwrap();
-            active_output.extend_from_slice(&bytes);
-        }
-    }
+    read_output_until(&mut active_reader, &mut active_output, "READY");
 
     let (mut paused_writer, mut paused_reader) = connect(port);
     handshake(&mut paused_writer, &mut paused_reader, token);
@@ -639,38 +641,36 @@ fn pauses_output_per_client_and_resumes_from_snapshot() {
         json!({"id": 2, "type": "write", "payload": {"sessionId": "paused", "dataBase64": STANDARD.encode(b"abc\r")}}),
     );
     let _ = read_response(&mut active_reader, 2);
-    while !String::from_utf8_lossy(&active_output).contains("GOT:abc") {
-        let message = read_message(&mut active_reader);
-        if message.get("event").and_then(Value::as_str) == Some("output") {
-            let bytes = STANDARD
-                .decode(message["payload"]["dataBase64"].as_str().unwrap())
-                .unwrap();
-            active_output.extend_from_slice(&bytes);
-        }
-    }
+    read_output_until(&mut active_reader, &mut active_output, "GOT:abc");
 
+    let mut leaked = Vec::new();
     while let Some(message) =
         read_message_with_timeout(&mut paused_reader, Duration::from_millis(200))
     {
-        assert_ne!(
-            message.get("event").and_then(Value::as_str),
-            Some("output"),
-            "paused client received output: {message}"
-        );
+        assert!(!collect_output(&message, &mut leaked), "{message}");
     }
 
     send(
         &mut paused_writer,
         json!({"id": 3, "type": "setOutputPaused", "payload": {"sessionId": "paused", "paused": false}}),
     );
-    let resumed = read_response(&mut paused_reader, 3);
+    // The missed bytes are queued on the terminal lane before the reply is on
+    // the control lane, and the writer drains terminal frames first, so they
+    // arrive ahead of the response instead of inside it.
+    let mut resumed_output = Vec::new();
+    let resumed = loop {
+        let message = read_message(&mut paused_reader);
+        if message.get("id") == Some(&json!(3)) {
+            break message;
+        }
+        collect_output(&message, &mut resumed_output);
+    };
     assert_eq!(resumed["ok"], json!(true), "resume failed: {resumed}");
-    let snapshot = STANDARD
-        .decode(resumed["payload"]["snapshotBase64"].as_str().unwrap())
-        .unwrap();
+    assert_eq!(resumed["payload"]["delta"], json!(true), "{resumed}");
+    assert_eq!(resumed["payload"].get("snapshotBase64"), None, "{resumed}");
     assert!(
-        String::from_utf8_lossy(&snapshot).contains("GOT:abc"),
-        "resume snapshot should include hidden output"
+        String::from_utf8_lossy(&resumed_output).contains("GOT:abc"),
+        "the resume delta should carry the output hidden while paused"
     );
 }
 

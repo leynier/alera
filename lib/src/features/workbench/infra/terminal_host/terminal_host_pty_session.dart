@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -231,11 +230,11 @@ final class TerminalHostPtySession implements TerminalPtySession {
     }
     _outputPaused = paused;
     try {
-      final snapshot = await _client.setOutputPaused(
+      final resume = await _client.setOutputPaused(
         sessionId: _sessionId,
         paused: paused,
       );
-      _emitResumeSnapshot(paused: paused, snapshot: snapshot);
+      _emitResume(paused: paused, resume: resume);
     } catch (error) {
       if (!_shouldRecoverFromHostError(error)) {
         _emitHostError(error);
@@ -243,24 +242,24 @@ final class TerminalHostPtySession implements TerminalPtySession {
       }
       try {
         await _reattach();
-        final snapshot = await _client.setOutputPaused(
+        final resume = await _client.setOutputPaused(
           sessionId: _sessionId,
           paused: paused,
         );
-        _emitResumeSnapshot(paused: paused, snapshot: snapshot);
+        _emitResume(paused: paused, resume: resume);
       } catch (retryError) {
         _emitHostError(retryError);
       }
     }
   }
 
-  void _emitResumeSnapshot({
-    required bool paused,
-    required List<int> snapshot,
-  }) {
-    if (!_disposed && !paused) {
-      _events.add(TerminalPtySnapshotEvent(Uint8List.fromList(snapshot)));
+  void _emitResume({required bool paused, required TerminalHostResume resume}) {
+    if (_disposed || paused || resume.isDelta) {
+      // A delta resume needs nothing here: the host already pushed the missed
+      // bytes on the output lane, ahead of whatever comes next.
+      return;
     }
+    _events.add(TerminalPtySnapshotEvent(resume.snapshot));
   }
 
   Future<TerminalHostAttachment> _reattach() {

@@ -52,6 +52,29 @@ impl ScrollbackBuffer {
         output
     }
 
+    /// The buffer from `start` on, without materialising what comes before.
+    ///
+    /// A resuming client usually missed a few kilobytes of a multi-megabyte
+    /// buffer, so copying the whole thing to slice off the tail is the bulk of
+    /// the cost of answering it.
+    pub fn slice_from(&self, start: usize) -> Vec<u8> {
+        if start >= self.length {
+            return Vec::new();
+        }
+        let mut output = Vec::with_capacity(self.length - start);
+        let mut skipped = 0;
+        for chunk in &self.chunks {
+            if skipped + chunk.len() <= start {
+                skipped += chunk.len();
+                continue;
+            }
+            let offset = start.saturating_sub(skipped);
+            output.extend_from_slice(&chunk[offset..]);
+            skipped += chunk.len();
+        }
+        output
+    }
+
     #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.length
@@ -139,5 +162,18 @@ mod tests {
     fn seeds_from_initial_buffer() {
         let buffer = ScrollbackBuffer::new(4, b"abcdef");
         assert_eq!(buffer.to_bytes(), b"cdef");
+    }
+
+    #[test]
+    fn slices_from_an_offset_across_chunks() {
+        let mut buffer = ScrollbackBuffer::new(100, &[]);
+        buffer.append(b"abc");
+        buffer.append(b"de");
+        buffer.append(b"fgh");
+        assert_eq!(buffer.slice_from(0), b"abcdefgh");
+        assert_eq!(buffer.slice_from(3), b"defgh");
+        assert_eq!(buffer.slice_from(4), b"efgh");
+        assert_eq!(buffer.slice_from(8), b"");
+        assert_eq!(buffer.slice_from(99), b"");
     }
 }

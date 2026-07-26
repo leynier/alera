@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
@@ -198,7 +197,7 @@ final class SocketTerminalHostClient
   }
 
   @override
-  Future<Uint8List> setOutputPaused({
+  Future<TerminalHostResume> setOutputPaused({
     required String sessionId,
     required bool paused,
   }) async {
@@ -206,7 +205,7 @@ final class SocketTerminalHostClient
       'setOutputPaused',
       <String, Object?>{'sessionId': sessionId, 'paused': paused},
     );
-    return TerminalHostSnapshot.fromJson(payload).data;
+    return TerminalHostResume.fromJson(payload);
   }
 
   @override

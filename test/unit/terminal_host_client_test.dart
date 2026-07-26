@@ -61,7 +61,7 @@ void main() {
     await client.write(sessionId: 'session-1', bytes: const <int>[]);
     await client.write(sessionId: 'session-1', bytes: const <int>[1, 2]);
     await client.resize(sessionId: 'session-1', cols: 120, rows: 40);
-    final snapshot = await client.setOutputPaused(
+    final resume = await client.setOutputPaused(
       sessionId: 'session-1',
       paused: false,
     );
@@ -94,7 +94,8 @@ void main() {
     expect(attachment.created, isTrue);
     expect(attachment.running, isTrue);
     expect(attachment.snapshot, <int>[65, 66]);
-    expect(snapshot, <int>[83, 78, 65, 80]);
+    expect(resume.isDelta, isFalse);
+    expect(resume.snapshot, <int>[83, 78, 65, 80]);
     expect(server.requestTypes, <String>[
       'hello',
       'createOrAttach',

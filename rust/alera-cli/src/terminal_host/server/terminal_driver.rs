@@ -162,77 +162,26 @@ impl ServerActor {
 // the most recent mobile actor wins.
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
-    use std::sync::atomic::AtomicU64;
-    use std::sync::Arc;
-
-    use tokio::sync::mpsc;
-
-    use alera_core::runtime::RuntimeStore;
+    use std::collections::HashMap;
 
     use crate::terminal_host::client::ClientHandle;
-    use crate::terminal_host::history_store::TerminalHostHistoryStore;
-    use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
-    use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
-    use crate::terminal_host::protocol::TerminalHostConfig;
-    use crate::terminal_host::server::resource_requests::ResourceMonitorState;
+    use crate::terminal_host::server::actor_test_harness::{
+        local_client, mobile_client, test_actor,
+    };
     use crate::terminal_host::session::{Session, SessionDriver};
 
-    use super::super::{ClientKind, ClientState, ServerActor};
+    use super::super::ServerActor;
 
-    fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
-        ClientState {
-            handle,
-            authenticated: true,
-            binary_frames: false,
-            kind: ClientKind::Mobile,
-            mobile_device_id: Some(device.to_string()),
-            mobile_device_name: Some(format!("{device} phone")),
-        }
-    }
-
-    fn local_client(handle: ClientHandle) -> ClientState {
-        ClientState {
-            handle,
-            authenticated: true,
-            binary_frames: false,
-            kind: ClientKind::Local,
-            mobile_device_id: None,
-            mobile_device_name: None,
-        }
-    }
-
-    async fn actor(dir: &tempfile::TempDir, clients: HashMap<u64, ClientState>) -> ServerActor {
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store,
-            sessions: HashMap::from([("s1".to_string(), Session::driver_test_stub("s1", 120, 40))]),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            agent_quota_cache: None,
+    async fn actor(
+        dir: &tempfile::TempDir,
+        clients: HashMap<u64, crate::terminal_host::server::ClientState>,
+    ) -> ServerActor {
+        test_actor(
+            dir,
             clients,
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(10)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        }
+            HashMap::from([("s1".to_string(), Session::driver_test_stub("s1", 120, 40))]),
+        )
+        .await
     }
 
     fn mobile_driver(device: &str, client_id: u64) -> SessionDriver {
