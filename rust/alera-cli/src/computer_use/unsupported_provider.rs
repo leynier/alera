@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+use crate::computer_use::action_contract::{ActionOutcome, ActionRequest};
 use crate::computer_use::contract::{
     AppInfo, Capabilities, PermissionId, PermissionItem, PermissionState, PermissionsReport,
 };
@@ -71,6 +72,10 @@ impl ComputerUseProvider for UnsupportedProvider {
     }
 
     async fn snapshot(&self, _request: SnapshotRequest<'_>) -> ComputerResult<Snapshot> {
+        Err(self.refusal())
+    }
+
+    async fn act(&self, _request: ActionRequest<'_>) -> ComputerResult<ActionOutcome> {
         Err(self.refusal())
     }
 }

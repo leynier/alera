@@ -8,6 +8,7 @@ mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
 mod computer_commands;
+mod computer_output;
 mod computer_use;
 mod host_tools;
 mod login_shell_environment;

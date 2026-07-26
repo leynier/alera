@@ -47,9 +47,22 @@ pub fn capabilities(bus_reachable: bool, provider: String) -> Capabilities {
                 screenshot: false,
                 element_frames: true,
             },
-            // Reading first: the action verbs are advertised as they land, so an
-            // agent never plans around one that would fail.
-            actions: ActionSupport::none(),
+            actions: ActionSupport {
+                // Accessibility actions go through the application itself, so
+                // they work on an unfocused window and under any display server.
+                click: true,
+                set_value: true,
+                perform_action: true,
+                // Synthetic input still needs a route into the session. Under
+                // Wayland that is the remote-desktop portal, which this build
+                // does not use, so these stay off rather than failing per call.
+                type_text: false,
+                press_key: false,
+                hotkey: false,
+                paste_text: false,
+                scroll: false,
+                drag: false,
+            },
         },
     }
 }
@@ -99,14 +112,27 @@ mod tests {
         assert!(capabilities.supports.windows.target_by_index);
     }
 
-    /// Advertising an action before it exists would have the agent plan around a
-    /// verb that fails.
+    /// The accessibility route works under any display server, because it asks
+    /// the application rather than the compositor.
     #[test]
-    fn no_action_is_advertised_while_none_is_implemented() {
+    fn accessibility_actions_are_advertised() {
         let capabilities = capabilities(true, "p".to_string());
-        assert!(!capabilities.supports.actions.click);
+        assert!(capabilities.supports.actions.click);
+        assert!(capabilities.supports.actions.set_value);
+        assert!(capabilities.supports.actions.perform_action);
+    }
+
+    /// Advertising synthetic input before there is a route into the session would
+    /// have the agent plan around verbs that cannot work.
+    #[test]
+    fn synthetic_input_actions_are_not_advertised() {
+        let capabilities = capabilities(true, "p".to_string());
         assert!(!capabilities.supports.actions.type_text);
-        assert!(!capabilities.supports.actions.set_value);
+        assert!(!capabilities.supports.actions.press_key);
+        assert!(!capabilities.supports.actions.hotkey);
+        assert!(!capabilities.supports.actions.scroll);
+        assert!(!capabilities.supports.actions.drag);
+        assert!(!capabilities.supports.actions.paste_text);
     }
 
     #[test]

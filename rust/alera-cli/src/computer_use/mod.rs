@@ -14,6 +14,8 @@
 //! those verbs exist, so real dead code stops hiding behind it.
 #![allow(dead_code)]
 
+pub mod action_contract;
+pub mod action_gate;
 pub mod app_selector;
 pub mod blocked_apps;
 pub mod browser_tab_compaction;
@@ -29,11 +31,13 @@ pub mod screenshot_store;
 pub mod secure_nodes;
 pub mod snapshot_cache;
 pub mod snapshot_contract;
+pub mod snapshot_registry;
 pub mod tree_render;
 pub mod unsupported_provider;
 
 use async_trait::async_trait;
 
+use action_contract::{ActionOutcome, ActionRequest};
 use contract::{AppInfo, Capabilities, PermissionsReport};
 use error::ComputerResult;
 use snapshot_contract::{Snapshot, WindowInfo};
@@ -65,6 +69,9 @@ pub trait ComputerUseProvider: Send + Sync {
 
     /// Observe one window: the tree, and a screenshot unless it was declined.
     async fn snapshot(&self, request: SnapshotRequest<'_>) -> ComputerResult<Snapshot>;
+
+    /// Do one thing to one element, and report what the window looks like after.
+    async fn act(&self, request: ActionRequest<'_>) -> ComputerResult<ActionOutcome>;
 }
 
 /// Which window to observe and how much of it to report.

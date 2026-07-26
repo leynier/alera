@@ -10,16 +10,24 @@ use crate::computer_use::snapshot_contract::RawNode;
 /// Deliberately excludes the value, so typing into a field does not invalidate
 /// the element the agent is working with.
 pub fn signature_of(node: &RawNode) -> String {
-    let mut actions = node.actions.clone();
+    signature_parts(&node.role, &node.name, &node.actions, node.children.len())
+}
+
+/// The signature from its parts, so it can be recomputed against a live
+/// accessibility object without walking that object's whole subtree.
+///
+/// Checking identity costs one child count, not a second tree read; an action
+/// that had to re-observe everything first would be too slow to gate on.
+pub fn signature_parts(role: &str, name: &str, actions: &[String], child_count: usize) -> String {
+    let mut actions: Vec<&str> = actions.iter().map(String::as_str).collect();
     // Providers report actions in whatever order the toolkit hands them over,
     // and that order is not stable between observations.
     actions.sort_unstable();
     format!(
-        "{}|{}|{}|{}",
-        node.role.to_lowercase(),
-        node.name.trim(),
-        actions.join(","),
-        node.children.len()
+        "{}|{}|{}|{child_count}",
+        role.to_lowercase(),
+        name.trim(),
+        actions.join(",")
     )
 }
 

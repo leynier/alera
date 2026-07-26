@@ -1,11 +1,15 @@
 use serde_json::{json, Value};
 
 use super::ServerActor;
-use crate::computer_use::app_selector::{resolve_app, AppSelector};
-use crate::computer_use::contract::{AppInfo, PermissionId};
 use crate::computer_use::error::{ComputerError, ComputerResult};
+use crate::computer_use::snapshot_registry;
 use crate::computer_use::{active_provider, ComputerUseProvider, SnapshotRequest};
-use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::host_error::HostResult;
+
+use super::computer_request_payloads::{
+    action_request, include_screenshot, namespace, optional_index, parse_permission_id,
+    resolve_requested_app,
+};
 
 impl ServerActor {
     /// Answer a `computer.*` verb, or report that this is not one.
@@ -24,6 +28,7 @@ impl ServerActor {
             "computer.listApps" => list_apps(provider.as_ref()).await,
             "computer.listWindows" => list_windows(provider.as_ref(), payload).await,
             "computer.getAppState" => get_app_state(provider.as_ref(), payload).await,
+            "computer.act" => act(provider.as_ref(), payload).await,
             _ => return Ok(None),
         };
         Ok(Some(outcome))
@@ -103,65 +108,35 @@ async fn get_app_state(provider: &dyn ComputerUseProvider, payload: &Value) -> V
         app: &app,
         window_id: payload.get("windowId").and_then(Value::as_i64),
         window_index,
-        include_screenshot: payload
-            .get("includeScreenshot")
-            .and_then(Value::as_bool)
-            .unwrap_or(true),
+        include_screenshot: include_screenshot(payload),
     };
-    envelope(provider.snapshot(request).await, "snapshot", to_value)
-}
-
-/// Turn the caller's `app` selector into one running application.
-///
-/// Resolved against a live listing rather than trusted: the pid an agent read a
-/// minute ago may belong to something else by now, and the operating system
-/// recycles pids freely.
-async fn resolve_requested_app(
-    provider: &dyn ComputerUseProvider,
-    payload: &Value,
-) -> ComputerResult<AppInfo> {
-    let raw = payload
-        .get("app")
-        .and_then(Value::as_str)
-        .ok_or_else(|| ComputerError::invalid_argument("An `app` selector is required."))?;
-    let selector = AppSelector::parse(raw)?;
-    let apps = provider.list_apps().await?;
-    resolve_app(&selector, &apps).cloned()
-}
-
-fn optional_index(payload: &Value, key: &str) -> ComputerResult<Option<usize>> {
-    match payload.get(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(value) => value
-            .as_u64()
-            .and_then(|index| usize::try_from(index).ok())
-            .map(Some)
-            .ok_or_else(|| {
-                ComputerError::invalid_argument(format!("`{key}` must be a non-negative integer."))
-            }),
+    // Remembered here rather than in each provider so every platform's element
+    // indexes resolve the same way, and so an observation an agent read is the
+    // one its next action addresses.
+    let observed = provider.snapshot(request).await;
+    if let Ok(snapshot) = &observed {
+        snapshot_registry::remember(&namespace(payload), snapshot);
     }
+    envelope(observed, "snapshot", to_value)
 }
 
-/// An unknown permission id is a client bug, not a desktop condition, so it
-/// fails as a request error instead of a computer-use outcome.
-fn parse_permission_id(payload: &Value) -> HostResult<Option<PermissionId>> {
-    match payload.get("id") {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::String(raw)) => PermissionId::parse(raw.trim()).map(Some).ok_or_else(|| {
-            HostError::state(format!(
-                "`{raw}` is not a computer-use permission id. Use accessibility or screenshots."
-            ))
-        }),
-        Some(_) => Err(HostError::state(
-            "A computer-use permission id must be a string.",
-        )),
-    }
+async fn act(provider: &dyn ComputerUseProvider, payload: &Value) -> Value {
+    let app = match resolve_requested_app(provider, payload).await {
+        Err(error) => return failure(&error),
+        Ok(app) => app,
+    };
+    let request = match action_request(&app, payload) {
+        Err(error) => return failure(&error),
+        Ok(request) => request,
+    };
+    envelope(provider.act(request).await, "action", to_value)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::computer_use::contract::{Capabilities, PermissionsReport};
+    use crate::computer_use::action_contract::{ActionOutcome, ActionRequest};
+    use crate::computer_use::contract::{AppInfo, Capabilities, PermissionId, PermissionsReport};
     use crate::computer_use::error::ComputerErrorCode;
     use crate::computer_use::snapshot_contract::{Snapshot, WindowInfo};
     use crate::computer_use::unsupported_provider::UnsupportedProvider;
@@ -208,6 +183,18 @@ mod tests {
                 ComputerErrorCode::WindowNotFound,
                 "no window",
             ))
+        }
+
+        async fn act(&self, _request: ActionRequest<'_>) -> ComputerResult<ActionOutcome> {
+            Ok(ActionOutcome {
+                path: crate::computer_use::action_contract::ActionPath::Accessibility,
+                action_name: Some("Press".to_string()),
+                fallback_reason: None,
+                verification: crate::computer_use::action_contract::Verification::Unverified {
+                    reason: crate::computer_use::action_contract::UnverifiedReason::ActionInvoked,
+                },
+                snapshot: None,
+            })
         }
     }
 
@@ -318,6 +305,77 @@ mod tests {
         let value = get_app_state(&FailingProvider, &json!({ "app": "Spotify" })).await;
         assert_eq!(value["ok"], false);
         assert_eq!(value["error"]["code"], "window_not_found");
+    }
+
+    fn app() -> AppInfo {
+        AppInfo {
+            name: "Spotify".to_string(),
+            bundle_id: None,
+            pid: 42,
+        }
+    }
+
+    /// An action without an element index has no target. Defaulting to zero would
+    /// act on the window itself, which is not what any caller meant.
+    #[test]
+    fn an_action_without_an_element_index_is_refused() {
+        let app = app();
+        let error = action_request(&app, &json!({ "action": "click" })).unwrap_err();
+        assert_eq!(error.code, ComputerErrorCode::InvalidArgument);
+        assert!(error.message.contains("elementIndex"));
+    }
+
+    #[test]
+    fn an_unknown_action_verb_is_refused_by_name() {
+        let app = app();
+        let error =
+            action_request(&app, &json!({ "elementIndex": 1, "action": "explode" })).unwrap_err();
+        assert_eq!(error.code, ComputerErrorCode::InvalidArgument);
+        assert!(error.message.contains("explode"));
+    }
+
+    #[test]
+    fn set_value_needs_a_value_and_perform_action_needs_a_name() {
+        let app = app();
+        assert!(action_request(&app, &json!({ "elementIndex": 1, "action": "setValue" })).is_err());
+        assert!(action_request(
+            &app,
+            &json!({ "elementIndex": 1, "action": "performAction" })
+        )
+        .is_err());
+        assert!(action_request(
+            &app,
+            &json!({ "elementIndex": 1, "action": "setValue", "value": "x" })
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn an_action_carries_the_snapshot_id_and_namespace_it_was_given() {
+        let app = app();
+        let request = action_request(
+            &app,
+            &json!({
+                "elementIndex": 4,
+                "action": "click",
+                "snapshotId": "s1",
+                "namespace": " ws1 ",
+            }),
+        )
+        .unwrap();
+        assert_eq!(request.element.index, 4);
+        assert_eq!(request.element.snapshot_id.as_deref(), Some("s1"));
+        assert_eq!(request.namespace, "ws1");
+        assert!(request.include_screenshot);
+    }
+
+    /// Two callers without a namespace must not land in a shared bucket, because
+    /// a collision there is a click on the wrong control rather than an error.
+    #[test]
+    fn a_missing_namespace_does_not_become_a_shared_default() {
+        assert_eq!(namespace(&json!({})), "unscoped");
+        assert_eq!(namespace(&json!({ "namespace": "   " })), "unscoped");
+        assert_eq!(namespace(&json!({ "namespace": "ws1" })), "ws1");
     }
 
     /// A paired phone must never drive the desktop's pointer and keyboard. The

@@ -139,6 +139,52 @@ impl AtSpiSession {
         Ok(0)
     }
 
+    /// The proxy for one window, so an action can walk down to its target.
+    pub async fn window_proxy(
+        &self,
+        app: &AppInfo,
+        window_index: usize,
+    ) -> ComputerResult<AccessibleProxy<'_>> {
+        let windows = self.window_proxies(app).await?;
+        let count = windows.len();
+        windows.into_iter().nth(window_index).ok_or_else(|| {
+            ComputerError::new(
+                ComputerErrorCode::WindowNotFound,
+                format!(
+                    "`{}` has {count} window(s), so index {window_index} does not exist.",
+                    app.name
+                ),
+            )
+        })
+    }
+
+    /// Walk a path of child indexes down from a node.
+    ///
+    /// A path that no longer resolves means the tree lost nodes above the target,
+    /// which is the same situation as a changed signature and gets the same
+    /// answer: re-read.
+    pub async fn node_at_path<'a>(
+        &'a self,
+        root: &AccessibleProxy<'a>,
+        path: &[usize],
+    ) -> ComputerResult<AccessibleProxy<'a>> {
+        let mut current = root.clone();
+        for step in path {
+            let children = children_of(self.bus(), &current).await;
+            let count = children.len();
+            current = children.into_iter().nth(*step).ok_or_else(|| {
+                ComputerError::new(
+                    ComputerErrorCode::ElementNotFound,
+                    format!(
+                        "The element is gone: its parent now has {count} child(ren), so child \
+                         {step} does not exist. Re-read the app state."
+                    ),
+                )
+            })?;
+        }
+        Ok(current)
+    }
+
     fn bus(&self) -> &Connection {
         self.connection.connection()
     }
@@ -339,7 +385,7 @@ async fn has_state(proxy: &AccessibleProxy<'_>, state: State) -> bool {
 /// "Press, SetFocus, Press". A repeated name is not a second action an agent can
 /// choose, and listing it invites `perform-secondary-action` to be called with
 /// an ambiguous target.
-fn distinct_action_names(names: impl Iterator<Item = String>) -> Vec<String> {
+pub(crate) fn distinct_action_names(names: impl Iterator<Item = String>) -> Vec<String> {
     let mut distinct: Vec<String> = Vec::new();
     for name in names {
         let trimmed = name.trim();
