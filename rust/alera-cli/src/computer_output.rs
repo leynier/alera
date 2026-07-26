@@ -142,7 +142,7 @@ pub(crate) fn render_apps(apps: &Value) -> String {
         return String::new();
     };
     if apps.is_empty() {
-        return "No application with a window is on the accessibility bus.\n".to_string();
+        return "No application with a window was found on this desktop.\n".to_string();
     }
     let mut out = String::new();
     for app in apps {

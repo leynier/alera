@@ -25,7 +25,10 @@ pub mod element_signature;
 pub mod error;
 #[cfg(target_os = "linux")]
 pub mod linux;
+#[cfg(target_os = "macos")]
+pub mod macos;
 pub mod node_elision;
+pub mod repeated_node;
 pub mod screenshot_budget;
 pub mod screenshot_store;
 pub mod secure_nodes;
@@ -34,6 +37,8 @@ pub mod snapshot_contract;
 pub mod snapshot_registry;
 pub mod tree_render;
 pub mod unsupported_provider;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
 use async_trait::async_trait;
 
@@ -105,7 +110,17 @@ pub fn active_provider() -> Box<dyn ComputerUseProvider> {
     {
         Box::new(linux::LinuxProvider::new(session))
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        let _ = session;
+        Box::new(macos::MacosProvider::new())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = session;
+        Box::new(windows::WindowsProvider::new())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         Box::new(UnsupportedProvider::new(
             platform,

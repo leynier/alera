@@ -1,6 +1,7 @@
 use crate::computer_use::browser_tab_compaction::compact_browser_tabs;
 use crate::computer_use::element_signature::signature_of;
 use crate::computer_use::node_elision::{is_elidable_container, suppresses_children};
+use crate::computer_use::repeated_node::{repeats_parent, EmittedNode};
 use crate::computer_use::secure_nodes::{is_secure_node, redacted_name, redacted_value};
 use crate::computer_use::snapshot_contract::{ElementRecord, RawNode, Rect, Truncation};
 
@@ -74,7 +75,7 @@ pub fn render_window_tree(
         max_depth_reached: false,
         focused_element_index: None,
     };
-    walker.visit(window, 0, &mut Vec::new());
+    walker.visit(window, 0, &mut Vec::new(), None);
     let Walker {
         mut lines,
         mut elements,
@@ -116,7 +117,13 @@ struct Walker {
 }
 
 impl Walker {
-    fn visit(&mut self, node: &RawNode, depth: usize, path: &mut Vec<usize>) {
+    fn visit(
+        &mut self,
+        node: &RawNode,
+        depth: usize,
+        path: &mut Vec<usize>,
+        parent: Option<&EmittedNode>,
+    ) {
         if self.next_index >= self.budget.max_nodes {
             self.truncated = true;
             return;
@@ -127,8 +134,8 @@ impl Walker {
         }
         // An elided container hands its depth to its children, so the agent
         // does not pay a level of indentation for scaffolding.
-        if is_elidable_container(node) {
-            self.visit_children(node, depth, path);
+        if is_elidable_container(node) || repeats_parent(node, parent) {
+            self.visit_children(node, depth, path, parent);
             return;
         }
         let index = self.next_index;
@@ -161,13 +168,23 @@ impl Walker {
         if suppresses_children(node) {
             return;
         }
-        self.visit_children(node, depth + 1, path);
+        let emitted = EmittedNode {
+            role: node.role.to_lowercase(),
+            name: node.name.trim().to_string(),
+        };
+        self.visit_children(node, depth + 1, path, Some(&emitted));
     }
 
-    fn visit_children(&mut self, node: &RawNode, depth: usize, path: &mut Vec<usize>) {
+    fn visit_children(
+        &mut self,
+        node: &RawNode,
+        depth: usize,
+        path: &mut Vec<usize>,
+        parent: Option<&EmittedNode>,
+    ) {
         for (child_index, child) in node.children.iter().enumerate() {
             path.push(child_index);
-            self.visit(child, depth, path);
+            self.visit(child, depth, path, parent);
             path.pop();
         }
     }
@@ -285,6 +302,65 @@ mod tests {
         assert_eq!(tree.elements[1].path, vec![0, 0, 0]);
     }
 
+    /// Found against a real macOS desktop: an Electron application reported an
+    /// `AXApplication` inside its own `AXApplication`, level after level, and the
+    /// tree was nothing but identical lines until the depth budget cut it off.
+    #[test]
+    fn a_chain_of_nodes_identical_to_their_parent_collapses_to_one() {
+        let mut deepest = RawNode::named("application", "ChatGPT");
+        deepest.children = vec![button("Send")];
+        for _ in 0..20 {
+            deepest = RawNode::named("application", "ChatGPT").with_children(vec![deepest]);
+        }
+        let tree = render(&RawNode::named("application", "ChatGPT").with_children(vec![deepest]));
+        let lines: Vec<&str> = tree.tree_text.lines().collect();
+        assert_eq!(
+            lines.len(),
+            2,
+            "expected one application line and the button"
+        );
+        assert!(lines[0].starts_with("0 application ChatGPT"));
+        assert!(lines[1].contains("Send"));
+        assert!(!tree.truncation.max_depth_reached);
+    }
+
+    /// The path still has to reach the element through every level that was
+    /// skipped, or the action phase would resolve to the wrong node.
+    #[test]
+    fn a_collapsed_chain_keeps_the_full_path_to_its_content() {
+        let inner = RawNode::named("application", "App").with_children(vec![button("Send")]);
+        let tree = render(&RawNode::named("application", "App").with_children(vec![inner]));
+        let send = tree
+            .elements
+            .iter()
+            .find(|element| element.name == "Send")
+            .expect("the button survives");
+        assert_eq!(send.path, vec![0, 0]);
+    }
+
+    /// A node that merely shares a role with its parent is still its own control
+    /// when it carries a different name.
+    #[test]
+    fn a_differently_named_child_of_the_same_role_is_kept() {
+        let tree = render(&RawNode::named("group", "Outer").with_children(vec![
+            RawNode::named("group", "Inner").with_children(vec![button("Send")]),
+        ]));
+        assert!(tree.tree_text.contains("Inner"));
+    }
+
+    /// An echoing leaf is where the content ends; eliding it would leave the
+    /// parent looking empty.
+    #[test]
+    fn a_leaf_that_echoes_its_parent_is_kept() {
+        let tree = render(
+            &RawNode::named("static text", "Total")
+                .with_children(vec![RawNode::named("static text", "Total")]),
+        );
+        // The parent suppresses children for this role, so only one line either
+        // way; the point is that the rule does not reach leaves.
+        assert!(tree.tree_text.contains("Total"));
+    }
+
     #[test]
     fn compact_controls_hide_their_children() {
         let mut labelled = button("Play");
@@ -335,8 +411,10 @@ mod tests {
     #[test]
     fn the_depth_budget_stops_descending_and_declares_it() {
         let mut deep = button("Deep");
-        for _ in 0..10 {
-            deep = RawNode::named("list", "Level").with_children(vec![deep]);
+        // Each level is named differently on purpose: identical levels would be
+        // collapsed as repeats and the depth budget would never be reached.
+        for level in 0..10 {
+            deep = RawNode::named("list", format!("Level {level}")).with_children(vec![deep]);
         }
         let budget = RenderBudget {
             max_depth: 3,

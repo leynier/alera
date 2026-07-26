@@ -29,6 +29,7 @@ const SECURE_HINTS: &[&str] = &[
 /// secret, and concealing it hides a control the agent needs: KRunner's "Pin"
 /// checkbox was redacted this way before the rule was narrowed.
 const TEXT_INPUT_ROLES: &[&str] = &[
+    // AT-SPI spellings.
     "text",
     "entry",
     "editable text",
@@ -36,6 +37,12 @@ const TEXT_INPUT_ROLES: &[&str] = &[
     "password_text",
     "passwordtext",
     "paragraph",
+    // UI Automation spellings. A Windows password box is an ordinary `edit`
+    // whose IsPassword property is set, which the provider maps to the platform
+    // flag; the word hints still cover fields that do not set it.
+    "edit",
+    "document",
+    "combo box",
 ];
 
 /// Whether this node's text must never be reported.

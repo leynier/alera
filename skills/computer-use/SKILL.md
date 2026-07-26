@@ -49,7 +49,7 @@ Alera re-checks the element's identity before acting and refuses with `element_n
 alera computer --json get-app-state --app <name|pid:N> [--window-index N] [--no-screenshot]
 ```
 
-Defaults to the active window. Use `list-windows --app <app>` first when an app has several, and pass `--window-index`. On Linux there is no window handle to pass: `--window-id` is refused, because AT-SPI exposes no stable one.
+Defaults to the active window. Use `list-windows --app <app>` first when an app has several, and pass `--window-index`, or `--window-id` where `capabilities` reports window handles.
 
 Concealed fields report `[redacted]` and `concealed` with no value. That is deliberate; do not try to read them another way.
 
@@ -75,11 +75,22 @@ Every action reports `verification`:
 
 An action reported unverified may well have worked. Do not assume it did: read the returned tree and confirm the change you expected is there before building on it.
 
-## What Is Not Available On Linux
+## What Is Not Available Yet
 
-Synthetic keyboard and pointer input (`type-text`, `press-key`, `hotkey`, `paste-text`, `scroll`, `drag`) and screen capture are not offered. Under Wayland a client cannot inject input or capture the screen without the desktop portal, which Alera does not use yet. `capabilities` reports this, and the accessibility tree is the surface to work with instead.
+Synthetic keyboard and pointer input (`type-text`, `press-key`, `hotkey`, `paste-text`, `scroll`, `drag`) and screen capture are not offered on any platform. The accessibility tree and the actions above are the surface to work with. `capabilities` reports this, so check it rather than assuming.
 
-Some applications expose little or nothing to the accessibility layer. Electron and Chromium windows in particular often report only the window with no children unless they were started with accessibility enabled. An empty tree is that situation, not a failure to retry; tell the user rather than looping.
+Window handles differ by platform, and `capabilities` says which you have:
+
+- **Windows** keeps stable window handles, so `--window-id` works.
+- **Linux and macOS** expose none, so `--window-id` is refused and windows are addressed with `--window-index`.
+
+Some applications expose little or nothing to the accessibility layer. Electron, Chromium, and webview windows in particular often report only the window itself, or a short chain of containers with no content, unless they were started with accessibility enabled. A near-empty tree is that situation, not a failure to retry: say so rather than looping.
+
+## Per-Platform Notes
+
+- **macOS** grants Accessibility per executable. If `capabilities` reports it missing, the message names the exact binary to allow in System Settings; granting it to a different copy will not carry over. Nothing here ever opens the system prompt.
+- **Windows** can only see the desktop from the session that owns it. A runtime host started over SSH or as a service reports which session it is in and which one has the desktop, and can see nothing until it runs in the latter.
+- **Linux** needs `at-spi2-core` running. The tree works the same under Wayland and X11, because AT-SPI is a bus rather than a display protocol.
 
 ## Errors
 
