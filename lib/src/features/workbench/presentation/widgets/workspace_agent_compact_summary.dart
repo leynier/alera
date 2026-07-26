@@ -108,6 +108,7 @@ class _GroupCluster extends StatelessWidget {
             children: <Widget>[
               for (final (index, run) in iconRuns.indexed)
                 Positioned(
+                  key: ValueKey<AgentType>(run.status.agentType),
                   left: index * (iconSize - overlap),
                   child: Container(
                     width: iconSize,
@@ -143,12 +144,21 @@ class _GroupCluster extends StatelessWidget {
   }
 }
 
+/// One run per agent type, ordered by agent type rather than by the run order.
+///
+/// Runs are sorted by recency, which changes on every hook event, so taking
+/// them as they come would shuffle a group's icons on every update of any
+/// agent in it.
 List<WorkspaceAgentRun> _representativeRunsByAgentType(
   List<WorkspaceAgentRun> runs,
 ) {
   final seen = <AgentType>{};
-  return <WorkspaceAgentRun>[
+  final representatives = <WorkspaceAgentRun>[
     for (final run in runs)
       if (seen.add(run.status.agentType)) run,
   ];
+  representatives.sort(
+    (a, b) => a.status.agentType.index.compareTo(b.status.agentType.index),
+  );
+  return representatives;
 }

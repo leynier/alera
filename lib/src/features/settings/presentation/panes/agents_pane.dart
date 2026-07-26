@@ -160,10 +160,18 @@ class AgentsSettingsPane extends ConsumerWidget {
               SettingsSwitchRow(
                 title: 'Agent Status Notifications',
                 description:
-                    'Show native notifications when an agent needs attention or finishes.',
+                    'Show native notifications when an agent needs attention. Bursts are grouped into one notification.',
                 value: agents.agentStatusNotificationsEnabled,
                 onChanged: (value) =>
                     controller.setAgentStatusNotificationsEnabled(value),
+              ),
+              SettingsSwitchRow(
+                title: 'Agent Finished Notifications',
+                description:
+                    'Also notify when an agent finishes. Most agents report the end of a turn, not the end of a task, so this notifies on every reply.',
+                value: agents.agentStatusFinishedNotificationsEnabled,
+                onChanged: (value) => controller
+                    .setAgentStatusFinishedNotificationsEnabled(value),
               ),
               SettingsSwitchRow(
                 title: 'Keep Computer Awake While Agents Are Working',

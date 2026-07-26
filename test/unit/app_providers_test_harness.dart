@@ -39,6 +39,15 @@ Future<HttpClientResponse> _postHook(
   return request.close();
 }
 
+/// Collapses the notification coalescing window so a test can assert on the
+/// delivery without waiting the real quiet period out.
+final _immediateNotificationDelivery = [
+  agentStatusNotificationCoalescingProvider.overrideWithValue((
+    window: Duration.zero,
+    maxDelay: Duration.zero,
+  )),
+];
+
 class _TestSettingsController extends SettingsController {
   _TestSettingsController(this._seed);
   final AleraSettings _seed;

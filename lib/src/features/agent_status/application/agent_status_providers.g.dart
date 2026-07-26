@@ -343,263 +343,6 @@ final class AgentHookReconciliationServiceProvider
 String _$agentHookReconciliationServiceHash() =>
     r'af94230ade79bff92337f7c04764ca7305e77b6a';
 
-@ProviderFor(agentStatusNotificationPresenter)
-final agentStatusNotificationPresenterProvider =
-    AgentStatusNotificationPresenterProvider._();
-
-final class AgentStatusNotificationPresenterProvider
-    extends
-        $FunctionalProvider<
-          AgentStatusNotificationPresenter,
-          AgentStatusNotificationPresenter,
-          AgentStatusNotificationPresenter
-        >
-    with $Provider<AgentStatusNotificationPresenter> {
-  AgentStatusNotificationPresenterProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'agentStatusNotificationPresenterProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$agentStatusNotificationPresenterHash();
-
-  @$internal
-  @override
-  $ProviderElement<AgentStatusNotificationPresenter> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  AgentStatusNotificationPresenter create(Ref ref) {
-    return agentStatusNotificationPresenter(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AgentStatusNotificationPresenter value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<AgentStatusNotificationPresenter>(
-        value,
-      ),
-    );
-  }
-}
-
-String _$agentStatusNotificationPresenterHash() =>
-    r'0d9a993fa8f6b36311dd0d693b1b1372303d423e';
-
-@ProviderFor(agentStatusNotificationWindowActivator)
-final agentStatusNotificationWindowActivatorProvider =
-    AgentStatusNotificationWindowActivatorProvider._();
-
-final class AgentStatusNotificationWindowActivatorProvider
-    extends
-        $FunctionalProvider<
-          AgentNotificationWindowActivator,
-          AgentNotificationWindowActivator,
-          AgentNotificationWindowActivator
-        >
-    with $Provider<AgentNotificationWindowActivator> {
-  AgentStatusNotificationWindowActivatorProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'agentStatusNotificationWindowActivatorProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() =>
-      _$agentStatusNotificationWindowActivatorHash();
-
-  @$internal
-  @override
-  $ProviderElement<AgentNotificationWindowActivator> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  AgentNotificationWindowActivator create(Ref ref) {
-    return agentStatusNotificationWindowActivator(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AgentNotificationWindowActivator value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<AgentNotificationWindowActivator>(
-        value,
-      ),
-    );
-  }
-}
-
-String _$agentStatusNotificationWindowActivatorHash() =>
-    r'84143a3e50bb70d1c773aa5a53e1ed3e5cf09c29';
-
-@ProviderFor(agentStatusNotificationWorkbenchNavigator)
-final agentStatusNotificationWorkbenchNavigatorProvider =
-    AgentStatusNotificationWorkbenchNavigatorProvider._();
-
-final class AgentStatusNotificationWorkbenchNavigatorProvider
-    extends
-        $FunctionalProvider<
-          AgentNotificationWorkbenchNavigator,
-          AgentNotificationWorkbenchNavigator,
-          AgentNotificationWorkbenchNavigator
-        >
-    with $Provider<AgentNotificationWorkbenchNavigator> {
-  AgentStatusNotificationWorkbenchNavigatorProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'agentStatusNotificationWorkbenchNavigatorProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() =>
-      _$agentStatusNotificationWorkbenchNavigatorHash();
-
-  @$internal
-  @override
-  $ProviderElement<AgentNotificationWorkbenchNavigator> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  AgentNotificationWorkbenchNavigator create(Ref ref) {
-    return agentStatusNotificationWorkbenchNavigator(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AgentNotificationWorkbenchNavigator value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<AgentNotificationWorkbenchNavigator>(
-        value,
-      ),
-    );
-  }
-}
-
-String _$agentStatusNotificationWorkbenchNavigatorHash() =>
-    r'f8275970db3d196c1494105810ddc0e77718a520';
-
-@ProviderFor(agentStatusNotificationTerminalFocusRequester)
-final agentStatusNotificationTerminalFocusRequesterProvider =
-    AgentStatusNotificationTerminalFocusRequesterProvider._();
-
-final class AgentStatusNotificationTerminalFocusRequesterProvider
-    extends
-        $FunctionalProvider<
-          AgentNotificationTerminalFocusRequester,
-          AgentNotificationTerminalFocusRequester,
-          AgentNotificationTerminalFocusRequester
-        >
-    with $Provider<AgentNotificationTerminalFocusRequester> {
-  AgentStatusNotificationTerminalFocusRequesterProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'agentStatusNotificationTerminalFocusRequesterProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() =>
-      _$agentStatusNotificationTerminalFocusRequesterHash();
-
-  @$internal
-  @override
-  $ProviderElement<AgentNotificationTerminalFocusRequester> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  AgentNotificationTerminalFocusRequester create(Ref ref) {
-    return agentStatusNotificationTerminalFocusRequester(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AgentNotificationTerminalFocusRequester value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride:
-          $SyncValueProvider<AgentNotificationTerminalFocusRequester>(value),
-    );
-  }
-}
-
-String _$agentStatusNotificationTerminalFocusRequesterHash() =>
-    r'c0b64b5db758b9dc8ac0fabee0b35a9ad9b6d289';
-
-@ProviderFor(agentStatusNotificationActivationService)
-final agentStatusNotificationActivationServiceProvider =
-    AgentStatusNotificationActivationServiceProvider._();
-
-final class AgentStatusNotificationActivationServiceProvider
-    extends
-        $FunctionalProvider<
-          AgentStatusNotificationActivationService,
-          AgentStatusNotificationActivationService,
-          AgentStatusNotificationActivationService
-        >
-    with $Provider<AgentStatusNotificationActivationService> {
-  AgentStatusNotificationActivationServiceProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'agentStatusNotificationActivationServiceProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() =>
-      _$agentStatusNotificationActivationServiceHash();
-
-  @$internal
-  @override
-  $ProviderElement<AgentStatusNotificationActivationService> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  AgentStatusNotificationActivationService create(Ref ref) {
-    return agentStatusNotificationActivationService(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AgentStatusNotificationActivationService value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride:
-          $SyncValueProvider<AgentStatusNotificationActivationService>(value),
-    );
-  }
-}
-
-String _$agentStatusNotificationActivationServiceHash() =>
-    r'7dcd88b738e87f6184b182b835d35489b41c7fa7';
-
 @ProviderFor(agentAwakeDisplayLock)
 final agentAwakeDisplayLockProvider = AgentAwakeDisplayLockProvider._();
 
@@ -872,6 +615,319 @@ final class AgentHookInstallerCoordinatorProvider
 String _$agentHookInstallerCoordinatorHash() =>
     r'507acc68a9b40d767638a3945577ae6faf52845a';
 
+@ProviderFor(agentStatusNotificationPresenter)
+final agentStatusNotificationPresenterProvider =
+    AgentStatusNotificationPresenterProvider._();
+
+final class AgentStatusNotificationPresenterProvider
+    extends
+        $FunctionalProvider<
+          AgentStatusNotificationPresenter,
+          AgentStatusNotificationPresenter,
+          AgentStatusNotificationPresenter
+        >
+    with $Provider<AgentStatusNotificationPresenter> {
+  AgentStatusNotificationPresenterProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationPresenterProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$agentStatusNotificationPresenterHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentStatusNotificationPresenter> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentStatusNotificationPresenter create(Ref ref) {
+    return agentStatusNotificationPresenter(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentStatusNotificationPresenter value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AgentStatusNotificationPresenter>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$agentStatusNotificationPresenterHash() =>
+    r'0d9a993fa8f6b36311dd0d693b1b1372303d423e';
+
+@ProviderFor(agentStatusNotificationWindowActivator)
+final agentStatusNotificationWindowActivatorProvider =
+    AgentStatusNotificationWindowActivatorProvider._();
+
+final class AgentStatusNotificationWindowActivatorProvider
+    extends
+        $FunctionalProvider<
+          AgentNotificationWindowActivator,
+          AgentNotificationWindowActivator,
+          AgentNotificationWindowActivator
+        >
+    with $Provider<AgentNotificationWindowActivator> {
+  AgentStatusNotificationWindowActivatorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationWindowActivatorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$agentStatusNotificationWindowActivatorHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentNotificationWindowActivator> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentNotificationWindowActivator create(Ref ref) {
+    return agentStatusNotificationWindowActivator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentNotificationWindowActivator value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AgentNotificationWindowActivator>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$agentStatusNotificationWindowActivatorHash() =>
+    r'84143a3e50bb70d1c773aa5a53e1ed3e5cf09c29';
+
+@ProviderFor(agentStatusNotificationWorkbenchNavigator)
+final agentStatusNotificationWorkbenchNavigatorProvider =
+    AgentStatusNotificationWorkbenchNavigatorProvider._();
+
+final class AgentStatusNotificationWorkbenchNavigatorProvider
+    extends
+        $FunctionalProvider<
+          AgentNotificationWorkbenchNavigator,
+          AgentNotificationWorkbenchNavigator,
+          AgentNotificationWorkbenchNavigator
+        >
+    with $Provider<AgentNotificationWorkbenchNavigator> {
+  AgentStatusNotificationWorkbenchNavigatorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationWorkbenchNavigatorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$agentStatusNotificationWorkbenchNavigatorHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentNotificationWorkbenchNavigator> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentNotificationWorkbenchNavigator create(Ref ref) {
+    return agentStatusNotificationWorkbenchNavigator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentNotificationWorkbenchNavigator value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AgentNotificationWorkbenchNavigator>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$agentStatusNotificationWorkbenchNavigatorHash() =>
+    r'f8275970db3d196c1494105810ddc0e77718a520';
+
+@ProviderFor(agentStatusNotificationTerminalFocusRequester)
+final agentStatusNotificationTerminalFocusRequesterProvider =
+    AgentStatusNotificationTerminalFocusRequesterProvider._();
+
+final class AgentStatusNotificationTerminalFocusRequesterProvider
+    extends
+        $FunctionalProvider<
+          AgentNotificationTerminalFocusRequester,
+          AgentNotificationTerminalFocusRequester,
+          AgentNotificationTerminalFocusRequester
+        >
+    with $Provider<AgentNotificationTerminalFocusRequester> {
+  AgentStatusNotificationTerminalFocusRequesterProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationTerminalFocusRequesterProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$agentStatusNotificationTerminalFocusRequesterHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentNotificationTerminalFocusRequester> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentNotificationTerminalFocusRequester create(Ref ref) {
+    return agentStatusNotificationTerminalFocusRequester(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentNotificationTerminalFocusRequester value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<AgentNotificationTerminalFocusRequester>(value),
+    );
+  }
+}
+
+String _$agentStatusNotificationTerminalFocusRequesterHash() =>
+    r'c0b64b5db758b9dc8ac0fabee0b35a9ad9b6d289';
+
+@ProviderFor(agentStatusNotificationActivationService)
+final agentStatusNotificationActivationServiceProvider =
+    AgentStatusNotificationActivationServiceProvider._();
+
+final class AgentStatusNotificationActivationServiceProvider
+    extends
+        $FunctionalProvider<
+          AgentStatusNotificationActivationService,
+          AgentStatusNotificationActivationService,
+          AgentStatusNotificationActivationService
+        >
+    with $Provider<AgentStatusNotificationActivationService> {
+  AgentStatusNotificationActivationServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationActivationServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$agentStatusNotificationActivationServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentStatusNotificationActivationService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentStatusNotificationActivationService create(Ref ref) {
+    return agentStatusNotificationActivationService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentStatusNotificationActivationService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<AgentStatusNotificationActivationService>(value),
+    );
+  }
+}
+
+String _$agentStatusNotificationActivationServiceHash() =>
+    r'7dcd88b738e87f6184b182b835d35489b41c7fa7';
+
+/// tests can collapse the window instead of waiting it out.
+
+@ProviderFor(agentStatusNotificationCoalescing)
+final agentStatusNotificationCoalescingProvider =
+    AgentStatusNotificationCoalescingProvider._();
+
+/// tests can collapse the window instead of waiting it out.
+
+final class AgentStatusNotificationCoalescingProvider
+    extends
+        $FunctionalProvider<
+          ({Duration maxDelay, Duration window}),
+          ({Duration maxDelay, Duration window}),
+          ({Duration maxDelay, Duration window})
+        >
+    with $Provider<({Duration maxDelay, Duration window})> {
+  /// tests can collapse the window instead of waiting it out.
+  AgentStatusNotificationCoalescingProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentStatusNotificationCoalescingProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$agentStatusNotificationCoalescingHash();
+
+  @$internal
+  @override
+  $ProviderElement<({Duration maxDelay, Duration window})> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  ({Duration maxDelay, Duration window}) create(Ref ref) {
+    return agentStatusNotificationCoalescing(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(({Duration maxDelay, Duration window}) value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<({Duration maxDelay, Duration window})>(value),
+    );
+  }
+}
+
+String _$agentStatusNotificationCoalescingHash() =>
+    r'04526ea6b5c35c7c9135b1ce10db036d4ee97eb7';
+
 @ProviderFor(agentStatusNotificationCoordinator)
 final agentStatusNotificationCoordinatorProvider =
     AgentStatusNotificationCoordinatorProvider._();
@@ -914,4 +970,4 @@ final class AgentStatusNotificationCoordinatorProvider
 }
 
 String _$agentStatusNotificationCoordinatorHash() =>
-    r'4e35861d346aba07c96f5acd4e31174d84d4f4ce';
+    r'd471f67adab487c653e23c918c2f46921a9c90cc';

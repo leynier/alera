@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 
+part 'agent_status_notification_grouping.dart';
+
 typedef AgentStatusNotificationSelectionHandler = void Function(String payload);
 
 abstract interface class AgentStatusNotificationPresenter {
@@ -86,16 +88,50 @@ AgentStatusNotificationPayload? decodeAgentStatusNotificationPayload(
   }
 }
 
+/// How long the same terminal must stay quiet before the same state notifies
+/// again.
+///
+/// Agents re-enter `waiting` once per approval and `done` once per turn, and
+/// the runtime snapshot can restate a transition the local hook already
+/// reported, so without a floor a single task turns into a column of
+/// notifications.
+const Duration agentStatusNotificationCooldown = Duration(seconds: 60);
+
 class AgentStatusNotificationTracker {
-  final Set<String> _delivered = <String>{};
+  AgentStatusNotificationTracker({
+    required this.now,
+    required this.notifiableFrom,
+    this.cooldown = agentStatusNotificationCooldown,
+  });
+
+  final DateTime Function() now;
+
+  /// States that started before this are what the runtime was already holding
+  /// when the coordinator came up, not events the user just caused.
+  final DateTime notifiableFrom;
+
+  final Duration cooldown;
+
+  /// Last delivery per terminal session and state. The state start time is
+  /// deliberately absent from the key: the local hook path and the runtime
+  /// snapshot time the same transition differently, and an agent that flaps
+  /// `done -> working -> done` restamps it on every bounce.
+  final Map<(String, AgentStatusState), DateTime> _lastNotifiedAt =
+      <(String, AgentStatusState), DateTime>{};
 
   List<AgentStatusEntry> pendingNotifications({
     required Map<String, AgentStatusEntry>? previous,
     required Map<String, AgentStatusEntry> next,
+    required bool includeFinished,
   }) {
+    final deliveredAt = now();
+    _forgetClosedSessions(next);
     final pending = <AgentStatusEntry>[];
     for (final entry in next.values) {
-      if (!_isNotifiableState(entry.state)) {
+      if (!_isNotifiableState(entry.state, includeFinished: includeFinished)) {
+        continue;
+      }
+      if (entry.stateStartedAt.isBefore(notifiableFrom)) {
         continue;
       }
       final prior = previous?[entry.terminalSessionId];
@@ -104,36 +140,35 @@ class AgentStatusNotificationTracker {
           prior.stateStartedAt == entry.stateStartedAt) {
         continue;
       }
-      final key = _notificationKey(entry);
-      if (!_delivered.add(key)) {
-        continue;
+      final key = (entry.terminalSessionId, entry.state);
+      if (_lastNotifiedAt[key] case final previousDelivery?) {
+        if (deliveredAt.difference(previousDelivery) < cooldown) {
+          continue;
+        }
       }
+      _lastNotifiedAt[key] = deliveredAt;
       pending.add(entry);
     }
     return pending;
+  }
+
+  /// Keeps the delivery map bounded: a terminal that is gone cannot repeat.
+  void _forgetClosedSessions(Map<String, AgentStatusEntry> next) {
+    _lastNotifiedAt.removeWhere((key, _) => !next.containsKey(key.$1));
   }
 }
 
 AgentStatusNotification? composeAgentStatusNotification({
   required AgentStatusEntry entry,
+  required bool includeFinished,
   String? projectName,
   String? workspaceName,
   String? tabTitle,
 }) {
-  if (!_isNotifiableState(entry.state)) {
+  if (!_isNotifiableState(entry.state, includeFinished: includeFinished)) {
     return null;
   }
-  final agent = switch (entry.agentType) {
-    AgentType.codex => 'Codex',
-    AgentType.claude => 'Claude',
-    AgentType.copilot => 'GitHub Copilot',
-    AgentType.cursor => 'Cursor',
-    AgentType.agy => 'Antigravity',
-    AgentType.opencode => 'OpenCode',
-    AgentType.pi => 'Pi',
-    AgentType.amp => 'Amp',
-    AgentType.grok => 'Grok Build',
-  };
+  final agent = _agentLabel(entry.agentType);
   final title = switch (entry.state) {
     AgentStatusState.waiting ||
     AgentStatusState.blocked => '$agent needs attention',
@@ -148,25 +183,47 @@ AgentStatusNotification? composeAgentStatusNotification({
     workspaceName: workspaceName,
     tabTitle: tabTitle,
   );
-  final payload = AgentStatusNotificationPayload(
+  return AgentStatusNotification(
+    id: _notificationId(entry),
+    title: title,
+    body: body,
+    payload: _encodePayload(entry),
+  );
+}
+
+String _agentLabel(AgentType agentType) {
+  return switch (agentType) {
+    AgentType.codex => 'Codex',
+    AgentType.claude => 'Claude',
+    AgentType.copilot => 'GitHub Copilot',
+    AgentType.cursor => 'Cursor',
+    AgentType.agy => 'Antigravity',
+    AgentType.opencode => 'OpenCode',
+    AgentType.pi => 'Pi',
+    AgentType.amp => 'Amp',
+    AgentType.grok => 'Grok Build',
+  };
+}
+
+String _encodePayload(AgentStatusEntry entry) {
+  return AgentStatusNotificationPayload(
     terminalSessionId: entry.terminalSessionId,
     workspaceId: entry.workspaceId,
     tabId: entry.tabId,
     agentType: entry.agentType,
     state: entry.state,
   ).encode();
-  return AgentStatusNotification(
-    id: _notificationId(entry),
-    title: title,
-    body: body,
-    payload: payload,
-  );
 }
 
-bool _isNotifiableState(AgentStatusState state) {
-  return state == AgentStatusState.waiting ||
-      state == AgentStatusState.blocked ||
-      state == AgentStatusState.done;
+bool _isNotifiableState(
+  AgentStatusState state, {
+  required bool includeFinished,
+}) {
+  return switch (state) {
+    AgentStatusState.waiting || AgentStatusState.blocked => true,
+    AgentStatusState.done => includeFinished,
+    AgentStatusState.working => false,
+  };
 }
 
 String _notificationKey(AgentStatusEntry entry) {
@@ -178,8 +235,12 @@ String _notificationKey(AgentStatusEntry entry) {
 }
 
 int _notificationId(AgentStatusEntry entry) {
+  return _fnv1a(_notificationKey(entry));
+}
+
+int _fnv1a(String value) {
   var hash = 0x811c9dc5;
-  for (final codeUnit in _notificationKey(entry).codeUnits) {
+  for (final codeUnit in value.codeUnits) {
     hash ^= codeUnit;
     hash = (hash * 0x01000193) & 0x7fffffff;
   }
