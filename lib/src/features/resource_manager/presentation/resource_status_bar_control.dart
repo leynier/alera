@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/resource_manager/application/resource_manager_providers.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
@@ -24,8 +25,7 @@ class ResourceStatusBarControl extends ConsumerStatefulWidget {
 
 class _ResourceStatusBarControlState
     extends ConsumerState<ResourceStatusBarControl> {
-  final OverlayPortalController _overlay = OverlayPortalController();
-  final LayerLink _layerLink = LayerLink();
+  final AleraHoverCardController _hoverCard = AleraHoverCardController();
   ResourceSortColumn _sortColumn = ResourceSortColumn.memory;
   final Set<String> _collapsedProjectIds = <String>{};
 
@@ -45,73 +45,45 @@ class _ResourceStatusBarControlState
           ),
     );
 
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: OverlayPortal(
-        controller: _overlay,
-        overlayChildBuilder: (context) {
-          return Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _close,
-                  child: const ColoredBox(color: Colors.transparent),
-                ),
-              ),
-              CompositedTransformFollower(
-                link: _layerLink,
-                showWhenUnlinked: false,
-                targetAnchor: Alignment.topRight,
-                followerAnchor: Alignment.bottomRight,
-                offset: const Offset(0, -8),
-                child: ResourceStatusPanel(
-                  snapshot: snapshot,
-                  tree: tree,
-                  sortColumn: _sortColumn,
-                  hostUnreachable: snapshot.error != null,
-                  collapsedProjectIds: _collapsedProjectIds,
-                  onSortColumnChanged: (column) =>
-                      setState(() => _sortColumn = column),
-                  onToggleProject: (projectId) => setState(() {
-                    if (!_collapsedProjectIds.remove(projectId)) {
-                      _collapsedProjectIds.add(projectId);
-                    }
-                  }),
-                  onOpenSession: _openSession,
-                  onKillSession: (session) => unawaited(_killSession(session)),
-                  onKillOrphans: () =>
-                      unawaited(_killOrphans(tree.orphanSessions)),
-                ),
-              ),
-            ],
-          );
-        },
-        child: ResourceStatusChip(
-          snapshot: snapshot,
-          sessionCount: sessionCount,
-          orphanCount: tree.orphanSessions.length,
-          onPressed: _toggle,
-        ),
+    return AleraHoverCard(
+      controller: _hoverCard,
+      // The chip runs its own InkWell, which would win the gesture arena over
+      // the card's detector, so the chip drives pinning through the controller.
+      pinOnTap: false,
+      semanticsLabel: 'Resource Manager',
+      onVisibilityChanged: _handleVisibilityChanged,
+      card: ResourceStatusPanel(
+        snapshot: snapshot,
+        tree: tree,
+        sortColumn: _sortColumn,
+        hostUnreachable: snapshot.error != null,
+        collapsedProjectIds: _collapsedProjectIds,
+        onSortColumnChanged: (column) => setState(() => _sortColumn = column),
+        onToggleProject: (projectId) => setState(() {
+          if (!_collapsedProjectIds.remove(projectId)) {
+            _collapsedProjectIds.add(projectId);
+          }
+        }),
+        onOpenSession: _openSession,
+        onKillSession: (session) => unawaited(_killSession(session)),
+        onKillOrphans: () => unawaited(_killOrphans(tree.orphanSessions)),
+      ),
+      child: ResourceStatusChip(
+        snapshot: snapshot,
+        sessionCount: sessionCount,
+        orphanCount: tree.orphanSessions.length,
+        onPressed: _hoverCard.togglePin,
       ),
     );
   }
 
-  void _toggle() {
-    if (_overlay.isShowing) {
-      _close();
-      return;
+  void _handleVisibilityChanged(bool visible) {
+    ref.read(resourcePanelOpenProvider.notifier).set(open: visible);
+    if (visible) {
+      // Showing switches the poll to the host's own 2 s cadence, and also keeps
+      // the host's sampler alive while the panel is on screen.
+      ref.invalidate(resourceSnapshotProvider);
     }
-    _overlay.show();
-    // Opening switches the poll to the host's own 2 s cadence, and also keeps
-    // the host's sampler alive while the panel is on screen.
-    ref.read(resourcePanelOpenProvider.notifier).set(open: true);
-    ref.invalidate(resourceSnapshotProvider);
-  }
-
-  void _close() {
-    _overlay.hide();
-    ref.read(resourcePanelOpenProvider.notifier).set(open: false);
   }
 
   void _openSession(ResourceSessionRow session) {
@@ -127,7 +99,7 @@ class _ResourceStatusBarControlState
     if (project == null) {
       return;
     }
-    _close();
+    _hoverCard.dismiss();
     unawaited(() async {
       await controller.selectWorkspace(project: project, workspace: workspace);
       controller.setActiveTab(workspaceId: workspace.id, tabId: session.tabId);

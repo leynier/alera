@@ -136,7 +136,7 @@ class _SessionRow extends StatelessWidget {
       leading: AleraStatusDot(active: session.running, size: 6),
       trailing: AleraIconButton(
         icon: AleraIcons.close,
-        iconSize: 11,
+        iconSize: _actionIconSize,
         minSize: 18,
         tooltip: session.orphan
             ? 'Kill Orphan Terminal'
@@ -224,7 +224,12 @@ class _MetricRow extends StatelessWidget {
           ],
           _MetricCell(value: formatResourceCpu(cpuMachinePercent)),
           _MetricCell(value: formatResourceMemory(memoryBytes)),
-          ?trailing,
+          SizedBox(
+            width: _actionColumnWidth,
+            child: trailing == null
+                ? null
+                : Align(alignment: Alignment.centerRight, child: trailing),
+          ),
         ],
       ),
     );

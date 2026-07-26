@@ -218,6 +218,7 @@ class _SortHeader extends StatelessWidget {
               alignment: Alignment.centerRight,
             ),
           ),
+          const SizedBox(width: _actionColumnWidth),
         ],
       ),
     );

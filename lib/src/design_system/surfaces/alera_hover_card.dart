@@ -4,6 +4,22 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+/// Drives an [AleraHoverCard] from a trigger that handles its own taps.
+///
+/// A status-bar chip built on `InkWell` wins the gesture arena over the card's
+/// own detector, so such a trigger sets `pinOnTap: false` and calls
+/// [togglePin] from its `onPressed` instead. Hover keeps working either way.
+class AleraHoverCardController {
+  _AleraHoverCardState? _state;
+
+  /// Pins the card open, or releases an already pinned one.
+  void togglePin() => _state?.handleTap();
+
+  /// Closes the card and clears hover, for a trigger whose action navigates
+  /// away from what the card is showing.
+  void dismiss() => _state?.dismissForOther();
+}
+
 /// Shows structured, presentational content near [child].
 ///
 /// The card appears on hover after [hoverDelay] and, when [pinOnTap] is set,
@@ -17,6 +33,8 @@ class AleraHoverCard extends StatefulWidget {
     required this.child,
     this.hoverDelay = AleraTokens.durationSlow,
     this.pinOnTap = true,
+    this.controller,
+    this.onVisibilityChanged,
   });
 
   final String semanticsLabel;
@@ -24,6 +42,13 @@ class AleraHoverCard extends StatefulWidget {
   final Widget child;
   final Duration hoverDelay;
   final bool pinOnTap;
+
+  /// Set together with `pinOnTap: false` when the trigger owns its own taps.
+  final AleraHoverCardController? controller;
+
+  /// Fires on each visibility edge, so an owner can start and stop work that
+  /// only matters while the card is on screen.
+  final ValueChanged<bool>? onVisibilityChanged;
 
   @override
   State<AleraHoverCard> createState() => _AleraHoverCardState();
@@ -47,12 +72,17 @@ class _AleraHoverCardState extends State<AleraHoverCard>
   /// A tap that closes the card must not let the resting pointer reopen it.
   bool _hoverSuppressed = false;
 
+  /// Tracks what was last reported through `onVisibilityChanged`, so the
+  /// callback only fires on edges.
+  bool _visible = false;
+
   bool get _shouldShow =>
       _pinned || (_hoveringTrigger && !_hoverSuppressed) || _hoveringCard;
 
   @override
   void initState() {
     super.initState();
+    widget.controller?._state = this;
     _animation = AnimationController(
       vsync: this,
       duration: AleraTokens.durationFast,
@@ -66,18 +96,47 @@ class _AleraHoverCardState extends State<AleraHoverCard>
   }
 
   @override
+  void didUpdateWidget(AleraHoverCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      if (oldWidget.controller?._state == this) {
+        oldWidget.controller?._state = null;
+      }
+      widget.controller?._state = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._state == this) {
+      widget.controller?._state = null;
+    }
     _openCards.remove(this);
     _timer?.cancel();
+    // Disposing skips the animation's dismissed status, so an owner watching
+    // visibility would otherwise be left believing the card is still up.
+    if (_visible) {
+      _visible = false;
+      widget.onVisibilityChanged?.call(false);
+    }
     _fade.dispose();
     _animation.dispose();
     super.dispose();
+  }
+
+  void _setVisible({required bool visible}) {
+    if (_visible == visible) {
+      return;
+    }
+    _visible = visible;
+    widget.onVisibilityChanged?.call(visible);
   }
 
   void _handleAnimationStatus(AnimationStatus status) {
     if (status.isDismissed) {
       _openCards.remove(this);
       _portal.hide();
+      _setVisible(visible: false);
     }
   }
 
@@ -101,15 +160,16 @@ class _AleraHoverCardState extends State<AleraHoverCard>
     }
     for (final card in _openCards.toList()) {
       if (card != this) {
-        card._dismissForOther();
+        card.dismissForOther();
       }
     }
     _openCards.add(this);
     _portal.show();
+    _setVisible(visible: true);
     _animation.forward();
   }
 
-  void _dismissForOther() {
+  void dismissForOther() {
     _pinned = false;
     _hoveringTrigger = false;
     _hoveringCard = false;
@@ -142,7 +202,7 @@ class _AleraHoverCardState extends State<AleraHoverCard>
     _schedule(delay: AleraTokens.durationMid);
   }
 
-  void _handleTap() {
+  void handleTap() {
     if (_pinned) {
       _pinned = false;
       _hoverSuppressed = _hoveringTrigger;
@@ -179,10 +239,19 @@ class _AleraHoverCardState extends State<AleraHoverCard>
         ),
         child: TapRegion(
           groupId: this,
-          child: MouseRegion(
-            onEnter: _handleCardEnter,
-            onExit: _handleCardExit,
-            child: FadeTransition(opacity: _fade, child: widget.card),
+          child: Listener(
+            // An action inside the card can open a modal dialog, which takes
+            // the pointer away; without pinning here the card would fade out
+            // from under the user while they answer it.
+            onPointerDown: (_) {
+              _pinned = true;
+              _hoverSuppressed = false;
+            },
+            child: MouseRegion(
+              onEnter: _handleCardEnter,
+              onExit: _handleCardExit,
+              child: FadeTransition(opacity: _fade, child: widget.card),
+            ),
           ),
         ),
       ),
@@ -191,7 +260,7 @@ class _AleraHoverCardState extends State<AleraHoverCard>
 
   @override
   Widget build(BuildContext context) {
-    final onTap = widget.pinOnTap ? _handleTap : null;
+    final onTap = widget.pinOnTap ? handleTap : null;
     Widget trigger = Semantics(
       tooltip: widget.semanticsLabel,
       button: widget.pinOnTap,

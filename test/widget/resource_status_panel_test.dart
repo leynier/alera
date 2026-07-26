@@ -135,6 +135,37 @@ void main() {
     expect(find.text('Runtime Host'), findsOneWidget);
   });
 
+  testWidgets('the metric columns line up on rows with a close action', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      snapshot: _snapshot(),
+      tree: _tree(sessions: <ResourceSessionRow>[_session('Codex Agent')]),
+    );
+
+    // Only the session row carries the close button; the aggregates above it
+    // and the sort header do not, so this is what the reserved action slot has
+    // to keep in one column. The totals strip carries a 'Memory' label too, so
+    // anchor on the sort header's own button.
+    final headerRight = tester
+        .getTopRight(
+          find.descendant(
+            of: find.byTooltip('Sort By Memory'),
+            matching: find.text('Memory'),
+          ),
+        )
+        .dx;
+    for (final cell in find.text('500.0 MB').evaluate()) {
+      expect(tester.getTopRight(find.byWidget(cell.widget)).dx, headerRight);
+    }
+    // The action itself lives past the columns, inside the reserved slot.
+    expect(
+      tester.getTopRight(find.byTooltip('Close Terminal Session')).dx,
+      greaterThan(headerRight),
+    );
+  });
+
   testWidgets('cpu is shown as a share of the machine, not of one core', (
     tester,
   ) async {
