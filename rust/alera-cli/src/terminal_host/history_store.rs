@@ -173,23 +173,30 @@ impl TerminalHostHistoryStore {
     }
 
     pub async fn trim_session(&self, session_id: &str, max_bytes: usize) -> Result<()> {
-        let rows = sqlx::query(
-            "SELECT id, sequence, length(data) AS byteLen FROM outputChunks \
-             WHERE sessionId = ? ORDER BY sequence DESC, id DESC",
+        // Find the cut in SQL rather than walking every row here. Retention is
+        // by bytes, not rows, so a chatty session persisting a batch every
+        // 100 ms accumulates six figures of rows, and this runs on the server
+        // actor: on every checkpoint tick, every detach, and every configure.
+        let row = sqlx::query(
+            "SELECT id, sequence, byteLen, running FROM ( \
+               SELECT id, sequence, length(data) AS byteLen, \
+                      SUM(length(data)) OVER ( \
+                        ORDER BY sequence DESC, id DESC \
+                      ) AS running \
+               FROM outputChunks WHERE sessionId = ? \
+             ) WHERE running > ? ORDER BY sequence DESC, id DESC LIMIT 1",
         )
         .bind(session_id)
-        .fetch_all(&self.pool)
+        .bind(i64::try_from(max_bytes).unwrap_or(i64::MAX))
+        .fetch_optional(&self.pool)
         .await?;
-        let mut kept = 0usize;
-        for row in rows {
+        if let Some(row) = row {
             let id: i64 = row.try_get("id")?;
             let sequence: i64 = row.try_get("sequence")?;
             let byte_len: i64 = row.try_get("byteLen")?;
-            let byte_len = byte_len.max(0) as usize;
-            if kept.saturating_add(byte_len) <= max_bytes {
-                kept = kept.saturating_add(byte_len);
-                continue;
-            }
+            let running: i64 = row.try_get("running")?;
+            // Everything newer than this row, which is what stays whole.
+            let kept = running.saturating_sub(byte_len).max(0) as usize;
             let remaining = max_bytes.saturating_sub(kept);
             if remaining > 0 {
                 let data: Vec<u8> = sqlx::query("SELECT data FROM outputChunks WHERE id = ?")
@@ -226,7 +233,6 @@ impl TerminalHostHistoryStore {
                 .execute(&self.pool)
                 .await?;
             }
-            break;
         }
         Ok(())
     }
@@ -244,18 +250,23 @@ impl TerminalHostHistoryStore {
     }
 
     async fn read_buffer(&self, session_id: &str) -> Result<Vec<u8>> {
+        // Size the buffer in SQL. Summing the decoded blobs first allocated
+        // every chunk twice, once to read a length and once to copy it.
+        let total_len: i64 = sqlx::query(
+            "SELECT COALESCE(SUM(length(data)), 0) AS total FROM outputChunks \
+             WHERE sessionId = ?",
+        )
+        .bind(session_id)
+        .fetch_one(&self.pool)
+        .await?
+        .try_get("total")?;
         let rows = sqlx::query(
             "SELECT data FROM outputChunks WHERE sessionId = ? ORDER BY sequence ASC, id ASC",
         )
         .bind(session_id)
         .fetch_all(&self.pool)
         .await?;
-        let total_len = rows
-            .iter()
-            .filter_map(|row| row.try_get::<Vec<u8>, _>("data").ok())
-            .map(|data| data.len())
-            .sum();
-        let mut buffer = Vec::with_capacity(total_len);
+        let mut buffer = Vec::with_capacity(total_len.max(0) as usize);
         for row in rows {
             let data: Vec<u8> = row.try_get("data")?;
             buffer.extend_from_slice(&data);
@@ -335,150 +346,4 @@ fn parse_timestamp(value: Option<&str>) -> Option<DateTime<Utc>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn sample(session_id: &str) -> TerminalHostCheckpoint {
-        TerminalHostCheckpoint {
-            session_id: session_id.to_string(),
-            workspace_id: "ws".to_string(),
-            tab_id: "tab".to_string(),
-            working_directory: "/tmp/project".to_string(),
-            running: true,
-            exit_code: None,
-            ended_at: None,
-            output_stream_bytes: 42,
-            updated_at: Utc.timestamp_opt(1_700_000_000, 123_000_000).unwrap(),
-            buffer: Vec::new(),
-        }
-    }
-
-    #[tokio::test]
-    async fn upsert_append_then_read_round_trips_incremental_chunks() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-
-        assert!(store.read("missing", 1024).await.unwrap().is_none());
-
-        let checkpoint = sample("s1");
-        store.upsert(checkpoint.clone()).await.unwrap();
-        store.append_output("s1", 0, b"hello ").await.unwrap();
-        store.append_output("s1", 1, b"world").await.unwrap();
-
-        let read = store.read("s1", 1024).await.unwrap().unwrap();
-        assert_eq!(read.session_id, checkpoint.session_id);
-        assert_eq!(read.workspace_id, checkpoint.workspace_id);
-        assert_eq!(read.output_stream_bytes, checkpoint.output_stream_bytes);
-        assert_eq!(read.buffer, b"hello world");
-    }
-
-    #[tokio::test]
-    async fn read_orders_chunks_by_sequence_not_insert_order() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-
-        store.append_output("s1", 1, b"world").await.unwrap();
-        store.append_output("s1", 0, b"hello ").await.unwrap();
-
-        let read = store.read("s1", 1024).await.unwrap().unwrap();
-        assert_eq!(read.buffer, b"hello world");
-    }
-
-    #[tokio::test]
-    async fn next_output_sequence_advances_persisted_history() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-
-        assert_eq!(store.next_output_sequence("s1").await.unwrap(), 0);
-        store.append_output("s1", 0, b"first").await.unwrap();
-        store.append_output("s1", 1, b"second").await.unwrap();
-
-        assert_eq!(store.next_output_sequence("s1").await.unwrap(), 2);
-    }
-
-    #[tokio::test]
-    async fn append_output_trims_oldest_bytes() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-
-        store.append_output("s1", 0, b"abc").await.unwrap();
-        store.append_output("s1", 1, b"de").await.unwrap();
-        store.append_output("s1", 2, b"fg").await.unwrap();
-
-        let read = store.read("s1", 5).await.unwrap().unwrap();
-        assert_eq!(read.buffer, b"cdefg");
-    }
-
-    #[tokio::test]
-    async fn append_output_keeps_tail_of_single_oversized_chunk() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-
-        store.append_output("s1", 0, b"abcdefg").await.unwrap();
-
-        let read = store.read("s1", 3).await.unwrap().unwrap();
-        assert_eq!(read.buffer, b"efg");
-    }
-
-    #[tokio::test]
-    async fn shrinking_session_limit_trims_existing_chunks() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-        store.append_output("s1", 0, b"abcdefgh").await.unwrap();
-
-        store.trim_session("s1", 3).await.unwrap();
-
-        let read = store.read("s1", 3).await.unwrap().unwrap();
-        assert_eq!(read.buffer, b"fgh");
-    }
-
-    #[tokio::test]
-    async fn delete_removes_metadata_and_chunks() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        store.upsert(sample("s1")).await.unwrap();
-        store.append_output("s1", 0, b"hello").await.unwrap();
-
-        store.delete("s1").await.unwrap();
-
-        assert!(store.read("s1", 1024).await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn legacy_buffer_checkpoint_schema_is_destroyed() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join(HISTORY_DATABASE_FILE_NAME);
-        let options = SqliteConnectOptions::new()
-            .filename(&path)
-            .create_if_missing(true);
-        let pool = SqlitePoolOptions::new()
-            .connect_with(options)
-            .await
-            .unwrap();
-        sqlx::query("CREATE TABLE checkpoints (sessionId TEXT PRIMARY KEY, buffer BLOB NOT NULL)")
-            .execute(&pool)
-            .await
-            .unwrap();
-        sqlx::query("INSERT INTO checkpoints (sessionId, buffer) VALUES ('old', x'4142')")
-            .execute(&pool)
-            .await
-            .unwrap();
-        drop(pool);
-
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-
-        assert!(store.read("old", 1024).await.unwrap().is_none());
-        let columns = sqlx::query("PRAGMA table_info(checkpoints)")
-            .fetch_all(&store.pool)
-            .await
-            .unwrap();
-        assert!(!columns
-            .iter()
-            .any(|row| row.try_get::<String, _>("name").unwrap() == "buffer"));
-    }
-}
+mod tests;
