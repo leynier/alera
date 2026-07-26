@@ -221,8 +221,10 @@ void main() {
     expect(session.sessionId, 'session-tab-1');
     expect(client.calls, contains('attach tab-1'));
 
-    final received = <List<int>>[];
-    final outputSub = session.output.listen(received.add);
+    final received = <Uint8List>[];
+    final outputSub = session.output.listen(
+      (event) => received.add(event.data),
+    );
     client.emitOutput('session-tab-1', Uint8List.fromList(<int>[104, 105]));
     client.emitOutput('other-session', Uint8List.fromList(<int>[120]));
     await Future<void>.delayed(Duration.zero);
@@ -233,7 +235,10 @@ void main() {
       terminalSessionControllerProvider('host-1', 'tab-1').notifier,
     );
     await notifier.write(<int>[108, 115]);
-    expect(client.calls, contains('write session-tab-1 2'));
+    expect(
+      client.calls,
+      contains('write session-tab-1 2 paste=false enter=false'),
+    );
     await notifier.resize(48, 22);
     expect(client.calls, contains('resize session-tab-1 48 22'));
     await notifier.resize(0, 22);

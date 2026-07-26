@@ -39,6 +39,10 @@ class FakeTerminalClient
   final StreamController<MobileTerminalOutputEvent> _output =
       StreamController<MobileTerminalOutputEvent>.broadcast();
   final List<String> calls = <String>[];
+
+  /// The raw payload of each `writeTerminal`, for tests that care about the
+  /// bytes and not just their count.
+  final List<List<int>> writes = <List<int>>[];
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   int _createdTabs = 0;
 
@@ -57,8 +61,18 @@ class FakeTerminalClient
     );
   }
 
-  void emitOutput(String sessionId, Uint8List data) {
-    _output.add(MobileTerminalOutputEvent(sessionId, data));
+  void emitOutput(
+    String sessionId,
+    Uint8List data, {
+    bool replacesScrollback = false,
+  }) {
+    _output.add(
+      MobileTerminalOutputEvent(
+        sessionId,
+        data,
+        replacesScrollback: replacesScrollback,
+      ),
+    );
   }
 
   void emitTerminalTitle({
@@ -89,6 +103,11 @@ class FakeTerminalClient
 
   @override
   bool supportsTerminalTitles = true;
+
+  /// Settable so a test can drive both the deferred-input path and the legacy
+  /// single-write fallback.
+  @override
+  bool supportsDeferredTerminalInput = true;
 
   @override
   bool get supportsWorkspaceMutations => true;
@@ -176,8 +195,17 @@ class FakeTerminalClient
   }
 
   @override
-  Future<void> writeTerminal(String sessionId, List<int> bytes) async {
-    calls.add('write $sessionId ${bytes.length}');
+  Future<void> writeTerminal(
+    String sessionId,
+    List<int> bytes, {
+    bool bracketedPaste = false,
+    bool deferredEnter = false,
+  }) async {
+    calls.add(
+      'write $sessionId ${bytes.length} '
+      'paste=$bracketedPaste enter=$deferredEnter',
+    );
+    writes.add(bytes);
   }
 
   @override

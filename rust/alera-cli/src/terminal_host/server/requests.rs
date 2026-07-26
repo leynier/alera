@@ -41,7 +41,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
-use super::mobile_terminal_requests::mobile_request_allowed;
+use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
 use super::runtime_change_broadcasts::string_scope;
 use super::{ClientKind, ServerActor, ServerCommand};
 
@@ -326,24 +326,7 @@ impl ServerActor {
                 Ok(json!({
                     "protocolVersion": MOBILE_PROTOCOL_VERSION,
                     "runtime": "alera",
-                    "runtimeCapabilities": [
-                        RUNTIME_HOST_CAPABILITY,
-                        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-                        RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-                        RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-                        RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-                        RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-                        RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-                    ],
+                    "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
                     "authenticated": true,
                     "binaryFrames": binary_frames,
                     "device": device,

@@ -7,6 +7,16 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'host_connection_controller.g.dart';
 
+/// The runtime socket ended without the app asking it to, so every stream and
+/// pending request on that client is dead. Raised into the provider so screens
+/// stop showing a live-looking connection and offer their Retry instead.
+class RuntimeConnectionLost implements Exception {
+  const RuntimeConnectionLost();
+
+  @override
+  String toString() => 'Lost The Connection To The Host';
+}
+
 /// Owns the WebSocket connection to one paired runtime host. The client is
 /// connected and authenticated before it is exposed, and disposed together
 /// with the provider so leaving the host screens tears the socket down.
@@ -38,6 +48,22 @@ class HostConnectionController extends _$HostConnectionController {
     ref.onDispose(() {
       unawaited(client.dispose());
     });
+    var ended = false;
+    final closeSub = client.events.listen(
+      (_) {},
+      onError: (Object _, StackTrace _) => ended = true,
+      onDone: () {
+        if (ended) {
+          return;
+        }
+        ended = true;
+        // The plain AsyncError constructor, not copyWithPrevious: dependents
+        // must stop seeing a value for a client that can no longer deliver.
+        state = AsyncError(const RuntimeConnectionLost(), StackTrace.current);
+      },
+      cancelOnError: false,
+    );
+    ref.onDispose(closeSub.cancel);
     return client;
   }
 }

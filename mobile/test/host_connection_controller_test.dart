@@ -73,6 +73,70 @@ void main() {
     expect(payload['deviceToken'], 'token-1');
   });
 
+  test('A dropped socket surfaces as a lost connection', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final sockets = <WebSocket>[];
+    addTearDown(() async {
+      await server.close(force: true);
+    });
+    final subscription = server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket);
+      socket.listen((raw) {
+        final message = jsonDecode(raw as String) as Map<String, Object?>;
+        socket.add(
+          jsonEncode(<String, Object?>{
+            'id': message['id'],
+            'ok': true,
+            'payload': <String, Object?>{},
+          }),
+        );
+      });
+    });
+    addTearDown(subscription.cancel);
+
+    final repository = MemoryHostRepository();
+    await repository.savePairedHost(
+      PairedHostProfile(
+        id: 'runtime-1',
+        displayName: 'Alera Host',
+        endpoint: 'ws://${server.address.address}:${server.port}',
+        runtimeId: 'runtime-1',
+        deviceId: 'device-1',
+        pairedAt: DateTime.now().toUtc(),
+      ),
+      'token-1',
+    );
+    final container = ProviderContainer(
+      overrides: [hostRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+    final lost = Completer<Object?>();
+    final connection = container.listen(
+      hostConnectionControllerProvider('runtime-1'),
+      (_, next) {
+        if (next is AsyncError && !lost.isCompleted) {
+          lost.complete(next.error);
+        }
+      },
+    );
+    addTearDown(connection.close);
+    await container.read(hostConnectionControllerProvider('runtime-1').future);
+
+    for (final socket in sockets) {
+      await socket.close();
+    }
+
+    // A half-open socket raises nothing on its own, so the provider has to say
+    // so or every screen keeps showing a live connection. Riverpod keeps the
+    // previous value alongside the error, which is why callers check hasError.
+    final error = await lost.future.timeout(const Duration(seconds: 5));
+    expect(error, isA<RuntimeConnectionLost>());
+    final state = container.read(hostConnectionControllerProvider('runtime-1'));
+    expect(state.hasError, isTrue);
+    expect(state.error, isA<RuntimeConnectionLost>());
+  });
+
   test('Fails when the host is not paired', () async {
     final container = ProviderContainer(
       overrides: [

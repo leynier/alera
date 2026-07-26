@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
@@ -32,7 +32,10 @@ class TerminalTabSession {
   final String sessionId;
   final List<int> snapshot;
   final bool running;
-  final Stream<Uint8List> output;
+
+  /// Carries the full event, not just the bytes, so a resync answer that
+  /// replaces the scrollback stays ordered against the live output around it.
+  final Stream<MobileTerminalOutputEvent> output;
 }
 
 @riverpod
@@ -65,16 +68,37 @@ class TerminalSessionController extends _$TerminalSessionController {
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
       running: session.attachment.running,
-      output: client.terminalOutput
-          .where((event) => event.sessionId == sessionId)
-          .map((event) => event.data),
+      output: client.terminalOutput.where(
+        (event) => event.sessionId == sessionId,
+      ),
     );
   }
 
+  /// Raw keystrokes: the accessory bar and direct mode. These must never be
+  /// pasted or deferred, since each one is already a single key.
   Future<void> write(List<int> bytes) async {
     final session = await future;
     final client = await ref.read(terminalClientProvider(hostId).future);
     await client.writeTerminal(session.sessionId, bytes);
+  }
+
+  /// Compose-mode send. The prompt and its Enter become separate PTY writes
+  /// when the host supports it, because an agent TUI reads a CR arriving inside
+  /// an input burst as a literal newline instead of a submit.
+  Future<void> sendComposedText(String text, {required bool withEnter}) async {
+    final session = await future;
+    final client = await ref.read(terminalClientProvider(hostId).future);
+    final delivery = TerminalComposeDelivery.forText(
+      text,
+      withEnter: withEnter,
+      hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
+    );
+    await client.writeTerminal(
+      session.sessionId,
+      delivery.bytes,
+      bracketedPaste: delivery.bracketedPaste,
+      deferredEnter: delivery.deferredEnter,
+    );
   }
 
   Future<void> resize(int cols, int rows) async {

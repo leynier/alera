@@ -9,7 +9,9 @@ use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-use crate::terminal_host::client::{ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY};
+use crate::terminal_host::client::{
+    ClientFrame, ClientHandle, MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
+};
 use crate::terminal_host::frame_codec::encode_output_payload;
 use crate::terminal_host::server::{ClientKind, ServerCommand};
 
@@ -40,7 +42,7 @@ async fn accept_mobile_connection(
     let socket = accept_async(stream).await?;
     let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<ClientFrame>();
     let (terminal_out_tx, terminal_out_rx) =
-        mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+        mpsc::channel::<ClientFrame>(MOBILE_CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
     inbox.send(ServerCommand::ClientConnected {
         id,
         handle: ClientHandle {
