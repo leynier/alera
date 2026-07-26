@@ -4,6 +4,7 @@ import 'package:alera/src/features/agent_status/application/agent_hook_reconcili
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_notification_scheduler.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_awake_assertions.dart';
@@ -28,6 +29,7 @@ import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+part 'agent_status_notification_providers.dart';
 part 'agent_status_providers.g.dart';
 
 @Riverpod(keepAlive: true)
@@ -84,43 +86,6 @@ AgentHookReconciler agentHookReconciliationService(Ref ref) {
     managedHooks: ref.watch(managedAgentHookInstallServiceProvider),
     codexRuntimeHome: ref.watch(codexRuntimeHomeServiceProvider),
     claudeRuntimeHome: ref.watch(claudeRuntimeHomeServiceProvider),
-  );
-}
-
-@Riverpod(keepAlive: true)
-AgentStatusNotificationPresenter agentStatusNotificationPresenter(Ref ref) {
-  return DesktopAgentStatusNotificationService();
-}
-
-@Riverpod(keepAlive: true)
-AgentNotificationWindowActivator agentStatusNotificationWindowActivator(
-  Ref ref,
-) {
-  return const WindowManagerAgentWindowActivator();
-}
-
-@Riverpod(keepAlive: true)
-AgentNotificationWorkbenchNavigator agentStatusNotificationWorkbenchNavigator(
-  Ref ref,
-) {
-  return _RiverpodAgentNotificationWorkbenchNavigator(ref);
-}
-
-@Riverpod(keepAlive: true)
-AgentNotificationTerminalFocusRequester
-agentStatusNotificationTerminalFocusRequester(Ref ref) {
-  return _RiverpodAgentNotificationTerminalFocusRequester(ref);
-}
-
-@Riverpod(keepAlive: true)
-AgentStatusNotificationActivationService
-agentStatusNotificationActivationService(Ref ref) {
-  return AgentStatusNotificationActivationService(
-    windowActivator: ref.watch(agentStatusNotificationWindowActivatorProvider),
-    navigator: ref.watch(agentStatusNotificationWorkbenchNavigatorProvider),
-    terminalFocusRequester: ref.watch(
-      agentStatusNotificationTerminalFocusRequesterProvider,
-    ),
   );
 }
 
@@ -241,81 +206,7 @@ void agentHookInstallerCoordinator(Ref ref) {
   );
 }
 
-@Riverpod(keepAlive: true)
-void agentStatusNotificationCoordinator(Ref ref) {
-  final hooksEnabled = ref.watch(
-    settingsControllerProvider.select(
-      (settings) => settings.agents.agentStatusHooks.anyEnabled,
-    ),
-  );
-  final notificationsEnabled = ref.watch(
-    settingsControllerProvider.select(
-      (settings) => settings.agents.agentStatusNotificationsEnabled,
-    ),
-  );
-  final presenter = ref.watch(agentStatusNotificationPresenterProvider);
-  final activationService = ref.watch(
-    agentStatusNotificationActivationServiceProvider,
-  );
-  final tracker = AgentStatusNotificationTracker();
-  var initialized = false;
-  Future<void>? initializing;
-
-  Future<void> ensureInitialized() async {
-    if (initialized) {
-      return;
-    }
-    initializing ??= presenter
-        .initialize(
-          onSelected: (payload) {
-            unawaited(
-              activationService
-                  .activatePayload(payload)
-                  .catchError(_ignoreProviderAsyncError),
-            );
-          },
-        )
-        .then<void>((_) {
-          initialized = true;
-        });
-    await initializing;
-  }
-
-  if (hooksEnabled && notificationsEnabled) {
-    unawaited(ensureInitialized().catchError(_ignoreProviderAsyncError));
-  }
-
-  ref.listen<Map<String, AgentStatusEntry>>(agentStatusControllerProvider, (
-    previous,
-    next,
-  ) {
-    if (!hooksEnabled || !notificationsEnabled) {
-      return;
-    }
-    final pending = tracker.pendingNotifications(
-      previous: previous,
-      next: Map<String, AgentStatusEntry>.fromEntries(
-        next.entries.where(
-          (entry) => isAgentStatusHookEnabled(
-            ref.read(settingsControllerProvider).agents.agentStatusHooks,
-            entry.value.agentType,
-          ),
-        ),
-      ),
-    );
-    if (pending.isEmpty) {
-      return;
-    }
-    unawaited(
-      _showAgentStatusNotifications(
-        ref: ref,
-        presenter: presenter,
-        ensureInitialized: ensureInitialized,
-        entries: pending,
-      ).catchError(_ignoreProviderAsyncError),
-    );
-  });
-}
+/// Timings the notification coordinator buffers bursts with. A provider so
 
 Future<Map<String, String>?> terminalLaunchEnvironmentFor({
   required AgentHookReceiver agentHookReceiver,
@@ -418,78 +309,6 @@ bool isAgentStatusHookEnabled(
   };
 }
 
-Future<void> _showAgentStatusNotifications({
-  required Ref ref,
-  required AgentStatusNotificationPresenter presenter,
-  required Future<void> Function() ensureInitialized,
-  required List<AgentStatusEntry> entries,
-}) async {
-  await ensureInitialized();
-  final state = ref.read(workbenchControllerProvider);
-  for (final entry in entries) {
-    final workspace = findWorkspaceById(state, entry.workspaceId);
-    final project = workspace == null
-        ? null
-        : findProjectById(state, workspace.projectId);
-    final tab = findTabById(state, entry.workspaceId, entry.tabId);
-    final notification = composeAgentStatusNotification(
-      entry: entry,
-      projectName: project?.name,
-      workspaceName: workspace?.name,
-      tabTitle: tab?.title,
-    );
-    if (notification == null) {
-      continue;
-    }
-    await presenter.show(notification);
-  }
-}
-
 // coverage:ignore-start
 void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
 // coverage:ignore-end
-
-class _RiverpodAgentNotificationWorkbenchNavigator
-    implements AgentNotificationWorkbenchNavigator {
-  _RiverpodAgentNotificationWorkbenchNavigator(this._ref);
-
-  final Ref _ref;
-
-  @override
-  WorkbenchState get state => _ref.read(workbenchControllerProvider);
-
-  @override
-  Future<void> selectWorkspace({
-    required Project project,
-    required Workspace workspace,
-  }) {
-    return _ref
-        .read(workbenchControllerProvider.notifier)
-        .selectWorkspace(project: project, workspace: workspace);
-  }
-
-  @override
-  void setActiveTab({required String workspaceId, required String tabId}) {
-    _ref
-        .read(workbenchControllerProvider.notifier)
-        .setActiveTab(workspaceId: workspaceId, tabId: tabId);
-  }
-}
-
-class _RiverpodAgentNotificationTerminalFocusRequester
-    implements AgentNotificationTerminalFocusRequester {
-  _RiverpodAgentNotificationTerminalFocusRequester(this._ref);
-
-  final Ref _ref;
-
-  @override
-  void requestTerminalFocus({
-    required Workspace workspace,
-    required WorkspaceTabRecord tab,
-  }) {
-    _ref
-        .read(terminalRuntimeProvider)
-        .sessionFor(workspace: workspace, tab: tab)
-        .requestFocus();
-  }
-}

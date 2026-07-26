@@ -36,6 +36,7 @@ void main() {
     test('composes attention and done notifications only', () {
       final waiting = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.waiting, prompt: 'Review command'),
+        includeFinished: true,
         projectName: 'Alera',
         workspaceName: 'main',
         tabTitle: 'Codex',
@@ -46,6 +47,7 @@ void main() {
           agentType: AgentType.copilot,
           prompt: 'Choose target',
         ),
+        includeFinished: true,
       );
       final done = composeAgentStatusNotification(
         entry: _entry(
@@ -53,6 +55,7 @@ void main() {
           agentType: AgentType.agy,
           prompt: '',
         ),
+        includeFinished: true,
         projectName: 'Alera',
         workspaceName: 'main',
         tabTitle: 'Claude',
@@ -63,9 +66,11 @@ void main() {
           agentType: AgentType.cursor,
           prompt: 'Ship Cursor',
         ),
+        includeFinished: true,
       );
       final working = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.working),
+        includeFinished: true,
       );
       final openCodeDone = composeAgentStatusNotification(
         entry: _entry(
@@ -73,6 +78,7 @@ void main() {
           agentType: AgentType.opencode,
           prompt: 'Finish plugin',
         ),
+        includeFinished: true,
       );
       final piWaiting = composeAgentStatusNotification(
         entry: _entry(
@@ -80,6 +86,7 @@ void main() {
           agentType: AgentType.pi,
           prompt: 'Approve command',
         ),
+        includeFinished: true,
       );
       final ampDone = composeAgentStatusNotification(
         entry: _entry(
@@ -87,6 +94,7 @@ void main() {
           agentType: AgentType.amp,
           prompt: 'Ship plugin',
         ),
+        includeFinished: true,
       );
 
       expect(waiting, isNotNull);
@@ -106,13 +114,34 @@ void main() {
       expect(working, isNull);
     });
 
+    test('skips done notifications unless finished notifications are on', () {
+      final done = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.done),
+        includeFinished: false,
+      );
+      final waiting = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.waiting),
+        includeFinished: false,
+      );
+      final blocked = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.blocked),
+        includeFinished: false,
+      );
+
+      expect(done, isNull);
+      expect(waiting!.title, 'Codex needs attention');
+      expect(blocked!.title, 'Codex needs attention');
+    });
+
     test('composes fallback notification titles and location bodies', () {
       final workspaceOnly = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.waiting),
+        includeFinished: true,
         workspaceName: 'feature/login',
       );
       final tabOnly = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.done),
+        includeFinished: true,
         tabTitle: 'Terminal 2',
       );
 
@@ -124,61 +153,19 @@ void main() {
     test('drops the project when it repeats the workspace name', () {
       final sameName = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.waiting),
+        includeFinished: true,
         projectName: 'alera',
         workspaceName: 'alera',
       );
       final sameNameDifferentCase = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.done),
+        includeFinished: true,
         projectName: 'Alera',
         workspaceName: ' alera ',
       );
 
       expect(sameName!.body, 'Workspace alera');
       expect(sameNameDifferentCase!.body, 'Workspace alera');
-    });
-
-    test('deduplicates unchanged states by terminal and state start time', () {
-      final tracker = AgentStatusNotificationTracker();
-      final firstWaiting = _entry(AgentStatusState.waiting);
-      final sameWaiting = firstWaiting.copyWith(
-        updatedAt: DateTime.utc(2026, 5, 26, 12, 1),
-      );
-      final nextWaiting = firstWaiting.copyWith(
-        stateStartedAt: DateTime.utc(2026, 5, 26, 12, 2),
-        updatedAt: DateTime.utc(2026, 5, 26, 12, 2),
-      );
-
-      expect(
-        tracker.pendingNotifications(
-          previous: const <String, AgentStatusEntry>{},
-          next: <String, AgentStatusEntry>{
-            firstWaiting.terminalSessionId: firstWaiting,
-          },
-        ),
-        <AgentStatusEntry>[firstWaiting],
-      );
-      expect(
-        tracker.pendingNotifications(
-          previous: <String, AgentStatusEntry>{
-            firstWaiting.terminalSessionId: firstWaiting,
-          },
-          next: <String, AgentStatusEntry>{
-            sameWaiting.terminalSessionId: sameWaiting,
-          },
-        ),
-        isEmpty,
-      );
-      expect(
-        tracker.pendingNotifications(
-          previous: <String, AgentStatusEntry>{
-            sameWaiting.terminalSessionId: sameWaiting,
-          },
-          next: <String, AgentStatusEntry>{
-            nextWaiting.terminalSessionId: nextWaiting,
-          },
-        ),
-        <AgentStatusEntry>[nextWaiting],
-      );
     });
   });
 }
@@ -187,15 +174,18 @@ AgentStatusEntry _entry(
   AgentStatusState state, {
   String prompt = 'Run tests',
   AgentType agentType = AgentType.codex,
+  String sessionId = 'session-1',
+  DateTime? updatedAt,
+  DateTime? stateStartedAt,
 }) {
   return AgentStatusEntry(
-    terminalSessionId: 'session-1',
+    terminalSessionId: sessionId,
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
     agentType: agentType,
     state: state,
     prompt: prompt,
-    updatedAt: DateTime.utc(2026, 5, 26, 12),
-    stateStartedAt: DateTime.utc(2026, 5, 26, 12),
+    updatedAt: updatedAt ?? DateTime.utc(2026, 5, 26, 12),
+    stateStartedAt: stateStartedAt ?? DateTime.utc(2026, 5, 26, 12),
   );
 }

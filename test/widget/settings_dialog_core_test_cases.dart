@@ -628,11 +628,15 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
     await tester.tap(find.byType(Switch).at(9));
     await tester.pump(const Duration(milliseconds: 50));
+    await tester.ensureVisible(find.text('Agent Finished Notifications'));
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(10));
+    await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(10));
+    await tester.tap(find.byType(Switch).at(11));
     await tester.pump(const Duration(milliseconds: 50));
 
     final hooks = container
@@ -650,20 +654,12 @@ void _registerSettingsDialogCoreTests() {
       hooks.amp,
       hooks.grok,
     ], everyElement(isTrue));
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .agentStatusNotificationsEnabled,
-      isTrue,
-    );
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .keepComputerAwakeWhileAgentsWork,
-      isTrue,
-    );
+    final behavior = container.read(settingsControllerProvider).agents;
+    expect(<bool>[
+      behavior.agentStatusNotificationsEnabled,
+      behavior.agentStatusFinishedNotificationsEnabled,
+      behavior.keepComputerAwakeWhileAgentsWork,
+    ], everyElement(isTrue));
 
     await tester.enterText(find.byType(TextField).first, 'notification');
     await tester.pump();

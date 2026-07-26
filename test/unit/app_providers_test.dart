@@ -46,11 +46,13 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
 
+part 'app_providers_notification_test_cases.dart';
 part 'app_providers_test_harness.dart';
 part 'app_providers_terminal_fakes.dart';
 part 'app_providers_wrapper_path_test_cases.dart';
 
 void main() {
+  _registerAgentNotificationCoordinatorTests();
   group('app providers', () {
     test(
       'workspaceServiceProvider uses the configured workspace root override',
@@ -304,140 +306,6 @@ void main() {
         expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
           terminalHostConfigFor(settings.terminal).toJson(),
         ]);
-      },
-    );
-
-    test(
-      'notification coordinator emits native notifications for done states',
-      () async {
-        final presenter = _FakeNotificationPresenter();
-        final settings = AleraSettings.defaults.copyWith(
-          agents: AleraSettings.defaults.agents.copyWith(
-            agentStatusHooks: const AgentStatusHookSettings(codex: true),
-            agentStatusNotificationsEnabled: true,
-          ),
-        );
-        final container = ProviderContainer(
-          overrides: [
-            settingsControllerProvider.overrideWithValue(settings),
-            agentStatusNotificationPresenterProvider.overrideWithValue(
-              presenter,
-            ),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        container.read(agentStatusNotificationCoordinatorProvider);
-        container
-            .read(agentStatusControllerProvider.notifier)
-            .applyHookEvent(
-              const AgentHookEvent(
-                terminalSessionId: 'session-1',
-                workspaceId: 'workspace-1',
-                tabId: 'tab-1',
-                agentType: AgentType.codex,
-                hookEventName: 'Stop',
-                payload: <String, Object?>{'prompt': 'Run tests'},
-              ),
-            );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
-
-        expect(presenter.initializeCalls, 1);
-        expect(presenter.notifications, hasLength(1));
-        expect(presenter.notifications.single.title, 'Codex finished');
-        expect(presenter.notifications.single.body, 'Open Alera');
-      },
-    );
-
-    test(
-      'notification coordinator composes workspace context and activation payloads',
-      () async {
-        final presenter = _FakeNotificationPresenter();
-        final windowActivator = _FakeNotificationWindowActivator();
-        final now = DateTime.utc(2026, 5, 26, 10);
-        final project = _project(id: 'project-1', path: '/repo/alera');
-        final workspace = Workspace(
-          id: 'workspace-1',
-          projectId: project.id,
-          name: 'Main',
-          branch: 'main',
-          path: project.repoPath,
-          createdAt: now,
-          updatedAt: now,
-          kind: WorkspaceKind.main,
-          status: WorkspaceStatus.active,
-        );
-        final tab = WorkspaceTabRecord(
-          id: 'tab-1',
-          workspaceId: workspace.id,
-          title: 'Terminal 1',
-          createdAt: now,
-          updatedAt: now,
-        );
-        final controller = _TestWorkbenchController(
-          WorkbenchState(
-            projects: <Project>[project],
-            workspacesByProject: <String, List<Workspace>>{
-              project.id: <Workspace>[workspace],
-            },
-            tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-              workspace.id: <WorkspaceTabRecord>[tab],
-            },
-            bootstrapped: true,
-          ),
-        );
-        final runtime = _FocusableTerminalRuntime();
-        final settings = AleraSettings.defaults.copyWith(
-          agents: AleraSettings.defaults.agents.copyWith(
-            agentStatusHooks: const AgentStatusHookSettings(codex: true),
-            agentStatusNotificationsEnabled: true,
-          ),
-        );
-        final container = ProviderContainer(
-          overrides: [
-            settingsControllerProvider.overrideWithValue(settings),
-            agentStatusNotificationPresenterProvider.overrideWithValue(
-              presenter,
-            ),
-            agentStatusNotificationWindowActivatorProvider.overrideWithValue(
-              windowActivator,
-            ),
-            workbenchControllerProvider.overrideWith(() => controller),
-            terminalRuntimeProvider.overrideWith((ref) => runtime),
-          ],
-        );
-        addTearDown(() {
-          runtime.dispose();
-          container.dispose();
-        });
-
-        container.read(agentStatusNotificationCoordinatorProvider);
-        container
-            .read(agentStatusControllerProvider.notifier)
-            .applyHookEvent(
-              const AgentHookEvent(
-                terminalSessionId: 'session-1',
-                workspaceId: 'workspace-1',
-                tabId: 'tab-1',
-                agentType: AgentType.codex,
-                hookEventName: 'Stop',
-                payload: <String, Object?>{'prompt': 'Run tests'},
-              ),
-            );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
-
-        expect(presenter.notifications, hasLength(1));
-        expect(presenter.notifications.single.body, 'Workspace Main in Alera');
-
-        presenter.onSelected!(presenter.notifications.single.payload);
-        await Future<void>.delayed(Duration.zero);
-
-        expect(windowActivator.calls, 1);
-        expect(controller.selectedWorkspaceIds, <String>['workspace-1']);
-        expect(controller.activeTabs, <String, String>{'workspace-1': 'tab-1'});
-        expect(runtime.focusedTabIds, <String>['tab-1']);
       },
     );
 

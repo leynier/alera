@@ -1372,6 +1372,15 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
         opt: true,
         def: false,
       );
+  static bool _$agentStatusFinishedNotificationsEnabled(AgentSettings v) =>
+      v.agentStatusFinishedNotificationsEnabled;
+  static const Field<AgentSettings, bool>
+  _f$agentStatusFinishedNotificationsEnabled = Field(
+    'agentStatusFinishedNotificationsEnabled',
+    _$agentStatusFinishedNotificationsEnabled,
+    opt: true,
+    def: false,
+  );
   static bool _$keepComputerAwakeWhileAgentsWork(AgentSettings v) =>
       v.keepComputerAwakeWhileAgentsWork;
   static const Field<AgentSettings, bool> _f$keepComputerAwakeWhileAgentsWork =
@@ -1393,6 +1402,8 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
   final MappableFields<AgentSettings> fields = const {
     #agentStatusHooks: _f$agentStatusHooks,
     #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
+    #agentStatusFinishedNotificationsEnabled:
+        _f$agentStatusFinishedNotificationsEnabled,
     #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
     #quotas: _f$quotas,
   };
@@ -1402,6 +1413,9 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
       agentStatusHooks: data.dec(_f$agentStatusHooks),
       agentStatusNotificationsEnabled: data.dec(
         _f$agentStatusNotificationsEnabled,
+      ),
+      agentStatusFinishedNotificationsEnabled: data.dec(
+        _f$agentStatusFinishedNotificationsEnabled,
       ),
       keepComputerAwakeWhileAgentsWork: data.dec(
         _f$keepComputerAwakeWhileAgentsWork,
@@ -1483,6 +1497,7 @@ abstract class AgentSettingsCopyWith<$R, $In extends AgentSettings, $Out>
   $R call({
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
+    bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
     AgentQuotaSettings? quotas,
   });
@@ -1512,6 +1527,7 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
   $R call({
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
+    bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
     AgentQuotaSettings? quotas,
   }) => $apply(
@@ -1519,6 +1535,9 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
       if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
       if (agentStatusNotificationsEnabled != null)
         #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
+      if (agentStatusFinishedNotificationsEnabled != null)
+        #agentStatusFinishedNotificationsEnabled:
+            agentStatusFinishedNotificationsEnabled,
       if (keepComputerAwakeWhileAgentsWork != null)
         #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
       if (quotas != null) #quotas: quotas,
@@ -1530,6 +1549,10 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
     agentStatusNotificationsEnabled: data.get(
       #agentStatusNotificationsEnabled,
       or: $value.agentStatusNotificationsEnabled,
+    ),
+    agentStatusFinishedNotificationsEnabled: data.get(
+      #agentStatusFinishedNotificationsEnabled,
+      or: $value.agentStatusFinishedNotificationsEnabled,
     ),
     keepComputerAwakeWhileAgentsWork: data.get(
       #keepComputerAwakeWhileAgentsWork,

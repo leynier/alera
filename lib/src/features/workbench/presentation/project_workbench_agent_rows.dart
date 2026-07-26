@@ -2,6 +2,7 @@ part of 'project_workbench_sidebar.dart';
 
 class _AgentRunRow extends StatefulWidget {
   const _AgentRunRow({
+    super.key,
     required this.tab,
     required this.status,
     required this.isActive,

@@ -156,6 +156,19 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
     groupId: 'behavior',
   ),
   SettingsSearchEntry(
+    title: 'Agent Finished Notifications',
+    description: 'Also notify when an agent finishes a turn.',
+    keywords: <String>[
+      'agent',
+      'status',
+      'notification',
+      'finished',
+      'done',
+      'turn',
+    ],
+    groupId: 'behavior',
+  ),
+  SettingsSearchEntry(
     title: 'Keep Computer Awake While Agents Are Working',
     description: 'Keep this computer and display awake during agent work.',
     keywords: <String>[

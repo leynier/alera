@@ -124,6 +124,19 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setAgentStatusFinishedNotificationsEnabled(bool value) async {
+    if (state.agents.agentStatusFinishedNotificationsEnabled == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        agents: state.agents.copyWith(
+          agentStatusFinishedNotificationsEnabled: value,
+        ),
+      ),
+    );
+  }
+
   Future<void> setKeepComputerAwakeWhileAgentsWork(bool value) async {
     if (state.agents.keepComputerAwakeWhileAgentsWork == value) {
       return;
