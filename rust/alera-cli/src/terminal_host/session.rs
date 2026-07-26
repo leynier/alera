@@ -11,6 +11,7 @@ use crate::terminal_host::buffer::ScrollbackBuffer;
 use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHistoryStore};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
+use crate::terminal_host::resources::{seal_shell_process, ShellProcess};
 
 mod checkpoint_restore;
 #[cfg(test)]
@@ -116,10 +117,14 @@ pub struct Session {
     running: bool,
     exit_code: Option<i32>,
     ended_at: Option<DateTime<Utc>>,
-    /// PID of the shell this session spawned, while it is still alive. Cleared
-    /// on exit and on terminate: the OS recycles PIDs, so a stale value would
-    /// attribute an unrelated process to this session.
-    shell_pid: Option<u32>,
+    /// The shell this session spawned, while it is still alive. Cleared on exit
+    /// and on terminate: the OS recycles pids, so a stale value would attribute
+    /// an unrelated process to this session.
+    ///
+    /// Carries the start time observed at spawn, because clearing alone is not
+    /// enough. The OS reaps the shell before the reader thread reports the
+    /// exit, and a pid recycled inside that window would still read as live.
+    shell: Option<ShellProcess>,
     master: Option<Box<dyn MasterPty + Send>>,
     input_tx: Option<SyncSender<PtyWrite>>,
     killer: Option<Box<dyn ChildKiller + Send + Sync>>,
@@ -194,8 +199,10 @@ impl Session {
 
         let killer = child.clone_killer();
         // Read before the child moves into the reader thread, which owns it
-        // until exit. This is the root the resource sampler walks down from.
-        let shell_pid = child.process_id();
+        // until exit. This is the root the resource sampler walks down from,
+        // sealed with its start time so a later sweep can prove the pid still
+        // holds this shell.
+        let shell = child.process_id().and_then(seal_shell_process);
         let reader = pair
             .master
             .try_clone_reader()
@@ -225,7 +232,7 @@ impl Session {
             running: true,
             exit_code: None,
             ended_at: None,
-            shell_pid,
+            shell,
             master: Some(pair.master),
             input_tx: Some(input_tx),
             killer: Some(killer),
@@ -259,12 +266,10 @@ impl Session {
         &self.workspace_id
     }
 
-    /// PID of the live shell, or `None` once it has exited or was never spawned
+    /// The live shell, or `None` once it has exited or was never spawned
     /// (restored checkpoints and test stubs have no process behind them).
-    // Read by the resource sampler, which lands in the following change.
-    #[allow(dead_code)]
-    pub fn shell_pid(&self) -> Option<u32> {
-        self.shell_pid
+    pub fn shell(&self) -> Option<ShellProcess> {
+        self.shell
     }
 
     pub fn instance_id(&self) -> u64 {
@@ -386,7 +391,7 @@ impl Session {
         self.running = false;
         self.exit_code = Some(exit_code);
         self.ended_at = Some(Utc::now());
-        self.shell_pid = None;
+        self.shell = None;
         Some(json!({ "sessionId": self.id, "exitCode": exit_code }))
     }
 
@@ -431,7 +436,7 @@ impl Session {
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
         self.terminated = true;
         self.running = false;
-        self.shell_pid = None;
+        self.shell = None;
         if let Some(mut killer) = self.killer.take() {
             // The child may have already exited between checks.
             let _ = killer.kill();

@@ -122,7 +122,7 @@ impl ServerActor {
                 workspace_id: session.workspace_id.clone(),
                 tab_id: session.tab_id.clone(),
                 running: session.running(),
-                shell_pid: session.shell_pid(),
+                shell: session.shell(),
             })
             .collect()
     }

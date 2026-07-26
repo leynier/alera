@@ -3,13 +3,15 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use serde_json::{json, Value};
-use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 mod history;
 mod process_tree;
 
 use history::ResourceHistory;
 use process_tree::{ProcessIndex, ProcessRow, SubtreeUsage};
+
+pub use process_tree::ShellProcess;
 
 /// Sampling cadence while a client is watching. Matches the panel's refresh.
 pub const RESOURCE_SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
@@ -36,7 +38,29 @@ pub struct SessionPidRoot {
     pub workspace_id: String,
     pub tab_id: String,
     pub running: bool,
-    pub shell_pid: Option<u32>,
+    pub shell: Option<ShellProcess>,
+}
+
+/// Observe a freshly spawned pid's start time, so later sweeps can tell that
+/// process apart from whatever the OS puts at the same pid once it exits.
+///
+/// Refreshes only that pid. This runs on every terminal spawn, and a full
+/// process-table walk there would be charged to every new tab.
+///
+/// `None` when the pid is already gone, which leaves the session unmeasured
+/// rather than measuring a guess.
+pub fn seal_shell_process(pid: u32) -> Option<ShellProcess> {
+    let sysinfo_pid = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[sysinfo_pid]),
+        true,
+        ProcessRefreshKind::nothing(),
+    );
+    system.process(sysinfo_pid).map(|process| ShellProcess {
+        pid,
+        start_time: process.start_time(),
+    })
 }
 
 /// Owns the `sysinfo` handle across samples.
@@ -95,6 +119,7 @@ impl ResourceSampler {
                     .map(|(pid, process)| ProcessRow {
                         pid: pid.as_u32(),
                         parent_pid: process.parent().map(|parent| parent.as_u32()),
+                        start_time: process.start_time(),
                         cpu_percent: process.cpu_usage(),
                         memory_bytes: process.memory(),
                     }),
@@ -109,11 +134,15 @@ impl ResourceSampler {
         // all of them into one unattributed row.
         let mut sessions = Vec::with_capacity(roots.len());
         for root in roots {
-            let usage = match root.shell_pid {
-                Some(pid) if root.running => index.collect_subtree(pid, &mut claimed),
+            // Identity, not just presence: a pid the OS has already recycled
+            // would otherwise bill a stranger's memory to this terminal.
+            let measured = root.shell.is_some_and(|shell| index.holds(shell));
+            let usage = match root.shell {
+                Some(shell) if root.running && measured => {
+                    index.collect_subtree(shell.pid, &mut claimed)
+                }
                 _ => SubtreeUsage::default(),
             };
-            let measured = root.shell_pid.is_some_and(|pid| index.contains(pid));
             accumulate(&mut totals, usage);
             let history = self
                 .history
@@ -123,7 +152,7 @@ impl ResourceSampler {
                 "workspaceId": root.workspace_id,
                 "tabId": root.tab_id,
                 "running": root.running,
-                "shellPid": root.shell_pid,
+                "shellPid": root.shell.map(|shell| shell.pid),
                 "measured": measured,
                 "cpuPercent": usage.cpu_percent,
                 "memoryBytes": usage.memory_bytes,
@@ -275,16 +304,20 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_session_without_a_live_pid_reports_zero_and_is_not_measured() {
-        let mut sampler = ResourceSampler::default();
-        let roots = vec![SessionPidRoot {
+    fn root(shell: Option<ShellProcess>, running: bool) -> SessionPidRoot {
+        SessionPidRoot {
             session_id: "session-1".to_string(),
             workspace_id: "workspace-1".to_string(),
             tab_id: "tab-1".to_string(),
-            running: false,
-            shell_pid: None,
-        }];
+            running,
+            shell,
+        }
+    }
+
+    #[test]
+    fn a_session_without_a_live_pid_reports_zero_and_is_not_measured() {
+        let mut sampler = ResourceSampler::default();
+        let roots = vec![root(None, false)];
 
         let snapshot = sampler.sample(&roots, std::process::id(), None);
 
@@ -292,6 +325,42 @@ mod tests {
         assert_eq!(session["measured"], json!(false));
         assert_eq!(session["memoryBytes"], json!(0));
         assert_eq!(session["processCount"], json!(0));
+    }
+
+    #[test]
+    fn a_session_whose_pid_was_recycled_is_not_measured() {
+        // The pid is live and running, but it no longer holds the shell this
+        // session spawned. Attributing it would bill a stranger's memory to
+        // this terminal, so the session reports unmeasured instead.
+        let mut sampler = ResourceSampler::default();
+        let self_pid = std::process::id();
+        let sealed = seal_shell_process(self_pid).expect("this process is live");
+        let recycled = ShellProcess {
+            pid: self_pid,
+            start_time: sealed.start_time + 1,
+        };
+
+        let snapshot = sampler.sample(&[root(Some(recycled), true)], self_pid, None);
+
+        let session = &snapshot["sessions"][0];
+        assert_eq!(session["shellPid"], json!(self_pid));
+        assert_eq!(session["measured"], json!(false));
+        assert_eq!(session["memoryBytes"], json!(0));
+        assert_eq!(session["processCount"], json!(0));
+    }
+
+    #[test]
+    fn a_session_still_holding_its_shell_is_measured() {
+        let mut sampler = ResourceSampler::default();
+        let self_pid = std::process::id();
+        let sealed = seal_shell_process(self_pid).expect("this process is live");
+
+        // Measured against this process, standing in for a session's shell.
+        let snapshot = sampler.sample(&[root(Some(sealed), true)], 1, None);
+
+        let session = &snapshot["sessions"][0];
+        assert_eq!(session["measured"], json!(true));
+        assert!(session["memoryBytes"].as_u64().unwrap() > 0);
     }
 
     #[test]
