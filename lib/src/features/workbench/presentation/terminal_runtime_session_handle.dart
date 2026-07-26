@@ -61,8 +61,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   /// Pending output held as whole chunks rather than one growing buffer: a
   /// single buffer forced a full copy plus two substrings on every drain, so
-  /// draining a full backlog was quadratic in its size.
+  /// draining a full backlog was quadratic in its size. The head chunk is
+  /// consumed in place through [_pendingTerminalOutputHead] for the same
+  /// reason; a restored snapshot arrives as one multi-megabyte chunk.
   final Queue<String> _pendingTerminalOutput = Queue<String>();
+  int _pendingTerminalOutputHead = 0;
+
+  /// Chars still to write, already net of [_pendingTerminalOutputHead].
   int _pendingTerminalOutputLength = 0;
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
@@ -560,6 +565,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _clearPendingTerminalOutput() {
     _pendingTerminalOutput.clear();
+    _pendingTerminalOutputHead = 0;
     _pendingTerminalOutputLength = 0;
   }
 
