@@ -69,6 +69,22 @@ impl ClientHandle {
             control_out_rx,
         )
     }
+
+    /// Keeps the terminal lane receiver alive, so a test can read what was
+    /// delivered and can fill the queue to reproduce backpressure. The plain
+    /// [`Self::test_channels`] drops it, which makes every send read as closed.
+    pub fn test_terminal_channels() -> (Self, tokio::sync::mpsc::Receiver<ClientFrame>) {
+        let (control_out, _control_out_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (terminal_out, terminal_out_rx) =
+            tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+        (
+            Self {
+                control_out,
+                terminal_out,
+            },
+            terminal_out_rx,
+        )
+    }
 }
 
 /// Drive one client connection: forward inbound newline-delimited JSON lines to

@@ -233,6 +233,8 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
         empty_shutdown_delay_seconds: args.empty_shutdown_delay_seconds,
         detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
         scrollback_bytes: args.scrollback_bytes,
+        // Standalone host: the app overrides this in its `configure`.
+        restore_snapshot_bytes: args.scrollback_bytes,
         persistent: args.persistent,
         login_shell: terminal_host::protocol::default_login_shell(),
     };

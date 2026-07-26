@@ -38,7 +38,7 @@ abstract interface class TerminalHostClient {
     required int rows,
   });
 
-  Future<Uint8List> setOutputPaused({
+  Future<TerminalHostResume> setOutputPaused({
     required String sessionId,
     required bool paused,
   });
@@ -96,16 +96,26 @@ final class TerminalHostAttachment {
   final int? exitCode;
 }
 
-final class TerminalHostSnapshot {
-  const TerminalHostSnapshot({required this.data});
+/// How the host answered a resume.
+///
+/// A delta resume carries no bytes here: the host pushes what the client
+/// missed on the output lane instead, so it stays ordered against live output
+/// and goes through the same per-session decoder. Only a client the host can
+/// no longer place in the stream gets [snapshot], which replaces the emulator.
+final class TerminalHostResume {
+  const TerminalHostResume({required this.isDelta, required this.snapshot});
 
-  factory TerminalHostSnapshot.fromJson(Map<String, Object?> json) {
-    return TerminalHostSnapshot(
-      data: decodeTerminalHostBytes(json['snapshotBase64']),
+  factory TerminalHostResume.fromJson(Map<String, Object?> json) {
+    return TerminalHostResume(
+      // A host that predates delta resumes answers with the whole scrollback
+      // and no `delta` field, so an absent flag has to mean "replace".
+      isDelta: json['delta'] == true,
+      snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
     );
   }
 
-  final Uint8List data;
+  final bool isDelta;
+  final Uint8List snapshot;
 }
 
 sealed class TerminalHostEvent {

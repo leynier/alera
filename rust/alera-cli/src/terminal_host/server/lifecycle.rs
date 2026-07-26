@@ -16,15 +16,23 @@ impl ServerActor {
         };
         let max_bytes = config.scrollback_bytes as usize;
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
-        for session_id in session_ids {
-            self.flush_all_output(&session_id);
-            if let Some(session) = self.sessions.get_mut(&session_id) {
+        for session_id in &session_ids {
+            self.flush_all_output(session_id);
+            if let Some(session) = self.sessions.get_mut(session_id) {
                 session.set_max_bytes(max_bytes);
             }
-            self.await_output_writes(&session_id).await;
-            let _ = self.store.trim_session(&session_id, max_bytes).await;
-            self.immediate_checkpoint(&session_id).await;
         }
+        // Applying the cap to what is on disk is housekeeping, and awaiting it
+        // parked the single actor behind two write barriers and a trim per
+        // session. The app sends `configure` at startup, so every attach after
+        // it queued behind that. A write landing after this trim just leaves
+        // the session briefly over the cap; the checkpoint tick trims again.
+        let store = self.store.clone();
+        tokio::spawn(async move {
+            for session_id in session_ids {
+                let _ = store.trim_session(&session_id, max_bytes).await;
+            }
+        });
         self.schedule_shutdown_if_idle();
     }
 

@@ -116,11 +116,11 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required int rows,
   }) async {}
   @override
-  Future<Uint8List> setOutputPaused({
+  Future<TerminalHostResume> setOutputPaused({
     required String sessionId,
     required bool paused,
   }) async {
-    return Uint8List(0);
+    return TerminalHostResume(isDelta: true, snapshot: Uint8List(0));
   }
 
   @override

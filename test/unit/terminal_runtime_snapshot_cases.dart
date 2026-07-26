@@ -66,4 +66,38 @@ void _registerTerminalRuntimeSnapshotTests() {
       }
     },
   );
+
+  test('a process exit mid-restore takes the restore overlay down', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    TerminalVisibilityLease? visibility;
+    try {
+      visibility = acquireTerminalVisibilityForTesting(session);
+      await session.ensureStarted();
+
+      // Three frames' worth, so one drain cannot finish the restore.
+      fakeSession.emitSnapshot(utf8.encode('a' * (64 * 1024 * 3)));
+      await Future<void>.delayed(Duration.zero);
+      flushTerminalOutputForTesting(session);
+      expect(session.restoreProgress.value, isNotNull);
+
+      fakeSession.emitExit(0);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.restoreProgress.value, isNull);
+    } finally {
+      visibility?.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

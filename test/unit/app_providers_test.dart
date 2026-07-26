@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/workbench/application/terminal_host_settings_config.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
@@ -298,13 +299,10 @@ void main() {
         container.read(terminalHostWarmupCoordinatorProvider);
         await Future<void>.delayed(Duration.zero);
 
+        // What the mapping produces is terminal_host_settings_config_test's
+        // job; this only checks the warmup sends it.
         expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
-          TerminalHostConfig(
-            emptyShutdownDelaySeconds: 7,
-            detachedSessionShutdownDelaySeconds: 14,
-            scrollbackBytes: 4096,
-            loginShell: settings.terminal.resolvedLoginShell,
-          ).toJson(),
+          terminalHostConfigFor(settings.terminal).toJson(),
         ]);
       },
     );

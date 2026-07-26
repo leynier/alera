@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/application/terminal_host_settings_config.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
@@ -23,16 +24,8 @@ RuntimeHostLifecycleService runtimeHostLifecycleService(Ref ref) {
       ref.watch(runtimeHostClientProvider),
     ),
     bundledVersionProbe: ref.watch(bundledSidecarVersionProbeProvider),
-    readConfig: () {
-      final terminal = ref.read(settingsControllerProvider).terminal;
-      return TerminalHostConfig(
-        emptyShutdownDelaySeconds: terminal.hostEmptyShutdownDelaySeconds,
-        detachedSessionShutdownDelaySeconds:
-            terminal.hostDetachedSessionShutdownDelaySeconds,
-        scrollbackBytes: terminal.hostScrollbackBytes,
-        loginShell: terminal.resolvedLoginShell,
-      );
-    },
+    readConfig: () =>
+        terminalHostConfigFor(ref.read(settingsControllerProvider).terminal),
   );
 }
 

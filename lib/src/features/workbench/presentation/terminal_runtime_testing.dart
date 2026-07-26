@@ -71,6 +71,22 @@ int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
   return (session as _XtermTerminalSessionHandle)._pendingTerminalOutputLength;
 }
 
+/// The head chunk itself, so a test can assert it is consumed in place rather
+/// than re-queued as a fresh copy on every drain.
+@visibleForTesting
+String? pendingTerminalOutputHeadChunkForTesting(
+  TerminalSessionHandle session,
+) {
+  final pending =
+      (session as _XtermTerminalSessionHandle)._pendingTerminalOutput;
+  return pending.isEmpty ? null : pending.first;
+}
+
+@visibleForTesting
+int pendingTerminalOutputHeadForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutputHead;
+}
+
 @visibleForTesting
 String terminalBufferTextForTesting(TerminalSessionHandle session) {
   final terminal = (session as _XtermTerminalSessionHandle)._terminal;

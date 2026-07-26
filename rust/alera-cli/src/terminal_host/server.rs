@@ -42,6 +42,8 @@ use client_accept_loop::spawn_accept_loop;
 
 use resource_requests::ResourceMonitorState;
 
+#[cfg(test)]
+mod actor_test_harness;
 mod agent_hook_events;
 mod client_accept_loop;
 mod client_delivery;
@@ -60,6 +62,9 @@ mod orchestration_requests;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;
+mod output_delivery;
+#[cfg(test)]
+mod output_resume_tests;
 mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;

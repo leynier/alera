@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
@@ -70,10 +69,10 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection>? _terminalConnectionFuture;
   _TerminalHostConnection? _terminalConnection;
-  StreamSubscription<String>? _terminalLineSub;
+  StreamSubscription<Object?>? _terminalLineSub;
   Future<_TerminalHostConnection>? _runtimeConnectionFuture;
   _TerminalHostConnection? _runtimeConnection;
-  StreamSubscription<String>? _runtimeLineSub;
+  StreamSubscription<Object?>? _runtimeLineSub;
   int _nextRequestId = 1;
   bool _disposed = false;
   TerminalHostConfig _config;
@@ -198,7 +197,7 @@ final class SocketTerminalHostClient
   }
 
   @override
-  Future<Uint8List> setOutputPaused({
+  Future<TerminalHostResume> setOutputPaused({
     required String sessionId,
     required bool paused,
   }) async {
@@ -206,7 +205,7 @@ final class SocketTerminalHostClient
       'setOutputPaused',
       <String, Object?>{'sessionId': sessionId, 'paused': paused},
     );
-    return TerminalHostSnapshot.fromJson(payload).data;
+    return TerminalHostResume.fromJson(payload);
   }
 
   @override
@@ -594,8 +593,9 @@ final class SocketTerminalHostClient
     return connection;
   }
 
-  void _handleLine(_TerminalHostConnection connection, String line) {
-    final decoded = jsonDecode(line);
+  void _handleLine(_TerminalHostConnection connection, Object? line) {
+    // The reader isolate parses; the fallback path hands over the raw line.
+    final decoded = line is String ? jsonDecode(line) : line;
     final message = asTerminalHostMap(decoded, 'Terminal host message');
     if (message['event'] case final String event) {
       _handleEvent(event, asTerminalHostMap(message['payload'], 'event'));
