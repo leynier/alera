@@ -28,7 +28,7 @@ Future<void> _flushUntil(bool Function() condition, {int attempts = 20}) async {
 }
 
 class _WorkbenchHarness {
-  _WorkbenchHarness() {
+  _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
     tempDir = Directory.systemTemp.createTempSync(
       'alera-workbench-_controller-',
     );
@@ -82,7 +82,7 @@ class _WorkbenchHarness {
         projectsServiceProvider.overrideWithValue(projectsService),
         workspaceTabServiceProvider.overrideWithValue(workspaceTabService),
         worktreeSetupRunnerProvider.overrideWithValue(worktreeSetupRunner),
-        managedWorkspaceRuntimeProvider.overrideWithValue(null),
+        managedWorkspaceRuntimeProvider.overrideWithValue(runtime),
         workbenchViewPrefsRepositoryProvider.overrideWithValue(
           viewPrefsRepository,
         ),
