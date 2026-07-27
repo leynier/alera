@@ -316,6 +316,31 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     session.resize(size.cols, size.rows, size.cellWidthPx, size.cellHeightPx);
   }
 
+  @override
+  void refreshRendering() {
+    if (_disposed) {
+      return;
+    }
+    final viewState = _terminalViewKey.currentState;
+    if (viewState == null) {
+      return;
+    }
+    final renderTerminal = viewState.renderTerminal;
+    if (!renderTerminal.attached ||
+        !renderTerminal.hasSize ||
+        renderTerminal.size.isEmpty) {
+      return;
+    }
+    final cellSize = renderTerminal.cellSize;
+    _terminal.resize(
+      _terminal.viewWidth,
+      _terminal.viewHeight,
+      cellSize.width.round(),
+      cellSize.height.round(),
+    );
+    renderTerminal.markNeedsLayout();
+  }
+
   Future<bool> _startPtySession() async {
     final launches = _shellLaunchesBuilder();
     if (launches.isEmpty) {

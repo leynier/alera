@@ -249,6 +249,33 @@ void main() {
     expect(client.calls, contains('detach session-tab-1'));
   });
 
+  test('Session controller forwards a repeated viewport size', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final container = _container(client);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+    final notifier = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+    );
+
+    await notifier.resize(48, 22);
+    await notifier.resize(48, 22);
+
+    expect(
+      client.calls.where((call) => call == 'resize session-tab-1 48 22'),
+      hasLength(2),
+    );
+    expect(client.writes, isEmpty);
+    expect(client.calls, isNot(contains('restart tab-1')));
+  });
+
   test('Session recovery reconnects before an explicit restart', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];

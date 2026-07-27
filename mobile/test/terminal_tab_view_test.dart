@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
@@ -13,6 +14,62 @@ import 'package:xterm/xterm.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
+  testWidgets(
+    'Refresh control is top right and preserves the terminal session',
+    (tester) async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      await _pumpTab(tester, client);
+      final before = _terminalOf(tester);
+      final resizeCountBefore = client.calls
+          .where((call) => call.startsWith('resize session-tab-1 '))
+          .length;
+      final terminalRect = tester.getRect(find.byType(TerminalView));
+      final refreshRect = tester.getRect(find.byTooltip('Refresh Terminal'));
+      expect(
+        refreshRect.top,
+        closeTo(terminalRect.top + AleraTokens.spaceXs, 0.01),
+      );
+      expect(
+        refreshRect.right,
+        closeTo(terminalRect.right - AleraTokens.spaceXs, 0.01),
+      );
+
+      await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(_terminalOf(tester), same(before));
+      expect(
+        client.calls
+            .where((call) => call.startsWith('resize session-tab-1 '))
+            .length,
+        resizeCountBefore + 1,
+      );
+      expect(client.writes, isEmpty);
+      expect(client.calls, isNot(contains('restart tab-1')));
+    },
+  );
+
+  testWidgets('Refresh control is safe after the connection is lost', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    await _pumpTab(tester, client);
+    await client.dispose();
+    await tester.pumpAndSettle();
+    final callsBefore = List<String>.of(client.calls);
+
+    await tester.tap(find.byTooltip('Refresh Terminal'));
+    await tester.pump();
+
+    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(client.calls, callsBefore);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Live output keeps the same emulator', (tester) async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
