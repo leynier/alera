@@ -97,8 +97,8 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
                 controller: _controller,
                 minLines: 1,
                 maxLines: AleraTokens.composeBarMaxLines,
-                autocorrect: false,
-                enableSuggestions: false,
+                autocorrect: true,
+                enableSuggestions: true,
                 textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
                 decoration: const InputDecoration(
