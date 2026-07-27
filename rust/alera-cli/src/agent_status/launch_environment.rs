@@ -200,6 +200,39 @@ mod tests {
     }
 
     #[test]
+    fn login_merged_path_keeps_sidecar_first_and_preserves_login_only_entries() {
+        let executable_dir = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let login_only = std::env::temp_dir().join("alera-login-only-bin");
+        let path = std::env::join_paths([
+            login_only.clone(),
+            Path::new("/usr/bin").to_path_buf(),
+            Path::new("/bin").to_path_buf(),
+        ])
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+        let mut environment = BTreeMap::from([("PATH".to_string(), path)]);
+
+        prepare_launch_environment(
+            Path::new("/runtime/custom"),
+            "session-1",
+            "workspace-1",
+            "tab-1",
+            &RuntimeAgentStatusHookSettings::default(),
+            &mut environment,
+        )
+        .unwrap();
+
+        let entries = std::env::split_paths(&environment["PATH"]).collect::<Vec<_>>();
+        assert_eq!(entries.first(), Some(&executable_dir));
+        assert!(entries.contains(&login_only));
+    }
+
+    #[test]
     fn inherited_agent_overlays_are_restored_or_removed_before_launch() {
         let wrapper = std::env::temp_dir().join("alera-wrapper-test");
         let retained = std::env::temp_dir().join("alera-retained-test");
