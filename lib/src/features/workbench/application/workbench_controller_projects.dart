@@ -138,6 +138,7 @@ mixin _WorkbenchControllerProjects
         reuseExistingBranch: reuseExistingBranch,
         name: name,
       );
+      _reconcileCreatedWorkspace(project, result.workspace);
       await selectWorkspace(project: project, workspace: result.workspace);
       final parentId = parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {
@@ -163,6 +164,21 @@ mixin _WorkbenchControllerProjects
       state = state.copyWith(error: error.toString());
       rethrow;
     }
+  }
+
+  void _reconcileCreatedWorkspace(Project project, Workspace workspace) {
+    final workspaces = List<Workspace>.from(state.workspacesFor(project.id));
+    final index = workspaces.indexWhere((entry) => entry.id == workspace.id);
+    if (index == -1) {
+      workspaces.add(workspace);
+    } else {
+      workspaces[index] = workspace;
+    }
+    state = state.copyWith(
+      workspacesByProject: Map<String, List<Workspace>>.from(
+        state.workspacesByProject,
+      )..[project.id] = workspaces,
+    );
   }
 
   Future<void> deleteWorkspace({
@@ -437,6 +453,7 @@ mixin _WorkbenchControllerProjects
     }
     await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
     final tabs = await _workspaceTabService.listTabs(workspace.id);
+    _setTabsForWorkspace(workspace.id, tabs);
     final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
     await _applyLayout(layout, persist: false);
   }
