@@ -959,6 +959,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 value: _selectedParentWorkspaceId,
                                 labelText: 'Parent Workspace',
                                 enabled: !_creating,
+                                filterable: true,
+                                filterHintText: 'Search Workspaces',
                                 entries: <AleraDropdownFieldEntry<String?>>[
                                   const AleraDropdownFieldEntry<String?>(
                                     value: null,
@@ -970,11 +972,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                       label: _parentLabel(candidate),
                                     ),
                                 ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedParentWorkspaceId = value;
-                                  });
-                                },
+                                onChanged: (value) => setState(
+                                  () => _selectedParentWorkspaceId = value,
+                                ),
                               ),
                               const SizedBox(height: AleraTokens.space16),
                               Text(
