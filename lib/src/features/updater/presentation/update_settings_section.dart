@@ -51,9 +51,14 @@ class UpdateSettingsSection extends ConsumerWidget {
                   Expanded(child: _UpdateStatusCopy(state: state)),
                 ],
               ),
-              if (state.status == AleraUpdateStatus.downloading) ...<Widget>[
+              if (state.status == AleraUpdateStatus.downloading ||
+                  state.status == AleraUpdateStatus.applying) ...<Widget>[
                 const SizedBox(height: AleraTokens.space12),
-                LinearProgressIndicator(value: state.progress),
+                LinearProgressIndicator(
+                  value: state.status == AleraUpdateStatus.downloading
+                      ? state.progress
+                      : null,
+                ),
               ],
               const SizedBox(height: AleraTokens.space16),
               Wrap(
@@ -80,13 +85,14 @@ class UpdateSettingsSection extends ConsumerWidget {
                     FilledButton.icon(
                       onPressed: controller.installLatest,
                       icon: const Icon(AleraIcons.download, size: 16),
-                      label: const Text('Download Update'),
+                      label: const Text('Install Update'),
                     ),
-                  if (state.status == AleraUpdateStatus.downloaded)
+                  if (state.status == AleraUpdateStatus.error &&
+                      state.latest != null)
                     FilledButton.icon(
-                      onPressed: controller.restartApp,
-                      icon: const Icon(AleraIcons.restart, size: 16),
-                      label: const Text('Restart Alera'),
+                      onPressed: controller.installLatest,
+                      icon: const Icon(AleraIcons.refresh, size: 16),
+                      label: const Text('Try Again'),
                     ),
                 ],
               ),
@@ -147,8 +153,9 @@ class _UpdateStatusCopy extends StatelessWidget {
       AleraUpdateStatus.manualDownloadRequired => 'Manual Update Available',
       AleraUpdateStatus.available => 'Update Available',
       AleraUpdateStatus.downloading => 'Downloading Update',
-      AleraUpdateStatus.downloaded => 'Restart Required',
-      AleraUpdateStatus.error => 'Update Check Failed',
+      AleraUpdateStatus.applying => 'Installing Update',
+      AleraUpdateStatus.downloaded => 'Restarting Alera',
+      AleraUpdateStatus.error => 'Update Failed',
     };
   }
 }
@@ -159,7 +166,8 @@ Color _colorForStatus(AleraUpdateStatus status) {
     AleraUpdateStatus.downloaded => AleraTokens.success,
     AleraUpdateStatus.available ||
     AleraUpdateStatus.manualDownloadRequired ||
-    AleraUpdateStatus.downloading => AleraTokens.info,
+    AleraUpdateStatus.downloading ||
+    AleraUpdateStatus.applying => AleraTokens.info,
     _ => AleraTokens.foregroundMuted,
   };
 }
@@ -171,7 +179,8 @@ IconData _iconForStatus(AleraUpdateStatus status) {
     AleraUpdateStatus.manualDownloadRequired => AleraIcons.downloadOffline,
     AleraUpdateStatus.available => AleraIcons.updateAvailable,
     AleraUpdateStatus.downloading => AleraIcons.downloading,
-    AleraUpdateStatus.downloaded => AleraIcons.restart,
+    AleraUpdateStatus.applying => AleraIcons.sync,
+    AleraUpdateStatus.downloaded => AleraIcons.check,
     AleraUpdateStatus.error => AleraIcons.error,
     AleraUpdateStatus.idle => AleraIcons.info,
   };

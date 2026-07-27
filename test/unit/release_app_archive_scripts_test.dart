@@ -65,6 +65,28 @@ void main() {
   });
 
   group('release archive scripts', () {
+    test('gates stable autonomous updates on platform trust credentials', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+
+      expect(
+        workflow,
+        contains(
+          '--dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=\$auto_install_enabled"',
+        ),
+      );
+      expect(workflow, contains('APPLE_DEVELOPER_ID_APPLICATION'));
+      expect(workflow, contains('WINDOWS_CERTIFICATE_PFX_BASE64'));
+      expect(workflow, contains('ALERA_LINUX_GPG_PRIVATE_KEY_BASE64'));
+      expect(
+        workflow,
+        isNot(
+          contains('--dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false"'),
+        ),
+      );
+    });
+
     test(
       'builds and verifies a stable manifest without sidecar URLs',
       () async {

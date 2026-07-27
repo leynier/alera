@@ -63,6 +63,7 @@ class AleraUpdateArchive {
     required String platform,
     required int currentBuildNumber,
     required AleraUpdateChannel channel,
+    List<String>? preferredInstallerKinds,
   }) {
     final candidates = items.where((item) {
       if (item.platform != platform) {
@@ -81,7 +82,21 @@ class AleraUpdateArchive {
       return null;
     }
     candidates.sort((a, b) => b.shortVersion.compareTo(a.shortVersion));
-    return candidates.first;
+    final latestBuild = candidates.first.shortVersion;
+    final latestCandidates = candidates
+        .where((item) => item.shortVersion == latestBuild)
+        .toList();
+    if (preferredInstallerKinds == null) {
+      return latestCandidates.first;
+    }
+    for (final installerKind in preferredInstallerKinds) {
+      for (final candidate in latestCandidates) {
+        if (candidate.installerKind == installerKind) {
+          return candidate;
+        }
+      }
+    }
+    return null;
   }
 }
 

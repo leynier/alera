@@ -191,6 +191,7 @@ enum AleraUpdateStatus {
   manualDownloadRequired,
   available,
   downloading,
+  applying,
   downloaded,
   error,
 }
@@ -259,6 +260,7 @@ class AleraUpdateState with AleraUpdateStateMappable {
 
   bool get isBusy {
     return status == AleraUpdateStatus.checking ||
-        status == AleraUpdateStatus.downloading;
+        status == AleraUpdateStatus.downloading ||
+        status == AleraUpdateStatus.applying;
   }
 }
