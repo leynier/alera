@@ -61,6 +61,35 @@ void main() {
     ]);
   });
 
+  testWidgets(
+    'Compose bar enables native correction and keeps Enter multiline',
+    (tester) async {
+      final sent = <(String, bool)>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TerminalComposeBar(
+              onSend: (text, {required bool withEnter}) {
+                sent.add((text, withEnter));
+              },
+            ),
+          ),
+        ),
+      );
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.autocorrect, isTrue);
+      expect(field.enableSuggestions, isTrue);
+      expect(field.textInputAction, TextInputAction.newline);
+
+      await tester.enterText(find.byType(TextField), 'first\nsecond');
+      await tester.pump();
+
+      expect(field.controller!.text, 'first\nsecond');
+      expect(sent, isEmpty);
+    },
+  );
+
   testWidgets('Compose bar sends text with Enter and clears the field', (
     tester,
   ) async {
