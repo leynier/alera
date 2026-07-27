@@ -55,7 +55,12 @@ Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
     await _recoverTerminalSession(
       handle,
       operation: TerminalSessionOperation.restarting,
-      recover: session.restartProcess,
+      recover: () async {
+        await session.restartProcess();
+        if (!handle._disposed) {
+          handle._resetPointerInputSynchronization();
+        }
+      },
     );
     return;
   }
@@ -67,6 +72,7 @@ Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
   handle._running = false;
   handle._notifySessionListeners();
   await handle._stopPtySession(suppressExit: true);
+  handle._resetPointerInputSynchronization();
   if (handle._disposed) {
     return;
   }

@@ -22,9 +22,11 @@ import 'package:xterm/xterm.dart' as xterm;
 
 part 'terminal_surface_core_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
+part 'terminal_surface_tab_switch_test_cases.dart';
 part 'terminal_surface_test_harness.dart';
 
 void main() {
   _registerTerminalSurfaceRuntimeTests();
   _registerTerminalSurfaceInteractionTests();
+  _registerTerminalSurfaceTabSwitchTests();
 }

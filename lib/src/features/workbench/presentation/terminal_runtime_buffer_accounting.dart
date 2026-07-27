@@ -13,10 +13,12 @@ extension _TerminalBufferAccounting on _XtermTerminalSessionHandle {
     _visible = visible;
     if (visible) {
       _lastVisibleAt = DateTime.now();
+    }
+    _syncPtyOutputVisibility();
+    if (visible) {
       // Whatever arrived while hidden was queued without a frame callback.
       _scheduleTerminalOutputFlush();
     }
-    _syncPtyOutputVisibility();
     _onVisibilityChanged(this);
   }
 
