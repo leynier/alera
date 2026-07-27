@@ -144,7 +144,7 @@ void main() {
     );
 
     test(
-      'downloads an auto-installable update and reaches downloaded state',
+      'installs an auto-installable update and completes the handoff',
       () async {
         final service = _FakeUpdateService(
           config: AleraUpdateConfig(
@@ -176,6 +176,7 @@ void main() {
         );
         expect(container.read(aleraUpdateControllerProvider).progress, 1);
         expect(service.installedUpdate, _update);
+        expect(service.restartCalls, 1);
       },
     );
 
@@ -213,6 +214,36 @@ void main() {
       );
     });
 
+    test('installLatest keeps Alera usable when handoff fails', () async {
+      final service = _FakeUpdateService(
+        config: AleraUpdateConfig(
+          archiveUrl: _archiveUrl,
+          releasePageUrl: _releasePageUrl,
+          channel: AleraUpdateChannel.rc,
+          autoInstallEnabled: true,
+          signedRelease: false,
+        ),
+        result: AleraUpdateCheckResult(
+          latest: _update,
+          autoInstallAllowed: true,
+        ),
+        restartError: StateError('helper unavailable'),
+      );
+      final container = ProviderContainer(
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
+
+      await controller.checkForUpdates();
+      await controller.installLatest();
+
+      final state = container.read(aleraUpdateControllerProvider);
+      expect(state.status, AleraUpdateStatus.error);
+      expect(state.message, contains('helper unavailable'));
+      expect(state.message, contains('Alera is still running'));
+    });
+
     test('restartApp delegates to the update service', () async {
       final service = _FakeUpdateService();
       final container = ProviderContainer(
@@ -234,6 +265,7 @@ class _FakeUpdateService implements AleraUpdateService {
     AleraUpdateConfig? config,
     this.checkError,
     this.installError,
+    this.restartError,
   }) : config =
            config ??
            AleraUpdateConfig(
@@ -250,6 +282,7 @@ class _FakeUpdateService implements AleraUpdateService {
   final AleraUpdateCheckResult result;
   final Object? checkError;
   final Object? installError;
+  final Object? restartError;
   AleraUpdateInfo? openedUpdate;
   AleraUpdateInfo? installedUpdate;
   int restartCalls = 0;
@@ -282,6 +315,9 @@ class _FakeUpdateService implements AleraUpdateService {
 
   @override
   Future<void> restartApp() async {
+    if (restartError case final Object error) {
+      throw error;
+    }
     restartCalls += 1;
   }
 

@@ -1,5 +1,6 @@
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
+import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -16,6 +17,7 @@ http.Client aleraUpdateHttpClient(Ref ref) {
 AleraUpdateService aleraUpdateService(Ref ref) {
   final service = DesktopAleraUpdateService(
     client: ref.watch(aleraUpdateHttpClientProvider),
+    processRunner: ref.watch(processRunnerProvider),
   );
   ref.onDispose(service.dispose);
   return service;

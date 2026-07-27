@@ -59,7 +59,7 @@ void main() {
         );
         await tester.pump();
         expect(find.text('Update Available'), findsOneWidget);
-        expect(find.text('Download Update'), findsOneWidget);
+        expect(find.text('Install Update'), findsOneWidget);
 
         controller.setState(
           _state(
@@ -75,26 +75,46 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.downloaded,
+            status: AleraUpdateStatus.applying,
             latest: _latest(),
-            message: 'Restart Alera to finish installing.',
+            message: 'Installing update 1.2.3. Alera will restart.',
             progress: 1,
           ),
         );
         await tester.pump();
-        expect(find.text('Restart Required'), findsOneWidget);
-        expect(find.text('Restart Alera'), findsOneWidget);
+        expect(find.text('Installing Update'), findsOneWidget);
+        expect(
+          tester
+              .widget<LinearProgressIndicator>(
+                find.byType(LinearProgressIndicator),
+              )
+              .value,
+          isNull,
+        );
+
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.downloaded,
+            latest: _latest(),
+            message: 'Update handoff complete.',
+            progress: 1,
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Restarting Alera'), findsOneWidget);
+        expect(find.text('Update handoff complete.'), findsOneWidget);
 
         controller.setState(
           _state(
             status: AleraUpdateStatus.error,
             latest: _latest(),
-            message: 'Update check failed: boom',
+            message: 'Update installation failed: boom',
           ),
         );
         await tester.pump();
-        expect(find.text('Update Check Failed'), findsOneWidget);
-        expect(find.text('Update check failed: boom'), findsOneWidget);
+        expect(find.text('Update Failed'), findsOneWidget);
+        expect(find.text('Update installation failed: boom'), findsOneWidget);
+        expect(find.text('Try Again'), findsOneWidget);
       },
     );
 
@@ -123,17 +143,17 @@ void main() {
         _state(status: AleraUpdateStatus.available, latest: _latest()),
       );
       await tester.pump();
-      await tester.tap(find.text('Download Update'));
+      await tester.tap(find.text('Install Update'));
       await tester.pump();
       expect(controller.installLatestCalls, 1);
 
       controller.setState(
-        _state(status: AleraUpdateStatus.downloaded, latest: _latest()),
+        _state(status: AleraUpdateStatus.error, latest: _latest()),
       );
       await tester.pump();
-      await tester.tap(find.text('Restart Alera'));
+      await tester.tap(find.text('Try Again'));
       await tester.pump();
-      expect(controller.restartAppCalls, 1);
+      expect(controller.installLatestCalls, 2);
     });
   });
 }

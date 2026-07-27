@@ -87,6 +87,7 @@ AleraToastTone _toastToneForUpdateStatus(AleraUpdateStatus status) {
     AleraUpdateStatus.idle ||
     AleraUpdateStatus.checking ||
     AleraUpdateStatus.notAvailable ||
-    AleraUpdateStatus.downloading => AleraToastTone.info,
+    AleraUpdateStatus.downloading ||
+    AleraUpdateStatus.applying => AleraToastTone.info,
   };
 }

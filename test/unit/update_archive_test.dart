@@ -8,6 +8,61 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AleraUpdateArchive', () {
+    test('selects the preferred installer for the latest platform build', () {
+      final archive = AleraUpdateArchive.fromJsonString('''
+{
+  "schemaVersion": 2,
+  "items": [
+    {
+      "version": "1.2.3",
+      "shortVersion": 12,
+      "date": "2026-07-27",
+      "mandatory": false,
+      "changes": [],
+      "platform": "linux",
+      "installerKind": "deb",
+      "url": "https://example.com/alera.deb",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 10
+    },
+    {
+      "version": "1.2.3",
+      "shortVersion": 12,
+      "date": "2026-07-27",
+      "mandatory": false,
+      "changes": [],
+      "platform": "linux",
+      "installerKind": "rpm",
+      "url": "https://example.com/alera.rpm",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size": 11
+    }
+  ]
+}
+''');
+
+      expect(
+        archive
+            .latestFor(
+              platform: 'linux',
+              currentBuildNumber: 1,
+              channel: AleraUpdateChannel.stable,
+              preferredInstallerKinds: const <String>['rpm'],
+            )
+            ?.installerKind,
+        'rpm',
+      );
+      expect(
+        archive.latestFor(
+          platform: 'linux',
+          currentBuildNumber: 1,
+          channel: AleraUpdateChannel.stable,
+          preferredInstallerKinds: const <String>[],
+        ),
+        isNull,
+      );
+    });
+
     test('selects latest stable update for the current platform', () {
       final archive = AleraUpdateArchive.fromJsonString(_archiveJson);
 

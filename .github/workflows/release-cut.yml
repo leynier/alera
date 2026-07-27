@@ -133,6 +133,16 @@ jobs:
           BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
           RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.plan.outputs.desktop_tag }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
+          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
+          APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
+          ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
         run: |
           set -euo pipefail
           archive_file="app-archive.json"
@@ -147,6 +157,26 @@ jobs:
           fi
           archive_url="${BASE_URL}/${archive_file}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
+          auto_install_enabled=false
+          if [[ "$CHANNEL" == "rc" ]]; then
+            auto_install_enabled=true
+          elif [[ "$PLATFORM" == "macos" \
+            && -n "${APPLE_DEVELOPER_ID_APPLICATION:-}" \
+            && -n "${APPLE_DEVELOPER_ID_TEAM_ID:-}" \
+            && -n "${APPLE_CERTIFICATE_P12_BASE64:-}" \
+            && -n "${APPLE_CERTIFICATE_PASSWORD:-}" \
+            && -n "${APPLE_ID:-}" \
+            && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
+            auto_install_enabled=true
+          elif [[ "$PLATFORM" == "windows" \
+            && -n "${WINDOWS_CERTIFICATE_PFX_BASE64:-}" \
+            && -n "${WINDOWS_CERTIFICATE_PASSWORD:-}" ]]; then
+            auto_install_enabled=true
+          elif [[ "$PLATFORM" == "linux" \
+            && -n "${ALERA_LINUX_GPG_PRIVATE_KEY_BASE64:-}" \
+            && -n "${ALERA_LINUX_GPG_KEY_ID:-}" ]]; then
+            auto_install_enabled=true
+          fi
           dart run desktop_updater:release "$PLATFORM" \
             --dart-define "ALERA_FLAVOR=release" \
             --dart-define "ALERA_UPDATE_CHANNEL=$CHANNEL" \
@@ -154,7 +184,7 @@ jobs:
             --dart-define "ALERA_RUNTIME_ARCHIVE_URL=$runtime_archive_url" \
             --dart-define "ALERA_RUNTIME_VERSION=${{ needs.plan.outputs.desktop_release_version }}" \
             --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
-            --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false" \
+            --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=$auto_install_enabled" \
             --dart-define "ALERA_SIGNED_RELEASE=true" \
             --dart-define "ALERA_UPDATE_MANIFEST_PUBLIC_KEY=$ALERA_UPDATE_MANIFEST_PUBLIC_KEY"
 

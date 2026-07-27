@@ -97,4 +97,4 @@ final class AleraUpdateServiceProvider
 }
 
 String _$aleraUpdateServiceHash() =>
-    r'809c06cf2512425a0479021be639090dc8f81836';
+    r'39471705611dc7ed46547918ace9138b5dd92fbd';

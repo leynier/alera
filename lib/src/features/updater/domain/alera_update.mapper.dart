@@ -85,6 +85,8 @@ class AleraUpdateStatusMapper extends EnumMapper<AleraUpdateStatus> {
         return AleraUpdateStatus.available;
       case r'downloading':
         return AleraUpdateStatus.downloading;
+      case r'applying':
+        return AleraUpdateStatus.applying;
       case r'downloaded':
         return AleraUpdateStatus.downloaded;
       case r'error':
@@ -109,6 +111,8 @@ class AleraUpdateStatusMapper extends EnumMapper<AleraUpdateStatus> {
         return r'available';
       case AleraUpdateStatus.downloading:
         return r'downloading';
+      case AleraUpdateStatus.applying:
+        return r'applying';
       case AleraUpdateStatus.downloaded:
         return r'downloaded';
       case AleraUpdateStatus.error:

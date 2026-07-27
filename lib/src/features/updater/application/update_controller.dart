@@ -102,8 +102,17 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
+        status: AleraUpdateStatus.applying,
+        message: 'Installing update ${latest.version}. Alera will restart.',
+        progress: 1,
+      );
+      await _service.restartApp();
+      if (_disposed) {
+        return;
+      }
+      state = state.copyWith(
         status: AleraUpdateStatus.downloaded,
-        message: 'Update downloaded. Restart Alera to finish installing.',
+        message: 'Update handoff complete. Alera will restart shortly.',
         progress: 1,
       );
     } catch (error) {
@@ -112,7 +121,9 @@ class AleraUpdateController extends _$AleraUpdateController {
       }
       state = state.copyWith(
         status: AleraUpdateStatus.error,
-        message: 'Update download failed: $error',
+        message:
+            'Update installation failed: $error '
+            'Alera is still running. Try again.',
       );
     }
   }

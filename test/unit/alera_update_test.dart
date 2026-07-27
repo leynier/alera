@@ -132,6 +132,7 @@ void main() {
         AleraUpdateStatus.manualDownloadRequired,
         AleraUpdateStatus.available,
         AleraUpdateStatus.downloading,
+        AleraUpdateStatus.applying,
         AleraUpdateStatus.downloaded,
         AleraUpdateStatus.error,
       ]);

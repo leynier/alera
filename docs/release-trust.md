@@ -26,7 +26,7 @@ Mobile release APKs must be signed with the stable upload keystore, because Andr
 
 The public update indexes use `schemaVersion: 2` and include SHA-256 and size for each platform artifact. The manifest is signed with Ed25519 and the release build embeds the public key through `ALERA_UPDATE_MANIFEST_PUBLIC_KEY`. Stable update checks reject unsigned or tampered manifests when `ALERA_SIGNED_RELEASE=true`. GitHub artifact attestations are published through GitHub's attestation service; they are not advertised as R2 sidecar URLs unless matching sidecar files are generated and uploaded.
 
-Stable automatic installation remains disabled unless the build is signed, the manifest public key is embedded, and the platform apply path explicitly allows the artifact type.
+Stable automatic installation is enabled per platform only when the build job has the matching trust credentials, the manifest public key is embedded, and the platform apply path supports the artifact type. The app streams the selected artifact to a temporary directory, checks its signed size and SHA-256 before staging it, and keeps the current process running until a replacement helper has prepared a sibling copy and accepted the handoff. The helper restores and relaunches the previous installation if the final swap fails. Linux package updates stay in the running app until `pkexec` reports a successful `.deb` or `.rpm` transaction, then Alera launches the installed executable and exits.
 
 ## Runtime sidecar archive
 
