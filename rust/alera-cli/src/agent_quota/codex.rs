@@ -1,6 +1,6 @@
 async fn fetch_codex() -> QuotaSnapshot {
     let result = tokio::time::timeout(FETCH_TIMEOUT, async {
-        let mut command = Command::new("codex");
+        let mut command = windowless_async_command("codex");
         command
             .args(["-s", "read-only", "-a", "untrusted", "app-server"])
             .stdin(Stdio::piped())

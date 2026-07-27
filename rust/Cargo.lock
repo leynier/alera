@@ -87,10 +87,8 @@ name = "alera-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "camino",
  "chrono",
  "git2",
- "git_cmd",
  "serde",
  "serde_json",
  "sqlx",
@@ -108,14 +106,13 @@ dependencies = [
  "arboard",
  "axum",
  "bytes",
- "camino",
  "flutter_rust_bridge",
  "git2",
- "git_cmd",
  "globset",
  "grep-matcher",
  "grep-regex",
  "ignore",
+ "libc",
  "merman",
  "notify",
  "png",
@@ -714,12 +711,6 @@ name = "bytes"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
-
-[[package]]
-name = "camino"
-version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e629a66d692cb9ff1a1c664e41771b3dcaf961985a9774c0eb0bd1b51cf60a48"
 
 [[package]]
 name = "cc"
@@ -1591,15 +1582,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs-err"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fde052dbfc920003cfd2c8e2c6e6d4cc7c1091538c3a24226cec0665ab08c0"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
 name = "fsevent-sys"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1805,18 +1787,6 @@ dependencies = [
  "libc",
  "libgit2-sys",
  "log",
-]
-
-[[package]]
-name = "git_cmd"
-version = "0.6.28"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2a9a3deded8c5c18c15c8f008c96f295a74162c3a3b82fc6e367a99c131134b"
-dependencies = [
- "anyhow",
- "camino",
- "fs-err",
- "tracing",
 ]
 
 [[package]]

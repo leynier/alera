@@ -1,0 +1,8 @@
+# A console child spawned from a process without a console gets a visible
+# console window on Windows, and neither the Flutter runner (GUI subsystem) nor
+# the terminal-host sidecar (detached) has one. Every spawn therefore has to go
+# through the helpers in `alera_core::child_process`, which set CREATE_NO_WINDOW.
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "build the command, then call alera_core::child_process::suppress_console_window" },
+    { path = "tokio::process::Command::new", reason = "build the command, then call alera_core::child_process::suppress_console_window_async" },
+]

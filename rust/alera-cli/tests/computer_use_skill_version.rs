@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use alera_core::child_process::windowless_command;
+
 /// The shipped computer-use guide declares a version, and so does the binary
 /// whose commands it documents.
 ///
@@ -38,7 +40,7 @@ fn the_computer_use_skill_guide_declares_the_version_the_binary_ships() {
 /// guide omits is one it will never try.
 #[test]
 fn the_guide_and_the_binary_offer_the_same_verbs() {
-    let help = std::process::Command::new(env!("CARGO_BIN_EXE_alera"))
+    let help = windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args(["computer", "--help"])
         .output()
         .expect("the alera binary runs");

@@ -1,8 +1,9 @@
 //! Runtime-owned terminal lifecycle tests that do not connect a desktop client.
 
+use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::process::{Child, Command};
+use std::process::Child;
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
@@ -66,7 +67,7 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
     let control_path = runtime_dir.join("runtime-host.json");
     let test_home = runtime_dir.join("test-home");
     std::fs::create_dir_all(&test_home).unwrap();
-    let child = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let child = windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "terminal-host",
             "--runtime-dir",

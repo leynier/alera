@@ -48,7 +48,7 @@ final class ProcessRunnerProvider
   }
 }
 
-String _$processRunnerHash() => r'31828dd7bbb881a503b5721540d6ad6d9ed58b24';
+String _$processRunnerHash() => r'370a1147972afc677150a5cf8f219aa2a0707c6d';
 
 @ProviderFor(commandEnvironmentResolver)
 final commandEnvironmentResolverProvider =

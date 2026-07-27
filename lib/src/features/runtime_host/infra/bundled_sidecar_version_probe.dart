@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
+import 'package:alera/src/shared/infra/process/rust_process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -24,13 +25,7 @@ final class ProcessBundledSidecarVersionProbe
   }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
        _applicationSupportDirectory =
            applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _runProcess =
-           runProcess ??
-           ((executable, arguments, {workingDirectory}) => Process.run(
-             executable,
-             arguments,
-             workingDirectory: workingDirectory,
-           ));
+       _runProcess = runProcess ?? _runThroughRustRunner;
 
   final AleraCliResolver _cliResolver;
   final Future<Directory> Function() _applicationSupportDirectory;
@@ -42,6 +37,21 @@ final class ProcessBundledSidecarVersionProbe
   _runProcess;
 
   BundledSidecarVersion? _cached;
+
+  /// The sidecar is a console binary, so probing it from the GUI runner has to
+  /// go through the Rust runner or Windows shows a console window for it.
+  static Future<ProcessResult> _runThroughRustRunner(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+  }) async {
+    final output = await const RustProcessRunner().run(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+    );
+    return ProcessResult(0, output.exitCode, output.stdout, output.stderr);
+  }
 
   @override
   Future<BundledSidecarVersion> probe() async {

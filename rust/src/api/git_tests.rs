@@ -22,6 +22,9 @@ fn run_git_expect_failure(dir: &Path, args: &[&str]) {
     assert!(!status.success(), "git {:?} succeeded unexpectedly", args);
 }
 
+// Test fixture: it runs from a console, so the console-window suppression in
+// `alera_core::child_process` does not apply.
+#[allow(clippy::disallowed_methods)]
 fn git_command(dir: &Path, args: &[&str]) -> Command {
     let mut command = Command::new("git");
     command

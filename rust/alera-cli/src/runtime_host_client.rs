@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
+use alera_core::child_process::windowless_async_command;
 use anyhow::{anyhow, Context, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,6 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
-use tokio::process::Command;
 use tokio::time::{sleep, timeout, Instant};
 use uuid::Uuid;
 
@@ -126,7 +126,7 @@ impl RuntimeHostRpcClient {
         let _ = tokio::fs::remove_file(&control_file).await;
         let token = Uuid::new_v4().to_string();
         let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
-        let mut command = Command::new(executable);
+        let mut command = windowless_async_command(executable);
         command
             .arg("runtime-host")
             .arg("--runtime-dir")

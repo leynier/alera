@@ -136,7 +136,7 @@ fn anthropic_api_environment_present() -> bool {
 }
 
 async fn claude_auth_status(environment: &BTreeMap<String, String>) -> Option<bool> {
-    let mut command = Command::new("claude");
+    let mut command = windowless_async_command("claude");
     command
         .args(["auth", "status", "--json"])
         .envs(environment)
@@ -294,7 +294,7 @@ async fn read_macos_keychain_password(service: &str) -> Option<String> {
     let account = std::env::var("USER")
         .or_else(|_| std::env::var("USERNAME"))
         .unwrap_or_else(|_| "user".to_string());
-    let mut command = Command::new("security");
+    let mut command = windowless_async_command("security");
     command
         .args([
             "find-generic-password",

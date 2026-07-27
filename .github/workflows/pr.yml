@@ -180,8 +180,18 @@ jobs:
           enable-linux-desktop: 'true'
           rust: 'true'
 
+      # One invocation per file on purpose: `flutter test integration_test`
+      # launches the app once and fails to start it again for the second suite
+      # ("Unable to start the app on the device"), so a directory run can only
+      # ever hold one desktop integration test.
       - name: Desktop E2E
-        run: xvfb-run -a flutter test integration_test -d linux -r github
+        run: |
+          set -euo pipefail
+          for suite in integration_test/*_test.dart; do
+            echo "::group::${suite}"
+            xvfb-run -a flutter test "${suite}" -d linux -r github
+            echo "::endgroup::"
+          done
 
   # Split out of desktop-e2e-linux: the smoke run takes about as long as the
   # integration tests themselves and is continue-on-error, so it can never fail

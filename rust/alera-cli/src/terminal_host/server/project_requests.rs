@@ -1,5 +1,6 @@
 use std::process::Stdio;
 
+use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
     ProjectCloneJob, ProjectCloneJobPhase, ProjectCloneJobStatus, ProjectConfig,
 };
@@ -8,7 +9,6 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -288,7 +288,7 @@ async fn run_clone_job(
         job_id: job.id.clone(),
     });
 
-    let mut child = match Command::new("git")
+    let mut child = match windowless_async_command("git")
         .arg("-C")
         .arg(&job.parent_path)
         .args(["clone", "--progress", "--"])
