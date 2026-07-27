@@ -158,6 +158,13 @@ impl ServerActor {
         let launch_workspace_id = workspace_id.clone();
         let launch_tab_id = tab_id.clone();
         let mut environment = std::mem::take(&mut launch.environment);
+        if let Some(path) = crate::login_shell_environment::login_shell_merged_path(
+            environment.get("PATH").map(String::as_str),
+        )
+        .await
+        {
+            environment.insert("PATH".to_string(), path);
+        }
         launch.environment = tokio::task::spawn_blocking(move || {
             prepare_launch_environment(
                 &runtime_dir,
