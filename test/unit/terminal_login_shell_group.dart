@@ -88,6 +88,59 @@ void _registerTerminalLoginShellGroup() {
       ]);
     });
 
+    test('missing SHELL resolves a real login shell, not an rc-skipping one', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final launches = resolvedLoginShellFallbackLaunchesForTesting(
+          const <String, String>{},
+          fileExists: (path) => path == '/bin/zsh',
+        );
+        expect(launches, hasLength(1));
+        final fallback = launches.single;
+        expect(fallback.shell, '/bin/zsh');
+        expect(fallback.arguments, <String>['-i']);
+
+        // The gap this closes: without the flag the effective fallback is a
+        // clean `zsh -f`; the resolved shell must instead become a login shell.
+        final asLogin = launchAsLoginShellForTesting(fallback);
+        expect(asLogin.arguments, <String>['-l', '-i']);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    test('present SHELL leaves the fallback empty (userShell covers it)', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final launches = resolvedLoginShellFallbackLaunchesForTesting(
+          const <String, String>{'SHELL': '/bin/zsh'},
+          fileExists: (_) => true,
+        );
+        expect(launches, isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    test('missing SHELL prefers zsh but falls back to bash then sh', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final bash = resolvedLoginShellFallbackLaunchesForTesting(
+          const <String, String>{},
+          fileExists: (path) => path == '/bin/bash' || path == '/bin/sh',
+        );
+        expect(bash.single.shell, '/bin/bash');
+
+        final none = resolvedLoginShellFallbackLaunchesForTesting(
+          const <String, String>{},
+          fileExists: (_) => false,
+        );
+        expect(none, isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
     test('login shell setting resolves to a macOS-only default', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       try {

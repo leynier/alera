@@ -13,6 +13,7 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
       profile: GhosttyTerminalShellProfile.userShell,
       platformEnvironment: platformEnvironment,
     ),
+    ..._resolvedLoginShellFallbackLaunches(platformEnvironment),
     ...ghosttyTerminalShellLaunches(
       profile: GhosttyTerminalShellProfile.cleanZsh,
       platformEnvironment: platformEnvironment,
@@ -56,6 +57,59 @@ List<GhosttyTerminalShellLaunch> _posixDesktopFallbackShellLaunches(
     ],
     _ => const <GhosttyTerminalShellLaunch>[],
   };
+}
+
+/// A real login-capable shell to use when `$SHELL` is absent from the app
+/// environment (a Finder/Dock launch can start the app without it). Without
+/// this, the first surviving candidate is a deliberately rc-skipping profile
+/// (`zsh -f`, `bash --noprofile --norc`) that never sources the user's profile,
+/// so the terminal loses the aliases, functions, and PATH those files build.
+/// The `userShell` profile already covers the case where `$SHELL` is set, so
+/// this only fills the gap and is a no-op otherwise.
+List<GhosttyTerminalShellLaunch> _resolvedLoginShellFallbackLaunches(
+  Map<String, String> platformEnvironment, {
+  bool Function(String path) fileExists = _fileExists,
+}) {
+  if (_isWindowsDesktopTerminalTarget) {
+    return const <GhosttyTerminalShellLaunch>[];
+  }
+  final envShell = platformEnvironment['SHELL'];
+  if (envShell != null && envShell.isNotEmpty) {
+    return const <GhosttyTerminalShellLaunch>[];
+  }
+  final shell = _probeDefaultLoginShell(fileExists);
+  if (shell == null) {
+    return const <GhosttyTerminalShellLaunch>[];
+  }
+  return <GhosttyTerminalShellLaunch>[
+    GhosttyTerminalShellLaunch(
+      label: 'login shell',
+      shell: shell,
+      arguments: const <String>['-i'],
+      environment: ghosttyTerminalShellEnvironment(
+        platformEnvironment: platformEnvironment,
+        overrides: const <String, String>{'TERM': 'xterm-256color'},
+      ),
+    ),
+  ];
+}
+
+/// Well-known interactive shells, preferring `zsh` (the modern macOS default and
+/// the host's own hydration fallback) before `bash`, then POSIX `sh`.
+String? _probeDefaultLoginShell(bool Function(String path) fileExists) {
+  const candidates = <String>[
+    '/bin/zsh',
+    '/usr/bin/zsh',
+    '/bin/bash',
+    '/usr/bin/bash',
+    '/bin/sh',
+  ];
+  for (final candidate in candidates) {
+    if (fileExists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 List<GhosttyTerminalShellLaunch> _windowsTerminalShellLaunches(
@@ -399,6 +453,17 @@ List<GhosttyTerminalShellLaunch> windowsTerminalShellLaunchesForTesting(
   required bool Function(String path) fileExists,
 }) {
   return _windowsTerminalShellLaunches(
+    platformEnvironment,
+    fileExists: fileExists,
+  );
+}
+
+@visibleForTesting
+List<GhosttyTerminalShellLaunch> resolvedLoginShellFallbackLaunchesForTesting(
+  Map<String, String> platformEnvironment, {
+  required bool Function(String path) fileExists,
+}) {
+  return _resolvedLoginShellFallbackLaunches(
     platformEnvironment,
     fileExists: fileExists,
   );

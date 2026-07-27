@@ -6,9 +6,12 @@ use tokio::sync::OnceCell;
 use tokio::time::{timeout, Duration};
 
 const SHELL_PATH_HYDRATION_DELIMITER: &str = "__ALERA_SHELL_PATH__";
-const SHELL_PATH_HYDRATION_TIMEOUT: Duration = Duration::from_secs(5);
+const SHELL_PATH_HYDRATION_TIMEOUT: Duration = Duration::from_secs(10);
 
-static LOGIN_SHELL_PATH: OnceCell<Option<Vec<String>>> = OnceCell::const_new();
+/// Only a successful hydration is cached, so a transient failure (a slow profile
+/// that overruns the timeout, a shell that fails to launch) is retried on the
+/// next call instead of poisoning the process for its whole lifetime.
+static LOGIN_SHELL_PATH: OnceCell<Vec<String>> = OnceCell::const_new();
 
 /// PATH entries as seen by the user's login shell, resolved once per process.
 ///
@@ -16,16 +19,16 @@ static LOGIN_SHELL_PATH: OnceCell<Option<Vec<String>>> = OnceCell::const_new();
 /// a minimal PATH that omits Homebrew and other user-installed prefixes, so any
 /// tool the host spawns by bare name would otherwise be unresolvable.
 pub(crate) async fn login_shell_path_segments() -> Option<&'static Vec<String>> {
+    if cfg!(windows) {
+        return None;
+    }
     LOGIN_SHELL_PATH
-        .get_or_init(|| async {
-            if cfg!(windows) {
-                return None;
-            }
-            let shell = pick_user_shell()?;
-            hydrate_shell_path(&shell).await
+        .get_or_try_init(|| async {
+            let shell = pick_user_shell().ok_or(())?;
+            hydrate_shell_path(&shell).await.ok_or(())
         })
         .await
-        .as_ref()
+        .ok()
 }
 
 /// Login-shell PATH merged ahead of `existing`, or `None` when nothing changes.

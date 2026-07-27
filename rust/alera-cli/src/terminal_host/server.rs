@@ -277,6 +277,13 @@ pub async fn run_terminal_host_server(
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
+    // Warm the login-shell PATH cache off the terminal-spawn hot path so the
+    // first terminal does not pay the shell-probe latency (or block on a slow
+    // profile). Best-effort: a failed probe is not cached and is retried later.
+    tokio::spawn(async {
+        let _ = crate::login_shell_environment::login_shell_path_segments().await;
+    });
+
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
