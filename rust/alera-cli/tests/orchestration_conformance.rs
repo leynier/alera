@@ -3,9 +3,10 @@
 //! waits, tasks, dispatch, gates, agent presence, and push-on-idle delivery
 //! against a live PTY.
 
+use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::process::{Child, Command};
+use std::process::Child;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
@@ -47,7 +48,7 @@ fn spawn_host(
     control_path: &std::path::Path,
     token: &str,
 ) -> (HostGuard, u16) {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_alera"));
+    let mut command = windowless_command(env!("CARGO_BIN_EXE_alera"));
     command.args([
         "runtime-host",
         "--runtime-dir",

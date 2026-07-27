@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
+use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
     RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget, SshTargetBootstrapStateUpdate,
 };
@@ -8,7 +9,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::runtime_archive::{
@@ -774,7 +774,7 @@ async fn run_remote_command(
 }
 
 async fn run_sftp_put(target: &SshTarget, local_path: &Path, remote_path: &str) -> Result<()> {
-    let mut command = Command::new("sftp");
+    let mut command = windowless_async_command("sftp");
     command
         .arg("-P")
         .arg(target.port.to_string())
@@ -811,7 +811,7 @@ async fn run_sftp_put(target: &SshTarget, local_path: &Path, remote_path: &str) 
 }
 
 async fn run_checked(program: &str, args: &[String]) -> Result<RemoteCommandOutput> {
-    let output = Command::new(program)
+    let output = windowless_async_command(program)
         .args(args)
         .kill_on_drop(true)
         .output()

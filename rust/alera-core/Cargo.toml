@@ -6,14 +6,14 @@ publish = false
 
 [features]
 default = []
-runtime = ["dep:anyhow", "dep:chrono", "dep:serde", "dep:serde_json", "dep:sqlx", "dep:thiserror", "dep:uuid"]
+# The async spawn helper, for crates that only need `child_process`.
+async-process = ["dep:tokio"]
+runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:serde", "dep:serde_json", "dep:sqlx", "dep:thiserror", "dep:uuid"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
-camino = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"], optional = true }
 git2 = { version = "0.21", default-features = false }
-git_cmd = "0.6"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 sqlx = { version = "0.8", default-features = false, features = [
@@ -22,6 +22,7 @@ sqlx = { version = "0.8", default-features = false, features = [
     "chrono",
 ], optional = true }
 thiserror = { version = "2", optional = true }
+tokio = { version = "1", features = ["process"], optional = true }
 uuid = { version = "1", features = ["v4", "serde"], optional = true }
 
 [dev-dependencies]

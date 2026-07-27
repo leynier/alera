@@ -4,7 +4,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::process::{Child, Command};
+use std::process::Child;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
@@ -196,7 +196,7 @@ fn spawn_host_with_env(
     token: &str,
     env: &[(&str, &str)],
 ) -> (HostGuard, u16) {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_alera"));
+    let mut command = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"));
     command.args([
         "terminal-host",
         "--runtime-dir",
@@ -289,7 +289,7 @@ fn full_protocol_sequence() {
     let control_path = dir.path().join("host.json");
     let token = "test-token";
 
-    let child = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "terminal-host",
             "--runtime-dir",
@@ -684,7 +684,7 @@ fn cli_mutations_use_running_runtime_host() {
     let (mut writer, mut reader) = connect(port);
     handshake(&mut writer, &mut reader, token);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let output = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "project",
             "--runtime-dir",
@@ -739,7 +739,7 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
     let (mut writer, mut reader) = connect(port);
     handshake(&mut writer, &mut reader, token);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let output = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "project",
             "--runtime-dir",
@@ -778,7 +778,7 @@ fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
 fn cli_rejects_unknown_tab_kind() {
     let dir = tempfile::tempdir().unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let output = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "tab",
             "--runtime-dir",
@@ -821,7 +821,7 @@ fn cli_rejects_unknown_tab_kind() {
 fn cli_bootstrap_cancel_requires_runtime_host_job() {
     let dir = tempfile::tempdir().unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let output = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "ssh-target",
             "--runtime-dir",
@@ -1233,7 +1233,7 @@ fn rejects_bad_token() {
     let control_path = dir.path().join("host.json");
     let token = "good-token";
 
-    let child = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "terminal-host",
             "--runtime-dir",

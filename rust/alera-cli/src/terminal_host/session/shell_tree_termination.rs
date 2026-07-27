@@ -84,7 +84,7 @@ async fn kill_descendants(shell: ShellProcess) {
         return;
     }
     // Racing an already-exited tree is expected, so the result is ignored.
-    let _ = tokio::process::Command::new("taskkill")
+    let _ = alera_core::child_process::windowless_async_command("taskkill")
         .args(["/PID", &shell.pid.to_string(), "/T", "/F"])
         .output()
         .await;
@@ -166,6 +166,9 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    // Test fixture: it runs from a console, so the console-window suppression in
+    // `alera_core::child_process` does not apply.
+    #[allow(clippy::disallowed_methods)]
     async fn a_descendant_that_outlives_the_shell_is_signalled() {
         // The case the sweep exists for: `sleep` is a child of `sh`, so the
         // root killer alone would leave it running.

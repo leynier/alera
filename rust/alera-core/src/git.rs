@@ -1,9 +1,9 @@
 use std::fmt;
 use std::path::Path;
 
-use camino::Utf8Path;
 use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
+use crate::git_cli::git_in_dir;
 mod repository_metadata;
 pub use repository_metadata::{current_branch, repository_remote_url};
 
@@ -396,9 +396,9 @@ fn canonical(path: &str) -> String {
 }
 
 fn git_cli_in_path(path: &str, args: &[&str]) -> Result<(), GitError> {
-    git_cmd::git_in_dir(Utf8Path::new(path), args)
+    git_in_dir(Path::new(path), args)
         .map(|_| ())
-        .map_err(|error| GitError::new(GitErrorKind::GitCli, error.to_string()))
+        .map_err(|error| GitError::new(GitErrorKind::GitCli, error.message))
 }
 
 fn git_fetch_remote(path: &str, remote: &str) -> Result<(), GitError> {

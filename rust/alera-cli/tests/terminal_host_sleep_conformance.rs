@@ -1,6 +1,7 @@
+use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::process::{Child, Command};
+use std::process::Child;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
@@ -35,7 +36,7 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
 }
 
 fn spawn_host(runtime_dir: &std::path::Path, control_path: &std::path::Path) -> HostGuard {
-    let child = Command::new(env!("CARGO_BIN_EXE_alera"))
+    let child = windowless_command(env!("CARGO_BIN_EXE_alera"))
         .args([
             "terminal-host",
             "--runtime-dir",

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
+use alera_core::child_process::windowless_async_command;
 use alera_core::git as core_git;
 use alera_core::runtime::{
     Project, ProjectConfig, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult,
@@ -11,7 +12,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
 use serde::Deserialize;
 use tokio::io::AsyncReadExt;
-use tokio::process::Command;
 use uuid::Uuid;
 
 const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
@@ -717,7 +717,7 @@ async fn run_setup_command(
     environment: &[(String, String)],
 ) -> WorktreeSetupStepReport {
     let (executable, args) = shell_invocation(command);
-    let mut child = match Command::new(executable)
+    let mut child = match windowless_async_command(executable)
         .args(args)
         .current_dir(workspace_path)
         .envs(environment.iter().map(|(key, value)| (key, value)))
@@ -1105,6 +1105,9 @@ mod tests {
         run_git(repo, &["branch", "-M", "main"]);
     }
 
+    // Test fixture: it runs from a console, so the console-window suppression in
+    // `alera_core::child_process` does not apply.
+    #[allow(clippy::disallowed_methods)]
     fn run_git(repo: &Path, args: &[&str]) {
         let output = StdCommand::new("git")
             .args(args)

@@ -1,9 +1,9 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
+use alera_core::child_process::windowless_async_command;
 use anyhow::{Context, Result};
 use serde::Serialize;
-use tokio::process::Command;
 
 use crate::login_shell_environment::setup_command_environment;
 
@@ -225,7 +225,7 @@ async fn run_skill_install(
         (_, SkillRunner::Bunx) => "bunx",
         (_, SkillRunner::Auto) => unreachable!(),
     };
-    let result = Command::new(executable)
+    let result = windowless_async_command(executable)
         .args([
             "skills",
             "add",

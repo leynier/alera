@@ -42,6 +42,9 @@ fn watch_git_state() {
     }
 }
 
+// Build script: it runs under cargo in a console, so the console-window
+// suppression in `alera_core::child_process` does not apply.
+#[allow(clippy::disallowed_methods)]
 fn git_output(arguments: &[&str]) -> Option<String> {
     let output = Command::new("git")
         .args(arguments)

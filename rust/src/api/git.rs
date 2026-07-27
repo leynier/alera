@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
 use alera_core::git as core_git;
-use camino::Utf8Path;
+use alera_core::git_cli::git_in_dir;
 use git2::{
     build::CheckoutBuilder, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
     RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
@@ -1259,9 +1259,9 @@ fn delete_workspace_relative_path(workspace_path: &str, relative: &str) -> Resul
 }
 
 fn git_cli_in_path(path: &str, args: &[&str]) -> Result<(), GitError> {
-    git_cmd::git_in_dir(Utf8Path::new(path), args)
+    git_in_dir(Path::new(path), args)
         .map(|_| ())
-        .map_err(|error| GitError::new(GitErrorKind::GitCli, error.to_string()))
+        .map_err(|error| GitError::new(GitErrorKind::GitCli, error.message))
 }
 
 /// Adds a linked worktree at `path` for `target_branch`. By default this creates
@@ -1364,11 +1364,11 @@ fn split_clone_destination(destination_path: &str) -> Result<(String, String), G
 pub fn clone_repository(url: String, destination_path: String) -> Result<(), GitError> {
     let (parent, name) = split_clone_destination(&destination_path)?;
 
-    git_cmd::git_in_dir(
-        Utf8Path::new(&parent),
+    git_in_dir(
+        Path::new(&parent),
         &["clone", "--progress", "--", &url, &name],
     )
-    .map_err(|error| GitError::new(GitErrorKind::CloneFailed, error.to_string()))?;
+    .map_err(|error| GitError::new(GitErrorKind::CloneFailed, error.message))?;
     Ok(())
 }
 

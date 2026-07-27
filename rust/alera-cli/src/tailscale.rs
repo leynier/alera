@@ -1,9 +1,9 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
+use alera_core::child_process::windowless_async_command;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -77,7 +77,7 @@ pub async fn resolve_tailnet_bind_ip() -> Result<Ipv4Addr> {
 
 async fn read_status() -> Result<Option<TailscaleStatus>> {
     for candidate in binary_candidates() {
-        let command = Command::new(candidate)
+        let command = windowless_async_command(candidate)
             .args(["status", "--json"])
             .kill_on_drop(true)
             .output();

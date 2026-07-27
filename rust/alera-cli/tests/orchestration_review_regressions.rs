@@ -1,7 +1,8 @@
+use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::path::Path;
-use std::process::{Child, Command};
+use std::process::Child;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
@@ -49,7 +50,7 @@ fn start_host() -> Host {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("runtime-host.json");
     let token = "orchestration-review-test-token".to_string();
-    let mut command = Command::new(env!("CARGO_BIN_EXE_alera"));
+    let mut command = windowless_command(env!("CARGO_BIN_EXE_alera"));
     command.args([
         "runtime-host",
         "--runtime-dir",

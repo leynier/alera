@@ -5,6 +5,7 @@ use std::process::Stdio;
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use alera_core::child_process::windowless_async_command;
 use anyhow::{anyhow, Context, Result};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use regex::Regex;
@@ -14,7 +15,6 @@ use serde_json::{json, Value};
 #[cfg(target_os = "macos")]
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
-use tokio::process::Command;
 use tokio::sync::Semaphore;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(12);

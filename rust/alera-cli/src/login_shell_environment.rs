@@ -1,5 +1,6 @@
 use std::env;
 
+use alera_core::child_process::windowless_async_command;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 use tokio::time::{timeout, Duration};
@@ -70,7 +71,7 @@ async fn hydrate_shell_path(shell: &str) -> Option<Vec<String>> {
         "printf '%s' '{delimiter}'; printf '%s' \"$PATH\"; printf '%s' '{delimiter}'",
         delimiter = SHELL_PATH_HYDRATION_DELIMITER,
     );
-    let mut process = Command::new(shell);
+    let mut process = windowless_async_command(shell);
     process.args(["-ilc", &command]);
     let output = match timeout(SHELL_PATH_HYDRATION_TIMEOUT, process.output()).await {
         Ok(Ok(output)) => output,

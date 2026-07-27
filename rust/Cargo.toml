@@ -16,9 +16,9 @@ members = ["alera-cli", "alera-core"]
 resolver = "2"
 
 [dependencies]
-alera-core = { path = "alera-core", default-features = false }
+alera-core = { path = "alera-core", default-features = false, features = ["async-process"] }
 flutter_rust_bridge = "=2.12.0"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "net", "process", "rt-multi-thread", "sync", "time"] }
 axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"
 serde = { version = "1", features = ["derive"] }
@@ -27,11 +27,8 @@ serde_urlencoded = "0.7"
 # Local git operations via libgit2. Network features (https/ssh/openssl) are
 # disabled on purpose: git2-backed operations here are local; operations that
 # need network credentials (clone/fetch/pull/push) are delegated to the git CLI
-# via git_cmd, which uses the system credential helper.
+# via `alera_core::git::git_in_dir`, which uses the system credential helper.
 git2 = { version = "0.21", default-features = false }
-# Thin wrapper around the git CLI for networked git operations.
-git_cmd = "0.6"
-camino = "1"
 ignore = "0.4"
 notify = "8"
 trash = "5"
@@ -42,6 +39,9 @@ regex = "1"
 merman = { version = "0.7.0-alpha.1", default-features = false, features = ["render"] }
 png = "0.18"
 tempfile = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 arboard = "3.6.1"

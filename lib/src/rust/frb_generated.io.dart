@@ -9,6 +9,7 @@ import 'api/git.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
+import 'api/process.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 import 'dart:async';
@@ -29,8 +30,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
+  Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
+
+  @protected
   RustStreamSink<AgentHookEventBatchDto>
   dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<ProcessEvent> dco_decode_StreamSink_process_event_Sse(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<SourceControlWatchSignal>
@@ -267,7 +276,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
   List<WorkspaceExplorerDirectoryChildren>
@@ -314,6 +329,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MermanWorkspaceRender dco_decode_merman_workspace_render(dynamic raw);
 
   @protected
+  Map<String, String>? dco_decode_opt_Map_String_String_None(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -354,6 +372,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  ProcessEvent dco_decode_process_event(dynamic raw);
+
+  @protected
+  ProcessEventKind dco_decode_process_event_kind(dynamic raw);
+
+  @protected
+  ProcessRunResult dco_decode_process_run_result(dynamic raw);
+
+  @protected
+  (String, String) dco_decode_record_string_string(dynamic raw);
 
   @protected
   SourceControlWatchSignal dco_decode_source_control_watch_signal(dynamic raw);
@@ -477,8 +507,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  Map<String, String> sse_decode_Map_String_String_None(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<AgentHookEventBatchDto>
   sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<ProcessEvent> sse_decode_StreamSink_process_event_Sse(
     SseDeserializer deserializer,
   );
 
@@ -783,7 +823,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<(String, String)> sse_decode_list_record_string_string(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceExplorerDirectoryChildren>
@@ -844,6 +892,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Map<String, String>? sse_decode_opt_Map_String_String_None(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -890,6 +943,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  ProcessEvent sse_decode_process_event(SseDeserializer deserializer);
+
+  @protected
+  ProcessEventKind sse_decode_process_event_kind(SseDeserializer deserializer);
+
+  @protected
+  ProcessRunResult sse_decode_process_run_result(SseDeserializer deserializer);
+
+  @protected
+  (String, String) sse_decode_record_string_string(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SourceControlWatchSignal sse_decode_source_control_watch_signal(
@@ -1054,8 +1121,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_Map_String_String_None(
+    Map<String, String> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
     RustStreamSink<AgentHookEventBatchDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_process_event_Sse(
+    RustStreamSink<ProcessEvent> self,
     SseSerializer serializer,
   );
 
@@ -1441,8 +1520,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_record_string_string(
+    List<(String, String)> self,
     SseSerializer serializer,
   );
 
@@ -1513,6 +1601,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_Map_String_String_None(
+    Map<String, String>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1569,6 +1663,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_process_event(ProcessEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_process_event_kind(
+    ProcessEventKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_process_run_result(
+    ProcessRunResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_string(
+    (String, String) self,
     SseSerializer serializer,
   );
 
