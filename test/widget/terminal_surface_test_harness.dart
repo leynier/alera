@@ -195,6 +195,7 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   final String tabId;
 
   int ensureStartedCallCount = 0;
+  int refreshRenderingCallCount = 0;
   bool _started = false;
 
   @override
@@ -238,6 +239,11 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
     return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
+  }
+
+  @override
+  void refreshRendering() {
+    refreshRenderingCallCount += 1;
   }
 
   @override

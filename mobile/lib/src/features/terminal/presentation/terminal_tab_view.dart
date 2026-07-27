@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
@@ -15,18 +17,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
 import 'package:xterm/xterm.dart';
 
+part 'terminal_tab_state_widgets.dart';
+
 /// One terminal tab filling the available space, with the quick-key bar and
 /// the compose/direct input modes stacked above the keyboard.
-class TerminalTabView extends ConsumerWidget {
+class TerminalTabView extends ConsumerStatefulWidget {
   const TerminalTabView({super.key, required this.hostId, required this.tabId});
 
   final String hostId;
   final String tabId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(terminalSessionControllerProvider(hostId, tabId));
-    final inputMode = ref.watch(terminalInputModeControllerProvider(tabId));
+  ConsumerState<TerminalTabView> createState() => _TerminalTabViewState();
+}
+
+class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
+  final GlobalKey<_TerminalSurfaceState> _surfaceKey =
+      GlobalKey<_TerminalSurfaceState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(
+      terminalSessionControllerProvider(widget.hostId, widget.tabId),
+    );
+    final inputMode = ref.watch(
+      terminalInputModeControllerProvider(widget.tabId),
+    );
     final accessoryKeys =
         ref
             .watch(terminalAccessoryLayoutControllerProvider)
@@ -34,14 +50,14 @@ class TerminalTabView extends ConsumerWidget {
             ?.visibleKeys() ??
         const <TerminalAccessoryKey>[];
     final notifier = ref.read(
-      terminalSessionControllerProvider(hostId, tabId).notifier,
+      terminalSessionControllerProvider(widget.hostId, widget.tabId).notifier,
     );
-    return switch (session) {
+    final content = switch (session) {
       AsyncData(value: final tabSession) => Column(
         children: <Widget>[
           Expanded(
             child: _TerminalSurface(
-              key: ValueKey<String>(tabSession.sessionId),
+              key: _surfaceKey,
               session: tabSession,
               inputMode: inputMode,
               onInput: (data) => notifier.write(utf8.encode(data)),
@@ -55,7 +71,9 @@ class TerminalTabView extends ConsumerWidget {
             inputMode: inputMode,
             onKey: notifier.write,
             onToggleMode: ref
-                .read(terminalInputModeControllerProvider(tabId).notifier)
+                .read(
+                  terminalInputModeControllerProvider(widget.tabId).notifier,
+                )
                 .toggle,
           ),
           if (inputMode == TerminalInputMode.compose)
@@ -77,6 +95,27 @@ class TerminalTabView extends ConsumerWidget {
         },
       ),
     };
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        content,
+        Positioned(
+          top: AleraTokens.spaceXs,
+          right: AleraTokens.spaceXs,
+          child: AleraIconButton(
+            tooltip: 'Refresh Terminal',
+            icon: AleraIcons.refresh,
+            backgroundColor: AleraTokens.surfaceElevated,
+            borderColor: AleraTokens.borderSubtle,
+            onPressed: _refreshTerminal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _refreshTerminal() {
+    _surfaceKey.currentState?.refreshRendering();
   }
 
   Future<void> _confirmRestart(
@@ -133,6 +172,8 @@ class _TerminalSurface extends StatefulWidget {
 class _TerminalSurfaceState extends State<_TerminalSurface> {
   late Terminal _terminal;
   final TerminalController _controller = TerminalController();
+  final GlobalKey<TerminalViewState> _terminalViewKey =
+      GlobalKey<TerminalViewState>();
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
   bool _outputEnded = false;
@@ -218,6 +259,27 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     setState(() => _outputEnded = true);
   }
 
+  void refreshRendering() {
+    final viewState = _terminalViewKey.currentState;
+    if (viewState == null) {
+      return;
+    }
+    final renderTerminal = viewState.renderTerminal;
+    if (!renderTerminal.attached ||
+        !renderTerminal.hasSize ||
+        renderTerminal.size.isEmpty) {
+      return;
+    }
+    final cellSize = renderTerminal.cellSize;
+    _terminal.resize(
+      _terminal.viewWidth,
+      _terminal.viewHeight,
+      cellSize.width.round(),
+      cellSize.height.round(),
+    );
+    renderTerminal.markNeedsLayout();
+  }
+
   @override
   Widget build(BuildContext context) {
     final direct = widget.inputMode == TerminalInputMode.direct;
@@ -229,6 +291,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
             color: AleraTokens.background,
             child: TerminalView(
               _terminal,
+              key: _terminalViewKey,
               controller: _controller,
               // Compose mode keeps the terminal read-only so tapping it scrolls
               // instead of raising the soft keyboard; direct mode streams keys.
@@ -243,203 +306,6 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _OutputEndedBanner extends StatelessWidget {
-  const _OutputEndedBanner({required this.onReconnect});
-
-  final Future<void> Function() onReconnect;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AleraTokens.surfaceVariant,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.spaceLg,
-          vertical: AleraTokens.spaceXs,
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.link_off, size: AleraTokens.spaceLg),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Text(
-              'Terminal Output Stopped',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () => unawaited(onReconnect()),
-              child: const Text('Reconnect'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DirectModeBanner extends StatelessWidget {
-  const _DirectModeBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AleraTokens.surfaceVariant,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.spaceLg,
-          vertical: AleraTokens.spaceXs,
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.bolt, size: AleraTokens.spaceLg),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Text(
-              'Keys Go Directly To The Terminal',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-enum _TerminalLoadingOperation { starting, reconnecting, restarting }
-
-class _SessionLoading extends StatefulWidget {
-  const _SessionLoading({required this.operation});
-
-  final _TerminalLoadingOperation operation;
-
-  @override
-  State<_SessionLoading> createState() => _SessionLoadingState();
-}
-
-class _SessionLoadingState extends State<_SessionLoading> {
-  Timer? _timer;
-  late DateTime _startedAt;
-
-  @override
-  void initState() {
-    super.initState();
-    _startClock();
-  }
-
-  @override
-  void didUpdateWidget(_SessionLoading oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.operation != widget.operation) {
-      _startClock();
-    }
-  }
-
-  void _startClock() {
-    _timer?.cancel();
-    _startedAt = DateTime.now();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final elapsed = DateTime.now().difference(_startedAt).inSeconds;
-    final label = switch (widget.operation) {
-      _TerminalLoadingOperation.starting => 'Starting Terminal',
-      _TerminalLoadingOperation.reconnecting => 'Reconnecting Terminal',
-      _TerminalLoadingOperation.restarting => 'Restarting Terminal',
-    };
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const CircularProgressIndicator(),
-          const SizedBox(height: AleraTokens.spaceMd),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          if (elapsed >= 3) ...<Widget>[
-            const SizedBox(height: AleraTokens.spaceSm),
-            Text(
-              'Elapsed: ${elapsed}s',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SessionError extends StatelessWidget {
-  const _SessionError({
-    required this.error,
-    required this.onReconnect,
-    this.onRestart,
-  });
-
-  final Object error;
-  final Future<void> Function() onReconnect;
-  final Future<void> Function()? onRestart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              Icons.terminal,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              'Terminal Unavailable',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AleraTokens.spaceSm),
-            Text(
-              error.toString(),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Wrap(
-              spacing: AleraTokens.spaceSm,
-              runSpacing: AleraTokens.spaceSm,
-              alignment: WrapAlignment.center,
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: () => unawaited(onReconnect()),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reconnect'),
-                ),
-                if (onRestart case final restart?)
-                  OutlinedButton.icon(
-                    onPressed: () => unawaited(restart()),
-                    icon: const Icon(Icons.restart_alt),
-                    label: const Text('Restart Terminal'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -2,6 +2,57 @@ part of 'terminal_runtime_native_test.dart';
 
 void _registerXtermRuntimeWidgetTests() {
   testWidgets(
+    'render refresh reapplies the measured viewport without replacing state',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      final fakeSession = _FakeTerminalPtySession();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[fakeSession],
+        ),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      try {
+        session.refreshRendering();
+        expect(fakeSession.resizeCalls, isEmpty);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: SizedBox.expand(child: session.buildView())),
+          ),
+        );
+        await tester.pump();
+        await session.ensureStarted();
+        await tester.pump(const Duration(milliseconds: 200));
+        fakeSession.resizeCalls.clear();
+        fakeSession.writes.clear();
+        writeTerminalOutputForTesting(session, 'preserved output');
+        final bufferBefore = terminalBufferTextForTesting(session);
+
+        session.refreshRendering();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(fakeSession.resizeCalls, hasLength(1));
+        expect(fakeSession.resizeCalls.single.cols, greaterThan(0));
+        expect(fakeSession.resizeCalls.single.rows, greaterThan(0));
+        expect(terminalBufferTextForTesting(session), bufferBefore);
+        expect(runtime.peekSession('tab-1'), same(session));
+        expect(fakeSession.writes, isEmpty);
+        expect(fakeSession.terminated, isFalse);
+      } finally {
+        runtime.dispose();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
     'build view supports deferred focus, direct input, and OSC updates',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;

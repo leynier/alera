@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
@@ -89,43 +91,58 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     return AnimatedBuilder(
       animation: widget.session,
       builder: (context, _) {
-        if (widget.session.errorMessage case final String error
-            when error.trim().isNotEmpty) {
-          return _TerminalErrorState(
-            message: error,
-            onReconnect: widget.session.reconnect,
-            onRestart: widget.session.canRestart
-                ? () => _confirmRestart(context)
-                : null,
-          );
-        }
+        final error = switch (widget.session.errorMessage) {
+          final String message when message.trim().isNotEmpty => message,
+          _ => null,
+        };
+        final operation = error == null ? widget.session.operation : null;
         return Stack(
           children: <Widget>[
             Positioned.fill(
-              child: DecoratedBox(
-                decoration: const BoxDecoration(color: AleraTokens.bg),
-                child: widget.session.buildView(
-                  autofocus: widget.autofocus,
-                  onKeyEvent: _handleTerminalKey,
-                ),
-              ),
+              child: error == null
+                  ? DecoratedBox(
+                      decoration: const BoxDecoration(color: AleraTokens.bg),
+                      child: widget.session.buildView(
+                        autofocus: widget.autofocus,
+                        onKeyEvent: _handleTerminalKey,
+                      ),
+                    )
+                  : _TerminalErrorState(
+                      message: error,
+                      onReconnect: widget.session.reconnect,
+                      onRestart: widget.session.canRestart
+                          ? () => _confirmRestart(context)
+                          : null,
+                    ),
             ),
-            if (widget.session.operation case final operation?)
+            if (operation != null)
               Positioned.fill(
                 child: _TerminalOperationState(operation: operation),
               ),
             // Restoring an evicted terminal replays its whole scrollback over
             // several frames. The corner spinner does not read as a wait that
             // long, so cover the area until the history is back.
-            Positioned.fill(
-              child: ValueListenableBuilder<TerminalRestoreProgress?>(
-                valueListenable: widget.session.restoreProgress,
-                builder: (context, progress, _) {
-                  if (progress == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return _TerminalRestoreState(progress: progress);
-                },
+            if (error == null)
+              Positioned.fill(
+                child: ValueListenableBuilder<TerminalRestoreProgress?>(
+                  valueListenable: widget.session.restoreProgress,
+                  builder: (context, progress, _) {
+                    if (progress == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return _TerminalRestoreState(progress: progress);
+                  },
+                ),
+              ),
+            Positioned(
+              top: AleraTokens.space4,
+              right: AleraTokens.space4,
+              child: AleraIconButton(
+                tooltip: 'Refresh Terminal',
+                icon: AleraIcons.refresh,
+                backgroundColor: AleraTokens.surfaceElevated,
+                borderColor: AleraTokens.borderSubtle,
+                onPressed: widget.session.refreshRendering,
               ),
             ),
           ],

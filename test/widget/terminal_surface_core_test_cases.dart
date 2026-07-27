@@ -1,6 +1,47 @@
 part of 'terminal_surface_test.dart';
 
 void _registerTerminalSurfaceRuntimeTests() {
+  testWidgets('refresh control is top right and invokes the current session', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+
+    await _pumpTerminalSurface(tester, session);
+
+    final surfaceRect = tester.getRect(find.byType(TerminalSurface));
+    final refreshRect = tester.getRect(find.byTooltip('Refresh Terminal'));
+    expect(
+      refreshRect.top,
+      closeTo(surfaceRect.top + AleraTokens.space4, 0.01),
+    );
+    expect(
+      refreshRect.right,
+      closeTo(surfaceRect.right - AleraTokens.space4, 0.01),
+    );
+
+    await tester.tap(find.byTooltip('Refresh Terminal'));
+    await tester.pump();
+
+    expect(session.refreshRenderingCallCount, 1);
+    expect(session.ensureStartedCallCount, 1);
+  });
+
+  testWidgets('refresh control is safe while the terminal is unavailable', (
+    tester,
+  ) async {
+    final session = _ErrorSessionHandle(
+      tabId: 'tab-1',
+      message: 'disconnected',
+    );
+
+    await _pumpTerminalSurface(tester, session);
+    await tester.tap(find.byTooltip('Refresh Terminal'));
+    await tester.pump();
+
+    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('working directory launch keeps the shell usable if cd fails', () {
     const launch = GhosttyTerminalShellLaunch(
       label: 'zsh',

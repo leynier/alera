@@ -104,6 +104,12 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
     FocusOnKeyEventCallback? onKeyEvent,
   });
 
+  /// Reapplies the mounted viewport and schedules a one-shot repaint.
+  ///
+  /// Handles without a measured view intentionally do nothing. Refreshing must
+  /// never replace the emulator or the PTY session.
+  void refreshRendering() {}
+
   /// Moves keyboard focus to this terminal's text input so subsequent
   /// keypresses are routed to its PTY instead of any sidebar control.
   void requestFocus();
