@@ -23,11 +23,29 @@ help:
 
 # Initialize all git submodules at their pinned commits.
 init-submodules:
-	git submodule update --init --recursive
+	git submodule update --init --recursive -- reference_projects/jean
+	git submodule update --init -- reference_projects/t3code
+	git submodule update --init --recursive -- reference_projects/CodexMonitor
+	git submodule update --init --recursive -- reference_projects/1Code
+	git submodule update --init --recursive -- reference_projects/orca
+	git submodule update --init --recursive -- third_party/xterm
+	git submodule update --init --recursive -- third_party/dart_terminal
+	git submodule update --init --recursive -- reference_projects/code_forge
+	git submodule update --init --recursive -- reference_projects/flutter_directory_tree
+	git submodule update --init --recursive -- reference_projects/directory_tree
 
 # Update all git submodules to their latest remote commits.
 update-submodules:
-	git submodule update --init --recursive --remote --merge
+	git submodule update --init --recursive --remote --merge -- reference_projects/jean
+	git submodule update --init --remote --merge -- reference_projects/t3code
+	git submodule update --init --recursive --remote --merge -- reference_projects/CodexMonitor
+	git submodule update --init --recursive --remote --merge -- reference_projects/1Code
+	git submodule update --init --recursive --remote --merge -- reference_projects/orca
+	git submodule update --init --recursive --remote --merge -- third_party/xterm
+	git submodule update --init --recursive --remote --merge -- third_party/dart_terminal
+	git submodule update --init --recursive --remote --merge -- reference_projects/code_forge
+	git submodule update --init --recursive --remote --merge -- reference_projects/flutter_directory_tree
+	git submodule update --init --recursive --remote --merge -- reference_projects/directory_tree
 
 # Regenerate flutter_rust_bridge bindings after changing the Rust API surface
 # (rust/src/api). The generated Dart under lib/src/rust is committed.
