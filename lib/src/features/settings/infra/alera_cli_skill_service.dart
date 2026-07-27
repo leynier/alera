@@ -6,10 +6,12 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
+const String aleraComputerUseSkillName = 'computer-use';
 
 enum AleraAgentSkill {
   cli(aleraCliSkillName),
-  orchestration(aleraOrchestrationSkillName);
+  orchestration(aleraOrchestrationSkillName),
+  computerUse(aleraComputerUseSkillName);
 
   const AleraAgentSkill(this.name);
 

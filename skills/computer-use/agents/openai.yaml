@@ -1,0 +1,3 @@
+interface:
+  display_name: "Alera Computer Use"
+  short_description: "Read and operate local desktop application windows through their accessibility layer."

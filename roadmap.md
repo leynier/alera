@@ -183,7 +183,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
 | SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, and host-aware workspace metadata; full remote PTY/filesystem/git worktrees as local are not complete |
-| Computer Use | 5 | 3 | Planned | Native desktop automation via Accessibility APIs |
+| Computer Use | 5 | 3 | In Progress | `alera computer` reads and drives desktop windows through the accessibility layer; Linux only, no synthetic input or screen capture yet |
 | Mobile App | 5 | 3 | Shipped | Foundation plus sidebar parity: pairing UI/QR, `alera mobile` CLI, secure tokens, WebSocket gateway, projects/workspaces/tags, terminal create/attach/stream, settings/hooks/quotas, managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---

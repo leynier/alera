@@ -70,6 +70,14 @@ pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 // clients feature-check this instead of the protocol version.
 pub const RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY: &str = "resourceMonitorV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
+// Advertised once the host answers `computer.*`: reading and driving local
+// desktop UI through the platform accessibility layer. Additive, so clients
+// feature-check this instead of comparing protocol versions; a host that lacks
+// it is still fully usable for everything else.
+pub const RUNTIME_HOST_COMPUTER_USE_CAPABILITY: &str = "computerUseV1";
+/// Version of the computer-use skill guide this binary's command surface matches.
+/// Reported by `alera version` so a stale installed skill is detectable.
+pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]

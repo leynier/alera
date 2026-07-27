@@ -7,6 +7,9 @@ mod cli_orchestration_terminal;
 mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
+mod computer_commands;
+mod computer_output;
+mod computer_use;
 mod host_tools;
 mod login_shell_environment;
 mod managed_workspace;
@@ -107,6 +110,7 @@ async fn run() -> i32 {
         Command::Terminal(command) => run_terminal_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
         Command::Mobile(command) => run_mobile_command(command).await,
+        Command::Computer(command) => computer_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
@@ -212,6 +216,7 @@ async fn run_version_command(command: crate::cli::VersionCommand) -> i32 {
         "dispatchPreambleVersion": terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
         "runtimeHostDispatchPreambleVersion": host_status.as_ref().and_then(|value| value.get("dispatchPreambleVersion")),
         "skillVersion": terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
+        "computerUseSkillVersion": terminal_host::protocol::COMPUTER_USE_SKILL_VERSION,
         "runtimeHostSkillVersion": host_status.as_ref().and_then(|value| value.get("skillVersion")),
     });
     print_value(&payload, command.output.json, "Alera version information");

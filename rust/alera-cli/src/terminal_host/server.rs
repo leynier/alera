@@ -47,6 +47,8 @@ mod actor_test_harness;
 mod agent_hook_events;
 mod client_accept_loop;
 mod client_delivery;
+mod computer_request_payloads;
+mod computer_requests;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
