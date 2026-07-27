@@ -27,19 +27,23 @@ void _queueSessionTerminalOutput(
   // without bound. Newer output is what the user is looking at.
   while (handle._output.length > _terminalOutputMaxPendingChars &&
       handle._output.pending.length > 1) {
-    handle._output.length -= handle._output.headRemaining;
+    final dropped = handle._output.headRemaining;
+    handle._output.length -= dropped;
     handle._output.pending.removeFirst();
     handle._output.head = 0;
+    handle._discardPointerInputCatchUp(dropped);
   }
   if (handle._output.length > _terminalOutputMaxPendingChars) {
     // A single chunk can exceed the cap on its own, so trim its head too.
     final chunk = handle._output.pending.first;
+    final previousHead = handle._output.head;
     final start = _terminalOutputHeadTrimStart(
       chunk,
       chunk.length - _terminalOutputMaxPendingChars,
     );
     handle._output.head = start;
     handle._output.length = chunk.length - start;
+    handle._discardPointerInputCatchUp(start - previousHead);
   }
   handle._scheduleTerminalOutputFlush();
 }
@@ -138,6 +142,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   }
   handle._writeToTerminal(frame.toString());
   handle._advanceRestore(written);
+  handle._advancePointerInputCatchUp(written);
 }
 
 void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
@@ -146,6 +151,7 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
     return;
   }
   handle._output.restartFlushClock();
+  final pendingChars = handle._output.length;
   final head = handle._output.head;
   final buffer = StringBuffer();
   var first = true;
@@ -157,6 +163,7 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
   handle._writeToTerminal(buffer.toString());
   // Everything queued is on screen now, including a restore this bypassed.
   handle._finishRestore();
+  handle._advancePointerInputCatchUp(pendingChars);
 }
 
 /// Start index for a head trim that never lands inside a surrogate pair.

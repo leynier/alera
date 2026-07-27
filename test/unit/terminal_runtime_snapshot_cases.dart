@@ -100,4 +100,36 @@ void _registerTerminalRuntimeSnapshotTests() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  test('a snapshot keeps pointer input suspended until it is parsed', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    try {
+      await session.ensureStarted();
+
+      fakeSession.emitSnapshot(utf8.encode('\x1b[?1000h\x1b[?1006hactive tui'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(terminalPointerInputSuspendedForTesting(session), isTrue);
+
+      flushTerminalOutputForTesting(session);
+
+      expect(terminalPointerInputSuspendedForTesting(session), isFalse);
+      expect(terminalMouseModeForTesting(session), isNot(xterm.MouseMode.none));
+    } finally {
+      visibility.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

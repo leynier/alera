@@ -124,6 +124,13 @@ xterm.MouseMode terminalMouseModeForTesting(TerminalSessionHandle session) {
 }
 
 @visibleForTesting
+bool terminalPointerInputSuspendedForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)
+      ._terminalController
+      .suspendedPointerInputs;
+}
+
+@visibleForTesting
 bool terminalBracketedPasteModeForTesting(TerminalSessionHandle session) {
   return (session as _XtermTerminalSessionHandle)._terminal.bracketedPasteMode;
 }
