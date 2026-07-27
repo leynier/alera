@@ -93,6 +93,8 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
 class _FakeTerminalPtySession implements TerminalPtySession {
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
+  final List<List<int>> writes = <List<int>>[];
+  final List<bool> outputPausedCalls = <bool>[];
   GhosttyTerminalShellLaunch? startedLaunch;
   int? startedCols;
   int? startedRows;
@@ -100,6 +102,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   bool disposed = false;
   bool terminated = false;
   int? exitCodeOnDispose;
+  Completer<void>? nextResumeCompleter;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
@@ -123,7 +126,10 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   }
 
   @override
-  bool writeBytes(List<int> bytes) => bytes.isNotEmpty;
+  bool writeBytes(List<int> bytes) {
+    writes.add(List<int>.from(bytes));
+    return bytes.isNotEmpty;
+  }
 
   @override
   Future<bool> writeBytesAndWait(List<int> bytes) async => writeBytes(bytes);
@@ -132,7 +138,15 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
 
   @override
-  Future<void> setOutputPaused(bool paused) async {}
+  Future<void> setOutputPaused(bool paused) async {
+    outputPausedCalls.add(paused);
+    if (paused) {
+      return;
+    }
+    final completer = nextResumeCompleter;
+    nextResumeCompleter = null;
+    await completer?.future;
+  }
 
   void emitExit(int exitCode) {
     if (_events.isClosed) {

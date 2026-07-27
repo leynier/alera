@@ -86,6 +86,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       ValueNotifier<TerminalRestoreProgress?>(null);
   int _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
+  int _pointerInputCatchUpChars = 0;
+  bool _pointerInputResumePending = false;
+  int _outputVisibilityGeneration = 0;
   bool _disposed = false;
 
   @override
@@ -207,6 +210,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _running = false;
     notifyListeners();
     await _stopPtySession(suppressExit: true);
+    _resetPointerInputSynchronization();
     await ensureStarted();
   }
 
@@ -461,10 +465,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _pendingInteractionModeReset |= resetInteractionModes;
         if (_visible) {
           final shouldResetInteractionModes = _pendingInteractionModeReset;
+          _preparePointerInputForSnapshot();
           _replaceTerminalWithSnapshot(
             data,
             resetInteractionModes: shouldResetInteractionModes,
           );
+          _completePointerInputSnapshotCatchUp();
           _pendingInteractionModeReset = false;
         }
       case TerminalPtyExitEvent(:final exitCode):
@@ -558,18 +564,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _output.clear();
   }
 
-  void _syncPtyOutputVisibility() {
-    final session = _ptySession;
-    if (_disposed || session == null) {
-      return;
-    }
-    unawaited(
-      session.setOutputPaused(!_visible).catchError((Object error) {
-        _setTerminalHostError(error);
-      }),
-    );
-  }
-
   void _setTerminalHostError(Object error) {
     if (_disposed) {
       return;
@@ -635,8 +629,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   void dispose({bool terminatePty = true}) {
     _disposed = true;
     _startAttempt += 1;
+    _outputVisibilityGeneration += 1;
     _visibilityLeases.clear();
     _visible = false;
+    _pointerInputResumePending = false;
+    _pointerInputCatchUpChars = 0;
     _osc8LinkTracker.dispose();
     _terminalController.removeListener(_handleSelectionChanged);
     _terminalController.dispose();
