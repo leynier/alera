@@ -88,6 +88,56 @@ Future<void> _waitUntil(
 }
 
 void main() {
+  test('Terminal restart is capability gated and forwards the tab', () async {
+    final gateway = await _FakeGateway.start(
+      reply: (request) {
+        if (request['type'] == 'mobile.hello') {
+          return <String, Object?>{
+            'runtimeCapabilities': <String>[terminalRestartCapability],
+          };
+        }
+        return <String, Object?>{
+          'tab': <String, Object?>{
+            'id': 'tab-1',
+            'workspaceId': 'workspace-1',
+            'kind': 'terminal',
+            'title': 'Terminal',
+            'payload': <String, Object?>{'terminalSessionId': 'session-1'},
+          },
+          'attachment': <String, Object?>{
+            'sessionId': 'session-1',
+            'created': true,
+            'running': true,
+            'snapshotBase64': '',
+          },
+        };
+      },
+    );
+    addTearDown(gateway.dispose);
+    final client = await MobileRuntimeClient.connect(gateway.endpoint);
+    addTearDown(client.dispose);
+
+    expect(client.supportsTerminalRestart, isFalse);
+    await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+    expect(client.supportsTerminalRestart, isTrue);
+
+    final session = await client.restartTerminal(
+      'tab-1',
+      sessionId: 'session-1',
+      cols: 100,
+      rows: 30,
+    );
+
+    expect(session.attachment.created, isTrue);
+    final request = gateway.requestsOfType('terminal.restart').single;
+    expect(gateway.payloadOf(request), <String, Object?>{
+      'tabId': 'tab-1',
+      'sessionId': 'session-1',
+      'cols': 100,
+      'rows': 30,
+    });
+  });
+
   group('Terminal input', () {
     test(
       'Feature detects deferred terminal input during the handshake',

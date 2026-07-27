@@ -42,6 +42,7 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   final List<(String, bool)> outputPaused = <(String, bool)>[];
   final List<String> detached = <String>[];
   final List<String> terminated = <String>[];
+  final List<String> restarted = <String>[];
   final List<String> reclaimed = <String>[];
   Map<String, TerminalSessionDriver> drivers =
       <String, TerminalSessionDriver>{};
@@ -57,6 +58,9 @@ final class FakeTerminalHostClient implements TerminalHostClient {
 
   @override
   Stream<TerminalHostEvent> get events => _events.stream;
+
+  @override
+  bool get supportsTerminalRestart => true;
 
   @override
   Stream<TerminalHostEvent> eventsForSession(String sessionId) {
@@ -98,6 +102,20 @@ final class FakeTerminalHostClient implements TerminalHostClient {
     return _attachments[index < _attachments.length
         ? index
         : _attachments.length - 1];
+  }
+
+  @override
+  Future<TerminalHostAttachment> restart({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) async {
+    restarted.add(sessionId);
+    return _attachments.last;
   }
 
   @override

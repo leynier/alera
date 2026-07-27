@@ -6,6 +6,8 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 abstract interface class TerminalHostClient {
   Stream<TerminalHostEvent> get events;
 
+  bool get supportsTerminalRestart;
+
   /// Events for one PTY session only.
   ///
   /// Every session used to filter the global stream, so one output chunk was
@@ -21,6 +23,16 @@ abstract interface class TerminalHostClient {
   Future<void> configure(TerminalHostConfig config);
 
   Future<TerminalHostAttachment> createOrAttach({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  });
+
+  Future<TerminalHostAttachment> restart({
     required String sessionId,
     required String workspaceId,
     required String tabId,
@@ -103,7 +115,11 @@ final class TerminalHostAttachment {
 /// and goes through the same per-session decoder. Only a client the host can
 /// no longer place in the stream gets [snapshot], which replaces the emulator.
 final class TerminalHostResume {
-  const TerminalHostResume({required this.isDelta, required this.snapshot});
+  const TerminalHostResume({
+    required this.isDelta,
+    required this.snapshot,
+    this.resetInteractionModes = false,
+  });
 
   factory TerminalHostResume.fromJson(Map<String, Object?> json) {
     return TerminalHostResume(
@@ -111,11 +127,13 @@ final class TerminalHostResume {
       // and no `delta` field, so an absent flag has to mean "replace".
       isDelta: json['delta'] == true,
       snapshot: decodeTerminalHostBytes(json['snapshotBase64']),
+      resetInteractionModes: json['resetInteractionModes'] == true,
     );
   }
 
   final bool isDelta;
   final Uint8List snapshot;
+  final bool resetInteractionModes;
 }
 
 sealed class TerminalHostEvent {

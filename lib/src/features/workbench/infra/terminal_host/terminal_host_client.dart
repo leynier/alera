@@ -19,6 +19,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
+part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
 part 'terminal_host_client_session_events.dart';
@@ -87,6 +88,12 @@ final class SocketTerminalHostClient
   Stream<TerminalHostEvent> get events => _events.stream;
 
   @override
+  bool get supportsTerminalRestart =>
+      _terminalConnection?.supportsTerminalRestart ??
+      _runtimeConnection?.supportsTerminalRestart ??
+      false;
+
+  @override
   Stream<RuntimeHostEvent> get runtimeEvents => _runtimeEvents.stream;
 
   @override
@@ -134,24 +141,36 @@ final class SocketTerminalHostClient
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
-  }) async {
-    final payload =
-        await _terminalRequestMap('createOrAttach', <String, Object?>{
-          'sessionId': sessionId,
-          'workspaceId': workspaceId,
-          'tabId': tabId,
-          'workingDirectory': workingDirectory,
-          'launch': TerminalHostLaunch(
-            label: launch.label,
-            shell: launch.shell,
-            arguments: launch.arguments,
-            environment: launch.environment ?? const <String, String>{},
-          ).toJson(),
-          'cols': cols,
-          'rows': rows,
-        });
-    return TerminalHostAttachment.fromJson(payload);
-  }
+  }) => _createOrAttachTerminal(
+    this,
+    sessionId: sessionId,
+    workspaceId: workspaceId,
+    tabId: tabId,
+    workingDirectory: workingDirectory,
+    launch: launch,
+    cols: cols,
+    rows: rows,
+  );
+
+  @override
+  Future<TerminalHostAttachment> restart({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) => _restartTerminal(
+    this,
+    sessionId: sessionId,
+    workspaceId: workspaceId,
+    tabId: tabId,
+    workingDirectory: workingDirectory,
+    launch: launch,
+    cols: cols,
+    rows: rows,
+  );
 
   @override
   Future<void> write({
@@ -655,11 +674,17 @@ final class SocketTerminalHostClient
     connection.completeAuthenticationError(
       StateError('Terminal host connection closed: $error'),
     );
-    if (identical(_terminalConnection, connection)) {
+    final wasTerminalConnection = identical(_terminalConnection, connection);
+    if (wasTerminalConnection) {
       _terminalConnection = null;
       _terminalConnectionFuture = null;
       unawaited(_terminalLineSub?.cancel());
       _terminalLineSub = null;
+    }
+    if (wasTerminalConnection && !_disposed) {
+      _emitConnectionError(
+        StateError('Terminal host connection closed: $error'),
+      );
     }
     if (identical(_runtimeConnection, connection)) {
       _runtimeConnection = null;

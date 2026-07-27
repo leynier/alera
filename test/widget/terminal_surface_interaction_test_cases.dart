@@ -109,7 +109,7 @@ void _registerTerminalSurfaceInteractionTests() {
     }
   });
 
-  testWidgets('shows the terminal error state and retries on demand', (
+  testWidgets('shows the terminal error state and reconnects on demand', (
     tester,
   ) async {
     final session = _ErrorSessionHandle(tabId: 'tab-1', message: 'boom');
@@ -126,7 +126,7 @@ void _registerTerminalSurfaceInteractionTests() {
     expect(find.text('Terminal Unavailable'), findsOneWidget);
     expect(find.text('boom'), findsOneWidget);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Reconnect'));
     await tester.pump();
 
     expect(session.restartCallCount, 1);

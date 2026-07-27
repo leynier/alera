@@ -93,7 +93,10 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
             when error.trim().isNotEmpty) {
           return _TerminalErrorState(
             message: error,
-            onRetry: widget.session.restart,
+            onReconnect: widget.session.reconnect,
+            onRestart: widget.session.canRestart
+                ? () => _confirmRestart(context)
+                : null,
           );
         }
         return Stack(
@@ -107,15 +110,9 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                 ),
               ),
             ),
-            if (widget.session.isStarting)
-              const Positioned(
-                right: AleraTokens.space12,
-                top: AleraTokens.space12,
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 1.5),
-                ),
+            if (widget.session.operation case final operation?)
+              Positioned.fill(
+                child: _TerminalOperationState(operation: operation),
               ),
             // Restoring an evicted terminal replays its whole scrollback over
             // several frames. The corner spinner does not read as a wait that
@@ -134,6 +131,110 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _confirmRestart(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Restart Terminal?'),
+          content: const Text(
+            'This Will Stop The Current Process Tree And Start A New Shell. Terminal History Will Be Preserved.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Restart Terminal'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      await widget.session.restart();
+    }
+  }
+}
+
+class _TerminalOperationState extends StatefulWidget {
+  const _TerminalOperationState({required this.operation});
+
+  final TerminalSessionOperation operation;
+
+  @override
+  State<_TerminalOperationState> createState() =>
+      _TerminalOperationStateState();
+}
+
+class _TerminalOperationStateState extends State<_TerminalOperationState> {
+  Timer? _timer;
+  late DateTime _startedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _startClock();
+  }
+
+  @override
+  void didUpdateWidget(_TerminalOperationState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.operation != widget.operation) {
+      _startClock();
+    }
+  }
+
+  void _startClock() {
+    _timer?.cancel();
+    _startedAt = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().difference(_startedAt).inSeconds;
+    final label = switch (widget.operation) {
+      TerminalSessionOperation.starting => 'Starting Terminal',
+      TerminalSessionOperation.reconnecting => 'Reconnecting Terminal',
+      TerminalSessionOperation.restarting => 'Restarting Terminal',
+    };
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AleraTokens.bg),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const CircularProgressIndicator(),
+            const SizedBox(height: AleraTokens.space12),
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            if (elapsed >= 3) ...<Widget>[
+              const SizedBox(height: AleraTokens.space8),
+              Text(
+                'Elapsed: ${elapsed}s',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -168,10 +269,15 @@ class _TerminalRestoreState extends StatelessWidget {
 }
 
 class _TerminalErrorState extends StatelessWidget {
-  const _TerminalErrorState({required this.message, required this.onRetry});
+  const _TerminalErrorState({
+    required this.message,
+    required this.onReconnect,
+    this.onRestart,
+  });
 
   final String message;
-  final Future<void> Function() onRetry;
+  final Future<void> Function() onReconnect;
+  final Future<void> Function()? onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -199,9 +305,20 @@ class _TerminalErrorState extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AleraTokens.space16),
-              FilledButton(
-                onPressed: () => unawaited(onRetry()),
-                child: const Text('Retry'),
+              Wrap(
+                spacing: AleraTokens.space8,
+                runSpacing: AleraTokens.space8,
+                children: <Widget>[
+                  FilledButton(
+                    onPressed: () => unawaited(onReconnect()),
+                    child: const Text('Reconnect'),
+                  ),
+                  if (onRestart case final restart?)
+                    OutlinedButton(
+                      onPressed: () => unawaited(restart()),
+                      child: const Text('Restart Terminal'),
+                    ),
+                ],
               ),
             ],
           ),

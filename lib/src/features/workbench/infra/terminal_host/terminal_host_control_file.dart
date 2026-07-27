@@ -115,6 +115,9 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsBinaryFrames: capabilities.contains(
         aleraRuntimeHostBinaryFramesCapability,
       ),
+      supportsTerminalRestart: capabilities.contains(
+        aleraRuntimeHostTerminalRestartCapability,
+      ),
     );
   } catch (_) {
     return null;

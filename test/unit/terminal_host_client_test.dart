@@ -58,6 +58,16 @@ void main() {
       cols: 80,
       rows: 24,
     );
+    expect(client.supportsTerminalRestart, isTrue);
+    final restarted = await client.restart(
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+      tabId: 'tab-1',
+      workingDirectory: '/repo',
+      launch: _launch(setupCommand: 'echo setup\n'),
+      cols: 80,
+      rows: 24,
+    );
     await client.write(sessionId: 'session-1', bytes: const <int>[]);
     await client.write(sessionId: 'session-1', bytes: const <int>[1, 2]);
     await client.resize(sessionId: 'session-1', cols: 120, rows: 40);
@@ -94,11 +104,13 @@ void main() {
     expect(attachment.created, isTrue);
     expect(attachment.running, isTrue);
     expect(attachment.snapshot, <int>[65, 66]);
+    expect(restarted.created, isTrue);
     expect(resume.isDelta, isFalse);
     expect(resume.snapshot, <int>[83, 78, 65, 80]);
     expect(server.requestTypes, <String>[
       'hello',
       'createOrAttach',
+      'terminal.restart',
       'write',
       'resize',
       'setOutputPaused',
@@ -114,6 +126,7 @@ void main() {
       createPayload['launch'],
       isNot(containsPair('setupCommand', anything)),
     );
+    expect(server.payloadFor('terminal.restart')['sessionId'], 'session-1');
     expect(
       server.payloadFor('write')['dataBase64'],
       encodeTerminalHostBytes(<int>[1, 2]),
@@ -1045,6 +1058,7 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
           aleraRuntimeHostBootstrapCapability,
           aleraRuntimeHostManagedWorkspaceCapability,
           aleraRuntimeHostOrchestrationCapability,
+          aleraRuntimeHostTerminalRestartCapability,
         ],
       }),
     );

@@ -64,6 +64,44 @@ void _registerTerminalHostClientResilienceTests() {
     },
   );
 
+  test('socket closure notifies every attached session immediately', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-session-close-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start(closeForType: 'write');
+    addTearDown(server.dispose);
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: server.port,
+      token: 'existing-token',
+    );
+    final client = SocketTerminalHostClient(
+      launcher: _NoopTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+    final sessionError = client
+        .eventsForSession('session-1')
+        .where((event) => event is TerminalHostErrorEvent)
+        .cast<TerminalHostErrorEvent>()
+        .first;
+
+    await expectLater(
+      client.write(sessionId: 'session-1', bytes: const <int>[1]),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(
+      (await sessionError).error.toString(),
+      contains('connection closed'),
+    );
+  });
+
   test('waits for authenticated hello before sending requests', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-host-client-authentication-',

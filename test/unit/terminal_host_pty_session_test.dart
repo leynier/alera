@@ -135,6 +135,43 @@ void main() {
     },
   );
 
+  test(
+    'reconnect attaches without restarting and restart is explicit',
+    () async {
+      final client = FakeTerminalHostClient(
+        attachment: TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: false,
+          running: true,
+          snapshot: Uint8List.fromList(<int>[65]),
+        ),
+      );
+      final session = TerminalHostPtySession(
+        client: client,
+        sessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
+      addTearDown(session.dispose);
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+      );
+      await session.reconnect();
+
+      expect(client.attachCalls, hasLength(2));
+      expect(client.restarted, isEmpty);
+
+      await session.restartProcess();
+
+      expect(session.supportsRestart, isTrue);
+      expect(client.restarted, <String>['session-1']);
+    },
+  );
+
   _registerTerminalHostPtyResumeTests();
 
   _registerTerminalHostPtyOutputResyncTests();

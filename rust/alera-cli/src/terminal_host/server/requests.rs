@@ -22,14 +22,14 @@ use crate::mobile_access::{
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
-    error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
-    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
-    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_COMPUTER_USE_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    error_response, event, int_or, ok_response, TerminalHostConfig, PROTOCOL_VERSION,
+    RUNTIME_HOST_AGENT_PROFILES_CAPABILITY, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
+    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
+    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -37,9 +37,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
     RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
-use crate::terminal_host::session::{Session, SessionDriver};
+use crate::terminal_host::session::SessionDriver;
 
 use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
 use super::runtime_change_broadcasts::string_scope;
@@ -521,6 +521,15 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.attach_mobile_terminal(client_id, payload).await
             }
+            "terminal.restart" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, "terminal.restart")?;
+                if self.is_mobile_client(client_id) {
+                    self.restart_mobile_terminal(client_id, payload).await
+                } else {
+                    self.restart_terminal(client_id, payload).await
+                }
+            }
             "status.get" => {
                 self.require_auth(client_id)?;
                 Ok(json!({
@@ -553,6 +562,7 @@ impl ServerActor {
                         RUNTIME_HOST_RUN_POLICY_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+                        RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                         RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
@@ -1179,56 +1189,6 @@ impl ServerActor {
             "Mobile clients cannot call terminal host request: {request_type}"
         )))
     }
-
-    pub(super) async fn create_or_attach(
-        &mut self,
-        client_id: u64,
-        payload: &Value,
-    ) -> HostResult<Value> {
-        let session_id = require_string(payload, "sessionId")?;
-        let workspace_id = require_string(payload, "workspaceId")?;
-        let tab_id = require_string(payload, "tabId")?;
-        let working_directory = require_string(payload, "workingDirectory")?;
-
-        let max_bytes = self.config.scrollback_bytes as usize;
-        let restore_bytes = self.config.restore_snapshot_bytes as usize;
-
-        // Live session: attach only. Dead session: remint with the same handle so
-        // ALERA_TERMINAL_HANDLE / orchestration dispatch targets stay valid.
-        if self.sessions.contains_key(&session_id) {
-            let running = self.sessions.get(&session_id).is_some_and(Session::running);
-            if running {
-                self.flush_all_output(&session_id);
-                let session = self.sessions.get_mut(&session_id).expect("just checked");
-                session.attach(client_id);
-                return Ok(session.attachment_payload(false, restore_bytes));
-            }
-        }
-        let (initial_scrollback, initial_output_stream_bytes) = self
-            .take_terminal_restart_state(&session_id, &workspace_id, &tab_id, max_bytes)
-            .await;
-
-        let launch = TerminalHostLaunch::from_json(&Value::Object(
-            require_object(payload.get("launch"), "launch")?.clone(),
-        ))?;
-        let cols = int_or(payload, "cols", 80) as u16;
-        let rows = int_or(payload, "rows", 24) as u16;
-        self.start_new_terminal_session(
-            session_id.clone(),
-            workspace_id,
-            tab_id,
-            working_directory,
-            launch,
-            cols,
-            rows,
-            initial_scrollback,
-            initial_output_stream_bytes,
-        )
-        .await?;
-        let session = self.sessions.get_mut(&session_id).expect("just inserted");
-        session.attach(client_id);
-        Ok(session.attachment_payload(true, restore_bytes))
-    }
 }
 
 /// Validate the request envelope. The payload-object check precedes the id/type
@@ -1246,7 +1206,7 @@ fn extract_request(obj: &Map<String, Value>) -> HostResult<(String, Value)> {
     }
 }
 
-fn require_string(payload: &Value, key: &str) -> HostResult<String> {
+pub(super) fn require_string(payload: &Value, key: &str) -> HostResult<String> {
     match payload.get(key) {
         Some(Value::String(value)) => Ok(value.clone()),
         _ => Err(HostError::format(

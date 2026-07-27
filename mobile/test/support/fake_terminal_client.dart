@@ -104,6 +104,9 @@ class FakeTerminalClient
   @override
   bool supportsTerminalTitles = true;
 
+  @override
+  bool supportsTerminalRestart = true;
+
   /// Settable so a test can drive both the deferred-input path and the legacy
   /// single-write fallback.
   @override
@@ -188,6 +191,26 @@ class FakeTerminalClient
       attachment: MobileTerminalAttachment(
         sessionId: tab.terminalSessionId,
         created: false,
+        running: true,
+        snapshot: const <int>[],
+      ),
+    );
+  }
+
+  @override
+  Future<MobileTerminalSession> restartTerminal(
+    String tabId, {
+    String? sessionId,
+    int cols = defaultTerminalCols,
+    int rows = defaultTerminalRows,
+  }) async {
+    calls.add('restart $tabId');
+    final tab = tabs.firstWhere((tab) => tab.id == tabId);
+    return MobileTerminalSession(
+      tab: tab,
+      attachment: MobileTerminalAttachment(
+        sessionId: sessionId ?? tab.terminalSessionId,
+        created: true,
         running: true,
         snapshot: const <int>[],
       ),

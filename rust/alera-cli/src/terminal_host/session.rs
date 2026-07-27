@@ -300,6 +300,13 @@ impl Session {
             .insert(client_id, self.output_stream_bytes);
     }
 
+    pub fn attach_for_resync(&mut self, client_id: u64) {
+        self.clients.insert(client_id);
+        self.delivered_output_cursors.remove(&client_id);
+        self.output_paused_clients.insert(client_id);
+        self.output_resync_pending_clients.insert(client_id);
+    }
+
     pub fn detach(&mut self, client_id: u64) {
         self.clients.remove(&client_id);
         self.output_paused_clients.remove(&client_id);
@@ -383,6 +390,7 @@ impl Session {
         json!({
             "sessionId": self.id,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
+            "resetInteractionModes": true,
         })
     }
 

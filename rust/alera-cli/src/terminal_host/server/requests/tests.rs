@@ -2,7 +2,9 @@ use super::*;
 
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
-use crate::terminal_host::protocol::RUNTIME_HOST_BINARY_FRAMES_CAPABILITY;
+use crate::terminal_host::protocol::{
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+};
 
 #[test]
 fn mobile_allowlist_includes_workspace_mutations() {
@@ -20,6 +22,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("cliRegistration.status"));
     assert!(mobile_request_allowed("cliRegistration.install"));
     assert!(mobile_request_allowed("agentSkill.install"));
+    assert!(mobile_request_allowed("terminal.restart"));
 }
 
 #[test]
@@ -95,6 +98,7 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_BINARY_FRAMES_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY));
 }
 
 #[test]
