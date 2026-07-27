@@ -17,6 +17,7 @@ class AleraMenuItem extends StatelessWidget {
     this.onHover,
     this.leading,
     this.subtitle,
+    this.enabled = true,
   });
 
   final String label;
@@ -26,26 +27,33 @@ class AleraMenuItem extends StatelessWidget {
   final VoidCallback? onHover;
   final Widget? leading;
   final String? subtitle;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final labelStyle = theme.textTheme.bodySmall?.copyWith(
-      color: selected ? AleraTokens.foreground : AleraTokens.foregroundMuted,
+      color: !enabled
+          ? AleraTokens.foregroundFaint
+          : selected
+          ? AleraTokens.foreground
+          : AleraTokens.foregroundMuted,
       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
     );
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     return MouseRegion(
       onEnter: onHover == null ? null : (_) => onHover!(),
       child: Material(
-        color: active
+        color: active && enabled
             ? AleraTokens.surfaceElevated
             : selected
             ? AleraTokens.accentSubtle
             : Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          mouseCursor: SystemMouseCursors.click,
+          onTap: enabled ? onTap : null,
+          mouseCursor: enabled
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space8,

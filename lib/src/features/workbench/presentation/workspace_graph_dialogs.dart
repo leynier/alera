@@ -372,6 +372,8 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
             AleraDropdownField<String?>(
               value: _selectedParentId,
               labelText: 'Parent Workspace',
+              filterable: true,
+              filterHintText: 'Search Workspaces',
               entries: <AleraDropdownFieldEntry<String?>>[
                 const AleraDropdownFieldEntry<String?>(
                   value: null,

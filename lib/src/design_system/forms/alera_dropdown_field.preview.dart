@@ -62,4 +62,29 @@ Widget aleraDropdownFieldDisabledPreview() => const SizedBox(
   ),
 );
 
+@AleraPreview(name: 'Filterable', group: 'Dropdown field', size: Size(280, 90))
+Widget aleraDropdownFieldFilterablePreview() => const SizedBox(
+  width: 220,
+  child: AleraDropdownField<String?>(
+    value: 'computer-use',
+    labelText: 'Parent Workspace',
+    filterable: true,
+    filterHintText: 'Search Workspaces',
+    entries: <AleraDropdownFieldEntry<String?>>[
+      AleraDropdownFieldEntry<String?>(value: null, label: 'No Parent'),
+      AleraDropdownFieldEntry<String?>(
+        value: 'computer-use',
+        label: 'alera / computer-use - computer-use',
+      ),
+      AleraDropdownFieldEntry<String?>(
+        value: 'main',
+        label: 'alera / main - main',
+      ),
+    ],
+    onChanged: _ignoreNullableValue,
+  ),
+);
+
+void _ignoreNullableValue(String? _) {}
+
 void _ignoreValue(String _) {}
