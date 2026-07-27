@@ -40,6 +40,7 @@ part 'terminal_runtime_startup_delivery.dart';
 part 'terminal_runtime_interactive_view.dart';
 part 'terminal_runtime_shell_launches.dart';
 part 'terminal_login_shell_launch.dart';
+part 'terminal_runtime_rendering.dart';
 part 'terminal_runtime_posix_io.dart';
 part 'terminal_runtime_buffer_accounting.dart';
 part 'terminal_runtime_restore_progress.dart';

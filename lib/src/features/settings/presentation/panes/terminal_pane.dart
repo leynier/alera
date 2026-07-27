@@ -13,12 +13,17 @@ class TerminalSettingsPane extends StatelessWidget {
     required this.settings,
     required this.fontSuggestions,
     required this.onChanged,
+    this.onReloadShellEnvironment,
     this.groupKeys = const <String, GlobalKey>{},
   });
 
   final TerminalSettings settings;
   final List<String> fontSuggestions;
   final ValueChanged<TerminalSettings> onChanged;
+
+  /// Re-probes the login shell so a tool installed mid-session resolves without
+  /// restarting the runtime. When null the row is omitted.
+  final Future<void> Function()? onReloadShellEnvironment;
   final Map<String, GlobalKey> groupKeys;
 
   @override
@@ -251,6 +256,14 @@ class TerminalSettingsPane extends StatelessWidget {
                 onChanged: (value) =>
                     onChanged(settings.copyWith(loginShell: value)),
               ),
+              if (onReloadShellEnvironment != null)
+                SettingsButtonRow(
+                  title: 'Reload Shell Environment',
+                  description:
+                      'Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.',
+                  buttonLabel: 'Reload',
+                  onPressed: onReloadShellEnvironment,
+                ),
               SettingsIntegerRow(
                 title: 'Scrollback Lines',
                 description: 'Maximum terminal history retained per session.',

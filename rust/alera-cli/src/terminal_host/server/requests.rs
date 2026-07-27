@@ -36,8 +36,9 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
-    RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 use crate::terminal_host::session::SessionDriver;
 
@@ -567,6 +568,7 @@ impl ServerActor {
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                         RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
                         RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
+                        RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
                     ],
                     "authenticated": true,
                     "persistent": self.config.persistent,
@@ -578,6 +580,12 @@ impl ServerActor {
             "resources.snapshot" => {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
+            }
+            "shellEnvironment.reload" => {
+                self.require_auth(client_id)?;
+                let path_entry_count =
+                    crate::login_shell_environment::reload_login_shell_path().await;
+                Ok(json!({ "pathEntryCount": path_entry_count }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;
