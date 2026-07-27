@@ -19,6 +19,7 @@ import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,6 +77,37 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
   Map<String, GlobalKey> _keysFor(String sectionId) {
     return _groupKeys.putIfAbsent(sectionId, () => <String, GlobalKey>{});
+  }
+
+  Future<void> _reloadShellEnvironment() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await ref
+          .read(runtimeHostClientProvider)
+          .runtimeRequest('shellEnvironment.reload');
+      final count = result is Map && result['pathEntryCount'] is num
+          ? (result['pathEntryCount'] as num).toInt()
+          : 0;
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            count > 0
+                ? 'Shell Environment Reloaded ($count PATH Entries)'
+                : 'Shell Environment Reloaded',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could Not Reload Shell Environment')),
+      );
+    }
   }
 
   GlobalKey _groupKey(String sectionId, String groupId) {
@@ -220,6 +252,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           fontSuggestions: _fontSuggestions,
           groupKeys: _paneKeys('terminal', terminalGroups),
           onChanged: (terminal) => controller.updateTerminal(terminal),
+          onReloadShellEnvironment: _reloadShellEnvironment,
         ),
       ),
       SettingsSectionData(

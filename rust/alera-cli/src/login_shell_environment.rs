@@ -2,39 +2,61 @@ use std::env;
 
 use alera_core::child_process::windowless_async_command;
 use tokio::process::Command;
-use tokio::sync::OnceCell;
+use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
 
 const SHELL_PATH_HYDRATION_DELIMITER: &str = "__ALERA_SHELL_PATH__";
 const SHELL_PATH_HYDRATION_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Only a successful hydration is cached, so a transient failure (a slow profile
-/// that overruns the timeout, a shell that fails to launch) is retried on the
-/// next call instead of poisoning the process for its whole lifetime.
-static LOGIN_SHELL_PATH: OnceCell<Vec<String>> = OnceCell::const_new();
+/// Resolved login-shell PATH, held behind a lock so a mid-session reload can
+/// replace it. Only a successful hydration is ever stored, so a transient
+/// failure (a slow profile that overruns the timeout, a shell that fails to
+/// launch) is retried on the next call and never poisons a previously good
+/// value.
+static LOGIN_SHELL_PATH: RwLock<Option<Vec<String>>> = RwLock::const_new(None);
 
-/// PATH entries as seen by the user's login shell, resolved once per process.
+/// PATH entries as seen by the user's login shell, resolved once and cached.
 ///
 /// GUI launches (macOS `launchd`, desktop `.desktop` entries) start the app with
 /// a minimal PATH that omits Homebrew and other user-installed prefixes, so any
 /// tool the host spawns by bare name would otherwise be unresolvable.
-pub(crate) async fn login_shell_path_segments() -> Option<&'static Vec<String>> {
+pub(crate) async fn login_shell_path_segments() -> Option<Vec<String>> {
+    resolve_login_shell_path(false).await
+}
+
+/// Re-probe the user's login shell, replacing the cache, and report how many
+/// entries the refreshed PATH has. Lets a tool installed mid-session resolve
+/// without restarting the host. Best-effort: a failed probe leaves the previous
+/// value in place and reports that value's length.
+pub(crate) async fn reload_login_shell_path() -> usize {
+    match resolve_login_shell_path(true).await {
+        Some(segments) => segments.len(),
+        None => LOGIN_SHELL_PATH.read().await.as_ref().map_or(0, Vec::len),
+    }
+}
+
+async fn resolve_login_shell_path(force: bool) -> Option<Vec<String>> {
     if cfg!(windows) {
         return None;
     }
-    LOGIN_SHELL_PATH
-        .get_or_try_init(|| async {
-            let shell = pick_user_shell().ok_or(())?;
-            hydrate_shell_path(&shell).await.ok_or(())
-        })
-        .await
-        .ok()
+    if !force {
+        if let Some(cached) = LOGIN_SHELL_PATH.read().await.as_ref() {
+            return Some(cached.clone());
+        }
+    }
+    // Hydration is intentionally not done under the write lock: it can take
+    // seconds, and readers must not block on it. A cold concurrent caller may
+    // probe twice, which is harmless.
+    let shell = pick_user_shell()?;
+    let segments = hydrate_shell_path(&shell).await?;
+    *LOGIN_SHELL_PATH.write().await = Some(segments.clone());
+    Some(segments)
 }
 
 /// Login-shell PATH merged ahead of `existing`, or `None` when nothing changes.
 pub(crate) async fn login_shell_merged_path(existing: Option<&str>) -> Option<String> {
     let segments = login_shell_path_segments().await?;
-    merged_path_value(existing, segments)
+    merged_path_value(existing, &segments)
 }
 
 /// Give `command` the login-shell PATH so tools installed under a user prefix
@@ -52,7 +74,7 @@ pub(crate) async fn setup_command_environment() -> Vec<(String, String)> {
         return environment;
     }
     if let Some(segments) = login_shell_path_segments().await {
-        merge_path_segments(&mut environment, segments);
+        merge_path_segments(&mut environment, &segments);
     }
     environment
 }

@@ -73,6 +73,11 @@ pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 // clients feature-check this instead of the protocol version.
 pub const RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY: &str = "resourceMonitorV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
+// Advertised once the host answers `shellEnvironment.reload`: re-probing the
+// user's login shell so a tool installed mid-session resolves without a host
+// restart. Additive, so clients feature-check this instead of the protocol
+// version; a host that lacks it is still fully usable.
+pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnvironmentReloadV1";
 // Advertised once the host answers `computer.*`: reading and driving local
 // desktop UI through the platform accessibility layer. Additive, so clients
 // feature-check this instead of comparing protocol versions; a host that lacks

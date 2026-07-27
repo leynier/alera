@@ -212,6 +212,68 @@ class SettingsIntegerRow extends StatelessWidget {
   }
 }
 
+/// A settings row whose control is an action button. The button shows a spinner
+/// and disables itself while [onPressed] is running, so callers only supply the
+/// async action and the row owns the in-flight state.
+class SettingsButtonRow extends StatefulWidget {
+  const SettingsButtonRow({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.buttonLabel,
+    this.onPressed,
+  });
+
+  final String title;
+  final String description;
+  final String buttonLabel;
+  final Future<void> Function()? onPressed;
+
+  @override
+  State<SettingsButtonRow> createState() => _SettingsButtonRowState();
+}
+
+class _SettingsButtonRowState extends State<SettingsButtonRow> {
+  bool _busy = false;
+
+  Future<void> _handlePressed() async {
+    final action = widget.onPressed;
+    if (action == null || _busy) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onPressed != null && !_busy;
+    return AleraSettingRow(
+      title: widget.title,
+      description: widget.description,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: OutlinedButton(
+          onPressed: enabled ? _handlePressed : null,
+          child: _busy
+              ? const SizedBox(
+                  height: AleraTokens.space16,
+                  width: AleraTokens.space16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(widget.buttonLabel),
+        ),
+      ),
+    );
+  }
+}
+
 class SettingsSwitchRow extends StatelessWidget {
   const SettingsSwitchRow({
     super.key,
