@@ -972,11 +972,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                       label: _parentLabel(candidate),
                                     ),
                                 ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedParentWorkspaceId = value;
-                                  });
-                                },
+                                onChanged: (value) => setState(
+                                  () => _selectedParentWorkspaceId = value,
+                                ),
                               ),
                               const SizedBox(height: AleraTokens.space16),
                               Text(
