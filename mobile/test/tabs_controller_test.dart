@@ -249,6 +249,37 @@ void main() {
     expect(client.calls, contains('detach session-tab-1'));
   });
 
+  test('Session recovery reconnects before an explicit restart', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final container = _container(client);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+    final notifier = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+    );
+
+    await notifier.reconnect();
+    expect(client.calls.where((call) => call == 'attach tab-1'), hasLength(2));
+    expect(client.calls, isNot(contains('restart tab-1')));
+
+    await notifier.restartTerminal();
+    expect(client.calls, contains('restart tab-1'));
+    expect(
+      container
+          .read(terminalSessionControllerProvider('host-1', 'tab-1'))
+          .requireValue
+          .running,
+      isTrue,
+    );
+  });
+
   test(
     'Desktop reclaim flips the session into the reclaimed error state',
     () async {

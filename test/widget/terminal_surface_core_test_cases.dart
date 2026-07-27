@@ -106,7 +106,11 @@ void _registerTerminalSurfaceRuntimeTests() {
       factory.sessions.single.emitError('writer disconnected');
       await tester.pump();
 
-      expect(session.isRunning, isFalse);
+      expect(
+        session.isRunning,
+        isTrue,
+        reason: 'a transport error does not prove that the PTY exited',
+      );
       expect(session.errorMessage, contains('writer disconnected'));
       expect(
         terminalBufferTextForTesting(session),

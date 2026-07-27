@@ -73,6 +73,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final Set<Object> _visibilityLeases = <Object>{};
 
   bool _starting = false;
+  TerminalSessionOperation? _operation;
   bool _started = false;
   bool _running = false;
   String _title = '';
@@ -129,6 +130,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   bool get isStarting => _starting;
 
   @override
+  TerminalSessionOperation? get operation => _operation;
+
+  @override
+  bool get canRestart {
+    final session = _ptySession;
+    return session is RecoverableTerminalPtySession && session.supportsRestart;
+  }
+
+  @override
   String? get errorMessage => _errorMessage;
 
   _XtermTerminalSessionHandle sync({
@@ -168,47 +178,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  Future<void> ensureStarted() async {
-    if (_started || _starting) {
-      return;
-    }
-    final attempt = ++_startAttempt;
-    _starting = true;
-    _errorMessage = null;
-    notifyListeners();
-    try {
-      if (!_isSupportedNativeDesktopTerminalPlatform) {
-        throw UnsupportedError(
-          'Terminal sessions require a native desktop PTY path.',
-        );
-      }
-      final started = await _startPtySession();
-      if (!_disposed && attempt == _startAttempt && started) {
-        _started = true;
-      }
-    } catch (error) {
-      if (!_disposed && attempt == _startAttempt) {
-        _errorMessage = error.toString();
-      }
-    } finally {
-      if (!_disposed && attempt == _startAttempt) {
-        _starting = false;
-        notifyListeners();
-      }
-    }
-  }
+  Future<void> ensureStarted() => _ensureTerminalSessionStarted(this);
 
   @override
-  Future<void> restart() async {
-    _startAttempt += 1;
-    _errorMessage = null;
-    _started = false;
-    _starting = false;
-    _running = false;
-    notifyListeners();
-    await _stopPtySession(suppressExit: true);
-    await ensureStarted();
-  }
+  Future<void> reconnect() => _reconnectTerminalSession(this);
+
+  @override
+  Future<void> restart() => _restartTerminalSession(this);
+
+  void _notifySessionListeners() => notifyListeners();
 
   @override
   TerminalVisibilityLease acquireVisibility() {
@@ -575,11 +553,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     final message = 'Terminal host unavailable: $error';
-    if (_errorMessage == message && !_running) {
+    if (_errorMessage == message) {
       return;
     }
     _errorMessage = message;
-    _running = false;
     notifyListeners();
   }
 

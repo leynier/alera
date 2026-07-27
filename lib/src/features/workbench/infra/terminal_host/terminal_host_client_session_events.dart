@@ -45,6 +45,12 @@ mixin _TerminalHostClientSessionEvents {
     }
   }
 
+  void _emitConnectionError(Object error) {
+    for (final sessionId in _sessionEvents.keys.toList(growable: false)) {
+      _emitHostEvent(sessionId, TerminalHostErrorEvent(sessionId, error));
+    }
+  }
+
   void _closeSessionEvents() {
     _sessionEventsClosed = true;
     for (final controller in _sessionEvents.values) {

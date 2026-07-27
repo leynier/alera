@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
@@ -40,30 +41,88 @@ class TerminalTabSession {
 
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {
+  MobileTerminalClient? _client;
+  String? _sessionId;
+  StreamSubscription<MobileRuntimeEvent>? _driverSub;
+  bool _cleanupRegistered = false;
+  bool _recovering = false;
+  int _cols = defaultTerminalCols;
+  int _rows = defaultTerminalRows;
+
+  bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
+
   @override
   Future<TerminalTabSession> build(String hostId, String tabId) async {
-    final client = await ref.watch(terminalClientProvider(hostId).future);
+    // Keep the auto-disposed connection provider alive without rebuilding this
+    // controller on every reconnect. Recovery owns the loading phase so the UI
+    // can distinguish reconnecting from a first start.
+    ref.listen(terminalClientProvider(hostId), (_, next) {
+      if (next case AsyncError(:final error, :final stackTrace)) {
+        state = AsyncError(error, stackTrace);
+      }
+    });
+    final client = await ref.read(terminalClientProvider(hostId).future);
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
     final session = await client.attachTerminal(tabId);
-    final sessionId = session.attachment.sessionId;
+    _registerCleanup();
+    return _bindSession(client, session);
+  }
+
+  void _registerCleanup() {
+    if (_cleanupRegistered) {
+      return;
+    }
+    _cleanupRegistered = true;
     ref.onDispose(() {
-      unawaited(_detachQuietly(client, sessionId));
-    });
-    final driverSub = client.events.listen((event) {
-      if (event.name != 'terminalDriverChanged' ||
-          event.payload['sessionId'] != sessionId) {
-        return;
-      }
-      final driver = asJsonMap(event.payload['driver']);
-      if (driver['kind'] == 'desktop') {
-        state = AsyncError(
-          const DesktopReclaimedTerminal(),
-          StackTrace.current,
-        );
+      unawaited(_driverSub?.cancel());
+      final client = _client;
+      final sessionId = _sessionId;
+      if (client != null && sessionId != null) {
+        unawaited(_detachQuietly(client, sessionId));
       }
     });
-    ref.onDispose(driverSub.cancel);
+  }
+
+  TerminalTabSession _bindSession(
+    MobileTerminalClient client,
+    MobileTerminalSession session,
+  ) {
+    final previousClient = _client;
+    final previousSessionId = _sessionId;
+    final sessionId = session.attachment.sessionId;
+    unawaited(_driverSub?.cancel());
+    if (previousClient != null &&
+        previousSessionId != null &&
+        (!identical(previousClient, client) ||
+            previousSessionId != sessionId)) {
+      unawaited(_detachQuietly(previousClient, previousSessionId));
+    }
+    _client = client;
+    _sessionId = sessionId;
+    _driverSub = client.events.listen(
+      (event) {
+        if (event.name != 'terminalDriverChanged' ||
+            event.payload['sessionId'] != sessionId) {
+          return;
+        }
+        final driver = asJsonMap(event.payload['driver']);
+        if (driver['kind'] == 'desktop') {
+          state = AsyncError(
+            const DesktopReclaimedTerminal(),
+            StackTrace.current,
+          );
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        state = AsyncError(error, stackTrace);
+      },
+      onDone: () {
+        if (!_recovering && identical(_client, client)) {
+          state = AsyncError(const RuntimeConnectionLost(), StackTrace.current);
+        }
+      },
+    );
     return TerminalTabSession(
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
@@ -72,6 +131,54 @@ class TerminalSessionController extends _$TerminalSessionController {
         (event) => event.sessionId == sessionId,
       ),
     );
+  }
+
+  Future<void> reconnect() async {
+    _recovering = true;
+    state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
+    try {
+      ref.invalidate(hostConnectionControllerProvider(hostId));
+      ref.invalidate(terminalClientProvider(hostId));
+      final client = await ref.read(terminalClientProvider(hostId).future);
+      final session = await client.attachTerminal(
+        tabId,
+        cols: _cols,
+        rows: _rows,
+      );
+      state = AsyncData(_bindSession(client, session));
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+    } finally {
+      _recovering = false;
+    }
+  }
+
+  Future<void> restartTerminal() async {
+    final MobileTerminalClient client;
+    if (_client case final currentClient?) {
+      client = currentClient;
+    } else {
+      client = await ref.read(terminalClientProvider(hostId).future);
+    }
+    if (!client.supportsTerminalRestart) {
+      state = AsyncError(
+        UnsupportedError('The Host Does Not Support Terminal Restart.'),
+        StackTrace.current,
+      );
+      return;
+    }
+    state = const AsyncLoading<TerminalTabSession>(progress: 0.75);
+    try {
+      final session = await client.restartTerminal(
+        tabId,
+        sessionId: _sessionId,
+        cols: _cols,
+        rows: _rows,
+      );
+      state = AsyncData(_bindSession(client, session));
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+    }
   }
 
   /// Raw keystrokes: the accessory bar and direct mode. These must never be
@@ -105,6 +212,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     if (cols <= 0 || rows <= 0) {
       return;
     }
+    _cols = cols;
+    _rows = rows;
     final session = await future;
     final client = await ref.read(terminalClientProvider(hostId).future);
     await client.resizeTerminal(session.sessionId, cols, rows);

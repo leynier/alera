@@ -28,7 +28,7 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   }
 }
 
-final class TerminalHostPtySession implements TerminalPtySession {
+final class TerminalHostPtySession implements RecoverableTerminalPtySession {
   factory TerminalHostPtySession({
     required TerminalHostClient client,
     required String sessionId,
@@ -71,6 +71,9 @@ final class TerminalHostPtySession implements TerminalPtySession {
 
   @override
   bool get startedNewProcess => _startedNewProcess;
+
+  @override
+  bool get supportsRestart => _client.supportsTerminalRestart;
 
   @override
   Future<void> start({
@@ -259,7 +262,44 @@ final class TerminalHostPtySession implements TerminalPtySession {
       // bytes on the output lane, ahead of whatever comes next.
       return;
     }
-    _events.add(TerminalPtySnapshotEvent(resume.snapshot));
+    _events.add(
+      TerminalPtySnapshotEvent(
+        resume.snapshot,
+        resetInteractionModes: resume.resetInteractionModes,
+      ),
+    );
+  }
+
+  @override
+  Future<void> reconnect() async {
+    await _reattach();
+  }
+
+  @override
+  Future<void> restartProcess() async {
+    if (_disposed) {
+      throw StateError('PTY session is disposed.');
+    }
+    final launch = _launch;
+    final workingDirectory = _workingDirectory;
+    final cols = _cols;
+    final rows = _rows;
+    if (launch == null ||
+        workingDirectory == null ||
+        cols == null ||
+        rows == null) {
+      throw StateError('PTY session has not been started.');
+    }
+    final attachment = await _client.restart(
+      sessionId: _sessionId,
+      workspaceId: _workspaceId,
+      tabId: _tabId,
+      workingDirectory: workingDirectory,
+      launch: launch,
+      cols: cols,
+      rows: rows,
+    );
+    await _applyAttachment(attachment);
   }
 
   Future<TerminalHostAttachment> _reattach() {

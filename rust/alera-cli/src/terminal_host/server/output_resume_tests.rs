@@ -86,6 +86,7 @@ async fn resume_falls_back_to_a_snapshot_once_the_ring_dropped_the_gap() {
     let payload = actor.resume_output_for_client("s1", 2);
 
     assert_eq!(payload["delta"], false);
+    assert_eq!(payload["resetInteractionModes"], true);
     assert_eq!(
         decode_bytes(payload.get("snapshotBase64")).unwrap(),
         b"efgh"

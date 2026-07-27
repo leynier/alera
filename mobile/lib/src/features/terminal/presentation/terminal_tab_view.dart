@@ -46,6 +46,7 @@ class TerminalTabView extends ConsumerWidget {
               inputMode: inputMode,
               onInput: (data) => notifier.write(utf8.encode(data)),
               onViewportResize: notifier.resize,
+              onReconnect: notifier.reconnect,
             ),
           ),
           if (inputMode == TerminalInputMode.direct) const _DirectModeBanner(),
@@ -63,12 +64,49 @@ class TerminalTabView extends ConsumerWidget {
       ),
       AsyncError(:final error) => _SessionError(
         error: error,
-        onRetry: () {
-          ref.invalidate(terminalSessionControllerProvider(hostId, tabId));
+        onReconnect: notifier.reconnect,
+        onRestart: notifier.supportsRestart
+            ? () => _confirmRestart(context, notifier)
+            : null,
+      ),
+      AsyncLoading(:final progress) => _SessionLoading(
+        operation: switch (progress) {
+          0.25 => _TerminalLoadingOperation.reconnecting,
+          0.75 => _TerminalLoadingOperation.restarting,
+          _ => _TerminalLoadingOperation.starting,
         },
       ),
-      _ => const Center(child: CircularProgressIndicator()),
     };
+  }
+
+  Future<void> _confirmRestart(
+    BuildContext context,
+    TerminalSessionController notifier,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Restart Terminal?'),
+          content: const Text(
+            'This Will Stop The Current Process Tree And Start A New Shell. Terminal History Will Be Preserved.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Restart Terminal'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      await notifier.restartTerminal();
+    }
   }
 }
 
@@ -79,12 +117,14 @@ class _TerminalSurface extends StatefulWidget {
     required this.inputMode,
     required this.onInput,
     required this.onViewportResize,
+    required this.onReconnect,
   });
 
   final TerminalTabSession session;
   final TerminalInputMode inputMode;
   final ValueChanged<String> onInput;
   final void Function(int cols, int rows) onViewportResize;
+  final Future<void> Function() onReconnect;
 
   @override
   State<_TerminalSurface> createState() => _TerminalSurfaceState();
@@ -183,7 +223,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     final direct = widget.inputMode == TerminalInputMode.direct;
     return Column(
       children: <Widget>[
-        if (_outputEnded) const _OutputEndedBanner(),
+        if (_outputEnded) _OutputEndedBanner(onReconnect: widget.onReconnect),
         Expanded(
           child: ColoredBox(
             color: AleraTokens.background,
@@ -208,7 +248,9 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
 }
 
 class _OutputEndedBanner extends StatelessWidget {
-  const _OutputEndedBanner();
+  const _OutputEndedBanner({required this.onReconnect});
+
+  final Future<void> Function() onReconnect;
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +268,11 @@ class _OutputEndedBanner extends StatelessWidget {
             Text(
               'Terminal Output Stopped',
               style: Theme.of(context).textTheme.labelSmall,
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => unawaited(onReconnect()),
+              child: const Text('Reconnect'),
             ),
           ],
         ),
@@ -261,11 +308,91 @@ class _DirectModeBanner extends StatelessWidget {
   }
 }
 
+enum _TerminalLoadingOperation { starting, reconnecting, restarting }
+
+class _SessionLoading extends StatefulWidget {
+  const _SessionLoading({required this.operation});
+
+  final _TerminalLoadingOperation operation;
+
+  @override
+  State<_SessionLoading> createState() => _SessionLoadingState();
+}
+
+class _SessionLoadingState extends State<_SessionLoading> {
+  Timer? _timer;
+  late DateTime _startedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _startClock();
+  }
+
+  @override
+  void didUpdateWidget(_SessionLoading oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.operation != widget.operation) {
+      _startClock();
+    }
+  }
+
+  void _startClock() {
+    _timer?.cancel();
+    _startedAt = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().difference(_startedAt).inSeconds;
+    final label = switch (widget.operation) {
+      _TerminalLoadingOperation.starting => 'Starting Terminal',
+      _TerminalLoadingOperation.reconnecting => 'Reconnecting Terminal',
+      _TerminalLoadingOperation.restarting => 'Restarting Terminal',
+    };
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const CircularProgressIndicator(),
+          const SizedBox(height: AleraTokens.spaceMd),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          if (elapsed >= 3) ...<Widget>[
+            const SizedBox(height: AleraTokens.spaceSm),
+            Text(
+              'Elapsed: ${elapsed}s',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SessionError extends StatelessWidget {
-  const _SessionError({required this.error, required this.onRetry});
+  const _SessionError({
+    required this.error,
+    required this.onReconnect,
+    this.onRestart,
+  });
 
   final Object error;
-  final VoidCallback onRetry;
+  final Future<void> Function() onReconnect;
+  final Future<void> Function()? onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -292,10 +419,23 @@ class _SessionError extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+            Wrap(
+              spacing: AleraTokens.spaceSm,
+              runSpacing: AleraTokens.spaceSm,
+              alignment: WrapAlignment.center,
+              children: <Widget>[
+                FilledButton.icon(
+                  onPressed: () => unawaited(onReconnect()),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reconnect'),
+                ),
+                if (onRestart case final restart?)
+                  OutlinedButton.icon(
+                    onPressed: () => unawaited(restart()),
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Restart Terminal'),
+                  ),
+              ],
             ),
           ],
         ),

@@ -31,6 +31,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_session_recovery.dart';
 part 'terminal_runtime_clipboard.dart';
 part 'terminal_runtime_output_batching.dart';
 part 'terminal_runtime_output_pipeline.dart';
@@ -80,9 +81,16 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   bool get isStarting;
 
+  TerminalSessionOperation? get operation =>
+      isStarting ? TerminalSessionOperation.starting : null;
+
+  bool get canRestart => false;
+
   String? get errorMessage;
 
   Future<void> ensureStarted();
+
+  Future<void> reconnect() => restart();
 
   Future<void> restart();
 
@@ -98,6 +106,8 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// keypresses are routed to its PTY instead of any sidebar control.
   void requestFocus();
 }
+
+enum TerminalSessionOperation { starting, reconnecting, restarting }
 
 abstract interface class TerminalVisibilityLease {
   void dispose();
@@ -216,6 +226,15 @@ abstract interface class TerminalPtySession {
   void dispose();
 
   void terminate();
+}
+
+abstract interface class RecoverableTerminalPtySession
+    implements TerminalPtySession {
+  bool get supportsRestart;
+
+  Future<void> reconnect();
+
+  Future<void> restartProcess();
 }
 
 sealed class TerminalPtySessionEvent {

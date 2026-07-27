@@ -112,7 +112,7 @@ final class _TerminalHostTestServer {
       });
       return;
     }
-    if (type == 'createOrAttach') {
+    if (type == 'createOrAttach' || type == 'terminal.restart') {
       _respond(socket, <String, Object?>{
         'id': id,
         'ok': true,

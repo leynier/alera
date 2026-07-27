@@ -46,7 +46,7 @@ void main() {
     expect(_terminalOf(tester), isNot(same(before)));
   });
 
-  testWidgets('A dead output stream is called out', (tester) async {
+  testWidgets('A dead connection offers explicit recovery', (tester) async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
     await _pumpTab(tester, client);
@@ -55,7 +55,32 @@ void main() {
     await client.dispose();
     await tester.pumpAndSettle();
 
-    expect(find.text('Terminal Output Stopped'), findsOneWidget);
+    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(find.text('Reconnect'), findsOneWidget);
+    expect(find.text('Restart Terminal'), findsOneWidget);
+  });
+
+  testWidgets('Restart requires confirmation before replacing the process', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    await _pumpTab(tester, client);
+    await client.dispose();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Restart Terminal'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Restart Terminal?'), findsOneWidget);
+    expect(client.calls, isNot(contains('restart tab-1')));
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Restart Terminal').last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(client.calls, contains('restart tab-1'));
   });
 }
 

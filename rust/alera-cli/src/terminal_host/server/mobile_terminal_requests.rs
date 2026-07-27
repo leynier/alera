@@ -16,6 +16,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 use alera_core::runtime::{Workspace, WorkspaceTabRecord};
 use chrono::Utc;
@@ -47,6 +48,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
@@ -202,6 +204,53 @@ impl ServerActor {
             "attachment": attachment,
         }))
     }
+
+    pub(super) async fn restart_mobile_terminal(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let tab = self
+            .runtime_store
+            .find_workspace_tab(&tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state(format!("Workspace tab not found: {tab_id}")))?;
+        if tab.kind != "terminal" {
+            return Err(HostError::state(format!(
+                "Workspace tab is not a terminal: {}",
+                tab.id
+            )));
+        }
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| {
+                HostError::state(format!("Workspace not found: {}", tab.workspace_id))
+            })?;
+        let session_id = optional_string_key(payload, "sessionId")
+            .or_else(|| terminal_session_id_from_tab(&tab))
+            .unwrap_or_else(|| tab.id.clone());
+        let attachment_payload = mobile_terminal_attachment_payload(
+            &workspace,
+            &tab.id,
+            &session_id,
+            payload,
+            self.config.login_shell,
+        )
+        .await;
+        let mut attachment = self
+            .restart_terminal(client_id, &attachment_payload)
+            .await?;
+        self.claim_mobile_terminal_viewport(client_id, &session_id, payload, &mut attachment);
+        Ok(json!({
+            "tab": tab,
+            "attachment": attachment,
+        }))
+    }
 }
 
 async fn mobile_terminal_attachment_payload(
@@ -280,6 +329,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspaceCascade.preview"
             | "terminal.create"
             | "terminal.attach"
+            | "terminal.restart"
             | "terminal.driver.list"
             | "write"
             | "resize"

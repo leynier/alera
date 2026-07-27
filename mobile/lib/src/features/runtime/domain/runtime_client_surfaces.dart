@@ -27,6 +27,7 @@ const String mobileBinaryFramesCapability = 'binaryFrames';
 /// as a literal newline instead of a submit. Unprefixed because the host
 /// capability is not mobile-scoped, same as [mobileBinaryFramesCapability].
 const String terminalDeferredInputCapability = 'terminalDeferredInputV1';
+const String terminalRestartCapability = 'terminalRestartV1';
 const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
@@ -63,6 +64,7 @@ abstract interface class MobileTerminalClient {
   Stream<MobileRuntimeEvent> get events;
   Stream<MobileTerminalOutputEvent> get terminalOutput;
   bool get supportsTerminalTitles;
+  bool get supportsTerminalRestart;
 
   /// Whether [writeTerminal] may use `bracketedPaste` and `deferredEnter`.
   bool get supportsDeferredTerminalInput;
@@ -75,6 +77,12 @@ abstract interface class MobileTerminalClient {
   });
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
+    int cols,
+    int rows,
+  });
+  Future<MobileTerminalSession> restartTerminal(
+    String tabId, {
+    String? sessionId,
     int cols,
     int rows,
   });

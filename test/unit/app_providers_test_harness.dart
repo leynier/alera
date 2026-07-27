@@ -78,6 +78,9 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
       const Stream<TerminalHostEvent>.empty();
 
   @override
+  bool get supportsTerminalRestart => false;
+
+  @override
   Stream<TerminalHostEvent> eventsForSession(String sessionId) =>
       const Stream<TerminalHostEvent>.empty();
 
@@ -107,6 +110,19 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
       snapshot: attachment.snapshot,
       exitCode: attachment.exitCode,
     );
+  }
+
+  @override
+  Future<TerminalHostAttachment> restart({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) {
+    throw UnsupportedError('Terminal restart is not supported by this fake.');
   }
 
   @override

@@ -59,6 +59,21 @@ mixin MobileRuntimeTerminalRequests {
     return MobileTerminalSession.fromJson(payload);
   }
 
+  Future<MobileTerminalSession> restartTerminal(
+    String tabId, {
+    String? sessionId,
+    int cols = defaultTerminalCols,
+    int rows = defaultTerminalRows,
+  }) async {
+    final payload = await requestMap('terminal.restart', <String, Object?>{
+      'tabId': tabId,
+      'sessionId': ?sessionId,
+      'cols': cols,
+      'rows': rows,
+    });
+    return MobileTerminalSession.fromJson(payload);
+  }
+
   Future<void> writeTerminal(
     String sessionId,
     List<int> bytes, {

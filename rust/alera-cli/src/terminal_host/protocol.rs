@@ -57,6 +57,9 @@ pub const RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY: &str = "terminalDefer
 // lock): `terminalDriverChanged` events, `terminal.reclaim`, and
 // `terminal.driver.list`.
 pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresence";
+// Advertised once callers can explicitly replace a terminal process while
+// preserving its handle and scrollback. Older hosts remain attachable.
+pub const RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY: &str = "terminalRestartV1";
 /// The client may ask, in its `hello`, to switch this connection to
 /// length-prefixed binary frames. Negotiated per client, so an older app and
 /// the `alera` CLI keep getting newline-delimited JSON from the same host.

@@ -145,6 +145,9 @@ class MobileRuntimeClient
   @override
   bool get supportsDeferredTerminalInput =>
       _runtimeCapabilities.contains(terminalDeferredInputCapability);
+  @override
+  bool get supportsTerminalRestart =>
+      _runtimeCapabilities.contains(terminalRestartCapability);
   bool get supportsPortableSettings =>
       _runtimeCapabilities.contains(mobilePortableSettingsCapability);
   bool get supportsAgentQuotas =>
