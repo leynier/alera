@@ -11,7 +11,7 @@ Alera treats performance as a product contract. Optimization work starts with a 
 - The explorer computes one Git status snapshot per workspace refresh and reuses it for expanded directories.
 - Obsolete workspace searches are cancelled in Rust as soon as the query generation changes.
 - Bundled Inter and JetBrains Mono assets remove runtime font-network and font-loader work.
-- Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from the host's per-client delivery cursor when a client falls behind, so a tab switch or a backpressure resync costs the bytes that were missed rather than a replay of the scrollback. A cold attach still replays, capped to what the emulator will keep. RPC responses and runtime events use a separate control lane so terminal backpressure cannot disconnect the workbench.
+- Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from the host's per-client delivery cursor when a client falls behind, so a tab switch or a backpressure resync costs the bytes that were missed rather than a replay of the scrollback. A cold attach still replays, capped to what the emulator will keep. Restore and control segments are protected from the live-output backlog cap, and restore progress advances only for snapshot characters that reached the emulator. Per-client terminal sequence watermarks keep output included in an attachment snapshot before its control response and later output after it. RPC responses and runtime events use a separate control lane so terminal backpressure cannot disconnect the workbench.
 - Terminal output flushes are paced by a cadence floor (33 ms), so a process writing without pause cannot drive the frame loop at full vsync. The floor is measured from the moment a frame is requested, not from the flush that follows, or the vsync wait would be charged to the next interval too and pace the terminal at 20 Hz instead of 30. A terminal that has been quiet still flushes on the very next frame, so echo latency while typing is unchanged.
 - The mobile gateway gets a deeper terminal lane than the desktop socket, because a WAN send can stall for hundreds of milliseconds and the queue depth the local socket was tuned for turns one stall into a permanent pause. Depth only buys time: the mobile client answers the host's backpressure resync the same way the desktop does, which is what actually clears the pause.
 
@@ -69,6 +69,18 @@ flutter test integration_test/terminal_flush_cadence_benchmark.dart -d linux
 ```
 
 The first drives xterm directly and pumps its own frames, reporting what a frame costs (`BENCH_PUMP_MS` sets the cadence). The second feeds output through `XtermTerminalRuntime` and lets the runtime schedule the flushes, reporting flushes per second and process CPU: 60.0 flushes/s and ~100% of a core before the cadence floor, 29.1 flushes/s and ~80% after. Neither is a pass/fail test; run one before and after a rendering change and compare.
+
+## Terminal Restore Harness
+
+Run:
+
+```bash
+flutter test integration_test/terminal_restore_benchmark.dart -d linux
+```
+
+The benchmark mounts and starts `TerminalSurface` before timing, sends the default 2.56 MB snapshot with 420,000 ANSI escape characters, immediately follows it with a 1 MiB live-output backlog, and waits through the framework post-frame callback after the restore overlay is removed. It discards one warm-up and reports five measured replays, including accepted, first-chunk and framework post-frame latency, flushes, CPU, build and raster timings. The boundary starts when the snapshot event reaches Flutter, so it isolates the replay bottleneck and intentionally excludes tab selection, host attachment, storage and transport.
+
+On the Linux development machine with Flutter 3.44.8, the protected restore queue completed all five samples within the three-second target: 1,373.74 ms median, 1,403.85 ms p95 and maximum, 24.91 ms MAD, and exactly 40 flushes per restore. The three-second target is scoped to the default 10,000-line, 2.56 MB replay budget. Larger user-configured histories preserve their additional content and scale with payload size. This is a comparison benchmark rather than a timing assertion because desktop hardware and display composition materially affect the result.
 
 ## Measurement Rules
 

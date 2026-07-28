@@ -55,8 +55,7 @@ impl ServerActor {
         if let Some(client) = self.clients.get(&client_id) {
             if client
                 .handle
-                .control_out
-                .send(ClientFrame::UpgradeToBinary)
+                .send_control(ClientFrame::UpgradeToBinary)
                 .is_err()
             {
                 self.disconnect_client_soon(client_id);
@@ -66,7 +65,7 @@ impl ServerActor {
 
     pub(super) fn client_write(&self, client_id: u64, message: Value) {
         if let Some(client) = self.clients.get(&client_id) {
-            if client.handle.control_out.send(message.into()).is_err() {
+            if client.handle.send_control(message.into()).is_err() {
                 self.disconnect_client_soon(client_id);
             }
         }
@@ -75,12 +74,7 @@ impl ServerActor {
     pub(super) fn broadcast(&self, client_ids: &[u64], message: Value) {
         for id in client_ids {
             if let Some(client) = self.clients.get(id) {
-                if client
-                    .handle
-                    .control_out
-                    .send(message.clone().into())
-                    .is_err()
-                {
+                if client.handle.send_control(message.clone().into()).is_err() {
                     self.disconnect_client_soon(*id);
                 }
             }
@@ -89,13 +83,7 @@ impl ServerActor {
 
     pub(super) fn broadcast_authenticated(&self, message: Value) {
         for (client_id, client) in &self.clients {
-            if client.authenticated
-                && client
-                    .handle
-                    .control_out
-                    .send(message.clone().into())
-                    .is_err()
-            {
+            if client.authenticated && client.handle.send_control(message.clone().into()).is_err() {
                 self.disconnect_client_soon(*client_id);
             }
         }
@@ -105,11 +93,7 @@ impl ServerActor {
         for (client_id, client) in &self.clients {
             if client.authenticated
                 && client.kind == ClientKind::Mobile
-                && client
-                    .handle
-                    .control_out
-                    .send(message.clone().into())
-                    .is_err()
+                && client.handle.send_control(message.clone().into()).is_err()
             {
                 self.disconnect_client_soon(*client_id);
             }
@@ -156,10 +140,7 @@ mod tests {
             clients: HashMap::from([(
                 1,
                 ClientState {
-                    handle: ClientHandle {
-                        control_out,
-                        terminal_out,
-                    },
+                    handle: ClientHandle::new(control_out, terminal_out),
                     authenticated: true,
                     binary_frames: false,
                     kind: ClientKind::Local,

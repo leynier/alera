@@ -539,8 +539,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void _writeToTerminal(String data) => _writeSessionTerminal(this, data);
 
-  void _queueTerminalOutput(String data, {bool bounded = true}) =>
-      _queueSessionTerminalOutput(this, data, bounded: bounded);
+  void _queueTerminalOutput(
+    String data, {
+    _TerminalOutputSource source = _TerminalOutputSource.live,
+  }) => _queueSessionTerminalOutput(this, data, source: source);
 
   void _scheduleTerminalOutputFlush() =>
       _scheduleSessionTerminalOutputFlush(this);

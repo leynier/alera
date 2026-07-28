@@ -76,6 +76,14 @@ bool terminalOutputFlushDeferredForTesting(TerminalSessionHandle session) {
 }
 
 @visibleForTesting
+void forceDeferredTerminalOutputFlushForTesting(TerminalSessionHandle session) {
+  final output = (session as _XtermTerminalSessionHandle)._output;
+  output.flushTimer?.cancel();
+  output.flushScheduled = true;
+  output.flushTimer = Timer(const Duration(hours: 1), () {});
+}
+
+@visibleForTesting
 int terminalOutputFlushCountForTesting(TerminalSessionHandle session) {
   return (session as _XtermTerminalSessionHandle)._output.flushCount;
 }
@@ -94,6 +102,16 @@ int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
   return (session as _XtermTerminalSessionHandle)._output.length;
 }
 
+@visibleForTesting
+int pendingLiveTerminalOutputCharsForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.liveLength;
+}
+
+@visibleForTesting
+int pendingRestoreTerminalOutputCharsForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._output.restoreLength;
+}
+
 /// The head chunk itself, so a test can assert it is consumed in place rather
 /// than re-queued as a fresh copy on every drain.
 @visibleForTesting
@@ -101,12 +119,13 @@ String? pendingTerminalOutputHeadChunkForTesting(
   TerminalSessionHandle session,
 ) {
   final pending = (session as _XtermTerminalSessionHandle)._output.pending;
-  return pending.isEmpty ? null : pending.first;
+  return pending.isEmpty ? null : pending.first.text;
 }
 
 @visibleForTesting
 int pendingTerminalOutputHeadForTesting(TerminalSessionHandle session) {
-  return (session as _XtermTerminalSessionHandle)._output.head;
+  final pending = (session as _XtermTerminalSessionHandle)._output.pending;
+  return pending.isEmpty ? 0 : pending.first.head;
 }
 
 @visibleForTesting
