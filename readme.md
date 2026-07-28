@@ -157,7 +157,7 @@ The script detects apt or dnf, verifies the repository signing key against a fin
 
 Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable [RPM Fusion](https://rpmfusion.org/) first, which is where `mpv-libs` comes from. openSUSE is not supported yet: the published RPM declares Fedora dependency names that openSUSE provides under different names.
 
-To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `01DAF16E430AF8B2607BA44D457D8143C91B4732`.
+To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
 ### macOS and Windows
 

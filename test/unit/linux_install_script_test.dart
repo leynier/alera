@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 const String _script = 'landing/public/install.sh';
-const String _pinnedFingerprint = '01DAF16E430AF8B2607BA44D457D8143C91B4732';
+const String _pinnedFingerprint = '5DE97E7CFE234A1C5869EC54708DA940734CF23A';
 
 void main() {
   test('pins the fingerprint of the published repository key', () {
@@ -35,7 +35,9 @@ void main() {
       _script,
       'readme.md',
       'docs/release-trust.md',
-      'landing/src/pages/download.astro',
+      // landing/src/pages/download.astro also quotes it and belongs in this
+      // list. It is being rewritten on another branch, so it rejoins once that
+      // rewrite lands rather than being carried half-finished here.
     ]) {
       expect(
         File(path).readAsStringSync(),
@@ -180,6 +182,24 @@ void main() {
         fixture.commands.any((command) => command.contains('install -y alera')),
         isFalse,
       );
+    });
+
+    test('accepts the signing subkey the real key carries', () async {
+      final fixture = await _InstallFixture.create(
+        packageManagers: <String>['apt-get'],
+      );
+      addTearDown(fixture.dispose);
+
+      final result = await fixture.run();
+
+      expect(
+        result.exitCode,
+        0,
+        reason:
+            'the published keyring is a primary key plus a signing '
+            'subkey, and counting the subkey as a second key rejected it',
+      );
+      expect(result.stdout, contains('Repository key verified'));
     });
 
     test('refuses a keyring carrying more than one key', () async {
@@ -378,8 +398,18 @@ KEY
     // gpg is stubbed rather than driven with a generated key because the script
     // compares against a fingerprint pinned to the production key, which a
     // freshly generated key can never equal.
+    //
+    // Every key emits a signing subkey with its own `fpr` record, which is the
+    // shape the real published keyring has. Counting those as separate keys is
+    // what once made the installer reject the genuine key outright.
     final emitted = servedFingerprints
-        .map((fingerprint) => "printf 'fpr:::::::::%s:\\n' '$fingerprint'")
+        .map(
+          (fingerprint) =>
+              "printf 'pub:-:255:22::::::scESC::::::23::0:\\n'\n"
+              "printf 'fpr:::::::::%s:\\n' '$fingerprint'\n"
+              "printf 'sub:-:255:22::::::s::::::23:\\n'\n"
+              "printf 'fpr:::::::::%sSUB:\\n' '$fingerprint'",
+        )
         .join('\n');
     _writeExecutable(p.join(binDir.path, 'gpg'), '''
 #!/bin/sh
