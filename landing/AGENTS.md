@@ -13,7 +13,8 @@ This document defines governance only. It does not change runtime APIs, schemas,
 - The site MUST remain an Astro static output project unless the user explicitly requests otherwise.
 - `astro.config.mjs` MUST keep `output: 'static'` and the canonical site URL `https://alera.build`.
 - Use the existing landing structure before adding new patterns:
-  - `src/pages/index.astro` for page composition.
+  - `src/pages/*.astro` for page composition: `index.astro` is the marketing home, `download.astro` is the install page, and the trust documents live at `privacy.astro`, `terms.astro`, and `account/delete.astro`.
+  - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.
   - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell.
   - `src/components/*.astro` for page sections and reusable UI.
   - `src/styles/global.css` for the Tailwind `@theme` tokens, global layers, CSS variables, and shared `@utility` definitions (Tailwind CSS v4 has no `tailwind.config.mjs`; the plugin is registered in `astro.config.mjs` via `@tailwindcss/vite`).
@@ -43,7 +44,10 @@ This document defines governance only. It does not change runtime APIs, schemas,
 ## Astro and Tailwind Rules
 
 - Prefer Astro components for static landing sections.
-- Keep page-level composition in `src/pages/index.astro`; keep section markup in focused components under `src/components/`.
+- Keep page-level composition in `src/pages/`; keep section markup in focused components under `src/components/`.
+- Pages MUST pass `canonicalPath` to `Layout.astro`, or they inherit the home page as their canonical URL.
+- Links to home-page sections MUST be written as `/#section`, never as a bare `#section`, so they resolve from subpages.
+- The SignPath attribution ("Free code signing provided by SignPath.io, certificate by SignPath Foundation") is required verbatim on the home page and the download page, and MUST stay one contiguous string rather than being split across markup.
 - Use Tailwind utility classes and existing shared utilities from `src/styles/global.css` before writing one-off CSS.
 - If a utility is reused across components, define it in `src/styles/global.css` rather than duplicating long class sequences or inline styles.
 - Keep metadata, social tags, fonts, favicon links, and analytics wiring centralized in `src/layouts/Layout.astro`.
