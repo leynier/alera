@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class UpdateSettingsSection extends ConsumerWidget {
@@ -14,6 +15,13 @@ class UpdateSettingsSection extends ConsumerWidget {
     final state = ref.watch(aleraUpdateControllerProvider);
     final controller = ref.read(aleraUpdateControllerProvider.notifier);
     final theme = Theme.of(context);
+    final upgradeCommand =
+        state.status == AleraUpdateStatus.manualDownloadRequired
+        ? linuxPackageUpgradeCommand(
+            update: state.latest,
+            channel: state.config.channel,
+          )
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -60,6 +68,10 @@ class UpdateSettingsSection extends ConsumerWidget {
                       : null,
                 ),
               ],
+              if (upgradeCommand != null) ...<Widget>[
+                const SizedBox(height: AleraTokens.space12),
+                _UpgradeCommand(command: upgradeCommand),
+              ],
               const SizedBox(height: AleraTokens.space16),
               Wrap(
                 alignment: WrapAlignment.end,
@@ -79,7 +91,11 @@ class UpdateSettingsSection extends ConsumerWidget {
                     FilledButton.icon(
                       onPressed: controller.openDownloadPage,
                       icon: const Icon(AleraIcons.external, size: 16),
-                      label: const Text('Download Manually'),
+                      label: Text(
+                        upgradeCommand == null
+                            ? 'Download Manually'
+                            : 'Installation Guide',
+                      ),
                     ),
                   if (state.status == AleraUpdateStatus.available)
                     FilledButton.icon(
@@ -100,6 +116,60 @@ class UpdateSettingsSection extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shows the package-manager command that performs the update, for the Linux
+/// packages Alera detects but never installs itself.
+class _UpgradeCommand extends StatefulWidget {
+  const _UpgradeCommand({required this.command});
+
+  final String command;
+
+  @override
+  State<_UpgradeCommand> createState() => _UpgradeCommandState();
+}
+
+class _UpgradeCommandState extends State<_UpgradeCommand> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.command));
+    if (mounted) {
+      setState(() => _copied = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AleraTokens.surface,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        border: Border.all(color: AleraTokens.borderSubtle),
+      ),
+      padding: const EdgeInsets.all(AleraTokens.space12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: SelectableText(
+              widget.command,
+              style: AleraTokens.monoStyle.copyWith(
+                color: AleraTokens.foreground,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          OutlinedButton.icon(
+            onPressed: _copy,
+            icon: const Icon(AleraIcons.copy, size: 16),
+            label: Text(_copied ? 'Command Copied' : 'Copy Command'),
+          ),
+        ],
+      ),
     );
   }
 }

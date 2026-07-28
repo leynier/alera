@@ -56,6 +56,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   static final Uri defaultReleasePageUrl = Uri.parse(
     'https://github.com/leynier/alera/releases',
   );
+  static final Uri installGuideUrl = Uri.parse('https://alera.build/#install');
 
   @MappableField(hook: _UriStringHook())
   final Uri archiveUrl;
@@ -101,9 +102,16 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   /// Release builds bake [releasePageUrl] to the *installed* version's GitHub
   /// tag page (`.../releases/tag/vX.Y.Z`). When a newer update is detected,
   /// open that update's tag page instead of the baked current-version URL.
+  ///
+  /// An update a package manager can install is the exception: sending someone
+  /// to download a loose `.deb` is the opposite of what the update copy tells
+  /// them to do, so those open the install guide instead.
   Uri downloadPageUrlFor(AleraUpdateInfo? update) {
     if (update == null) {
       return releasePageUrl;
+    }
+    if (linuxPackageUpgradeCommand(update: update, channel: channel) != null) {
+      return installGuideUrl;
     }
     return resolveAleraReleaseTagPageUrl(
       releasePageUrl: releasePageUrl,
@@ -150,6 +158,27 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
 @visibleForTesting
 Uri resolveUpdateConfigUriForTesting(Uri? value, Uri fallback) =>
     value ?? fallback;
+
+/// The command that upgrades an installed Alera package in place.
+///
+/// Returns null whenever a package manager cannot deliver [update]: other
+/// platforms, Linux tarballs, and release candidates, which are published as
+/// GitHub assets but never to the stable package repositories.
+String? linuxPackageUpgradeCommand({
+  required AleraUpdateInfo? update,
+  required AleraUpdateChannel channel,
+}) {
+  if (update == null ||
+      update.platform != 'linux' ||
+      channel != AleraUpdateChannel.stable) {
+    return null;
+  }
+  return switch (update.installerKind) {
+    'deb' => 'sudo apt-get update && sudo apt-get install --only-upgrade alera',
+    'rpm' => 'sudo dnf upgrade alera',
+    _ => null,
+  };
+}
 
 /// Builds a GitHub-style release tag URL for [version] under [releasePageUrl].
 ///

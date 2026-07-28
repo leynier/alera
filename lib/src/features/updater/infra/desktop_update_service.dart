@@ -249,7 +249,7 @@ String _platformLabel(String platform) {
 String _incompatibleArtifactMessage(String platform) {
   if (platform == 'linux') {
     return 'No compatible Linux package is available for this distribution. '
-        'Install Alera through apt, dnf, or a supported package repository.';
+        'See ${AleraUpdateConfig.installGuideUrl} for supported distributions.';
   }
   return 'No compatible ${_platformLabel(platform)} update artifact '
       'is available for this installation.';

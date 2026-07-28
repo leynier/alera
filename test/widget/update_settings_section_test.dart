@@ -3,11 +3,61 @@ import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const String _debUpgradeCommand =
+    'sudo apt-get update && sudo apt-get install --only-upgrade alera';
+
 void main() {
   group('UpdateSettingsSection', () {
+    testWidgets('offers the upgrade command for a Linux package', (
+      tester,
+    ) async {
+      final copied = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add(
+              (call.arguments as Map<Object?, Object?>)['text']! as String,
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final controller = _FakeUpdateController(
+        _state(
+          status: AleraUpdateStatus.manualDownloadRequired,
+          latest: _latest().copyWith(platform: 'linux', installerKind: 'deb'),
+          message: 'Update 1.2.3 is available through the package repository.',
+        ),
+      );
+      await _pumpSection(tester, controller);
+
+      expect(find.text(_debUpgradeCommand), findsOneWidget);
+      expect(find.text('Installation Guide'), findsOneWidget);
+      expect(
+        find.text('Download Manually'),
+        findsNothing,
+        reason: 'a loose .deb is what the package repository replaces',
+      );
+
+      await tester.tap(find.text('Copy Command'));
+      await tester.pump();
+
+      expect(copied, <String>[_debUpgradeCommand]);
+      expect(find.text('Command Copied'), findsOneWidget);
+    });
+
     testWidgets(
       'renders copy, status actions, and progress across update states',
       (tester) async {

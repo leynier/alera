@@ -177,7 +177,7 @@ void main() {
       expect(
         result.message,
         'No compatible Linux package is available for this distribution. '
-        'Install Alera through apt, dnf, or a supported package repository.',
+        'See https://alera.build/#install for supported distributions.',
       );
     });
 

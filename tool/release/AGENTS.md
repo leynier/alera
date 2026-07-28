@@ -32,3 +32,4 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 - Windows production auto-update requires Authenticode signing.
 - Linux stable production distribution requires `.deb` and `.rpm` package repositories to be signed. Release candidates must not publish to the stable Linux package repositories.
 - Signing secrets must never be required by local manifest-generation scripts.
+- The Linux repository signing key is published as `linux/alera-archive-keyring.asc` next to the repositories, and its fingerprint is pinned in `landing/public/install.sh`. Rotating the key MUST update that pin, the readme, `docs/release-trust.md`, and the landing install section in the same change; a cross-file test enforces that they agree.

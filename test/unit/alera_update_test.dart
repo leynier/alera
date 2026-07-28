@@ -100,6 +100,96 @@ void main() {
       },
     );
 
+    test('downloadPageUrlFor sends package updates to the install guide', () {
+      final stable = AleraUpdateConfig(
+        archiveUrl: Uri.parse('https://example.com/app-archive.json'),
+        releasePageUrl: Uri.parse('https://github.com/leynier/alera/releases'),
+        channel: AleraUpdateChannel.stable,
+        autoInstallEnabled: false,
+        signedRelease: false,
+      );
+      final releaseCandidate = stable.copyWith(channel: AleraUpdateChannel.rc);
+      final debUpdate = _update.copyWith(
+        platform: 'linux',
+        installerKind: 'deb',
+      );
+
+      expect(
+        stable.downloadPageUrlFor(debUpdate),
+        AleraUpdateConfig.installGuideUrl,
+      );
+      expect(
+        stable.downloadPageUrlFor(debUpdate.copyWith(installerKind: 'rpm')),
+        AleraUpdateConfig.installGuideUrl,
+      );
+      expect(
+        stable.downloadPageUrlFor(debUpdate.copyWith(installerKind: 'tar.gz')),
+        Uri.parse('https://github.com/leynier/alera/releases/tag/v0.1.2'),
+        reason: 'Linux tarballs are not installable by a package manager',
+      );
+      expect(
+        releaseCandidate.downloadPageUrlFor(debUpdate),
+        Uri.parse('https://github.com/leynier/alera/releases/tag/v0.1.2'),
+        reason:
+            'release candidates never reach the stable package repositories',
+      );
+      expect(
+        stable.downloadPageUrlFor(_update),
+        Uri.parse('https://github.com/leynier/alera/releases/tag/v0.1.2'),
+        reason: 'macOS keeps the tag page',
+      );
+    });
+
+    test('linuxPackageUpgradeCommand names the package manager command', () {
+      final debUpdate = _update.copyWith(
+        platform: 'linux',
+        installerKind: 'deb',
+      );
+
+      expect(
+        linuxPackageUpgradeCommand(
+          update: debUpdate,
+          channel: AleraUpdateChannel.stable,
+        ),
+        'sudo apt-get update && sudo apt-get install --only-upgrade alera',
+      );
+      expect(
+        linuxPackageUpgradeCommand(
+          update: debUpdate.copyWith(installerKind: 'rpm'),
+          channel: AleraUpdateChannel.stable,
+        ),
+        'sudo dnf upgrade alera',
+      );
+      expect(
+        linuxPackageUpgradeCommand(
+          update: debUpdate.copyWith(installerKind: 'tar.gz'),
+          channel: AleraUpdateChannel.stable,
+        ),
+        isNull,
+      );
+      expect(
+        linuxPackageUpgradeCommand(
+          update: debUpdate,
+          channel: AleraUpdateChannel.rc,
+        ),
+        isNull,
+      );
+      expect(
+        linuxPackageUpgradeCommand(
+          update: _update,
+          channel: AleraUpdateChannel.stable,
+        ),
+        isNull,
+      );
+      expect(
+        linuxPackageUpgradeCommand(
+          update: null,
+          channel: AleraUpdateChannel.stable,
+        ),
+        isNull,
+      );
+    });
+
     test(
       'resolveAleraReleaseTagPageUrl falls back without a releases segment',
       () {
