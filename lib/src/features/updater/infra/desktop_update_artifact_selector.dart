@@ -71,14 +71,16 @@ String? linuxInstallerKindFromOsRelease(String source) {
   ])) {
     return 'deb';
   }
+  // openSUSE is deliberately absent: the published spec declares Fedora
+  // dependency names (mpv-libs, webkit2gtk4.1, gtk3) that openSUSE provides
+  // under different names, so offering the rpm there promises an update whose
+  // transaction can never resolve.
   if (_containsLinuxFamily(family, const <String>[
     'fedora',
     'rhel',
     'centos',
     'rocky',
     'almalinux',
-    'suse',
-    'opensuse',
   ])) {
     return 'rpm';
   }

@@ -62,6 +62,15 @@ void main() {
         'rpm',
       );
       expect(linuxInstallerKindFromOsRelease('ID=arch\n'), isNull);
+      expect(
+        linuxInstallerKindFromOsRelease(
+          'ID="opensuse-tumbleweed"\nID_LIKE="opensuse suse"\n',
+        ),
+        isNull,
+        reason:
+            'the published rpm requires Fedora package names that '
+            'openSUSE does not provide, so no artifact is compatible there',
+      );
     });
   });
 }
