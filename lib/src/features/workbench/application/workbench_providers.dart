@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/features/browser/infra/runtime_browser_closed_tabs_service.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -22,6 +23,7 @@ import 'package:alera/src/features/workbench/application/workspace_graph_reposit
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_browser_tab_service.dart';
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -161,6 +163,16 @@ void workspaceActivityPersistenceCoordinator(Ref ref) {
 WorkspaceTabService workspaceTabService(Ref ref) {
   return WorkspaceTabService(
     repository: ref.watch(workbenchRepositoryProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceBrowserTabService workspaceBrowserTabService(Ref ref) {
+  return WorkspaceBrowserTabService(
+    repository: ref.watch(workbenchRepositoryProvider),
+    closedTabsService: RuntimeBrowserClosedTabsService(
+      ref.watch(runtimeHostClientProvider),
+    ),
   );
 }
 

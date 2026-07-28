@@ -237,8 +237,16 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       updatedRatios: updatedRatios,
     );
 
-    expect(find.byIcon(AleraIcons.public), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Icon &&
+            widget.icon == AleraIcons.public &&
+            widget.size == 12,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Start Browsing'), findsOneWidget);
   });
 
   testWidgets('editor tabs use file icons in the chip', (tester) async {

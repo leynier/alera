@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  alera_browser
   desktop_updater
   file_selector_linux
   screen_retriever_linux

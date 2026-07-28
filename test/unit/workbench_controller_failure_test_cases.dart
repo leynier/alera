@@ -1,6 +1,42 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerFailureTests() {
+  test('creates a browser tab in the active pane', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final tab = await _controller.createBrowserTab(
+      workspace,
+      profileId: 'research',
+      initialUrl: 'https://example.com',
+    );
+
+    expect(tab.kind, WorkspaceTabKind.browser);
+    expect(tab.browserProfileId, 'research');
+    expect(tab.browserUrl, 'https://example.com');
+    expect(_controller.state.activeWorkspaceTab?.id, tab.id);
+    expect(_controller.state.layoutFor(workspace.id)?.activeTabId, tab.id);
+  });
+
+  test(
+    'updates browser state in persistence and the active workbench',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final tab = await _controller.createBrowserTab(workspace);
+
+      final updated = await _controller.updateBrowserTabState(
+        tabId: tab.id,
+        profileId: 'default',
+        url: 'https://example.com/docs',
+        runtimeTitle: 'Example Docs',
+      );
+
+      expect(updated.title, 'Example Docs');
+      expect(updated.browserUrl, 'https://example.com/docs');
+      expect(_controller.state.activeWorkspaceTab, updated);
+    },
+  );
+
   test(
     'activates projects and tabs without unnecessary state changes',
     () async {

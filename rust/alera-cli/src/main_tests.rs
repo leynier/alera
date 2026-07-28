@@ -103,3 +103,21 @@ fn terminal_actions_require_the_capability_for_their_rpc_surface() {
         Some(RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY)
     );
 }
+
+#[test]
+fn browser_tab_creation_never_carries_terminal_spawn_metadata() {
+    let tab = tab_from_args(crate::cli::TabCreateArgs {
+        workspace_id: "workspace-1".to_string(),
+        title: "Browser".to_string(),
+        kind: "browser".to_string(),
+        command: None,
+        spawn: false,
+    })
+    .unwrap();
+
+    assert_eq!(tab.kind, "browser");
+    assert_eq!(tab.payload["browserProfileId"], "default");
+    assert_eq!(tab.payload["browserUrl"], "about:blank");
+    assert_eq!(tab.payload.get("terminalSessionId"), None);
+    assert_eq!(tab.payload.get("spawnOnCreate"), None);
+}

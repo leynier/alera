@@ -285,7 +285,7 @@ class WorkspaceTabService {
   }) async {
     final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
-      throw StateError('Terminal title must not be empty');
+      throw StateError('Tab title must not be empty');
     }
     final tab = await _repository.findWorkspaceTabById(tabId);
     if (tab == null) {

@@ -24,6 +24,12 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow Browser Tabs To Use Your Camera After You Approve A Site.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Allow Browser Tabs To Use Your Location After You Approve A Site.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow Browser Tabs To Use Your Microphone After You Approve A Site.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

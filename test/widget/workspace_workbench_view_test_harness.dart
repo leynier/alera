@@ -8,6 +8,7 @@ Future<void> _pumpWorkbenchView(
   required WorkbenchLayout? layout,
   required _FakeTerminalRuntime terminalRuntime,
   required List<String?> createdTabs,
+  List<String?>? createdBrowserTabs,
   required List<_SelectedTabAction> selectedTabs,
   required List<String> closedTabs,
   required List<List<String>> closedTabGroups,
@@ -21,80 +22,106 @@ Future<void> _pumpWorkbenchView(
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
 }) async {
+  final browserEngine = FakeBrowserEngine();
+  final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
+  addTearDown(browserEngine.dispose);
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: size.width,
-            height: size.height,
-            child: WorkspaceWorkbenchView(
-              project: _project(),
-              workspace: _workspace(),
-              tabs: tabs,
-              layout: layout,
-              terminalRuntime: terminalRuntime,
-              agentStatuses: agentStatuses,
-              completionAcknowledgements:
-                  WorkbenchTabCompletionAcknowledgements(),
-              onCreateTab: ({String? targetGroupId}) async {
-                createdTabs.add(targetGroupId);
-              },
-              onOpenEditorTab: ({required relativePath, targetGroupId}) async {
-                selectedTabs.add(
-                  _SelectedTabAction(targetGroupId ?? 'group-a', relativePath),
-                );
-              },
-              onOpenMarkdownViewerTab:
-                  ({required relativePath, targetGroupId}) async {
-                    selectedTabs.add(
-                      _SelectedTabAction(
-                        targetGroupId ?? 'group-a',
-                        relativePath,
-                      ),
-                    );
-                  },
-              onSelectTab: ({required String groupId, required String tabId}) {
-                selectedTabs.add(_SelectedTabAction(groupId, tabId));
-              },
-              onCloseTab: closedTabs.add,
-              onCloseTabs: (tabIds) => closedTabGroups.add(tabIds),
-              onRenameTab:
-                  ({required String tabId, required String title}) async {
-                    renamedTabs.add(title);
-                  },
-              onOpenEditor: (_) async {},
-              onOpenMermanPreview: (_) async {},
-              onMoveTab:
-                  ({
-                    required String tabId,
-                    required String targetGroupId,
-                    required WorkbenchDropZone zone,
-                    int? index,
-                  }) async {
-                    movedTabs.add(
-                      _MovedTabAction(tabId, targetGroupId, zone, index: index),
-                    );
-                  },
-              onSplitGroup:
-                  ({
-                    required String groupId,
-                    required WorkbenchDropZone zone,
-                  }) async {
-                    splitGroups.add(_SplitGroupAction(groupId, zone));
-                  },
-              onMergeGroup: ({required String groupId}) async {
-                mergedGroups.add(groupId);
-              },
-              onActivateGroup: ({required String groupId}) {
-                activatedGroups?.add(groupId);
-              },
-              onUpdateSplitRatio:
-                  ({required List<int> nodePath, required double ratio}) {
-                    updatedRatios.add(
-                      _UpdatedSplitRatioAction(nodePath, ratio),
-                    );
-                  },
+    ProviderScope(
+      overrides: [
+        browserSessionRegistryProvider.overrideWithValue(browserRegistry),
+        browserProfileServiceProvider.overrideWithValue(
+          const _WorkbenchBrowserProfileService(),
+        ),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: WorkspaceWorkbenchView(
+                project: _project(),
+                workspace: _workspace(),
+                tabs: tabs,
+                layout: layout,
+                terminalRuntime: terminalRuntime,
+                agentStatuses: agentStatuses,
+                completionAcknowledgements:
+                    WorkbenchTabCompletionAcknowledgements(),
+                onCreateTab: ({String? targetGroupId}) async {
+                  createdTabs.add(targetGroupId);
+                },
+                onCreateBrowserTab: createdBrowserTabs == null
+                    ? null
+                    : ({String? targetGroupId}) async {
+                        createdBrowserTabs.add(targetGroupId);
+                      },
+                onOpenEditorTab:
+                    ({required relativePath, targetGroupId}) async {
+                      selectedTabs.add(
+                        _SelectedTabAction(
+                          targetGroupId ?? 'group-a',
+                          relativePath,
+                        ),
+                      );
+                    },
+                onOpenMarkdownViewerTab:
+                    ({required relativePath, targetGroupId}) async {
+                      selectedTabs.add(
+                        _SelectedTabAction(
+                          targetGroupId ?? 'group-a',
+                          relativePath,
+                        ),
+                      );
+                    },
+                onSelectTab:
+                    ({required String groupId, required String tabId}) {
+                      selectedTabs.add(_SelectedTabAction(groupId, tabId));
+                    },
+                onCloseTab: closedTabs.add,
+                onCloseTabs: (tabIds) => closedTabGroups.add(tabIds),
+                onRenameTab:
+                    ({required String tabId, required String title}) async {
+                      renamedTabs.add(title);
+                    },
+                onOpenEditor: (_) async {},
+                onOpenMermanPreview: (_) async {},
+                onMoveTab:
+                    ({
+                      required String tabId,
+                      required String targetGroupId,
+                      required WorkbenchDropZone zone,
+                      int? index,
+                    }) async {
+                      movedTabs.add(
+                        _MovedTabAction(
+                          tabId,
+                          targetGroupId,
+                          zone,
+                          index: index,
+                        ),
+                      );
+                    },
+                onSplitGroup:
+                    ({
+                      required String groupId,
+                      required WorkbenchDropZone zone,
+                    }) async {
+                      splitGroups.add(_SplitGroupAction(groupId, zone));
+                    },
+                onMergeGroup: ({required String groupId}) async {
+                  mergedGroups.add(groupId);
+                },
+                onActivateGroup: ({required String groupId}) {
+                  activatedGroups?.add(groupId);
+                },
+                onUpdateSplitRatio:
+                    ({required List<int> nodePath, required double ratio}) {
+                      updatedRatios.add(
+                        _UpdatedSplitRatioAction(nodePath, ratio),
+                      );
+                    },
+              ),
             ),
           ),
         ),
@@ -171,6 +198,38 @@ AgentStatusEntry _agentStatus(
     updatedAt: DateTime.utc(2026, 5, 22),
     stateStartedAt: DateTime.utc(2026, 5, 22),
   );
+}
+
+final class _WorkbenchBrowserProfileService implements BrowserProfileService {
+  const _WorkbenchBrowserProfileService();
+
+  static final BrowserProfile _profile = BrowserProfile(
+    id: defaultBrowserProfileId,
+    label: 'Default',
+    kind: BrowserProfileKind.defaultProfile,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+  );
+
+  @override
+  Future<List<BrowserProfile>> list() async => <BrowserProfile>[_profile];
+
+  @override
+  Future<bool> remove(String profileId) async => false;
+
+  @override
+  Future<void> validateRemoval(String profileId) async {}
+
+  @override
+  Future<BrowserProfile> upsert({
+    String? id,
+    required String name,
+    bool persistent = true,
+    BrowserProfileSource? source,
+  }) async => _profile;
+
+  @override
+  Stream<List<BrowserProfile>> watchAll() =>
+      Stream<List<BrowserProfile>>.value(<BrowserProfile>[_profile]);
 }
 
 WorkbenchLayout _splitLayout({

@@ -1,3 +1,4 @@
+use std::net::Ipv6Addr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -44,4 +45,12 @@ pub(super) fn spawn_accept_loop(
             ));
         }
     });
+}
+
+pub(super) fn display_socket_address(host: &str, port: u16) -> String {
+    if host.parse::<Ipv6Addr>().is_ok() {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
 }

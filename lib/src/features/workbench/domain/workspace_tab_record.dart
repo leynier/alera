@@ -39,6 +39,9 @@ const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
+const String workspaceTabBrowserProfileIdPayloadKey = 'browserProfileId';
+const String workspaceTabBrowserUrlPayloadKey = 'browserUrl';
+const String workspaceTabBrowserRuntimeTitlePayloadKey = 'browserRuntimeTitle';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 const String workspaceTabGitDiffRootPayloadKey = 'gitDiffRoot';
@@ -145,6 +148,16 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     return payload[workspaceTabFileRolePayloadKey] ==
         workspaceTabFileRoleMermanPreview;
   }
+
+  String get browserProfileId =>
+      _nonEmptyPayloadString(workspaceTabBrowserProfileIdPayloadKey) ??
+      'default';
+
+  String? get browserUrl =>
+      _nonEmptyPayloadString(workspaceTabBrowserUrlPayloadKey);
+
+  String? get browserRuntimeTitle =>
+      _nonEmptyPayloadString(workspaceTabBrowserRuntimeTitlePayloadKey);
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],

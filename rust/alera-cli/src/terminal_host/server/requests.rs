@@ -25,6 +25,7 @@ use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, TerminalHostConfig, PROTOCOL_VERSION,
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY, RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
@@ -84,6 +85,23 @@ impl ServerActor {
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
                 if let Some(id) = request_id {
+                    if request_type.starts_with("browser.") {
+                        match self
+                            .handle_browser_request(client_id, id, &request_type, &payload)
+                            .await
+                        {
+                            // Routed calls are parked until the app driver
+                            // completes, times out, or disconnects.
+                            Ok(None) => return,
+                            Ok(Some(value)) => {
+                                self.client_write(client_id, ok_response(id, value));
+                            }
+                            Err(error) => {
+                                self.client_write(client_id, error_response(id, &error));
+                            }
+                        }
+                        return;
+                    }
                     match self.try_start_deferred_request(client_id, id, &request_type, &payload) {
                         Ok(true) => return,
                         Ok(false) => {}
@@ -379,7 +397,8 @@ impl ServerActor {
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
-                    + self.coordinators.len();
+                    + self.coordinators.len()
+                    + self.browser.active_jobs();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
                     if let Some(message) =
@@ -568,6 +587,8 @@ impl ServerActor {
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                         RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
                         RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
+                        RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
+                        RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
                         RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
                     ],
                     "authenticated": true,
@@ -881,6 +902,7 @@ impl ServerActor {
                 let id = require_string_key(payload, "id")?;
                 let workspace_id = self.workspace_id_for_tab(&id).await;
                 json_result(self.runtime_store.remove_workspace_tab(&id).await)?;
+                self.handle_browser_tab_removed(&id);
                 self.terminate_sessions_for_tab(&id).await;
                 self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
                 Ok(json!({}))
@@ -1184,7 +1206,11 @@ impl ServerActor {
             .is_some_and(|client| client.kind == ClientKind::Mobile)
     }
 
-    fn require_request_allowed(&self, client_id: u64, request_type: &str) -> HostResult<()> {
+    pub(super) fn require_request_allowed(
+        &self,
+        client_id: u64,
+        request_type: &str,
+    ) -> HostResult<()> {
         let Some(client) = self.clients.get(&client_id) else {
             return Err(HostError::state(
                 "Terminal host client is not authenticated.",

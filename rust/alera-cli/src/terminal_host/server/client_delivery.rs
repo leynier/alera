@@ -1,6 +1,12 @@
 use super::*;
 use crate::terminal_host::protocol::PROTOCOL_VERSION;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum LocalClientRole {
+    App,
+    Cli,
+}
+
 impl ServerActor {
     pub(super) fn require_auth(&self, client_id: u64) -> HostResult<()> {
         match self.clients.get(&client_id) {
@@ -35,9 +41,13 @@ impl ServerActor {
             .get("binaryFrames")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let local_role = requested_local_role(payload);
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
+            if client.kind == ClientKind::Local {
+                client.local_role = local_role;
+            }
         }
         self.cancel_shutdown_timer();
         if binary_frames {
@@ -47,7 +57,13 @@ impl ServerActor {
             // reading as a line.
             self.upgrade_client_to_binary(client_id);
         }
-        Ok(json!({ "binaryFrames": binary_frames }))
+        Ok(json!({
+            "binaryFrames": binary_frames,
+            "clientKind": match local_role {
+                LocalClientRole::App => "app",
+                LocalClientRole::Cli => "cli",
+            }
+        }))
     }
 
     /// Queues the in-band switch to binary frames for one client.
@@ -107,9 +123,33 @@ impl ServerActor {
     }
 }
 
+fn requested_local_role(payload: &Value) -> LocalClientRole {
+    match payload.get("clientKind").and_then(Value::as_str) {
+        Some("app") => LocalClientRole::App,
+        _ => LocalClientRole::Cli,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hello_roles_are_additive_and_absent_means_cli() {
+        assert_eq!(requested_local_role(&json!({})), LocalClientRole::Cli);
+        assert_eq!(
+            requested_local_role(&json!({"clientKind": "cli"})),
+            LocalClientRole::Cli
+        );
+        assert_eq!(
+            requested_local_role(&json!({"clientKind": "app"})),
+            LocalClientRole::App
+        );
+        assert_eq!(
+            requested_local_role(&json!({"clientKind": "legacy"})),
+            LocalClientRole::Cli
+        );
+    }
 
     #[tokio::test]
     async fn control_bursts_survive_a_saturated_terminal_queue() {
@@ -144,6 +184,7 @@ mod tests {
                     authenticated: true,
                     binary_frames: false,
                     kind: ClientKind::Local,
+                    local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
                     mobile_device_name: None,
                 },
@@ -156,6 +197,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

@@ -122,6 +122,49 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         updatedAt TEXT NOT NULL
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS agentProfilesNameIdx ON agentProfiles(name COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS browserProfiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        persistent INTEGER NOT NULL DEFAULT 1,
+        isDefault INTEGER NOT NULL DEFAULT 0,
+        sourceFamily TEXT,
+        sourceProfileName TEXT,
+        sourceImportedAt TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS browserProfilesNameIdx ON browserProfiles(name COLLATE NOCASE);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS browserProfilesDefaultIdx ON browserProfiles(isDefault) WHERE isDefault = 1;",
+    "CREATE TABLE IF NOT EXISTS browserHistory (
+        id TEXT PRIMARY KEY,
+        profileId TEXT NOT NULL,
+        workspaceId TEXT,
+        tabId TEXT,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        visitCount INTEGER NOT NULL DEFAULT 1,
+        visitedAt TEXT NOT NULL
+    );",
+    "CREATE INDEX IF NOT EXISTS browserHistoryProfileVisitedIdx ON browserHistory(profileId, visitedAt DESC);",
+    "CREATE TABLE IF NOT EXISTS browserClosedTabs (
+        id TEXT PRIMARY KEY,
+        profileId TEXT NOT NULL,
+        workspaceId TEXT NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        payloadJson TEXT NOT NULL DEFAULT '{}',
+        closedAt TEXT NOT NULL
+    );",
+    "CREATE INDEX IF NOT EXISTS browserClosedTabsProfileClosedIdx ON browserClosedTabs(profileId, closedAt DESC);",
+    "CREATE TABLE IF NOT EXISTS browserPermissions (
+        profileId TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        permission TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        PRIMARY KEY(profileId, origin, permission)
+    );",
+    "CREATE INDEX IF NOT EXISTS browserPermissionsOriginIdx ON browserPermissions(origin, permission);",
     "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         enabled INTEGER NOT NULL DEFAULT 0,

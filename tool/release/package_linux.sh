@@ -59,7 +59,7 @@ Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libayatana-appindicator3-1 | libappindicator3-1
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libayatana-appindicator3-1 | libappindicator3-1
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
@@ -84,6 +84,11 @@ BuildArch: ${arch_rpm}
 
 Source0: %{name}-%{version}.tar.gz
 Requires: gtk3
+Requires: webkit2gtk4.1
+Requires: json-glib
+Requires: libsecret
+Requires: sqlite
+Requires: openssl-libs
 
 %description
 ${description}

@@ -91,4 +91,39 @@ void main() {
     expect(regular.spawnOnCreate, isFalse);
     expect(eager.spawnOnCreate, isTrue);
   });
+
+  test(
+    'browser state uses the tab id as page identity and default profile',
+    () {
+      final now = DateTime.utc(2026, 7, 27);
+      final blank = WorkspaceTabRecord(
+        id: 'browser-1',
+        workspaceId: 'workspace-1',
+        kind: WorkspaceTabKind.browser,
+        title: 'New Tab',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final restored = WorkspaceTabRecord(
+        id: 'browser-2',
+        workspaceId: 'workspace-1',
+        kind: WorkspaceTabKind.browser,
+        title: 'Alera',
+        createdAt: now,
+        updatedAt: now,
+        payload: const <String, Object?>{
+          workspaceTabBrowserProfileIdPayloadKey: 'research',
+          workspaceTabBrowserUrlPayloadKey: 'https://alera.dev',
+          workspaceTabBrowserRuntimeTitlePayloadKey: 'Alera',
+        },
+      );
+
+      expect(blank.id, 'browser-1');
+      expect(blank.browserProfileId, 'default');
+      expect(blank.browserUrl, isNull);
+      expect(restored.browserProfileId, 'research');
+      expect(restored.browserUrl, 'https://alera.dev');
+      expect(restored.browserRuntimeTitle, 'Alera');
+    },
+  );
 }

@@ -56,6 +56,7 @@ abstract final class AleraIcons {
   static const IconData arrowUp = LucideIcons.arrowUp;
   static const IconData arrowDown = LucideIcons.arrowDown;
   static const IconData back = LucideIcons.arrowLeft;
+  static const IconData forward = LucideIcons.arrowRight;
   static const IconData more = LucideIcons.ellipsis;
 
   // Files and folders
@@ -118,6 +119,8 @@ abstract final class AleraIcons {
   static const IconData radioOn = LucideIcons.circleDot;
   static const IconData star = LucideIcons.star;
   static const IconData notifications = LucideIcons.bellRing;
+  static const IconData secure = LucideIcons.shieldCheck;
+  static const IconData insecure = LucideIcons.shieldAlert;
 
   // Visibility
   static const IconData visible = LucideIcons.eye;
@@ -140,6 +143,8 @@ abstract final class AleraIcons {
   static const IconData agent = LucideIcons.bot;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
+  static const IconData profile = LucideIcons.circleUserRound;
+  static const IconData devTools = LucideIcons.wrench;
   static const IconData warning = LucideIcons.triangleAlert;
   static const IconData terminal = LucideIcons.terminal;
   static const IconData code = LucideIcons.code;

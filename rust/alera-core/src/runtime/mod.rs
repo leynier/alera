@@ -2,6 +2,14 @@ mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
 mod agent_profile_store_tests;
+mod browser_models;
+mod browser_privacy;
+mod browser_session_store;
+#[cfg(test)]
+mod browser_session_store_tests;
+mod browser_store;
+#[cfg(test)]
+mod browser_store_tests;
 #[cfg(test)]
 mod mobile_store_tests;
 mod models;
@@ -37,6 +45,10 @@ mod workspace_pin_store;
 mod workspace_pin_store_tests;
 
 pub use agent_profile_models::*;
+pub use browser_models::*;
+pub use browser_privacy::{
+    browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
+};
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{

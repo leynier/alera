@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
@@ -38,13 +38,25 @@ use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 use crate::terminal_host::sleep_detector::SleepDetector;
 
-use client_accept_loop::spawn_accept_loop;
+use client_accept_loop::{display_socket_address, spawn_accept_loop};
 
+use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
+mod browser_artifact_requests;
+mod browser_artifact_store;
+mod browser_broker;
+#[cfg(test)]
+mod browser_broker_tests;
+mod browser_catalog_requests;
+mod browser_driver_requests;
+mod browser_requests;
+mod browser_tab_requests;
+mod browser_tab_rollback;
+mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
 mod computer_request_payloads;
@@ -213,6 +225,9 @@ pub enum ServerCommand {
     ResourceSampleReady {
         snapshot: Value,
     },
+    BrowserRequestTimeout {
+        correlation_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -226,23 +241,9 @@ struct ClientState {
     authenticated: bool,
     binary_frames: bool,
     kind: ClientKind,
+    local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
-}
-
-impl ClientState {
-    /// Authenticated loopback client (the desktop app or a CLI).
-    #[cfg(test)]
-    fn local(handle: ClientHandle, _app_client: bool) -> ClientState {
-        ClientState {
-            handle,
-            authenticated: true,
-            binary_frames: false,
-            kind: ClientKind::Local,
-            mobile_device_id: None,
-            mobile_device_name: None,
-        }
-    }
 }
 
 struct SshBootstrapJobState {
@@ -266,6 +267,7 @@ pub async fn run_terminal_host_server(
     }
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    runtime_store.ensure_default_browser_profile().await?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
@@ -305,6 +307,7 @@ pub async fn run_terminal_host_server(
         orchestration_activity_last_recorded: HashMap::new(),
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
+        browser: BrowserBroker::default(),
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -369,6 +372,7 @@ struct ServerActor {
     orchestration_activity_last_recorded: HashMap<String, Instant>,
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
+    browser: BrowserBroker,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -540,6 +544,7 @@ impl ServerActor {
                         authenticated: false,
                         binary_frames: false,
                         kind,
+                        local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
                         mobile_device_name: None,
                     },
@@ -678,6 +683,9 @@ impl ServerActor {
             ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
+            }
+            ServerCommand::BrowserRequestTimeout { correlation_id } => {
+                self.handle_browser_timeout(&correlation_id)
             }
         }
     }
@@ -1165,6 +1173,7 @@ impl ServerActor {
         };
         // Parked long-poll requests die with their connection.
         self.orchestration_waiters.remove_client(client_id);
+        self.handle_browser_client_disconnect(client_id);
         // A vanished phone must not leave terminals locked at phone size.
         self.release_mobile_driver_for_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
@@ -1216,6 +1225,7 @@ impl ServerActor {
             handle.abort();
         }
         // Closing client handles ends their connection loops.
+        self.browser = BrowserBroker::default();
         self.clients.clear();
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
@@ -1232,14 +1242,6 @@ impl ServerActor {
     }
 }
 
-fn display_socket_address(host: &str, port: u16) -> String {
-    if host.parse::<Ipv6Addr>().is_ok() {
-        format!("[{host}]:{port}")
-    } else {
-        format!("{host}:{port}")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1248,6 +1250,7 @@ mod tests {
     use alera_core::runtime::{
         NewOrchestrationTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
     };
+    use std::net::Ipv6Addr;
 
     #[tokio::test]
     async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
@@ -1285,6 +1288,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1350,6 +1354,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1404,6 +1409,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1462,6 +1468,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1540,6 +1547,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1640,6 +1648,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1713,6 +1722,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1777,6 +1787,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            browser: BrowserBroker::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,
