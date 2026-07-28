@@ -165,6 +165,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let account_push = super::account_push_state::AccountPushState::new(
+            dir.path().to_path_buf(),
+            runtime_store.clone(),
+        )
+        .await
+        .unwrap();
         let (inbox, mut inbox_rx) = mpsc::unbounded_channel();
         let (control_out, mut control_out_rx) = mpsc::unbounded_channel();
         let (terminal_out, _terminal_out_rx) =
@@ -187,6 +193,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push,
             clients: HashMap::from([(
                 1,
                 ClientState {
@@ -198,6 +205,7 @@ mod tests {
                     local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
                     mobile_device_name: None,
+                    cloud_device_id: None,
                 },
             )]),
             pending_output_writes: HashMap::new(),

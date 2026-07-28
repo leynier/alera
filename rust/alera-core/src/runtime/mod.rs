@@ -2,6 +2,10 @@ mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
 mod agent_profile_store_tests;
+mod alera_account_models;
+mod alera_account_store;
+#[cfg(test)]
+mod alera_account_store_tests;
 mod browser_certificate_store;
 #[cfg(test)]
 mod browser_certificate_store_tests;
@@ -34,6 +38,7 @@ mod orchestration_store_tests;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
+mod runtime_file_security;
 mod runtime_schema;
 mod schema_migrations;
 mod settings_models;
@@ -48,6 +53,7 @@ mod workspace_pin_store;
 mod workspace_pin_store_tests;
 
 pub use agent_profile_models::*;
+pub use alera_account_models::*;
 pub use browser_models::*;
 pub use browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
@@ -62,6 +68,7 @@ pub use orchestration_message_store::{
 pub use orchestration_models::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
+pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use store::*;
 pub use workbench_shared_state_models::*;

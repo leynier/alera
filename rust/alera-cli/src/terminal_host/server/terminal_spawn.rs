@@ -148,6 +148,7 @@ impl ServerActor {
         initial_scrollback: Vec<u8>,
         initial_output_stream_bytes: u64,
     ) -> HostResult<()> {
+        self.account_push.damper.reset_session(&session_id);
         let agent_settings = self
             .runtime_store
             .agent_status_hook_settings()

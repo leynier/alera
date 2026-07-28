@@ -210,4 +210,15 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         claimedDeviceId TEXT
     );",
     "CREATE INDEX IF NOT EXISTS mobilePairingOffersActiveIdx ON mobilePairingOffers(expiresAt, claimedDeviceId);",
+    "CREATE TABLE IF NOT EXISTS aleraAccount (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        accountId TEXT NOT NULL,
+        email TEXT NOT NULL,
+        providersJson TEXT NOT NULL,
+        runtimeId TEXT NOT NULL,
+        cloudBaseUrl TEXT NOT NULL,
+        signedInAt TEXT NOT NULL,
+        accessTokenExpiresAt TEXT NOT NULL,
+        pushSubscriptionCount INTEGER NOT NULL DEFAULT 0
+    );",
 ];

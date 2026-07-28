@@ -1,7 +1,8 @@
 use anyhow::Result;
 
 use super::{
-    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeSettings, RuntimeStore,
+    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeMobilePushSettings,
+    RuntimeSettings, RuntimeStore,
 };
 
 impl RuntimeStore {
@@ -12,7 +13,30 @@ impl RuntimeStore {
             confirm_workspace_removal: self.confirm_workspace_removal().await?,
             agent_status_hooks: self.agent_status_hook_settings().await?,
             agent_quotas: self.agent_quota_settings().await?,
+            mobile_push_notifications: self.mobile_push_settings().await?,
         })
+    }
+
+    pub async fn mobile_push_settings(&self) -> Result<RuntimeMobilePushSettings> {
+        let Some(encoded) = self
+            .get_metadata("settings.mobile.pushNotifications")
+            .await?
+        else {
+            return Ok(RuntimeMobilePushSettings::default());
+        };
+        Ok(serde_json::from_str(&encoded).unwrap_or_default())
+    }
+
+    pub async fn set_mobile_push_settings(
+        &self,
+        settings: &RuntimeMobilePushSettings,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.mobile.pushNotifications",
+            &serde_json::to_string(settings)?,
+        )
+        .await?;
+        self.runtime_settings().await
     }
 
     pub async fn agent_quota_settings(&self) -> Result<RuntimeAgentQuotaSettings> {

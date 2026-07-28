@@ -6,6 +6,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// CI and local tests remain buildable before the Firebase project exists.
+// A real google-services.json enables the native resource path; dart defines
+// documented in mobile/readme.md provide the configuration otherwise.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Release signing uses key.properties (gitignored). CI writes it from secrets;
 // locally, release builds fall back to the debug key so `flutter run --release`
 // keeps working. APKs signed with different keys cannot update in place, so CI
@@ -36,6 +43,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -71,4 +79,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -12,6 +12,7 @@ use super::browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, sanitize_browser_tab_payload,
 };
 use super::runtime_schema::RUNTIME_SCHEMA;
+use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
@@ -45,18 +46,18 @@ pub struct SshTargetBootstrapStateUpdate<'a> {
 
 impl RuntimeStore {
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
-        if !runtime_dir.exists() {
-            std::fs::create_dir_all(runtime_dir)?;
-        }
+        prepare_private_runtime_directory(runtime_dir)?;
         let path = runtime_dir.join(RUNTIME_DATABASE_FILE_NAME);
+        open_private_runtime_file(&path)?;
         let options = SqliteConnectOptions::new()
-            .filename(path)
+            .filename(&path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal);
         let pool = SqlitePoolOptions::new().connect_with(options).await?;
         let store = RuntimeStore { pool };
         store.migrate().await?;
+        harden_sqlite_files(&path)?;
         Ok(store)
     }
 

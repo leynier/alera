@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::session::PtyEvent;
 
 impl ServerActor {
     pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
@@ -214,6 +215,8 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
+        self.queue_terminal_exit_push(&session_id, Some(exit_code))
+            .await;
         let reason = format!("terminal exited with code {exit_code}");
         let keep_failed_spawn = self.should_keep_failed_owned_spawn(&session_id).await;
         self.cleanup_orchestration_for_closed_session(&session_id, &reason)
@@ -294,6 +297,7 @@ impl ServerActor {
         reason: &str,
     ) {
         self.agent_presence.remove(session_id);
+        self.forget_push_session(session_id);
         self.orchestration_activity_last_recorded.remove(session_id);
         self.orchestration_delivery_in_flight.remove(session_id);
         self.orchestration_delivery_backpressured.remove(session_id);

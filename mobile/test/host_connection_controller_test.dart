@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
+import 'package:alera_mobile/src/features/accounts/application/cloud_account_repository.dart';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
@@ -56,7 +59,12 @@ void main() {
       'token-1',
     );
     final container = ProviderContainer(
-      overrides: [hostRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        hostRepositoryProvider.overrideWithValue(repository),
+        cloudAccountRepositoryProvider.overrideWithValue(
+          _InstallationRepository(),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     final connection = container.listen(
@@ -71,6 +79,7 @@ void main() {
     );
     expect(payload['deviceId'], 'device-1');
     expect(payload['deviceToken'], 'token-1');
+    expect(payload['cloudDeviceId'], 'cloud-installation-1');
   });
 
   test('A dropped socket surfaces as a lost connection', () async {
@@ -108,7 +117,12 @@ void main() {
       'token-1',
     );
     final container = ProviderContainer(
-      overrides: [hostRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        hostRepositoryProvider.overrideWithValue(repository),
+        cloudAccountRepositoryProvider.overrideWithValue(
+          _InstallationRepository(),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     final lost = Completer<Object?>();
@@ -141,6 +155,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         hostRepositoryProvider.overrideWithValue(MemoryHostRepository()),
+        cloudAccountRepositoryProvider.overrideWithValue(
+          _InstallationRepository(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -150,4 +167,19 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+}
+
+class _InstallationRepository implements CloudAccountRepository {
+  @override
+  Future<String> getOrCreateInstallationId() async => 'cloud-installation-1';
+
+  @override
+  Future<List<CloudAccountSession>> loadSessions() async =>
+      const <CloudAccountSession>[];
+
+  @override
+  Future<void> removeSession(String accountId) async {}
+
+  @override
+  Future<void> saveSession(CloudAccountSession session) async {}
 }

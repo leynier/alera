@@ -451,7 +451,7 @@ impl From<MobilePairingOffer> for MobilePairingOfferSummary {
     }
 }
 
-async fn runtime_id(store: &RuntimeStore) -> Result<String> {
+pub(crate) async fn runtime_id(store: &RuntimeStore) -> Result<String> {
     if let Some(id) = store.get_metadata("runtime.identity.id").await? {
         return Ok(id);
     }
@@ -460,7 +460,7 @@ async fn runtime_id(store: &RuntimeStore) -> Result<String> {
     Ok(id)
 }
 
-fn host_name() -> String {
+pub(crate) fn host_name() -> String {
     std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .ok()

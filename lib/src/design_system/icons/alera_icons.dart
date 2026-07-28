@@ -82,6 +82,7 @@ abstract final class AleraIcons {
   // Mobile companion
   static const IconData mobileDevice = LucideIcons.smartphone;
   static const IconData qrCode = LucideIcons.qrCode;
+  static const IconData account = LucideIcons.userRound;
 
   /// Main/default worktree (root of the project workspace graph).
   static const IconData workspaceMain = LucideIcons.home;

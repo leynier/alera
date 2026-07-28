@@ -19,4 +19,12 @@ Include:
 
 ## Security Expectations
 
-Contributions that touch process execution, terminals, filesystem paths, Git operations, update installation, release signing, or IPC-like boundaries must include a short security review in the pull request body.
+Contributions that touch process execution, terminals, filesystem paths, Git operations, update installation, release signing, account identity, token issuance, push delivery, cloud infrastructure, or IPC-like boundaries must include a short security review in the pull request body.
+
+## Cloud Service And Abuse
+
+Do not include OAuth codes, access tokens, refresh tokens, FCM registration tokens, provider client secrets, origin tokens, notification payloads, terminal content, or private user data in an issue or vulnerability report.
+
+Report abuse of `api.alera.build`, account restrictions, or privacy concerns to `privacy@alera.build`. Include timestamps, the affected account email or public request id, and a concise description. Never send a password or credential as proof.
+
+The public account and push service is best effort. Security-sensitive operator procedures, including edge-token, OAuth-secret, and KMS signing-key rotation, are documented in [`docs/cloud-operations.md`](docs/cloud-operations.md).

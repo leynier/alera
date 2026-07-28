@@ -4,15 +4,20 @@ use std::path::{Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 
+use alera_core::runtime::{
+    create_private_runtime_file, prepare_private_runtime_directory, set_private_file_permissions,
+};
+
 use crate::terminal_host::protocol::{
-    PROTOCOL_VERSION, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
     RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY, RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
+    RUNTIME_HOST_COMPUTER_USE_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
@@ -35,6 +40,9 @@ pub fn write_control_file(
     token: &str,
     persistent: bool,
 ) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        prepare_private_runtime_directory(parent)?;
+    }
     let body = json!({
         "protocolVersion": PROTOCOL_VERSION,
         "pid": std::process::id(),
@@ -42,9 +50,12 @@ pub fn write_control_file(
         "token": token,
         "runtimeCapabilities": [
             RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_ACCOUNT_CAPABILITY,
+            RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
             RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
             RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
             RUNTIME_HOST_MOBILE_CAPABILITY,
+            RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
             RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
             RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
             RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
@@ -95,11 +106,13 @@ pub fn promote_persistent(path: &Path) -> std::io::Result<()> {
 fn write_value(path: &Path, body: &serde_json::Value) -> std::io::Result<()> {
     let temp = temp_path(path);
     {
-        let mut file = std::fs::File::create(&temp)?;
+        let mut file = create_private_runtime_file(&temp)?;
         file.write_all(serde_json::to_string(&body)?.as_bytes())?;
         file.sync_all()?;
     }
-    std::fs::rename(&temp, path)
+    set_private_file_permissions(&temp)?;
+    std::fs::rename(&temp, path)?;
+    set_private_file_permissions(path)
 }
 
 /// Best-effort removal of the control file on shutdown; errors are swallowed.
@@ -133,9 +146,12 @@ mod tests {
             value["runtimeCapabilities"],
             json!([
                 RUNTIME_HOST_CAPABILITY,
+                RUNTIME_HOST_ACCOUNT_CAPABILITY,
+                RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
                 RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
                 RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                 RUNTIME_HOST_MOBILE_CAPABILITY,
+                RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
                 RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                 RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                 RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
@@ -201,5 +217,20 @@ mod tests {
 
         promote_persistent(&path).unwrap();
         assert_eq!(std::fs::read_to_string(path).unwrap(), promoted);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn control_file_is_private() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("runtime").join("host.json");
+        write_control_file(&path, 1, "secret", false).unwrap();
+
+        assert_eq!(
+            std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 }

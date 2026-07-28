@@ -158,10 +158,13 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(mobileAgentQuotaClaudeTuiCapability);
   bool get supportsHostTools =>
       _runtimeCapabilities.contains(mobileHostToolsCapability);
+  bool get supportsCloudEnrollment =>
+      _runtimeCapabilities.contains(mobileCloudEnrollmentCapability);
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
     required String deviceToken,
+    String? cloudDeviceId,
   }) async {
     // Masked in logs and crash reports from here on: the token authenticates
     // this phone to the runtime, and exported logs are meant to be shareable.
@@ -170,6 +173,7 @@ class MobileRuntimeClient
       'protocolVersion': aleraMobileProtocolVersion,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
+      'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
@@ -177,6 +181,22 @@ class MobileRuntimeClient
     // and keeps sending base64 inside JSON.
     _binaryFrames = payload['binaryFrames'] == true;
     return payload;
+  }
+
+  Future<String> createCloudEnrollment() async {
+    if (!supportsCloudEnrollment) {
+      throw StateError('This Host Does Not Support Account Enrollment');
+    }
+    final payload = await requestMap('mobile.cloudEnrollment.create');
+    return payload.requiredString('code');
+  }
+
+  Future<int> refreshCloudSubscriptions() async {
+    if (!supportsCloudEnrollment) {
+      throw StateError('This Host Does Not Support Cloud Subscriptions');
+    }
+    final payload = await requestMap('mobile.cloudSubscriptions.refresh');
+    return payload.requiredInt('activeSubscriptions');
   }
 
   Future<MobileRuntimeStatus> mobileStatus() async {

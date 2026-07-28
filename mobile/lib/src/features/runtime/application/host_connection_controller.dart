@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
@@ -35,11 +36,15 @@ class HostConnectionController extends _$HostConnectionController {
     if (deviceToken == null || deviceToken.trim().isEmpty) {
       throw StateError('Device Token Is Missing.');
     }
+    final cloudDeviceId = await ref
+        .read(cloudAccountRepositoryProvider)
+        .getOrCreateInstallationId();
     final client = await MobileRuntimeClient.connect(host.endpoint);
     try {
       await client.authenticate(
         deviceId: host.deviceId,
         deviceToken: deviceToken,
+        cloudDeviceId: cloudDeviceId,
       );
     } on Object {
       await client.dispose();

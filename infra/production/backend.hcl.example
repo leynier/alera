@@ -1,0 +1,2 @@
+bucket = "replace-with-opentofu-state-bucket"
+prefix = "alera/production"

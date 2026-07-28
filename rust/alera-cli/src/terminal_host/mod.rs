@@ -1,3 +1,5 @@
+#[path = "../alera_account/mod.rs"]
+pub(crate) mod alera_account;
 pub mod buffer;
 pub mod client;
 pub mod control_file;
@@ -10,6 +12,8 @@ pub mod host_error;
 pub mod mobile_gateway;
 pub mod orchestration;
 pub mod protocol;
+#[path = "../push_notifications/mod.rs"]
+pub(crate) mod push_notifications;
 pub mod resources;
 pub mod server;
 pub mod session;

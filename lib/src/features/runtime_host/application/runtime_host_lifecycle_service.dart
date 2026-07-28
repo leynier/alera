@@ -92,6 +92,9 @@ final class RuntimeHostLifecycleService {
         activeAgents: status['activeAgents'] is int
             ? status['activeAgents'] as int
             : 0,
+        activePushSubscriptions: status['activePushSubscriptions'] is int
+            ? status['activePushSubscriptions'] as int
+            : 0,
       );
     } catch (error) {
       return RuntimeHostStatusSnapshot(
@@ -169,6 +172,11 @@ final class RuntimeHostLifecycleService {
     if (liveStatus != null && liveStatus['persistent'] == true) {
       return true;
     }
+    if (liveStatus != null &&
+        liveStatus['activePushSubscriptions'] is int &&
+        (liveStatus['activePushSubscriptions'] as int) > 0) {
+      return true;
+    }
 
     try {
       await _client.shutdownRuntime(force: false);
@@ -224,6 +232,9 @@ String runtimeHostBusyMessage(RuntimeHostBusyException busy) {
   }
   if (busy.activeJobs > 0) {
     parts.add('${busy.activeJobs} active background job(s)');
+  }
+  if (busy.activePushSubscriptions > 0) {
+    parts.add('${busy.activePushSubscriptions} active push subscription(s)');
   }
   if (parts.isEmpty) {
     return 'The runtime still has active work.';

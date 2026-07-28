@@ -51,10 +51,14 @@ extension SocketTerminalHostClientLifecycle on SocketTerminalHostClient {
 }
 
 final _shutdownBusyPattern = RegExp(
+  r'Runtime host has (\d+) active agent\(s\), (\d+) active terminal session\(s\), (\d+) active background job\(s\), and (\d+) active push subscription\(s\)',
+);
+
+final _threeCountShutdownBusyPattern = RegExp(
   r'Runtime host has (\d+) active agent\(s\), (\d+) active terminal session\(s\) and (\d+) active background job\(s\)',
 );
 
-final _legacyShutdownBusyPattern = RegExp(
+final _twoCountShutdownBusyPattern = RegExp(
   r'Runtime host has (\d+) active terminal session\(s\) and (\d+) active background job\(s\)',
 );
 
@@ -66,12 +70,20 @@ RuntimeHostBusyException? _busyExceptionFromShutdown(String message) {
       activeAgents: int.tryParse(match.group(1) ?? '') ?? 0,
       activeSessions: int.tryParse(match.group(2) ?? '') ?? 0,
       activeJobs: int.tryParse(match.group(3) ?? '') ?? 0,
+      activePushSubscriptions: int.tryParse(match.group(4) ?? '') ?? 0,
     );
   }
-  final legacy = _legacyShutdownBusyPattern.firstMatch(message);
-  if (legacy == null) {
-    return null;
+  final threeCount = _threeCountShutdownBusyPattern.firstMatch(message);
+  if (threeCount != null) {
+    return RuntimeHostBusyException(
+      message: message,
+      activeAgents: int.tryParse(threeCount.group(1) ?? '') ?? 0,
+      activeSessions: int.tryParse(threeCount.group(2) ?? '') ?? 0,
+      activeJobs: int.tryParse(threeCount.group(3) ?? '') ?? 0,
+    );
   }
+  final legacy = _twoCountShutdownBusyPattern.firstMatch(message);
+  if (legacy == null) return null;
   return RuntimeHostBusyException(
     message: message,
     activeSessions: int.tryParse(legacy.group(1) ?? '') ?? 0,

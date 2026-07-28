@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/features/accounts/presentation/accounts_screen.dart';
 import 'package:alera_mobile/src/features/diagnostics/presentation/diagnostics_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,22 @@ class AppSettingsScreen extends StatelessWidget {
         child: ListView(
           padding: AleraTokens.pagePadding,
           children: <Widget>[
+            Text('Account', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.spaceSm),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: const Text('Alera Accounts'),
+                subtitle: const Text('Cloud Identity And Notifications'),
+                trailing: const Icon(AleraIcons.chevronRight, size: 16),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AccountsScreen(),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.spaceXl),
             Text('Terminal', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AleraTokens.spaceSm),
             Card(

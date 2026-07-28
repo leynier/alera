@@ -583,12 +583,16 @@ impl ServerActor {
                 .to_string();
             let state_started_at = self.agent_presence_timestamp(entry);
             let previous = self.agent_presence.get(handle);
+            let transitioned = previous.is_none_or(|previous| {
+                previous.state != state || previous.state_started_at != state_started_at
+            });
             let updated_at = entry
                 .get("updatedAt")
                 .and_then(Value::as_str)
                 .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
                 .map(|value| value.with_timezone(&chrono::Utc))
                 .unwrap_or_else(chrono::Utc::now);
+            let push_agent_type = agent_type.clone();
             let presence = AgentPresence {
                 agent_type,
                 state,
@@ -612,6 +616,14 @@ impl ServerActor {
                     .or_else(|| previous.and_then(|value| value.interrupted)),
             };
             self.agent_presence.update_full(handle, presence);
+            self.queue_agent_push(
+                handle,
+                &push_agent_type,
+                state,
+                state_started_at,
+                transitioned,
+            )
+            .await;
             if let Ok(Some(dispatch)) = self
                 .runtime_store
                 .active_orchestration_dispatch_for_handle(handle)
@@ -1437,12 +1449,13 @@ impl ServerActor {
     async fn orchestration_escalate(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
         let assignee = dispatch.assignee_handle.clone().unwrap_or_default();
+        let subject = require_string(payload, "subject")?;
         let message = self
             .runtime_store
             .insert_orchestration_message(NewOrchestrationMessage {
                 from_handle: assignee,
                 to_handle: dispatch.coordinator_handle.clone(),
-                subject: require_string(payload, "subject")?,
+                subject: subject.clone(),
                 body: optional_string(payload, "body").unwrap_or_default(),
                 message_type: OrchestrationMessageType::Escalation,
                 priority: OrchestrationMessagePriority::High,
@@ -1466,6 +1479,8 @@ impl ServerActor {
             .record_orchestration_activity(&dispatch.id)
             .await
             .map_err(state_error)?;
+        self.queue_escalation_push(&dispatch.task_id, &subject)
+            .await;
         self.notify_message_arrived(
             &dispatch.coordinator_handle,
             OrchestrationMessageType::Escalation,
@@ -1758,6 +1773,7 @@ impl ServerActor {
             .create_orchestration_gate(&task_id, &question, &options)
             .await
             .map_err(state_error)?;
+        self.queue_gate_push(&task_id, &question).await;
         Ok(json!(gate))
     }
 

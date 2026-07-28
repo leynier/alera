@@ -97,12 +97,14 @@ void main() {
         'activeSessions': 2,
         'activeJobs': 1,
         'activeAgents': 3,
+        'activePushSubscriptions': 1,
       });
       expect(full.stopped, isTrue);
       expect(full.forced, isTrue);
       expect(full.activeSessions, 2);
       expect(full.activeJobs, 1);
       expect(full.activeAgents, 3);
+      expect(full.activePushSubscriptions, 1);
 
       final sparse = RuntimeHostShutdownResult.fromJson(const <String, Object?>{
         'stopped': true,
@@ -111,6 +113,7 @@ void main() {
       expect(sparse.activeSessions, 0);
       expect(sparse.activeJobs, 0);
       expect(sparse.activeAgents, 0);
+      expect(sparse.activePushSubscriptions, 0);
     });
   });
 
@@ -121,10 +124,12 @@ void main() {
         message: 'busy host',
         activeSessions: 1,
         activeJobs: 2,
+        activePushSubscriptions: 1,
       );
       expect(error.toString(), 'busy host');
       expect(error.activeSessions, 1);
       expect(error.activeJobs, 2);
+      expect(error.activePushSubscriptions, 1);
     });
   });
 

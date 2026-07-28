@@ -5,7 +5,8 @@ use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
-    MobileAccessSettings, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
+    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshAuthKind,
+    SshBootstrapStatus, SshTarget,
 };
 use anyhow::Result;
 use serde_json::{json, Value};
@@ -15,7 +16,7 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver, AgentHookEvent};
+use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -37,7 +38,7 @@ use crate::terminal_host::orchestration::message_delivery::{
 use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
-use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
+use crate::terminal_host::session::{PtyWriteCompletion, Session};
 use crate::terminal_host::sleep_detector::SleepDetector;
 
 use client_accept_loop::{display_socket_address, spawn_accept_loop};
@@ -45,6 +46,10 @@ use client_accept_loop::{display_socket_address, spawn_accept_loop};
 use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
+mod account_push_state;
+mod account_requests;
+#[cfg(test)]
+mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
@@ -88,11 +93,13 @@ mod output_resume_tests;
 mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
+mod push_delivery;
 mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
 mod runtime_mutation_barrier;
 mod runtime_mutations;
+mod server_command;
 mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
@@ -107,6 +114,8 @@ mod terminal_spawn;
 mod workspace_pinning;
 mod workspace_sidebar_requests;
 
+pub use server_command::ServerCommand;
+
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 
@@ -119,137 +128,6 @@ const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
 /// unbounded `output_batch` between timer flushes (early flush when exceeded).
 const OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
 const ORCHESTRATION_ACTIVITY_WRITE_INTERVAL: Duration = Duration::from_secs(30);
-
-/// Messages processed serially by the single server actor. Every state mutation
-/// happens here, which keeps session/client transitions deterministic.
-pub enum ServerCommand {
-    ClientConnected {
-        id: u64,
-        handle: ClientHandle,
-        kind: ClientKind,
-    },
-    ClientLine {
-        id: u64,
-        line: String,
-    },
-    ClientDisconnected {
-        id: u64,
-    },
-    Pty {
-        session_id: String,
-        event: PtyEvent,
-        handled: std::sync::mpsc::SyncSender<()>,
-    },
-    OutputBatchTick {
-        session_id: String,
-        generation: u64,
-    },
-    OutputResyncTick {
-        session_id: String,
-        client_id: u64,
-    },
-    DurableOutputBatchTick {
-        session_id: String,
-        generation: u64,
-    },
-    CheckpointTick {
-        session_id: String,
-        generation: u64,
-    },
-    ShutdownTick {
-        generation: u64,
-    },
-    RequestedShutdown,
-    AgentHookEvent {
-        event: AgentHookEvent,
-    },
-    SshBootstrapProgress {
-        progress: SshTargetBootstrapProgress,
-    },
-    SshBootstrapFinished {
-        target_id: String,
-        job_id: String,
-        status: SshBootstrapStatus,
-    },
-    ManagedWorkspaceCreated {
-        client_id: u64,
-        request_id: i64,
-        result: HostResult<Value>,
-    },
-    AgentQuotaFinished {
-        client_id: u64,
-        request_id: i64,
-        environment_signature: u64,
-        result: HostResult<Value>,
-    },
-    AgentQuotaClaudeTuiFinished {
-        client_id: u64,
-        request_id: i64,
-        environment_signature: u64,
-        result: HostResult<Value>,
-    },
-    HostToolFinished {
-        client_id: u64,
-        request_id: i64,
-        result: HostResult<Value>,
-        operation_id: Option<String>,
-        skill: Option<String>,
-    },
-    EmulatorRequestFinished {
-        client_id: u64,
-        request_id: i64,
-        completion: emulator_request_payloads::EmulatorRequestCompletion,
-    },
-    EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
-    RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
-    EmulatorPointerTimeout {
-        tab_id: String,
-        client_id: u64,
-        generation: u64,
-    },
-    /// A parked `check --wait`/`ask` request hit its server-side deadline.
-    OrchestrationWaitTimeout {
-        waiter_id: u64,
-        effective_timeout_ms: u64,
-    },
-    OrchestrationStateWaitPoll(u64),
-    /// Fires the deferred Enter after an injected orchestration banner.
-    OrchestrationDeferredEnter {
-        session_id: String,
-        session_instance_id: u64,
-        message_ids: Vec<String>,
-        force_submit: bool,
-    },
-    TerminalStartupInput {
-        session_id: String,
-        session_instance_id: u64,
-        interactive_shell: String,
-        command: String,
-    },
-    TerminalStartupSubmit {
-        session_id: String,
-        session_instance_id: u64,
-    },
-    ProjectCloneChanged {
-        job_id: String,
-    },
-    ProjectCloneFinished {
-        job_id: String,
-    },
-    /// One coordinator loop iteration, enqueued by the ticker task.
-    CoordinatorTick {
-        run_id: String,
-    },
-    /// One resource sampling iteration, enqueued by the ticker task.
-    ResourceSampleTick,
-    /// A finished sweep coming back from its blocking thread.
-    ResourceSampleReady {
-        snapshot: Value,
-    },
-    BrowserRequestTimeout {
-        correlation_id: String,
-    },
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ClientKind {
@@ -266,6 +144,7 @@ struct ClientState {
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
+    cloud_device_id: Option<String>,
 }
 
 struct SshBootstrapJobState {
@@ -284,12 +163,13 @@ pub async fn run_terminal_host_server(
     token: String,
     config: TerminalHostConfig,
 ) -> Result<()> {
-    if !runtime_dir.exists() {
-        std::fs::create_dir_all(&runtime_dir)?;
-    }
+    prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     runtime_store.ensure_default_browser_profile().await?;
+    let account_push =
+        account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
+            .await?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
@@ -325,6 +205,7 @@ pub async fn run_terminal_host_server(
         managed_workspace_jobs: 0,
         emulator_requests: Default::default(),
         agent_quota_cache: None,
+        account_push,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
@@ -357,6 +238,11 @@ pub async fn run_terminal_host_server(
     }
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
+    if actor.account_push.push_enabled
+        && actor.account_push.service.local_account().await?.is_some()
+    {
+        actor.start_push_subscription_sync(None);
+    }
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -393,6 +279,7 @@ struct ServerActor {
     managed_workspace_jobs: usize,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
+    account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     agent_presence: AgentPresenceRegistry,
@@ -579,6 +466,7 @@ impl ServerActor {
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
                         mobile_device_name: None,
+                        cloud_device_id: None,
                     },
                 );
             }
@@ -729,6 +617,8 @@ impl ServerActor {
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
+            ServerCommand::Account(command) => self.handle_account_command(command).await,
+            ServerCommand::Push(command) => self.handle_push_command(command),
         }
     }
 
@@ -1248,6 +1138,15 @@ mod tests {
     };
     use std::net::Ipv6Addr;
 
+    async fn account_push_for_test(
+        dir: &tempfile::TempDir,
+        runtime_store: &RuntimeStore,
+    ) -> account_push_state::AccountPushState {
+        account_push_state::AccountPushState::new(dir.path().to_path_buf(), runtime_store.clone())
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
         let dir = tempfile::tempdir().unwrap();
@@ -1261,7 +1160,7 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1276,6 +1175,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1337,13 +1237,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1423,13 +1324,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1504,13 +1406,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1607,13 +1510,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1683,13 +1587,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1746,13 +1651,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
                 (2, ClientState::local(second_app_handle, true)),
