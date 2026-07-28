@@ -56,6 +56,8 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
             | "browser.closedTabs.remove"
             | "browser.permissions.set"
             | "browser.permissions.remove"
+            | "browser.certificates.trust"
+            | "browser.certificates.remove"
             | "browser.tabs.open"
             | "browser.tabs.close"
             | "browser.tabs.reopen"
@@ -90,6 +92,8 @@ mod tests {
             "browser.closedTabs.remove",
             "browser.permissions.set",
             "browser.permissions.remove",
+            "browser.certificates.trust",
+            "browser.certificates.remove",
             "browser.tabs.open",
             "browser.tabs.close",
             "browser.tabs.reopen",
@@ -109,6 +113,7 @@ mod tests {
             "tab.remove",
             "browser.settings.get",
             "browser.profiles.list",
+            "browser.certificates.list",
             "browser.tabs.list",
             "browser.driver.register",
         ] {
