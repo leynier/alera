@@ -149,7 +149,7 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ### Run from source
 
-Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.flutter.dev/get-started/install) and a working Rust toolchain (`rustup`). The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`).
+Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.flutter.dev/get-started/install), a working Rust toolchain (`rustup`), and [Zig](https://ziglang.org/download/) 0.16.0. The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine, which a checkout like this one compiles from its own submodule rather than downloading.
 
 ```bash
 git clone https://github.com/leynier/alera.git
