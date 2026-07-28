@@ -6,7 +6,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    expect(find.byTooltip('New Terminal'), findsOneWidget);
+    expect(find.byTooltip('New Tab'), findsOneWidget);
     expect(find.text('New Terminal'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
@@ -59,7 +59,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: _splitWorkbenchState());
 
-    expect(find.byTooltip('New Terminal'), findsNWidgets(2));
+    expect(find.byTooltip('New Tab'), findsNWidgets(2));
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
@@ -106,7 +106,7 @@ void _registerAleraShellWorkbenchTests() {
 
     final tabs = find.byWidgetPredicate((widget) => widget is Draggable);
     expect(tabs, findsNWidgets(2));
-    expect(find.byTooltip('New Terminal'), findsOneWidget);
+    expect(find.byTooltip('New Tab'), findsOneWidget);
 
     final secondTabStart = tester.getTopLeft(tabs.at(1)) + const Offset(24, 20);
     final terminalRect = tester.getRect(
@@ -122,7 +122,7 @@ void _registerAleraShellWorkbenchTests() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('New Terminal'), findsNWidgets(2));
+    expect(find.byTooltip('New Tab'), findsNWidgets(2));
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
@@ -188,7 +188,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Quick Start'), findsOneWidget);
     expect(find.text('Keyboard Shortcuts'), findsOneWidget);
     expect(find.text('Projects & Workspaces'), findsNothing);
-    expect(find.byTooltip('New Terminal'), findsNothing);
+    expect(find.byTooltip('New Tab'), findsNothing);
   });
 
   testWidgets('terminal exit closes its tab and activates the remaining tab', (
@@ -256,7 +256,9 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('New Terminal'));
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Terminal'));
     // First pump runs the await chain; the second pump runs the
     // post-frame callback that requestFocus() defers to.
     await tester.pump();

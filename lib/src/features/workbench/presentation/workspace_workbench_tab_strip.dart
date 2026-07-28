@@ -138,11 +138,11 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncOverflow());
-    final addButton = _NewTerminalButton(onPressed: widget.onCreateTab);
-    final browserButton = widget.onCreateBrowserTab == null
-        ? null
-        : _NewBrowserButton(onPressed: widget.onCreateBrowserTab!);
-    final emulatorButton = _NewMobileEmulatorButton(groupId: widget.groupId);
+    final addButton = _NewTabButton(
+      groupId: widget.groupId,
+      onCreateTab: widget.onCreateTab,
+      onCreateBrowserTab: widget.onCreateBrowserTab,
+    );
     return ColoredBox(
       color: AleraTokens.surface,
       child: _TabStripAppendDropTarget(
@@ -205,11 +205,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                             onSplit: widget.onSplitGroup,
                           ),
                         ),
-                      if (!_hasOverflow) ...<Widget>[
-                        emulatorButton,
-                        addButton,
-                        ?browserButton,
-                      ],
+                      if (!_hasOverflow) addButton,
                     ],
                   ),
                 ),
@@ -217,14 +213,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
               if (_hasOverflow)
                 Padding(
                   padding: const EdgeInsets.only(right: AleraTokens.space8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      emulatorButton,
-                      addButton,
-                      ?browserButton,
-                    ],
-                  ),
+                  child: addButton,
                 ),
               _PaneMenuButton(
                 canCloseSplit: widget.canCloseSplit,
@@ -380,62 +369,98 @@ class _SplitDirectionPainter extends CustomPainter {
   }
 }
 
-class _NewTerminalButton extends StatelessWidget {
-  const _NewTerminalButton({required this.onPressed});
+enum _NewTabMenuAction { terminal, browser, mobileEmulator }
 
-  final VoidCallback onPressed;
+class _NewTabButton extends StatelessWidget {
+  const _NewTabButton({
+    required this.groupId,
+    required this.onCreateTab,
+    required this.onCreateBrowserTab,
+  });
+
+  final String groupId;
+  final VoidCallback onCreateTab;
+  final VoidCallback? onCreateBrowserTab;
+
+  Future<void> _openMenu(BuildContext context) async {
+    final onOpenMobileEmulator = _MobileEmulatorOpenScope.maybeOf(context);
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = button.localToGlobal(
+      button.size.bottomLeft(Offset.zero),
+      ancestor: overlay,
+    );
+    final bottomRight = button.localToGlobal(
+      button.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_NewTabMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<_NewTabMenuAction>>[
+        const AleraDropdownEntry<_NewTabMenuAction>(
+          value: _NewTabMenuAction.terminal,
+          label: 'New Terminal',
+          leading: Icon(
+            AleraIcons.terminal,
+            size: 16,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+        if (onCreateBrowserTab != null)
+          const AleraDropdownEntry<_NewTabMenuAction>(
+            value: _NewTabMenuAction.browser,
+            label: 'New Browser Tab',
+            leading: Icon(
+              AleraIcons.public,
+              size: 16,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+        AleraDropdownEntry<_NewTabMenuAction>(
+          value: _NewTabMenuAction.mobileEmulator,
+          label: 'New Mobile Emulator',
+          enabled: onOpenMobileEmulator != null,
+          leading: const Icon(
+            AleraIcons.mobileDevice,
+            size: 16,
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null) {
+      return;
+    }
+
+    switch (selected) {
+      case _NewTabMenuAction.terminal:
+        onCreateTab();
+      case _NewTabMenuAction.browser:
+        onCreateBrowserTab?.call();
+      case _NewTabMenuAction.mobileEmulator:
+        final open = onOpenMobileEmulator;
+        if (open != null) {
+          unawaited(open(targetGroupId: groupId));
+        }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AleraIconButton(
-      tooltip: 'New Terminal',
+      tooltip: 'New Tab',
       icon: AleraIcons.add,
       iconSize: 16,
       minSize: 28,
       hoverColor: AleraTokens.surfaceElevated,
       borderRadius: AleraTokens.radiusSm,
-      onPressed: onPressed,
-    );
-  }
-}
-
-class _NewBrowserButton extends StatelessWidget {
-  const _NewBrowserButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return AleraIconButton(
-      tooltip: 'New Browser Tab',
-      icon: AleraIcons.public,
-      iconSize: AleraTokens.space16,
-      minSize: AleraTokens.space24 + AleraTokens.space4,
-      hoverColor: AleraTokens.surfaceElevated,
-      borderRadius: AleraTokens.radiusSm,
-      onPressed: onPressed,
-    );
-  }
-}
-
-class _NewMobileEmulatorButton extends StatelessWidget {
-  const _NewMobileEmulatorButton({required this.groupId});
-
-  final String groupId;
-
-  @override
-  Widget build(BuildContext context) {
-    final onOpen = _MobileEmulatorOpenScope.maybeOf(context);
-    return AleraIconButton(
-      tooltip: 'Open Mobile Emulator',
-      icon: AleraIcons.mobileDevice,
-      iconSize: 16,
-      minSize: 28,
-      hoverColor: AleraTokens.surfaceElevated,
-      borderRadius: AleraTokens.radiusSm,
-      onPressed: onOpen == null
-          ? null
-          : () => unawaited(onOpen(targetGroupId: groupId)),
+      onPressed: () => unawaited(_openMenu(context)),
     );
   }
 }

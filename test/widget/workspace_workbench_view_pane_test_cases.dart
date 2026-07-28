@@ -400,10 +400,14 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    await tester.tap(find.byTooltip('New Terminal'));
-    await tester.pump();
-    await tester.tap(find.byTooltip('New Browser Tab'));
-    await tester.pump();
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Terminal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Browser Tab'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Terminal 1'));
     await tester.pump();
 
