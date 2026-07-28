@@ -35,9 +35,7 @@ void main() {
       _script,
       'readme.md',
       'docs/release-trust.md',
-      // landing/src/pages/download.astro also quotes it and belongs in this
-      // list. It is being rewritten on another branch, so it rejoins once that
-      // rewrite lands rather than being carried half-finished here.
+      'landing/src/pages/download.astro',
     ]) {
       expect(
         File(path).readAsStringSync(),
