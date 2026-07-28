@@ -149,7 +149,12 @@ impl RuntimeStore {
             ));
         }
         let mut tx = self.pool().begin().await?;
-        for table in ["browserPermissions", "browserHistory", "browserClosedTabs"] {
+        for table in [
+            "browserPermissions",
+            "browserHistory",
+            "browserClosedTabs",
+            "browserTrustedCertificates",
+        ] {
             sqlx::query(&format!("DELETE FROM {table} WHERE profileId = ?"))
                 .bind(&profile_id)
                 .execute(&mut *tx)

@@ -1,5 +1,7 @@
 enum AleraBrowserEngine { wkWebView, webView2, webKitGtk, unavailable }
 
+enum AleraBrowserTlsTrustScope { none, page, profileSession }
+
 /// Runtime facts used to gate every browser operation.
 final class AleraBrowserCapabilities {
   const AleraBrowserCapabilities({
@@ -16,6 +18,7 @@ final class AleraBrowserCapabilities {
     required this.fullCookies,
     required this.permissionCallbacks,
     required this.tlsCallbacks,
+    this.tlsTrustScope = AleraBrowserTlsTrustScope.none,
     required this.popupCallbacks,
     required this.downloadCallbacks,
     required this.domSnapshot,
@@ -82,6 +85,7 @@ final class AleraBrowserCapabilities {
   final bool fullCookies;
   final bool permissionCallbacks;
   final bool tlsCallbacks;
+  final AleraBrowserTlsTrustScope tlsTrustScope;
   final bool popupCallbacks;
   final bool downloadCallbacks;
   final bool domSnapshot;
@@ -139,6 +143,7 @@ final class AleraBrowserCapabilities {
       fullCookies &&
       permissionCallbacks &&
       tlsCallbacks &&
+      tlsTrustScope != AleraBrowserTlsTrustScope.none &&
       popupCallbacks &&
       downloadCallbacks &&
       domSnapshot &&

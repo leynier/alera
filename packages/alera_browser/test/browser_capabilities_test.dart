@@ -48,6 +48,7 @@ AleraBrowserCapabilities _capabilities({
   fullCookies: true,
   permissionCallbacks: true,
   tlsCallbacks: true,
+  tlsTrustScope: AleraBrowserTlsTrustScope.profileSession,
   popupCallbacks: true,
   downloadCallbacks: true,
   domSnapshot: true,

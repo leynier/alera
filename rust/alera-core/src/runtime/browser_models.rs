@@ -156,6 +156,24 @@ pub struct BrowserPermission {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserTrustedCertificate {
+    pub profile_id: String,
+    pub host: String,
+    pub fingerprint_sha256: String,
+    #[serde(default)]
+    pub subject: Option<String>,
+    #[serde(default)]
+    pub issuer: Option<String>,
+    #[serde(default)]
+    pub valid_from: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub valid_to: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub last_used_at: DateTime<Utc>,
+}
+
 fn default_true() -> bool {
     true
 }

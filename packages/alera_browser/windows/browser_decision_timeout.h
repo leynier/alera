@@ -4,6 +4,7 @@
 namespace alera_browser {
 
 constexpr unsigned int kBrowserDecisionTimeoutMilliseconds = 30000;
+constexpr unsigned int kBrowserTlsDecisionTimeoutMilliseconds = 65000;
 
 }  // namespace alera_browser
 

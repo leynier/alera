@@ -165,6 +165,19 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         PRIMARY KEY(profileId, origin, permission)
     );",
     "CREATE INDEX IF NOT EXISTS browserPermissionsOriginIdx ON browserPermissions(origin, permission);",
+    "CREATE TABLE IF NOT EXISTS browserTrustedCertificates (
+        profileId TEXT NOT NULL,
+        host TEXT NOT NULL,
+        fingerprintSha256 TEXT NOT NULL,
+        subject TEXT,
+        issuer TEXT,
+        validFrom TEXT,
+        validTo TEXT,
+        createdAt TEXT NOT NULL,
+        lastUsedAt TEXT NOT NULL,
+        PRIMARY KEY(profileId, host, fingerprintSha256)
+    );",
+    "CREATE INDEX IF NOT EXISTS browserTrustedCertificatesHostIdx ON browserTrustedCertificates(host, fingerprintSha256);",
     "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         enabled INTEGER NOT NULL DEFAULT 0,

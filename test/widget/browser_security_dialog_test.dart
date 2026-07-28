@@ -40,8 +40,8 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    expect(find.text('Trust For This Tab'), findsOneWidget);
-    await tester.tap(find.text('Trust For This Tab'));
+    expect(find.text('Review Certificate Trust'), findsOneWidget);
+    await tester.tap(find.text('Review Certificate Trust'));
     await tester.pumpAndSettle();
     expect(trusted, isTrue);
   });
@@ -65,7 +65,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Trust For This Tab'), findsNothing);
+    expect(find.text('Review Certificate Trust'), findsNothing);
     expect(
       find.textContaining('Public Hosts Cannot Bypass Certificate Failures.'),
       findsOneWidget,

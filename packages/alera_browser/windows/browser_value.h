@@ -47,6 +47,8 @@ std::filesystem::path BrowserTemporaryRoot();
 bool IsValidBrowserId(const std::string& value);
 bool IsAllowedBrowserUrl(const std::string& value);
 bool IsLoopbackUrl(const std::string& value);
+std::string BrowserUrlHost(const std::string& value);
+bool IsLocalCertificateUrl(const std::string& value);
 bool IsAbsoluteFilePath(const std::string& value);
 int64_t FileSize(const std::filesystem::path& path);
 std::string FileName(const std::filesystem::path& path);

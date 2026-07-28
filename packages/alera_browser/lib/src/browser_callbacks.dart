@@ -14,16 +14,40 @@ final class AleraBrowserPermissionRequest {
 
 enum AleraBrowserTlsDecision { cancel, proceed }
 
+enum AleraBrowserTlsErrorType {
+  untrustedIssuer,
+  nameMismatch,
+  expired,
+  notYetValid,
+  revoked,
+  insecure,
+  other,
+}
+
 final class AleraBrowserTlsError {
   const AleraBrowserTlsError({
     required this.pageId,
+    required this.host,
+    required this.fingerprintSha256,
     this.url,
     this.description,
+    this.subject,
+    this.issuer,
+    this.validFrom,
+    this.validTo,
+    this.errors = const <AleraBrowserTlsErrorType>{},
   });
 
   final String pageId;
+  final String host;
+  final String fingerprintSha256;
   final Uri? url;
   final String? description;
+  final String? subject;
+  final String? issuer;
+  final DateTime? validFrom;
+  final DateTime? validTo;
+  final Set<AleraBrowserTlsErrorType> errors;
 }
 
 enum AleraBrowserPopupDisposition { deny, newPage }

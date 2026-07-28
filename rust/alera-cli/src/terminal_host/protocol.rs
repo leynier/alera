@@ -89,6 +89,8 @@ pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAut
 /// Stores browser profiles, history, closed tabs, permissions and typed search
 /// settings in the shared runtime catalog.
 pub const RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY: &str = "browserProfilesV1";
+/// Stores exact local certificate fingerprints per browser profile.
+pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCertificateTrustV1";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.
 pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;

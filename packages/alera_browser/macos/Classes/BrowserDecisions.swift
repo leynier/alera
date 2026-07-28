@@ -66,6 +66,11 @@ extension AleraBrowserPlugin {
   func requestTLSDecision(
     page: BrowserPage,
     trust: SecTrust,
+    host: String,
+    fingerprintSHA256: String,
+    subject: String?,
+    validFrom: Date?,
+    validTo: Date?,
     description: String?,
     completion:
       @escaping (
@@ -79,8 +84,18 @@ extension AleraBrowserPlugin {
       "decisionId": decision.id,
       "pageId": page.id,
       "url": (page.lastRequestedMainFrameURL ?? page.webView.url)?.absoluteString ?? "",
+      "host": host,
+      "fingerprintSha256": fingerprintSHA256,
+      "errors": ["untrustedIssuer"],
     ]
     if let description { event["description"] = description }
+    if let subject { event["subject"] = subject }
+    if let validFrom {
+      event["validFrom"] = Int64(validFrom.timeIntervalSince1970 * 1000)
+    }
+    if let validTo {
+      event["validTo"] = Int64(validTo.timeIntervalSince1970 * 1000)
+    }
     emit(event)
   }
 
@@ -146,7 +161,13 @@ extension AleraBrowserPlugin {
     }
     decision.timeout = work
     decisions[id] = decision
-    DispatchQueue.main.asyncAfter(deadline: .now() + Self.decisionTimeout, execute: work)
+    let timeout: DispatchTimeInterval
+    if case .tls = kind {
+      timeout = .seconds(65)
+    } else {
+      timeout = Self.decisionTimeout
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: work)
     return decision
   }
 

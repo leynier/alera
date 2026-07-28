@@ -1,7 +1,10 @@
-#include "browser_value.h"
+#include <winsock2.h>
+#include <Ws2tcpip.h>
 
 #include <ShlObj.h>
 #include <windows.h>
+
+#include "browser_value.h"
 
 #include <algorithm>
 #include <cctype>
@@ -240,6 +243,45 @@ bool IsLoopbackUrl(const std::string& value) {
   }
   return host.size() > 10 &&
          host.compare(host.size() - 10, 10, ".localhost") == 0;
+}
+
+std::string BrowserUrlHost(const std::string& value) {
+  return UrlHost(value);
+}
+
+bool IsLocalCertificateUrl(const std::string& value) {
+  const auto lower = Lower(value);
+  if (lower.rfind("https://", 0) != 0) {
+    return false;
+  }
+  const auto host = UrlHost(value);
+  if (host == "localhost" ||
+      host == "0.0.0.0" ||
+      (host.size() > 10 &&
+       host.compare(host.size() - 10, 10, ".localhost") == 0) ||
+      (host.size() > 6 &&
+       host.compare(host.size() - 6, 6, ".local") == 0)) {
+    return true;
+  }
+  IN_ADDR ipv4{};
+  if (InetPtonW(AF_INET, Utf16(host).c_str(), &ipv4) == 1) {
+    const auto* bytes = reinterpret_cast<const unsigned char*>(&ipv4);
+    return bytes[0] == 10 || bytes[0] == 127 ||
+           (bytes[0] == 169 && bytes[1] == 254) ||
+           (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+           (bytes[0] == 192 && bytes[1] == 168);
+  }
+  IN6_ADDR ipv6{};
+  if (InetPtonW(AF_INET6, Utf16(host).c_str(), &ipv6) != 1) {
+    return false;
+  }
+  const auto* bytes = reinterpret_cast<const unsigned char*>(&ipv6);
+  const bool loopback =
+      std::all_of(bytes, bytes + 15, [](unsigned char byte) {
+        return byte == 0;
+      }) &&
+      bytes[15] == 1;
+  return loopback || (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80);
 }
 
 bool IsAbsoluteFilePath(const std::string& value) {

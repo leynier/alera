@@ -1,6 +1,6 @@
 use alera_core::runtime::{
     BrowserPermission, BrowserPermissionDecision, BrowserProfile, BrowserProfileSource,
-    BrowserSettings, DEFAULT_BROWSER_PROFILE_ID,
+    BrowserSettings, BrowserTrustedCertificate, DEFAULT_BROWSER_PROFILE_ID,
 };
 use chrono::Utc;
 use serde::Deserialize;
@@ -32,6 +32,22 @@ struct BrowserPermissionUpsert {
     origin: String,
     permission: String,
     decision: BrowserPermissionDecision,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserCertificateTrustUpsert {
+    profile_id: String,
+    host: String,
+    fingerprint_sha256: String,
+    #[serde(default)]
+    subject: Option<String>,
+    #[serde(default)]
+    issuer: Option<String>,
+    #[serde(default)]
+    valid_from: Option<chrono::DateTime<Utc>>,
+    #[serde(default)]
+    valid_to: Option<chrono::DateTime<Utc>>,
 }
 
 impl ServerActor {
@@ -212,6 +228,57 @@ impl ServerActor {
                     .remove_browser_permission(&profile_id, &origin, &permission)
                     .await
                     .map_err(store_error)?;
+                json!({"ok": true, "removed": removed})
+            }
+            "browser.certificates.list" => {
+                let profile_id = optional_string_key(payload, "profileId");
+                let certificates = self
+                    .runtime_store
+                    .list_browser_trusted_certificates(profile_id.as_deref())
+                    .await
+                    .map_err(store_error)?;
+                json!({"ok": true, "certificates": certificates})
+            }
+            "browser.certificates.trust" => {
+                let request: BrowserCertificateTrustUpsert =
+                    serde_json::from_value(payload.clone()).map_err(|error| {
+                        HostError::format(format!("invalid browser certificate trust: {error}"))
+                    })?;
+                let now = Utc::now();
+                let certificate = self
+                    .runtime_store
+                    .trust_browser_certificate(BrowserTrustedCertificate {
+                        profile_id: request.profile_id,
+                        host: request.host,
+                        fingerprint_sha256: request.fingerprint_sha256,
+                        subject: request.subject,
+                        issuer: request.issuer,
+                        valid_from: request.valid_from,
+                        valid_to: request.valid_to,
+                        created_at: now,
+                        last_used_at: now,
+                    })
+                    .await
+                    .map_err(store_error)?;
+                self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                    "browserCertificatesChanged",
+                    json!({"profileId": certificate.profile_id}),
+                ));
+                json!({"ok": true, "certificate": certificate})
+            }
+            "browser.certificates.remove" => {
+                let profile_id = require_string_key(payload, "profileId")?;
+                let host = require_string_key(payload, "host")?;
+                let fingerprint_sha256 = require_string_key(payload, "fingerprintSha256")?;
+                let removed = self
+                    .runtime_store
+                    .remove_browser_trusted_certificate(&profile_id, &host, &fingerprint_sha256)
+                    .await
+                    .map_err(store_error)?;
+                self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                    "browserCertificatesChanged",
+                    json!({"profileId": profile_id}),
+                ));
                 json!({"ok": true, "removed": removed})
             }
             _ => return Ok(None),

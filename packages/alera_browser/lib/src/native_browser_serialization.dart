@@ -41,6 +41,11 @@ AleraBrowserCapabilities decodeNativeBrowserCapabilities(
     fullCookies: flag('fullCookies'),
     permissionCallbacks: flag('permissionCallbacks'),
     tlsCallbacks: flag('tlsCallbacks'),
+    tlsTrustScope: switch (value['tlsTrustScope']) {
+      'page' => AleraBrowserTlsTrustScope.page,
+      'profileSession' => AleraBrowserTlsTrustScope.profileSession,
+      _ => AleraBrowserTlsTrustScope.none,
+    },
     popupCallbacks: flag('popupCallbacks'),
     downloadCallbacks: flag('downloadCallbacks'),
     domSnapshot: flag('domSnapshot'),

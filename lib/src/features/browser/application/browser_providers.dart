@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/browser/application/browser_closed_tabs_service.dart';
+import 'package:alera/src/features/browser/application/browser_certificate_trust_service.dart';
 import 'package:alera/src/features/browser/application/browser_engine.dart';
 import 'package:alera/src/features/browser/application/browser_history_service.dart';
 import 'package:alera/src/features/browser/application/browser_native_callback_coordinator.dart';
@@ -17,6 +18,7 @@ import 'package:alera/src/features/browser/infra/browser_runtime_driver.dart';
 import 'package:alera/src/features/browser/infra/plugin_browser_callback_bridge.dart';
 import 'package:alera/src/features/browser/infra/plugin_browser_engine.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_closed_tabs_service.dart';
+import 'package:alera/src/features/browser/infra/runtime_browser_certificate_trust_service.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_history_service.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_permission_service.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_profile_service.dart';
@@ -24,6 +26,7 @@ import 'package:alera/src/features/browser/infra/runtime_browser_settings_servic
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera_browser/alera_browser.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -74,7 +77,10 @@ BrowserEngine browserEngine(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Future<BrowserEngineCapabilities> browserAvailability(Ref ref) {
-  return ref.watch(browserEngineProvider).probeCapabilities();
+  return _probeStableBrowserCapabilities(
+    ref.watch(browserEngineProvider),
+    ref.watch(runtimeHostClientProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -106,6 +112,20 @@ BrowserClosedTabsService browserClosedTabsService(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+BrowserCertificateTrustService browserCertificateTrustService(Ref ref) {
+  return RuntimeBrowserCertificateTrustService(
+    ref.watch(runtimeHostClientProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
+BrowserCertificateTrustRegistry browserCertificateTrustRegistry(Ref ref) {
+  return BrowserCertificateTrustRegistry(
+    ref.watch(browserCertificateTrustServiceProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
 BrowserProfileCoordinator browserProfileCoordinator(Ref ref) {
   return BrowserProfileCoordinator(
     engine: ref.watch(browserEngineProvider),
@@ -117,6 +137,10 @@ BrowserProfileCoordinator browserProfileCoordinator(Ref ref) {
 BrowserSessionRegistry browserSessionRegistry(Ref ref) {
   final registry = BrowserSessionRegistry(
     engine: ref.watch(browserEngineProvider),
+    probeCapabilities: () => _probeStableBrowserCapabilities(
+      ref.read(browserEngineProvider),
+      ref.read(runtimeHostClientProvider),
+    ),
     readSearchEngine: () async {
       try {
         return (await ref.read(browserSettingsServiceProvider).get())
@@ -128,6 +152,29 @@ BrowserSessionRegistry browserSessionRegistry(Ref ref) {
   );
   ref.onDispose(() => unawaited(registry.dispose()));
   return registry;
+}
+
+Future<BrowserEngineCapabilities> _probeStableBrowserCapabilities(
+  BrowserEngine engine,
+  RuntimeHostClient client,
+) async {
+  final capabilities = await engine.probeCapabilities();
+  try {
+    final status = asTerminalHostMap(
+      await client.runtimeRequest('status.get'),
+      'Runtime host status',
+    );
+    final runtimeCapabilities = asTerminalHostStringList(
+      status['runtimeCapabilities'],
+    );
+    return capabilities.withPersistentCertificateTrust(
+      runtimeCapabilities.contains(
+        aleraRuntimeHostBrowserCertificateTrustCapability,
+      ),
+    );
+  } on Object {
+    return capabilities.withPersistentCertificateTrust(false);
+  }
 }
 
 @Riverpod(keepAlive: true)

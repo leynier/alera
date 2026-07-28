@@ -193,6 +193,100 @@ void main() {
     );
   });
 
+  test('native TLS requests decode certificate metadata and resolve', () async {
+    const methodChannel = MethodChannel(
+      'dev.leynier.alera/browser/native-platform-tls-test',
+    );
+    const eventChannel = EventChannel(
+      'dev.leynier.alera/browser/native-platform-tls-test/events',
+    );
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final listening = Completer<void>();
+    final received = Completer<AleraBrowserTlsError>();
+    final resolved = Completer<Map<Object?, Object?>>();
+    messenger.setMockMethodCallHandler(methodChannel, (call) async {
+      if (call.method == 'decision.resolve' && !resolved.isCompleted) {
+        resolved.complete(call.arguments as Map<Object?, Object?>);
+      }
+      return null;
+    });
+    messenger.setMockMethodCallHandler(
+      const MethodChannel(
+        'dev.leynier.alera/browser/native-platform-tls-test/events',
+      ),
+      (call) async {
+        if (call.method == 'listen' && !listening.isCompleted) {
+          listening.complete();
+        }
+        return null;
+      },
+    );
+    final platform = NativeAleraBrowserPlatform(
+      callbacks: AleraBrowserCallbacks(
+        onTlsError: (error) async {
+          received.complete(error);
+          return AleraBrowserTlsDecision.proceed;
+        },
+      ),
+      channel: const AleraBrowserNativeChannel(
+        methodChannel: methodChannel,
+        eventChannel: eventChannel,
+      ),
+    );
+    await listening.future;
+
+    await messenger.handlePlatformMessage(
+      'dev.leynier.alera/browser/native-platform-tls-test/events',
+      const StandardMethodCodec().encodeSuccessEnvelope(<String, Object?>{
+        'type': 'tlsRequest',
+        'decisionId': 'decision-1',
+        'pageId': 'page',
+        'url': 'https://service.local',
+        'host': 'service.local',
+        'fingerprintSha256':
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'description': 'Unknown issuer',
+        'subject': 'Local Service',
+        'issuer': 'Development CA',
+        'validFrom': 1785196800000,
+        'validTo': '2026-08-27T00:00:00.000Z',
+        'errors': <String>['untrustedIssuer', 'futureError'],
+      }),
+      (_) {},
+    );
+
+    final error = await received.future;
+    expect(error.pageId, 'page');
+    expect(error.url, Uri.parse('https://service.local'));
+    expect(error.host, 'service.local');
+    expect(error.subject, 'Local Service');
+    expect(error.issuer, 'Development CA');
+    expect(
+      error.validFrom,
+      DateTime.fromMillisecondsSinceEpoch(1785196800000, isUtc: true),
+    );
+    expect(error.validTo, DateTime.utc(2026, 8, 27));
+    expect(error.errors, <AleraBrowserTlsErrorType>{
+      AleraBrowserTlsErrorType.untrustedIssuer,
+      AleraBrowserTlsErrorType.other,
+    });
+    final resolution = await resolved.future;
+    expect(resolution['decisionId'], 'decision-1');
+    expect(resolution['decision'], 'proceed');
+    expect(resolution['targetPageId'], isNull);
+    expect(resolution['destinationPath'], isNull);
+
+    await platform.dispose();
+    messenger.setMockMethodCallHandler(methodChannel, null);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel(
+        'dev.leynier.alera/browser/native-platform-tls-test/events',
+      ),
+      null,
+    );
+  });
+
   test(
     'cookie source profiles decode and selected profile serializes',
     () async {

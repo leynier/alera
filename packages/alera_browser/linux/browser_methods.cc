@@ -27,6 +27,7 @@ FlValue* probe_capabilities(AleraBrowserPlugin* plugin) {
       "basicCookies",
       "fullCookies",
       "permissionCallbacks",
+      "tlsCallbacks",
       "popupCallbacks",
       "downloadCallbacks",
       "domSnapshot",
@@ -50,7 +51,8 @@ FlValue* probe_capabilities(AleraBrowserPlugin* plugin) {
   fl_value_set_string_take(
       value, "trustedInputEvents", fl_value_new_bool(FALSE));
   fl_value_set_string_take(
-      value, "tlsCallbacks", fl_value_new_bool(FALSE));
+      value, "tlsTrustScope", fl_value_new_string(
+          available ? "profileSession" : "none"));
   FlValue* native_sources = fl_value_new_list();
   for (const gchar* source : {"chrome", "edge", "brave", "firefox"}) {
     fl_value_append_take(
@@ -72,9 +74,6 @@ FlValue* probe_capabilities(AleraBrowserPlugin* plugin) {
   fl_value_append_take(
       limitations,
       fl_value_new_string("trusted_input_events_unavailable"));
-  fl_value_append_take(
-      limitations,
-      fl_value_new_string("tab_scoped_tls_exception_unavailable"));
   fl_value_set_string_take(value, "limitations", limitations);
   return value;
 }

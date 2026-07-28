@@ -104,14 +104,38 @@ final class BrowserTlsRequest {
   const BrowserTlsRequest({
     required this.pageId,
     required this.requestedAt,
+    required this.host,
+    required this.fingerprintSha256,
     this.url,
     this.description,
+    this.subject,
+    this.issuer,
+    this.validFrom,
+    this.validTo,
+    this.errors = const <BrowserTlsErrorType>{},
   });
 
   final String pageId;
+  final String host;
+  final String fingerprintSha256;
   final Uri? url;
   final String? description;
+  final String? subject;
+  final String? issuer;
+  final DateTime? validFrom;
+  final DateTime? validTo;
+  final Set<BrowserTlsErrorType> errors;
   final DateTime requestedAt;
+}
+
+enum BrowserTlsErrorType {
+  untrustedIssuer,
+  nameMismatch,
+  expired,
+  notYetValid,
+  revoked,
+  insecure,
+  other,
 }
 
 BrowserSecurityState browserSecurityForUrl(Uri url, {required bool committed}) {

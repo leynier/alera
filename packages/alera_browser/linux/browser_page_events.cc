@@ -1,6 +1,71 @@
 #include "browser_state.h"
 
+#include <cstring>
+
 namespace {
+
+gboolean is_local_certificate_host(const gchar* value) {
+  if (value == nullptr) {
+    return FALSE;
+  }
+  g_autofree gchar* host = g_ascii_strdown(value, -1);
+  if (g_str_equal(host, "localhost") ||
+      g_str_equal(host, "0.0.0.0") ||
+      g_str_has_suffix(host, ".localhost") ||
+      g_str_has_suffix(host, ".local")) {
+    return TRUE;
+  }
+  g_autoptr(GInetAddress) address = g_inet_address_new_from_string(host);
+  if (address == nullptr) {
+    return FALSE;
+  }
+  if (g_inet_address_get_is_loopback(address) ||
+      g_inet_address_get_is_link_local(address)) {
+    return TRUE;
+  }
+  if (g_inet_address_get_family(address) != G_SOCKET_FAMILY_IPV4) {
+    return FALSE;
+  }
+  const guint8* bytes = g_inet_address_to_bytes(address);
+  return bytes[0] == 10 ||
+         (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+         (bytes[0] == 192 && bytes[1] == 168);
+}
+
+gchar* certificate_fingerprint(GTlsCertificate* certificate) {
+  gchar* pem = nullptr;
+  g_object_get(certificate, "certificate-pem", &pem, nullptr);
+  if (pem == nullptr) {
+    return nullptr;
+  }
+  g_autofree gchar* owned_pem = pem;
+  const gchar* start = std::strstr(pem, "-----BEGIN CERTIFICATE-----");
+  const gchar* end = std::strstr(pem, "-----END CERTIFICATE-----");
+  if (start == nullptr || end == nullptr || end <= start) {
+    return nullptr;
+  }
+  start += std::strlen("-----BEGIN CERTIFICATE-----");
+  g_autofree gchar* encoded = g_strndup(start, end - start);
+  gsize length = 0;
+  g_autofree guchar* der = g_base64_decode(encoded, &length);
+  return length == 0
+             ? nullptr
+             : g_compute_checksum_for_data(G_CHECKSUM_SHA256, der, length);
+}
+
+gboolean certificate_dates_are_current(GTlsCertificate* certificate,
+                                       GDateTime** valid_from,
+                                       GDateTime** valid_to) {
+  g_object_get(
+      certificate, "not-valid-before", valid_from,
+      "not-valid-after", valid_to, nullptr);
+  if (*valid_from == nullptr || *valid_to == nullptr) {
+    return FALSE;
+  }
+  g_autoptr(GDateTime) now = g_date_time_new_now_utc();
+  return g_date_time_compare(now, *valid_from) >= 0 &&
+         g_date_time_compare(now, *valid_to) <= 0;
+}
 
 struct DownloadState {
   AleraBrowserPlugin* plugin;
@@ -284,10 +349,65 @@ gboolean tls_failed_cb(WebKitWebView* web_view,
                        GTlsCertificateFlags errors,
                        gpointer user_data) {
   LinuxBrowserPage* page = static_cast<LinuxBrowserPage*>(user_data);
-  emit_load_failure(
-      page, failing_uri,
-      "WebKitGTK rejected the TLS certificate and cannot scope an "
-      "exception to one tab.");
+  g_autoptr(GUri) uri =
+      g_uri_parse(failing_uri, G_URI_FLAGS_NONE, nullptr);
+  const gchar* scheme = uri != nullptr ? g_uri_get_scheme(uri) : nullptr;
+  const gchar* host = uri != nullptr ? g_uri_get_host(uri) : nullptr;
+  g_autoptr(GDateTime) valid_from = nullptr;
+  g_autoptr(GDateTime) valid_to = nullptr;
+  g_autofree gchar* fingerprint = certificate_fingerprint(certificate);
+  if (!page->plugin->event_listening ||
+      scheme == nullptr || g_ascii_strcasecmp(scheme, "https") != 0 ||
+      !is_local_certificate_host(host) ||
+      errors != G_TLS_CERTIFICATE_UNKNOWN_CA ||
+      fingerprint == nullptr ||
+      !certificate_dates_are_current(
+          certificate, &valid_from, &valid_to)) {
+    emit_load_failure(
+        page, failing_uri,
+        "Alera rejected the TLS certificate.");
+    return TRUE;
+  }
+  gchar* subject = nullptr;
+  gchar* issuer = nullptr;
+  g_object_get(
+      certificate, "subject-name", &subject, "issuer-name", &issuer,
+      nullptr);
+  g_autofree gchar* owned_subject = subject;
+  g_autofree gchar* owned_issuer = issuer;
+  LinuxBrowserDecision* decision = browser_decision_create(
+      page->plugin, LINUX_BROWSER_DECISION_TLS, page);
+  decision->native_request = G_OBJECT(g_object_ref(certificate));
+  decision->failing_uri = g_strdup(failing_uri);
+  FlValue* event = browser_event("tlsRequest", page->id);
+  fl_value_set_string_take(
+      event, "decisionId", fl_value_new_string(decision->id));
+  fl_value_set_string_take(
+      event, "url", fl_value_new_string(failing_uri));
+  fl_value_set_string_take(event, "host", fl_value_new_string(host));
+  fl_value_set_string_take(
+      event, "fingerprintSha256", fl_value_new_string(fingerprint));
+  FlValue* error_values = fl_value_new_list();
+  fl_value_append_take(
+      error_values, fl_value_new_string("untrustedIssuer"));
+  fl_value_set_string_take(event, "errors", error_values);
+  if (subject != nullptr) {
+    fl_value_set_string_take(
+        event, "subject", fl_value_new_string(subject));
+  }
+  if (issuer != nullptr) {
+    fl_value_set_string_take(
+        event, "issuer", fl_value_new_string(issuer));
+  }
+  g_autofree gchar* valid_from_text =
+      g_date_time_format_iso8601(valid_from);
+  g_autofree gchar* valid_to_text =
+      g_date_time_format_iso8601(valid_to);
+  fl_value_set_string_take(
+      event, "validFrom", fl_value_new_string(valid_from_text));
+  fl_value_set_string_take(
+      event, "validTo", fl_value_new_string(valid_to_text));
+  browser_send_event(page->plugin, event);
   return TRUE;
 }
 

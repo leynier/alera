@@ -1,4 +1,5 @@
 import Darwin
+import CommonCrypto
 import Security
 import WebKit
 
@@ -129,9 +130,23 @@ extension BrowserPage: WKNavigationDelegate {
       completionHandler(.cancelAuthenticationChallenge, nil)
       return
     }
+    guard
+      let details = localUntrustedCertificateDetails(
+        trust: trust,
+        host: challenge.protectionSpace.host
+      )
+    else {
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
     owner?.requestTLSDecision(
       page: self,
       trust: trust,
+      host: challenge.protectionSpace.host.lowercased(),
+      fingerprintSHA256: details.fingerprintSHA256,
+      subject: details.subject,
+      validFrom: details.validFrom,
+      validTo: details.validTo,
       description: (trustError as Error?)?.localizedDescription,
       completion: completionHandler
     )
@@ -167,12 +182,61 @@ extension BrowserPage: WKNavigationDelegate {
   }
 }
 
+private struct LocalCertificateDetails {
+  let fingerprintSHA256: String
+  let subject: String?
+  let validFrom: Date?
+  let validTo: Date?
+}
+
+private func localUntrustedCertificateDetails(
+  trust: SecTrust,
+  host: String
+) -> LocalCertificateDetails? {
+  guard
+    let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+    let leaf = chain.first,
+    let anchor = chain.last
+  else {
+    return nil
+  }
+  guard
+    SecTrustSetAnchorCertificates(trust, [anchor] as CFArray) == errSecSuccess,
+    SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess
+  else {
+    return nil
+  }
+  var anchoredError: CFError?
+  guard SecTrustEvaluateWithError(trust, &anchoredError) else {
+    return nil
+  }
+  let data = SecCertificateCopyData(leaf) as Data
+  var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+  data.withUnsafeBytes { bytes in
+    _ = CC_SHA256(bytes.baseAddress, CC_LONG(data.count), &digest)
+  }
+  let values = SecCertificateCopyValues(
+    leaf,
+    [kSecOIDX509V1ValidityNotBefore, kSecOIDX509V1ValidityNotAfter] as CFArray,
+    nil
+  ) as? [CFString: [CFString: Any]]
+  return LocalCertificateDetails(
+    fingerprintSHA256: digest.map { String(format: "%02x", $0) }.joined(),
+    subject: SecCertificateCopySubjectSummary(leaf) as String?,
+    validFrom: values?[kSecOIDX509V1ValidityNotBefore]?[kSecPropertyKeyValue]
+      as? Date,
+    validTo: values?[kSecOIDX509V1ValidityNotAfter]?[kSecPropertyKeyValue]
+      as? Date
+  )
+}
+
 func isTemporaryLocalCertificateHost(_ value: String) -> Bool {
   let host =
     value
     .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
     .lowercased()
   if host == "localhost"
+    || host == "0.0.0.0"
     || host.hasSuffix(".localhost")
     || host.hasSuffix(".local")
   {

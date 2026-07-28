@@ -19,6 +19,10 @@ void main() {
         isTrue,
       );
       expect(
+        isTemporaryLocalCertificateOrigin(Uri.parse('https://0.0.0.0')),
+        isTrue,
+      );
+      expect(
         isTemporaryLocalCertificateOrigin(Uri.parse('https://service.local')),
         isTrue,
       );

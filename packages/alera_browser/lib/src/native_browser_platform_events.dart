@@ -148,8 +148,18 @@ extension _NativeBrowserPlatformEvents on NativeAleraBrowserPlatform {
             await callbacks.onTlsError?.call(
               AleraBrowserTlsError(
                 pageId: pageId,
+                host: event['host'] as String? ?? '',
+                fingerprintSha256: event['fingerprintSha256'] as String? ?? '',
                 url: Uri.tryParse(event['url'] as String? ?? ''),
                 description: event['description'] as String?,
+                subject: event['subject'] as String?,
+                issuer: event['issuer'] as String?,
+                validFrom: _decodeTlsDate(event['validFrom']),
+                validTo: _decodeTlsDate(event['validTo']),
+                errors: (event['errors'] as List<Object?>? ?? const <Object?>[])
+                    .whereType<String>()
+                    .map(_decodeTlsError)
+                    .toSet(),
               ),
             ) ??
             AleraBrowserTlsDecision.cancel;
@@ -302,4 +312,18 @@ extension _NativeBrowserPlatformEvents on NativeAleraBrowserPlatform {
       _events.add(event);
     }
   }
+}
+
+DateTime? _decodeTlsDate(Object? value) {
+  if (value is int) {
+    return DateTime.fromMillisecondsSinceEpoch(value, isUtc: true);
+  }
+  return value is String ? DateTime.tryParse(value)?.toUtc() : null;
+}
+
+AleraBrowserTlsErrorType _decodeTlsError(String value) {
+  return AleraBrowserTlsErrorType.values.firstWhere(
+    (error) => error.name == value,
+    orElse: () => AleraBrowserTlsErrorType.other,
+  );
 }
