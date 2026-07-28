@@ -10,42 +10,35 @@ void _writeSessionTerminal(_XtermTerminalSessionHandle handle, String data) {
 void _queueSessionTerminalOutput(
   _XtermTerminalSessionHandle handle,
   String data, {
-  bool bounded = true,
+  _TerminalOutputSource source = _TerminalOutputSource.live,
 }) {
   if (data.isEmpty || handle._disposed) {
     return;
   }
-  handle._output.pending.add(data);
-  handle._output.length += data.length;
-  if (!bounded) {
-    // A restored snapshot is a bounded one-shot payload, so it is exempt from
-    // the backlog cap that exists to contain a runaway live process.
-    handle._scheduleTerminalOutputFlush();
-    return;
-  }
-  // Drop the oldest output rather than let a runaway process grow the backlog
-  // without bound. Newer output is what the user is looking at.
-  while (handle._output.length > _terminalOutputMaxPendingChars &&
-      handle._output.pending.length > 1) {
-    final dropped = handle._output.headRemaining;
-    handle._output.length -= dropped;
-    handle._output.pending.removeFirst();
-    handle._output.head = 0;
-    handle._discardPointerInputCatchUp(dropped);
-  }
-  if (handle._output.length > _terminalOutputMaxPendingChars) {
-    // A single chunk can exceed the cap on its own, so trim its head too.
-    final chunk = handle._output.pending.first;
-    final previousHead = handle._output.head;
-    final start = _terminalOutputHeadTrimStart(
-      chunk,
-      chunk.length - _terminalOutputMaxPendingChars,
-    );
-    handle._output.head = start;
-    handle._output.length = chunk.length - start;
-    handle._discardPointerInputCatchUp(start - previousHead);
+  handle._output.add(_TerminalOutputSegment(data, source));
+  if (source == _TerminalOutputSource.live) {
+    _trimSessionLiveOutputBacklog(handle);
   }
   handle._scheduleTerminalOutputFlush();
+}
+
+void _trimSessionLiveOutputBacklog(_XtermTerminalSessionHandle handle) {
+  final output = handle._output;
+  // Preserve the snapshot and its mode reset. Only old live output is
+  // expendable, even when it sits behind a multi-megabyte restore segment.
+  while (output.liveLength > _terminalOutputMaxPendingChars) {
+    final segment = output.pending.firstWhere(
+      (candidate) => candidate.source == _TerminalOutputSource.live,
+    );
+    final offset = output.offsetOf(segment);
+    final excess = output.liveLength - _terminalOutputMaxPendingChars;
+    final trim = excess < segment.remaining ? excess : segment.remaining;
+    final target = segment.head + trim;
+    final nextHead = _terminalOutputHeadTrimStart(segment.text, target);
+    final dropped = nextHead - segment.head;
+    output.consume(segment, dropped);
+    handle._discardPointerInputCatchUp(offset: offset, chars: dropped);
+  }
 }
 
 void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
@@ -113,35 +106,40 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   }
   final frame = StringBuffer();
   var written = 0;
+  var restoreWritten = 0;
   while (pending.isNotEmpty && written < _terminalOutputMaxCharsPerFrame) {
-    final chunk = pending.first;
-    final head = handle._output.head;
-    final available = chunk.length - head;
+    final segment = pending.first;
+    final head = segment.head;
+    final available = segment.remaining;
     final remaining = _terminalOutputMaxCharsPerFrame - written;
     if (available <= remaining) {
-      pending.removeFirst();
-      handle._output.head = 0;
-      handle._output.length -= available;
-      frame.write(head == 0 ? chunk : chunk.substring(head));
+      frame.write(segment.remainingText);
+      handle._output.consume(segment, available);
       written += available;
+      if (segment.source == _TerminalOutputSource.restore) {
+        restoreWritten += available;
+      }
       continue;
     }
     // Absolute index, because the budget is measured from the head, not from
     // the start of the chunk.
-    final cutoff = _terminalOutputChunkCutoff(chunk, head + remaining);
+    final cutoff = _terminalOutputChunkCutoff(segment.text, head + remaining);
     if (cutoff <= head) {
       break;
     }
-    handle._output.head = cutoff;
-    handle._output.length -= cutoff - head;
-    frame.write(chunk.substring(head, cutoff));
-    written += cutoff - head;
+    final consumed = cutoff - head;
+    frame.write(segment.text.substring(head, cutoff));
+    handle._output.consume(segment, consumed);
+    written += consumed;
+    if (segment.source == _TerminalOutputSource.restore) {
+      restoreWritten += consumed;
+    }
   }
   if (written == 0) {
     return;
   }
   handle._writeToTerminal(frame.toString());
-  handle._advanceRestore(written);
+  handle._advanceRestore(restoreWritten);
   handle._advancePointerInputCatchUp(written);
 }
 
@@ -152,12 +150,9 @@ void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {
   }
   handle._output.restartFlushClock();
   final pendingChars = handle._output.length;
-  final head = handle._output.head;
   final buffer = StringBuffer();
-  var first = true;
-  for (final chunk in handle._output.pending) {
-    buffer.write(first && head > 0 ? chunk.substring(head) : chunk);
-    first = false;
+  for (final segment in handle._output.pending) {
+    buffer.write(segment.remainingText);
   }
   handle._clearPendingTerminalOutput();
   handle._writeToTerminal(buffer.toString());

@@ -63,7 +63,11 @@ async fn resume_serves_only_the_bytes_the_client_missed() {
     assert_eq!(payload.get("snapshotBase64"), None);
     let _ = terminal_rx.try_recv().expect("the delivered hello");
     let missed = terminal_rx.try_recv().expect("the resume delta");
-    assert!(matches!(missed, ClientFrame::Output { ref data, .. } if data == b" world"));
+    assert!(matches!(
+        missed,
+        ClientFrame::SequencedTerminal { frame, .. }
+            if matches!(*frame, ClientFrame::Output { ref data, .. } if data == b" world")
+    ));
     let session = &actor.sessions["s1"];
     assert_eq!(session.delivered_output_cursor(2), Some(11));
     assert_eq!(session.output_clients(), vec![2]);

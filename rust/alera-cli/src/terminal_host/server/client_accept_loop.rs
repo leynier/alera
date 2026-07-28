@@ -28,10 +28,7 @@ pub(super) fn spawn_accept_loop(
             if inbox
                 .send(ServerCommand::ClientConnected {
                     id,
-                    handle: ClientHandle {
-                        control_out: control_out_tx,
-                        terminal_out: terminal_out_tx,
-                    },
+                    handle: ClientHandle::new(control_out_tx, terminal_out_tx),
                     kind: ClientKind::Local,
                 })
                 .is_err()

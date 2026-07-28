@@ -1,7 +1,14 @@
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{
+    error::TryRecvError, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+};
 
 use crate::terminal_host::frame_codec::{encode_json_frame, encode_output_frame};
 use crate::terminal_host::protocol::BINARY_FRAMES_ENABLED_EVENT;
@@ -17,8 +24,24 @@ use crate::terminal_host::server::ServerCommand;
 #[derive(Debug, Clone)]
 pub enum ClientFrame {
     Json(Value),
-    Output { session_id: String, data: Vec<u8> },
+    Output {
+        session_id: String,
+        data: Vec<u8>,
+    },
     UpgradeToBinary,
+    /// Control frames carry the last terminal sequence accepted before them.
+    /// The writer uses it as a causal barrier between snapshot replies and
+    /// output produced after that snapshot.
+    OrderedControl {
+        terminal_watermark: u64,
+        frame: Box<ClientFrame>,
+    },
+    /// Terminal sequence numbers are internal to one connection and never
+    /// appear on the wire.
+    SequencedTerminal {
+        sequence: u64,
+        frame: Box<ClientFrame>,
+    },
 }
 
 impl From<Value> for ClientFrame {
@@ -31,7 +54,7 @@ impl ClientFrame {
     /// The JSON this frame would be on a text-only transport, or None for the
     /// upgrade marker, which has no representation there.
     pub fn as_json(&self) -> Option<Value> {
-        match self {
+        match self.payload() {
             ClientFrame::Json(value) => Some(value.clone()),
             ClientFrame::Output { session_id, data } => {
                 Some(crate::terminal_host::protocol::event(
@@ -43,6 +66,37 @@ impl ClientFrame {
                 ))
             }
             ClientFrame::UpgradeToBinary => None,
+            ClientFrame::OrderedControl { .. } | ClientFrame::SequencedTerminal { .. } => {
+                unreachable!("payload strips internal ordering envelopes")
+            }
+        }
+    }
+
+    fn payload(&self) -> &ClientFrame {
+        let mut frame = self;
+        loop {
+            frame = match frame {
+                ClientFrame::OrderedControl { frame, .. }
+                | ClientFrame::SequencedTerminal { frame, .. } => frame,
+                _ => return frame,
+            };
+        }
+    }
+
+    fn into_control(self) -> (u64, ClientFrame) {
+        match self {
+            ClientFrame::OrderedControl {
+                terminal_watermark,
+                frame,
+            } => (terminal_watermark, *frame),
+            frame => (u64::MAX, frame),
+        }
+    }
+
+    fn into_terminal(self) -> (u64, ClientFrame) {
+        match self {
+            ClientFrame::SequencedTerminal { sequence, frame } => (sequence, *frame),
+            frame => (0, frame),
         }
     }
 }
@@ -51,8 +105,44 @@ impl ClientFrame {
 /// from bounded terminal output so a terminal burst cannot drop RPC responses.
 #[derive(Clone)]
 pub struct ClientHandle {
-    pub control_out: UnboundedSender<ClientFrame>,
-    pub terminal_out: Sender<ClientFrame>,
+    control_out: UnboundedSender<ClientFrame>,
+    terminal_out: Sender<ClientFrame>,
+    terminal_sequence: Arc<AtomicU64>,
+}
+
+impl ClientHandle {
+    pub fn new(
+        control_out: UnboundedSender<ClientFrame>,
+        terminal_out: Sender<ClientFrame>,
+    ) -> Self {
+        Self {
+            control_out,
+            terminal_out,
+            terminal_sequence: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    pub fn send_control(
+        &self,
+        frame: ClientFrame,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<ClientFrame>> {
+        let terminal_watermark = self.terminal_sequence.load(Ordering::SeqCst);
+        self.control_out.send(ClientFrame::OrderedControl {
+            terminal_watermark,
+            frame: Box::new(frame),
+        })
+    }
+
+    pub fn try_send_terminal(
+        &self,
+        frame: ClientFrame,
+    ) -> Result<(), tokio::sync::mpsc::error::TrySendError<ClientFrame>> {
+        let sequence = self.terminal_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+        self.terminal_out.try_send(ClientFrame::SequencedTerminal {
+            sequence,
+            frame: Box::new(frame),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -61,13 +151,7 @@ impl ClientHandle {
         let (control_out, control_out_rx) = tokio::sync::mpsc::unbounded_channel();
         let (terminal_out, _terminal_out_rx) =
             tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-        (
-            Self {
-                control_out,
-                terminal_out,
-            },
-            control_out_rx,
-        )
+        (Self::new(control_out, terminal_out), control_out_rx)
     }
 
     /// Keeps the terminal lane receiver alive, so a test can read what was
@@ -77,13 +161,54 @@ impl ClientHandle {
         let (control_out, _control_out_rx) = tokio::sync::mpsc::unbounded_channel();
         let (terminal_out, terminal_out_rx) =
             tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-        (
-            Self {
-                control_out,
-                terminal_out,
-            },
-            terminal_out_rx,
-        )
+        (Self::new(control_out, terminal_out), terminal_out_rx)
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ClientFrameOrdering {
+    pending_terminal: Option<(u64, ClientFrame)>,
+}
+
+impl ClientFrameOrdering {
+    pub(crate) fn stage_terminal(&mut self, frame: ClientFrame) {
+        debug_assert!(self.pending_terminal.is_none());
+        self.pending_terminal = Some(frame.into_terminal());
+    }
+
+    pub(crate) fn take_pending_terminal(&mut self) -> Option<ClientFrame> {
+        self.pending_terminal.take().map(|(_, frame)| frame)
+    }
+
+    pub(crate) fn has_pending_terminal(&self) -> bool {
+        self.pending_terminal.is_some()
+    }
+
+    pub(crate) fn before_control(
+        &mut self,
+        control: ClientFrame,
+        terminal_out_rx: &mut Receiver<ClientFrame>,
+    ) -> (Vec<ClientFrame>, ClientFrame) {
+        let (terminal_watermark, control) = control.into_control();
+        let mut terminal = Vec::new();
+        loop {
+            let next = self.pending_terminal.take().or_else(|| {
+                terminal_out_rx
+                    .try_recv()
+                    .ok()
+                    .map(ClientFrame::into_terminal)
+            });
+            let Some((sequence, frame)) = next else {
+                break;
+            };
+            if sequence <= terminal_watermark {
+                terminal.push(frame);
+            } else {
+                self.pending_terminal = Some((sequence, frame));
+                break;
+            }
+        }
+        (terminal, control)
     }
 }
 
@@ -102,7 +227,42 @@ pub async fn connection_loop(
     let (read_half, mut write_half) = stream.into_split();
     let mut lines = BufReader::new(read_half).lines();
     let mut binary = false;
+    let mut ordering = ClientFrameOrdering::default();
     loop {
+        if ordering.has_pending_terminal() {
+            match control_out_rx.try_recv() {
+                Ok(control) => {
+                    if write_control_frame(
+                        &mut write_half,
+                        control,
+                        &mut terminal_out_rx,
+                        &mut ordering,
+                        &mut binary,
+                    )
+                    .await
+                    .is_err()
+                    {
+                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        break;
+                    }
+                    continue;
+                }
+                Err(TryRecvError::Empty) => {
+                    let frame = ordering
+                        .take_pending_terminal()
+                        .expect("pending terminal frame just checked");
+                    if write_frame(&mut write_half, frame, &mut binary)
+                        .await
+                        .is_err()
+                    {
+                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        break;
+                    }
+                    continue;
+                }
+                Err(TryRecvError::Disconnected) => break,
+            }
+        }
         tokio::select! {
             line = lines.next_line() => {
                 match line {
@@ -120,25 +280,16 @@ pub async fn connection_loop(
             }
             message = control_out_rx.recv() => {
                 match message {
-                    Some(value) => {
-                        let queued_terminal_frames = terminal_out_rx.len();
-                        let mut failed = false;
-                        for _ in 0..queued_terminal_frames {
-                            let Ok(terminal_value) = terminal_out_rx.try_recv() else {
-                                break;
-                            };
-                            if write_frame(&mut write_half, terminal_value, &mut binary)
-                                .await
-                                .is_err()
-                            {
-                                failed = true;
-                                break;
-                            }
-                        }
-                        if failed
-                            || write_frame(&mut write_half, value, &mut binary)
-                                .await
-                                .is_err()
+                    Some(control) => {
+                        if write_control_frame(
+                            &mut write_half,
+                            control,
+                            &mut terminal_out_rx,
+                            &mut ordering,
+                            &mut binary,
+                        )
+                        .await
+                        .is_err()
                         {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
@@ -150,11 +301,28 @@ pub async fn connection_loop(
             }
             message = terminal_out_rx.recv() => {
                 match message {
-                    Some(value) => {
-                        if write_frame(&mut write_half, value, &mut binary)
-                            .await
-                            .is_err()
-                        {
+                    Some(terminal) => {
+                        ordering.stage_terminal(terminal);
+                        let result = match control_out_rx.try_recv() {
+                            Ok(control) => {
+                                write_control_frame(
+                                    &mut write_half,
+                                    control,
+                                    &mut terminal_out_rx,
+                                    &mut ordering,
+                                    &mut binary,
+                                )
+                                .await
+                            }
+                            Err(TryRecvError::Empty) => {
+                                let frame = ordering
+                                    .take_pending_terminal()
+                                    .expect("terminal frame was just staged");
+                                write_frame(&mut write_half, frame, &mut binary).await
+                            }
+                            Err(TryRecvError::Disconnected) => break,
+                        };
+                        if result.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -166,15 +334,36 @@ pub async fn connection_loop(
     }
 }
 
+async fn write_control_frame(
+    write_half: &mut tokio::net::tcp::OwnedWriteHalf,
+    control: ClientFrame,
+    terminal_out_rx: &mut Receiver<ClientFrame>,
+    ordering: &mut ClientFrameOrdering,
+    binary: &mut bool,
+) -> std::io::Result<()> {
+    let (terminal, control) = ordering.before_control(control, terminal_out_rx);
+    for frame in terminal {
+        write_frame(write_half, frame, binary).await?;
+    }
+    write_frame(write_half, control, binary).await
+}
+
 /// Writes one outbound item, honouring the mode this connection is currently
 /// in. `binary` flips only when an [`ClientFrame::UpgradeToBinary`] is reached
 /// in the stream, which is what keeps the switch ordered against the hello
 /// response.
 async fn write_frame(
     write_half: &mut tokio::net::tcp::OwnedWriteHalf,
-    frame: ClientFrame,
+    mut frame: ClientFrame,
     binary: &mut bool,
 ) -> std::io::Result<()> {
+    loop {
+        frame = match frame {
+            ClientFrame::OrderedControl { frame, .. }
+            | ClientFrame::SequencedTerminal { frame, .. } => *frame,
+            _ => break,
+        };
+    }
     match frame {
         ClientFrame::UpgradeToBinary => {
             // A sentinel line, not a silent flag flip. The reader may live in
@@ -200,6 +389,9 @@ async fn write_frame(
             write_half
                 .write_all(&encode_output_frame(&session_id, &data))
                 .await
+        }
+        ClientFrame::OrderedControl { .. } | ClientFrame::SequencedTerminal { .. } => {
+            unreachable!("ordering envelopes were stripped before writing")
         }
         // A client that never negotiated the capability still gets the base64
         // JSON event it expects.
@@ -240,7 +432,7 @@ mod tests {
     use tokio::net::TcpListener;
 
     #[tokio::test]
-    async fn queued_terminal_frames_keep_causal_order_before_control() {
+    async fn control_response_stays_between_its_causal_terminal_frames() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let client = TcpStream::connect(address).await.unwrap();
@@ -249,12 +441,17 @@ mod tests {
         let (control_tx, control_rx) = tokio::sync::mpsc::unbounded_channel();
         let (terminal_tx, terminal_rx) =
             tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+        let handle = ClientHandle::new(control_tx, terminal_tx);
 
-        terminal_tx
-            .send(json!({"event": "output"}).into())
-            .await
+        handle
+            .try_send_terminal(json!({"event": "output-a"}).into())
             .unwrap();
-        control_tx.send(json!({"event": "exit"}).into()).unwrap();
+        handle
+            .send_control(json!({"response": "attachment"}).into())
+            .unwrap();
+        handle
+            .try_send_terminal(json!({"event": "output-b"}).into())
+            .unwrap();
         let task = tokio::spawn(connection_loop(server, 1, inbox, control_rx, terminal_rx));
         let mut lines = BufReader::new(client).lines();
 
@@ -262,11 +459,13 @@ mod tests {
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
         let second: Value =
             serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
-        assert_eq!(first["event"], json!("output"));
-        assert_eq!(second["event"], json!("exit"));
+        let third: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(first["event"], json!("output-a"));
+        assert_eq!(second["response"], json!("attachment"));
+        assert_eq!(third["event"], json!("output-b"));
 
-        drop(control_tx);
-        drop(terminal_tx);
+        drop(handle);
         task.await.unwrap();
     }
 }

@@ -88,8 +88,14 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
     _refreshPointerInputSuspension();
   }
 
-  void _discardPointerInputCatchUp(int chars) {
-    _advancePointerInputCatchUp(chars);
+  void _discardPointerInputCatchUp({required int offset, required int chars}) {
+    if (chars <= 0 || offset >= _pointerInputCatchUpChars) {
+      return;
+    }
+    final prefixRemaining = _pointerInputCatchUpChars - offset;
+    _advancePointerInputCatchUp(
+      chars < prefixRemaining ? chars : prefixRemaining,
+    );
   }
 
   void _resetPointerInputSynchronization() {
