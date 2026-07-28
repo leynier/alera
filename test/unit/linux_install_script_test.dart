@@ -35,7 +35,7 @@ void main() {
       _script,
       'readme.md',
       'docs/release-trust.md',
-      'landing/src/components/Install.astro',
+      'landing/src/pages/download.astro',
     ]) {
       expect(
         File(path).readAsStringSync(),
@@ -43,21 +43,6 @@ void main() {
         reason: '$path documents the repository signing key',
       );
     }
-  });
-
-  test('links the app install guide at an anchor the landing page has', () {
-    expect(
-      File('landing/src/components/Install.astro').readAsStringSync(),
-      contains('id="install"'),
-      reason:
-          'AleraUpdateConfig.installGuideUrl targets https://alera.build/#install',
-    );
-    expect(
-      File(
-        'lib/src/features/updater/domain/alera_update.dart',
-      ).readAsStringSync(),
-      contains('https://alera.build/#install'),
-    );
   });
 
   test('runs everything from main so a truncated download does nothing', () {

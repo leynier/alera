@@ -157,11 +157,21 @@ The script detects apt or dnf, verifies the repository signing key against a fin
 
 Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable [RPM Fusion](https://rpmfusion.org/) first, which is where `mpv-libs` comes from. openSUSE is not supported yet: the published RPM declares Fedora dependency names that openSUSE provides under different names.
 
-To add the repository by hand instead, see the manual setup on [alera.build](https://alera.build/#install). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `01DAF16E430AF8B2607BA44D457D8143C91B4732`.
+To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `01DAF16E430AF8B2607BA44D457D8143C91B4732`.
 
 ### macOS and Windows
 
 Download the latest build from [GitHub Releases](https://github.com/leynier/alera/releases). Alera updates itself from there once installed.
+
+### Code signing policy
+
+Free code signing provided by SignPath.io, certificate by SignPath Foundation.
+
+[SignPath.io](https://about.signpath.io) runs the signing service and the [SignPath Foundation](https://signpath.org) issues the certificate to open source projects at no cost.
+
+Alera is maintained by one person, who fills every role: Leynier Gutiérrez González is the sole committer, reviewer, and approver of signing requests. Data handling is described in the [Privacy Policy](https://alera.build/privacy).
+
+Current status: Linux packages are distributed through a repository whose metadata is signed with the key above. Windows and macOS builds are not signed yet, so Windows SmartScreen reports an unknown publisher and macOS Gatekeeper asks you to allow the app explicitly. Windows signing through SignPath begins once the certificate is issued.
 
 ### Run from source
 
