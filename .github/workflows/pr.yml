@@ -52,7 +52,9 @@ jobs:
   test:
     name: test ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A degraded Ubuntu mirror can consume more than 20 minutes installing the
+    # native toolchain before tests start on an otherwise healthy runner.
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
