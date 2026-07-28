@@ -7,8 +7,44 @@ void main() {
   group('AleraCliSkillService', () {
     test('copies auto command with npx to bunx fallback', () {
       expect(
-        aleraCliSkillInstallCommand(runner: AleraCliSkillRunner.auto),
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.auto,
+          operatingSystem: 'linux',
+        ),
         'npx skills add https://github.com/leynier/alera --skill alera-cli --global || bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
+      );
+    });
+
+    test('copies a single-line PowerShell auto command on windows', () {
+      final command = aleraCliSkillInstallCommand(
+        runner: AleraCliSkillRunner.auto,
+        operatingSystem: 'windows',
+      );
+      expect(
+        command,
+        'if (Get-Command npx -ErrorAction SilentlyContinue) '
+        '{ npx skills add https://github.com/leynier/alera --skill alera-cli --global } '
+        'else { bunx skills add https://github.com/leynier/alera --skill alera-cli --global }',
+      );
+      expect(command, isNot(contains('||')));
+      expect(command, isNot(contains('\n')));
+    });
+
+    test('keeps explicit runners unwrapped on windows', () {
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.npx,
+          operatingSystem: 'windows',
+        ),
+        'npx skills add https://github.com/leynier/alera --skill alera-cli --global',
+      );
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.bunx,
+          skill: AleraAgentSkill.orchestration,
+          operatingSystem: 'windows',
+        ),
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global',
       );
     });
 
