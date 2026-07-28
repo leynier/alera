@@ -39,6 +39,8 @@ dependencies:
   mobile_scanner: ^7.3.0
   riverpod_annotation: ^4.0.2
   shared_preferences: ^2.5.5
+  http: ^1.6.0
+  package_info_plus: ^9.0.1
   url_launcher: ^6.3.2
   web_socket_channel: ^3.0.3
   xterm:

@@ -21,6 +21,7 @@ class AleraCliSkillControl extends ConsumerWidget {
             .installOrUpdate(runner: runner);
         return AleraSkillInstallStatus(
           result.summary,
+          detail: result.detail,
           needsAttention: !result.succeeded,
         );
       },

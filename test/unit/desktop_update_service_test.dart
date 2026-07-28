@@ -177,7 +177,7 @@ void main() {
       expect(
         result.message,
         'No compatible Linux package is available for this distribution. '
-        'See https://alera.build/#install for supported distributions.',
+        'See https://alera.build/download for supported distributions.',
       );
     });
 

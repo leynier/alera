@@ -3,13 +3,21 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
+import 'package:alera/src/features/settings/presentation/panes/skill_install_output_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AleraSkillInstallStatus {
-  const AleraSkillInstallStatus(this.summary, {this.needsAttention = false});
+  const AleraSkillInstallStatus(
+    this.summary, {
+    this.detail = '',
+    this.needsAttention = false,
+  });
 
   final String summary;
+
+  /// Full installer output, shown on demand. The inline summary is one line.
+  final String detail;
   final bool needsAttention;
 }
 
@@ -56,7 +64,8 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
-            'Install Failed: $error',
+            'Install Failed',
+            detail: '$error',
             needsAttention: true,
           );
         });
@@ -133,6 +142,19 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
                 label: const Text('Copy'),
               ),
             ),
+            if (status != null && status.detail.isNotEmpty)
+              SizedBox(
+                height: kSupportControlHeight,
+                child: OutlinedButton.icon(
+                  onPressed: () => SkillInstallOutputDialog.show(
+                    context,
+                    title: 'Installer Output',
+                    output: status.detail,
+                  ),
+                  icon: const Icon(AleraIcons.terminal, size: 16),
+                  label: const Text('View Output'),
+                ),
+              ),
             SizedBox(
               height: kSupportControlHeight,
               child: FilledButton.tonalIcon(

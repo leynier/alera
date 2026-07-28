@@ -188,6 +188,79 @@ void main() {
     expect(service.skill, AleraAgentSkill.emulator);
   });
 
+  testWidgets('a failed install exposes the untruncated output', (
+    tester,
+  ) async {
+    String? clipboardText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final arguments = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = arguments['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+    const missingModule = "Error: Cannot find module 'C:\\shim\\npx-cli.js'";
+    final service = _FakeAleraCliSkillService(
+      failure: const AleraCliSkillInstallAttempt(
+        runner: AleraCliSkillRunner.npx,
+        exitCode: 1,
+        stdout: 'npm warn exec downloading skills',
+        stderr:
+            'node:internal/modules/cjs/loader:1424\n'
+            '        throw err;\n'
+            '$missingModule',
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: AleraCliSkillControl(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('View Output'), findsNothing);
+
+    await tester.tap(find.text('Install / Update'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.textContaining('Install Failed (npx)'),
+      findsOneWidget,
+      reason: 'the row shows a one-line summary',
+    );
+
+    await tester.tap(find.text('View Output'));
+    await tester.pumpAndSettle();
+
+    // The line that names the failure is the third one, and the settings row
+    // can never show it.
+    expect(find.textContaining(missingModule), findsOneWidget);
+    expect(
+      find.textContaining('npm warn exec downloading skills'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Copy Output'));
+    await tester.pump();
+
+    expect(clipboardText, contains(missingModule));
+    expect(clipboardText, contains('npm warn exec downloading skills'));
+  });
+
   testWidgets('registration control surfaces install failures', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -222,12 +295,13 @@ void main() {
 }
 
 class _FakeAleraCliSkillService extends AleraCliSkillService {
-  _FakeAleraCliSkillService()
+  _FakeAleraCliSkillService({this.failure})
     : super(
         processRunner: _NoopProcessRunner(),
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
       );
 
+  final AleraCliSkillInstallAttempt? failure;
   AleraCliSkillRunner? runner;
   AleraAgentSkill? skill;
 
@@ -243,13 +317,15 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
         : runner;
     return AleraCliSkillInstallResult(
       runner: runner,
+      skill: skill,
       attempts: <AleraCliSkillInstallAttempt>[
-        AleraCliSkillInstallAttempt(
-          runner: attemptRunner,
-          exitCode: 0,
-          stdout: 'ok',
-          stderr: '',
-        ),
+        failure ??
+            AleraCliSkillInstallAttempt(
+              runner: attemptRunner,
+              exitCode: 0,
+              stdout: 'ok',
+              stderr: '',
+            ),
       ],
     );
   }

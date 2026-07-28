@@ -19,6 +19,10 @@ class AleraOrchestrationSetupResult {
 
   bool get succeeded => skillResult.succeeded;
 
+  /// Forwarded so a failed orchestration setup exposes the same full installer
+  /// output as the plain skill controls.
+  String get detail => skillResult.detail;
+
   String get summary {
     if (!skillResult.succeeded) {
       return skillResult.summary;

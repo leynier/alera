@@ -1,3 +1,6 @@
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/updater/application/update_check_scheduler.dart';
+import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
@@ -21,4 +24,16 @@ AleraUpdateService aleraUpdateService(Ref ref) {
   );
   ref.onDispose(service.dispose);
   return service;
+}
+
+/// Nothing reads this provider's value: mounting it is what starts the
+/// recurring check, so the app shell watches it to keep it alive.
+@Riverpod(keepAlive: true)
+AleraUpdateCheckScheduler aleraUpdateCheckScheduler(Ref ref) {
+  final scheduler = AleraUpdateCheckScheduler(
+    check: ref.read(aleraUpdateControllerProvider.notifier).checkForUpdates,
+    foreground: ref.watch(appForegroundProvider),
+  );
+  ref.onDispose(scheduler.dispose);
+  return scheduler;
 }
