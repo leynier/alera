@@ -39,6 +39,21 @@ void main() {
       expect(restored.linkedAt.toUtc(), review.linkedAt);
     });
 
+    test('serializes the GitLab provider wire value', () {
+      final review = LinkedReview.linked(
+        workspaceId: 'w1',
+        provider: GitHostingProvider.gitlab,
+        number: 19,
+        url: 'https://gitlab.com/o/r/-/merge_requests/19',
+        linkedAt: DateTime.utc(2026, 7, 28),
+      );
+      expect(review.toMap()['provider'], 'gitlab');
+      expect(
+        LinkedReview.fromJson(review.toMap()).provider,
+        GitHostingProvider.gitlab,
+      );
+    });
+
     test('an exact dismissal round-trips and reports no linked review', () {
       final dismissal = LinkedReview.dismissal(
         workspaceId: 'w1',

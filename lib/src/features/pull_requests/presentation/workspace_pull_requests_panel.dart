@@ -13,6 +13,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_revie
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -164,19 +165,17 @@ class _PullRequestBody extends StatelessWidget {
       return _unavailable(state.unavailableReason!);
     }
     if (state.authStatus == ForgeAuthStatus.cliMissing) {
-      return const _MessageBody(
+      return _MessageBody(
         icon: AleraIcons.error,
         title: 'CLI Not Found',
-        message:
-            'Install the provider CLI (gh or az) and ensure it is on your PATH.',
+        message: 'Install `${_providerCli()}` and ensure it is on your PATH.',
       );
     }
     if (state.authStatus == ForgeAuthStatus.notAuthenticated) {
       return _MessageBody(
         icon: AleraIcons.error,
         title: 'Not Authenticated',
-        message:
-            'Sign in with the provider CLI (for example `gh auth login` or `az login`), then refresh.',
+        message: 'Run `${_authCommand()}` to sign in, then refresh.',
         action: OutlinedButton(
           onPressed: controller.refresh,
           child: const Text('Refresh'),
@@ -255,6 +254,29 @@ class _PullRequestBody extends StatelessWidget {
         title: 'Unsupported Provider',
         message: 'This hosting provider is not supported yet.',
       ),
+    };
+  }
+
+  String _providerCli() => switch (state.identity?.provider) {
+    GitHostingProvider.github => 'gh',
+    GitHostingProvider.gitlab => 'glab',
+    GitHostingProvider.azureDevops => 'az',
+    null => 'the provider CLI',
+  };
+
+  String _authCommand() {
+    final identity = state.identity;
+    return switch (identity?.provider) {
+      GitHostingProvider.github =>
+        identity!.host == 'github.com'
+            ? 'gh auth login'
+            : 'gh auth login --hostname ${identity.host}',
+      GitHostingProvider.gitlab =>
+        identity!.host == 'gitlab.com'
+            ? 'glab auth login'
+            : 'glab auth login --hostname ${identity.host}',
+      GitHostingProvider.azureDevops => 'az login',
+      null => 'the provider CLI login command',
     };
   }
 }

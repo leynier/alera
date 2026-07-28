@@ -38,5 +38,15 @@ void main() {
       );
       expect(config.isEmpty, isFalse);
     });
+
+    test('round-trips GitLab through JSON', () {
+      const config = ProjectConfig(
+        gitHostingProvider: GitHostingProvider.gitlab,
+      );
+      expect(
+        ProjectConfig.fromJson(config.toMap()).gitHostingProvider,
+        GitHostingProvider.gitlab,
+      );
+    });
   });
 }

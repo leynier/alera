@@ -74,16 +74,28 @@ class GitHubForgeProvider
   /// `gh` accepts `[HOST/]OWNER/REPO`; the host prefix is only needed for
   /// GitHub Enterprise hosts.
   String _repoSlug(GitRemoteIdentity identity) {
+    _ensureSupportedHost(identity);
     if (identity.host == 'github.com') {
       return '${identity.owner}/${identity.repo}';
     }
     return '${identity.host}/${identity.owner}/${identity.repo}';
   }
 
+  void _ensureSupportedHost(GitRemoteIdentity identity) {
+    if (Uri.parse('https://${identity.host}').hasPort) {
+      throw const ForgeRequestFailed(
+        'GitHub Enterprise Server hosts with custom HTTPS ports are not '
+        'supported by the gh CLI. Use a standard HTTPS hostname without a '
+        'port.',
+      );
+    }
+  }
+
   @override
   Future<ForgeAuthStatus> checkAuth({
     required GitRemoteIdentity identity,
   }) async {
+    _ensureSupportedHost(identity);
     try {
       final result = await _processRunner.run('gh', <String>[
         'auth',
@@ -261,6 +273,7 @@ class GitHubForgeProvider
     required String repoPath,
     required CreateReviewInput input,
   }) async {
+    _ensureSupportedHost(identity);
     ProcessRunOutput result;
     try {
       result = await _processRunner.run('gh', <String>[
@@ -326,6 +339,7 @@ class GitHubForgeProvider
     required int number,
     required UpdateReviewInput input,
   }) async {
+    _ensureSupportedHost(identity);
     ProcessRunOutput result;
     try {
       result = await _processRunner.run('gh', <String>[

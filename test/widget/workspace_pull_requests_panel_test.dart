@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
@@ -221,5 +222,82 @@ void main() {
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(linkedReviews.store[workspace.id]?.dismissed, isFalse);
     expect(linkedReviews.store[workspace.id]?.number, 123);
+  });
+
+  testWidgets('shows the self-hosted forge in authentication guidance', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 7, 28);
+    final workspace = Workspace(
+      id: 'workspace-1',
+      projectId: 'project-1',
+      name: 'Feature',
+      branch: 'feature',
+      path: '/repo',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+    );
+    for (final entry in <(GitHostingProvider, String, String)>[
+      (
+        GitHostingProvider.github,
+        'github.enterprise.test',
+        'gh auth login --hostname github.enterprise.test',
+      ),
+      (
+        GitHostingProvider.gitlab,
+        'gitlab.enterprise.test',
+        'glab auth login --hostname gitlab.enterprise.test',
+      ),
+    ]) {
+      final forge = FakeForgeProvider()
+        ..provider = entry.$1
+        ..auth = ForgeAuthStatus.notAuthenticated;
+      final git = FakeGitBackend()
+        ..remotesByName = <String, String?>{
+          'origin': 'https://${entry.$2}/team/alera.git',
+        };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey<GitHostingProvider>(entry.$1),
+          overrides: [
+            effectiveHostingProviderOverrideProvider.overrideWith(
+              (ref, projectId) async => entry.$1,
+            ),
+            gitBackendProvider.overrideWithValue(git),
+            forgeProviderRegistryProvider.overrideWithValue(
+              ForgeProviderRegistry(<ForgeProvider>[forge]),
+            ),
+            linkedReviewRepositoryProvider.overrideWithValue(
+              FakeLinkedReviewRepository(),
+            ),
+            workbenchControllerProvider.overrideWith(
+              _PanelWorkbenchController.new,
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 640,
+                child: WorkspacePullRequestsPanel(
+                  workspace: workspace,
+                  repoPath: workspace.path,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not Authenticated'), findsOneWidget);
+      expect(
+        find.text('Run `${entry.$3}` to sign in, then refresh.'),
+        findsOneWidget,
+      );
+    }
   });
 }

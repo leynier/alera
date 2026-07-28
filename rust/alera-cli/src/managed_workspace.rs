@@ -426,11 +426,16 @@ fn parse_git_hosting_provider(value: Option<&toml::Value>) -> Result<Option<Stri
         bail!("git_hosting_provider must be a string");
     };
     match raw.trim().to_lowercase().as_str() {
-        "github" => Ok(Some("github".to_string())),
+        "github" | "githubenterprise" | "github_enterprise" | "github-enterprise" => {
+            Ok(Some("github".to_string()))
+        }
         "azuredevops" | "azure_devops" | "azure-devops" | "azure" => {
             Ok(Some("azureDevops".to_string()))
         }
-        _ => bail!("git_hosting_provider must be one of: github, azureDevops"),
+        "gitlab" | "git_lab" | "git-lab" => Ok(Some("gitlab".to_string())),
+        _ => bail!(
+            "git_hosting_provider must be one of: github, githubEnterprise, azureDevops, gitlab"
+        ),
     }
 }
 
@@ -860,8 +865,22 @@ mod tests {
     use chrono::Utc;
 
     use super::{
-        create_managed_workspace, prepare_target, slugify, text_tail, ManagedWorkspaceCreateRequest,
+        create_managed_workspace, parse_project_config_toml, prepare_target, slugify, text_tail,
+        ManagedWorkspaceCreateRequest,
     };
+
+    #[test]
+    fn project_config_accepts_gitlab_hosting_provider() {
+        let config = parse_project_config_toml("git_hosting_provider = \"gitlab\"").unwrap();
+        assert_eq!(config.git_hosting_provider.as_deref(), Some("gitlab"));
+    }
+
+    #[test]
+    fn project_config_accepts_github_enterprise_alias() {
+        let config =
+            parse_project_config_toml("git_hosting_provider = \"githubEnterprise\"").unwrap();
+        assert_eq!(config.git_hosting_provider.as_deref(), Some("github"));
+    }
 
     #[test]
     fn slugify_matches_workspace_path_segments() {

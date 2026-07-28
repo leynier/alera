@@ -105,6 +105,54 @@ final class AzureDevOpsForgeProviderProvider
 String _$azureDevOpsForgeProviderHash() =>
     r'c211fc7e2bd874cadff65fbd4097a61ee9ef6926';
 
+@ProviderFor(gitLabForgeProvider)
+final gitLabForgeProviderProvider = GitLabForgeProviderProvider._();
+
+final class GitLabForgeProviderProvider
+    extends
+        $FunctionalProvider<
+          GitLabForgeProvider,
+          GitLabForgeProvider,
+          GitLabForgeProvider
+        >
+    with $Provider<GitLabForgeProvider> {
+  GitLabForgeProviderProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'gitLabForgeProviderProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$gitLabForgeProviderHash();
+
+  @$internal
+  @override
+  $ProviderElement<GitLabForgeProvider> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  GitLabForgeProvider create(Ref ref) {
+    return gitLabForgeProvider(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(GitLabForgeProvider value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<GitLabForgeProvider>(value),
+    );
+  }
+}
+
+String _$gitLabForgeProviderHash() =>
+    r'3086ab4c9030de5f62109607e3bb736ec2571ac2';
+
 @ProviderFor(forgeProviderRegistry)
 final forgeProviderRegistryProvider = ForgeProviderRegistryProvider._();
 
@@ -151,7 +199,7 @@ final class ForgeProviderRegistryProvider
 }
 
 String _$forgeProviderRegistryHash() =>
-    r'54c8b4ea2edea8d1319b9efa71549b29b1b30573';
+    r'2a3bbde19aea6ca1a4032769bd3ae4cc6f44f484';
 
 @ProviderFor(linkedReviewRepository)
 final linkedReviewRepositoryProvider = LinkedReviewRepositoryProvider._();

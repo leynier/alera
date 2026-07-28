@@ -90,7 +90,8 @@ class ProjectConfigEditor extends StatelessWidget {
           children: <Widget>[
             AleraSettingRow(
               title: 'Hosting Provider',
-              description: 'Auto-Detect Reads The Repository Remote.',
+              description:
+                  'Auto-Detect Uses Public Hosts. Select GitHub For GitHub Enterprise Server.',
               child: AleraDropdownField<GitHostingProvider?>(
                 value: gitHostingProvider,
                 onChanged: onGitHostingProviderChanged,

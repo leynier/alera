@@ -49,14 +49,17 @@ void main() {
     test('override forces the provider and marks fromOverride', () {
       final result = resolveHostingProvider(
         remotes: const <GitRemote>[
-          GitRemote(name: 'origin', url: 'https://github.mycorp.com/t/svc.git'),
+          GitRemote(
+            name: 'origin',
+            url: 'https://github.mycorp.com:8443/t/svc.git',
+          ),
         ],
         override: GitHostingProvider.github,
       );
       final resolved = result as HostingProviderResolved;
       expect(resolved.fromOverride, isTrue);
       expect(resolved.identity.provider, GitHostingProvider.github);
-      expect(resolved.identity.host, 'github.mycorp.com');
+      expect(resolved.identity.host, 'github.mycorp.com:8443');
     });
 
     test('reports no remote when none carry a URL', () {
@@ -66,17 +69,25 @@ void main() {
       expect(result, isA<HostingProviderNoRemote>());
     });
 
-    test('reports undetectable for an unrecognized remote', () {
+    test('auto-detects a GitLab remote', () {
       final result = resolveHostingProvider(
         remotes: const <GitRemote>[
           GitRemote(name: 'origin', url: 'https://gitlab.com/o/r.git'),
         ],
       );
-      expect(result, isA<HostingProviderUndetectable>());
-      expect(
-        (result as HostingProviderUndetectable).remoteUrl,
-        'https://gitlab.com/o/r.git',
+      final resolved = result as HostingProviderResolved;
+      expect(resolved.identity.provider, GitHostingProvider.gitlab);
+      expect(resolved.identity.owner, 'o');
+      expect(resolved.identity.repo, 'r');
+    });
+
+    test('reports undetectable for an unrecognized remote', () {
+      final result = resolveHostingProvider(
+        remotes: const <GitRemote>[
+          GitRemote(name: 'origin', url: 'https://codeberg.org/o/r.git'),
+        ],
       );
+      expect(result, isA<HostingProviderUndetectable>());
     });
 
     test('reports undetectable with attemptedOverride when override fails', () {

@@ -19,7 +19,13 @@ mixin _GitHubReviewActions {
     required ReviewMergeMethod method,
   }) async {
     final provider = this as GitHubForgeProvider;
+    if (method == ReviewMergeMethod.providerDefault) {
+      throw const ForgeRequestFailed(
+        'GitHub does not expose a provider-default merge method through gh.',
+      );
+    }
     final flag = switch (method) {
+      ReviewMergeMethod.providerDefault => throw StateError('unreachable'),
       ReviewMergeMethod.mergeCommit => '--merge',
       ReviewMergeMethod.squash => '--squash',
       ReviewMergeMethod.rebase => '--rebase',

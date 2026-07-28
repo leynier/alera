@@ -22,6 +22,8 @@ String? repositoryWebUrl(GitRemoteIdentity identity) {
       // GitHub and GitHub Enterprise share the same `{host}/{owner}/{repo}`
       // shape; the identity host already carries the enterprise host.
       return 'https://${identity.host}/${identity.owner}/${identity.repo}';
+    case GitHostingProvider.gitlab:
+      return 'https://${identity.host}/${identity.owner}/${identity.repo}';
     case GitHostingProvider.azureDevops:
       // `project` is always parsed for Azure identities; fall back to the repo
       // name for the rare single-repo project where it could be empty.

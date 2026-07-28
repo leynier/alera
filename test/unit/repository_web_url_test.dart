@@ -50,14 +50,30 @@ void main() {
       expect(repositoryWebUrl(identity), 'https://github.com/leynier/alera');
     });
 
-    test('github enterprise host', () {
+    test('github enterprise host with HTTPS port', () {
       final identity = GitRemoteIdentity(
         provider: GitHostingProvider.github,
-        host: 'git.acme.inc',
+        host: 'git.acme.inc:8443',
         owner: 'team',
         repo: 'service',
       );
-      expect(repositoryWebUrl(identity), 'https://git.acme.inc/team/service');
+      expect(
+        repositoryWebUrl(identity),
+        'https://git.acme.inc:8443/team/service',
+      );
+    });
+
+    test('gitlab self-hosted with nested groups', () {
+      final identity = GitRemoteIdentity(
+        provider: GitHostingProvider.gitlab,
+        host: 'gitlab.acme.inc',
+        owner: 'platform/mobile',
+        repo: 'service',
+      );
+      expect(
+        repositoryWebUrl(identity),
+        'https://gitlab.acme.inc/platform/mobile/service',
+      );
     });
 
     test('azure devops dev.azure.com', () {

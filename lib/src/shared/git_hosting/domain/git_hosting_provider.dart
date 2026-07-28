@@ -8,11 +8,13 @@ part 'git_hosting_provider.mapper.dart';
 @MappableEnum()
 enum GitHostingProvider {
   github,
-  azureDevops;
+  azureDevops,
+  gitlab;
 
   /// Human-facing label in title case for UI surfaces.
   String get label => switch (this) {
     GitHostingProvider.github => 'GitHub',
     GitHostingProvider.azureDevops => 'Azure DevOps',
+    GitHostingProvider.gitlab => 'GitLab',
   };
 }

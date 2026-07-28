@@ -17,6 +17,7 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 /// Configurable in-memory [ForgeProvider] shared by the pull-request
 /// controller suites.
 class FakeForgeProvider implements ForgeProvider {
+  GitHostingProvider provider = GitHostingProvider.github;
   ForgeAuthStatus auth = ForgeAuthStatus.authenticated;
   HostedReview? branchReview;
   Future<HostedReview?> Function()? branchReviewLoader;
@@ -65,7 +66,7 @@ class FakeForgeProvider implements ForgeProvider {
   Object? draftStatusError;
 
   @override
-  GitHostingProvider get id => GitHostingProvider.github;
+  GitHostingProvider get id => provider;
 
   @override
   bool get supportsReviewCreation => true;

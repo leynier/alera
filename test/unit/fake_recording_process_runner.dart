@@ -21,6 +21,9 @@ class FakeRecordingProcessRunner implements ProcessRunner {
         executable: executable,
         arguments: List<String>.from(arguments),
         workingDirectory: workingDirectory,
+        environment: environment == null
+            ? null
+            : Map<String, String>.from(environment),
       ),
     );
     final next = _results.removeAt(0);
@@ -46,11 +49,13 @@ class RecordedProcessCall {
     required this.executable,
     required this.arguments,
     required this.workingDirectory,
+    required this.environment,
   });
 
   final String executable;
   final List<String> arguments;
   final String? workingDirectory;
+  final Map<String, String>? environment;
 
   /// The value passed to `--$flag`, or null when the flag is absent.
   String? optionValue(String flag) {

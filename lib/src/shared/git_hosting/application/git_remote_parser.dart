@@ -19,9 +19,12 @@ GitRemoteIdentity? parseGitRemoteIdentity(String url) {
   if (parsed == null) {
     return null;
   }
-  final host = parsed.host;
+  final host = parsed.hostname;
   if (host == 'github.com') {
     return _asGitHub(parsed.host, parsed.segments);
+  }
+  if (host == 'gitlab.com') {
+    return _asGitLab(parsed.host, parsed.segments);
   }
   if (host == 'dev.azure.com' || host == 'ssh.dev.azure.com') {
     return _asAzureDevOps(parsed.host, parsed.segments);
@@ -49,13 +52,19 @@ GitRemoteIdentity? parseRemoteAsProvider(
   return switch (provider) {
     GitHostingProvider.github => _asGitHub(parsed.host, parsed.segments),
     GitHostingProvider.azureDevops => _asAnyAzure(parsed.host, parsed.segments),
+    GitHostingProvider.gitlab => _asGitLab(parsed.host, parsed.segments),
   };
 }
 
 class _ParsedRemoteUrl {
-  const _ParsedRemoteUrl({required this.host, required this.segments});
+  const _ParsedRemoteUrl({
+    required this.host,
+    required this.hostname,
+    required this.segments,
+  });
 
   final String host;
+  final String hostname;
   final List<String> segments;
 }
 
@@ -69,13 +78,18 @@ _ParsedRemoteUrl? _parseRemoteUrl(String raw) {
   }
 
   String host;
+  String hostname;
   String path;
   if (url.contains('://')) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.host.isEmpty) {
       return null;
     }
-    host = uri.host;
+    hostname = uri.host;
+    final preservesApiPort = uri.scheme == 'http' || uri.scheme == 'https';
+    host = preservesApiPort && uri.hasPort
+        ? '${uri.host}:${uri.port}'
+        : uri.host;
     path = uri.path;
   } else {
     // scp-like: [user@]host:path - the first ':' separates host from path.
@@ -90,6 +104,7 @@ _ParsedRemoteUrl? _parseRemoteUrl(String raw) {
       authority = authority.substring(at + 1);
     }
     host = authority;
+    hostname = authority;
   }
 
   final segments = <String>[];
@@ -109,7 +124,11 @@ _ParsedRemoteUrl? _parseRemoteUrl(String raw) {
   if (segments[last].isEmpty) {
     return null;
   }
-  return _ParsedRemoteUrl(host: host.toLowerCase(), segments: segments);
+  return _ParsedRemoteUrl(
+    host: host.toLowerCase(),
+    hostname: hostname.toLowerCase(),
+    segments: segments,
+  );
 }
 
 GitRemoteIdentity? _asGitHub(String host, List<String> segments) {
@@ -121,6 +140,18 @@ GitRemoteIdentity? _asGitHub(String host, List<String> segments) {
     host: host,
     owner: segments[0],
     repo: segments[1],
+  );
+}
+
+GitRemoteIdentity? _asGitLab(String host, List<String> segments) {
+  if (segments.length < 2) {
+    return null;
+  }
+  return GitRemoteIdentity(
+    provider: GitHostingProvider.gitlab,
+    host: host,
+    owner: segments.sublist(0, segments.length - 1).join('/'),
+    repo: segments.last,
   );
 }
 

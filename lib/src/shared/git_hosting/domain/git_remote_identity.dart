@@ -3,10 +3,10 @@ import 'package:dart_mappable/dart_mappable.dart';
 
 part 'git_remote_identity.mapper.dart';
 
-/// Repository coordinates parsed from a git remote URL. GitHub needs
-/// [owner]/[repo]; Azure DevOps additionally needs [project] (the org is
-/// carried in [owner]). [host] is the remote host (e.g. `github.com`,
-/// `dev.azure.com`).
+/// Repository coordinates parsed from a git remote URL. GitHub and GitLab need
+/// [owner]/[repo] (GitLab's owner can contain nested groups); Azure DevOps
+/// additionally needs [project] (the org is carried in [owner]). [host] is the
+/// remote host (e.g. `github.com`, `gitlab.com`, `dev.azure.com`).
 @MappableClass()
 class GitRemoteIdentity with GitRemoteIdentityMappable {
   const GitRemoteIdentity({

@@ -2,16 +2,18 @@ part of 'github_forge_provider.dart';
 
 mixin _GitHubReviewComments {
   static const String _reviewThreadsQuery = r'''
-query($owner: String!, $repo: String!, $pr: Int!) {
+query($owner: String!, $repo: String!, $pr: Int!, $threadsAfter: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $threadsAfter) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           isResolved
           line
           originalLine
           comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
             nodes {
               databaseId
               author { login }
@@ -28,6 +30,26 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 }
 ''';
 
+  static const String _threadCommentsQuery = r'''
+query($thread: ID!, $commentsAfter: String) {
+  node(id: $thread) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $commentsAfter) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          databaseId
+          author { login }
+          body
+          createdAt
+          url
+          path
+        }
+      }
+    }
+  }
+}
+''';
+
   GitHubForgeProvider get _github => this as GitHubForgeProvider;
 
   Future<List<ReviewComment>> getReviewComments({
@@ -35,6 +57,7 @@ query($owner: String!, $repo: String!, $pr: Int!) {
     required String repoPath,
     required int number,
   }) async {
+    _github._ensureSupportedHost(identity);
     final conversationFuture = _safeFetchCommentEntries(
       identity: identity,
       repoPath: repoPath,
@@ -143,58 +166,148 @@ query($owner: String!, $repo: String!, $pr: Int!) {
     required String repoPath,
     required int number,
   }) async {
-    try {
-      final output = await _github._run(<String>[
-        'api',
-        '--hostname',
-        identity.host,
-        'graphql',
-        '-f',
-        'query=$_reviewThreadsQuery',
-        '-f',
-        'owner=${identity.owner}',
-        '-f',
-        'repo=${identity.repo}',
-        '-F',
-        'pr=$number',
-      ], repoPath);
-      final decoded = _github._decodeJson(output);
-      if (decoded is! Map<String, Object?>) {
-        return const <ReviewComment>[];
+    final comments = <ReviewComment>[];
+    String? threadsAfter;
+    do {
+      try {
+        final decoded = await _runGraphql(
+          identity: identity,
+          repoPath: repoPath,
+          query: _reviewThreadsQuery,
+          fields: <String>[
+            'owner=${identity.owner}',
+            'repo=${identity.repo}',
+            if (threadsAfter != null) 'threadsAfter=$threadsAfter',
+          ],
+          typedFields: <String>['pr=$number'],
+        );
+        final data = decoded['data'];
+        final repository = data is Map<String, Object?>
+            ? data['repository']
+            : null;
+        final pullRequest = repository is Map<String, Object?>
+            ? repository['pullRequest']
+            : null;
+        final reviewThreads = pullRequest is Map<String, Object?>
+            ? pullRequest['reviewThreads']
+            : null;
+        if (reviewThreads is! Map<String, Object?>) {
+          break;
+        }
+        final nodes = reviewThreads['nodes'];
+        if (nodes is List) {
+          for (final thread in nodes.whereType<Map<String, Object?>>()) {
+            comments.addAll(_mapReviewThread(thread));
+            try {
+              comments.addAll(
+                await _fetchRemainingThreadComments(
+                  identity: identity,
+                  repoPath: repoPath,
+                  thread: thread,
+                ),
+              );
+            } on ForgeException {
+              // Keep this thread's first page and continue with other threads.
+            }
+          }
+        }
+        final next = _nextCursor(reviewThreads);
+        if (next == threadsAfter) {
+          break;
+        }
+        threadsAfter = next;
+      } on ForgeException {
+        return comments;
       }
-      final data = decoded['data'];
-      final repository = data is Map<String, Object?>
-          ? data['repository']
-          : null;
-      final pullRequest = repository is Map<String, Object?>
-          ? repository['pullRequest']
-          : null;
-      final reviewThreads = pullRequest is Map<String, Object?>
-          ? pullRequest['reviewThreads']
-          : null;
-      final nodes = reviewThreads is Map<String, Object?>
-          ? reviewThreads['nodes']
-          : null;
-      if (nodes is! List) {
-        return const <ReviewComment>[];
-      }
-      return <ReviewComment>[
-        for (final thread in nodes)
-          if (thread is Map<String, Object?>) ..._mapReviewThread(thread),
-      ];
-    } on ForgeException {
+    } while (threadsAfter != null);
+    return comments;
+  }
+
+  Future<List<ReviewComment>> _fetchRemainingThreadComments({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required Map<String, Object?> thread,
+  }) async {
+    final threadId = thread['id'] as String?;
+    final connection = thread['comments'];
+    if (threadId == null || connection is! Map<String, Object?>) {
       return const <ReviewComment>[];
     }
+    var commentsAfter = _nextCursor(connection);
+    final comments = <ReviewComment>[];
+    while (commentsAfter != null) {
+      final decoded = await _runGraphql(
+        identity: identity,
+        repoPath: repoPath,
+        query: _threadCommentsQuery,
+        fields: <String>['thread=$threadId', 'commentsAfter=$commentsAfter'],
+      );
+      final data = decoded['data'];
+      final node = data is Map<String, Object?> ? data['node'] : null;
+      final page = node is Map<String, Object?> ? node['comments'] : null;
+      if (page is! Map<String, Object?>) {
+        break;
+      }
+      final nodes = page['nodes'];
+      if (nodes is List) {
+        comments.addAll(_mapReviewThreadNodes(thread, nodes));
+      }
+      final next = _nextCursor(page);
+      if (next == commentsAfter) {
+        break;
+      }
+      commentsAfter = next;
+    }
+    return comments;
+  }
+
+  Future<Map<String, Object?>> _runGraphql({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required String query,
+    List<String> fields = const <String>[],
+    List<String> typedFields = const <String>[],
+  }) async {
+    final output = await _github._run(<String>[
+      'api',
+      '--hostname',
+      identity.host,
+      'graphql',
+      '-f',
+      'query=$query',
+      for (final field in fields) ...<String>['-f', field],
+      for (final field in typedFields) ...<String>['-F', field],
+    ], repoPath);
+    final decoded = _github._decodeJson(output);
+    if (decoded is! Map<String, Object?>) {
+      throw const ForgeRequestFailed('Unexpected gh GraphQL output.');
+    }
+    return decoded;
+  }
+
+  String? _nextCursor(Map<String, Object?> connection) {
+    final pageInfo = connection['pageInfo'];
+    if (pageInfo is! Map<String, Object?> || pageInfo['hasNextPage'] != true) {
+      return null;
+    }
+    return pageInfo['endCursor'] as String?;
   }
 
   Iterable<ReviewComment> _mapReviewThread(Map<String, Object?> thread) sync* {
-    final threadId = thread['id'] as String? ?? 'unknown';
-    final line = thread['line'] as int? ?? thread['originalLine'] as int?;
     final comments = thread['comments'];
     final nodes = comments is Map<String, Object?> ? comments['nodes'] : null;
     if (nodes is! List) {
       return;
     }
+    yield* _mapReviewThreadNodes(thread, nodes);
+  }
+
+  Iterable<ReviewComment> _mapReviewThreadNodes(
+    Map<String, Object?> thread,
+    List<Object?> nodes,
+  ) sync* {
+    final threadId = thread['id'] as String? ?? 'unknown';
+    final line = thread['line'] as int? ?? thread['originalLine'] as int?;
     for (final node in nodes) {
       if (node is! Map<String, Object?>) {
         continue;

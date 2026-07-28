@@ -70,13 +70,17 @@ GitHostingProvider? _gitHostingProviderFrom(Object? value) {
     throw ProjectConfigException('git_hosting_provider must be a string');
   }
   return switch (value.trim().toLowerCase()) {
-    'github' => GitHostingProvider.github,
+    'github' ||
+    'githubenterprise' ||
+    'github_enterprise' ||
+    'github-enterprise' => GitHostingProvider.github,
     'azuredevops' ||
     'azure_devops' ||
     'azure-devops' ||
     'azure' => GitHostingProvider.azureDevops,
+    'gitlab' || 'git_lab' || 'git-lab' => GitHostingProvider.gitlab,
     _ => throw ProjectConfigException(
-      'git_hosting_provider must be one of: github, azureDevops',
+      'git_hosting_provider must be one of: github, githubEnterprise, azureDevops, gitlab',
     ),
   };
 }

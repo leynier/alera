@@ -132,15 +132,12 @@ void main() {
     expect(launcher.opened, isEmpty);
   });
 
-  test('unsupported host -> undetectable', () async {
+  test('opens GitLab repo home', () async {
     git.remotesByName = <String, String?>{
       'origin': 'git@gitlab.com:team/repo.git',
     };
-    expect(
-      await opener.open(repoPath: '/repo'),
-      OpenRepositoryOutcome.undetectable,
-    );
-    expect(launcher.opened, isEmpty);
+    expect(await opener.open(repoPath: '/repo'), OpenRepositoryOutcome.opened);
+    expect(launcher.opened.single.toString(), 'https://gitlab.com/team/repo');
   });
 
   test('launcher failure falls back to the native open command', () async {

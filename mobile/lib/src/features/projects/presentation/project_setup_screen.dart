@@ -205,6 +205,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                         value: 'azureDevops',
                         child: Text('Azure DevOps'),
                       ),
+                      DropdownMenuItem(value: 'gitlab', child: Text('GitLab')),
                     ],
                     onChanged: (value) => setState(() => _provider = value),
                   ),

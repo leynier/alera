@@ -95,8 +95,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge PRs per worktree on GitHub and Azure DevOps |
-| Checks panel (CI/CD) | 3 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub and Azure DevOps; GitLab planned |
+| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge reviews per worktree on GitHub, GitLab, and Azure DevOps |
+| Checks panel (CI/CD) | 4 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub, GitLab, and Azure DevOps |
 | GitHub Projects integration | 4 | 3 | Planned | Full project board with columns, cards, filtering, inline editing |
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
 | Multi-account support | 3 | 3 | Planned | Account switcher, manage multiple accounts per provider |

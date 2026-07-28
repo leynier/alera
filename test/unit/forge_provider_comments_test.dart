@@ -28,6 +28,63 @@ ProcessRunOutput _ok(String stdout) =>
 
 void main() {
   group('GitHubForgeProvider comments', () {
+    test('routes Enterprise API requests to the remote host', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('[[]]'),
+        _ok(
+          '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]}}}}}',
+        ),
+        _ok('[[]]'),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      await provider.getReviewComments(
+        identity: const GitRemoteIdentity(
+          provider: GitHostingProvider.github,
+          host: 'github.mycorp.com',
+          owner: 'team',
+          repo: 'svc',
+        ),
+        repoPath: '/repo',
+        number: 123,
+      );
+
+      for (final call in runner.calls) {
+        expect(call.optionValue('hostname'), 'github.mycorp.com');
+      }
+    });
+
+    test('paginates review threads and every thread comment', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('[[]]'),
+        _ok('''
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":true,"endCursor":"THREADS-1"},"nodes":[{"id":"T1","isResolved":false,"line":7,"comments":{"pageInfo":{"hasNextPage":true,"endCursor":"COMMENTS-1"},"nodes":[{"databaseId":1,"author":{"login":"alice"},"body":"First","createdAt":"2026-07-16T10:00:00Z","path":"lib/a.dart"}]}}]}}}}}
+'''),
+        _ok('[[]]'),
+        _ok('''
+{"data":{"node":{"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"databaseId":2,"author":{"login":"bob"},"body":"Reply","createdAt":"2026-07-16T11:00:00Z","path":"lib/a.dart"}]}}}}
+'''),
+        _ok('''
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T2","isResolved":true,"originalLine":9,"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"databaseId":3,"author":{"login":"carol"},"body":"Second thread","createdAt":"2026-07-16T12:00:00Z","path":"lib/b.dart"}]}}]}}}}}
+'''),
+      ]);
+
+      final comments = await GitHubForgeProvider(runner).getReviewComments(
+        identity: _githubIdentity,
+        repoPath: '/repo',
+        number: 123,
+      );
+
+      expect(comments.map((comment) => comment.body), <String>[
+        'First',
+        'Reply',
+        'Second thread',
+      ]);
+      expect(runner.calls[3].arguments, contains('thread=T1'));
+      expect(runner.calls[3].arguments, contains('commentsAfter=COMMENTS-1'));
+      expect(runner.calls[4].arguments, contains('threadsAfter=THREADS-1'));
+    });
+
     test('loads conversation, reviews, and resolved inline threads', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''
@@ -93,6 +150,60 @@ void main() {
 
       expect(comments.single.body, 'General note');
     });
+
+    test('keeps the first thread page when the next page fails', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('[[]]'),
+        _ok('''
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":true,"endCursor":"THREADS-1"},"nodes":[{"id":"T1","isResolved":false,"line":7,"comments":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"databaseId":1,"author":{"login":"alice"},"body":"First page","createdAt":"2026-07-16T10:00:00Z","path":"lib/a.dart"}]}}]}}}}}
+'''),
+        _ok('[[]]'),
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'GraphQL page unavailable',
+        ),
+      ]);
+
+      final comments = await GitHubForgeProvider(runner).getReviewComments(
+        identity: _githubIdentity,
+        repoPath: '/repo',
+        number: 123,
+      );
+
+      expect(comments.single.body, 'First page');
+      expect(runner.calls.last.arguments, contains('threadsAfter=THREADS-1'));
+    });
+
+    test(
+      'keeps initial thread comments when reply continuation fails',
+      () async {
+        final runner = FakeRecordingProcessRunner(<Object>[
+          _ok('[[]]'),
+          _ok('''
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"T1","isResolved":false,"line":7,"comments":{"pageInfo":{"hasNextPage":true,"endCursor":"COMMENTS-1"},"nodes":[{"databaseId":1,"author":{"login":"alice"},"body":"First reply page","createdAt":"2026-07-16T10:00:00Z","path":"lib/a.dart"}]}}]}}}}}
+'''),
+          _ok('[[]]'),
+          const ProcessRunOutput(
+            exitCode: 1,
+            stdout: '',
+            stderr: 'GraphQL replies unavailable',
+          ),
+        ]);
+
+        final comments = await GitHubForgeProvider(runner).getReviewComments(
+          identity: _githubIdentity,
+          repoPath: '/repo',
+          number: 123,
+        );
+
+        expect(comments.single.body, 'First reply page');
+        expect(
+          runner.calls.last.arguments,
+          contains('commentsAfter=COMMENTS-1'),
+        );
+      },
+    );
 
     test('posts a top-level comment through gh pr comment', () async {
       final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);

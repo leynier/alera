@@ -22,6 +22,13 @@ void main() {
       );
     });
 
+    test('parses a GitLab merge request URL', () {
+      expect(
+        parseReviewReference('https://gitlab.com/o/r/-/merge_requests/19'),
+        19,
+      );
+    });
+
     test('returns null for unparseable input', () {
       expect(parseReviewReference('not-a-pr'), isNull);
       expect(parseReviewReference('   '), isNull);

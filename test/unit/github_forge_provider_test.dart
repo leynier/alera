@@ -1,6 +1,7 @@
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
@@ -71,23 +72,27 @@ void main() {
       expect(review, isNull);
     });
 
-    test('prefixes the host for GitHub Enterprise remotes', () async {
-      final runner = FakeRecordingProcessRunner(<Object>[_ok('[]')]);
-      final provider = GitHubForgeProvider(runner);
+    test('rejects a GitHub Enterprise custom HTTPS port', () async {
+      final provider = GitHubForgeProvider(FakeRecordingProcessRunner([]));
 
-      await provider.getReviewForBranch(
-        identity: const GitRemoteIdentity(
-          provider: GitHostingProvider.github,
-          host: 'github.mycorp.com',
-          owner: 'team',
-          repo: 'svc',
-        ),
-        repoPath: '/repo',
-        branch: 'x',
-      );
       expect(
-        runner.calls.single.optionValue('repo'),
-        'github.mycorp.com/team/svc',
+        () => provider.getReviewForBranch(
+          identity: const GitRemoteIdentity(
+            provider: GitHostingProvider.github,
+            host: 'github.mycorp.com:8443',
+            owner: 'team',
+            repo: 'svc',
+          ),
+          repoPath: '/repo',
+          branch: 'x',
+        ),
+        throwsA(
+          isA<ForgeRequestFailed>().having(
+            (error) => error.message,
+            'message',
+            contains('custom HTTPS ports'),
+          ),
+        ),
       );
     });
   });
@@ -330,6 +335,20 @@ void main() {
       });
     }
 
+    test('rejects the provider-default merge method', () async {
+      final provider = GitHubForgeProvider(FakeRecordingProcessRunner([]));
+
+      expect(
+        () => provider.mergeReview(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 123,
+          method: ReviewMergeMethod.providerDefault,
+        ),
+        throwsA(isA<ForgeRequestFailed>()),
+      );
+    });
+
     test('closes the pull request through gh', () async {
       final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
       final provider = GitHubForgeProvider(runner);
@@ -379,6 +398,20 @@ void main() {
         ForgeAuthStatus.authenticated,
       );
       expect(runner.calls.single.optionValue('hostname'), 'github.com');
+    });
+
+    test('checks authentication for the GitHub Enterprise host', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+      final provider = GitHubForgeProvider(runner);
+      await provider.checkAuth(
+        identity: const GitRemoteIdentity(
+          provider: GitHostingProvider.github,
+          host: 'github.mycorp.com',
+          owner: 'team',
+          repo: 'svc',
+        ),
+      );
+      expect(runner.calls.single.optionValue('hostname'), 'github.mycorp.com');
     });
 
     test('notAuthenticated on non-zero exit', () async {

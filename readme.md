@@ -109,7 +109,7 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 
 ### ✅ Pull requests & checks
 
-Work with pull requests per worktree on GitHub and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. PR titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click.
+Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
 
 ### 🖥️ Truly native, truly cross-platform
 
@@ -136,7 +136,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive
-- **More forge & tracker integrations**: GitLab pull requests and checks, Linear and issue-tracker linking per worktree
+- **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
 - **Voice, automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.

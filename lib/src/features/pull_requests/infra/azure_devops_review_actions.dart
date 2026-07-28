@@ -17,7 +17,8 @@ mixin _AzureDevOpsReviewActions {
     required int number,
     required ReviewMergeMethod method,
   }) async {
-    if (method == ReviewMergeMethod.rebase) {
+    if (method == ReviewMergeMethod.rebase ||
+        method == ReviewMergeMethod.providerDefault) {
       throw const ForgeRequestFailed(
         'Azure DevOps Does Not Support Rebase and Merge Through Its CLI.',
       );

@@ -70,6 +70,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
     final primaryEnabled =
         !_busy &&
         switch (action) {
+          _PullRequestReviewAction.providerDefault ||
           _PullRequestReviewAction.mergeCommit ||
           _PullRequestReviewAction.squash ||
           _PullRequestReviewAction.rebase => mergeEnabled,
@@ -84,6 +85,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
           _PullRequestReviewAction.unlink => true,
         };
     final showProgress = switch (action) {
+      _PullRequestReviewAction.providerDefault ||
       _PullRequestReviewAction.mergeCommit ||
       _PullRequestReviewAction.squash ||
       _PullRequestReviewAction.rebase =>
@@ -128,6 +130,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       case _PullRequestReviewAction.convertToDraft:
         await _confirmDraftStatus(draft: true);
         return;
+      case _PullRequestReviewAction.providerDefault:
       case _PullRequestReviewAction.mergeCommit:
       case _PullRequestReviewAction.squash:
       case _PullRequestReviewAction.rebase:
@@ -204,6 +207,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
 }
 
 enum _PullRequestReviewAction {
+  providerDefault,
   mergeCommit,
   squash,
   rebase,
@@ -214,6 +218,8 @@ enum _PullRequestReviewAction {
 
   factory _PullRequestReviewAction.fromMergeMethod(ReviewMergeMethod method) {
     return switch (method) {
+      ReviewMergeMethod.providerDefault =>
+        _PullRequestReviewAction.providerDefault,
       ReviewMergeMethod.mergeCommit => _PullRequestReviewAction.mergeCommit,
       ReviewMergeMethod.squash => _PullRequestReviewAction.squash,
       ReviewMergeMethod.rebase => _PullRequestReviewAction.rebase,
@@ -221,6 +227,8 @@ enum _PullRequestReviewAction {
   }
 
   ReviewMergeMethod? get mergeMethod => switch (this) {
+    _PullRequestReviewAction.providerDefault =>
+      ReviewMergeMethod.providerDefault,
     _PullRequestReviewAction.mergeCommit => ReviewMergeMethod.mergeCommit,
     _PullRequestReviewAction.squash => ReviewMergeMethod.squash,
     _PullRequestReviewAction.rebase => ReviewMergeMethod.rebase,
@@ -231,6 +239,8 @@ enum _PullRequestReviewAction {
   };
 
   String get label => switch (this) {
+    _PullRequestReviewAction.providerDefault =>
+      ReviewMergeMethod.providerDefault.label,
     _PullRequestReviewAction.mergeCommit => ReviewMergeMethod.mergeCommit.label,
     _PullRequestReviewAction.squash => ReviewMergeMethod.squash.label,
     _PullRequestReviewAction.rebase => ReviewMergeMethod.rebase.label,
@@ -241,6 +251,7 @@ enum _PullRequestReviewAction {
   };
 
   IconData get icon => switch (this) {
+    _PullRequestReviewAction.providerDefault ||
     _PullRequestReviewAction.mergeCommit ||
     _PullRequestReviewAction.squash ||
     _PullRequestReviewAction.rebase => AleraIcons.gitMerge,

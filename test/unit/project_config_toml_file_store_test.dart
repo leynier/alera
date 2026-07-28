@@ -3,10 +3,27 @@ import 'dart:io';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/project_config_toml_file_store.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  test('parses a GitLab hosting-provider override', () {
+    final config = parseProjectConfigToml('git_hosting_provider = "gitlab"');
+    expect(config.gitHostingProvider, GitHostingProvider.gitlab);
+  });
+
+  test('parses GitHub Enterprise aliases as the GitHub provider', () {
+    for (final alias in <String>[
+      'githubEnterprise',
+      'github_enterprise',
+      'github-enterprise',
+    ]) {
+      final config = parseProjectConfigToml('git_hosting_provider = "$alias"');
+      expect(config.gitHostingProvider, GitHostingProvider.github);
+    }
+  });
+
   group('Project Config TOML', () {
     test('parses worktree copy rules and setup commands', () {
       final config = parseProjectConfigToml('''

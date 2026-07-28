@@ -6,6 +6,7 @@ import 'package:alera/src/features/pull_requests/application/linked_review_repos
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
+import 'package:alera/src/features/pull_requests/infra/gitlab_forge_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/runtime_linked_review_repository.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -25,10 +26,16 @@ AzureDevOpsForgeProvider azureDevOpsForgeProvider(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+GitLabForgeProvider gitLabForgeProvider(Ref ref) {
+  return GitLabForgeProvider(ref.watch(processRunnerProvider));
+}
+
+@Riverpod(keepAlive: true)
 ForgeProviderRegistry forgeProviderRegistry(Ref ref) {
   return ForgeProviderRegistry(<ForgeProvider>[
     ref.watch(githubForgeProviderProvider),
     ref.watch(azureDevOpsForgeProviderProvider),
+    ref.watch(gitLabForgeProviderProvider),
   ]);
 }
 

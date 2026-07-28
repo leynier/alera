@@ -31,6 +31,8 @@ class GitHostingProviderMapper extends EnumMapper<GitHostingProvider> {
         return GitHostingProvider.github;
       case r'azureDevops':
         return GitHostingProvider.azureDevops;
+      case r'gitlab':
+        return GitHostingProvider.gitlab;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -43,6 +45,8 @@ class GitHostingProviderMapper extends EnumMapper<GitHostingProvider> {
         return r'github';
       case GitHostingProvider.azureDevops:
         return r'azureDevops';
+      case GitHostingProvider.gitlab:
+        return r'gitlab';
     }
   }
 }

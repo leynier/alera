@@ -86,9 +86,29 @@ void main() {
     });
   });
 
+  group('parseGitRemoteIdentity - GitLab', () {
+    test('parses HTTPS with nested groups', () {
+      final id = parseGitRemoteIdentity(
+        'https://gitlab.com/platform/mobile/alera.git',
+      );
+      expect(id, isNotNull);
+      expect(id!.provider, GitHostingProvider.gitlab);
+      expect(id.host, 'gitlab.com');
+      expect(id.owner, 'platform/mobile');
+      expect(id.repo, 'alera');
+    });
+
+    test('parses scp-like SSH', () {
+      final id = parseGitRemoteIdentity('git@gitlab.com:team/alera.git');
+      expect(id!.provider, GitHostingProvider.gitlab);
+      expect(id.owner, 'team');
+      expect(id.repo, 'alera');
+    });
+  });
+
   group('parseGitRemoteIdentity - unsupported / malformed', () {
     test('returns null for an unknown host', () {
-      expect(parseGitRemoteIdentity('https://gitlab.com/o/r.git'), isNull);
+      expect(parseGitRemoteIdentity('https://codeberg.org/o/r.git'), isNull);
     });
 
     test('returns null for empty input', () {
@@ -121,6 +141,35 @@ void main() {
       expect(id!.provider, GitHostingProvider.azureDevops);
       expect(id.owner, 'myorg');
       expect(id.project, 'myproject');
+    });
+
+    test('forces GitLab on a self-hosted instance with nested groups', () {
+      final id = parseRemoteAsProvider(
+        'git@gitlab.acme.test:platform/mobile/app.git',
+        GitHostingProvider.gitlab,
+      );
+      expect(id!.provider, GitHostingProvider.gitlab);
+      expect(id.host, 'gitlab.acme.test');
+      expect(id.owner, 'platform/mobile');
+      expect(id.repo, 'app');
+    });
+
+    test('preserves the HTTPS port for a self-hosted GitLab instance', () {
+      final id = parseRemoteAsProvider(
+        'https://gitlab.acme.test:8443/platform/mobile/app.git',
+        GitHostingProvider.gitlab,
+      );
+      expect(id!.host, 'gitlab.acme.test:8443');
+      expect(id.owner, 'platform/mobile');
+    });
+
+    test('does not use an SSH transport port as the GitLab API port', () {
+      final id = parseRemoteAsProvider(
+        'ssh://git@gitlab.acme.test:2222/platform/mobile/app.git',
+        GitHostingProvider.gitlab,
+      );
+      expect(id!.host, 'gitlab.acme.test');
+      expect(id.owner, 'platform/mobile');
     });
 
     test('returns null when the shape cannot satisfy the forced provider', () {
