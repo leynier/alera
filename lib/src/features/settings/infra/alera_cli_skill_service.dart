@@ -33,12 +33,28 @@ enum AleraCliSkillRunner {
 String aleraCliSkillInstallCommand({
   AleraCliSkillRunner runner = AleraCliSkillRunner.npx,
   AleraAgentSkill skill = AleraAgentSkill.cli,
+  String? operatingSystem,
 }) {
-  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
-  if (runner == AleraCliSkillRunner.auto) {
-    return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx, skill)}';
+  if (runner != AleraCliSkillRunner.auto) {
+    return _installCommandFor(runner, skill);
   }
-  return _installCommandFor(runner, skill);
+  final os = operatingSystem ?? Platform.operatingSystem;
+  if (os == 'windows') {
+    return _windowsAutoInstallCommand(skill);
+  }
+  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
+  return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx, skill)}';
+}
+
+/// Windows PowerShell 5.1 has no `||` separator, and pasting a multi-line block
+/// into its console runs each line as it arrives, so this stays one line.
+/// `Get-Command` beats a `$LASTEXITCODE` chain because a missing `npx` raises
+/// CommandNotFoundException without touching `$LASTEXITCODE`.
+String _windowsAutoInstallCommand(AleraAgentSkill skill) {
+  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
+  final bunxCommand = _installCommandFor(AleraCliSkillRunner.bunx, skill);
+  return 'if (Get-Command npx -ErrorAction SilentlyContinue) '
+      '{ $npxCommand } else { $bunxCommand }';
 }
 
 String _installCommandFor(AleraCliSkillRunner runner, AleraAgentSkill skill) {
