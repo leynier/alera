@@ -3,18 +3,16 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('links the app install guide at an anchor the landing page has', () {
-    expect(
-      File('landing/src/components/Install.astro').readAsStringSync(),
-      contains('id="install"'),
-      reason:
-          'AleraUpdateConfig.installGuideUrl targets https://alera.build/#install',
-    );
+  test('links the app install guide at a page the landing site has', () {
+    // The home page no longer carries an install section, so an anchor into it
+    // would send a user chasing a Linux package to a page that does not explain
+    // one.
+    expect(File('landing/src/pages/download.astro').existsSync(), isTrue);
     expect(
       File(
         'lib/src/features/updater/domain/alera_update.dart',
       ).readAsStringSync(),
-      contains('https://alera.build/#install'),
+      contains('https://alera.build/download'),
     );
   });
 
@@ -29,7 +27,8 @@ void main() {
     test('carries the SignPath attribution everywhere it is required', () {
       for (final path in <String>[
         'landing/src/pages/download.astro',
-        'landing/src/components/Install.astro',
+        // The home page's copy, since there is no Install section any more.
+        'landing/src/components/CtaSection.astro',
         'readme.md',
       ]) {
         final source = File(path).readAsStringSync();

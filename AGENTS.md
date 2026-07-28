@@ -211,6 +211,8 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Release script work must follow `tool/release/AGENTS.md`.
 - Stable auto-update MUST remain disabled until release builds are signed and notarized/trusted for the relevant platform.
 - Release automation must publish drafts first, verify all required assets and update manifests, and only then publish public releases.
+- The desktop re-checks for a release every 15 minutes while the window is visible (`AleraUpdateCheckScheduler`), and parks while it is hidden: a check nobody can see the result of still costs a request, and on Linux still costs a composited frame. Returning to a visible window checks immediately rather than waiting out a fresh interval. A find is announced once per version by `UpdateAvailabilityWatch`, because the recurring check runs with nobody looking at Settings and a toast every 15 minutes for a release the user already declined is noise.
+- The mobile app checks once per launch, Android only, and never auto-installs. It resolves the newest `vX.Y.Z-mobile` tag through the GitHub Releases API and offers the **universal** APK: per-ABI assets would need the device's ABI, which is a guess that fails on a device reporting several. Drafts and prereleases are skipped, because the release commit reaches `main` before the draft is published and a draft's assets 404 for everyone else. A failed check is silent: it is not worth interrupting a launch over a rate limit or a dead network.
 
 ## Reference Projects
 

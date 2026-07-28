@@ -77,7 +77,7 @@ void main() {
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
           <String, String>{'PATH': '/Users/test/.nvm/bin:/usr/bin'},
         ),
-        operatingSystem: 'macos',
+        workingDirectory: '/tmp/alera-test',
       );
 
       final result = await service.installOrUpdate(
@@ -115,7 +115,7 @@ void main() {
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
           <String, String>{'PATH': '/Users/test/.bun/bin:/usr/bin'},
         ),
-        operatingSystem: 'macos',
+        workingDirectory: '/tmp/alera-test',
       );
 
       final result = await service.installOrUpdate();
@@ -137,7 +137,7 @@ void main() {
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
           <String, String>{'PATH': '/usr/bin'},
         ),
-        operatingSystem: 'linux',
+        workingDirectory: '/tmp/alera-test',
       );
 
       await service.installOrUpdate(
@@ -164,7 +164,7 @@ void main() {
           commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
             <String, String>{'PATH': '/usr/bin'},
           ),
-          operatingSystem: 'macos',
+          workingDirectory: '/tmp/alera-test',
         );
 
         final result = await service.installOrUpdate();
@@ -176,7 +176,7 @@ void main() {
       },
     );
 
-    test('uses Windows runner names per package manager', () async {
+    test('passes bare runner names so the shell resolves any shim', () async {
       final runner = _FakeProcessRunner(<ProcessRunOutput>[
         const ProcessRunOutput(exitCode: 0, stdout: 'ok', stderr: ''),
         const ProcessRunOutput(exitCode: 0, stdout: 'ok', stderr: ''),
@@ -186,16 +186,101 @@ void main() {
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
           <String, String>{'Path': r'C:\Tools'},
         ),
-        operatingSystem: 'windows',
+        workingDirectory: r'C:\Users\test',
       );
 
       await service.installOrUpdate(runner: AleraCliSkillRunner.npx);
       await service.installOrUpdate(runner: AleraCliSkillRunner.bunx);
 
-      expect(runner.runs.map((run) => run.executable), <String>[
-        'npx.cmd',
-        'bunx',
+      expect(runner.runs.map((run) => run.executable), <String>['npx', 'bunx']);
+      expect(
+        runner.runs.map((run) => run.workingDirectory),
+        everyElement(r'C:\Users\test'),
+      );
+    });
+
+    test('detail keeps both streams of a failing attempt', () async {
+      final runner = _FakeProcessRunner(<ProcessRunOutput>[
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: 'npm warn exec downloading skills',
+          stderr:
+              'node:internal/modules/cjs/loader:1424\n'
+              '        throw err;\n'
+              "Error: Cannot find module 'C:\\shim\\npx-cli.js'",
+        ),
       ]);
+      final service = AleraCliSkillService(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          <String, String>{'PATH': '/usr/bin'},
+        ),
+        workingDirectory: '/tmp/alera-test',
+      );
+
+      final result = await service.installOrUpdate(
+        runner: AleraCliSkillRunner.npx,
+      );
+
+      expect(result.succeeded, isFalse);
+      expect(
+        result.summary,
+        'Install Failed (npx): node:internal/modules/cjs/loader:1424',
+      );
+      expect(result.summary, isNot(contains('\n')));
+      expect(result.detail, contains('Cannot find module'));
+      expect(result.detail, contains('npm warn exec downloading skills'));
+      expect(result.detail, contains('exit code: 1'));
+    });
+
+    test('detail covers every auto attempt, not just the last', () async {
+      final runner = _FakeProcessRunner(<ProcessRunOutput>[
+        const ProcessRunOutput(
+          exitCode: 9009,
+          stdout: '',
+          stderr: "'npx' is not recognized as an internal or external command",
+        ),
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: 'bunx: registry unreachable',
+          stderr: '',
+        ),
+      ]);
+      final service = AleraCliSkillService(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          <String, String>{'PATH': '/usr/bin'},
+        ),
+        workingDirectory: '/tmp/alera-test',
+      );
+
+      final result = await service.installOrUpdate();
+
+      expect(result.succeeded, isFalse);
+      expect(result.detail, contains('is not recognized'));
+      expect(result.detail, contains('registry unreachable'));
+      expect(result.detail, contains(r'$ npx skills add'));
+      expect(result.detail, contains(r'$ bunx skills add'));
+    });
+
+    test('detail is empty on success', () async {
+      final runner = _FakeProcessRunner(<ProcessRunOutput>[
+        const ProcessRunOutput(exitCode: 0, stdout: 'added', stderr: ''),
+      ]);
+      final service = AleraCliSkillService(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          <String, String>{'PATH': '/usr/bin'},
+        ),
+        workingDirectory: '/tmp/alera-test',
+      );
+
+      final result = await service.installOrUpdate(
+        runner: AleraCliSkillRunner.npx,
+      );
+
+      expect(result.summary, 'Install Complete (npx)');
+      expect(result.detail, isEmpty);
     });
   });
 }
@@ -204,11 +289,13 @@ class _ProcessRun {
   const _ProcessRun({
     required this.executable,
     required this.arguments,
+    required this.workingDirectory,
     required this.environment,
   });
 
   final String executable;
   final List<String> arguments;
+  final String? workingDirectory;
   final Map<String, String>? environment;
 }
 
@@ -229,6 +316,7 @@ class _FakeProcessRunner implements ProcessRunner {
       _ProcessRun(
         executable: executable,
         arguments: arguments,
+        workingDirectory: workingDirectory,
         environment: environment,
       ),
     );

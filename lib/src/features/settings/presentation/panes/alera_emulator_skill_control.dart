@@ -20,6 +20,7 @@ class AleraEmulatorSkillControl extends ConsumerWidget {
             .installOrUpdate(runner: runner, skill: AleraAgentSkill.emulator);
         return AleraSkillInstallStatus(
           result.summary,
+          detail: result.detail,
           needsAttention: !result.succeeded,
         );
       },

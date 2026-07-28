@@ -98,3 +98,59 @@ final class AleraUpdateServiceProvider
 
 String _$aleraUpdateServiceHash() =>
     r'39471705611dc7ed46547918ace9138b5dd92fbd';
+
+/// Nothing reads this provider's value: mounting it is what starts the
+/// recurring check, so the app shell watches it to keep it alive.
+
+@ProviderFor(aleraUpdateCheckScheduler)
+final aleraUpdateCheckSchedulerProvider = AleraUpdateCheckSchedulerProvider._();
+
+/// Nothing reads this provider's value: mounting it is what starts the
+/// recurring check, so the app shell watches it to keep it alive.
+
+final class AleraUpdateCheckSchedulerProvider
+    extends
+        $FunctionalProvider<
+          AleraUpdateCheckScheduler,
+          AleraUpdateCheckScheduler,
+          AleraUpdateCheckScheduler
+        >
+    with $Provider<AleraUpdateCheckScheduler> {
+  /// Nothing reads this provider's value: mounting it is what starts the
+  /// recurring check, so the app shell watches it to keep it alive.
+  AleraUpdateCheckSchedulerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aleraUpdateCheckSchedulerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$aleraUpdateCheckSchedulerHash();
+
+  @$internal
+  @override
+  $ProviderElement<AleraUpdateCheckScheduler> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AleraUpdateCheckScheduler create(Ref ref) {
+    return aleraUpdateCheckScheduler(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AleraUpdateCheckScheduler value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AleraUpdateCheckScheduler>(value),
+    );
+  }
+}
+
+String _$aleraUpdateCheckSchedulerHash() =>
+    r'67849a95b31b03cd2cf69e09175d3ad56bfc89e5';

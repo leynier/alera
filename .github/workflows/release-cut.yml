@@ -702,27 +702,40 @@ jobs:
       - name: Create release commit and tags
         id: release_commit
         env:
+          CHANNEL: ${{ needs.plan.outputs.channel }}
           DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
           DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
           DESKTOP_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          DESKTOP_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
           DESKTOP_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
           MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
           MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
           MOBILE_ARTIFACT_VERSION: ${{ needs.plan.outputs.mobile_artifact_version }}
+          MOBILE_RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
           MOBILE_BUILD_NUMBER: ${{ needs.plan.outputs.mobile_build_number }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
           tags=()
+          landing_args=()
           if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$DESKTOP_TAG")
             dart tool/release/update_pubspec_version.dart "$DESKTOP_ARTIFACT_VERSION" "$DESKTOP_BUILD_NUMBER"
             git add pubspec.yaml
+            landing_args+=(--desktop-version "$DESKTOP_RELEASE_VERSION" --desktop-tag "$DESKTOP_TAG")
           fi
           if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$MOBILE_TAG")
             dart tool/release/update_mobile_pubspec_version.dart "$MOBILE_ARTIFACT_VERSION" "$MOBILE_BUILD_NUMBER"
             git add mobile/pubspec.yaml
+            landing_args+=(--mobile-version "$MOBILE_RELEASE_VERSION" --mobile-tag "$MOBILE_TAG")
+          fi
+          # The landing links straight at the assets this cut publishes, so the
+          # pin has to travel in the same commit as the version bump. Only
+          # stable moves it: the download page is not where an rc belongs.
+          if [[ "$CHANNEL" == "stable" ]]; then
+            dart tool/release/update_landing_release_links.dart "${landing_args[@]}"
+            git add landing/src/data/releases.json
           fi
           for tag in "${tags[@]}"; do
             if git rev-parse "$tag" >/dev/null 2>&1; then
