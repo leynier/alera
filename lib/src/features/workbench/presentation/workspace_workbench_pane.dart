@@ -12,6 +12,7 @@ class _WorkbenchPane extends StatelessWidget {
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
+    required this.onCreateBrowserTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
@@ -36,6 +37,7 @@ class _WorkbenchPane extends StatelessWidget {
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
+  final CreateBrowserTabCallback? onCreateBrowserTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
@@ -103,6 +105,11 @@ class _WorkbenchPane extends StatelessWidget {
                 onRenameTab: onRenameTab,
                 onCreateTab: () =>
                     unawaited(onCreateTab(targetGroupId: groupId)),
+                onCreateBrowserTab: onCreateBrowserTab == null
+                    ? null
+                    : () => unawaited(
+                        onCreateBrowserTab!(targetGroupId: groupId),
+                      ),
                 onSplitGroup: (zone) =>
                     unawaited(onSplitGroup(groupId: groupId, zone: zone)),
                 onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/browser/application/browser_providers.dart';
+import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -132,6 +134,8 @@ void main() {
 
     dispatcher.dispatch(KeyboardActionId.newTerminalTab);
     await tester.pump();
+    dispatcher.dispatch(KeyboardActionId.newBrowserTab);
+    await tester.pump();
 
     dispatcher.dispatch(KeyboardActionId.nextTab);
     dispatcher.dispatch(KeyboardActionId.previousTab);
@@ -143,6 +147,7 @@ void main() {
     await tester.pump();
 
     expect(controller.createdTerminalWorkspaceIds, <String>[workspace.id]);
+    expect(controller.createdBrowserWorkspaceIds, <String>[workspace.id]);
     expect(runtime.everFocusedTabIds, contains(newTab.id));
     expect(controller.selectedTabIds, <String>[
       firstTab.id,

@@ -53,6 +53,7 @@ impl ServerActor {
             || !self.project_clone_jobs.is_empty()
             || self.mobile_gateway.is_some()
             || !self.coordinators.is_empty()
+            || self.browser.active_jobs() > 0
         {
             self.cancel_shutdown_timer();
             return;

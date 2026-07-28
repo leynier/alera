@@ -664,10 +664,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       _controller.renameWorkspaceTab(tabId: activeTab.id, title: '   '),
       throwsStateError,
     );
-    expect(
-      _controller.state.error,
-      contains('Terminal title must not be empty'),
-    );
+    expect(_controller.state.error, contains('Tab title must not be empty'));
 
     final firstGroupId = _controller.state
         .layoutFor(workspace.id)!

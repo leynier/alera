@@ -269,6 +269,33 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
+const List<SettingsSearchEntry> browserSearchEntries = <SettingsSearchEntry>[
+  SettingsSearchEntry(
+    title: 'System Browser Engine',
+    description: 'Check The Stable Browser Capability Gate.',
+    keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
+    groupId: 'general',
+  ),
+  SettingsSearchEntry(
+    title: 'Browser Search Engine',
+    description: 'Choose The Default Address Bar Search Provider.',
+    keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
+    groupId: 'general',
+  ),
+  SettingsSearchEntry(
+    title: 'Browser Profiles',
+    description: 'Manage Isolated Cookies, Storage And Permissions.',
+    keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
+    groupId: 'profiles',
+  ),
+  SettingsSearchEntry(
+    title: 'Browser History',
+    description: 'Clear History And Reopen Recently Closed Tabs.',
+    keywords: <String>['browser', 'history', 'closed', 'tabs'],
+    groupId: 'data',
+  ),
+];
+
 const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Theme Preset',

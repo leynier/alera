@@ -30,7 +30,9 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     expect(terminalRuntime.requestedTabIds, contains('tab-1'));
   });
 
-  testWidgets('shows a loading state for non-terminal tabs', (tester) async {
+  testWidgets('shows the browser start surface for browser tabs', (
+    tester,
+  ) async {
     final tab = _tab('tab-1', title: 'Browser', kind: WorkspaceTabKind.browser);
 
     await _pumpWorkbenchView(
@@ -52,7 +54,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Start Browsing'), findsOneWidget);
     expect(terminalRuntime.requestedTabIds, isEmpty);
   });
 
@@ -367,7 +369,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     ]);
   });
 
-  testWidgets('new terminal and tab selection callbacks include the group id', (
+  testWidgets('new tab callbacks and selection include the group id', (
     tester,
   ) async {
     final tabs = <WorkspaceTabRecord>[
@@ -379,6 +381,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       groupId: 'group-a',
       tabIds: tabs.map((tab) => tab.id).toList(),
     );
+    final createdBrowserTabs = <String?>[];
 
     await _pumpWorkbenchView(
       tester,
@@ -386,6 +389,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       terminalRuntime: terminalRuntime,
       layout: layout,
       createdTabs: createdTabs,
+      createdBrowserTabs: createdBrowserTabs,
       selectedTabs: selectedTabs,
       closedTabs: closedTabs,
       closedTabGroups: closedTabGroups,
@@ -398,10 +402,13 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
 
     await tester.tap(find.byTooltip('New Terminal'));
     await tester.pump();
+    await tester.tap(find.byTooltip('New Browser Tab'));
+    await tester.pump();
     await tester.tap(find.text('Terminal 1'));
     await tester.pump();
 
     expect(createdTabs, <String?>['group-a']);
+    expect(createdBrowserTabs, <String?>['group-a']);
     expect(selectedTabs, <_SelectedTabAction>[
       const _SelectedTabAction('group-a', 'tab-1'),
     ]);

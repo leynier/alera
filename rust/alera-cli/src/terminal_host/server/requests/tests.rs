@@ -35,6 +35,9 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("sshTarget.upsert"));
     assert!(!mobile_request_allowed("mobile.settings.update"));
     assert!(!mobile_request_allowed("runtimeMetadata.set"));
+    assert!(!mobile_request_allowed("browser.capabilities"));
+    assert!(!mobile_request_allowed("browser.tabs.open"));
+    assert!(!mobile_request_allowed("browser.driver.register"));
 }
 
 #[test]

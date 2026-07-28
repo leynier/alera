@@ -44,6 +44,7 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
 
   final Completer<WorkspaceTabRecord> _splitCompleter;
   final List<String> createdTerminalWorkspaceIds = <String>[];
+  final List<String> createdBrowserWorkspaceIds = <String>[];
   final List<String> closedTabIds = <String>[];
   final List<String> selectedTabIds = <String>[];
   final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
@@ -105,6 +106,28 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
       },
     );
     return tab;
+  }
+
+  @override
+  Future<WorkspaceTabRecord> createBrowserTab(
+    Workspace workspace, {
+    String? targetGroupId,
+    String? pageId,
+    String profileId = 'default',
+    String? initialUrl,
+  }) async {
+    createdBrowserWorkspaceIds.add(workspace.id);
+    return WorkspaceTabRecord(
+      id: 'browser-tab-new',
+      workspaceId: workspace.id,
+      kind: WorkspaceTabKind.browser,
+      title: 'New Tab',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+      payload: <String, Object?>{
+        workspaceTabBrowserProfileIdPayloadKey: profileId,
+      },
+    );
   }
 
   @override
@@ -299,6 +322,9 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
     overrides: [
       workbenchControllerProvider.overrideWith(() => controller),
       terminalRuntimeProvider.overrideWith((ref) => runtime),
+      browserAvailabilityProvider.overrideWith(
+        (ref) => _stableBrowserCapabilities,
+      ),
       settingsControllerProvider.overrideWith(
         () => _DispatcherSettingsController(AleraSettings.defaults),
       ),
@@ -325,6 +351,35 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   await tester.pump();
   return _DispatcherPumpHarness(ref: dispatcherRef, context: dispatcherContext);
 }
+
+const BrowserEngineCapabilities _stableBrowserCapabilities =
+    BrowserEngineCapabilities(
+      engine: 'test',
+      engineAvailable: true,
+      pageSurface: true,
+      isolatedProfiles: true,
+      ephemeralProfiles: true,
+      deterministicPageClose: true,
+      navigation: true,
+      navigationEvents: true,
+      javascript: true,
+      basicCookies: true,
+      fullCookies: true,
+      permissionCallbacks: true,
+      tlsCallbacks: true,
+      popupCallbacks: true,
+      downloadCallbacks: true,
+      domSnapshot: true,
+      domActions: true,
+      viewportScreenshot: true,
+      fullPageScreenshot: true,
+      pdf: true,
+      flutterOverlayOcclusion: true,
+      atomicCookieImport: true,
+      manualJsonCookieImport: true,
+      nativeCookieImportSources: <String>{'test', 'manualJson'},
+      requiredNativeCookieImportSources: <String>{'test', 'manualJson'},
+    );
 
 class _DispatcherSettingsController extends SettingsController {
   _DispatcherSettingsController(this._seed);

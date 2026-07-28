@@ -27,6 +27,13 @@ abstract final class AleraTokens {
   static const double activityLogHeight = 160.0;
   static const double imageMaxWidth = 400.0;
   static const double imageMaxHeight = 300.0;
+  static const double dialogCompactWidth = 420.0;
+  static const double dialogWidth = 440.0;
+  static const double dialogWideWidth = 560.0;
+  static const double dialogMaxHeight = 520.0;
+  static const double wideContentBreakpoint = 760.0;
+  static const double desktopPreviewWidth = 980.0;
+  static const double dividerExtent = 1.0;
 
   static const double radiusSm = 4.0;
   static const double radiusMd = 6.0;

@@ -9,6 +9,7 @@ import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart'
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/browser_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
@@ -167,6 +168,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
+    const browserGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'general', title: 'General'),
+      SettingsGroupSpec(id: 'profiles', title: 'Profiles'),
+      SettingsGroupSpec(id: 'data', title: 'Browsing Data'),
+    ];
     const mobileDeviceGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'gateway', title: 'Mobile Gateway'),
       SettingsGroupSpec(id: 'pairing', title: 'Link A Device'),
@@ -254,6 +260,16 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           onChanged: (terminal) => controller.updateTerminal(terminal),
           onReloadShellEnvironment: _reloadShellEnvironment,
         ),
+      ),
+      SettingsSectionData(
+        id: 'browser',
+        title: 'Browser',
+        description: 'System Engine, Profiles And Browsing Data.',
+        icon: AleraIcons.public,
+        entries: browserSearchEntries,
+        groups: browserGroups,
+        builder: (_) =>
+            BrowserSettingsPane(groupKeys: _paneKeys('browser', browserGroups)),
       ),
       SettingsSectionData(
         id: 'keyboard',

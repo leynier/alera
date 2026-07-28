@@ -83,6 +83,12 @@ pub const RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY: &str = "shellEnviron
 // feature-check this instead of comparing protocol versions; a host that lacks
 // it is still fully usable for everything else.
 pub const RUNTIME_HOST_COMPUTER_USE_CAPABILITY: &str = "computerUseV1";
+/// Routes browser automation calls to the Flutter app connection that owns the
+/// live WebView page. This is additive and does not change terminal framing.
+pub const RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY: &str = "browserAutomationRoutingV1";
+/// Stores browser profiles, history, closed tabs, permissions and typed search
+/// settings in the shared runtime catalog.
+pub const RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY: &str = "browserProfilesV1";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.
 pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;

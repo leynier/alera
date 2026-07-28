@@ -15,6 +15,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
     required this.onCloseTabs,
     required this.onRenameTab,
     required this.onCreateTab,
+    required this.onCreateBrowserTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
     required this.onMoveTab,
@@ -33,6 +34,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
   final VoidCallback onCreateTab;
+  final VoidCallback? onCreateBrowserTab;
   final ValueChanged<WorkbenchDropZone> onSplitGroup;
   final VoidCallback onMergeGroup;
   final MoveWorkspaceTabCallback onMoveTab;
@@ -137,6 +139,9 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncOverflow());
     final addButton = _NewTerminalButton(onPressed: widget.onCreateTab);
+    final browserButton = widget.onCreateBrowserTab == null
+        ? null
+        : _NewBrowserButton(onPressed: widget.onCreateBrowserTab!);
     return ColoredBox(
       color: AleraTokens.surface,
       child: _TabStripAppendDropTarget(
@@ -200,6 +205,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                           ),
                         ),
                       if (!_hasOverflow) addButton,
+                      if (!_hasOverflow && browserButton != null) browserButton,
                     ],
                   ),
                 ),
@@ -207,7 +213,10 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
               if (_hasOverflow)
                 Padding(
                   padding: const EdgeInsets.only(right: AleraTokens.space8),
-                  child: addButton,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[addButton, ?browserButton],
+                  ),
                 ),
               _PaneMenuButton(
                 canCloseSplit: widget.canCloseSplit,
@@ -375,6 +384,25 @@ class _NewTerminalButton extends StatelessWidget {
       icon: AleraIcons.add,
       iconSize: 16,
       minSize: 28,
+      hoverColor: AleraTokens.surfaceElevated,
+      borderRadius: AleraTokens.radiusSm,
+      onPressed: onPressed,
+    );
+  }
+}
+
+class _NewBrowserButton extends StatelessWidget {
+  const _NewBrowserButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraIconButton(
+      tooltip: 'New Browser Tab',
+      icon: AleraIcons.public,
+      iconSize: AleraTokens.space16,
+      minSize: AleraTokens.space24 + AleraTokens.space4,
       hoverColor: AleraTokens.surfaceElevated,
       borderRadius: AleraTokens.radiusSm,
       onPressed: onPressed,

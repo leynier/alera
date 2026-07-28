@@ -211,6 +211,7 @@ impl RuntimeHostRpcClient {
         let hello = json!({
             "protocolVersion": PROTOCOL_VERSION,
             "token": control.token,
+            "clientKind": "cli",
         });
         match timeout(REQUEST_TIMEOUT, client.request_value("hello", &hello)).await {
             Ok(Ok(_)) => Ok(Some(client)),

@@ -23,6 +23,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(workspaceActivityCoordinatorProvider);
     ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
     ref.watch(workspaceActivityPersistenceCoordinatorProvider);
+    ref.watch(browserEventDispatcherProvider);
+    final browserTabsAvailable =
+        ref.watch(browserAvailabilityProvider).asData?.value.meetsStableGate ==
+        true;
     final shell = ref.watch(
       workbenchControllerProvider.select((state) {
         final workspace = state.activeWorkspace;
@@ -68,7 +72,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       prefs: shell.viewPrefs,
     );
 
-    return AleraAppMenuScope(
+    final content = AleraAppMenuScope(
       child: Scaffold(
         body: KeyboardShortcutsScope(
           child: LayoutBuilder(
@@ -96,6 +100,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             sourceControlScope: sourceControlScope,
                             tabs: shell.tabs,
                             layout: shell.layout,
+                            browserTabsAvailable: browserTabsAvailable,
                           ),
                         ),
                         if (workspace != null && showContextSidebar)
@@ -238,6 +243,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         ),
       ),
     );
+    return BrowserNativeCallbackScope(child: content);
   }
 
   Widget _buildContent({
@@ -248,6 +254,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     required WorkspaceSourceControlScope? sourceControlScope,
     required List<WorkspaceTabRecord> tabs,
     required WorkbenchLayout? layout,
+    required bool browserTabsAvailable,
   }) {
     if (!bootstrapped && !hasProjects) {
       return const Center(child: CircularProgressIndicator());
@@ -290,6 +297,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                 .sessionFor(workspace: workspace, tab: tab)
                 .requestFocus();
           },
+          onCreateBrowserTab: browserTabsAvailable
+              ? ({targetGroupId}) async {
+                  await controller.createBrowserTab(
+                    workspace,
+                    targetGroupId: targetGroupId,
+                  );
+                }
+              : null,
           onOpenEditorTab: ({required relativePath, targetGroupId}) async {
             await controller.openEditorTab(
               workspace: workspace,
@@ -316,17 +331,27 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
             if (!await _confirmCloseDirtyTabs(tabs, <String>[tabId])) {
               return;
             }
+            final closingTab = _workspaceTabById(tabs, tabId);
             terminalRuntime.closeTab(tabId);
             await controller.closeWorkspaceTab(
               workspace: workspace,
               tabId: tabId,
             );
+            if (closingTab?.kind == WorkspaceTabKind.browser) {
+              await ref.read(browserSessionRegistryProvider).closePage(tabId);
+            }
             ref.read(editorSessionRegistryProvider).forget(tabId);
           },
           onCloseTabs: (tabIds) async {
             if (!await _confirmCloseDirtyTabs(tabs, tabIds)) {
               return;
             }
+            final browserTabIds = <String>[
+              for (final tabId in tabIds)
+                if (_workspaceTabById(tabs, tabId)?.kind ==
+                    WorkspaceTabKind.browser)
+                  tabId,
+            ];
             for (final tabId in tabIds) {
               terminalRuntime.closeTab(tabId);
             }
@@ -334,6 +359,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
               workspace: workspace,
               tabIds: tabIds,
             );
+            await Future.wait(<Future<void>>[
+              for (final tabId in browserTabIds)
+                ref.read(browserSessionRegistryProvider).closePage(tabId),
+            ]);
             final registry = ref.read(editorSessionRegistryProvider);
             for (final tabId in tabIds) {
               registry.forget(tabId);
@@ -434,4 +463,16 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   void _showError(String message) {
     AleraToast.show(context, message: message, tone: AleraToastTone.error);
   }
+}
+
+WorkspaceTabRecord? _workspaceTabById(
+  List<WorkspaceTabRecord> tabs,
+  String tabId,
+) {
+  for (final tab in tabs) {
+    if (tab.id == tabId) {
+      return tab;
+    }
+  }
+  return null;
 }

@@ -156,6 +156,9 @@ mixin _ProjectWorkbenchSidebarActions
             workspace: workspace,
             deleteBranch: deleteBranch,
           );
+      await ref
+          .read(browserSessionRegistryProvider)
+          .closeWorkspace(workspace.id);
       // Only dispose the live terminal sessions once the worktree was actually
       // removed, so a failed git removal doesn't orphan a still-valid workspace.
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
@@ -327,6 +330,11 @@ mixin _ProjectWorkbenchSidebarActions
       await ref
           .read(workbenchControllerProvider.notifier)
           .removeProject(project.id);
+      for (final workspace in workspaces) {
+        await ref
+            .read(browserSessionRegistryProvider)
+            .closeWorkspace(workspace.id);
+      }
       if (!mounted) {
         return;
       }

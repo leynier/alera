@@ -19,7 +19,28 @@ use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::resource_requests::ResourceMonitorState;
 use crate::terminal_host::session::Session;
 
+use super::browser_broker::BrowserBroker;
+use super::client_delivery::LocalClientRole;
 use super::{ClientKind, ClientState, ServerActor};
+
+impl ClientState {
+    /// Authenticated loopback client (the desktop app or a CLI).
+    pub(super) fn local(handle: ClientHandle, app_client: bool) -> ClientState {
+        ClientState {
+            handle,
+            authenticated: true,
+            binary_frames: false,
+            kind: ClientKind::Local,
+            local_role: if app_client {
+                LocalClientRole::App
+            } else {
+                LocalClientRole::Cli
+            },
+            mobile_device_id: None,
+            mobile_device_name: None,
+        }
+    }
+}
 
 pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
     ClientState {
@@ -27,6 +48,7 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         authenticated: true,
         binary_frames: false,
         kind: ClientKind::Mobile,
+        local_role: LocalClientRole::Cli,
         mobile_device_id: Some(device.to_string()),
         mobile_device_name: Some(format!("{device} phone")),
     }
@@ -38,6 +60,7 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         authenticated: true,
         binary_frames: false,
         kind: ClientKind::Local,
+        local_role: LocalClientRole::Cli,
         mobile_device_id: None,
         mobile_device_name: None,
     }
@@ -72,6 +95,7 @@ pub(super) async fn test_actor(
         orchestration_activity_last_recorded: HashMap::new(),
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
+        browser: BrowserBroker::default(),
         inbox,
         next_client_id: Arc::new(AtomicU64::new(10)),
         mobile_gateway: None,

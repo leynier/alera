@@ -218,12 +218,13 @@ void main() {
       of: find.text('Close Tab'),
       matching: find.byType(Row),
     );
-    await tester.tap(
-      find.descendant(
-        of: closeTabRow.first,
-        matching: find.byTooltip('Disable Shortcut'),
-      ),
+    final disableCloseTab = find.descendant(
+      of: closeTabRow.first,
+      matching: find.byTooltip('Disable Shortcut'),
     );
+    await tester.ensureVisible(disableCloseTab);
+    await tester.pump();
+    await tester.tap(disableCloseTab);
     await tester.pump();
 
     expect(

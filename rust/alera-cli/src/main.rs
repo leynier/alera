@@ -1,5 +1,6 @@
 mod agent_quota;
 mod agent_status;
+mod browser_commands;
 mod cli;
 mod cli_orchestration;
 mod cli_orchestration_runs;
@@ -22,6 +23,7 @@ mod runtime_archive;
 mod runtime_commands;
 mod runtime_host_client;
 mod ssh_bootstrap;
+mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
@@ -35,7 +37,7 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
     CascadePreview, MobileAccessSettings, MobileEndpointMode, Project, ProjectKind, RuntimeStore,
-    SshAuthKind, SshTarget, WorkspaceTabRecord, WorkspaceTag,
+    SshAuthKind, SshTarget, WorkspaceTag,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -49,8 +51,7 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs,
     SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs,
-    TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction, WorkspaceAddArgs,
-    WorkspaceCommand,
+    TabAction, TabCommand, TerminalHostArgs, WorkspaceAction, WorkspaceAddArgs, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -64,20 +65,12 @@ use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
     build_ssh_bootstrap_plan, new_bootstrap_job_id, run_ssh_bootstrap, SshTargetBootstrapRequest,
 };
+use crate::tab_record_factory::tab_from_args;
 use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::run_terminal_host_server;
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
-const SUPPORTED_TAB_KINDS: &[&str] = &[
-    "terminal",
-    "editor",
-    "markdownViewer",
-    "pdf",
-    "gitDiff",
-    "browser",
-];
-
 #[tokio::main]
 async fn main() {
     std::process::exit(run().await);
@@ -111,6 +104,7 @@ async fn run() -> i32 {
         Command::SshTarget(command) => run_ssh_target_command(command).await,
         Command::Mobile(command) => run_mobile_command(command).await,
         Command::Computer(command) => computer_commands::run(command).await,
+        Command::Browser(command) => browser_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
@@ -1098,47 +1092,6 @@ fn project_from_args(args: ProjectAddArgs) -> Project {
             ProjectKindArg::Folder => ProjectKind::Folder,
         },
     }
-}
-
-fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
-    let now = Utc::now();
-    let id = Uuid::new_v4().to_string();
-    let kind = SUPPORTED_TAB_KINDS
-        .iter()
-        .copied()
-        .find(|supported| *supported == args.kind)
-        .ok_or_else(|| {
-            format!(
-                "Unsupported tab kind \"{}\". Supported kinds: {}.",
-                args.kind,
-                SUPPORTED_TAB_KINDS.join(", ")
-            )
-        })?;
-    if (args.command.is_some() || args.spawn) && kind != "terminal" {
-        return Err("--command and --spawn are only supported for terminal tabs.".to_string());
-    }
-    let mut payload = serde_json::Map::new();
-    payload.insert("terminalSessionId".to_string(), json!(id));
-    if let Some(command) = args
-        .command
-        .as_deref()
-        .map(str::trim)
-        .filter(|command| !command.is_empty())
-    {
-        payload.insert("initialCommand".to_string(), json!(command));
-    }
-    if args.spawn {
-        payload.insert("spawnOnCreate".to_string(), json!(true));
-    }
-    Ok(WorkspaceTabRecord {
-        id: id.clone(),
-        workspace_id: args.workspace_id,
-        kind: kind.to_string(),
-        title: args.title,
-        created_at: now,
-        updated_at: now,
-        payload: Value::Object(payload),
-    })
 }
 
 fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {

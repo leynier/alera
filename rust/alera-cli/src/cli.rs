@@ -3,9 +3,11 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
+mod browser;
 mod computer;
 mod mobile;
 
+pub use browser::*;
 pub use computer::*;
 pub use mobile::*;
 
@@ -59,6 +61,9 @@ pub enum Command {
 
     /// Read and drive local desktop application UI.
     Computer(ComputerCommand),
+
+    /// Inspect and automate browser tabs owned by the Alera desktop app.
+    Browser(BrowserCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),

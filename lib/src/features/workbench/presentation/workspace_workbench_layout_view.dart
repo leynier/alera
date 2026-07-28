@@ -13,6 +13,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
+    required this.onCreateBrowserTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
@@ -39,6 +40,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
+  final CreateBrowserTabCallback? onCreateBrowserTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
@@ -68,6 +70,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
         agentStatuses: agentStatuses,
         completionAcknowledgements: completionAcknowledgements,
         onCreateTab: onCreateTab,
+        onCreateBrowserTab: onCreateBrowserTab,
         onOpenEditorTab: onOpenEditorTab,
         onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
         onSelectTab: onSelectTab,
@@ -94,6 +97,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
+      onCreateBrowserTab: onCreateBrowserTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
@@ -124,6 +128,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
+    required this.onCreateBrowserTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
@@ -150,6 +155,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
+  final CreateBrowserTabCallback? onCreateBrowserTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
@@ -179,6 +185,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
+      onCreateBrowserTab: onCreateBrowserTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
@@ -205,6 +212,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
+      onCreateBrowserTab: onCreateBrowserTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,

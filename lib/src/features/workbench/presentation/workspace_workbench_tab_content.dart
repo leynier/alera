@@ -76,8 +76,9 @@ class _WorkspaceTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
       ),
-      WorkspaceTabKind.browser => const Center(
-        child: CircularProgressIndicator(),
+      WorkspaceTabKind.browser => BrowserTabSurface(
+        tab: tab,
+        autofocus: autofocus,
       ),
     };
   }
