@@ -208,6 +208,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install --yes libdbus-1-dev pkg-config
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
