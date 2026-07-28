@@ -10,6 +10,7 @@ Future<void> verifyVideoRuntimeBundle({
   required String platform,
   required Directory bundle,
   File? manifestFile,
+  File? lockFile,
 }) async {
   final normalized = normalizeNativeHelperPlatform(platform);
   final file =
@@ -19,7 +20,7 @@ Future<void> verifyVideoRuntimeBundle({
   if (decoded is! Map<String, Object?> || decoded['schemaVersion'] != 1) {
     throw const FormatException('Invalid video runtime asset manifest.');
   }
-  _verifyPackagePins(decoded);
+  _verifyPackagePins(decoded, lockFile ?? File('pubspec.lock'));
   switch (normalized) {
     case 'macos':
       _verifyMacosVideoRuntime(decoded, bundle);
@@ -30,12 +31,15 @@ Future<void> verifyVideoRuntimeBundle({
   }
 }
 
-void _verifyPackagePins(Map<String, Object?> manifest) {
+void _verifyPackagePins(Map<String, Object?> manifest, File lockFile) {
   final expected = manifest['dartPackages'];
   if (expected is! Map<String, Object?> || expected.isEmpty) {
     throw const FormatException('Video runtime Dart package pins are missing.');
   }
-  final lock = File('pubspec.lock').readAsStringSync();
+  final lock = lockFile
+      .readAsStringSync()
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n');
   for (final entry in expected.entries) {
     if (entry.value is! String) {
       throw FormatException('${entry.key} package pin must be a string.');
