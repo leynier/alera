@@ -145,7 +145,23 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ## Install
 
-> Public release artifacts and download links are being finalized. Track [releases on GitHub](https://github.com/leynier/alera/releases) or visit **[alera.build](https://alera.build)** for the latest.
+### Linux
+
+Alera installs from a signed package repository so the system `libmpv` dependency closure resolves through your package manager. The same command installs and updates:
+
+```bash
+curl -fsSL https://alera.build/install.sh | sh
+```
+
+The script detects apt or dnf, verifies the repository signing key against a fingerprint pinned inside the script, configures the repository, and installs the package. Pass `--dry-run` to see what it would do, or `--repo-only` to configure the repository without installing.
+
+Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable [RPM Fusion](https://rpmfusion.org/) first, which is where `mpv-libs` comes from. openSUSE is not supported yet: the published RPM declares Fedora dependency names that openSUSE provides under different names.
+
+To add the repository by hand instead, see the manual setup on [alera.build](https://alera.build/#install). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `01DAF16E430AF8B2607BA44D457D8143C91B4732`.
+
+### macOS and Windows
+
+Download the latest build from [GitHub Releases](https://github.com/leynier/alera/releases). Alera updates itself from there once installed.
 
 ### Run from source
 

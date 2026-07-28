@@ -1,0 +1,96 @@
+---
+const installCommand = 'curl -fsSL https://alera.build/install.sh | sh';
+const keyFingerprint = '01DAF16E430AF8B2607BA44D457D8143C91B4732';
+const aptSource = `Types: deb
+URIs: https://updates.alera.build/linux/apt
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/alera-archive-keyring.asc`;
+const rpmRepo = `[alera]
+name=Alera
+baseurl=https://updates.alera.build/linux/rpm/x86_64
+enabled=1
+gpgcheck=0
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-alera`;
+---
+
+<section id="install" class="py-24 px-6 border-t border-border-subtle/50 scroll-mt-14">
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
+      Install Alera
+    </h2>
+    <p class="text-[15px] text-foreground-muted mb-10 leading-relaxed">
+      On Linux, Alera installs from a signed package repository so system dependencies resolve through apt or dnf. The same command installs and updates.
+    </p>
+
+    <h3 class="text-title-md text-foreground mb-3">Linux</h3>
+    <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
+      <div class="flex items-start gap-4">
+        <code
+          id="alera-install-command"
+          class="font-mono text-body-md text-foreground break-all leading-relaxed grow"
+        >{installCommand}</code>
+        <button
+          type="button"
+          data-copy-target="alera-install-command"
+          class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+        >
+          Copy
+        </button>
+      </div>
+    </div>
+    <p class="text-body-md text-foreground-faint mb-10 leading-relaxed">
+      Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable RPM Fusion first, which is where <span class="font-mono">mpv-libs</span> comes from. openSUSE is not supported yet.
+    </p>
+
+    <h3 class="text-title-md text-foreground mb-3">Manual Setup</h3>
+    <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+      To add the repository yourself, import the signing key from <span class="font-mono break-all">https://updates.alera.build/linux/alera-archive-keyring.asc</span> and confirm its fingerprint is <span class="font-mono break-all">{keyFingerprint}</span>, then write one of these files.
+    </p>
+    <div class="grid gap-4 md:grid-cols-2 mb-4">
+      <div class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto">
+        <p class="text-label-md text-foreground-faint mb-2">/etc/apt/sources.list.d/alera.sources</p>
+        <pre class="font-mono text-body-md text-foreground leading-relaxed"><code>{aptSource}</code></pre>
+      </div>
+      <div class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto">
+        <p class="text-label-md text-foreground-faint mb-2">/etc/yum.repos.d/alera.repo</p>
+        <pre class="font-mono text-body-md text-foreground leading-relaxed"><code>{rpmRepo}</code></pre>
+      </div>
+    </div>
+    <p class="text-body-md text-foreground-faint mb-10 leading-relaxed">
+      The published packages carry no per-package signature yet, so <span class="font-mono">gpgcheck</span> stays off while <span class="font-mono">repo_gpgcheck</span> verifies the signed repository metadata, which commits to the checksum of every package. That is the same chain apt relies on.
+    </p>
+
+    <h3 class="text-title-md text-foreground mb-3">macOS And Windows</h3>
+    <p class="text-body-md text-foreground-muted leading-relaxed">
+      Download the latest build from
+      <a
+        href="https://github.com/leynier/alera/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
+        >GitHub Releases</a
+      >. Alera updates itself from there once installed.
+    </p>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('[data-copy-target]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (!target?.textContent) {
+        return;
+      }
+      await navigator.clipboard.writeText(target.textContent);
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => {
+        button.textContent = original;
+      }, 2000);
+    });
+  });
+</script>
