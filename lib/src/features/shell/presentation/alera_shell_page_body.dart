@@ -305,6 +305,28 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                   );
                 }
               : null,
+          onOpenMobileEmulator: ({targetGroupId}) async {
+            final existing = tabs.any(
+              (tab) => tab.kind == WorkspaceTabKind.mobileEmulator,
+            );
+            if (existing) {
+              await controller.openMobileEmulatorTab(
+                workspace: workspace,
+                targetGroupId: targetGroupId,
+              );
+              return;
+            }
+            final device = await showMobileEmulatorDevicePicker(context);
+            if (device == null || !mounted) {
+              return;
+            }
+            await controller.openMobileEmulatorTab(
+              workspace: workspace,
+              platform: device.platform,
+              deviceId: device.id,
+              targetGroupId: targetGroupId,
+            );
+          },
           onOpenEditorTab: ({required relativePath, targetGroupId}) async {
             await controller.openEditorTab(
               workspace: workspace,

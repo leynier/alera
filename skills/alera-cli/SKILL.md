@@ -256,3 +256,7 @@ JSON list commands return a consistent `{ "kind": "...", "items": [...], "filter
 ## Inter-Agent Orchestration
 
 For structured multi-agent coordination - inter-agent messaging, task DAGs, dispatching work to worker agents, decision gates, and coordinator loops - invoke the `alera-orchestration` skill. Its command surface lives under `alera orchestration ...`.
+
+## Mobile Emulators
+
+For Android emulator and iOS simulator inventory, embedded streaming, input, and application automation, invoke the `alera-emulator` skill. Its command surface lives under `alera emulator ...`.

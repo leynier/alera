@@ -58,6 +58,12 @@ class DesktopUpdateStager implements AleraDesktopUpdateStager {
         'The ${update.platform} artifact cannot be installed on $platform.',
       );
     }
+    if (platform == 'linux') {
+      throw StateError(
+        'Automatic Linux updates are disabled. Install the deb or rpm '
+        'package through apt, dnf, or the configured package repository.',
+      );
+    }
 
     final stagingDirectory = await Directory.systemTemp.createTemp(
       'alera-update-',
@@ -157,7 +163,6 @@ class DesktopUpdateStager implements AleraDesktopUpdateStager {
         '${update.installerKind} artifacts.',
       );
     }
-
     final payloadDirectory = Directory(
       p.join(stagingDirectory.path, 'payload'),
     );

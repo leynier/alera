@@ -64,6 +64,7 @@ class _WorkbenchHarness {
       ),
     );
     terminalRuntime = _FakeTerminalRuntime();
+    final emulatorService = MobileEmulatorService(emulatorRuntimeClient);
     container = ProviderContainer(
       overrides: [
         gitBackendProvider.overrideWithValue(gitBackend),
@@ -88,6 +89,7 @@ class _WorkbenchHarness {
         ),
         settingsControllerProvider.overrideWithValue(settings),
         terminalRuntimeProvider.overrideWithValue(terminalRuntime),
+        mobileEmulatorServiceProvider.overrideWithValue(emulatorService),
       ],
     );
     _controller = container.read(workbenchControllerProvider.notifier);
@@ -101,6 +103,7 @@ class _WorkbenchHarness {
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
   late final _FakeWorktreeSetupRunner worktreeSetupRunner;
   late final _FakeTerminalRuntime terminalRuntime;
+  final emulatorRuntimeClient = _FakeWorkbenchEmulatorRuntimeClient();
   late final ProviderContainer container;
   late final WorkbenchController _controller;
   Future<Project> addProject(String id, String name) async {
@@ -618,8 +621,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     return _tabControllers.containsKey(workspaceId);
   }
 
-  /// Models a runtime watcher dying on a connection error: the stream errors
-  /// and completes, and the next `watchWorkspaceTabs` hands back a fresh one.
   void killTabWatcher(String workspaceId) {
     final controller = _tabControllers.remove(workspaceId);
     if (controller == null) {

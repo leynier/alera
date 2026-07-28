@@ -13,6 +13,7 @@ import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.da
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/presentation/browser_native_callback_scope.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
+import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_device_picker.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';

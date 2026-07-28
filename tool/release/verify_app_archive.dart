@@ -39,7 +39,7 @@ Future<void> main(List<String> args) async {
     stderr.writeln('schemaVersion must be 2.');
     exit(1);
   }
-  final channel = _requireString(decoded, 'channel');
+  _requireString(decoded, 'channel');
   _requireString(decoded, 'version');
   _requireString(decoded, 'publishedAt');
   if (decoded['buildNumber'] is! int) {
@@ -88,6 +88,13 @@ Future<void> main(List<String> args) async {
     final installerKind = _requireString(item, 'installerKind');
     platforms.add(platform);
     if (platform == 'linux') {
+      if (!_linuxInstallers.contains(installerKind)) {
+        stderr.writeln(
+          'Linux desktop artifacts must be deb or rpm packages, not '
+          '$installerKind.',
+        );
+        exit(1);
+      }
       linuxInstallers.add(installerKind);
     }
     _requireString(item, 'url');
@@ -109,12 +116,10 @@ Future<void> main(List<String> args) async {
     stderr.writeln('Missing platforms: ${missing.join(', ')}');
     exit(1);
   }
-  if (channel == 'stable') {
-    final missingLinux = _linuxInstallers.difference(linuxInstallers);
-    if (missingLinux.isNotEmpty) {
-      stderr.writeln('Missing Linux installers: ${missingLinux.join(', ')}');
-      exit(1);
-    }
+  final missingLinux = _linuxInstallers.difference(linuxInstallers);
+  if (missingLinux.isNotEmpty) {
+    stderr.writeln('Missing Linux installers: ${missingLinux.join(', ')}');
+    exit(1);
   }
 
   stdout.writeln('Verified signed schema v2 archive at $path.');

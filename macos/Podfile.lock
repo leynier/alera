@@ -1,4 +1,6 @@
 PODS:
+  - alera_browser (0.1.0):
+    - FlutterMacOS
   - alera_native (0.0.1):
     - FlutterMacOS
   - code_forge (10.0.0):
@@ -12,6 +14,10 @@ PODS:
   - flutter_local_notifications (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - media_kit_libs_macos_video (1.0.4):
+    - FlutterMacOS
+  - media_kit_video (0.0.1):
+    - FlutterMacOS
   - package_info_plus (0.0.1):
     - FlutterMacOS
   - pdfium_flutter (0.1.5):
@@ -27,6 +33,7 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - alera_browser (from `Flutter/ephemeral/.symlinks/plugins/alera_browser/macos`)
   - alera_native (from `Flutter/ephemeral/.symlinks/plugins/alera_native/macos`)
   - code_forge (from `Flutter/ephemeral/.symlinks/plugins/code_forge/macos`)
   - cryptography_flutter_plus (from `Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos`)
@@ -34,6 +41,8 @@ DEPENDENCIES:
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_local_notifications (from `Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - media_kit_libs_macos_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos`)
+  - media_kit_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - pdfium_flutter (from `Flutter/ephemeral/.symlinks/plugins/pdfium_flutter/darwin`)
   - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
@@ -42,6 +51,8 @@ DEPENDENCIES:
   - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
 
 EXTERNAL SOURCES:
+  alera_browser:
+    :path: Flutter/ephemeral/.symlinks/plugins/alera_browser/macos
   alera_native:
     :path: Flutter/ephemeral/.symlinks/plugins/alera_native/macos
   code_forge:
@@ -56,6 +67,10 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  media_kit_libs_macos_video:
+    :path: Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos
+  media_kit_video:
+    :path: Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
   pdfium_flutter:
@@ -70,6 +85,7 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
 
 SPEC CHECKSUMS:
+  alera_browser: 7a246164ceb674c079a7154bdbc989a789749174
   alera_native: 84fbb2a99bbe531726d9fa7ed491470d40dadb91
   code_forge: 14bca13a0e26865b31e28c4041a5e6920631ebbc
   cryptography_flutter_plus: b790cf76f050be15566d4ae320574b35cff72d1e
@@ -77,13 +93,15 @@ SPEC CHECKSUMS:
   file_selector_macos: 3e56eaea051180007b900eacb006686fd54da150
   flutter_local_notifications: 14e285ca39907db50704f7f46c9ab7a526bd7ead
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  media_kit_libs_macos_video: b3e2bbec2eef97c285f2b1baa7963c67c753fb82
+  media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
-  pdfium_flutter: 814416ae1e24618fc80353aacbf17c7229373559
+  pdfium_flutter: 9e8e72bdbed9498f7b87a9e01eb8899fb36955b3
   screen_retriever_macos: 776e0fa5d42c6163d2bf772d22478df4b302b161
   url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d
   window_manager: e25faf20d88283a0d46e7b1a759d07261ca27575
 
-PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
+PODFILE CHECKSUM: d16f5e5d196d1ca9863d7a71d5885cad7ffa7d2d
 
 COCOAPODS: 1.16.2

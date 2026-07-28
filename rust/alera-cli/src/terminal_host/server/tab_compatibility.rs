@@ -1,0 +1,33 @@
+//! Per-client tab-kind projection for additive workbench tab types.
+
+use alera_core::runtime::WorkspaceTabRecord;
+
+use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
+
+use super::{ClientKind, ServerActor};
+
+impl ServerActor {
+    pub(super) fn workspace_tab_for_client(
+        &self,
+        client_id: u64,
+        tab: WorkspaceTabRecord,
+    ) -> Option<WorkspaceTabRecord> {
+        let supports_mobile_emulator = self.clients.get(&client_id).is_some_and(|client| {
+            client.kind == ClientKind::Mobile || client.supports_mobile_emulator_tab_kind
+        });
+        if tab.kind == MOBILE_EMULATOR_TAB_KIND && !supports_mobile_emulator {
+            return None;
+        }
+        Some(tab)
+    }
+
+    pub(super) fn workspace_tabs_for_client(
+        &self,
+        client_id: u64,
+        tabs: Vec<WorkspaceTabRecord>,
+    ) -> Vec<WorkspaceTabRecord> {
+        tabs.into_iter()
+            .filter_map(|tab| self.workspace_tab_for_client(client_id, tab))
+            .collect()
+    }
+}

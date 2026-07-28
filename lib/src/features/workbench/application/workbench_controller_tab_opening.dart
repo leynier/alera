@@ -62,6 +62,100 @@ mixin _WorkbenchControllerTabOpening
     }
   }
 
+  Future<WorkspaceTabRecord> openMobileEmulatorTab({
+    required Workspace workspace,
+    MobileEmulatorPlatform? platform,
+    String? deviceId,
+    String? targetGroupId,
+  }) async {
+    try {
+      final previousTabs = state.tabsFor(workspace.id);
+      final layout = _layoutForMutation(workspace.id, previousTabs);
+      for (final tab in previousTabs) {
+        if (tab.kind != WorkspaceTabKind.mobileEmulator) {
+          continue;
+        }
+        final visibleLayout =
+            state.layoutFor(workspace.id)?.groupIdForTab(tab.id) == null
+            ? _layoutForMutation(
+                workspace.id,
+                previousTabs
+                    .where((candidate) => candidate.id != tab.id)
+                    .toList(growable: false),
+              )
+            : layout;
+        await _showMobileEmulatorTab(
+          layout: visibleLayout,
+          tabs: previousTabs,
+          tab: tab,
+          targetGroupId: targetGroupId,
+        );
+        state = state.copyWith(error: null);
+        return tab;
+      }
+      if (platform == null || deviceId == null || deviceId.trim().isEmpty) {
+        throw StateError('Select A Mobile Emulator Device.');
+      }
+      final attachment = await _mobileEmulatorService.attach(
+        workspaceId: workspace.id,
+        platform: platform,
+        deviceId: deviceId,
+      );
+      final tab = attachment.tab;
+      final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      await _showMobileEmulatorTab(
+        layout: layout,
+        tabs: tabs,
+        tab: tab,
+        targetGroupId: targetGroupId,
+      );
+      ref
+          .read(workspaceActivityControllerProvider.notifier)
+          .recordActivity(workspace.id, DateTime.now().toUtc());
+      state = state.copyWith(error: null);
+      return tab;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> _showMobileEmulatorTab({
+    required WorkbenchLayout layout,
+    required List<WorkspaceTabRecord> tabs,
+    required WorkspaceTabRecord tab,
+    String? targetGroupId,
+  }) async {
+    final existingGroupId = layout.groupIdForTab(tab.id);
+    if (existingGroupId != null) {
+      await _applyLayout(
+        layout.setActiveTab(groupId: existingGroupId, tabId: tab.id),
+        persist: true,
+      );
+      return;
+    }
+    final sourceGroupId =
+        targetGroupId != null && layout.groups.containsKey(targetGroupId)
+        ? targetGroupId
+        : layout.activeGroupId;
+    final group = WorkbenchPaneGroup(
+      id: _newPaneGroupId(),
+      tabIds: <String>[tab.id],
+      activeTabId: tab.id,
+    );
+    await _applyLayout(
+      layout
+          .splitWithGroup(
+            targetGroupId: sourceGroupId,
+            zone: WorkbenchDropZone.right,
+            newGroup: group,
+          )
+          .sanitize(tabs),
+      persist: true,
+    );
+  }
+
   Future<WorkspaceTabRecord> openEditorTab({
     required Workspace workspace,
     required String relativePath,

@@ -78,7 +78,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        packages="clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libjson-glib-dev libsecret-1-dev libsqlite3-dev libssl-dev"
+        packages="clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libjson-glib-dev libsecret-1-dev libsqlite3-dev libssl-dev libepoxy-dev libmpv-dev"
         if [ "${{ inputs.xvfb }}" = "true" ]; then
           packages="${packages} xvfb"
         fi

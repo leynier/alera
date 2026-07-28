@@ -44,3 +44,25 @@ pub fn windowless_async_command(program: impl AsRef<OsStr>) -> tokio::process::C
     command.creation_flags(CREATE_NO_WINDOW);
     command
 }
+
+/// A background [`tokio::process::Command`] that also survives its launcher's
+/// terminal session closing.
+#[cfg(feature = "async-process")]
+pub fn detached_windowless_async_command(program: impl AsRef<OsStr>) -> tokio::process::Command {
+    #[cfg_attr(not(unix), allow(unused_mut))]
+    let mut command = windowless_async_command(program);
+    #[cfg(unix)]
+    unsafe {
+        command.pre_exec(|| {
+            // `pre_exec` runs after fork, where only async-signal-safe work is
+            // valid. `setsid` is the single syscall needed to leave the
+            // launcher's controlling terminal and process group.
+            if libc::setsid() == -1 {
+                Err(std::io::Error::last_os_error())
+            } else {
+                Ok(())
+            }
+        });
+    }
+    command
+}

@@ -80,6 +80,11 @@ class _WorkspaceTabContent extends StatelessWidget {
         tab: tab,
         autofocus: autofocus,
       ),
+      WorkspaceTabKind.mobileEmulator => MobileEmulatorSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      ),
     };
   }
 }

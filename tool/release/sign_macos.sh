@@ -54,11 +54,33 @@ security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_CERTIFICATE_
 identity="$APPLE_DEVELOPER_ID_APPLICATION"
 entitlements="macos/Runner/Release.entitlements"
 
-while IFS= read -r binary; do
-  codesign --force --options runtime --timestamp --sign "$identity" "$binary"
-done < <(find "$app_path/Contents/Resources/alera" -type f -perm -111 2>/dev/null || true)
+sign_macho_files() {
+  local root="$1"
+  if [[ ! -d "$root" ]]; then
+    return
+  fi
+  while IFS= read -r binary; do
+    if file -b "$binary" | grep -q "Mach-O"; then
+      codesign --force --options runtime --timestamp --sign "$identity" "$binary"
+    fi
+  done < <(find "$root" -type f -print | sort)
+}
 
-codesign --force --deep --options runtime --timestamp \
+sign_macho_files "$app_path/Contents/Frameworks"
+sign_macho_files "$app_path/Contents/Resources/alera"
+
+# Developer ID signing changes the source-built serve-sim binary. Refresh its
+# derived SHA before the outer app signature seals the helper manifest.
+dart tool/native_helpers/refresh_signed_native_helper_bundle.dart \
+  --emulator-root "$app_path/Contents/Resources/alera/emulator"
+
+# A framework is a nested code bundle, so sign the bundle after its Mach-O and
+# before the outer app. Apple recommends using --deep for verification only.
+while IFS= read -r framework; do
+  codesign --force --options runtime --timestamp --sign "$identity" "$framework"
+done < <(find "$app_path/Contents/Frameworks" -type d -name "*.framework" -print 2>/dev/null | sort -r)
+
+codesign --force --options runtime --timestamp \
   --entitlements "$entitlements" \
   --sign "$identity" \
   "$app_path"

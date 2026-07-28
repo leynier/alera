@@ -1,6 +1,10 @@
 use clap::Parser;
 
 use crate::cli::{Cli, Command, IdArgs, WorkspaceAction, WorkspaceCommand};
+use crate::cli::{
+    EmulatorAction, EmulatorCommand, EmulatorLogLevelArg, EmulatorPermissionOperationArg,
+    EmulatorPlatformArg,
+};
 use crate::cli_orchestration::{OrchestrationAction, OrchestrationCommand};
 
 #[test]
@@ -103,6 +107,38 @@ fn browser_open_and_capture_commands_parse_page_contracts() {
 }
 
 #[test]
+fn emulator_json_and_attach_scope_parse_at_the_group_level() {
+    let cli = Cli::try_parse_from([
+        "alera",
+        "emulator",
+        "--json",
+        "attach",
+        "--tab-id",
+        "tab-1",
+        "--workspace-id",
+        "workspace-1",
+        "--platform",
+        "ios",
+        "--device-id",
+        "simulator-1",
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        cli.command,
+        Command::Emulator(EmulatorCommand {
+            output,
+            action: EmulatorAction::Attach(args),
+            ..
+        }) if output.json
+            && args.target.tab_id.as_deref() == Some("tab-1")
+            && args.target.workspace_id.as_deref() == Some("workspace-1")
+            && args.platform == EmulatorPlatformArg::Ios
+            && args.device_id == "simulator-1"
+    ));
+}
+
+#[test]
 fn browser_search_engine_rejects_arbitrary_templates() {
     assert!(Cli::try_parse_from([
         "alera",
@@ -120,4 +156,91 @@ fn browser_profile_mutation_requires_the_in_app_coordinator() {
     for action in ["upsert", "remove"] {
         assert!(Cli::try_parse_from(["alera", "browser", "profiles", action]).is_err());
     }
+}
+
+#[test]
+fn emulator_android_development_commands_parse_bounded_filters() {
+    let permission = Cli::try_parse_from([
+        "alera",
+        "emulator",
+        "permission",
+        "--workspace-id",
+        "workspace-1",
+        "--bundle-id",
+        "dev.alera.demo",
+        "--permission",
+        "android.permission.CAMERA",
+        "--operation",
+        "grant",
+    ])
+    .unwrap();
+    let logcat = Cli::try_parse_from([
+        "alera",
+        "emulator",
+        "logcat",
+        "--workspace-id",
+        "workspace-1",
+        "--max-lines",
+        "25",
+        "--tag",
+        "flutter",
+        "--tag",
+        "ActivityManager",
+        "--level",
+        "warn",
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        permission.command,
+        Command::Emulator(EmulatorCommand {
+            action: EmulatorAction::Permission(args),
+            ..
+        }) if args.operation == EmulatorPermissionOperationArg::Grant
+    ));
+    assert!(matches!(
+        logcat.command,
+        Command::Emulator(EmulatorCommand {
+            action: EmulatorAction::Logcat(args),
+            ..
+        }) if args.max_lines == 25
+            && args.tag == ["flutter", "ActivityManager"]
+            && args.level == Some(EmulatorLogLevelArg::Warn)
+    ));
+}
+
+#[test]
+fn emulator_logcat_rejects_unbounded_line_counts() {
+    let error = Cli::try_parse_from([
+        "alera",
+        "emulator",
+        "logcat",
+        "--workspace-id",
+        "workspace-1",
+        "--max-lines",
+        "1001",
+    ])
+    .unwrap_err();
+
+    assert!(error.to_string().contains("1000"));
+}
+
+#[test]
+fn emulator_input_rejects_coordinates_outside_the_normalized_viewport() {
+    let error = Cli::try_parse_from([
+        "alera",
+        "emulator",
+        "tap",
+        "--workspace-id",
+        "workspace-1",
+        "--snapshot-id",
+        "snapshot-1",
+        "--x",
+        "120",
+        "--y",
+        "0.5",
+    ])
+    .unwrap_err();
+
+    assert!(error.to_string().contains("between 0 and 1"));
 }

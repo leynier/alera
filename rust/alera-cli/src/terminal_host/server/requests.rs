@@ -9,8 +9,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
 use crate::managed_workspace::{
-    create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
-    ManagedWorkspaceRemoveRequest,
+    create_managed_workspace, ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
 };
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
@@ -30,8 +29,8 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -46,6 +45,8 @@ use crate::terminal_host::session::SessionDriver;
 
 use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
 use super::runtime_change_broadcasts::string_scope;
+use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
+use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -86,6 +87,20 @@ impl ServerActor {
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
                 if let Some(id) = request_id {
+                    if self.emulator_requests.has_runtime_mutations()
+                        && conflicts_with_runtime_mutation(&request_type)
+                    {
+                        self.client_write(
+                            client_id,
+                            error_response(
+                                id,
+                                &HostError::state(
+                                    "A runtime mutation is in progress. Wait for it to finish and retry.",
+                                ),
+                            ),
+                        );
+                        return;
+                    }
                     if request_type.starts_with("browser.") {
                         match self
                             .handle_browser_request(client_id, id, &request_type, &payload)
@@ -172,7 +187,84 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                self.start_managed_workspace_remove(client_id, request_id, request);
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveManagedWorkspace { request },
+                );
+                Ok(true)
+            }
+            "project.remove" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let project_id = require_string_key(payload, "id")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveProject { project_id },
+                );
+                Ok(true)
+            }
+            "workspace.remove" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let workspace_id = require_string_key(payload, "id")?;
+                let cascade_tabs = payload
+                    .get("cascadeTabs")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true);
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveWorkspace {
+                        workspace_id,
+                        cascade_tabs,
+                    },
+                );
+                Ok(true)
+            }
+            "workspace.removeForProject" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveProjectWorkspaces { project_id },
+                );
+                Ok(true)
+            }
+            "workspace.sleep" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::SleepWorkspace { workspace_id },
+                );
+                Ok(true)
+            }
+            "tab.remove" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let tab_id = require_string_key(payload, "id")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveTab { tab_id },
+                );
+                Ok(true)
+            }
+            "tab.removeForWorkspace" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                self.start_runtime_mutation(
+                    client_id,
+                    request_id,
+                    RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id },
+                );
                 Ok(true)
             }
             "write" => {
@@ -208,6 +300,17 @@ impl ServerActor {
                 self.start_skill_install_request(client_id, request_id, payload)?;
                 Ok(true)
             }
+            _ if request_type.starts_with("emulator.") => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_emulator_request(
+                    client_id,
+                    request_id,
+                    request_type.to_string(),
+                    payload.clone(),
+                );
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
@@ -232,26 +335,6 @@ impl ServerActor {
         });
     }
 
-    fn start_managed_workspace_remove(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        request: ManagedWorkspaceRemoveRequest,
-    ) {
-        self.managed_workspace_jobs += 1;
-        self.cancel_shutdown_timer();
-        let store = self.runtime_store.clone();
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            let result = json_result(remove_managed_workspace(&store, request).await);
-            let _ = inbox.send(ServerCommand::ManagedWorkspaceRemoved {
-                client_id,
-                request_id,
-                result,
-            });
-        });
-    }
-
     pub(super) async fn handle_managed_workspace_created(
         &mut self,
         client_id: u64,
@@ -264,31 +347,6 @@ impl ServerActor {
                 let project_id = string_scope(&payload, "projectId");
                 self.client_write(client_id, ok_response(request_id, payload));
                 self.broadcast_workspaces_changed(project_id.as_deref());
-            }
-            Err(error) => {
-                self.client_write(client_id, error_response(request_id, &error));
-            }
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
-    pub(super) async fn handle_managed_workspace_removed(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        result: HostResult<Value>,
-    ) {
-        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
-        match result {
-            Ok(payload) => {
-                let workspace_id = string_scope(&payload, "id");
-                let project_id = string_scope(&payload, "projectId");
-                if let Some(id) = workspace_id.as_deref() {
-                    self.terminate_sessions_for_workspace(id).await;
-                }
-                self.client_write(client_id, ok_response(request_id, payload));
-                self.broadcast_workspaces_changed(project_id.as_deref());
-                self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
             }
             Err(error) => {
                 self.client_write(client_id, error_response(request_id, &error));
@@ -381,6 +439,7 @@ impl ServerActor {
                 self.apply_config(config).await;
                 Ok(json!({}))
             }
+            "host.promotePersistent" => self.promote_persistent(),
             "host.shutdown" => {
                 if self.is_mobile_client(client_id) {
                     return Err(HostError::state(
@@ -399,6 +458,12 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
+                    + self.emulator_requests.outstanding()
+                    + self.emulators.as_ref().map_or(0, |emulators| {
+                        emulators
+                            .try_lock()
+                            .map_or(1, |manager| manager.active_count())
+                    })
                     + self.browser.active_jobs();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
@@ -591,11 +656,17 @@ impl ServerActor {
                         RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
                         RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY,
                         RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
                         RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
                     ],
                     "authenticated": true,
                     "persistent": self.config.persistent,
                     "activeSessions": self.sessions.values().filter(|session| session.running()).count(),
+                    "activeEmulators": self.emulators.as_ref().map_or(0, |emulators| {
+                        emulators
+                            .try_lock()
+                            .map_or(1, |manager| manager.active_count())
+                    }),
                     "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
                     "mobileGatewayEnabled": self.mobile_gateway.is_some(),
                 }))
@@ -747,25 +818,6 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectsChanged", json!({})));
                 Ok(value)
             }
-            "project.remove" => {
-                self.require_auth(client_id)?;
-                let id = require_string_key(payload, "id")?;
-                let workspace_ids: Vec<String> = self
-                    .runtime_store
-                    .list_workspaces(&id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .into_iter()
-                    .map(|workspace| workspace.id)
-                    .collect();
-                json_result(self.runtime_store.remove_project(&id).await)?;
-                self.terminate_sessions_for_workspaces(&workspace_ids).await;
-                self.broadcast_authenticated(event("projectsChanged", json!({})));
-                self.broadcast_workspaces_changed(Some(&id));
-                self.broadcast_workspace_tabs_changed(None);
-                self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
-                Ok(json!({}))
-            }
             "projectConfig.find" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
@@ -825,43 +877,8 @@ impl ServerActor {
             }
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
             "workspace.rename" => self.rename_workspace_request(client_id, payload).await,
-            "workspace.sleep" => self.sleep_workspace_request(client_id, payload).await,
             "workspace.repositoryWebUrl" => {
                 self.workspace_repository_web_url(client_id, payload).await
-            }
-            "workspace.remove" => {
-                self.require_auth(client_id)?;
-                let id = require_string_key(payload, "id")?;
-                let cascade_tabs = payload
-                    .get("cascadeTabs")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(true);
-                json_result(self.runtime_store.remove_workspace(&id, cascade_tabs).await)?;
-                self.terminate_sessions_for_workspace(&id).await;
-                self.broadcast_workspaces_changed(None);
-                self.broadcast_workspace_tabs_changed(Some(&id));
-                Ok(json!({}))
-            }
-            "workspace.removeForProject" => {
-                self.require_auth(client_id)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                let workspace_ids: Vec<String> = self
-                    .runtime_store
-                    .list_workspaces(&project_id)
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?
-                    .into_iter()
-                    .map(|workspace| workspace.id)
-                    .collect();
-                json_result(
-                    self.runtime_store
-                        .remove_workspaces_for_project(&project_id)
-                        .await,
-                )?;
-                self.terminate_sessions_for_workspaces(&workspace_ids).await;
-                self.broadcast_workspaces_changed(Some(&project_id));
-                self.broadcast_workspace_tabs_changed(None);
-                Ok(json!({}))
             }
             "tab.list" => {
                 self.require_auth(client_id)?;
@@ -874,13 +891,19 @@ impl ServerActor {
                 if self.is_mobile_client(client_id) {
                     Ok(self.mobile_workspace_tabs_payload(tabs))
                 } else {
-                    Ok(json!(tabs))
+                    Ok(json!(self.workspace_tabs_for_client(client_id, tabs)))
                 }
             }
             "tab.find" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
-                json_result(self.runtime_store.find_workspace_tab(&id).await)
+                let tab = self
+                    .runtime_store
+                    .find_workspace_tab(&id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                    .and_then(|tab| self.workspace_tab_for_client(client_id, tab));
+                Ok(json!(tab))
             }
             "tab.upsert" => {
                 self.require_auth(client_id)?;
@@ -898,25 +921,6 @@ impl ServerActor {
                     value.get("workspaceId").and_then(Value::as_str),
                 );
                 Ok(value)
-            }
-            "tab.remove" => {
-                self.require_auth(client_id)?;
-                let id = require_string_key(payload, "id")?;
-                let workspace_id = self.workspace_id_for_tab(&id).await;
-                json_result(self.runtime_store.remove_workspace_tab(&id).await)?;
-                self.handle_browser_tab_removed(&id);
-                self.terminate_sessions_for_tab(&id).await;
-                self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
-                Ok(json!({}))
-            }
-            "tab.removeForWorkspace" => {
-                self.require_auth(client_id)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                json_result(self.runtime_store.sleep_workspace(&workspace_id).await)?;
-                self.terminate_sessions_for_workspace(&workspace_id).await;
-                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
-                self.broadcast_authenticated(event("workbenchLayoutsChanged", json!({})));
-                Ok(json!({}))
             }
             "linkedReview.find" => {
                 self.require_auth(client_id)?;

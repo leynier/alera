@@ -14,7 +14,6 @@ void main() {
     for (final fixture in <({String platform, String executable})>[
       (platform: 'macos', executable: 'Alera.app/Contents/MacOS/Alera'),
       (platform: 'windows', executable: 'Alera.exe'),
-      (platform: 'linux', executable: 'alera'),
     ]) {
       test(
         'downloads, verifies, and extracts ${fixture.platform} tarballs',
@@ -55,23 +54,40 @@ void main() {
       );
     }
 
-    test('keeps verified Linux packages without extracting them', () async {
-      final artifact = <int>[1, 2, 3, 4];
-      final stager = DesktopUpdateStager(
-        client: MockClient(
-          (_) async => http.Response.bytes(artifact, HttpStatus.ok),
-        ),
-        platform: 'linux',
-      );
+    for (final installerKind in <String>['deb', 'rpm', 'tar.gz']) {
+      test(
+        'rejects Linux $installerKind automatic updates before download',
+        () async {
+          var requests = 0;
+          final stager = DesktopUpdateStager(
+            client: MockClient((_) async {
+              requests += 1;
+              return http.Response('', HttpStatus.ok);
+            }),
+            platform: 'linux',
+          );
 
-      final staged = await stager.stage(
-        _update(platform: 'linux', artifact: artifact, installerKind: 'deb'),
-      );
-      addTearDown(staged.delete);
+          await expectLater(
+            stager.stage(
+              _update(
+                platform: 'linux',
+                artifact: const <int>[1],
+                installerKind: installerKind,
+              ),
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (error) => error.message,
+                'message',
+                contains('apt, dnf'),
+              ),
+            ),
+          );
 
-      expect(staged.payloadPath, isNull);
-      expect(await File(staged.artifactPath).readAsBytes(), artifact);
-    });
+          expect(requests, 0);
+        },
+      );
+    }
 
     test('rejects incomplete and tampered downloads', () async {
       final bytes = <int>[1, 2, 3];
@@ -79,21 +95,21 @@ void main() {
         client: MockClient(
           (_) async => http.Response.bytes(bytes, HttpStatus.ok),
         ),
-        platform: 'linux',
+        platform: 'windows',
       );
       final tampered = DesktopUpdateStager(
         client: MockClient(
           (_) async => http.Response.bytes(bytes, HttpStatus.ok),
         ),
-        platform: 'linux',
+        platform: 'windows',
       );
 
       await expectLater(
         incomplete.stage(
           _update(
-            platform: 'linux',
+            platform: 'windows',
             artifact: <int>[...bytes, 4],
-            installerKind: 'deb',
+            installerKind: 'tar.gz',
           ),
         ),
         throwsA(
@@ -107,9 +123,9 @@ void main() {
       await expectLater(
         tampered.stage(
           _update(
-            platform: 'linux',
+            platform: 'windows',
             artifact: bytes,
-            installerKind: 'deb',
+            installerKind: 'tar.gz',
             sha256Override:
                 '0000000000000000000000000000000000000000000000000000000000000000',
           ),

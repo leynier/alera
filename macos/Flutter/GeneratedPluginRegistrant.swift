@@ -10,6 +10,8 @@ import cryptography_flutter_plus
 import desktop_updater
 import file_selector_macos
 import flutter_local_notifications
+import media_kit_libs_macos_video
+import media_kit_video
 import package_info_plus
 import screen_retriever_macos
 import url_launcher_macos
@@ -22,6 +24,8 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   DesktopUpdaterPlugin.register(with: registry.registrar(forPlugin: "DesktopUpdaterPlugin"))
   FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   FlutterLocalNotificationsPlugin.register(with: registry.registrar(forPlugin: "FlutterLocalNotificationsPlugin"))
+  MediaKitLibsMacosVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitLibsMacosVideoPlugin"))
+  MediaKitVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitVideoPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
   ScreenRetrieverMacosPlugin.register(with: registry.registrar(forPlugin: "ScreenRetrieverMacosPlugin"))
   UrlLauncherPlugin.register(with: registry.registrar(forPlugin: "UrlLauncherPlugin"))
