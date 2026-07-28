@@ -1,0 +1,57 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TrustDocument from '../components/TrustDocument.astro';
+---
+
+<Layout
+  title="Privacy Policy - Alera"
+  description="How Alera handles account, device, notification, and website data."
+  canonicalPath="/privacy"
+>
+  <TrustDocument
+    eyebrow="Trust Document"
+    title="Privacy Policy"
+    summary="Alera is local-first. Cloud services are used only for account identity, mobile push delivery, abuse prevention, and the public website."
+    updated="July 27, 2026"
+  >
+    <h2>Who Operates Alera</h2>
+    <p>Alera is an open-source project maintained by Leynier Gutiérrez González. Questions and privacy requests can be sent to <a href="mailto:privacy@alera.build">privacy@alera.build</a>.</p>
+
+    <h2>Information We Process</h2>
+    <ul>
+      <li><strong>Account Identity:</strong> Your email address, the identity provider you use, the provider account identifier, linked-provider status, and account timestamps.</li>
+      <li><strong>Devices And Runtimes:</strong> Random identifiers, names you assign, platform, enrollment status, notification preferences, and last-seen timestamps.</li>
+      <li><strong>Push Delivery:</strong> Firebase Cloud Messaging registration tokens, notification category, delivery result, quota counters, and error timestamps.</li>
+      <li><strong>Notification Content:</strong> When enabled, a notification can include an agent status plus project and workspace names. Alera does not place prompts, terminal input, terminal output, source code, or repository contents in the push payload.</li>
+      <li><strong>Security Data:</strong> Short-lived request metadata such as IP address, time, route, and response code may be processed by our edge and hosting providers to prevent abuse and diagnose service failures.</li>
+      <li><strong>Website Data:</strong> The public site uses Vercel Analytics to measure aggregate visits and performance. The desktop and mobile applications do not use that website analytics integration.</li>
+    </ul>
+
+    <h2>Why We Process It</h2>
+    <p>We use this information to sign you in, automatically link provider identities only when both providers report the same verified email, complete links you explicitly initiate while signed in, enroll your devices, route notifications to devices you selected, enforce service limits, investigate abuse, and operate the service. Where law requires a legal basis, these purposes rely on providing the service you requested, your notification choices, and our legitimate interest in keeping the shared service reliable and secure.</p>
+
+    <h2>Service Providers</h2>
+    <p>Alera uses Google and GitHub for sign-in, Cloudflare for the public API edge, Google Cloud Run and Cloud Key Management Service for the account and push service, Firebase Cloud Messaging for notification delivery, Neon for the primary account database, and Vercel for the public website and its aggregate analytics. These providers process data under their own terms and may process operational data in locations where they run their networks.</p>
+
+    <h2>Storage And Retention</h2>
+    <p>The primary account database is configured in a United States region. Account, device, and subscription records remain until you remove them or delete your account. Expired sessions and operational delivery records become eligible for scheduled cleanup after service activity. Because the service can scale to zero, removal can occur after its next start rather than at an exact deadline. A keyed account identifier fingerprint may be retained for up to 90 days after deletion to support security investigations without retaining your email or provider id. A non-reversible FCM token hash may remain for up to 30 days after Firebase reports that token unregistered so the invalid token is not immediately added again. Provider security logs may follow the provider's own retention schedule.</p>
+
+    <h2>Sharing And Sale</h2>
+    <p>We share data only with the processors needed to provide and protect the service, when you direct us to do so, or when legally required. We do not sell personal information or use account data for advertising.</p>
+
+    <h2>Your Choices</h2>
+    <p>You can disable each runtime's push subscription, remove a mobile device, sign out a runtime, or delete your account. Push is optional and Alera's local workspace and terminal features continue to work without an Alera account.</p>
+
+    <h2>Account Deletion</h2>
+    <p>Use <strong>Settings &gt; Account &gt; Delete Account</strong> in the desktop app, or follow the instructions on the <a href="/account/delete">Delete Account</a> page. Deletion removes the account, linked identities, sessions, devices, subscriptions, and quota records after identity verification, except for narrowly retained security fingerprints and records required by law.</p>
+
+    <h2>Security</h2>
+    <p>Access tokens are short-lived, refresh tokens rotate, provider tokens are not retained after identity resolution, and signing operations use a managed key. No internet service can guarantee absolute security. Please report suspected vulnerabilities through the process in the project's <a href="https://github.com/leynier/alera/blob/main/SECURITY.md">Security Policy</a>.</p>
+
+    <h2>Children</h2>
+    <p>Alera is a developer tool and is not directed to children under 13. Do not create an account if local law does not permit you to consent to this policy.</p>
+
+    <h2>Changes</h2>
+    <p>Material changes will be posted on this page with a new effective date. If a change materially affects how existing account data is used, we will provide additional notice where practical.</p>
+  </TrustDocument>
+</Layout>

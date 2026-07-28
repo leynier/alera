@@ -1,0 +1,39 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import TrustDocument from '../../components/TrustDocument.astro';
+
+const deletionEmail = 'mailto:privacy@alera.build?subject=Alera%20Account%20Deletion%20Request';
+---
+
+<Layout
+  title="Delete Account - Alera"
+  description="How to delete an Alera account and its cloud data."
+  canonicalPath="/account/delete"
+>
+  <TrustDocument
+    eyebrow="Account Control"
+    title="Delete Your Account"
+    summary="Delete directly from the desktop app when you still have access, or send a verified deletion request when you do not."
+  >
+    <h2>Delete In Alera</h2>
+    <ol>
+      <li>Open the Alera desktop app and go to <strong>Settings</strong>.</li>
+      <li>Select <strong>Account</strong>, then select <strong>Delete Account</strong>.</li>
+      <li>Review the affected runtimes and devices, then confirm deletion.</li>
+    </ol>
+    <p>This is the fastest path because the signed-in runtime can prove account ownership. Deleting the app alone does not delete the cloud account.</p>
+
+    <h2>Request Deletion By Email</h2>
+    <p>If you cannot access a signed-in desktop runtime, email the address below from the primary email on your Alera account. We may ask you to complete a fresh Google or GitHub sign-in before deletion. Never send an OAuth token, refresh token, password, recovery code, or terminal output.</p>
+    <p><a class="policy-action" href={deletionEmail}>Request Account Deletion</a></p>
+
+    <h2>What Is Removed</h2>
+    <p>Deletion removes the Alera account, linked Google and GitHub identities, active sessions, enrolled runtimes, mobile devices, push tokens, subscriptions, and quota records. Local projects, repositories, terminals, and settings on your computers are not uploaded by this service and are not deleted.</p>
+
+    <h2>Retention After Deletion</h2>
+    <p>A keyed fingerprint of the deleted account identifier may remain for up to 90 days to support security investigations without retaining the account email or provider id. Minimal records required to investigate abuse or meet legal obligations may be retained only for the necessary period. Provider logs follow each provider's retention controls.</p>
+
+    <h2>Questions</h2>
+    <p>Contact <a href="mailto:privacy@alera.build">privacy@alera.build</a> for deletion status or privacy questions.</p>
+  </TrustDocument>
+</Layout>

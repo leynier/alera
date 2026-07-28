@@ -1,0 +1,47 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TrustDocument from '../components/TrustDocument.astro';
+---
+
+<Layout
+  title="Terms Of Service - Alera"
+  description="Terms for Alera accounts, cloud notifications, and the public service."
+  canonicalPath="/terms"
+>
+  <TrustDocument
+    eyebrow="Service Agreement"
+    title="Terms Of Service"
+    summary="These terms cover the optional Alera account and cloud notification service. The local open-source application remains governed by its repository license."
+    updated="July 27, 2026"
+  >
+    <h2>Using The Service</h2>
+    <p>You may use Alera's account and notification service if you can legally agree to these terms. You are responsible for activity from your signed-in runtimes and mobile devices and for removing access from devices you no longer control.</p>
+
+    <h2>Local App And Cloud Service</h2>
+    <p>Alera's desktop and mobile applications are local-first. An account is optional and is required only for shared cloud features such as mobile push delivery. Source code and license terms are available in the <a href="https://github.com/leynier/alera">Alera Repository</a>. These terms do not replace the open-source license for code you run locally.</p>
+
+    <h2>Acceptable Use</h2>
+    <p>Do not use the service to attack, probe, overload, disrupt, or bypass limits on Alera or its providers. Do not attempt to send notifications to devices you do not control, impersonate another person, automate disposable accounts to evade quotas, or use the service in violation of applicable law.</p>
+
+    <h2>Service Limits</h2>
+    <p>The public service may enforce per-account, per-session, per-device, and global limits. Current default notification limits are documented in the cloud operations guide and may change to protect availability. Repeated attempts to evade a limit can result in suspension.</p>
+
+    <h2>Your Content And Notifications</h2>
+    <p>You retain rights to your projects and workspace names. If you enable detailed push notifications, you instruct Alera to send the selected status, project name, and workspace name through Firebase Cloud Messaging to your registered device. Prompts and terminal contents are not included in push payloads.</p>
+
+    <h2>Availability</h2>
+    <p>The service is an early preview provided on a best-effort basis without a service-level agreement. Features may change, pause, or be discontinued. We will try to avoid unnecessary disruption, but notification delivery is not guaranteed and must not be used for emergency, safety-critical, or time-critical workflows.</p>
+
+    <h2>Suspension And Termination</h2>
+    <p>You may stop using the service or delete your account at any time. We may restrict or suspend access to protect users, providers, or the service; respond to unlawful activity; or enforce these terms. Where practical, we will provide a reason and a path to contact us.</p>
+
+    <h2>Disclaimers And Liability</h2>
+    <p>To the maximum extent permitted by law, the cloud service is provided as available and without warranties of uninterrupted operation, fitness for a particular purpose, or error-free delivery. Alera is not liable for lost work, missed notifications, provider outages, or indirect or consequential losses arising from use of the preview service. Rights that cannot legally be waived remain unaffected.</p>
+
+    <h2>Changes</h2>
+    <p>We may update these terms as the service evolves. Material changes will be posted here with a new effective date. Continued use after the effective date means you accept the updated terms where permitted by law.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about these terms or an account restriction can be sent to <a href="mailto:privacy@alera.build">privacy@alera.build</a>.</p>
+  </TrustDocument>
+</Layout>

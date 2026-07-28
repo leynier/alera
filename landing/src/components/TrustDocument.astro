@@ -1,0 +1,55 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  summary: string;
+  updated?: string;
+}
+
+const { eyebrow, title, summary, updated } = Astro.props;
+---
+
+<header class="border-b border-border-subtle/70">
+  <nav class="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-6" aria-label="Legal">
+    <a href="/" class="group flex shrink-0 items-center gap-2.5">
+      <img src="/logo.png" alt="Alera" class="h-5 w-auto opacity-90 transition-opacity duration-fast group-hover:opacity-100" />
+      <span class="text-sm font-semibold tracking-tight text-foreground">Alera</span>
+    </a>
+    <div class="flex items-center gap-4 text-body-md text-foreground-faint sm:gap-6">
+      <a href="/privacy" class="transition-colors duration-fast hover:text-foreground">Privacy</a>
+      <a href="/terms" class="transition-colors duration-fast hover:text-foreground">Terms</a>
+      <a href="/account/delete" class="hidden transition-colors duration-fast hover:text-foreground sm:inline">Delete Account</a>
+    </div>
+  </nav>
+</header>
+
+<main class="relative overflow-hidden px-6 py-14 sm:py-20">
+  <div class="policy-glow pointer-events-none absolute inset-x-0 top-0 h-72" aria-hidden="true"></div>
+  <div class="relative mx-auto max-w-3xl">
+    <div class="mb-10 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-2 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-foreground-faint" aria-label="Alera Data Route">
+      <span>Device</span>
+      <span class="h-px bg-border" aria-hidden="true"></span>
+      <span>Encrypted</span>
+      <span class="h-px bg-border" aria-hidden="true"></span>
+      <span>Cloud</span>
+    </div>
+
+    <div class="border-l border-border pl-5 sm:pl-8">
+      <p class="mb-3 font-mono text-label-md uppercase tracking-[0.16em] text-foreground-faint">{eyebrow}</p>
+      <h1 class="max-w-2xl text-3xl font-semibold leading-tight tracking-[-0.04em] text-foreground sm:text-5xl">{title}</h1>
+      <p class="mt-5 max-w-2xl text-body-lg text-foreground-muted sm:text-base">{summary}</p>
+      {updated && <p class="mt-5 font-mono text-label-md uppercase tracking-[0.12em] text-foreground-faint">Effective {updated}</p>}
+    </div>
+
+    <article class="policy-body mt-12 border-t border-border-subtle pt-10">
+      <slot />
+    </article>
+  </div>
+</main>
+
+<footer class="border-t border-border-subtle/70 px-6 py-8">
+  <div class="mx-auto flex max-w-3xl flex-col gap-3 text-body-md text-foreground-faint sm:flex-row sm:items-center sm:justify-between">
+    <span>Alera Trust And Account Information</span>
+    <a href="mailto:privacy@alera.build" class="transition-colors duration-fast hover:text-foreground">privacy@alera.build</a>
+  </div>
+</footer>
