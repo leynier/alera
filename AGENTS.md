@@ -209,7 +209,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 
 - GitHub Actions work must follow `.github/AGENTS.md`.
 - Release script work must follow `tool/release/AGENTS.md`.
-- Stable auto-update MUST remain disabled until release builds are signed and notarized/trusted for the relevant platform.
+- Stable auto-update is enabled on macOS and Windows regardless of platform signing, because update integrity rests on the Ed25519-signed manifest and its per-artifact SHA-256, not on Developer ID or Authenticode. Platform signing governs what the OS shows on first launch, which is a separate concern. Linux MUST stay excluded: `dpkg` and `rpm` do not resolve the `libmpv` dependency closure, so those updates go through apt or dnf.
 - Release automation must publish drafts first, verify all required assets and update manifests, and only then publish public releases.
 
 ## Reference Projects

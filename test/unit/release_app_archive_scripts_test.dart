@@ -109,7 +109,7 @@ void main() {
       expect(macBrowserCore, contains('Bundle.main.bundleIdentifier'));
     });
 
-    test('gates stable autonomous updates on platform trust credentials', () {
+    test('enables autonomous updates everywhere a package manager does not', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
       ).readAsStringSync();
@@ -120,8 +120,31 @@ void main() {
           '--dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=\$auto_install_enabled"',
         ),
       );
-      expect(workflow, contains('APPLE_DEVELOPER_ID_APPLICATION'));
-      expect(workflow, contains('WINDOWS_CERTIFICATE_PFX_BASE64'));
+      // Scoped to the block that decides auto-install. The signing steps still
+      // check these secrets, and must, to decide whether they can sign at all.
+      final decision = workflow.substring(
+        workflow.indexOf('auto_install_enabled=false'),
+        workflow.indexOf('dart run desktop_updater:release'),
+      );
+
+      expect(
+        decision,
+        contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
+        reason: 'Linux updates go through apt or dnf so dependencies resolve',
+      );
+      expect(
+        decision,
+        isNot(
+          anyOf(
+            contains('APPLE_DEVELOPER_ID_APPLICATION'),
+            contains('WINDOWS_CERTIFICATE_PFX_BASE64'),
+          ),
+        ),
+        reason:
+            'update integrity comes from the signed manifest, not from '
+            'Developer ID or Authenticode, so auto-install no longer waits '
+            'on a certificate',
+      );
       expect(workflow, contains('ALERA_LINUX_GPG_PRIVATE_KEY_BASE64'));
       expect(
         workflow,

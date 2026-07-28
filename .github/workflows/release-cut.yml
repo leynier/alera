@@ -133,14 +133,6 @@ jobs:
           BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
           RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.plan.outputs.desktop_tag }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
-          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
-          APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
           ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
         run: |
@@ -157,20 +149,20 @@ jobs:
           fi
           archive_url="${BASE_URL}/${archive_file}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
+          # Auto-install is enabled on every platform whose artifacts a package
+          # manager does not own. Linux is the exception, and not because of
+          # signing: a raw dpkg or rpm transaction does not resolve the libmpv
+          # dependency closure, so those updates go through apt or dnf.
+          #
+          # It deliberately does not depend on Authenticode or Developer ID
+          # signing. Update integrity comes from the Ed25519-signed manifest,
+          # which carries a SHA-256 and a byte size for every artifact and is
+          # verified before anything is staged. Platform signing governs what
+          # the OS shows on first launch, not whether an update can be trusted
+          # in transit, so withholding auto-install until a certificate exists
+          # only left users on older builds.
           auto_install_enabled=false
-          if [[ "$CHANNEL" == "rc" && "$PLATFORM" != "linux" ]]; then
-            auto_install_enabled=true
-          elif [[ "$PLATFORM" == "macos" \
-            && -n "${APPLE_DEVELOPER_ID_APPLICATION:-}" \
-            && -n "${APPLE_DEVELOPER_ID_TEAM_ID:-}" \
-            && -n "${APPLE_CERTIFICATE_P12_BASE64:-}" \
-            && -n "${APPLE_CERTIFICATE_PASSWORD:-}" \
-            && -n "${APPLE_ID:-}" \
-            && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
-            auto_install_enabled=true
-          elif [[ "$PLATFORM" == "windows" \
-            && -n "${WINDOWS_CERTIFICATE_PFX_BASE64:-}" \
-            && -n "${WINDOWS_CERTIFICATE_PASSWORD:-}" ]]; then
+          if [[ "$PLATFORM" != "linux" ]]; then
             auto_install_enabled=true
           fi
           dart run desktop_updater:release "$PLATFORM" \
@@ -702,27 +694,40 @@ jobs:
       - name: Create release commit and tags
         id: release_commit
         env:
+          CHANNEL: ${{ needs.plan.outputs.channel }}
           DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
           DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
           DESKTOP_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          DESKTOP_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
           DESKTOP_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
           MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
           MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
           MOBILE_ARTIFACT_VERSION: ${{ needs.plan.outputs.mobile_artifact_version }}
+          MOBILE_RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
           MOBILE_BUILD_NUMBER: ${{ needs.plan.outputs.mobile_build_number }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
           tags=()
+          landing_args=()
           if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$DESKTOP_TAG")
             dart tool/release/update_pubspec_version.dart "$DESKTOP_ARTIFACT_VERSION" "$DESKTOP_BUILD_NUMBER"
             git add pubspec.yaml
+            landing_args+=(--desktop-version "$DESKTOP_RELEASE_VERSION" --desktop-tag "$DESKTOP_TAG")
           fi
           if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$MOBILE_TAG")
             dart tool/release/update_mobile_pubspec_version.dart "$MOBILE_ARTIFACT_VERSION" "$MOBILE_BUILD_NUMBER"
             git add mobile/pubspec.yaml
+            landing_args+=(--mobile-version "$MOBILE_RELEASE_VERSION" --mobile-tag "$MOBILE_TAG")
+          fi
+          # The landing links straight at the assets this cut publishes, so the
+          # pin has to travel in the same commit as the version bump. Only
+          # stable moves it: the download page is not where an rc belongs.
+          if [[ "$CHANNEL" == "stable" ]]; then
+            dart tool/release/update_landing_release_links.dart "${landing_args[@]}"
+            git add landing/src/data/releases.json
           fi
           for tag in "${tags[@]}"; do
             if git rev-parse "$tag" >/dev/null 2>&1; then
