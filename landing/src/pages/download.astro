@@ -1,0 +1,229 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+const installCommand = 'curl -fsSL https://alera.build/install.sh | sh';
+const keyFingerprint = '01DAF16E430AF8B2607BA44D457D8143C91B4732';
+const releasesUrl = 'https://github.com/leynier/alera/releases/latest';
+const keyringUrl = 'https://updates.alera.build/linux/alera-archive-keyring.asc';
+
+// Wording mandated verbatim by the SignPath Foundation code of conduct. It is
+// kept as one contiguous string, with the links in a separate sentence, so a
+// reviewer searching the rendered page finds it intact.
+const signingAttribution =
+  'Free code signing provided by SignPath.io, certificate by SignPath Foundation';
+
+const aptSource = `Types: deb
+URIs: https://updates.alera.build/linux/apt
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/alera-archive-keyring.asc`;
+
+const rpmRepo = `[alera]
+name=Alera
+baseurl=https://updates.alera.build/linux/rpm/x86_64
+enabled=1
+gpgcheck=0
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-alera`;
+
+const desktopDownloads = [
+  {
+    platform: 'macOS',
+    asset: 'alera-<version>-macos.tar.gz',
+    note: 'Unpack it and move Alera.app to your Applications folder.',
+  },
+  {
+    platform: 'Windows',
+    asset: 'alera-<version>-windows.tar.gz',
+    note: 'Unpack it anywhere and run Alera.exe.',
+  },
+];
+---
+
+<Layout
+  title="Download Alera - Install On macOS, Windows, And Linux"
+  description="Download Alera for macOS and Windows, or install it on Linux from the signed package repository."
+  canonicalPath="/download"
+>
+  <Navbar />
+  <main class="px-6 pt-24 pb-20">
+    <div class="mx-auto max-w-3xl">
+      <h1
+        class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4"
+      >
+        Download Alera
+      </h1>
+      <p class="text-[15px] text-foreground-muted mb-14 leading-relaxed">
+        Alera runs on macOS, Windows, and Linux. On Linux it installs from a
+        signed package repository so system dependencies resolve through apt or
+        dnf; the same command installs and updates.
+      </p>
+
+      <h2 class="text-headline-sm text-foreground mb-3">Linux</h2>
+      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
+        <div class="flex items-start gap-4">
+          <code
+            id="alera-install-command"
+            class="font-mono text-body-md text-foreground break-all leading-relaxed grow"
+            >{installCommand}</code
+          >
+          <button
+            type="button"
+            data-copy-target="alera-install-command"
+            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+      <p class="text-body-md text-foreground-faint mb-12 leading-relaxed">
+        Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or
+        Fedora. On RHEL, Rocky, and AlmaLinux enable RPM Fusion first, which is
+        where <span class="font-mono">mpv-libs</span> comes from. openSUSE is not
+        supported yet: the published RPM declares Fedora package names that openSUSE
+        provides under different names.
+      </p>
+
+      <h2 class="text-headline-sm text-foreground mb-3">macOS And Windows</h2>
+      <p class="text-body-md text-foreground-muted mb-5 leading-relaxed">
+        Grab the latest build from GitHub Releases. Alera updates itself from
+        there once installed, so this is a one-time download.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-2 mb-5">
+        {
+          desktopDownloads.map((download) => (
+            <div class="rounded-lg border border-border bg-surface-variant p-5">
+              <p class="text-title-lg text-foreground mb-2">
+                {download.platform}
+              </p>
+              <p class="font-mono text-body-md text-foreground-faint break-all mb-4">
+                {download.asset}
+              </p>
+              <p class="text-body-md text-foreground-muted mb-5 leading-relaxed">
+                {download.note}
+              </p>
+              <a
+                href={releasesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+              >
+                Go To Releases
+              </a>
+            </div>
+          ))
+        }
+      </div>
+      <p class="text-body-md text-foreground-faint mb-12 leading-relaxed">
+        The file name carries the version, so there is no fixed download link
+        that always points at the newest build. The releases page always shows
+        it.
+      </p>
+
+      <h2 class="text-headline-sm text-foreground mb-3">Manual Linux Setup</h2>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        To add the repository yourself instead of running the script, import the
+        signing key from <span class="font-mono break-all">{keyringUrl}</span> and
+        confirm its fingerprint is
+        <span class="font-mono break-all">{keyFingerprint}</span>, then write one
+        of these files.
+      </p>
+      <div class="grid gap-4 md:grid-cols-2 mb-4">
+        <div
+          class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto"
+        >
+          <p class="text-label-md text-foreground-faint mb-2">
+            /etc/apt/sources.list.d/alera.sources
+          </p>
+          <pre
+            class="font-mono text-body-md text-foreground leading-relaxed"><code>{aptSource}</code></pre>
+        </div>
+        <div
+          class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto"
+        >
+          <p class="text-label-md text-foreground-faint mb-2">
+            /etc/yum.repos.d/alera.repo
+          </p>
+          <pre
+            class="font-mono text-body-md text-foreground leading-relaxed"><code>{rpmRepo}</code></pre>
+        </div>
+      </div>
+      <p class="text-body-md text-foreground-faint mb-14 leading-relaxed">
+        The published packages carry no per-package signature yet, so
+        <span class="font-mono">gpgcheck</span> stays off while
+        <span class="font-mono">repo_gpgcheck</span> verifies the signed repository
+        metadata, which commits to the checksum of every package. That is the same
+        chain apt relies on.
+      </p>
+
+      <h2
+        id="code-signing-policy"
+        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
+      >
+        Code Signing Policy
+      </h2>
+      <p class="text-body-md text-foreground mb-4 leading-relaxed">
+        {signingAttribution}.
+      </p>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        <a
+          href="https://about.signpath.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
+          >SignPath.io</a
+        > runs the signing service, and the <a
+          href="https://signpath.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
+          >SignPath Foundation</a
+        > issues the certificate to open source projects at no cost.
+      </p>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Alera is maintained by one person, who fills every role: Leynier
+        Gutiérrez González is the sole committer, reviewer, and approver of
+        signing requests.
+      </p>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Data handling is described in the <a
+          href="/privacy"
+          class="text-foreground underline underline-offset-4 hover:opacity-80 transition-opacity duration-fast"
+          >Privacy Policy</a
+        >. Alera is local-first: your projects, terminals, and settings stay on
+        your machine.
+      </p>
+      <p class="text-body-md text-foreground-faint leading-relaxed">
+        Current status, so you know what to expect from your system: Linux
+        packages are distributed through a repository whose metadata is signed
+        with the key above. Windows and macOS builds are <strong
+          class="text-foreground-muted">not signed yet</strong
+        >, so Windows SmartScreen reports an unknown publisher and macOS
+        Gatekeeper asks you to allow the app explicitly. Windows signing through
+        SignPath begins once the certificate is issued.
+      </p>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  document.querySelectorAll('[data-copy-target]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const targetId = button.getAttribute('data-copy-target');
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (!target?.textContent) {
+        return;
+      }
+      await navigator.clipboard.writeText(target.textContent);
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => {
+        button.textContent = original;
+      }, 2000);
+    });
+  });
+</script>
