@@ -2,6 +2,9 @@ mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
 mod agent_profile_store_tests;
+mod browser_certificate_store;
+#[cfg(test)]
+mod browser_certificate_store_tests;
 mod browser_models;
 mod browser_privacy;
 mod browser_session_store;

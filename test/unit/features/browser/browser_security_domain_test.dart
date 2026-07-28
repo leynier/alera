@@ -138,18 +138,27 @@ void main() {
     final requestedAt = DateTime.utc(2026, 7, 27);
     final request = BrowserTlsRequest(
       pageId: 'page-1',
+      host: 'localhost',
+      fingerprintSha256:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       url: Uri.parse('https://localhost'),
       description: 'Self-signed certificate',
+      errors: const <BrowserTlsErrorType>{BrowserTlsErrorType.untrustedIssuer},
       requestedAt: requestedAt,
     );
     final minimal = BrowserTlsRequest(
       pageId: 'page-2',
+      host: '',
+      fingerprintSha256: '',
       requestedAt: requestedAt,
     );
 
     expect(request.pageId, 'page-1');
     expect(request.url, Uri.parse('https://localhost'));
     expect(request.description, 'Self-signed certificate');
+    expect(request.errors, <BrowserTlsErrorType>{
+      BrowserTlsErrorType.untrustedIssuer,
+    });
     expect(request.requestedAt, requestedAt);
     expect(minimal.url, isNull);
     expect(minimal.description, isNull);

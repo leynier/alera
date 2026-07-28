@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/browser/application/browser_native_callback_coordinator.dart';
 import 'package:alera/src/features/browser/domain/browser_download.dart';
 import 'package:alera/src/features/browser/domain/browser_permission.dart';
+import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -114,6 +115,34 @@ void main() {
       BrowserPermissionDecision.deny,
     );
     expect(calls, 2);
+  });
+
+  test('TLS decisions use the dedicated user prompt deadline', () async {
+    final coordinator = BrowserNativeCallbackCoordinator(
+      deadline: const Duration(milliseconds: 1),
+      tlsDeadline: const Duration(milliseconds: 100),
+    );
+    coordinator.register(
+      BrowserNativeCallbackHandlers(
+        tls: (_, _) async {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          return true;
+        },
+      ),
+    );
+
+    expect(
+      await coordinator.decideTls(
+        BrowserTlsRequest(
+          pageId: 'page',
+          host: 'localhost',
+          fingerprintSha256:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          requestedAt: DateTime.utc(2026),
+        ),
+      ),
+      isTrue,
+    );
   });
 }
 

@@ -96,6 +96,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
   ole32
   shlwapi
   winsqlite3
+  ws2_32
 )
 
 set(alera_browser_bundled_libraries "" PARENT_SCOPE)

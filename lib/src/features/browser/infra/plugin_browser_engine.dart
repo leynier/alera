@@ -64,6 +64,7 @@ final class PluginBrowserEngine implements BrowserEngine {
         fullCookies: value.fullCookies,
         permissionCallbacks: value.permissionCallbacks,
         tlsCallbacks: value.tlsCallbacks,
+        tlsTrustScope: value.tlsTrustScope.name,
         popupCallbacks: value.popupCallbacks,
         downloadCallbacks: value.downloadCallbacks,
         domSnapshot: value.domSnapshot,

@@ -14,6 +14,8 @@ final class BrowserEngineCapabilities {
     this.fullCookies = false,
     this.permissionCallbacks = false,
     this.tlsCallbacks = false,
+    this.tlsTrustScope = 'none',
+    this.persistentCertificateTrust = true,
     this.popupCallbacks = false,
     this.downloadCallbacks = false,
     this.domSnapshot = false,
@@ -44,6 +46,8 @@ final class BrowserEngineCapabilities {
   final bool fullCookies;
   final bool permissionCallbacks;
   final bool tlsCallbacks;
+  final String tlsTrustScope;
+  final bool persistentCertificateTrust;
   final bool popupCallbacks;
   final bool downloadCallbacks;
   final bool domSnapshot;
@@ -87,6 +91,7 @@ final class BrowserEngineCapabilities {
       fullCookies &&
       permissionCallbacks &&
       tlsCallbacks &&
+      tlsTrustScope != 'none' &&
       popupCallbacks &&
       downloadCallbacks &&
       domSnapshot &&
@@ -106,9 +111,47 @@ final class BrowserEngineCapabilities {
   bool get meetsStableGate =>
       meetsBrowserTabGate &&
       meetsCookieImportGate &&
+      persistentCertificateTrust &&
       nativeCookieImportSources.containsAll(
         platformRequiredNativeCookieImportSources,
       );
+
+  BrowserEngineCapabilities withPersistentCertificateTrust(bool available) {
+    return BrowserEngineCapabilities(
+      engine: engine,
+      engineAvailable: engineAvailable,
+      engineVersion: engineVersion,
+      pageSurface: pageSurface,
+      isolatedProfiles: isolatedProfiles,
+      ephemeralProfiles: ephemeralProfiles,
+      deterministicPageClose: deterministicPageClose,
+      navigation: navigation,
+      navigationEvents: navigationEvents,
+      javascript: javascript,
+      basicCookies: basicCookies,
+      fullCookies: fullCookies,
+      permissionCallbacks: permissionCallbacks,
+      tlsCallbacks: tlsCallbacks,
+      tlsTrustScope: tlsTrustScope,
+      persistentCertificateTrust: available,
+      popupCallbacks: popupCallbacks,
+      downloadCallbacks: downloadCallbacks,
+      domSnapshot: domSnapshot,
+      domActions: domActions,
+      viewportScreenshot: viewportScreenshot,
+      fullPageScreenshot: fullPageScreenshot,
+      pdf: pdf,
+      flutterOverlayOcclusion: flutterOverlayOcclusion,
+      atomicCookieImport: atomicCookieImport,
+      manualJsonCookieImport: manualJsonCookieImport,
+      linuxGtkOverlay: linuxGtkOverlay,
+      nativeCookieImportSources: nativeCookieImportSources,
+      requiredNativeCookieImportSources: requiredNativeCookieImportSources,
+      limitations: available
+          ? limitations
+          : <String>[...limitations, 'certificate_trust_sidecar_unavailable'],
+    );
+  }
 }
 
 final class BrowserArtifactResult {
@@ -171,6 +214,8 @@ String browserCapabilityLimitationMessage(String code) {
       'Chromium App-Bound Cookie Import Is Unavailable.',
     'tab_scoped_tls_exception_unavailable' =>
       'Tab-Scoped TLS Exceptions Are Unavailable.',
+    'certificate_trust_sidecar_unavailable' =>
+      'Restart Alera To Enable Local Certificate Trust.',
     'webview2_evergreen_unavailable' =>
       'The WebView2 Evergreen Runtime Is Unavailable.',
     'macos_14_or_wkwebview_required' =>

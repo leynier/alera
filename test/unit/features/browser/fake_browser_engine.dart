@@ -303,6 +303,7 @@ const BrowserEngineCapabilities stableBrowserCapabilities =
       fullCookies: true,
       permissionCallbacks: true,
       tlsCallbacks: true,
+      tlsTrustScope: 'profileSession',
       popupCallbacks: true,
       downloadCallbacks: true,
       domSnapshot: true,

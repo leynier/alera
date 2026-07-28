@@ -171,6 +171,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     const browserGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'general', title: 'General'),
       SettingsGroupSpec(id: 'profiles', title: 'Profiles'),
+      SettingsGroupSpec(id: 'certificates', title: 'Trusted Certificates'),
       SettingsGroupSpec(id: 'data', title: 'Browsing Data'),
     ];
     const mobileDeviceGroups = <SettingsGroupSpec>[

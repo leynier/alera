@@ -81,7 +81,7 @@ class BrowserSecurityDialog extends StatelessWidget {
                     Navigator.of(context).pop();
                     onTrustLocalCertificate!();
                   },
-                  child: const Text('Trust For This Tab'),
+                  child: const Text('Review Certificate Trust'),
                 ),
               ),
             ],
@@ -145,7 +145,7 @@ String _description(BrowserSecurityLevel level) {
     BrowserSecurityLevel.secure =>
       'The Page Is Using An Encrypted HTTPS Connection.',
     BrowserSecurityLevel.local =>
-      'The Page Is Served From This Device. Alera Limits Certificate Exceptions To This Exact Tab And Origin.',
+      'The Page Is Served From A Local Host. Certificate Trust Is Scoped To The Active Browser Profile.',
     BrowserSecurityLevel.insecure =>
       'The Page Is Not Using An Encrypted Connection. Do Not Enter Sensitive Information.',
     BrowserSecurityLevel.certificateFailure =>

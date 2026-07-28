@@ -42,10 +42,12 @@ final class BrowserSessionRegistry {
   BrowserSessionRegistry({
     required BrowserEngine engine,
     BrowserTabPayloadCodec codec = const BrowserTabPayloadCodec(),
+    Future<BrowserEngineCapabilities> Function()? probeCapabilities,
     Future<BrowserSearchEngine> Function()? readSearchEngine,
     DateTime Function()? now,
   }) : _engine = engine, // ignore: prefer_initializing_formals
        _codec = codec, // ignore: prefer_initializing_formals
+       _probeCapabilities = probeCapabilities ?? engine.probeCapabilities,
        _readSearchEngine = readSearchEngine ?? _defaultSearchEngine,
        _now = now ?? _defaultNow {
     _eventSubscription = _engine.events.listen(_onEngineEvent);
@@ -53,6 +55,7 @@ final class BrowserSessionRegistry {
 
   final BrowserEngine _engine;
   final BrowserTabPayloadCodec _codec;
+  final Future<BrowserEngineCapabilities> Function() _probeCapabilities;
   final Future<BrowserSearchEngine> Function() _readSearchEngine;
   final DateTime Function() _now;
   final Map<String, _BrowserSessionEntry> _entries =
@@ -169,8 +172,7 @@ final class BrowserSessionRegistry {
 
   Future<void> _initialize(_BrowserSessionEntry entry) async {
     try {
-      final capabilities = await (_capabilities ??= _engine
-          .probeCapabilities());
+      final capabilities = await (_capabilities ??= _probeCapabilities());
       final availability = capabilities.meetsStableGate
           ? BrowserEngineAvailability.available
           : capabilities.engineAvailable

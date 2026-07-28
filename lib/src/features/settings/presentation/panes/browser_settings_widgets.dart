@@ -64,6 +64,38 @@ class _ClosedBrowserTabRow extends StatelessWidget {
   }
 }
 
+class _TrustedBrowserCertificateRow extends StatelessWidget {
+  const _TrustedBrowserCertificateRow({
+    required this.certificate,
+    required this.profileLabel,
+    this.onRemove,
+  });
+
+  final BrowserTrustedCertificate certificate;
+  final String profileLabel;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final fingerprint = displayBrowserCertificateFingerprint(
+      certificate.fingerprintSha256,
+    );
+    return AleraSettingRow(
+      title: certificate.host,
+      description:
+          '$profileLabel - ${certificate.subject ?? certificate.issuer ?? 'Local Certificate'}\n$fingerprint',
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: AleraIconButton(
+          tooltip: 'Remove Trust',
+          icon: AleraIcons.delete,
+          onPressed: onRemove,
+        ),
+      ),
+    );
+  }
+}
+
 class _BrowserProfileNameDialog extends StatefulWidget {
   const _BrowserProfileNameDialog();
 

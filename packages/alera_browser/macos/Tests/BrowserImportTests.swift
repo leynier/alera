@@ -205,6 +205,7 @@ final class BrowserImportTests: XCTestCase {
     }
     XCTAssertEqual(capabilities["crossOriginFrameAutomation"] as? Bool, false)
     XCTAssertEqual(capabilities["trustedInputEvents"] as? Bool, false)
+    XCTAssertEqual(capabilities["tlsTrustScope"] as? String, "page")
     XCTAssertEqual(
       capabilities["nativeCookieImportSources"] as? [String],
       AleraBrowserPlugin.requiredImportSources

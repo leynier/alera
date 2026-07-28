@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/browser/application/browser_native_callback_coordinator.dart';
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/domain/browser_download.dart';
 import 'package:alera/src/features/browser/domain/browser_permission.dart';
+import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
+import 'package:alera/src/features/browser/domain/browser_trusted_certificate.dart';
+import 'package:alera/src/features/browser/presentation/browser_certificate_trust_dialog.dart';
 import 'package:alera/src/features/browser/presentation/browser_permission_dialog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -149,24 +152,88 @@ class _BrowserNativeCallbackScopeState
     if (url == null ||
         handle == null ||
         !isTemporaryLocalCertificateOrigin(url) ||
+        normalizeBrowserCertificateHost(request.host) !=
+            normalizeBrowserCertificateHost(url.host) ||
+        !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(request.fingerprintSha256) ||
+        request.errors.length != 1 ||
+        !request.errors.contains(BrowserTlsErrorType.untrustedIssuer) ||
         !mounted ||
         cancellation.isCancelled) {
       return false;
     }
-    final accepted = await handle.withFlutterOverlay<bool?>(
-      () => _showCancellableDialog<bool>(
-        cancellation,
-        builder: (_) => AleraConfirmDialog(
-          title: 'Trust Local Certificate?',
-          message:
-              'The Certificate For ${url.host} Could Not Be Verified. '
-              'Alera Can Trust It Temporarily For This Exact Tab And '
-              'Origin.',
-          confirmLabel: 'Trust Temporarily',
+    final profileId = handle.state.profileId;
+    final registry = ref.read(browserCertificateTrustRegistryProvider);
+    if (await registry.isTrusted(
+      profileId: profileId,
+      host: request.host,
+      fingerprintSha256: request.fingerprintSha256,
+    )) {
+      return !cancellation.isCancelled;
+    }
+    final profiles = await ref.read(browserProfileServiceProvider).list();
+    BrowserProfile? profile;
+    for (final value in profiles) {
+      if (value.id == profileId) {
+        profile = value;
+        break;
+      }
+    }
+    if (!mounted || cancellation.isCancelled) {
+      return false;
+    }
+    final choice = await handle
+        .withFlutterOverlay<BrowserCertificateTrustChoice?>(
+          () => _showCancellableDialog<BrowserCertificateTrustChoice>(
+            cancellation,
+            builder: (_) => BrowserCertificateTrustDialog(
+              request: request,
+              profileLabel: profile?.label ?? _profileFallback(profileId),
+              canPersist: profile?.persistent == true,
+            ),
+          ),
+        );
+    if (cancellation.isCancelled ||
+        choice == null ||
+        choice == BrowserCertificateTrustChoice.cancel) {
+      return false;
+    }
+    if (choice == BrowserCertificateTrustChoice.session) {
+      registry.trustForSession(
+        profileId: profileId,
+        host: request.host,
+        fingerprintSha256: request.fingerprintSha256,
+      );
+      return true;
+    }
+    try {
+      final now = DateTime.now().toUtc();
+      await registry.trustPermanently(
+        BrowserTrustedCertificate(
+          profileId: profileId,
+          host: normalizeBrowserCertificateHost(request.host),
+          fingerprintSha256: normalizeBrowserCertificateFingerprint(
+            request.fingerprintSha256,
+          ),
+          subject: request.subject,
+          issuer: request.issuer,
+          validFrom: request.validFrom,
+          validTo: request.validTo,
+          createdAt: now,
+          lastUsedAt: now,
         ),
-      ),
-    );
-    return cancellation.isCancelled ? false : accepted ?? false;
+      );
+      return !cancellation.isCancelled;
+    } on Object {
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message:
+              'The Certificate Could Not Be Saved. Navigation Was Blocked.',
+          tone: AleraToastTone.error,
+        );
+      }
+      return false;
+    }
   }
 
   Future<BrowserDownloadDecision> _decideDownload(
@@ -225,6 +292,9 @@ class _BrowserNativeCallbackScopeState
   Widget build(BuildContext context) => widget.child;
 }
 
+String _profileFallback(String profileId) =>
+    profileId == 'default' ? 'Default Profile' : 'This Profile';
+
 @visibleForTesting
 bool isTemporaryLocalCertificateOrigin(Uri uri) {
   if (uri.scheme != 'https' || uri.host.isEmpty) {
@@ -232,6 +302,7 @@ bool isTemporaryLocalCertificateOrigin(Uri uri) {
   }
   final host = uri.host.toLowerCase();
   if (host == 'localhost' ||
+      host == '0.0.0.0' ||
       host.endsWith('.localhost') ||
       host.endsWith('.local')) {
     return true;

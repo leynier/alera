@@ -14,6 +14,7 @@ typedef struct _LinuxBrowserDecision LinuxBrowserDecision;
 
 typedef enum {
   LINUX_BROWSER_DECISION_PERMISSION,
+  LINUX_BROWSER_DECISION_TLS,
   LINUX_BROWSER_DECISION_POPUP,
   LINUX_BROWSER_DECISION_DOWNLOAD,
 } LinuxBrowserDecisionKind;
@@ -50,6 +51,7 @@ struct _LinuxBrowserDecision {
   gchar* id;
   gchar* page_id;
   gchar* transient_page_id;
+  gchar* failing_uri;
   GObject* native_request;
   gboolean trusted;
   guint timeout_id;

@@ -189,7 +189,7 @@ final class BrowserAvailabilityProvider
 }
 
 String _$browserAvailabilityHash() =>
-    r'f12f052c8b9b2875dee4ff731288b5ad9bb09ad4';
+    r'04cd8346170ab37460cbe6e724778926551a9860';
 
 @ProviderFor(browserSettingsService)
 final browserSettingsServiceProvider = BrowserSettingsServiceProvider._();
@@ -431,6 +431,108 @@ final class BrowserClosedTabsServiceProvider
 String _$browserClosedTabsServiceHash() =>
     r'7e56c718f64fc82f81921850ed141f2549a41ed4';
 
+@ProviderFor(browserCertificateTrustService)
+final browserCertificateTrustServiceProvider =
+    BrowserCertificateTrustServiceProvider._();
+
+final class BrowserCertificateTrustServiceProvider
+    extends
+        $FunctionalProvider<
+          BrowserCertificateTrustService,
+          BrowserCertificateTrustService,
+          BrowserCertificateTrustService
+        >
+    with $Provider<BrowserCertificateTrustService> {
+  BrowserCertificateTrustServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'browserCertificateTrustServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$browserCertificateTrustServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<BrowserCertificateTrustService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  BrowserCertificateTrustService create(Ref ref) {
+    return browserCertificateTrustService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BrowserCertificateTrustService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BrowserCertificateTrustService>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$browserCertificateTrustServiceHash() =>
+    r'6ff5d88f331e7cad884962805e2a92a3f59c02cc';
+
+@ProviderFor(browserCertificateTrustRegistry)
+final browserCertificateTrustRegistryProvider =
+    BrowserCertificateTrustRegistryProvider._();
+
+final class BrowserCertificateTrustRegistryProvider
+    extends
+        $FunctionalProvider<
+          BrowserCertificateTrustRegistry,
+          BrowserCertificateTrustRegistry,
+          BrowserCertificateTrustRegistry
+        >
+    with $Provider<BrowserCertificateTrustRegistry> {
+  BrowserCertificateTrustRegistryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'browserCertificateTrustRegistryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$browserCertificateTrustRegistryHash();
+
+  @$internal
+  @override
+  $ProviderElement<BrowserCertificateTrustRegistry> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  BrowserCertificateTrustRegistry create(Ref ref) {
+    return browserCertificateTrustRegistry(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BrowserCertificateTrustRegistry value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BrowserCertificateTrustRegistry>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$browserCertificateTrustRegistryHash() =>
+    r'8377cc04aaf0d47dedce7aeaac6314d3342f5b90';
+
 @ProviderFor(browserProfileCoordinator)
 final browserProfileCoordinatorProvider = BrowserProfileCoordinatorProvider._();
 
@@ -525,7 +627,7 @@ final class BrowserSessionRegistryProvider
 }
 
 String _$browserSessionRegistryHash() =>
-    r'1f493ad044b1b1f42e19e6572b100621d9ec100c';
+    r'55fd34100c0e477d737d5f38fb1b237d09a6d4d9';
 
 @ProviderFor(browserPopupCoordinator)
 final browserPopupCoordinatorProvider = BrowserPopupCoordinatorProvider._();

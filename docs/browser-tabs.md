@@ -13,10 +13,10 @@ Current stable availability is:
 | Platform | Stable Status | Reason |
 | --- | --- | --- |
 | macOS 14+ | Available When The Full Probe Passes | WKWebView delivers authentication challenges to the navigation delegate for the specific web view. |
-| Windows | Hidden | WebView2's allow action is cached for the request host and certificate in the shared session, so the current backend cannot constrain an exception to one tab. |
-| Linux | Hidden | WebKitGTK grants a certificate exception on `WebKitWebContext` for further errors on the host, so the current profile-shared context cannot constrain it to one tab. |
+| Windows | Available When The Full Probe Passes | WebView2 certificate trust is explicitly represented as profile-session scope. |
+| Linux | Available When The Full Probe Passes | WebKitGTK certificate trust is explicitly represented as profile-session scope. |
 
-The Windows and Linux backends deliberately report `tlsCallbacks: false`; every other capability may exist, but stable browser tabs remain unavailable until the exact per-tab TLS contract can be met. This follows the native API semantics documented by [Microsoft WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2_14) and [WebKitGTK](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.allow_tls_certificate_for_host.html). The macOS implementation uses the per-web-view [WKNavigationDelegate authentication challenge](https://developer.apple.com/documentation/webkit/wknavigationdelegate/webview%28_%3Adidreceive%3Acompletionhandler%3A%29).
+TLS trust follows the narrowest honest scope each native engine provides. WebView2 and WebKitGTK cache an accepted host and certificate in the shared profile session, while WKWebView resolves each challenge and Alera mirrors the same profile-session behavior in its callback registry. Stable browser tabs require both a non-`none` native `tlsTrustScope` and the sidecar capability `browserCertificateTrustV1`; an app attached to an older sidecar remains fail-closed until Alera restarts with the bundled sidecar.
 
 ## Ownership
 
@@ -60,9 +60,11 @@ Required sources are:
 
 ## Security Decisions
 
-Permission, TLS, popup, and download callbacks deny by default and have bounded deadlines. Screen capture requested by a page is always denied. Remembered permissions are profile and origin scoped.
+Permission, TLS, popup, and download callbacks deny by default and have bounded deadlines. TLS prompts expire after 60 seconds. Screen capture requested by a page is always denied. Remembered permissions are profile and origin scoped.
 
-Public certificate failures cannot be bypassed. A native backend may offer a temporary exception only for the exact local origin and current tab named by the challenge. Eligible origins are HTTPS loopback, private IPv4, IPv4 or IPv6 link-local addresses, and `.local` or `.localhost` hosts. The exception applies only to the challenged host and port for that page lifetime. Popups require a trusted user gesture; allowed popups receive a new transient page with opener semantics preserved. Downloads require an explicit destination and report progress without blocking the Flutter main isolate.
+Public certificate failures cannot be bypassed. A native backend offers a trust decision only for HTTPS loopback, private IPv4, IPv4 or IPv6 link-local addresses, and `.local` or `.localhost` hosts, and only when it proves the sole error is an unknown private or self-signed issuer. Name mismatch, expiry, not-yet-valid, revocation, insecure cryptography, and ambiguous failures are denied.
+
+An approval is keyed by browser profile, normalized host, and the SHA-256 fingerprint of the leaf certificate. It applies to every tab and port for that host inside the profile because the Windows and Linux engines do not expose port- or tab-scoped revocation. `Trust For This Session` lasts until Alera closes. `Always Trust` is available only for persistent profiles and stores the exact fingerprint in the runtime catalog. Certificate rotation prompts again. Removing stored trust takes effect after Alera restarts because a native profile session may already have cached the approval. Popups require a trusted user gesture; allowed popups receive a new transient page with opener semantics preserved. Downloads require an explicit destination and report progress without blocking the Flutter main isolate.
 
 The address policy accepts `http`, `https`, and internal `about:blank`. A hostname without a scheme uses HTTPS, except loopback addresses which use HTTP. Other input becomes a query for the selected search engine. File paths and all other schemes are rejected before reaching the native engine.
 

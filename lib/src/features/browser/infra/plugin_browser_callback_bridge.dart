@@ -51,8 +51,21 @@ final class PluginBrowserCallbackBridge {
     final proceed = await _coordinator.decideTls(
       BrowserTlsRequest(
         pageId: error.pageId,
+        host: error.host,
+        fingerprintSha256: error.fingerprintSha256,
         url: error.url,
         description: error.description,
+        subject: error.subject,
+        issuer: error.issuer,
+        validFrom: error.validFrom,
+        validTo: error.validTo,
+        errors: <BrowserTlsErrorType>{
+          for (final value in error.errors)
+            BrowserTlsErrorType.values.firstWhere(
+              (candidate) => candidate.name == value.name,
+              orElse: () => BrowserTlsErrorType.other,
+            ),
+        },
         requestedAt: _now(),
       ),
     );

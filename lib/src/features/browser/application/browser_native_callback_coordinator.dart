@@ -60,12 +60,14 @@ final class BrowserNativeCallbackHandlers {
 final class BrowserNativeCallbackCoordinator {
   BrowserNativeCallbackCoordinator({
     this.deadline = const Duration(seconds: 15),
+    this.tlsDeadline = const Duration(seconds: 60),
     BrowserPermissionHandler? fallbackPermission,
     BrowserPopupHandler? fallbackPopup,
   }) : _fallbackPermission = fallbackPermission,
        _fallbackPopup = fallbackPopup;
 
   final Duration deadline;
+  final Duration tlsDeadline;
   final BrowserPermissionHandler? _fallbackPermission;
   final BrowserPopupHandler? _fallbackPopup;
   BrowserNativeCallbackHandlers? _handlers;
@@ -116,7 +118,11 @@ final class BrowserNativeCallbackCoordinator {
     final handler = _handlers?.tls;
     return handler == null
         ? Future<bool>.value(false)
-        : _guarded((cancellation) => handler(request, cancellation), false);
+        : _guarded(
+            (cancellation) => handler(request, cancellation),
+            false,
+            timeout: tlsDeadline,
+          );
   }
 
   Future<BrowserPopupDecision> decidePopup(BrowserPopupRequest request) {
@@ -151,12 +157,13 @@ final class BrowserNativeCallbackCoordinator {
 
   Future<T> _guarded<T>(
     Future<T> Function(BrowserCallbackCancellation cancellation) operation,
-    T fallback,
-  ) async {
+    T fallback, {
+    Duration? timeout,
+  }) async {
     final cancellation = BrowserCallbackCancellation();
     try {
       return await operation(cancellation).timeout(
-        deadline,
+        timeout ?? deadline,
         onTimeout: () {
           cancellation._cancel();
           return fallback;

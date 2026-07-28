@@ -289,6 +289,19 @@ const List<SettingsSearchEntry> browserSearchEntries = <SettingsSearchEntry>[
     groupId: 'profiles',
   ),
   SettingsSearchEntry(
+    title: 'Trusted Local Certificates',
+    description: 'Review Or Remove Certificate Trust For Browser Profiles.',
+    keywords: <String>[
+      'browser',
+      'certificate',
+      'tls',
+      'https',
+      'localhost',
+      'self signed',
+    ],
+    groupId: 'certificates',
+  ),
+  SettingsSearchEntry(
     title: 'Browser History',
     description: 'Clear History And Reopen Recently Closed Tabs.',
     keywords: <String>['browser', 'history', 'closed', 'tabs'],

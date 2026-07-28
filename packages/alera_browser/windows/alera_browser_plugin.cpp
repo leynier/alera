@@ -203,6 +203,7 @@ void AleraBrowserPlugin::HandleProbe(MethodResultPtr result) {
       "basicCookies",
       "fullCookies",
       "permissionCallbacks",
+      "tlsCallbacks",
       "popupCallbacks",
       "downloadCallbacks",
       "domSnapshot",
@@ -217,7 +218,8 @@ void AleraBrowserPlugin::HandleProbe(MethodResultPtr result) {
   for (const auto* flag : required_flags) {
     value[EncodableValue(flag)] = EncodableValue(available);
   }
-  value[EncodableValue("tlsCallbacks")] = EncodableValue(false);
+  value[EncodableValue("tlsTrustScope")] =
+      EncodableValue(available ? "profileSession" : "none");
   value[EncodableValue("crossOriginFrameAutomation")] =
       EncodableValue(false);
   value[EncodableValue("nativeFileUpload")] = EncodableValue(false);
@@ -237,8 +239,7 @@ void AleraBrowserPlugin::HandleProbe(MethodResultPtr result) {
       EncodableValue("trusted_input_events_unavailable"),
       EncodableValue("popup_opener_requirement_unavailable"),
       EncodableValue("screenshot_scale_unavailable"),
-      EncodableValue("chromium_app_bound_cookie_import_unavailable"),
-      EncodableValue("tab_scoped_tls_exception_unavailable")};
+      EncodableValue("chromium_app_bound_cookie_import_unavailable")};
   if (!available) {
     limitations.emplace_back("webview2_evergreen_unavailable");
   }

@@ -8,6 +8,8 @@ void deny_decision(LinuxBrowserDecision* decision) {
       webkit_permission_request_deny(
           WEBKIT_PERMISSION_REQUEST(decision->native_request));
       break;
+    case LINUX_BROWSER_DECISION_TLS:
+      break;
     case LINUX_BROWSER_DECISION_DOWNLOAD:
       webkit_download_cancel(WEBKIT_DOWNLOAD(decision->native_request));
       break;
@@ -53,7 +55,9 @@ LinuxBrowserDecision* browser_decision_create(
   decision->id =
       g_strdup_printf("d%" G_GUINT64_FORMAT, plugin->next_decision_id++);
   decision->timeout_id =
-      g_timeout_add_seconds(30, decision_timeout_cb, decision);
+      g_timeout_add_seconds(
+          kind == LINUX_BROWSER_DECISION_TLS ? 65 : 30,
+          decision_timeout_cb, decision);
   g_hash_table_insert(
       plugin->decisions, g_strdup(decision->id), decision);
   return decision;
@@ -72,6 +76,7 @@ void browser_decision_destroy(gpointer data) {
   g_clear_pointer(&decision->id, g_free);
   g_clear_pointer(&decision->page_id, g_free);
   g_clear_pointer(&decision->transient_page_id, g_free);
+  g_clear_pointer(&decision->failing_uri, g_free);
   g_free(decision);
 }
 
@@ -105,6 +110,36 @@ void browser_decision_resolve(AleraBrowserPlugin* plugin,
             WEBKIT_PERMISSION_REQUEST(decision->native_request));
       }
       break;
+    case LINUX_BROWSER_DECISION_TLS: {
+      LinuxBrowserPage* page = static_cast<LinuxBrowserPage*>(
+          g_hash_table_lookup(plugin->pages, decision->page_id));
+      LinuxBrowserProfile* profile =
+          page != nullptr
+              ? static_cast<LinuxBrowserProfile*>(
+                    g_hash_table_lookup(plugin->profiles, page->profile_id))
+              : nullptr;
+      const gchar* current_uri =
+          page != nullptr ? webkit_web_view_get_uri(page->web_view) : nullptr;
+      accepted = g_str_equal(action, "proceed") &&
+                 page != nullptr && profile != nullptr &&
+                 decision->native_request != nullptr &&
+                 decision->failing_uri != nullptr &&
+                 g_strcmp0(current_uri, decision->failing_uri) == 0;
+      if (accepted) {
+        g_autoptr(GUri) uri =
+            g_uri_parse(decision->failing_uri, G_URI_FLAGS_NONE, nullptr);
+        const gchar* host = uri != nullptr ? g_uri_get_host(uri) : nullptr;
+        if (host == nullptr) {
+          accepted = FALSE;
+        } else {
+          webkit_web_context_allow_tls_certificate_for_host(
+              profile->context,
+              G_TLS_CERTIFICATE(decision->native_request), host);
+          webkit_web_view_load_uri(page->web_view, decision->failing_uri);
+        }
+      }
+      break;
+    }
     case LINUX_BROWSER_DECISION_POPUP: {
       const gchar* target_page_id =
           browser_map_string(args, "targetPageId");

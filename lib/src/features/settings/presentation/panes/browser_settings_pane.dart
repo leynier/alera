@@ -19,6 +19,7 @@ import 'package:alera/src/features/browser/domain/browser_history.dart';
 import 'package:alera/src/features/browser/domain/browser_navigation.dart';
 import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:alera/src/features/browser/domain/browser_settings.dart';
+import 'package:alera/src/features/browser/domain/browser_trusted_certificate.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +43,8 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
   BrowserSettings _settings = const BrowserSettings();
   List<BrowserProfile> _profiles = const <BrowserProfile>[];
   List<BrowserClosedTab> _closedTabs = const <BrowserClosedTab>[];
+  List<BrowserTrustedCertificate> _certificates =
+      const <BrowserTrustedCertificate>[];
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -58,6 +61,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
         ref.read(browserSettingsServiceProvider).get(),
         ref.read(browserProfileServiceProvider).list(),
         ref.read(browserClosedTabsServiceProvider).list(),
+        ref.read(browserCertificateTrustServiceProvider).list(),
       ]);
       if (!mounted) {
         return;
@@ -66,6 +70,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
         _settings = values[0] as BrowserSettings;
         _profiles = values[1] as List<BrowserProfile>;
         _closedTabs = values[2] as List<BrowserClosedTab>;
+        _certificates = values[3] as List<BrowserTrustedCertificate>;
         _loading = false;
         _error = null;
       });
@@ -134,6 +139,32 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
                   onChanged: _setSearchEngine,
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: widget.groupKeys['certificates'],
+          child: AleraSettingsGroup(
+            title: 'Trusted Local Certificates',
+            description:
+                'Exact Certificates Allowed For Local Hosts In Each Profile.',
+            children: <Widget>[
+              if (_certificates.isEmpty)
+                const AleraEmptyState(
+                  icon: AleraIcons.secure,
+                  title: 'No Trusted Certificates',
+                  message: 'Certificates Trusted Permanently Will Appear Here.',
+                )
+              else
+                for (final certificate in _certificates)
+                  _TrustedBrowserCertificateRow(
+                    certificate: certificate,
+                    profileLabel: _profileLabel(certificate.profileId),
+                    onRemove: _busy
+                        ? null
+                        : () => _removeCertificate(certificate),
+                  ),
             ],
           ),
         ),
@@ -349,6 +380,47 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
     }
     await _withBusy(() async {
       await ref.read(browserHistoryServiceProvider).clear();
+    });
+  }
+
+  String _profileLabel(String profileId) {
+    for (final profile in _profiles) {
+      if (profile.id == profileId) {
+        return profile.label;
+      }
+    }
+    return profileId;
+  }
+
+  Future<void> _removeCertificate(BrowserTrustedCertificate certificate) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Remove Trusted Certificate?',
+        message:
+            'Alera Will Ask Again For ${certificate.host} After The App Restarts.',
+        confirmLabel: 'Remove Trust',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await _withBusy(() async {
+      await ref
+          .read(browserCertificateTrustServiceProvider)
+          .remove(certificate);
+      ref
+          .read(browserCertificateTrustRegistryProvider)
+          .invalidatePersistentCache();
+      await _refresh();
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message:
+              'Certificate Trust Removed. Restart Alera To Apply The Change.',
+        );
+      }
     });
   }
 

@@ -119,6 +119,7 @@ public final class AleraBrowserPlugin: NSObject, FlutterPlugin, FlutterStreamHan
       "fullCookies": available,
       "permissionCallbacks": available,
       "tlsCallbacks": available,
+      "tlsTrustScope": available ? "page" : "none",
       "popupCallbacks": available,
       "downloadCallbacks": available,
       "domSnapshot": available,

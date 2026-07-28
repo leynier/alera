@@ -16,6 +16,7 @@ void main() {
       fullCookies: true,
       permissionCallbacks: true,
       tlsCallbacks: true,
+      tlsTrustScope: 'page',
       popupCallbacks: true,
       downloadCallbacks: true,
       domSnapshot: true,
@@ -45,6 +46,21 @@ void main() {
       macCapabilities.platformRequiredNativeCookieImportSources,
       containsAll(<String>['arc', 'safari']),
     );
+    final unavailableTrust = macCapabilities.withPersistentCertificateTrust(
+      false,
+    );
+    expect(unavailableTrust.persistentCertificateTrust, isFalse);
+    expect(unavailableTrust.meetsStableGate, isFalse);
+    expect(
+      unavailableTrust.limitations,
+      contains('certificate_trust_sidecar_unavailable'),
+    );
+    expect(
+      macCapabilities
+          .withPersistentCertificateTrust(true)
+          .persistentCertificateTrust,
+      isTrue,
+    );
 
     final linuxCapabilities = BrowserEngineCapabilities(
       engine: 'webKitGtk',
@@ -59,6 +75,7 @@ void main() {
       fullCookies: true,
       permissionCallbacks: true,
       tlsCallbacks: true,
+      tlsTrustScope: 'profileSession',
       popupCallbacks: true,
       downloadCallbacks: true,
       domSnapshot: true,
