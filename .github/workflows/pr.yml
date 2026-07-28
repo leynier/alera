@@ -20,8 +20,8 @@ env:
 
 jobs:
   # Runs once for the whole repository rather than per shard. None of these
-  # commands run native asset build hooks, so this job skips Zig, the native
-  # asset cache and the preflight.
+  # commands build the Linux desktop app or run native asset build hooks, so
+  # this job skips the desktop toolchain, Zig, native asset cache and preflight.
   static:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -34,6 +34,7 @@ jobs:
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
         with:
+          linux-toolchain: 'false'
           native-assets: 'false'
           preflight: 'false'
 
@@ -52,9 +53,7 @@ jobs:
   test:
     name: test ${{ matrix.name }}
     runs-on: ubuntu-latest
-    # A degraded Ubuntu mirror can consume more than 20 minutes installing the
-    # native toolchain before tests start on an otherwise healthy runner.
-    timeout-minutes: 35
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +76,10 @@ jobs:
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
+        with:
+          # flutter test still runs native asset hooks, but it does not build
+          # the Linux desktop app and needs no GTK, WebKit or libmpv headers.
+          linux-toolchain: 'false'
 
       # The shard split happens on the file list, not through
       # --total-shards/--shard-index: that flag slices the tests inside each
