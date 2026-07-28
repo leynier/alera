@@ -19,7 +19,8 @@ void main() {
     expect(
       workflow,
       contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
-      reason: 'Linux is the one platform excluded from automatic installation, '
+      reason:
+          'Linux is the one platform excluded from automatic installation, '
           'because dpkg and rpm do not resolve the libmpv dependency closure',
     );
     expect(
