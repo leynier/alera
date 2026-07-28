@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,13 @@ class AgentsSettingsPane extends ConsumerWidget {
                     'Install Or Update Orchestration And Reapply Selected Status Hooks.',
                 controlWidth: 360,
                 child: AleraOrchestrationSkillControl(),
+              ),
+              AleraSettingRow(
+                title: 'Alera Emulator Skill',
+                description:
+                    'Install The Skill For Android And iOS Emulator Automation.',
+                controlWidth: 360,
+                child: AleraEmulatorSkillControl(),
               ),
             ],
           ),

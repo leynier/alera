@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "noticeDirectory": "third_party/native_helpers",
+  "assets": [
+    {
+      "id": "scrcpy-server",
+      "version": "4.0",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "sourceUrl": "https://github.com/Genymobile/scrcpy/releases/download/v4.0/scrcpy-server-v4.0",
+      "sourceSha256": "84924bd564a1eb6089c872c7521f968058977f91f5ff02514a8c74aff3210f3a",
+      "sourceCommit": "2322868e9e256eb5fce0b3d659ab2a409f29bae1",
+      "payloadSha256": "84924bd564a1eb6089c872c7521f968058977f91f5ff02514a8c74aff3210f3a",
+      "relativePath": "android/scrcpy/4.0/scrcpy-server",
+      "archiveMember": null,
+      "executable": false,
+      "license": "Apache-2.0",
+      "licensePath": "licenses/scrcpy-Apache-2.0.txt"
+    },
+    {
+      "id": "serve-sim",
+      "version": "0.1.40",
+      "platforms": [
+        "macos"
+      ],
+      "sourceUrl": "https://codeload.github.com/EvanBacon/serve-sim/tar.gz/e0d98f69f3ec932ea10903fd7c8b32647949606d",
+      "sourceSha256": "48f443481deefd4ea2a378950a19c5d160e49c0b7cb365a40eff746777d3fe2f",
+      "sourceCommit": "e0d98f69f3ec932ea10903fd7c8b32647949606d",
+      "payloadSha256": null,
+      "relativePath": "ios/serve-sim/0.1.40/serve-sim-bin",
+      "archiveMember": null,
+      "executable": true,
+      "license": "Apache-2.0",
+      "licensePath": "licenses/serve-sim-Apache-2.0.txt",
+      "upstreamArtifact": {
+        "sourceUrl": "https://registry.npmjs.org/serve-sim/-/serve-sim-0.1.40.tgz",
+        "sourceSha256": "8ecc93dd74223b51faf28783b5b697775b5f53853a4310fdf8e40b646400bdf0",
+        "archiveMember": "package/bin/serve-sim-bin",
+        "payloadSha256": "1257a9ed5e4bc300d9da7318a226e7bee7b9eaa7038716349a492b59cb1d1cc3"
+      },
+      "derivation": {
+        "type": "swift-package",
+        "sourceArchiveRoot": "serve-sim-e0d98f69f3ec932ea10903fd7c8b32647949606d",
+        "sourceSubdirectory": "packages/serve-sim",
+        "packageDirectory": "packages/serve-sim",
+        "product": "serve-sim-bin",
+        "buildOutput": "apple/Products/Release/serve-sim-bin",
+        "architectures": [
+          "arm64",
+          "x86_64"
+        ],
+        "dependencyLockPath": "packages/serve-sim/Package.resolved",
+        "dependencyLockSha256": "ba95ccfd76f628fcf173102770f9e2fbeee0320823b9f1b508a0b8ff51f890ca",
+        "patchPath": "third_party/native_helpers/patches/serve-sim-0.1.40-loopback.patch",
+        "patchSha256": "05d9e9eb8f0b7319a35455a1e08fe1f88d9f4409a6c1baab38dc1950d3044e05",
+        "patchTargets": [
+          {
+            "path": "packages/serve-sim/Package.swift",
+            "beforeSha256": "c353000fdbbf06696ce4518a52570d2e4a4b55a4212a85ae6d4e5f31318f8ff7",
+            "afterSha256": "1b4067c980f5b922aeaf9bf06fedb4680fbfdbd703c9c7e6ad3d56bf8ccac2f2"
+          },
+          {
+            "path": "packages/serve-sim/Sources/SimStreamHelper/HTTPServer.swift",
+            "beforeSha256": "c424d2970e3010758e31f37bbb511b2afcd012c06f74e0b83754b63828dc1fed",
+            "afterSha256": "7d5cf8c2136c341619bea13b25cc15be57de21035c1b8292e685c8281ea5a195"
+          }
+        ],
+        "dependencies": [
+          {
+            "id": "swifter",
+            "sourceUrl": "https://codeload.github.com/httpswift/swifter/tar.gz/9483a5d459b45c3ffd059f7b55f9638e268632fd",
+            "sourceSha256": "e80a41ebba308359ab875925c06e38adfbd6d56d8de3a25a9d1839b6178a85da",
+            "sourceCommit": "9483a5d459b45c3ffd059f7b55f9638e268632fd",
+            "archiveRoot": "swifter-9483a5d459b45c3ffd059f7b55f9638e268632fd",
+            "destination": "packages/swifter",
+            "license": "BSD-3-Clause",
+            "licensePath": "licenses/swifter-BSD-3-Clause.txt"
+          }
+        ]
+      }
+    }
+  ]
+}

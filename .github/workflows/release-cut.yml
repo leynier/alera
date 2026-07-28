@@ -158,7 +158,7 @@ jobs:
           archive_url="${BASE_URL}/${archive_file}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
           auto_install_enabled=false
-          if [[ "$CHANNEL" == "rc" ]]; then
+          if [[ "$CHANNEL" == "rc" && "$PLATFORM" != "linux" ]]; then
             auto_install_enabled=true
           elif [[ "$PLATFORM" == "macos" \
             && -n "${APPLE_DEVELOPER_ID_APPLICATION:-}" \
@@ -171,10 +171,6 @@ jobs:
           elif [[ "$PLATFORM" == "windows" \
             && -n "${WINDOWS_CERTIFICATE_PFX_BASE64:-}" \
             && -n "${WINDOWS_CERTIFICATE_PASSWORD:-}" ]]; then
-            auto_install_enabled=true
-          elif [[ "$PLATFORM" == "linux" \
-            && -n "${ALERA_LINUX_GPG_PRIVATE_KEY_BASE64:-}" \
-            && -n "${ALERA_LINUX_GPG_KEY_ID:-}" ]]; then
             auto_install_enabled=true
           fi
           dart run desktop_updater:release "$PLATFORM" \
@@ -220,6 +216,16 @@ jobs:
           echo "BUNDLE_DIR=$bundle_dir" >>"$GITHUB_ENV"
           echo "ASSET_DIR=$asset_dir" >>"$GITHUB_ENV"
 
+      - name: Verify bundled helper and video runtimes
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
+            --platform "$PLATFORM" \
+            --bundle "$BUNDLE_DIR"
+
       - name: Package standalone runtime sidecar
         shell: bash
         env:
@@ -231,6 +237,10 @@ jobs:
           if [[ "$PLATFORM" == "windows" ]]; then
             bin_name="alera.exe"
           fi
+          helper_dir=".dart_tool/alera_native_helpers/prepared/$PLATFORM"
+          dart tool/native_helpers/verify_native_helper_bundle.dart \
+            --platform "$PLATFORM" \
+            --emulator-root "$helper_dir"
 
           case "$PLATFORM" in
             macos)
@@ -275,13 +285,15 @@ jobs:
 
             package_dir="$(mktemp -d)"
             cp "$binary_path" "$package_dir/$bin_name"
+            cp -R "$helper_dir" "$package_dir/emulator"
             cat >"$package_dir/runtime-manifest.json" <<JSON
           {
             "name": "alera-runtime",
             "version": "$RELEASE_VERSION",
             "platform": "$PLATFORM",
             "arch": "$arch",
-            "entrypoint": "$bin_name"
+            "entrypoint": "$bin_name",
+            "emulatorHelpers": "emulator/manifest.json"
           }
           JSON
             asset="release-assets/alera-runtime-${RELEASE_VERSION}-${PLATFORM}-${arch}.tar.gz"
@@ -322,6 +334,9 @@ jobs:
           else
             echo "::warning::Apple Developer ID credentials are not configured; packaging an unsigned macOS release."
           fi
+          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
+            --platform macos \
+            --bundle "$BUNDLE_DIR"
           tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
 
       - name: Sign and package Windows release
@@ -344,8 +359,8 @@ jobs:
           }
           tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
 
-      - name: Package stable Linux release
-        if: matrix.platform == 'linux' && needs.plan.outputs.channel == 'stable'
+      - name: Package Linux release
+        if: matrix.platform == 'linux'
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
@@ -354,15 +369,6 @@ jobs:
         run: |
           set -euo pipefail
           bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
-
-      - name: Package RC Linux release
-        if: matrix.platform == 'linux' && needs.plan.outputs.channel == 'rc'
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-        run: |
-          set -euo pipefail
-          tar -czf "release-assets/alera-${RELEASE_VERSION}-linux.tar.gz" -C "$BUNDLE_DIR" .
 
       - name: Stage release assets for updater
         shell: bash

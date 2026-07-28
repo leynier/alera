@@ -7,11 +7,13 @@ const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraComputerUseSkillName = 'computer-use';
+const String aleraEmulatorSkillName = 'alera-emulator';
 
 enum AleraAgentSkill {
   cli(aleraCliSkillName),
   orchestration(aleraOrchestrationSkillName),
-  computerUse(aleraComputerUseSkillName);
+  computerUse(aleraComputerUseSkillName),
+  emulator(aleraEmulatorSkillName);
 
   const AleraAgentSkill(this.name);
 

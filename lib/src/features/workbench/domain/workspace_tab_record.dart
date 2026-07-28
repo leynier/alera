@@ -10,7 +10,8 @@ enum WorkspaceTabKind {
   markdownViewer('markdownViewer'),
   pdf('pdf'),
   gitDiff('gitDiff'),
-  browser('browser');
+  browser('browser'),
+  mobileEmulator('mobileEmulator');
 
   const WorkspaceTabKind(this.key);
 
@@ -54,6 +55,61 @@ const String workspaceTabGitDiffCommitSubjectPayloadKey =
 const String workspaceTabGitDiffCommitMessagePayloadKey =
     'gitDiffCommitMessage';
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
+const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
+
+enum MobileEmulatorPlatform {
+  android('android', 'Android'),
+  ios('ios', 'iOS');
+
+  const MobileEmulatorPlatform(this.key, this.label);
+
+  final String key;
+  final String label;
+
+  static MobileEmulatorPlatform? fromJson(Object? value) {
+    for (final platform in values) {
+      if (platform.key == value) {
+        return platform;
+      }
+    }
+    return null;
+  }
+}
+
+class WorkspaceMobileEmulatorPayload {
+  const WorkspaceMobileEmulatorPayload({
+    required this.platform,
+    required this.deviceId,
+  });
+
+  static const int schemaVersion = 1;
+
+  final MobileEmulatorPlatform platform;
+  final String deviceId;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'schemaVersion': schemaVersion,
+    'platform': platform.key,
+    'deviceId': deviceId,
+  };
+
+  static WorkspaceMobileEmulatorPayload? fromJson(Object? value) {
+    if (value is! Map ||
+        value['schemaVersion'] != schemaVersion ||
+        value['deviceId'] is! String) {
+      return null;
+    }
+    final platform = MobileEmulatorPlatform.fromJson(value['platform']);
+    final deviceId = (value['deviceId'] as String).trim();
+    if (platform == null || deviceId.isEmpty) {
+      return null;
+    }
+    return WorkspaceMobileEmulatorPayload(
+      platform: platform,
+      deviceId: deviceId,
+    );
+  }
+}
 
 enum WorkspaceGitDiffSource {
   workingTree('workingTree'),
@@ -158,6 +214,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
 
   String? get browserRuntimeTitle =>
       _nonEmptyPayloadString(workspaceTabBrowserRuntimeTitlePayloadKey);
+
+  WorkspaceMobileEmulatorPayload? get mobileEmulator =>
+      WorkspaceMobileEmulatorPayload.fromJson(
+        payload[workspaceTabMobileEmulatorPayloadKey],
+      );
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],

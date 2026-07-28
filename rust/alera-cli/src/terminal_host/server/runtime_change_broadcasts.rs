@@ -33,15 +33,18 @@ impl ServerActor {
         ));
     }
 
-    /// Reads a tab's workspace before it is dropped, so its removal can be
-    /// broadcast with a scope instead of waking every watcher.
-    pub(super) async fn workspace_id_for_tab(&self, tab_id: &str) -> Option<String> {
-        self.runtime_store
-            .find_workspace_tab(tab_id)
-            .await
-            .ok()
-            .flatten()
-            .map(|tab| tab.workspace_id)
+    pub(super) fn broadcast_mobile_emulator_changed(
+        &self,
+        tab_id: Option<&str>,
+        workspace_id: Option<&str>,
+        reason: &str,
+    ) {
+        let mut payload = scope_payload("workspaceId", workspace_id);
+        if let Some(tab_id) = tab_id.filter(|value| !value.is_empty()) {
+            payload["tabId"] = Value::String(tab_id.to_string());
+        }
+        payload["reason"] = Value::String(reason.to_string());
+        self.broadcast_authenticated(event("mobileEmulatorChanged", payload));
     }
 }
 
@@ -78,5 +81,20 @@ mod tests {
     #[test]
     fn scope_payload_treats_an_empty_id_as_a_wildcard() {
         assert_eq!(scope_payload("projectId", Some("")), json!({}));
+    }
+
+    #[test]
+    fn emulator_change_payload_can_carry_both_scopes() {
+        let mut payload = scope_payload("workspaceId", Some("workspace-1"));
+        payload["tabId"] = serde_json::Value::String("tab-1".into());
+        payload["reason"] = serde_json::Value::String("attached".into());
+        assert_eq!(
+            payload,
+            json!({
+                "workspaceId": "workspace-1",
+                "tabId": "tab-1",
+                "reason": "attached",
+            })
+        );
     }
 }

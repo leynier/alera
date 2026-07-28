@@ -24,6 +24,13 @@ mixin _WorkbenchControllerTabs
         priorActiveTabId != null && ids.contains(priorActiveTabId);
     try {
       _closingTabWorkspaceIds.add(workspace.id);
+      final emulatorLeases = ref.read(mobileEmulatorLeaseCoordinatorProvider);
+      final emulatorTabIds = <String>{
+        for (final tab in state.tabsFor(workspace.id))
+          if (ids.contains(tab.id) &&
+              tab.kind == WorkspaceTabKind.mobileEmulator)
+            tab.id,
+      };
       for (final tabId in ids) {
         final tab = state
             .tabsFor(workspace.id)
@@ -33,6 +40,9 @@ mixin _WorkbenchControllerTabs
           await _workspaceBrowserTabService.closeTab(tabId);
         } else {
           await _workspaceTabService.closeTab(tabId);
+        }
+        if (emulatorTabIds.contains(tabId)) {
+          emulatorLeases.close(tabId);
         }
       }
       final remaining = state

@@ -118,6 +118,10 @@ void main() {
       'terminate',
     ]);
     expect(server.payloadFor('hello')['clientKind'], 'app');
+    expect(
+      server.payloadFor('hello')['supportedTabKinds'],
+      contains(aleraMobileEmulatorTabKind),
+    );
     final createPayload = server.payloadFor('createOrAttach');
     expect(createPayload['workingDirectory'], '/repo');
     expect(createPayload['cols'], 80);

@@ -117,9 +117,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
       );
       if (newestPlatformUpdate != null) {
         return AleraUpdateCheckResult(
-          message:
-              'No compatible ${_platformLabel(_platform)} update artifact '
-              'is available for this installation.',
+          message: _incompatibleArtifactMessage(_platform),
         );
       }
       return const AleraUpdateCheckResult(message: 'Alera is up to date.');
@@ -130,7 +128,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
         archive.schemaVersion >= 2 &&
         latest.sha256 != null &&
         latest.size != null &&
-        _autoInstallKinds.contains(latest.installerKind);
+        _supportsAutomaticInstall(latest);
     if (autoInstallAllowed) {
       return AleraUpdateCheckResult(
         latest: latest,
@@ -153,10 +151,16 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     if (!config.canAutoInstall) {
       throw StateError('Automatic update installation is disabled.');
     }
-    if (!_autoInstallKinds.contains(update.installerKind)) {
+    if (update.platform == 'linux') {
+      throw StateError(
+        'Automatic Linux updates are disabled. Install the deb or rpm '
+        'package through apt, dnf, or the configured package repository.',
+      );
+    }
+    if (!_supportsAutomaticInstall(update)) {
       throw StateError(
         'Automatic installation does not support '
-        '${update.installerKind} artifacts.',
+        '${update.platform} ${update.installerKind} artifacts.',
       );
     }
 
@@ -201,11 +205,27 @@ class DesktopAleraUpdateService implements AleraUpdateService {
 
 const Set<String> _autoInstallKinds = <String>{'tar.gz', 'deb', 'rpm'};
 
+bool _supportsAutomaticInstall(AleraUpdateInfo update) {
+  if (update.platform == 'linux') {
+    return false;
+  }
+  if (!_autoInstallKinds.contains(update.installerKind)) {
+    return false;
+  }
+  return true;
+}
+
 String _manualUpdateMessage(
   AleraUpdateConfig config,
   AleraUpdateArchive archive,
   AleraUpdateInfo update,
 ) {
+  if (update.platform == 'linux' &&
+      update.installerKind != 'deb' &&
+      update.installerKind != 'rpm') {
+    return 'Linux tarball updates are unsupported. Install the deb or rpm '
+        'package through apt, dnf, or the configured package repository.';
+  }
   if (update.platform == 'linux' &&
       config.channel == AleraUpdateChannel.stable &&
       (update.installerKind == 'deb' || update.installerKind == 'rpm')) {
@@ -224,6 +244,15 @@ String _platformLabel(String platform) {
     'linux' => 'Linux',
     _ => platform,
   };
+}
+
+String _incompatibleArtifactMessage(String platform) {
+  if (platform == 'linux') {
+    return 'No compatible Linux package is available for this distribution. '
+        'Install Alera through apt, dnf, or a supported package repository.';
+  }
+  return 'No compatible ${_platformLabel(platform)} update artifact '
+      'is available for this installation.';
 }
 
 Future<bool> _launchExternalUrl(Uri uri) {

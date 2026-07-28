@@ -497,15 +497,15 @@ class WorkspaceTabService {
     return tab;
   }
 
-  bool _isFileTabKind(WorkspaceTabKind kind) {
-    return switch (kind) {
-      WorkspaceTabKind.editor ||
-      WorkspaceTabKind.markdownViewer ||
-      WorkspaceTabKind.pdf ||
-      WorkspaceTabKind.gitDiff => true,
-      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
-    };
-  }
+  bool _isFileTabKind(WorkspaceTabKind kind) => switch (kind) {
+    WorkspaceTabKind.editor ||
+    WorkspaceTabKind.markdownViewer ||
+    WorkspaceTabKind.pdf ||
+    WorkspaceTabKind.gitDiff => true,
+    WorkspaceTabKind.terminal ||
+    WorkspaceTabKind.browser ||
+    WorkspaceTabKind.mobileEmulator => false,
+  };
 
   bool _canRetargetFileBackedTab({
     required WorkspaceTabKind from,
@@ -574,24 +574,24 @@ class WorkspaceTabService {
   WorkspaceTabKind? _fileTabKindAfterPathMove({
     required WorkspaceTabRecord tab,
     required String nextPath,
-  }) {
-    return switch (tab.kind) {
-      WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
-      WorkspaceTabKind.markdownViewer =>
-        isWorkspaceMarkdownFilePath(nextPath)
-            ? WorkspaceTabKind.markdownViewer
-            : null,
-      WorkspaceTabKind.editor =>
-        isWorkspacePdfFilePath(nextPath)
-            ? WorkspaceTabKind.pdf
-            : WorkspaceTabKind.editor,
-      WorkspaceTabKind.pdf =>
-        isWorkspacePdfFilePath(nextPath)
-            ? WorkspaceTabKind.pdf
-            : WorkspaceTabKind.editor,
-      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => null,
-    };
-  }
+  }) => switch (tab.kind) {
+    WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
+    WorkspaceTabKind.markdownViewer =>
+      isWorkspaceMarkdownFilePath(nextPath)
+          ? WorkspaceTabKind.markdownViewer
+          : null,
+    WorkspaceTabKind.editor =>
+      isWorkspacePdfFilePath(nextPath)
+          ? WorkspaceTabKind.pdf
+          : WorkspaceTabKind.editor,
+    WorkspaceTabKind.pdf =>
+      isWorkspacePdfFilePath(nextPath)
+          ? WorkspaceTabKind.pdf
+          : WorkspaceTabKind.editor,
+    WorkspaceTabKind.terminal ||
+    WorkspaceTabKind.browser ||
+    WorkspaceTabKind.mobileEmulator => null,
+  };
 
   String _titleForGitDiff({
     required WorkspaceGitDiffScope scope,

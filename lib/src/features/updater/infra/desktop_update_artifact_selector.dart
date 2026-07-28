@@ -9,23 +9,42 @@ Future<List<String>> loadDesktopUpdateArtifactPreferences(
   String platform,
   AleraUpdateChannel channel,
 ) async {
-  return switch (platform) {
-    'macos' || 'windows' => const <String>['tar.gz'],
-    'linux' when channel == AleraUpdateChannel.rc => const <String>['tar.gz'],
-    'linux' => _linuxPackagePreference(),
-    _ => const <String>[],
-  };
+  if (platform != 'linux') {
+    return desktopUpdateArtifactPreferences(
+      platform: platform,
+      channel: channel,
+    );
+  }
+  return desktopUpdateArtifactPreferences(
+    platform: platform,
+    channel: channel,
+    linuxOsRelease: await _readLinuxOsRelease(),
+  );
 }
 
-Future<List<String>> _linuxPackagePreference() async {
+Future<String?> _readLinuxOsRelease() async {
   final osRelease = File('/etc/os-release');
   if (!await osRelease.exists()) {
-    return const <String>[];
+    return null;
   }
-  final installerKind = linuxInstallerKindFromOsRelease(
-    await osRelease.readAsString(),
-  );
-  return installerKind == null ? const <String>[] : <String>[installerKind];
+  return osRelease.readAsString();
+}
+
+List<String> desktopUpdateArtifactPreferences({
+  required String platform,
+  required AleraUpdateChannel channel,
+  String? linuxOsRelease,
+}) {
+  return switch ((platform, channel)) {
+    ('macos' || 'windows', _) => const <String>['tar.gz'],
+    ('linux', _) => switch (linuxInstallerKindFromOsRelease(
+      linuxOsRelease ?? '',
+    )) {
+      final installerKind? => <String>[installerKind],
+      null => const <String>[],
+    },
+    _ => const <String>[],
+  };
 }
 
 String? linuxInstallerKindFromOsRelease(String source) {

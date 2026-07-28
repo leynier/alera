@@ -11,14 +11,16 @@ if [[ ! -d "$bundle_dir" ]]; then
   echo "::error::Missing Linux bundle directory: $bundle_dir" >&2
   exit 1
 fi
-if [[ "$release_version" == *"-rc."* ]]; then
-  echo "::error::Linux packages are only published for stable releases." >&2
-  exit 64
-fi
-
 mkdir -p "$output_dir"
 package_version="${artifact_version}"
 package_release="${build_number}"
+deb_version="${package_version}-${package_release}"
+rpm_release="${package_release}"
+if [[ "$release_version" == "$artifact_version"-rc.* ]]; then
+  prerelease="${release_version#"$artifact_version"-}"
+  deb_version="${package_version}~${prerelease}-${package_release}"
+  rpm_release="0.${prerelease}.${package_release}"
+fi
 arch_deb="amd64"
 arch_rpm="x86_64"
 maintainer="${ALERA_LINUX_PACKAGE_MAINTAINER:-Alera Release Engineering <dev@alera.build>}"
@@ -53,13 +55,13 @@ mkdir -p "$deb_root/DEBIAN"
 installed_size="$(du -sk "$deb_root/opt/alera" | awk '{print $1}')"
 cat >"$deb_root/DEBIAN/control" <<DEB
 Package: alera
-Version: ${package_version}-${package_release}
+Version: ${deb_version}
 Section: devel
 Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libayatana-appindicator3-1 | libappindicator3-1
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libayatana-appindicator3-1 | libappindicator3-1, libmpv2
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
@@ -77,7 +79,7 @@ tar -C "$stage" -czf "$rpm_top/SOURCES/alera-${package_version}.tar.gz" "alera-$
 cat >"$rpm_top/SPECS/alera.spec" <<RPM
 Name: alera
 Version: ${package_version}
-Release: ${package_release}%{?dist}
+Release: ${rpm_release}%{?dist}
 Summary: ${description}
 License: Proprietary
 BuildArch: ${arch_rpm}
@@ -89,6 +91,7 @@ Requires: json-glib
 Requires: libsecret
 Requires: sqlite
 Requires: openssl-libs
+Requires: mpv-libs
 
 %description
 ${description}

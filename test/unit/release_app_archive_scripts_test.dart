@@ -279,7 +279,7 @@ void main() {
       }
     });
 
-    test('verifies rc manifests without Linux packages', () async {
+    test('builds and verifies RC manifests with Linux packages', () async {
       final temp = await Directory.systemTemp.createTemp('alera-release-');
       addTearDown(() => temp.deleteSync(recursive: true));
       _writeArtifact(
@@ -298,7 +298,13 @@ void main() {
         temp,
         'rc',
         '1.2.3+99-linux',
-        'alera-1.2.3-rc.0-linux.tar.gz',
+        'alera-1.2.3-rc.0-linux.deb',
+      );
+      _writeArtifact(
+        temp,
+        'rc',
+        '1.2.3+99-linux',
+        'alera-1.2.3-rc.0-linux.rpm',
       );
       final output = p.join(temp.path, 'public', 'app-archive-rc.json');
       final keys = await _signingKeys(seed: 5);
@@ -327,10 +333,65 @@ void main() {
       expect(manifest['channel'], 'rc');
       final items = manifest['items'] as List;
       expect(
-        items.cast<Map>().where((item) => item['platform'] == 'linux'),
-        contains(predicate<Map>((item) => item['installerKind'] == 'tar.gz')),
+        items
+            .cast<Map>()
+            .where((item) => item['platform'] == 'linux')
+            .map((item) => item['installerKind']),
+        containsAll(<String>['deb', 'rpm']),
       );
       _expectLegacyArchiveShape(manifest);
+    });
+
+    test('rejects Linux desktop tarballs in signed manifests', () async {
+      final temp = await Directory.systemTemp.createTemp('alera-release-');
+      addTearDown(() => temp.deleteSync(recursive: true));
+      _writeArtifact(
+        temp,
+        'rc',
+        '1.2.3+99-macos',
+        'alera-1.2.3-rc.0-macos.tar.gz',
+      );
+      _writeArtifact(
+        temp,
+        'rc',
+        '1.2.3+99-windows',
+        'alera-1.2.3-rc.0-windows.tar.gz',
+      );
+      _writeArtifact(
+        temp,
+        'rc',
+        '1.2.3+99-linux',
+        'alera-1.2.3-rc.0-linux.tar.gz',
+      );
+      final output = p.join(temp.path, 'public', 'app-archive-rc.json');
+      final keys = await _signingKeys(seed: 7);
+
+      await _runDartScript(
+        'tool/release/build_app_archive.dart',
+        <String>[output],
+        environment: _archiveEnvironment(
+          temp,
+          channel: 'rc',
+          releaseVersion: '1.2.3-rc.0',
+        ),
+      );
+      await _runDartScript('tool/release/sign_app_archive.dart', <String>[
+        output,
+      ], environment: keys.toEnvironment());
+      final verification = await Process.run(
+        'dart',
+        <String>['tool/release/verify_app_archive.dart', output],
+        workingDirectory: Directory.current.path,
+        environment: <String, String>{
+          'ALERA_UPDATE_MANIFEST_PUBLIC_KEY': keys.publicKey,
+        },
+      );
+
+      expect(verification.exitCode, isNot(0));
+      expect(
+        verification.stderr,
+        contains('Linux desktop artifacts must be deb or rpm packages'),
+      );
     });
   });
 }

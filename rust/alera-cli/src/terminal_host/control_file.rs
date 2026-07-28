@@ -13,8 +13,8 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -71,10 +71,28 @@ pub fn write_control_file(
             RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
             RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY,
             RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
+            RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
         ],
         "persistent": persistent,
         "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     });
+    write_value(path, &body)
+}
+
+/// Promotes a live host's published lifecycle mode without changing its
+/// identity, endpoint, token, capabilities, or start timestamp.
+pub fn promote_persistent(path: &Path) -> std::io::Result<()> {
+    let contents = std::fs::read_to_string(path)?;
+    let mut body: serde_json::Value = serde_json::from_str(&contents)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    if body.get("persistent").and_then(serde_json::Value::as_bool) == Some(true) {
+        return Ok(());
+    }
+    body["persistent"] = serde_json::Value::Bool(true);
+    write_value(path, &body)
+}
+
+fn write_value(path: &Path, body: &serde_json::Value) -> std::io::Result<()> {
     let temp = temp_path(path);
     {
         let mut file = std::fs::File::create(&temp)?;
@@ -144,6 +162,7 @@ mod tests {
                 RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
                 RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY,
                 RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
+                RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
             ])
         );
         assert_eq!(value["persistent"], json!(true));
@@ -163,5 +182,24 @@ mod tests {
         write_control_file(&path, 1, "t", false).unwrap();
         delete_control_file(&path);
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn promotion_preserves_control_identity_and_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.json");
+        write_control_file(&path, 54321, "secret-token", false).unwrap();
+        let before: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+
+        promote_persistent(&path).unwrap();
+        let promoted = std::fs::read_to_string(&path).unwrap();
+        let after: Value = serde_json::from_str(&promoted).unwrap();
+        assert_eq!(after["persistent"], json!(true));
+        for key in ["pid", "port", "token", "startedAt", "runtimeCapabilities"] {
+            assert_eq!(after[key], before[key], "{key} changed during promotion");
+        }
+
+        promote_persistent(&path).unwrap();
+        assert_eq!(std::fs::read_to_string(path).unwrap(), promoted);
     }
 }

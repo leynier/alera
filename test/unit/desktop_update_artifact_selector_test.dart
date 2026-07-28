@@ -4,24 +4,49 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('desktop update artifact selection', () {
-    test('uses tarballs for macOS, Windows, and Linux release candidates', () {
+    test('uses tarballs only for macOS and Windows', () {
       expect(
-        loadDesktopUpdateArtifactPreferences(
-          'macos',
-          AleraUpdateChannel.stable,
+        desktopUpdateArtifactPreferences(
+          platform: 'macos',
+          channel: AleraUpdateChannel.stable,
         ),
-        completion(<String>['tar.gz']),
+        <String>['tar.gz'],
       );
       expect(
-        loadDesktopUpdateArtifactPreferences(
-          'windows',
-          AleraUpdateChannel.stable,
+        desktopUpdateArtifactPreferences(
+          platform: 'windows',
+          channel: AleraUpdateChannel.rc,
         ),
-        completion(<String>['tar.gz']),
+        <String>['tar.gz'],
       );
+    });
+
+    test('uses distribution packages for every Linux release channel', () {
+      for (final channel in AleraUpdateChannel.values) {
+        expect(
+          desktopUpdateArtifactPreferences(
+            platform: 'linux',
+            channel: channel,
+            linuxOsRelease: 'ID=ubuntu\nID_LIKE="debian"\n',
+          ),
+          <String>['deb'],
+        );
+        expect(
+          desktopUpdateArtifactPreferences(
+            platform: 'linux',
+            channel: channel,
+            linuxOsRelease: 'ID="rocky"\nID_LIKE="rhel fedora"\n',
+          ),
+          <String>['rpm'],
+        );
+      }
       expect(
-        loadDesktopUpdateArtifactPreferences('linux', AleraUpdateChannel.rc),
-        completion(<String>['tar.gz']),
+        desktopUpdateArtifactPreferences(
+          platform: 'linux',
+          channel: AleraUpdateChannel.rc,
+          linuxOsRelease: 'ID=arch\n',
+        ),
+        isEmpty,
       );
     });
 

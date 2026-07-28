@@ -53,6 +53,7 @@ void main() {
 
     for (final installerKind in <String>['deb', 'rpm']) {
       test('selects the Linux $installerKind artifact', () async {
+        final stager = _FakeStager();
         final service = DesktopAleraUpdateService(
           config: _config(
             channel: AleraUpdateChannel.rc,
@@ -79,15 +80,79 @@ void main() {
           ),
           loadPackageInfo: () async => _packageInfo('1'),
           loadArtifactPreferences: (_, _) async => <String>[installerKind],
+          stager: stager,
           platform: 'linux',
         );
 
         final result = await service.checkForUpdates();
 
         expect(result.latest?.installerKind, installerKind);
-        expect(result.autoInstallAllowed, isTrue);
+        expect(result.autoInstallAllowed, isFalse);
+        expect(
+          result.message,
+          'Update 1.2.3-rc.0 is available for manual download.',
+        );
+        await expectLater(
+          service.installUpdate(
+            _update(platform: 'linux', installerKind: installerKind),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('apt, dnf'),
+            ),
+          ),
+        );
+        expect(stager.update, isNull);
       });
     }
+
+    test(
+      'keeps legacy Linux tarballs off the automatic install path',
+      () async {
+        final signed = await _signedArchive(<Map<String, Object?>>[
+          _archiveItem(platform: 'linux', installerKind: 'tar.gz'),
+        ]);
+        final stager = _FakeStager();
+        final service = DesktopAleraUpdateService(
+          config: _config(
+            channel: AleraUpdateChannel.rc,
+            autoInstallEnabled: true,
+            signedRelease: true,
+            manifestPublicKey: signed.publicKey,
+          ),
+          client: MockClient((_) async => http.Response(signed.manifest, 200)),
+          loadPackageInfo: () async => _packageInfo('1'),
+          loadArtifactPreferences: (_, _) async => const <String>['tar.gz'],
+          stager: stager,
+          platform: 'linux',
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(result.latest?.installerKind, 'tar.gz');
+        expect(result.autoInstallAllowed, isFalse);
+        expect(
+          result.message,
+          'Linux tarball updates are unsupported. Install the deb or rpm '
+          'package through apt, dnf, or the configured package repository.',
+        );
+        await expectLater(
+          service.installUpdate(
+            _update(platform: 'linux', installerKind: 'tar.gz'),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('apt, dnf'),
+            ),
+          ),
+        );
+        expect(stager.update, isNull);
+      },
+    );
 
     test('reports when no compatible Linux package is published', () async {
       final service = DesktopAleraUpdateService(
@@ -111,7 +176,8 @@ void main() {
       expect(result.latest, isNull);
       expect(
         result.message,
-        'No compatible Linux update artifact is available for this installation.',
+        'No compatible Linux package is available for this distribution. '
+        'Install Alera through apt, dnf, or a supported package repository.',
       );
     });
 
@@ -336,16 +402,20 @@ AleraUpdateConfig _config({
   );
 }
 
-AleraUpdateInfo _update({String version = '1.2.3'}) {
+AleraUpdateInfo _update({
+  String version = '1.2.3',
+  String platform = 'macos',
+  String installerKind = 'tar.gz',
+}) {
   return AleraUpdateInfo(
     version: version,
     shortVersion: 2,
     date: '2026-07-27',
     mandatory: false,
-    url: Uri.parse('https://example.com/alera.tar.gz'),
-    platform: 'macos',
+    url: Uri.parse('https://example.com/alera.$installerKind'),
+    platform: platform,
     changes: const <String>['Update Alera'],
-    installerKind: 'tar.gz',
+    installerKind: installerKind,
     sha256: _sha256,
     size: 42,
   );

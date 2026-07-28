@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/browser/presentation/browser_tab_surface.dart';
+import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_surface.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -39,6 +40,8 @@ part 'workspace_workbench_resize_handle.dart';
 typedef CreateTerminalTabCallback =
     Future<void> Function({String? targetGroupId});
 typedef CreateBrowserTabCallback =
+    Future<void> Function({String? targetGroupId});
+typedef OpenMobileEmulatorTabCallback =
     Future<void> Function({String? targetGroupId});
 typedef OpenFileTabCallback =
     Future<void> Function({
@@ -168,6 +171,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onCreateBrowserTab,
+    this.onOpenMobileEmulator,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
@@ -194,6 +198,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final CreateBrowserTabCallback? onCreateBrowserTab;
+  final OpenMobileEmulatorTabCallback? onOpenMobileEmulator;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
@@ -216,32 +221,51 @@ class WorkspaceWorkbenchView extends StatelessWidget {
           workspaceId: workspace.id,
           tabIds: <String>[for (final tab in tabs) tab.id],
         );
-    return _WorkbenchLayoutView(
-      workspace: workspace,
-      sourceControlScope: sourceControlScope,
-      tabs: tabs,
-      layout: resolvedLayout,
-      node: resolvedLayout.root,
-      nodePath: const <int>[],
-      terminalRuntime: terminalRuntime,
-      mobileDriverPresence: mobileDriverPresence,
-      agentStatuses: agentStatuses,
-      completionAcknowledgements: completionAcknowledgements,
-      onCreateTab: onCreateTab,
-      onCreateBrowserTab: onCreateBrowserTab,
-      onOpenEditorTab: onOpenEditorTab,
-      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
-      onSelectTab: onSelectTab,
-      onCloseTab: onCloseTab,
-      onCloseTabs: onCloseTabs,
-      onRenameTab: onRenameTab,
-      onOpenEditor: onOpenEditor,
-      onOpenMermanPreview: onOpenMermanPreview,
-      onMoveTab: onMoveTab,
-      onSplitGroup: onSplitGroup,
-      onMergeGroup: onMergeGroup,
-      onActivateGroup: onActivateGroup,
-      onUpdateSplitRatio: onUpdateSplitRatio,
+    return _MobileEmulatorOpenScope(
+      onOpen: onOpenMobileEmulator,
+      child: _WorkbenchLayoutView(
+        workspace: workspace,
+        sourceControlScope: sourceControlScope,
+        tabs: tabs,
+        layout: resolvedLayout,
+        node: resolvedLayout.root,
+        nodePath: const <int>[],
+        terminalRuntime: terminalRuntime,
+        mobileDriverPresence: mobileDriverPresence,
+        agentStatuses: agentStatuses,
+        completionAcknowledgements: completionAcknowledgements,
+        onCreateTab: onCreateTab,
+        onCreateBrowserTab: onCreateBrowserTab,
+        onOpenEditorTab: onOpenEditorTab,
+        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
+        onSelectTab: onSelectTab,
+        onCloseTab: onCloseTab,
+        onCloseTabs: onCloseTabs,
+        onRenameTab: onRenameTab,
+        onOpenEditor: onOpenEditor,
+        onOpenMermanPreview: onOpenMermanPreview,
+        onMoveTab: onMoveTab,
+        onSplitGroup: onSplitGroup,
+        onMergeGroup: onMergeGroup,
+        onActivateGroup: onActivateGroup,
+        onUpdateSplitRatio: onUpdateSplitRatio,
+      ),
     );
   }
+}
+
+class _MobileEmulatorOpenScope extends InheritedWidget {
+  const _MobileEmulatorOpenScope({required this.onOpen, required super.child});
+
+  final OpenMobileEmulatorTabCallback? onOpen;
+
+  static OpenMobileEmulatorTabCallback? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_MobileEmulatorOpenScope>()
+        ?.onOpen;
+  }
+
+  @override
+  bool updateShouldNotify(_MobileEmulatorOpenScope oldWidget) =>
+      onOpen != oldWidget.onOpen;
 }

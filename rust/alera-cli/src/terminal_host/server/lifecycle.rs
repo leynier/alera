@@ -1,5 +1,9 @@
 use std::time::Duration;
 
+use serde_json::{json, Value};
+
+use crate::terminal_host::control_file;
+use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::session::Session;
 
@@ -8,7 +12,20 @@ use super::{
     OUTPUT_RESYNC_RETRY_DELAY,
 };
 
+#[cfg(test)]
+mod tests;
+
 impl ServerActor {
+    pub(super) fn promote_persistent(&mut self) -> HostResult<Value> {
+        if !self.config.persistent {
+            control_file::promote_persistent(&self.control_file_path)
+                .map_err(|error| HostError::state(error.to_string()))?;
+            self.config.persistent = true;
+            self.cancel_shutdown_timer();
+        }
+        Ok(json!({"persistent": true}))
+    }
+
     pub(super) async fn apply_config(&mut self, config: TerminalHostConfig) {
         self.config = TerminalHostConfig {
             persistent: self.config.persistent,
@@ -36,12 +53,17 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
-    fn has_authenticated_clients(&self) -> bool {
+    pub(super) fn has_authenticated_clients(&self) -> bool {
         self.clients.values().any(|client| client.authenticated)
     }
 
     fn has_running_sessions(&self) -> bool {
         self.sessions.values().any(Session::running)
+            || self.emulators.as_ref().is_some_and(|emulators| {
+                emulators
+                    .try_lock()
+                    .map_or(true, |manager| manager.active_count() > 0)
+            })
     }
 
     pub(super) fn schedule_shutdown_if_idle(&mut self) {
@@ -50,6 +72,7 @@ impl ServerActor {
             || self.has_authenticated_clients()
             || !self.ssh_bootstrap_jobs.is_empty()
             || self.managed_workspace_jobs > 0
+            || self.emulator_requests.outstanding() > 0
             || !self.project_clone_jobs.is_empty()
             || self.mobile_gateway.is_some()
             || !self.coordinators.is_empty()

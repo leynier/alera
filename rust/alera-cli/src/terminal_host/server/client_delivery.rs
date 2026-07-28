@@ -1,5 +1,5 @@
 use super::*;
-use crate::terminal_host::protocol::PROTOCOL_VERSION;
+use crate::terminal_host::protocol::{MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LocalClientRole {
@@ -42,9 +42,18 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let local_role = requested_local_role(payload);
+        let supports_mobile_emulator_tab_kind = payload
+            .get("supportedTabKinds")
+            .and_then(Value::as_array)
+            .is_some_and(|kinds| {
+                kinds
+                    .iter()
+                    .any(|kind| kind.as_str() == Some(MOBILE_EMULATOR_TAB_KIND))
+            });
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
+            client.supports_mobile_emulator_tab_kind = supports_mobile_emulator_tab_kind;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
             }
@@ -176,6 +185,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::from([(
                 1,
@@ -183,6 +193,7 @@ mod tests {
                     handle: ClientHandle::new(control_out, terminal_out),
                     authenticated: true,
                     binary_frames: false,
+                    supports_mobile_emulator_tab_kind: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
@@ -198,6 +209,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

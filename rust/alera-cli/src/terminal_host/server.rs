@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver, AgentHookEvent};
@@ -23,6 +24,7 @@ use crate::terminal_host::client::{
     connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
 use crate::terminal_host::control_file;
+use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
@@ -64,6 +66,9 @@ mod computer_requests;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
+mod emulator_request_payloads;
+mod emulator_request_queue;
+mod emulator_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod lifecycle;
@@ -85,6 +90,14 @@ mod pty_events;
 mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
+mod runtime_mutation_barrier;
+mod runtime_mutations;
+mod session_termination;
+#[cfg(test)]
+mod session_termination_tests;
+mod tab_compatibility;
+#[cfg(test)]
+mod tab_compatibility_tests;
 mod terminal_driver;
 mod terminal_input_requests;
 mod terminal_launch_defaults;
@@ -162,11 +175,6 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
-    ManagedWorkspaceRemoved {
-        client_id: u64,
-        request_id: i64,
-        result: HostResult<Value>,
-    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
@@ -185,6 +193,18 @@ pub enum ServerCommand {
         result: HostResult<Value>,
         operation_id: Option<String>,
         skill: Option<String>,
+    },
+    EmulatorRequestFinished {
+        client_id: u64,
+        request_id: i64,
+        completion: emulator_request_payloads::EmulatorRequestCompletion,
+    },
+    EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
+    RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
+    EmulatorPointerTimeout {
+        tab_id: String,
+        client_id: u64,
+        generation: u64,
     },
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
@@ -240,6 +260,7 @@ struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
     binary_frames: bool,
+    supports_mobile_emulator_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -279,13 +300,17 @@ pub async fn run_terminal_host_server(
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
-    // Warm the login-shell PATH cache off the terminal-spawn hot path so the
-    // first terminal does not pay the shell-probe latency (or block on a slow
-    // profile). Best-effort: a failed probe is not cached and is retried later.
     tokio::spawn(async {
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
+    let emulators = match EmulatorManager::new(&runtime_dir).await {
+        Ok(manager) => Some(Arc::new(Mutex::new(manager))),
+        Err(error) => {
+            eprintln!("alera emulator manager unavailable: {}", error.message);
+            None
+        }
+    };
     let mut actor = ServerActor {
         runtime_dir,
         control_file_path,
@@ -297,6 +322,7 @@ pub async fn run_terminal_host_server(
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
+        emulator_requests: Default::default(),
         agent_quota_cache: None,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
@@ -308,6 +334,7 @@ pub async fn run_terminal_host_server(
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
         browser: BrowserBroker::default(),
+        emulators,
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -342,6 +369,7 @@ pub async fn run_terminal_host_server(
                 "alera terminal host resumed after {}s of system sleep",
                 slept.as_secs()
             );
+            actor.queue_emulator_park_all();
         }
         actor.handle(command).await;
         if actor.disposed {
@@ -362,6 +390,7 @@ struct ServerActor {
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     managed_workspace_jobs: usize,
+    emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
@@ -373,6 +402,7 @@ struct ServerActor {
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
     browser: BrowserBroker,
+    emulators: Option<Arc<Mutex<EmulatorManager>>>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -543,6 +573,7 @@ impl ServerActor {
                         handle,
                         authenticated: false,
                         binary_frames: false,
+                        supports_mobile_emulator_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -552,6 +583,11 @@ impl ServerActor {
             }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
             ServerCommand::ClientDisconnected { id } => self.dispose_client(id).await,
+            ServerCommand::EmulatorPointerTimeout {
+                tab_id,
+                client_id,
+                generation,
+            } => self.handle_emulator_pointer_timeout(&tab_id, client_id, generation),
             ServerCommand::Pty {
                 session_id,
                 event,
@@ -597,14 +633,6 @@ impl ServerActor {
                 self.handle_managed_workspace_created(client_id, request_id, result)
                     .await
             }
-            ServerCommand::ManagedWorkspaceRemoved {
-                client_id,
-                request_id,
-                result,
-            } => {
-                self.handle_managed_workspace_removed(client_id, request_id, result)
-                    .await
-            }
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
@@ -634,6 +662,19 @@ impl ServerActor {
                 operation_id,
                 skill,
             } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
+            ServerCommand::EmulatorRequestFinished {
+                client_id,
+                request_id,
+                completion,
+            } => {
+                self.handle_emulator_request_finished(client_id, request_id, completion);
+            }
+            ServerCommand::EmulatorMaintenanceFinished(completion) => {
+                self.handle_emulator_maintenance_finished(completion)
+            }
+            ServerCommand::RuntimeMutationFinished(finished) => {
+                self.handle_runtime_mutation_finished(finished).await
+            }
             ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,
                 effective_timeout_ms,
@@ -1100,60 +1141,6 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn terminate_sessions_for_tab(&mut self, tab_id: &str) {
-        let session_ids: Vec<String> = self
-            .sessions
-            .iter()
-            .filter(|(_, session)| session.tab_id == tab_id)
-            .map(|(session_id, _)| session_id.clone())
-            .collect();
-        self.terminate_sessions(session_ids).await;
-    }
-
-    pub(super) async fn terminate_sessions_for_workspace(&mut self, workspace_id: &str) {
-        let session_ids: Vec<String> = self
-            .sessions
-            .iter()
-            .filter(|(_, session)| session.workspace_id == workspace_id)
-            .map(|(session_id, _)| session_id.clone())
-            .collect();
-        self.terminate_sessions(session_ids).await;
-    }
-
-    pub(super) async fn terminate_sessions_for_workspaces(&mut self, workspace_ids: &[String]) {
-        let session_ids: Vec<String> = self
-            .sessions
-            .iter()
-            .filter(|(_, session)| {
-                workspace_ids
-                    .iter()
-                    .any(|workspace_id| workspace_id == &session.workspace_id)
-            })
-            .map(|(session_id, _)| session_id.clone())
-            .collect();
-        self.terminate_sessions(session_ids).await;
-    }
-
-    async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
-        if session_ids.is_empty() {
-            return;
-        }
-        let store = self.store.clone();
-        for session_id in session_ids {
-            self.cleanup_orchestration_for_closed_session(
-                &session_id,
-                "terminal was explicitly terminated",
-            )
-            .await;
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
-            if let Some(mut session) = self.sessions.remove(&session_id) {
-                session.terminate(true, &store).await;
-            }
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
     fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -1168,12 +1155,14 @@ impl ServerActor {
     // --- Client lifecycle -------------------------------------------------
 
     async fn dispose_client(&mut self, client_id: u64) {
-        let Some(_) = self.clients.get(&client_id) else {
+        let Some(client) = self.clients.get(&client_id) else {
             return;
         };
+        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
         // Parked long-poll requests die with their connection.
         self.orchestration_waiters.remove_client(client_id);
         self.handle_browser_client_disconnect(client_id);
+        self.cancel_queued_emulator_requests(client_id);
         // A vanished phone must not leave terminals locked at phone size.
         self.release_mobile_driver_for_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
@@ -1186,6 +1175,9 @@ impl ServerActor {
         }
         // Dropping the handle ends the connection loop and closes the socket.
         self.clients.remove(&client_id);
+        if release_emulator {
+            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
+        }
         self.schedule_shutdown_if_idle();
     }
 
@@ -1223,6 +1215,9 @@ impl ServerActor {
         self.cancel_shutdown_timer();
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
+        }
+        if let Some(emulators) = self.emulators.as_ref() {
+            emulators.lock().await.dispose().await;
         }
         // Closing client handles ends their connection loops.
         self.browser = BrowserBroker::default();
@@ -1278,6 +1273,7 @@ mod tests {
             )]),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
@@ -1289,6 +1285,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1344,6 +1341,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1355,6 +1353,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1385,37 +1384,7 @@ mod tests {
         let port = port_probe.local_addr().unwrap().port();
         drop(port_probe);
         let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store,
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            agent_quota_cache: None,
-            clients: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            browser: BrowserBroker::default(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(1)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
+        let actor = actor_test_harness::test_actor(&dir, HashMap::new(), HashMap::new()).await;
         let settings = MobileAccessSettings {
             enabled: true,
             bind_host: "::1".to_string(),
@@ -1458,6 +1427,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1469,6 +1439,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1537,6 +1508,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1548,6 +1520,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1638,6 +1611,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1649,6 +1623,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1712,6 +1687,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
@@ -1723,6 +1699,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1773,6 +1750,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            emulator_requests: Default::default(),
             agent_quota_cache: None,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
@@ -1788,6 +1766,7 @@ mod tests {
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
+            emulators: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,

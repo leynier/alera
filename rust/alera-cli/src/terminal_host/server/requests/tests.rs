@@ -6,6 +6,56 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 
+#[tokio::test]
+async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::local_client(handle),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+    actor.emulators = None;
+    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "tab.remove",
+                "payload": {"id": "missing-tab"},
+            })
+            .to_string(),
+        )
+        .await;
+    assert_eq!(actor.emulator_requests.outstanding(), 1);
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 2,
+                "type": "host.shutdown",
+                "payload": {},
+            })
+            .to_string(),
+        )
+        .await;
+
+    let response = receiver.recv().await.unwrap().as_json().unwrap();
+    assert_eq!(response["id"], 2);
+    assert_eq!(response["ok"], false);
+    assert!(!response["error"].as_str().unwrap().is_empty());
+    while let Ok(command) = inbox_receiver.try_recv() {
+        assert!(!matches!(command, ServerCommand::RequestedShutdown));
+    }
+}
+
 #[test]
 fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("workspace.setPinned"));
@@ -38,6 +88,28 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("browser.capabilities"));
     assert!(!mobile_request_allowed("browser.tabs.open"));
     assert!(!mobile_request_allowed("browser.driver.register"));
+}
+
+#[test]
+fn mobile_allowlist_excludes_emulator_verbs() {
+    for request in [
+        "emulator.capabilities",
+        "emulator.list",
+        "emulator.attach",
+        "emulator.detach",
+        "emulator.tap",
+        "emulator.gesture",
+        "emulator.type",
+        "emulator.key",
+        "emulator.button",
+        "emulator.rotate",
+        "emulator.shutdown",
+    ] {
+        assert!(
+            !mobile_request_allowed(request),
+            "{request} must stay desktop-only"
+        );
+    }
 }
 
 #[test]

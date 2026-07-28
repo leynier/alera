@@ -16,6 +16,8 @@ const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';
+const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';
+const String aleraMobileEmulatorTabKind = 'mobileEmulator';
 
 /// The host will switch this connection to length-prefixed binary frames if
 /// the client asks for it in `hello`. Negotiated per client, so an older app

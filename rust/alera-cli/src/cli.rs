@@ -5,10 +5,12 @@ use crate::terminal_host::protocol::{
 };
 mod browser;
 mod computer;
+mod emulator;
 mod mobile;
 
 pub use browser::*;
 pub use computer::*;
+pub use emulator::*;
 pub use mobile::*;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -64,6 +66,9 @@ pub enum Command {
 
     /// Inspect and automate browser tabs owned by the Alera desktop app.
     Browser(BrowserCommand),
+
+    /// Inspect and automate Android emulators and iOS simulators.
+    Emulator(EmulatorCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),

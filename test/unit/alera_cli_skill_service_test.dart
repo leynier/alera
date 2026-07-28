@@ -22,6 +22,16 @@ void main() {
       );
     });
 
+    test('builds the emulator skill command', () {
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.npx,
+          skill: AleraAgentSkill.emulator,
+        ),
+        'npx skills add https://github.com/leynier/alera --skill alera-emulator --global',
+      );
+    });
+
     test('passes hydrated environment to npx', () async {
       final runner = _FakeProcessRunner(<ProcessRunOutput>[
         const ProcessRunOutput(exitCode: 0, stdout: 'ok', stderr: ''),

@@ -8,6 +8,7 @@ import 'package:alera/src/features/agent_status/infra/managed_agent_hook_install
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
@@ -166,6 +167,25 @@ void main() {
       find.text('Install Complete (npx) · Selected Hooks Ready'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('emulator control installs the emulator skill', (tester) async {
+    final service = _FakeAleraCliSkillService();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(body: AleraEmulatorSkillControl()),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Install / Update'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(service.skill, AleraAgentSkill.emulator);
   });
 
   testWidgets('registration control surfaces install failures', (tester) async {

@@ -50,14 +50,12 @@ void main() {
   group('DesktopUpdateHandoff', () {
     for (final installerKind in <String>['deb', 'rpm']) {
       test(
-        'installs a Linux $installerKind package before relaunch and exit',
+        'rejects Linux $installerKind packages without changing the install',
         () async {
-          final runner = _RecordingProcessRunner()
-            ..runResults.add(
-              const ProcessRunOutput(exitCode: 0, stdout: '', stderr: ''),
-            );
+          final runner = _RecordingProcessRunner();
           var exitCalls = 0;
           final staged = await _packageStage(installerKind);
+          addTearDown(staged.delete);
           final handoff = DesktopUpdateHandoff(
             processRunner: runner,
             platform: 'linux',
@@ -65,61 +63,24 @@ void main() {
             exitApp: () => exitCalls += 1,
           );
 
-          await handoff.applyAndRestart(staged);
-
-          expect(runner.runs.single.executable, 'pkexec');
-          expect(
-            runner.runs.single.arguments,
-            installerKind == 'deb'
-                ? <String>['dpkg', '--install', staged.artifactPath]
-                : <String>[
-                    'rpm',
-                    '--upgrade',
-                    '--replacepkgs',
-                    staged.artifactPath,
-                  ],
+          await expectLater(
+            handoff.applyAndRestart(staged),
+            throwsA(
+              isA<StateError>().having(
+                (error) => error.message,
+                'message',
+                contains('apt, dnf'),
+              ),
+            ),
           );
-          expect(runner.starts.single.executable, '/opt/alera/alera');
-          expect(exitCalls, 1);
-          expect(await staged.directory.exists(), isFalse);
+
+          expect(runner.runs, isEmpty);
+          expect(runner.starts, isEmpty);
+          expect(exitCalls, 0);
+          expect(await staged.directory.exists(), isTrue);
         },
       );
     }
-
-    test('keeps Alera running when a Linux package install fails', () async {
-      final runner = _RecordingProcessRunner()
-        ..runResults.add(
-          const ProcessRunOutput(
-            exitCode: 1,
-            stdout: '',
-            stderr: 'Authentication was cancelled.',
-          ),
-        );
-      var exitCalls = 0;
-      final staged = await _packageStage('deb');
-      addTearDown(staged.delete);
-      final handoff = DesktopUpdateHandoff(
-        processRunner: runner,
-        platform: 'linux',
-        resolvedExecutable: '/opt/alera/alera',
-        exitApp: () => exitCalls += 1,
-      );
-
-      await expectLater(
-        handoff.applyAndRestart(staged),
-        throwsA(
-          isA<ProcessException>().having(
-            (error) => error.message,
-            'message',
-            contains('Authentication was cancelled'),
-          ),
-        ),
-      );
-
-      expect(exitCalls, 0);
-      expect(runner.starts, isEmpty);
-      expect(await staged.directory.exists(), isTrue);
-    });
 
     for (final fixture
         in <
@@ -141,12 +102,6 @@ void main() {
             resolvedExecutable: r'C:\Program Files\Alera\Alera.exe',
             command: 'powershell.exe',
             scriptName: 'apply-update.ps1',
-          ),
-          (
-            platform: 'linux',
-            resolvedExecutable: '/opt/alera/alera',
-            command: '/bin/sh',
-            scriptName: 'apply-update.sh',
           ),
         ]) {
       test(
@@ -183,8 +138,8 @@ void main() {
       );
     }
 
-    test('does not exit when the replacement helper rejects handoff', () async {
-      final runner = _RecordingProcessRunner()..helperExitCode = 3;
+    test('rejects Linux tarballs without replacing the installation', () async {
+      final runner = _RecordingProcessRunner();
       var exitCalls = 0;
       final staged = await _tarballStage('linux');
       addTearDown(staged.delete);
@@ -192,6 +147,35 @@ void main() {
         processRunner: runner,
         platform: 'linux',
         resolvedExecutable: '/opt/alera/alera',
+        exitApp: () => exitCalls += 1,
+        installRootExists: (_) async => true,
+      );
+
+      await expectLater(
+        handoff.applyAndRestart(staged),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('apt, dnf'),
+          ),
+        ),
+      );
+
+      expect(runner.runs, isEmpty);
+      expect(runner.starts, isEmpty);
+      expect(exitCalls, 0);
+    });
+
+    test('does not exit when the replacement helper rejects handoff', () async {
+      final runner = _RecordingProcessRunner()..helperExitCode = 3;
+      var exitCalls = 0;
+      final staged = await _tarballStage('macos');
+      addTearDown(staged.delete);
+      final handoff = DesktopUpdateHandoff(
+        processRunner: runner,
+        platform: 'macos',
+        resolvedExecutable: '/Applications/Alera.app/Contents/MacOS/Alera',
         exitApp: () => exitCalls += 1,
         installRootExists: (_) async => true,
         handoffTimeout: const Duration(seconds: 1),
@@ -251,7 +235,6 @@ AleraUpdateInfo _update(String platform, String installerKind) {
 class _RecordingProcessRunner implements ProcessRunner {
   final List<_Invocation> runs = <_Invocation>[];
   final List<_Invocation> starts = <_Invocation>[];
-  final List<ProcessRunOutput> runResults = <ProcessRunOutput>[];
   bool createHandoffMarkerOnStart = false;
   int? helperExitCode;
 
@@ -263,7 +246,7 @@ class _RecordingProcessRunner implements ProcessRunner {
     Map<String, String>? environment,
   }) async {
     runs.add(_Invocation(executable, arguments));
-    return runResults.removeAt(0);
+    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
   }
 
   @override

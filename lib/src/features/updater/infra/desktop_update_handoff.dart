@@ -37,46 +37,13 @@ class DesktopUpdateHandoff implements AleraDesktopUpdateHandoff {
 
   @override
   Future<void> applyAndRestart(StagedDesktopUpdate stagedUpdate) async {
-    if (platform == 'linux' &&
-        (stagedUpdate.update.installerKind == 'deb' ||
-            stagedUpdate.update.installerKind == 'rpm')) {
-      await _installLinuxPackage(stagedUpdate);
-      return;
-    }
-    await _launchReplacementHelper(stagedUpdate);
-  }
-
-  Future<void> _installLinuxPackage(StagedDesktopUpdate stagedUpdate) async {
-    final arguments = switch (stagedUpdate.update.installerKind) {
-      'deb' => <String>['dpkg', '--install', stagedUpdate.artifactPath],
-      'rpm' => <String>[
-        'rpm',
-        '--upgrade',
-        '--replacepkgs',
-        stagedUpdate.artifactPath,
-      ],
-      _ => throw StateError('Unsupported Linux package type.'),
-    };
-    final result = await processRunner.run('pkexec', arguments);
-    if (result.exitCode != 0) {
-      final details = result.stderr.trim();
-      throw ProcessException(
-        'pkexec',
-        arguments,
-        details.isEmpty
-            ? 'The package installer exited with code ${result.exitCode}.'
-            : details,
-        result.exitCode,
+    if (platform == 'linux') {
+      throw StateError(
+        'Automatic Linux updates are disabled. Install the deb or rpm '
+        'package through apt, dnf, or the configured package repository.',
       );
     }
-
-    await processRunner.start(
-      _resolvedExecutable,
-      const <String>[],
-      workingDirectory: p.dirname(_resolvedExecutable),
-    );
-    await stagedUpdate.delete();
-    await _exitApp();
+    await _launchReplacementHelper(stagedUpdate);
   }
 
   Future<void> _launchReplacementHelper(

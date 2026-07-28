@@ -64,6 +64,29 @@ jobs:
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
 
+      - name: Verify bundled helper and video runtimes
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          case "$PLATFORM" in
+            macos)
+              bundle="$(find build/macos/Build/Products/Release -maxdepth 1 -type d -name '*.app' -print -quit)"
+              ;;
+            windows)
+              executable="$(find build/windows -type f -name 'Alera.exe' -path '*/Release/*' -print -quit)"
+              bundle="$(dirname "$executable")"
+              ;;
+            linux)
+              bundle="build/linux/x64/release/bundle"
+              ;;
+          esac
+          test -d "$bundle" || { echo "::error::Missing desktop bundle for $PLATFORM"; exit 1; }
+          dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
+            --platform "$PLATFORM" \
+            --bundle "$bundle"
+
       # The cargokit temp directory layout differs per platform and is only
       # confirmed for Linux, so report what was actually produced until the
       # macOS and Windows paths have been observed on a real run.

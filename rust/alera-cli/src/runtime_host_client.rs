@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
-use alera_core::child_process::windowless_async_command;
+use alera_core::child_process::detached_windowless_async_command;
 use anyhow::{anyhow, Context, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -14,11 +14,13 @@ use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout, Instant};
 use uuid::Uuid;
 
+mod persistence;
+
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
-    DEFAULT_SCROLLBACK_BYTES, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY,
+    DEFAULT_SCROLLBACK_BYTES, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
 };
 
 const CONTROL_FILE_NAME: &str = "host.json";
@@ -93,10 +95,7 @@ impl RuntimeHostRpcClient {
     }
 
     pub(crate) async fn connect_or_start_persistent(runtime_dir: &Path) -> Result<Self> {
-        if let Some(client) = Self::connect(runtime_dir).await? {
-            return Ok(client);
-        }
-        Self::start(runtime_dir, None, true).await
+        persistence::connect_or_start_persistent(runtime_dir).await
     }
 
     pub(crate) async fn connect_or_start_mobile(runtime_dir: &Path) -> Result<Self> {
@@ -126,7 +125,7 @@ impl RuntimeHostRpcClient {
         let _ = tokio::fs::remove_file(&control_file).await;
         let token = Uuid::new_v4().to_string();
         let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
-        let mut command = windowless_async_command(executable);
+        let mut command = detached_windowless_async_command(executable);
         command
             .arg("runtime-host")
             .arg("--runtime-dir")
@@ -208,11 +207,7 @@ impl RuntimeHostRpcClient {
             writer: write_half,
             next_request_id: 1,
         };
-        let hello = json!({
-            "protocolVersion": PROTOCOL_VERSION,
-            "token": control.token,
-            "clientKind": "cli",
-        });
+        let hello = control_hello_payload(control);
         match timeout(REQUEST_TIMEOUT, client.request_value("hello", &hello)).await {
             Ok(Ok(_)) => Ok(Some(client)),
             Ok(Err(_)) | Err(_) => Ok(None),
@@ -326,6 +321,15 @@ impl RuntimeHostControl {
     }
 }
 
+fn control_hello_payload(control: &RuntimeHostControl) -> Value {
+    json!({
+        "protocolVersion": PROTOCOL_VERSION,
+        "token": control.token,
+        "clientKind": "cli",
+        "supportedTabKinds": [MOBILE_EMULATOR_TAB_KIND],
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,6 +386,21 @@ mod tests {
             RUNTIME_HOST_MOBILE_CAPABILITY,
         ];
         assert!(control(&with_mobile).is_usable(Some(RUNTIME_HOST_MOBILE_CAPABILITY)));
+    }
+
+    #[test]
+    fn cli_hello_declares_mobile_emulator_tab_support() {
+        let payload = control_hello_payload(&control(&[
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        ]));
+
+        assert_eq!(payload["clientKind"], json!("cli"));
+        assert_eq!(
+            payload["supportedTabKinds"],
+            json!([MOBILE_EMULATOR_TAB_KIND])
+        );
     }
 
     #[tokio::test]

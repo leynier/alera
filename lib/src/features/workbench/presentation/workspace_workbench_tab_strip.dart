@@ -142,6 +142,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
     final browserButton = widget.onCreateBrowserTab == null
         ? null
         : _NewBrowserButton(onPressed: widget.onCreateBrowserTab!);
+    final emulatorButton = _NewMobileEmulatorButton(groupId: widget.groupId);
     return ColoredBox(
       color: AleraTokens.surface,
       child: _TabStripAppendDropTarget(
@@ -204,8 +205,11 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                             onSplit: widget.onSplitGroup,
                           ),
                         ),
-                      if (!_hasOverflow) addButton,
-                      if (!_hasOverflow && browserButton != null) browserButton,
+                      if (!_hasOverflow) ...<Widget>[
+                        emulatorButton,
+                        addButton,
+                        ?browserButton,
+                      ],
                     ],
                   ),
                 ),
@@ -215,7 +219,11 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                   padding: const EdgeInsets.only(right: AleraTokens.space8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[addButton, ?browserButton],
+                    children: <Widget>[
+                      emulatorButton,
+                      addButton,
+                      ?browserButton,
+                    ],
                   ),
                 ),
               _PaneMenuButton(
@@ -406,6 +414,28 @@ class _NewBrowserButton extends StatelessWidget {
       hoverColor: AleraTokens.surfaceElevated,
       borderRadius: AleraTokens.radiusSm,
       onPressed: onPressed,
+    );
+  }
+}
+
+class _NewMobileEmulatorButton extends StatelessWidget {
+  const _NewMobileEmulatorButton({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context) {
+    final onOpen = _MobileEmulatorOpenScope.maybeOf(context);
+    return AleraIconButton(
+      tooltip: 'Open Mobile Emulator',
+      icon: AleraIcons.mobileDevice,
+      iconSize: 16,
+      minSize: 28,
+      hoverColor: AleraTokens.surfaceElevated,
+      borderRadius: AleraTokens.radiusSm,
+      onPressed: onOpen == null
+          ? null
+          : () => unawaited(onOpen(targetGroupId: groupId)),
     );
   }
 }
