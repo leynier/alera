@@ -15,7 +15,6 @@ import 'package:alera/src/features/workbench/application/workbench_listing.dart'
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
-import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_activity_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
@@ -80,11 +79,6 @@ WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
   );
 }
 
-@Riverpod(keepAlive: true)
-SidebarOrderMemory sidebarOrderMemory(Ref ref) {
-  return SidebarOrderMemory();
-}
-
 /// The sidebar row list, recomputed once per state change instead of once per
 /// widget rebuild.
 ///
@@ -96,7 +90,6 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   final state = ref.watch(
     workbenchControllerProvider.select(
       (state) => (
-        activeWorkspaceId: state.activeWorkspaceId,
         projects: state.projects,
         searchQuery: state.searchQuery,
         tabsByWorkspace: state.tabsByWorkspace,
@@ -105,22 +98,17 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
       ),
     ),
   );
-  final orderMemory = ref.read(sidebarOrderMemoryProvider);
-  final rows = buildSidebarRows(
+  return buildSidebarRows(
     WorkbenchState(
       projects: state.projects,
       workspacesByProject: state.workspacesByProject,
       tabsByWorkspace: state.tabsByWorkspace,
       viewPrefs: state.viewPrefs,
-      activeWorkspaceId: state.activeWorkspaceId,
       searchQuery: state.searchQuery,
     ),
     agentStatuses: ref.watch(agentStatusControllerProvider),
     lastActivityByWorkspaceId: ref.watch(workspaceActivityControllerProvider),
-    previousWorkspaceOrder: orderMemory.order,
   );
-  orderMemory.order = workspaceOrderOfRows(rows);
-  return rows;
 }
 
 /// Keeps the terminal runtime's pinned workspace in sync with the active one,

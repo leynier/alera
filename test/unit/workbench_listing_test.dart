@@ -608,7 +608,7 @@ void main() {
       expect(headers.first.project.id, 'p-alera');
     });
 
-    test('the active workspace keeps its previous position', () {
+    test('the selected workspace does not override strict activity order', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         groupBy: WorkbenchGroupBy.none,
         workspaceSort: WorkbenchSortBy.activity,
@@ -618,17 +618,15 @@ void main() {
         state,
         agentStatuses: activityStatuses(state),
         now: _t0,
-        // Previous render had the active workspace first.
-        previousWorkspaceOrder: <String>['w-working', 'w-waiting', 'w-idle'],
       );
       final ids = rows
           .whereType<WorkbenchWorkspaceRow>()
           .map((r) => r.workspace.id)
           .toList();
-      expect(ids.first, 'w-working');
+      expect(ids, <String>['w-waiting', 'w-working', 'w-idle']);
     });
 
-    test('idle workspaces fall back to the persisted activity timestamp', () {
+    test('inactive workspaces ignore recency and sort alphabetically', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         groupBy: WorkbenchGroupBy.none,
         workspaceSort: WorkbenchSortBy.activity,
@@ -655,7 +653,7 @@ void main() {
           .whereType<WorkbenchWorkspaceRow>()
           .map((r) => r.workspace.id)
           .toList();
-      expect(ids, <String>['w-b', 'w-a']);
+      expect(ids, <String>['w-a', 'w-b']);
     });
   });
 

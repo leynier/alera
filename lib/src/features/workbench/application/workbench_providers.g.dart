@@ -154,54 +154,6 @@ final class WorkbenchViewPrefsRepositoryProvider
 String _$workbenchViewPrefsRepositoryHash() =>
     r'307cb46e7f48379a186243cc2863d6f89141eebc';
 
-@ProviderFor(sidebarOrderMemory)
-final sidebarOrderMemoryProvider = SidebarOrderMemoryProvider._();
-
-final class SidebarOrderMemoryProvider
-    extends
-        $FunctionalProvider<
-          SidebarOrderMemory,
-          SidebarOrderMemory,
-          SidebarOrderMemory
-        >
-    with $Provider<SidebarOrderMemory> {
-  SidebarOrderMemoryProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'sidebarOrderMemoryProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$sidebarOrderMemoryHash();
-
-  @$internal
-  @override
-  $ProviderElement<SidebarOrderMemory> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  SidebarOrderMemory create(Ref ref) {
-    return sidebarOrderMemory(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(SidebarOrderMemory value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<SidebarOrderMemory>(value),
-    );
-  }
-}
-
-String _$sidebarOrderMemoryHash() =>
-    r'63af5266267a090aad55563c87262c6ea27d6a5b';
-
 /// The sidebar row list, recomputed once per state change instead of once per
 /// widget rebuild.
 ///
@@ -268,7 +220,7 @@ final class WorkbenchSidebarRowsProvider
 }
 
 String _$workbenchSidebarRowsHash() =>
-    r'f549c71cd45c77050faa6ce3d2908407e9911a01';
+    r'9f8ecfca092c1ba351c67de8e473579701ca983e';
 
 /// Keeps the terminal runtime's pinned workspace in sync with the active one,
 /// so the memory budget never evicts a terminal in the workspace being worked
