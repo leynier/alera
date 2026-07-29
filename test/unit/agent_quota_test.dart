@@ -58,6 +58,9 @@ void main() {
     });
 
     expect(snapshot.provider, AgentQuotaProviderId.codex);
+    expect(snapshot.key, 'codex:default');
+    expect(snapshot.pinKey, 'codex');
+    expect(snapshot.hasUsage, isTrue);
     expect(snapshot.remainingPercent, 35);
     expect(snapshot.windows.first.remainingPercent, 80);
   });
@@ -83,6 +86,59 @@ void main() {
     );
     expect(snapshot.rateLimitResetCredits?.offerRevision, 'opaque-revision');
     expect(snapshot.rateLimitResetCredits?.canConsume, isTrue);
+  });
+
+  test('defaults malformed Codex reset credit metadata safely', () {
+    final credits = CodexResetCredits.fromJson(<String, Object?>{
+      'availableCount': -1,
+    });
+
+    expect(credits.availableCount, 0);
+    expect(credits.totalEarnedCount, isNull);
+    expect(credits.nextExpiresAt, isNull);
+    expect(credits.offerRevision, isEmpty);
+    expect(credits.canConsume, isFalse);
+  });
+
+  test('parses a consumed Codex reset response', () {
+    final result = CodexResetConsumeResult.fromJson(<String, Object?>{
+      'status': 'consumed',
+      'outcome': 'reset',
+      'reason': 'Reset applied.',
+      'snapshot': <String, Object?>{'provider': 'codex', 'status': 'ok'},
+    });
+
+    expect(result.status, CodexResetConsumeStatus.consumed);
+    expect(result.outcome, CodexResetConsumeOutcome.reset);
+    expect(result.reason, 'Reset applied.');
+    expect(result.snapshot.provider, AgentQuotaProviderId.codex);
+  });
+
+  test('defaults unknown Codex reset response values to rejected', () {
+    final result = CodexResetConsumeResult.fromJson(<String, Object?>{
+      'status': 'unknown',
+      'outcome': 'unknown',
+      'snapshot': <String, Object?>{'provider': 'codex', 'status': 'ok'},
+    });
+
+    expect(result.status, CodexResetConsumeStatus.rejected);
+    expect(result.outcome, isNull);
+    expect(result.reason, isNull);
+  });
+
+  test('rejects a Codex reset response without a snapshot', () {
+    expect(
+      () => CodexResetConsumeResult.fromJson(<String, Object?>{
+        'status': 'consumed',
+      }),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          'Codex reset response missing snapshot.',
+        ),
+      ),
+    );
   });
 
   test(
@@ -152,6 +208,18 @@ void main() {
       same(snapshot),
     );
     expect(state.snapshot(AgentQuotaProviderId.codex), isNull);
+  });
+
+  test('creates an empty quota state at the epoch', () {
+    final state = AgentQuotaState.empty('local');
+
+    expect(state.hostId, 'local');
+    expect(state.snapshots, isEmpty);
+    expect(state.environment, isEmpty);
+    expect(
+      state.fetchedAt,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
   });
 
   test('tryFromJson returns null for an unknown provider name', () {
