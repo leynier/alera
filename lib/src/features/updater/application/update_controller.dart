@@ -1,9 +1,13 @@
 import 'package:alera/src/features/updater/application/update_providers.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'update_controller.g.dart';
+
+final Logger _log = Logger('UpdateController');
 
 @Riverpod(keepAlive: true)
 class AleraUpdateController extends _$AleraUpdateController {
@@ -60,7 +64,8 @@ class AleraUpdateController extends _$AleraUpdateController {
                 : 'Update ${latest.version} is available for manual download.'),
         progress: 0,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning('update check failed', error, stackTrace);
       if (_disposed) {
         return;
       }
@@ -75,6 +80,10 @@ class AleraUpdateController extends _$AleraUpdateController {
   Future<void> installLatest() async {
     final latest = state.latest;
     if (latest == null || state.isBusy) {
+      return;
+    }
+    if (_service.packageInstall.canRunUpgrade) {
+      await upgradeThroughPackageManager();
       return;
     }
     if (!state.config.canAutoInstall) {
@@ -115,7 +124,10 @@ class AleraUpdateController extends _$AleraUpdateController {
         message: 'Update handoff complete. Alera will restart shortly.',
         progress: 1,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      // The banner message is gone as soon as it is dismissed, and a failed
+      // install is exactly the kind of thing reported after the fact.
+      _log.severe('update installation failed', error, stackTrace);
       if (_disposed) {
         return;
       }
@@ -124,6 +136,37 @@ class AleraUpdateController extends _$AleraUpdateController {
         message:
             'Update installation failed: $error '
             'Alera is still running. Try again.',
+      );
+    }
+  }
+
+  /// Hands the upgrade to the package manager that owns this installation.
+  ///
+  /// Alera closes as part of this call and the helper reopens it, so the
+  /// success path never reaches the state assignment below: only a failure to
+  /// even start the helper does.
+  Future<void> upgradeThroughPackageManager() async {
+    if (state.isBusy) {
+      return;
+    }
+    final manager = packageManagerLabel(_service.packageInstall.method);
+    state = state.copyWith(
+      status: AleraUpdateStatus.applying,
+      message: 'Upgrading through $manager. Alera will close and reopen.',
+      progress: 0,
+    );
+    try {
+      await _service.upgradeThroughPackageManager();
+    } catch (error) {
+      if (_disposed) {
+        return;
+      }
+      state = state.copyWith(
+        status: AleraUpdateStatus.error,
+        message:
+            'The $manager upgrade could not be started: $error '
+            'Alera is still running. Try the command below instead.',
+        progress: 0,
       );
     }
   }

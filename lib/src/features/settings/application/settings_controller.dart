@@ -7,6 +7,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'settings_controller.g.dart';
@@ -31,8 +32,21 @@ class SettingsController extends _$SettingsController {
     return AleraSettings.defaults;
   }
 
+  /// Loads persisted settings, keeping the defaults if that fails.
+  ///
+  /// Callers start this without awaiting it, so a throw here used to escape as
+  /// an uncaught zone error that nothing recorded. Settings failing to load is
+  /// worth a log line, not a crash: the defaults are a usable state.
   Future<void> load() async {
-    state = await _repository.load();
+    try {
+      state = await _repository.load();
+    } on Object catch (error, stackTrace) {
+      Logger('SettingsController').warning(
+        'failed to load settings; keeping the current values',
+        error,
+        stackTrace,
+      );
+    }
   }
 
   Future<void> updateTerminal(TerminalSettings settings) async {
@@ -74,6 +88,26 @@ class SettingsController extends _$SettingsController {
     await _save(
       state.copyWith(
         general: state.general.copyWith(confirmProjectRemoval: value),
+      ),
+    );
+  }
+
+  Future<void> setDiagnosticsLogLevel(DiagnosticsLogLevel value) async {
+    if (state.diagnostics.logLevel == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(diagnostics: state.diagnostics.copyWith(logLevel: value)),
+    );
+  }
+
+  Future<void> setCrashReportingEnabled(bool value) async {
+    if (state.diagnostics.crashReportingEnabled == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        diagnostics: state.diagnostics.copyWith(crashReportingEnabled: value),
       ),
     );
   }

@@ -22,7 +22,7 @@ impl ServerActor {
         {
             Ok(dispatch) => dispatch,
             Err(error) => {
-                eprintln!(
+                tracing::error!(
                     "failed to inspect active orchestration dispatch for exited terminal {session_id}: {error}"
                 );
                 return;
@@ -44,7 +44,7 @@ impl ServerActor {
                     self.mark_owned_spawn_failure(session_id, reason).await;
                 }
                 Err(error) => {
-                    eprintln!(
+                    tracing::error!(
                         "failed to record orchestration startup exit for task {}: {error}",
                         metadata.task_id
                     );
@@ -66,7 +66,7 @@ impl ServerActor {
                 .await
         };
         if let Err(error) = result {
-            eprintln!(
+            tracing::error!(
                 "failed to mark orchestration dispatch {} failed after terminal close: {error}",
                 dispatch.id
             );

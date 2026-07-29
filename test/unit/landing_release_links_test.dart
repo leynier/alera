@@ -50,6 +50,34 @@ void main() {
       );
     });
 
+    // The download page is the only place that spells these commands out, so a
+    // rename of the tap, the bucket, or the package would go unnoticed here.
+    test('shows the package-manager commands the release cut publishes', () {
+      final page = File(_downloadPage).readAsStringSync();
+      final workflow = File(_workflow).readAsStringSync();
+
+      expect(page, contains('brew install --cask alera'));
+      expect(page, contains('scoop install leynier/alera'));
+      expect(page, contains('choco install alera'));
+
+      expect(workflow, contains('publish_manifest leynier/homebrew-tap'));
+      expect(workflow, contains('publish_manifest leynier/scoop-bucket'));
+      // One deploy key per destination, never an account-wide token: a key that
+      // leaks or needs rotating must not reach the rest of the account.
+      expect(workflow, contains('ALERA_HOMEBREW_TAP_DEPLOY_KEY'));
+      expect(workflow, contains('ALERA_SCOOP_BUCKET_DEPLOY_KEY'));
+      expect(
+        workflow,
+        isNot(contains('StrictHostKeyChecking=accept-new')),
+        reason: 'the host keys are pinned from api.github.com/meta instead',
+      );
+      expect(
+        page,
+        contains('https://github.com/leynier/scoop-bucket'),
+        reason: 'the bucket URL is what scoop bucket add takes',
+      );
+    });
+
     test('points at the release download path, not a listing', () {
       final page = File(_downloadPage).readAsStringSync();
 

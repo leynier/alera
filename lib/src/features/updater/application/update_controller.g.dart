@@ -42,7 +42,7 @@ final class AleraUpdateControllerProvider
 }
 
 String _$aleraUpdateControllerHash() =>
-    r'5250c3a2acfd20e758b5264153fb1ef581fa02a9';
+    r'8efaca010b75c193830802275d8196cdb60458e2';
 
 abstract class _$AleraUpdateController extends $Notifier<AleraUpdateState> {
   AleraUpdateState build();

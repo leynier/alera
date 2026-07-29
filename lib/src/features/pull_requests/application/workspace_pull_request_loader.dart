@@ -15,8 +15,11 @@ import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_s
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
+import 'package:logging/logging.dart';
 
 /// Loads the forge and repository snapshot displayed by the pull-request panel.
+final Logger _log = Logger('WorkspacePullRequestLoader');
+
 class WorkspacePullRequestLoader {
   const WorkspacePullRequestLoader(
     this._gitBackend,
@@ -155,7 +158,14 @@ class WorkspacePullRequestLoader {
     List<String> raw;
     try {
       raw = await _gitBackend.listBranches(scope.repoPath);
-    } on GitException {
+    } on GitException catch (error, stackTrace) {
+      // An empty list leaves the create form with no base branch to pick and
+      // nothing on screen saying why.
+      _log.warning(
+        'could not list base branches for ${scope.repoPath}',
+        error,
+        stackTrace,
+      );
       raw = const <String>[];
     }
     final branches = normalizeBaseBranches(raw);
@@ -215,7 +225,14 @@ class WorkspacePullRequestLoader {
     List<GitRemote> remotes;
     try {
       remotes = await _gitBackend.listRemotes(scope.repoPath);
-    } on GitException {
+    } on GitException catch (error, stackTrace) {
+      // Reported as "no remote", which is also what a broken repository looks
+      // like from here; the git error is the only way to tell them apart.
+      _log.warning(
+        'could not list remotes for ${scope.repoPath}',
+        error,
+        stackTrace,
+      );
       return (identity: null, reason: PullRequestUnavailableReason.noRemote);
     }
     final resolution = resolveHostingProvider(

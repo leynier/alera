@@ -11,9 +11,15 @@ class _FakeUpdateService implements AleraUpdateService {
   );
 
   @override
+  final PackageManagerInstall packageInstall = PackageManagerInstall.unmanaged;
+
+  @override
   Future<AleraUpdateCheckResult> checkForUpdates() async {
     return const AleraUpdateCheckResult(message: 'Alera is up to date.');
   }
+
+  @override
+  Future<void> upgradeThroughPackageManager() async {}
 
   @override
   Future<void> installUpdate(

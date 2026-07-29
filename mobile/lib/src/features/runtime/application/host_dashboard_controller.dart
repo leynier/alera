@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.d
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'host_dashboard_controller.g.dart';
 
@@ -35,9 +36,15 @@ Future<HostDashboardData> hostDashboardData(Ref ref, String hostId) async {
   for (final project in projects.take(dashboardProjectBranchLimit)) {
     try {
       branchesByProject[project.id] = await client.listBranches(project.id);
-    } on Object {
+    } on Object catch (error, stackTrace) {
       // Branch discovery can fail for invalid or moved repos; keep the
-      // dashboard usable and surface the project/workspace state.
+      // dashboard usable and surface the project/workspace state. The project
+      // then shows no branches, which is worth being able to explain.
+      Logger('HostDashboardController').warning(
+        'could not list branches for project ${project.id}',
+        error,
+        stackTrace,
+      );
     }
   }
   return HostDashboardData(

@@ -85,6 +85,13 @@ void main() {
     });
 
     test('small settings fragments round-trip through json', () {
+      final diagnostics = DiagnosticsSettings.fromJson(<String, Object?>{
+        'logLevel': 'debug',
+        'crashReportingEnabled': true,
+      });
+      expect(diagnostics.logLevel, DiagnosticsLogLevel.debug);
+      expect(diagnostics.crashReportingEnabled, isTrue);
+
       final overrides = TerminalColorOverrides.fromJson(<String, Object?>{
         'foreground': '#ffffff',
         'selection': '#123456',

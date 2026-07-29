@@ -2,6 +2,7 @@ import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -244,6 +245,91 @@ void main() {
       expect(state.message, contains('Alera is still running'));
     });
 
+    // A Homebrew or Scoop installation must never be replaced behind the
+    // manager's back, so the same button hands the upgrade to the manager.
+    test(
+      'installLatest hands a managed install to its package manager',
+      () async {
+        final service = _FakeUpdateService(
+          config: AleraUpdateConfig(
+            archiveUrl: _archiveUrl,
+            releasePageUrl: _releasePageUrl,
+            channel: AleraUpdateChannel.stable,
+            autoInstallEnabled: true,
+            signedRelease: false,
+          ),
+          result: AleraUpdateCheckResult(latest: _update),
+          packageInstall: const PackageManagerInstall(
+            method: PackageInstallMethod.homebrewCask,
+            managerExecutable: '/opt/homebrew/bin/brew',
+            relaunchExecutable: '/usr/bin/open',
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(
+          aleraUpdateControllerProvider.notifier,
+        );
+
+        await controller.checkForUpdates();
+        await controller.installLatest();
+
+        expect(service.packageUpgradeCalls, 1);
+        expect(service.installedUpdate, isNull);
+        final state = container.read(aleraUpdateControllerProvider);
+        expect(state.status, AleraUpdateStatus.applying);
+        expect(state.message, contains('Homebrew'));
+      },
+    );
+
+    test('keeps Alera usable when the package upgrade cannot start', () async {
+      final service = _FakeUpdateService(
+        result: AleraUpdateCheckResult(latest: _update),
+        packageInstall: const PackageManagerInstall(
+          method: PackageInstallMethod.scoop,
+          managerExecutable: r'C:\scoop\shims\scoop.cmd',
+          relaunchExecutable: r'C:\scoop\apps\alera\current\Alera.exe',
+        ),
+        packageUpgradeError: StateError('scoop missing'),
+      );
+      final container = ProviderContainer(
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
+
+      await controller.checkForUpdates();
+      await controller.installLatest();
+
+      final state = container.read(aleraUpdateControllerProvider);
+      expect(state.status, AleraUpdateStatus.error);
+      expect(state.message, contains('scoop missing'));
+      expect(state.message, contains('Alera is still running'));
+    });
+
+    // Chocolatey needs elevation, so Alera only ever shows its command.
+    test('never runs the upgrade for a Chocolatey install', () async {
+      final service = _FakeUpdateService(
+        result: AleraUpdateCheckResult(latest: _update),
+        packageInstall: const PackageManagerInstall(
+          method: PackageInstallMethod.chocolatey,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
+
+      await controller.checkForUpdates();
+      await controller.installLatest();
+
+      expect(service.packageUpgradeCalls, 0);
+      expect(service.openedUpdate, _update);
+    });
+
     test('restartApp delegates to the update service', () async {
       final service = _FakeUpdateService();
       final container = ProviderContainer(
@@ -266,6 +352,8 @@ class _FakeUpdateService implements AleraUpdateService {
     this.checkError,
     this.installError,
     this.restartError,
+    this.packageInstall = PackageManagerInstall.unmanaged,
+    this.packageUpgradeError,
   }) : config =
            config ??
            AleraUpdateConfig(
@@ -283,9 +371,15 @@ class _FakeUpdateService implements AleraUpdateService {
   final Object? checkError;
   final Object? installError;
   final Object? restartError;
+
+  @override
+  final PackageManagerInstall packageInstall;
+
+  final Object? packageUpgradeError;
   AleraUpdateInfo? openedUpdate;
   AleraUpdateInfo? installedUpdate;
   int restartCalls = 0;
+  int packageUpgradeCalls = 0;
 
   @override
   Future<AleraUpdateCheckResult> checkForUpdates() async {
@@ -293,6 +387,14 @@ class _FakeUpdateService implements AleraUpdateService {
       throw error;
     }
     return result;
+  }
+
+  @override
+  Future<void> upgradeThroughPackageManager() async {
+    packageUpgradeCalls += 1;
+    if (packageUpgradeError case final Object error) {
+      throw error;
+    }
   }
 
   @override

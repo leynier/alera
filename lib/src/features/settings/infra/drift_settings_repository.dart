@@ -4,6 +4,9 @@ import 'package:alera/src/features/settings/application/settings_repository.dart
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:logging/logging.dart';
+
+final Logger _log = Logger('DriftSettingsRepository');
 
 class DriftSettingsRepository implements SettingsRepository {
   DriftSettingsRepository(this._db);
@@ -26,7 +29,14 @@ class DriftSettingsRepository implements SettingsRepository {
         return AleraSettings.defaults;
       }
       return AleraSettings.fromJson(Map<String, Object?>.from(decoded));
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // Falling back to defaults reads to the user as "my settings were
+      // wiped", with nothing to confirm it or explain which row was corrupt.
+      _log.severe(
+        'stored settings could not be decoded; falling back to defaults',
+        error,
+        stackTrace,
+      );
       return AleraSettings.defaults;
     }
   }

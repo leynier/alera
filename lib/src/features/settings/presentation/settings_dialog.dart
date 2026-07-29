@@ -18,6 +18,7 @@ import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dar
 import 'package:alera/src/features/settings/presentation/settings_dialog_content.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -144,6 +145,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'storage', title: 'Storage'),
       SettingsGroupSpec(id: 'safety', title: 'Safety'),
       SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
+      SettingsGroupSpec(id: 'diagnostics', title: 'Diagnostics'),
       SettingsGroupSpec(id: 'updates', title: 'Updates'),
       SettingsGroupSpec(id: 'support', title: 'Support'),
     ];
@@ -185,13 +187,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'application',
         title: 'Application',
-        description: 'Storage, safety, runtime, updates and support.',
+        description: 'Storage, safety, runtime, diagnostics and updates.',
         icon: AleraIcons.tune,
         entries: applicationSearchEntries,
         groups: applicationGroups,
         builder: (_) => ApplicationSettingsPane(
           general: settings.general,
           terminal: settings.terminal,
+          diagnostics: settings.diagnostics,
           groupKeys: _paneKeys('application', applicationGroups),
         ),
       ),

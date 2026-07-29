@@ -21,6 +21,14 @@ const macosAsset = `alera-${releases.desktop.version}-macos.tar.gz`;
 const windowsAsset = `alera-${releases.desktop.version}-windows.tar.gz`;
 const androidAsset = `alera-${releases.mobile.version}-android.apk`;
 
+// Package-manager commands. The manifests are pushed by the release cut from
+// the templates under packaging/, so these read exactly like what it publishes.
+const brewCommand = 'brew tap leynier/tap && brew install --cask alera';
+const scoopCommand =
+  'scoop bucket add leynier https://github.com/leynier/scoop-bucket\n' +
+  'scoop install leynier/alera';
+const chocoCommand = 'choco install alera';
+
 const macosUrl = assetUrl(releases.desktop.tag, macosAsset);
 const windowsUrl = assetUrl(releases.desktop.tag, windowsAsset);
 const androidUrl = assetUrl(releases.mobile.tag, androidAsset);
@@ -52,17 +60,17 @@ const platforms = [
   {
     id: 'macos',
     name: 'macOS',
-    summary: `Download ${macosAsset}.`,
-    action: 'Download for macOS',
-    href: macosUrl,
+    summary: 'Install with Homebrew, or download the app.',
+    action: 'See the Commands',
+    href: '#macos',
     available: true,
   },
   {
     id: 'windows',
     name: 'Windows',
-    summary: `Download ${windowsAsset}.`,
-    action: 'Download for Windows',
-    href: windowsUrl,
+    summary: 'Install with Scoop or Chocolatey, or download the app.',
+    action: 'See the Commands',
+    href: '#windows',
     available: true,
   },
   {
@@ -147,9 +155,29 @@ const platforms = [
         macOS
       </h2>
       <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Unpack <span class="font-mono break-all">{macosAsset}</span> and move
-        Alera.app to your Applications folder. Alera updates itself from there
-        once installed, so this is a one-time download.
+        Install with Homebrew. Requires Apple Silicon and macOS 14 or newer.
+      </p>
+      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
+        <div class="flex items-start gap-4">
+          <code
+            id="alera-brew-command"
+            class="font-mono text-body-md text-foreground break-all leading-relaxed grow whitespace-pre-line"
+            >{brewCommand}</code
+          >
+          <button
+            type="button"
+            data-copy-target="alera-brew-command"
+            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+      <p class="text-body-md text-foreground-faint mb-4 leading-relaxed">
+        The cask clears the quarantine attribute after installing, because the
+        macOS build is not notarized yet. Or unpack <span
+          class="font-mono break-all">{macosAsset}</span
+        > and move Alera.app to your Applications folder.
       </p>
       <div class="flex flex-wrap items-center gap-3 mb-12">
         <a
@@ -175,9 +203,47 @@ const platforms = [
         Windows
       </h2>
       <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
-        Unpack <span class="font-mono break-all">{windowsAsset}</span> anywhere and
-        run Alera.exe. Alera updates itself from there once installed, so this is
-        a one-time download.
+        Install with Scoop, which needs no administrator rights.
+      </p>
+      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
+        <div class="flex items-start gap-4">
+          <code
+            id="alera-scoop-command"
+            class="font-mono text-body-md text-foreground break-all leading-relaxed grow whitespace-pre-line"
+            >{scoopCommand}</code
+          >
+          <button
+            type="button"
+            data-copy-target="alera-scoop-command"
+            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Or with Chocolatey, from an elevated prompt.
+      </p>
+      <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
+        <div class="flex items-start gap-4">
+          <code
+            id="alera-choco-command"
+            class="font-mono text-body-md text-foreground break-all leading-relaxed grow"
+            >{chocoCommand}</code
+          >
+          <button
+            type="button"
+            data-copy-target="alera-choco-command"
+            class="shrink-0 px-3 py-1.5 rounded-md border border-border text-body-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+      <p class="text-body-md text-foreground-faint mb-4 leading-relaxed">
+        Requires 64-bit Windows. Or unpack <span class="font-mono break-all"
+          >{windowsAsset}</span
+        > anywhere and run Alera.exe.
       </p>
       <div class="flex flex-wrap items-center gap-3 mb-12">
         <a

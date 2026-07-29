@@ -52,6 +52,22 @@ bytes = "1"
 serde_urlencoded = "0.7"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 async-trait = "0.1.91"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "registry",
+    "fmt",
+    "env-filter",
+    "std",
+] }
+# Default features pull in native-tls, which would put a second TLS stack in a
+# sidecar that already speaks rustls through reqwest and sqlx.
+sentry = { version = "0.48", default-features = false, features = [
+    "backtrace",
+    "contexts",
+    "panic",
+    "reqwest",
+    "rustls",
+] }
 
 # Signalling a PTY shell's descendants. Already in the tree through
 # portable-pty, so declaring it directly adds no crate.

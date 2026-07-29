@@ -3,7 +3,8 @@ use super::*;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 
 #[tokio::test]

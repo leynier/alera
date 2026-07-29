@@ -225,7 +225,7 @@ impl VideoRegistry {
             .with_state(registry.clone());
         tokio::spawn(async move {
             if let Err(error) = axum::serve(listener, router).await {
-                eprintln!("alera emulator video server stopped: {error}");
+                tracing::warn!("alera emulator video server stopped: {error}");
             }
         });
         Ok(registry)

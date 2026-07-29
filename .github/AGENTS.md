@@ -32,6 +32,7 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Stable release jobs must not enable automatic installation until signing and notarization or trust are configured for the relevant platform.
 - Release jobs must sign schema v2 update indexes before publication and verify the manifest signature before upload.
 - Linux release jobs must publish signed APT and RPM repository metadata when Linux packages are included.
+- The desktop package managers (`publish_packages`, `publish_chocolatey`) run only on stable cuts and only after the GitHub Release is public, because every manifest they push points at that release's assets. A failure there must not roll the release back: the release is already correct and the manifest can be pushed by hand. Release candidates never reach them, for the same reason they never reach the stable Linux repositories. Both jobs must skip with a warning when their secret is absent rather than fail, mirroring how the Apple and Windows signing steps treat theirs. Each destination repository is written with its own SSH deploy key (`ALERA_HOMEBREW_TAP_DEPLOY_KEY`, `ALERA_SCOOP_BUCKET_DEPLOY_KEY`) rather than one account-wide token, so a key that leaks or needs rotating reaches nothing else, and the step pins GitHub's host keys from `api.github.com/meta` instead of accepting them on first use: a runner that trusted a forged host key would push the manifest elsewhere and still report success.
 - Signing secrets must be scoped only to release jobs that need them.
 
 ## Issue And PR Policy

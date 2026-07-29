@@ -42,7 +42,7 @@ final class SettingsControllerProvider
 }
 
 String _$settingsControllerHash() =>
-    r'2668ef9e2e3b3702259581beb024d47148368896';
+    r'35c1d8486dac86ec7b2e4f462222d9e576d31d6f';
 
 abstract class _$SettingsController extends $Notifier<AleraSettings> {
   AleraSettings build();

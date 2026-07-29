@@ -128,6 +128,9 @@ final class BrowserSessionHandle {
   BrowserVisibilityLease acquireVisibility(BrowserVisibilityReason reason) =>
       _registry._acquireVisibility(_entry, reason);
 
+  BrowserObscurationLease acquireObscuration(BrowserObscurationReason reason) =>
+      _registry._acquireObscuration(_entry, reason);
+
   BrowserLifecycleLease acquireLifecycle(BrowserLifecycleReason reason) =>
       _registry._acquireLifecycleForHandle(_entry, reason);
 
@@ -159,6 +162,27 @@ final class BrowserVisibilityLease {
   }) : _release = release; // ignore: prefer_initializing_formals
 
   final BrowserVisibilityReason reason;
+  final Future<void> ready;
+  final Future<void> Function() _release;
+  var _disposed = false;
+
+  Future<void> dispose() async {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    await _release();
+  }
+}
+
+final class BrowserObscurationLease {
+  BrowserObscurationLease._({
+    required this.reason,
+    required this.ready,
+    required Future<void> Function() release,
+  }) : _release = release; // ignore: prefer_initializing_formals
+
+  final BrowserObscurationReason reason;
   final Future<void> ready;
   final Future<void> Function() _release;
   var _disposed = false;

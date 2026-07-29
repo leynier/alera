@@ -24,8 +24,13 @@ RuntimeHostLifecycleService runtimeHostLifecycleService(Ref ref) {
       ref.watch(runtimeHostClientProvider),
     ),
     bundledVersionProbe: ref.watch(bundledSidecarVersionProbeProvider),
-    readConfig: () =>
-        terminalHostConfigFor(ref.read(settingsControllerProvider).terminal),
+    readConfig: () {
+      final settings = ref.read(settingsControllerProvider);
+      return terminalHostConfigFor(
+        settings.terminal,
+        crashReporting: settings.diagnostics.crashReportingEnabled,
+      );
+    },
   );
 }
 

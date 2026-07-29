@@ -16,6 +16,8 @@ import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
+import 'package:alera_mobile/src/core/logging/log_redaction.dart';
+import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
@@ -161,6 +163,9 @@ class MobileRuntimeClient
     required String deviceId,
     required String deviceToken,
   }) async {
+    // Masked in logs and crash reports from here on: the token authenticates
+    // this phone to the runtime, and exported logs are meant to be shareable.
+    registerLogSecret(deviceToken);
     final payload = await requestMap('mobile.hello', <String, Object?>{
       'protocolVersion': aleraMobileProtocolVersion,
       'deviceId': deviceId,
@@ -433,6 +438,13 @@ class MobileRuntimeClient
   }
 
   void _handleSocketError(Object error, [StackTrace? stackTrace]) {
+    // The single funnel every transport failure passes through, and the most
+    // common thing a user reports about this app.
+    Logger('MobileRuntimeClient').warning(
+      'runtime connection failed with ${_pending.length} pending requests',
+      error,
+      stackTrace,
+    );
     _closedError ??= error;
     _closedStackTrace ??= stackTrace;
     for (final completer in _pending.values) {

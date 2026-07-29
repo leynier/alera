@@ -1,0 +1,24 @@
+$ErrorActionPreference = 'Stop'
+
+$toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+
+Install-ChocolateyZipPackage `
+  -PackageName 'alera' `
+  -Url64bit 'https://github.com/leynier/alera/releases/download/{{TAG}}/alera-{{VERSION}}-windows.zip' `
+  -Checksum64 '{{WINDOWS_SHA256}}' `
+  -ChecksumType64 'sha256' `
+  -UnzipLocation $toolsDir
+
+# Alera is a GUI app: the .gui marker keeps its shim from holding a console open
+# for the whole session. Every other executable in the bundle is ignored so
+# Chocolatey does not shim the terminal-host sidecar, which is also named alera
+# and would collide with the app's own shim.
+Set-Content -Path (Join-Path $toolsDir 'Alera.exe.gui') -Value '' -Encoding Ascii
+Get-ChildItem -Path $toolsDir -Recurse -Filter '*.exe' |
+  Where-Object { $_.Name -ne 'Alera.exe' } |
+  ForEach-Object { Set-Content -Path "$($_.FullName).ignore" -Value '' -Encoding Ascii }
+
+Install-ChocolateyShortcut `
+  -ShortcutFilePath (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Alera.lnk') `
+  -TargetPath (Join-Path $toolsDir 'Alera.exe') `
+  -Description 'Alera'

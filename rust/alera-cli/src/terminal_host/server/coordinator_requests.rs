@@ -908,7 +908,7 @@ impl ServerActor {
     }
 
     pub(super) fn coordinator_log(&self, message: &str) {
-        eprintln!("[coordinator] {message}");
+        tracing::info!("[coordinator] {message}");
         self.broadcast_authenticated(event(
             "orchestrationCoordinatorLog",
             json!({ "message": message }),

@@ -3,6 +3,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/application_diagnostics_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_workspace_directory_row.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
@@ -17,11 +18,13 @@ class ApplicationSettingsPane extends ConsumerWidget {
     super.key,
     required this.general,
     required this.terminal,
+    required this.diagnostics,
     this.groupKeys = const <String, GlobalKey>{},
   });
 
   final GeneralSettings general;
   final TerminalSettings terminal;
+  final DiagnosticsSettings diagnostics;
   final Map<String, GlobalKey> groupKeys;
 
   @override
@@ -116,6 +119,11 @@ class ApplicationSettingsPane extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: AleraTokens.space24),
+        KeyedSubtree(
+          key: groupKeys['diagnostics'],
+          child: DiagnosticsSettingsSection(diagnostics: diagnostics),
         ),
         const SizedBox(height: AleraTokens.space24),
         KeyedSubtree(

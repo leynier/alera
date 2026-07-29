@@ -157,7 +157,7 @@ bool splitDirectionPainterShouldRepaintForTesting(
   ).shouldRepaint(_SplitDirectionPainter(zone: previousZone));
 }
 
-class WorkspaceWorkbenchView extends StatelessWidget {
+class WorkspaceWorkbenchView extends StatefulWidget {
   const WorkspaceWorkbenchView({
     super.key,
     required this.project,
@@ -214,43 +214,113 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
 
   @override
+  State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
+}
+
+class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
+  final _tabDragController = _WorkbenchTabDragController();
+
+  @override
+  void dispose() {
+    _tabDragController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final resolvedLayout =
-        layout ??
+        widget.layout ??
         WorkbenchLayout.single(
-          workspaceId: workspace.id,
-          tabIds: <String>[for (final tab in tabs) tab.id],
+          workspaceId: widget.workspace.id,
+          tabIds: <String>[for (final tab in widget.tabs) tab.id],
         );
-    return _MobileEmulatorOpenScope(
-      onOpen: onOpenMobileEmulator,
-      child: _WorkbenchLayoutView(
-        workspace: workspace,
-        sourceControlScope: sourceControlScope,
-        tabs: tabs,
-        layout: resolvedLayout,
-        node: resolvedLayout.root,
-        nodePath: const <int>[],
-        terminalRuntime: terminalRuntime,
-        mobileDriverPresence: mobileDriverPresence,
-        agentStatuses: agentStatuses,
-        completionAcknowledgements: completionAcknowledgements,
-        onCreateTab: onCreateTab,
-        onCreateBrowserTab: onCreateBrowserTab,
-        onOpenEditorTab: onOpenEditorTab,
-        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
-        onSelectTab: onSelectTab,
-        onCloseTab: onCloseTab,
-        onCloseTabs: onCloseTabs,
-        onRenameTab: onRenameTab,
-        onOpenEditor: onOpenEditor,
-        onOpenMermanPreview: onOpenMermanPreview,
-        onMoveTab: onMoveTab,
-        onSplitGroup: onSplitGroup,
-        onMergeGroup: onMergeGroup,
-        onActivateGroup: onActivateGroup,
-        onUpdateSplitRatio: onUpdateSplitRatio,
+    return _WorkbenchTabDragScope(
+      notifier: _tabDragController,
+      child: _MobileEmulatorOpenScope(
+        onOpen: widget.onOpenMobileEmulator,
+        child: _WorkbenchLayoutView(
+          workspace: widget.workspace,
+          sourceControlScope: widget.sourceControlScope,
+          tabs: widget.tabs,
+          layout: resolvedLayout,
+          node: resolvedLayout.root,
+          nodePath: const <int>[],
+          terminalRuntime: widget.terminalRuntime,
+          mobileDriverPresence: widget.mobileDriverPresence,
+          agentStatuses: widget.agentStatuses,
+          completionAcknowledgements: widget.completionAcknowledgements,
+          onCreateTab: widget.onCreateTab,
+          onCreateBrowserTab: widget.onCreateBrowserTab,
+          onOpenEditorTab: widget.onOpenEditorTab,
+          onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
+          onSelectTab: widget.onSelectTab,
+          onCloseTab: widget.onCloseTab,
+          onCloseTabs: widget.onCloseTabs,
+          onRenameTab: widget.onRenameTab,
+          onOpenEditor: widget.onOpenEditor,
+          onOpenMermanPreview: widget.onOpenMermanPreview,
+          onMoveTab: widget.onMoveTab,
+          onSplitGroup: widget.onSplitGroup,
+          onMergeGroup: widget.onMergeGroup,
+          onActivateGroup: widget.onActivateGroup,
+          onUpdateSplitRatio: widget.onUpdateSplitRatio,
+        ),
       ),
     );
+  }
+}
+
+class _WorkbenchTabDragController extends ValueNotifier<bool> {
+  _WorkbenchTabDragController() : super(false);
+
+  var _generation = 0;
+  var _disposed = false;
+
+  void begin() {
+    if (_disposed) {
+      return;
+    }
+    _generation += 1;
+    value = true;
+  }
+
+  void finishAfterLayout() {
+    if (_disposed) {
+      return;
+    }
+    final generation = ++_generation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed && generation == _generation) {
+        value = false;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation += 1;
+    super.dispose();
+  }
+}
+
+class _WorkbenchTabDragScope
+    extends InheritedNotifier<_WorkbenchTabDragController> {
+  const _WorkbenchTabDragScope({required super.notifier, required super.child});
+
+  static _WorkbenchTabDragController controllerOf(BuildContext context) {
+    final element = context
+        .getElementForInheritedWidgetOfExactType<_WorkbenchTabDragScope>();
+    final scope = element?.widget as _WorkbenchTabDragScope?;
+    return scope!.notifier!;
+  }
+
+  static bool isActiveOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<_WorkbenchTabDragScope>()
+            ?.notifier
+            ?.value ??
+        false;
   }
 }
 

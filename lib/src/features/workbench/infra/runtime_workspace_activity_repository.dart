@@ -1,5 +1,8 @@
 import 'package:alera/src/features/workbench/application/workspace_activity_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:logging/logging.dart';
+
+final Logger _log = Logger('RuntimeWorkspaceActivityRepository');
 
 class RuntimeWorkspaceActivityRepository
     implements WorkspaceActivityRepository {
@@ -31,7 +34,12 @@ class RuntimeWorkspaceActivityRepository
       if (local.isNotEmpty) await upsertAll(local);
       await legacyRepository.upsertAll(merged);
       return merged;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _log.warning(
+        'could not merge workspace activity from the runtime; using local only',
+        error,
+        stackTrace,
+      );
       return local;
     }
   }

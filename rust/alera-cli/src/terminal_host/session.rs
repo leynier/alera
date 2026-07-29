@@ -427,10 +427,22 @@ impl Session {
         self.durable_output_batch_armed = false;
         self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
         if remove_history {
-            let _ = store.delete(&self.id).await;
+            if let Err(error) = store.delete(&self.id).await {
+                tracing::warn!(
+                    session_id = %self.id,
+                    "failed to remove terminal history: {error}"
+                );
+            }
         } else {
             let ended = self.ended_at.unwrap_or_else(Utc::now);
-            let _ = self.write_checkpoint(store, Some(ended)).await;
+            // A dropped final checkpoint is what the user sees as a terminal
+            // that came back with its scrollback truncated.
+            if let Err(error) = self.write_checkpoint(store, Some(ended)).await {
+                tracing::warn!(
+                    session_id = %self.id,
+                    "failed to write the final terminal checkpoint: {error}"
+                );
+            }
         }
     }
 
