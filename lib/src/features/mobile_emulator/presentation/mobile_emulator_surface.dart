@@ -15,8 +15,11 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+
+final Logger _log = Logger('MobileEmulatorSurface');
 
 class MobileEmulatorSurface extends ConsumerStatefulWidget {
   const MobileEmulatorSurface({
@@ -42,6 +45,8 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
   MobileEmulatorPlaybackMonitor? _playbackMonitor;
   StreamSubscription<Object?>? _changeSubscription;
   Timer? _hiddenTimer;
+  final MobileEmulatorPlaybackRecoveryPolicy _playbackRecovery =
+      MobileEmulatorPlaybackRecoveryPolicy();
   late final MobileEmulatorPointerController _pointerController =
       MobileEmulatorPointerController(onPointer: _sendPointer);
   double? _decodedAspectRatio;
@@ -75,6 +80,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
   void didUpdateWidget(covariant MobileEmulatorSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab.id != widget.tab.id) {
+      _playbackRecovery.reset();
       _pointerController.finish();
       _wantsLease = false;
       _leaseGeneration += 1;
@@ -194,15 +200,9 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
       final playbackMonitor = MobileEmulatorPlaybackMonitor(
         errors: player.stream.error,
         completions: player.stream.completed,
-        onFailure: () {
-          if (identical(_player, player) && _wantsLease && _leaseHeld) {
-            _pointerController.finish();
-            _session = null;
-            unawaited(
-              _disposePlayer().then((_) => _acquire(showLoading: false)),
-            );
-          }
-        },
+        onWarning: (_) =>
+            _log.warning('Emulator playback warning for tab ${target.tabId}.'),
+        onFailure: () => _handlePlaybackFailure(player),
       );
       final videoParamsSubscription = player.stream.videoParams.listen((
         params,
@@ -242,6 +242,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
       _videoController = controller;
       _videoParamsSubscription = videoParamsSubscription;
       _playbackMonitor = playbackMonitor;
+      _playbackRecovery.playbackStarted();
       final params = player.state.videoParams;
       _decodedAspectRatio = mobileEmulatorDecodedAspectRatio(
         width: params.dw,
@@ -261,11 +262,50 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
     }
   }
 
+  void _handlePlaybackFailure(Player player) {
+    if (!identical(_player, player) || !_wantsLease || !_leaseHeld) {
+      return;
+    }
+    _pointerController.finish();
+    _session = null;
+    switch (_playbackRecovery.recordFailure()) {
+      case MobileEmulatorPlaybackRecoveryAction.retry:
+        unawaited(_disposePlayer().then((_) => _acquire(showLoading: false)));
+      case MobileEmulatorPlaybackRecoveryAction.fail:
+        _wantsLease = false;
+        _leaseGeneration += 1;
+        _leaseHeld = false;
+        unawaited(
+          _disposePlayer().then(
+            (_) => _leases.suspend(widget.tab.id).catchError((_) {}),
+          ),
+        );
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _error = const MobileEmulatorException(
+              code: 'playback_unstable',
+              message: 'The Mobile Emulator Stream Became Unstable.',
+              nextSteps: <String>[
+                'The Android Device Was Left Running. Select Retry To Reconnect.',
+              ],
+            );
+          });
+        }
+    }
+  }
+
+  Future<void> _retryPlayback() {
+    _playbackRecovery.reset();
+    return _acquire();
+  }
+
   void _handleRuntimeChange(Object? rawEvent) {
     if (rawEvent is! RuntimeHostEvent) {
       return;
     }
     if (rawEvent.name == aleraRuntimeHostConnectedEvent) {
+      _playbackRecovery.reset();
       _wantsLease = true;
       _leaseGeneration += 1;
       _leaseHeld = false;
@@ -287,6 +327,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
       case MobileEmulatorRuntimeChangeAction.ignore:
         return;
       case MobileEmulatorRuntimeChangeAction.stopped:
+        _playbackRecovery.reset();
         _wantsLease = false;
         _leaseGeneration += 1;
         _leaseHeld = false;
@@ -373,7 +414,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
   @override
   Widget build(BuildContext context) {
     if (_error case final error?) {
-      return MobileEmulatorFailure(error: error, onRetry: _acquire);
+      return MobileEmulatorFailure(error: error, onRetry: _retryPlayback);
     }
     if (_loading || _videoController == null) {
       return MobileEmulatorLoading(state: _session?.state);
@@ -441,6 +482,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
   void dispose() {
     _wantsLease = false;
     _leaseGeneration += 1;
+    _playbackRecovery.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _hiddenTimer?.cancel();
     _pointerController.finish();
