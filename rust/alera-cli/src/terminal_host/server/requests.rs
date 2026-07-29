@@ -14,10 +14,9 @@ use crate::managed_workspace::{
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
-    mobile_status,
-    pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved, rename_mobile_device,
-    revoke_mobile_device, MobileDevicePairRequest, MobilePairingCreateRequest,
-    MobileSettingsUpdateRequest, MOBILE_PROTOCOL_VERSION,
+    mobile_status, pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved,
+    rename_mobile_device, revoke_mobile_device, MobileDevicePairRequest,
+    MobilePairingCreateRequest, MobileSettingsUpdateRequest, MOBILE_PROTOCOL_VERSION,
 };
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};

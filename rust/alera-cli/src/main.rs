@@ -57,9 +57,8 @@ use crate::cli::{TerminalAction, TerminalCommand};
 use crate::mobile_access::{
     cancel_mobile_pairing_offer, delete_mobile_device, list_mobile_devices, mobile_status,
     pair_mobile_device, rename_mobile_device, revoke_mobile_device, update_mobile_settings,
-    MobileDevicePairRequest,
-    MobileDeviceSummary, MobilePairingCreateRequest, MobilePairingOfferPayload,
-    MobileSettingsUpdateRequest,
+    MobileDevicePairRequest, MobileDeviceSummary, MobilePairingCreateRequest,
+    MobilePairingOfferPayload, MobileSettingsUpdateRequest,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
