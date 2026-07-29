@@ -10,10 +10,11 @@ void main() {
       maxDelay: const Duration(milliseconds: 200),
     );
     addTearDown(coalescer.dispose);
+    final owner = Object();
     var runs = 0;
 
     for (var i = 0; i < 10; i++) {
-      coalescer.schedule('key', () async => runs += 1);
+      coalescer.schedule('key', owner, () async => runs += 1);
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
     expect(runs, 0, reason: 'still inside the debounce window');
@@ -28,11 +29,12 @@ void main() {
       maxDelay: const Duration(milliseconds: 50),
     );
     addTearDown(coalescer.dispose);
+    final owner = Object();
     var runs = 0;
 
     final ticker = Timer.periodic(
       const Duration(milliseconds: 10),
-      (_) => coalescer.schedule('key', () async => runs += 1),
+      (_) => coalescer.schedule('key', owner, () async => runs += 1),
     );
     await Future<void>.delayed(const Duration(milliseconds: 200));
     ticker.cancel();
@@ -52,8 +54,8 @@ void main() {
     addTearDown(coalescer.dispose);
     final ran = <String>[];
 
-    coalescer.schedule('a', () async => ran.add('a'));
-    coalescer.schedule('b', () async => ran.add('b'));
+    coalescer.schedule('a', Object(), () async => ran.add('a'));
+    coalescer.schedule('b', Object(), () async => ran.add('b'));
     await Future<void>.delayed(const Duration(milliseconds: 40));
 
     expect(ran..sort(), <String>['a', 'b']);
@@ -65,9 +67,10 @@ void main() {
       maxDelay: const Duration(seconds: 60),
     );
     addTearDown(coalescer.dispose);
+    final owner = Object();
     var runs = 0;
 
-    coalescer.schedule('key', () async => runs += 1);
+    coalescer.schedule('key', owner, () async => runs += 1);
     expect(runs, 0);
 
     await coalescer.flush('key');
@@ -80,10 +83,11 @@ void main() {
       maxDelay: const Duration(milliseconds: 50),
     );
     addTearDown(coalescer.dispose);
+    final owner = Object();
     var runs = 0;
     final gate = Completer<void>();
 
-    coalescer.schedule('key', () async {
+    coalescer.schedule('key', owner, () async {
       runs += 1;
       if (runs == 1) {
         await gate.future;
@@ -104,16 +108,39 @@ void main() {
       debounce: const Duration(milliseconds: 10),
       maxDelay: const Duration(milliseconds: 100),
     );
+    final owner = Object();
     var runs = 0;
 
-    coalescer.schedule('key', () async => runs += 1);
-    coalescer.cancel('key');
+    coalescer.schedule('key', owner, () async => runs += 1);
+    coalescer.cancel('key', owner);
     await Future<void>.delayed(const Duration(milliseconds: 40));
     expect(runs, 0);
 
-    coalescer.schedule('other', () async => runs += 1);
+    coalescer.schedule('other', Object(), () async => runs += 1);
     coalescer.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 40));
     expect(runs, 0);
+  });
+
+  test('same key runs every owner and cancels them independently', () async {
+    final coalescer = RuntimeChangeCoalescer(
+      debounce: const Duration(milliseconds: 10),
+      maxDelay: const Duration(milliseconds: 100),
+    );
+    addTearDown(coalescer.dispose);
+    final firstOwner = Object();
+    final secondOwner = Object();
+    var firstRuns = 0;
+    var secondRuns = 0;
+
+    for (var i = 0; i < 5; i++) {
+      coalescer.schedule('key', firstOwner, () async => firstRuns += 1);
+      coalescer.schedule('key', secondOwner, () async => secondRuns += 1);
+    }
+    coalescer.cancel('key', firstOwner);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    expect(firstRuns, 0);
+    expect(secondRuns, 1);
   });
 }
