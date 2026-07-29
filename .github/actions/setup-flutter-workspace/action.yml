@@ -41,17 +41,11 @@ inputs:
     default: 'true'
   rust:
     description: >-
-      Set up the pinned Rust toolchain and the Rust build cache. Required for
+      Set up the pinned Rust toolchain and sccache. Required for
       any job that builds the desktop app or runs the Linux integration tests,
       because the native build hooks compile the Rust sidecar via cargo.
     required: false
     default: 'false'
-  rust-cache-key:
-    description: >-
-      Swatinem/rust-cache shared-key. Jobs producing the same Rust output should
-      share one cache instead of keying it on the job name.
-    required: false
-    default: alera-hooks
 
 runs:
   using: composite
@@ -144,19 +138,9 @@ runs:
     # Before the preflight and before any Flutter build: the native build hooks
     # compile the Rust terminal-host sidecar (alera-cli) and the
     # flutter_rust_bridge library (alera_native) via cargo.
-    - name: Setup Rust
+    - name: Setup Rust and sccache
       if: inputs.rust == 'true'
-      uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
-      with:
-        toolchain: "1.96"
-        components: rustfmt, clippy
-
-    - name: Cache Rust build
-      if: inputs.rust == 'true'
-      uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
-      with:
-        workspaces: rust
-        shared-key: ${{ inputs.rust-cache-key }}
+      uses: ./.github/actions/setup-rust-sccache
 
     # Keeps clean runners resilient when the ghostty_vte, PDFium or portable_pty
     # prebuilt downloads are missing or transiently unavailable.

@@ -34,11 +34,15 @@ permissions:
 
 env:
   ALERA_FLAVOR: release
+  ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+  ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
 
 jobs:
   warm:
     name: warm ${{ matrix.platform }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -87,3 +91,15 @@ jobs:
         with:
           path: build/**/cargokit_build
           key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-${{ github.sha }}
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### sccache ${{ matrix.platform }}"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

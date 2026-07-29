@@ -93,22 +93,30 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --summary "$GITHUB_STEP_SUMMARY"
 
-  build:
+  build_desktop_app:
     needs: plan
     if: needs.plan.outputs.desktop_should_release == 'true'
-    name: build ${{ matrix.platform }}
-    timeout-minutes: 45
+    name: build app ${{ matrix.platform }}
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos
             os: macos-latest
+            native_arch: arm64
           - platform: windows
             os: windows-latest
+            native_arch: x64
           - platform: linux
             os: ubuntu-latest
+            native_arch: x64
     runs-on: ${{ matrix.os }}
+    env:
+      ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+      ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+      ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+      ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
     steps:
       - name: Checkout release ref
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -120,7 +128,20 @@ jobs:
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
-          extra-linux-packages: rpm gcc-aarch64-linux-gnu
+          extra-linux-packages: rpm
+
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
+        with:
+          path: build/**/cargokit_build
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+          restore-keys: |
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Apply release version locally
         run: dart tool/release/update_pubspec_version.dart "${{ needs.plan.outputs.desktop_artifact_version }}" "${{ needs.plan.outputs.desktop_build_number }}"
@@ -218,86 +239,53 @@ jobs:
             --platform "$PLATFORM" \
             --bundle "$BUNDLE_DIR"
 
-      - name: Package standalone runtime sidecar
+      - name: Stage native runtime input
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
-          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          NATIVE_ARCH: ${{ matrix.native_arch }}
         run: |
           set -euo pipefail
           bin_name="alera"
           if [[ "$PLATFORM" == "windows" ]]; then
             bin_name="alera.exe"
           fi
-          helper_dir=".dart_tool/alera_native_helpers/prepared/$PLATFORM"
-          dart tool/native_helpers/verify_native_helper_bundle.dart \
-            --platform "$PLATFORM" \
-            --emulator-root "$helper_dir"
-
           case "$PLATFORM" in
             macos)
-              runtime_targets=("aarch64-apple-darwin:arm64" "x86_64-apple-darwin:x64")
+              expected_runner_arch="ARM64"
+              runtime_root="$BUNDLE_DIR/Alera.app/Contents/Resources/alera"
               ;;
             windows)
-              runtime_targets=("x86_64-pc-windows-msvc:x64" "aarch64-pc-windows-msvc:arm64")
+              expected_runner_arch="X64"
+              runtime_root="$BUNDLE_DIR/resources/alera"
               ;;
             linux)
-              runtime_targets=("x86_64-unknown-linux-gnu:x64" "aarch64-unknown-linux-gnu:arm64")
+              expected_runner_arch="X64"
+              runtime_root="$BUNDLE_DIR/resources/alera"
               ;;
             *)
-              echo "::error::Unsupported runtime platform: $PLATFORM"
+              echo "::error::Unsupported native runtime platform: $PLATFORM"
               exit 64
               ;;
           esac
-
-          rust_targets=()
-          for runtime_target in "${runtime_targets[@]}"; do
-            rust_targets+=("${runtime_target%%:*}")
-          done
-          rustup target add "${rust_targets[@]}"
-
-          for runtime_target in "${runtime_targets[@]}"; do
-            rust_target="${runtime_target%%:*}"
-            arch="${runtime_target##*:}"
-            cargo_env=()
-            if [[ "$rust_target" == "aarch64-unknown-linux-gnu" ]]; then
-              cargo_env+=("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
-            fi
-
-            if ((${#cargo_env[@]} > 0)); then
-              env "${cargo_env[@]}" cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
-            else
-              cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
-            fi
-            binary_path="rust/target/${rust_target}/release/${bin_name}"
-            if [[ ! -f "$binary_path" ]]; then
-              echo "::error::Missing runtime sidecar binary at $binary_path"
-              exit 1
-            fi
-
-            package_dir="$(mktemp -d)"
-            cp "$binary_path" "$package_dir/$bin_name"
-            cp -R "$helper_dir" "$package_dir/emulator"
-            cat >"$package_dir/runtime-manifest.json" <<JSON
-          {
-            "name": "alera-runtime",
-            "version": "$RELEASE_VERSION",
-            "platform": "$PLATFORM",
-            "arch": "$arch",
-            "entrypoint": "$bin_name",
-            "emulatorHelpers": "emulator/manifest.json"
+          if [[ "$RUNNER_ARCH" != "$expected_runner_arch" ]]; then
+            echo "::error::Expected $PLATFORM runner architecture $expected_runner_arch, got $RUNNER_ARCH."
+            exit 1
+          fi
+          test -s "$runtime_root/$bin_name" || {
+            echo "::error::Missing bundled runtime binary at $runtime_root/$bin_name"
+            exit 1
           }
-          JSON
-            asset="release-assets/alera-runtime-${RELEASE_VERSION}-${PLATFORM}-${arch}.tar.gz"
-            tar -czf "$asset" -C "$package_dir" .
-            asset_name="$(basename "$asset")"
-            if command -v shasum >/dev/null 2>&1; then
-              (cd release-assets && shasum -a 256 "$asset_name") >"${asset}.sha256"
-            else
-              (cd release-assets && sha256sum "$asset_name") >"${asset}.sha256"
-            fi
-            rm -rf "$package_dir"
-          done
+          dart tool/native_helpers/verify_native_helper_bundle.dart \
+            --platform "$PLATFORM" \
+            --emulator-root "$runtime_root/emulator"
+
+          input_root="runtime-native-input/$PLATFORM/$NATIVE_ARCH"
+          mkdir -p "$input_root"
+          cp "$runtime_root/$bin_name" "$input_root/$bin_name"
+          cp -R "$runtime_root/emulator" "$input_root/emulator"
+          tar -czf "runtime-native-${PLATFORM}-${NATIVE_ARCH}.tar.gz" \
+            -C runtime-native-input "$PLATFORM"
 
       - name: Sign and package macOS release
         if: matrix.platform == 'macos'
@@ -399,6 +387,205 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-${{ matrix.platform }}
+          path: release-assets/
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload native runtime input
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}
+          path: runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### sccache ${{ matrix.platform }}"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  build_runtime_cross:
+    needs: plan
+    if: needs.plan.outputs.desktop_should_release == 'true'
+    name: build runtime ${{ matrix.platform }} ${{ matrix.arch }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            arch: x64
+            target: x86_64-apple-darwin
+            os: macos-latest
+            binary: alera
+          - platform: windows
+            arch: arm64
+            target: aarch64-pc-windows-msvc
+            os: windows-latest
+            binary: alera.exe
+          - platform: linux
+            arch: arm64
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            binary: alera
+    runs-on: ${{ matrix.os }}
+    env:
+      ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+      ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+      ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+      ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          submodules: false
+
+      - name: Install Linux cross compiler
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Setup Rust and sccache
+        uses: ./.github/actions/setup-rust-sccache
+
+      - name: Install Rust target
+        run: rustup target add "${{ matrix.target }}"
+
+      - name: Build cross-architecture runtime
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          set -euo pipefail
+          cargo build \
+            --manifest-path rust/Cargo.toml \
+            --locked \
+            -p alera-cli \
+            --release \
+            --target "$RUST_TARGET"
+
+      - name: Stage cross-architecture runtime
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          RUST_TARGET: ${{ matrix.target }}
+          BINARY_NAME: ${{ matrix.binary }}
+        run: |
+          set -euo pipefail
+          binary_path="rust/target/$RUST_TARGET/release/$BINARY_NAME"
+          test -s "$binary_path" || {
+            echo "::error::Missing cross-architecture runtime at $binary_path"
+            exit 1
+          }
+          input_root="runtime-cross-input/$PLATFORM/$ARCH"
+          mkdir -p "$input_root"
+          cp "$binary_path" "$input_root/$BINARY_NAME"
+          tar -czf "runtime-cross-${PLATFORM}-${ARCH}.tar.gz" \
+            -C runtime-cross-input "$PLATFORM"
+
+      - name: Upload cross-architecture runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: runtime-cross-${{ matrix.platform }}-${{ matrix.arch }}
+          path: runtime-cross-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### sccache ${{ matrix.platform }} ${{ matrix.arch }}"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  package_runtime:
+    needs:
+      - plan
+      - build_desktop_app
+      - build_runtime_cross
+    if: >-
+      !cancelled() &&
+      needs.plan.outputs.desktop_should_release == 'true' &&
+      needs.build_desktop_app.result == 'success' &&
+      needs.build_runtime_cross.result == 'success'
+    name: package runtimes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          linux-toolchain: 'false'
+          native-assets: 'false'
+          preflight: 'false'
+
+      - name: Download runtime inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: runtime-*
+          path: runtime-input-artifacts
+          merge-multiple: true
+
+      - name: Extract runtime inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-inputs
+          mapfile -t archives < <(find runtime-input-artifacts -type f -name '*.tar.gz' -print | sort)
+          if [[ "${#archives[@]}" -ne 6 ]]; then
+            echo "::error::Expected 6 runtime input archives, found ${#archives[@]}."
+            printf '%s\n' "${archives[@]}"
+            exit 1
+          fi
+          for archive in "${archives[@]}"; do
+            tar -xzf "$archive" -C runtime-inputs
+          done
+
+      - name: Package standalone runtimes
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+        run: >-
+          dart tool/release/package_runtime_sidecars.dart
+          --version "$RELEASE_VERSION"
+          --input runtime-inputs
+          --output release-assets
+
+      - name: Verify runtime checksums
+        working-directory: release-assets
+        run: sha256sum -c ./*.sha256
+
+      - name: Upload runtime release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-runtime
           path: release-assets/
           retention-days: 1
           if-no-files-found: error
@@ -512,12 +699,14 @@ jobs:
   publish:
     needs:
       - plan
-      - build
+      - build_desktop_app
+      - package_runtime
       - build_android
     if: >-
       !cancelled() &&
       needs.plan.outputs.any_should_release == 'true' &&
-      (needs.plan.outputs.desktop_should_release != 'true' || needs.build.result == 'success') &&
+      (needs.plan.outputs.desktop_should_release != 'true' ||
+        (needs.build_desktop_app.result == 'success' && needs.package_runtime.result == 'success')) &&
       (needs.plan.outputs.mobile_should_release != 'true' || needs.build_android.result == 'success')
     permissions:
       contents: write

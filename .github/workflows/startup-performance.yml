@@ -44,6 +44,16 @@ jobs:
         continue-on-error: true
         run: xvfb-run -a dart tool/performance/alera_performance.dart --runs 3 --output .dart_tool/performance-ci
 
+      - name: Report sccache statistics
+        if: always()
+        run: |
+          {
+            echo "### sccache startup performance"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Linux startup performance report
         if: always()
         uses: actions/upload-artifact@v7

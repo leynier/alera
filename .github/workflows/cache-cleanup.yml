@@ -1,0 +1,39 @@
+name: Clean Pull Request Caches
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete pull request caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CACHE_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          set -euo pipefail
+          mapfile -t cache_ids < <(
+            gh cache list \
+              --repo "$GH_REPO" \
+              --ref "$CACHE_REF" \
+              --limit 100 \
+              --json id \
+              --jq '.[].id'
+          )
+          if [[ "${#cache_ids[@]}" -eq 0 ]]; then
+            echo "No caches found for $CACHE_REF."
+            exit 0
+          fi
+          for cache_id in "${cache_ids[@]}"; do
+            gh cache delete "$cache_id" --repo "$GH_REPO"
+          done
+          echo "Deleted ${#cache_ids[@]} caches for $CACHE_REF."
