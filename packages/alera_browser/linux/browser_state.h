@@ -108,6 +108,12 @@ LinuxBrowserPage* browser_page_create(AleraBrowserPlugin* plugin,
 void browser_page_destroy(gpointer data);
 void browser_page_update_visibility(LinuxBrowserPage* page);
 void browser_update_flutter_input_region(AleraBrowserPlugin* plugin);
+// Exact overlay allocation for WebKitGTK children. Connected once on the
+// runner GtkOverlay so preferred-size growth cannot cover Flutter chrome.
+gboolean browser_overlay_get_child_position(GtkOverlay* overlay,
+                                            GtkWidget* widget,
+                                            GdkRectangle* allocation,
+                                            gpointer user_data);
 void browser_page_connect_signals(LinuxBrowserPage* page);
 void browser_page_handle_method(AleraBrowserPlugin* plugin,
                                 FlMethodCall* method_call,

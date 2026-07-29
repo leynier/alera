@@ -20,6 +20,23 @@ add_test(
   COMMAND alera_browser_linux_navigation_state_tests
 )
 
+add_executable(alera_browser_linux_overlay_allocation_tests
+  "browser_overlay_allocation_test.cc"
+)
+target_compile_features(
+  alera_browser_linux_overlay_allocation_tests PRIVATE cxx_std_17)
+target_compile_options(alera_browser_linux_overlay_allocation_tests PRIVATE
+  -Wall
+  -Wextra
+  -Werror
+)
+target_include_directories(
+  alera_browser_linux_overlay_allocation_tests PRIVATE "..")
+add_test(
+  NAME alera_browser_linux_overlay_allocation_tests
+  COMMAND alera_browser_linux_overlay_allocation_tests
+)
+
 add_executable(alera_browser_linux_profile_selection_tests
   "../browser_import_profile_selection.cc"
   "browser_import_profile_selection_test.cc"

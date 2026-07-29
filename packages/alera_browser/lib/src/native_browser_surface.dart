@@ -77,6 +77,14 @@ final class _AleraNativeBrowserSurfaceState
   @override
   Widget build(BuildContext context) {
     _scheduleBoundsUpdate();
-    return const SizedBox.expand();
+    // Layout-only size changes (sidebar/split resize without metrics change)
+    // must still push page.setBounds to the native overlay.
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (notification) {
+        _scheduleBoundsUpdate();
+        return true;
+      },
+      child: const SizeChangedLayoutNotifier(child: SizedBox.expand()),
+    );
   }
 }

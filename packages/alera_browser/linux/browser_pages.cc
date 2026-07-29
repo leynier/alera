@@ -1,5 +1,7 @@
 #include "browser_state.h"
 
+#include "browser_overlay_allocation.h"
+
 namespace {
 
 GQuark page_error_quark() {
@@ -14,6 +16,12 @@ void add_page_to_overlay(AleraBrowserPlugin* plugin, LinuxBrowserPage* page) {
   gtk_widget_set_vexpand(widget, FALSE);
   gtk_widget_set_can_focus(widget, TRUE);
   gtk_widget_set_sensitive(widget, FALSE);
+  // Position comes only from get-child-position; margins must stay zero so the
+  // hard allocation is not double-offset.
+  gtk_widget_set_margin_start(widget, 0);
+  gtk_widget_set_margin_top(widget, 0);
+  gtk_widget_set_margin_end(widget, 0);
+  gtk_widget_set_margin_bottom(widget, 0);
   gtk_widget_set_size_request(widget, 1, 1);
   gtk_overlay_add_overlay(plugin->overlay, widget);
   gtk_overlay_set_overlay_pass_through(plugin->overlay, widget, FALSE);
@@ -91,13 +99,40 @@ void browser_page_destroy(gpointer data) {
   g_free(page);
 }
 
+gboolean browser_overlay_get_child_position(GtkOverlay* overlay,
+                                            GtkWidget* widget,
+                                            GdkRectangle* allocation,
+                                            gpointer user_data) {
+  (void)overlay;
+  (void)user_data;
+  LinuxBrowserPage* page = static_cast<LinuxBrowserPage*>(
+      g_object_get_data(G_OBJECT(widget), "alera-browser-page"));
+  if (page == nullptr || allocation == nullptr) {
+    return FALSE;
+  }
+  BrowserOverlayAllocation frame{};
+  if (!browser_page_fill_overlay_allocation(page->frame_x, page->frame_y,
+                                            page->frame_width,
+                                            page->frame_height, &frame)) {
+    return FALSE;
+  }
+  allocation->x = frame.x;
+  allocation->y = frame.y;
+  allocation->width = frame.width;
+  allocation->height = frame.height;
+  return TRUE;
+}
+
 void browser_page_update_visibility(LinuxBrowserPage* page) {
   GtkWidget* widget = GTK_WIDGET(page->web_view);
   const gboolean visible =
       page->attached && !page->obscured && page->frame_width > 0 &&
       page->frame_height > 0;
-  gtk_widget_set_margin_start(widget, page->frame_x);
-  gtk_widget_set_margin_top(widget, page->frame_y);
+  // Origin is applied only by get-child-position; keep margins zero.
+  gtk_widget_set_margin_start(widget, 0);
+  gtk_widget_set_margin_top(widget, 0);
+  gtk_widget_set_margin_end(widget, 0);
+  gtk_widget_set_margin_bottom(widget, 0);
   gtk_widget_set_size_request(
       widget, MAX(page->frame_width, 1), MAX(page->frame_height, 1));
   gtk_widget_set_sensitive(widget, visible);
@@ -106,6 +141,8 @@ void browser_page_update_visibility(LinuxBrowserPage* page) {
   } else {
     gtk_widget_hide(widget);
   }
+  // Force GtkOverlay to re-query get-child-position after frame changes.
+  gtk_widget_queue_resize(widget);
   browser_update_flutter_input_region(page->plugin);
 }
 

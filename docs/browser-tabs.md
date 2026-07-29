@@ -70,4 +70,4 @@ The address policy accepts `http`, `https`, and internal `about:blank`. A hostna
 
 ## Platform Packaging
 
-macOS browser tabs require macOS 14 or newer. Windows uses the installed evergreen WebView2 runtime. Linux CI installs `libwebkit2gtk-4.1-dev`; Debian packages depend on `libwebkit2gtk-4.1-0`, and RPM packages require `webkit2gtk4.1`. The Linux runner places the Flutter view inside a `GtkOverlay` so the browser plugin can position and explicitly obscure its native child surface.
+macOS browser tabs require macOS 14 or newer. Windows uses the installed evergreen WebView2 runtime. Linux CI installs `libwebkit2gtk-4.1-dev`; Debian packages depend on `libwebkit2gtk-4.1-0`, and RPM packages require `webkit2gtk4.1`. The Linux runner places the Flutter view inside a `GtkOverlay` so the browser plugin can position and explicitly obscure its native child surface. Overlay children are hard-allocated to the Flutter-reported frame through `get-child-position`, so WebKitGTK preferred size cannot expand past the workbench content slot.

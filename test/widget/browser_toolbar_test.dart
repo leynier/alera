@@ -1,3 +1,5 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/browser/domain/browser_page.dart';
 import 'package:alera/src/features/browser/domain/browser_page_state.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
@@ -96,10 +98,49 @@ void main() {
     expect(find.byTooltip('Stop Loading'), findsOneWidget);
     expect(find.byTooltip('Browser Profile: Research'), findsOneWidget);
     expect(find.byTooltip('Open DevTools'), findsNothing);
-    expect(
-      tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
-      'Search Or Enter Address',
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.decoration?.hintText, 'Search Or Enter Address');
+    expect(field.decoration?.fillColor, AleraTokens.surfaceVariant);
+  });
+
+  testWidgets('fits the dense address field inside the toolbar height', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          child: SizedBox(
+            width: 900,
+            child: BrowserToolbar(
+              state: _state(),
+              addressController: controller,
+              addressFocusNode: focusNode,
+              profileLabel: 'Default',
+              onBack: null,
+              onForward: null,
+              onStopOrReload: () {},
+              onSubmitAddress: (_) {},
+              onShowSecurity: () {},
+              onSelectProfile: () {},
+              onShowDownloads: () {},
+              onOpenDevTools: () {},
+              onOpenExternally: () {},
+            ),
+          ),
+        ),
+      ),
     );
+
+    final toolbarSize = tester.getSize(find.byType(BrowserToolbar));
+    final fieldSize = tester.getSize(find.byType(TextField));
+    expect(toolbarSize.height, AleraTokens.sidebarHeaderHeight);
+    expect(fieldSize.height, AleraTextField.denseHeight);
+    expect(fieldSize.height, lessThanOrEqualTo(toolbarSize.height));
   });
 }
 
