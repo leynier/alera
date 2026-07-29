@@ -79,6 +79,7 @@ class _WorkspaceTabContent extends StatelessWidget {
       WorkspaceTabKind.browser => BrowserTabSurface(
         tab: tab,
         autofocus: autofocus,
+        pageObscured: _WorkbenchTabDragScope.isActiveOf(context),
       ),
       WorkspaceTabKind.mobileEmulator => MobileEmulatorSurface(
         workspace: workspace,

@@ -131,6 +131,28 @@ void main() {
     );
   });
 
+  test('tab drag and Flutter overlay share obscuration state', () async {
+    final handle = await registry.sessionFor(_tab());
+    final drag = handle.acquireObscuration(BrowserObscurationReason.tabDrag);
+    await drag.ready;
+    final overlayBarrier = Completer<void>();
+    final overlay = handle.withFlutterOverlay(() => overlayBarrier.future);
+
+    await Future<void>.delayed(Duration.zero);
+    await drag.dispose();
+    expect(
+      engine.calls.where((call) => call.startsWith('obscured:')).toList(),
+      <String>['obscured:page-1:true'],
+    );
+
+    overlayBarrier.complete();
+    await overlay;
+    expect(
+      engine.calls.where((call) => call.startsWith('obscured:')).toList(),
+      <String>['obscured:page-1:true', 'obscured:page-1:false'],
+    );
+  });
+
   test('close waits for lifecycle leases', () async {
     final handle = await registry.sessionFor(_tab());
     final lease = handle.acquireLifecycle(BrowserLifecycleReason.popup);
