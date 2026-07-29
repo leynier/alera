@@ -1,10 +1,13 @@
 //! Resolving which agent profile runs a task, and picking the next candidate
 //! when an earlier one failed to start.
 
-use alera_core::runtime::OrchestrationPolicyStatus;
+use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, OrchestrationPolicyStatus};
 use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::orchestration::managed_agent_launch::{
+    build_managed_agent_launch, ManagedAgentLaunch,
+};
 
 use super::orchestration_validation::optional_string;
 use super::ServerActor;
@@ -14,6 +17,7 @@ pub(super) struct ResolvedSpawnProfile {
     pub agent_type: String,
     /// `None` leaves the adapter's default command in place.
     pub command: Option<String>,
+    pub managed_launch: Option<ManagedAgentLaunch>,
     pub profile_name: Option<String>,
     pub quota_group: Option<String>,
 }
@@ -32,6 +36,7 @@ impl ServerActor {
             return Ok(ResolvedSpawnProfile {
                 agent_type,
                 command: optional_string(payload, "command"),
+                managed_launch: None,
                 profile_name: None,
                 quota_group: None,
             });
@@ -46,9 +51,11 @@ impl ServerActor {
                     "unknown agent profile: {name}. Declare it in Settings first."
                 ))
             })?;
+        let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
         Ok(ResolvedSpawnProfile {
             agent_type: profile.agent_type,
-            command: Some(profile.command),
+            command,
+            managed_launch,
             profile_name: Some(profile.name),
             quota_group: profile.quota_group,
         })
@@ -131,16 +138,17 @@ impl ServerActor {
 
     /// The launch command for a task's stage profile, for adapters that get a
     /// bare terminal and dispatch on readiness.
-    pub(super) async fn coordinator_profile_command_for_task(
+    pub(super) async fn coordinator_profile_launch_for_task(
         &mut self,
         task: &alera_core::runtime::OrchestrationTask,
-    ) -> Option<String> {
+    ) -> Option<(Option<String>, Option<ManagedAgentLaunch>)> {
         let name = self.coordinator_profile_for_task(task).await?;
-        self.runtime_store
+        let profile = self
+            .runtime_store
             .agent_profile_by_name(&name)
             .await
-            .ok()?
-            .map(|profile| profile.command)
+            .ok()??;
+        launch_for_profile(&profile).ok()
     }
 
     async fn quota_group_for(&mut self, profile_name: &str) -> HostResult<Option<String>> {
@@ -150,6 +158,22 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .and_then(|profile| profile.quota_group))
+    }
+}
+
+fn launch_for_profile(
+    profile: &AgentProfile,
+) -> Result<(Option<String>, Option<ManagedAgentLaunch>), String> {
+    match profile.launch_mode {
+        AgentProfileLaunchMode::Command => Ok((Some(profile.command.clone()), None)),
+        AgentProfileLaunchMode::Managed => {
+            let config = profile
+                .managed_config
+                .as_ref()
+                .ok_or_else(|| "managed agent profile is missing managedConfig.".to_string())?;
+            let launch = build_managed_agent_launch(&profile.agent_type, config)?;
+            Ok((None, Some(launch)))
+        }
     }
 }
 

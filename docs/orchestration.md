@@ -35,7 +35,7 @@ alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped b
 
 ## Agent Profile Catalog
 
-An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, the interactive launch command, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
+An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, a launch mode, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
 
 ```bash
 alera orchestration agent-profiles --json
@@ -43,11 +43,13 @@ alera orchestration agent-profiles --json
 
 The CLI surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, but only the user creates or edits profiles, through Settings -> Agent Profiles. The orchestrator therefore picks from a closed list the user approved instead of inventing launch commands.
 
-The adapter type is required because the registry is more than a command: it decides how the host detects readiness, injects the dispatch preamble, and forces submission. The host rejects a profile whose adapter is not in `AGENT_ADAPTERS`, so `grok` cannot be targeted until it gains a spawn adapter. The command must be the interactive form the adapter expects; a one-shot mode cannot satisfy the accept/heartbeat/complete worker contract.
+The adapter type is required because the registry is more than a command: it decides how the host detects readiness, injects the dispatch preamble, and forces submission. The host rejects a profile whose adapter is not in `AGENT_ADAPTERS`, so `grok` cannot be targeted until it gains a spawn adapter.
+
+Managed mode exposes the supported model, effort, persona, permission, sandbox, and trust controls for the selected adapter. Missing options deliberately defer to that agent's own configuration. The host validates the structured configuration and quotes the resulting executable and arguments for the actual platform shell only when the terminal is spawned. Command mode remains available for advanced or unsupported CLI options; its value must be the interactive form the adapter expects because a one-shot mode cannot satisfy the accept/heartbeat/complete worker contract. Existing profiles are migrated as Command profiles without changing their behavior.
 
 The quota group declares which profiles drain the same usage bucket. Alera never measures, predicts, or verifies quota here; the grouping is an assertion the user makes, and its only purpose is to let a later fallback prefer a candidate from a different bucket.
 
-The app manages the catalog with `agentProfile.list`, `agentProfile.upsert`, and `agentProfile.remove`, and refreshes on the `agentProfilesChanged` event.
+The app manages the catalog with `agentProfile.list`, `agentProfile.upsert`, and `agentProfile.remove`, applies successful mutations immediately, and reconciles them with the debounced `agentProfilesChanged` snapshot. Managed mode is advertised through the additive `orchestrationManagedAgentProfilesV1` capability and does not change the terminal host protocol version.
 
 ## Execution Policy
 

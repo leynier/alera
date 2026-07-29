@@ -115,16 +115,31 @@ impl ServerActor {
             initial_output_stream_bytes,
         )
         .await?;
-        if let Some(command) = initial_command(tab) {
-            let command = initial_prompt(tab)
-                .map(|prompt| {
-                    crate::terminal_host::orchestration::agent_startup_command::command_with_initial_prompt(
-                        &command,
-                        &prompt,
-                        &default_launch.interactive_shell,
-                    )
-                })
-                .unwrap_or(command);
+        let managed_launch = initial_managed_agent_launch(tab)?;
+        let command = if let Some(mut launch) = managed_launch {
+            if let Some(prompt) = initial_prompt(tab) {
+                launch.arguments.push(prompt);
+            }
+            Some(
+                crate::terminal_host::orchestration::managed_agent_launch::render_managed_launch(
+                    &launch,
+                    &default_launch.interactive_shell,
+                ),
+            )
+        } else {
+            initial_command(tab).map(|command| {
+                initial_prompt(tab)
+                    .map(|prompt| {
+                        crate::terminal_host::orchestration::agent_startup_command::command_with_initial_prompt(
+                            &command,
+                            &prompt,
+                            &default_launch.interactive_shell,
+                        )
+                    })
+                    .unwrap_or(command)
+            })
+        };
+        if let Some(command) = command {
             let instance_id = self
                 .sessions
                 .get(&session_id)
@@ -369,6 +384,19 @@ fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
+}
+
+fn initial_managed_agent_launch(
+    tab: &WorkspaceTabRecord,
+) -> HostResult<Option<crate::terminal_host::orchestration::managed_agent_launch::ManagedAgentLaunch>>
+{
+    tab.payload
+        .get("initialManagedAgentLaunch")
+        .filter(|value| !value.is_null())
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|error| HostError::format(format!("invalid managed agent launch: {error}")))
 }
 
 fn delivers_initial_command_once(tab: &WorkspaceTabRecord) -> bool {
