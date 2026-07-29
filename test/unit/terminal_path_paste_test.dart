@@ -11,14 +11,17 @@ void main() {
       expect(formatPathForTerminalPaste('/tmp/my file'), "'/tmp/my file' ");
     });
 
-    test('quotes and escapes single quotes only when whitespace is present', () {
-      // Jean-style: no whitespace means bare path, even with apostrophes.
-      expect(formatPathForTerminalPaste("/tmp/it's"), "/tmp/it's ");
-      expect(
-        formatPathForTerminalPaste("/tmp/it's a file"),
-        "'/tmp/it'\\''s a file' ",
-      );
-    });
+    test(
+      'quotes and escapes single quotes only when whitespace is present',
+      () {
+        // Jean-style: no whitespace means bare path, even with apostrophes.
+        expect(formatPathForTerminalPaste("/tmp/it's"), "/tmp/it's ");
+        expect(
+          formatPathForTerminalPaste("/tmp/it's a file"),
+          "'/tmp/it'\\''s a file' ",
+        );
+      },
+    );
 
     test('sanitizes ESC before quoting', () {
       expect(formatPathForTerminalPaste('/tmp/\x1bsecret'), '/tmp/␛secret ');
