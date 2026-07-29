@@ -3,8 +3,9 @@ use super::*;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 
 #[tokio::test]
@@ -70,6 +71,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.runtimeSettings.update"));
     assert!(mobile_request_allowed("agentQuota.snapshot"));
     assert!(mobile_request_allowed("agentQuota.fetchClaudeTui"));
+    assert!(mobile_request_allowed("agentQuota.consumeCodexResetCredit"));
     assert!(mobile_request_allowed("cliRegistration.status"));
     assert!(mobile_request_allowed("cliRegistration.install"));
     assert!(mobile_request_allowed("agentSkill.install"));
@@ -178,6 +180,7 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_BINARY_FRAMES_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY));
 }
 
 #[test]

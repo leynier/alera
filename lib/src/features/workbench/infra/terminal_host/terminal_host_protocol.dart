@@ -13,6 +13,8 @@ const String aleraRuntimeHostManagedWorkspaceCapability =
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
+const String aleraRuntimeHostCodexResetCreditsCapability =
+    'codexResetCreditsV1';
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';

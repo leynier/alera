@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-use crate::agent_quota::{fetch_agent_quotas, fetch_claude_tui};
+use crate::agent_quota::{consume_codex_reset_credit, fetch_agent_quotas, fetch_claude_tui};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, event, ok_response};
 
@@ -123,6 +123,33 @@ impl ServerActor {
         Ok(())
     }
 
+    pub(super) fn start_agent_quota_codex_reset_request(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) {
+        let environment_signature = self
+            .agent_quota_cache
+            .as_ref()
+            .map(|(_, signature, _)| *signature)
+            .unwrap_or(0);
+        let store = self.runtime_store.clone();
+        let payload = payload.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = consume_codex_reset_credit(&store, payload)
+                .await
+                .map_err(|error| HostError::state(error.to_string()));
+            let _ = inbox.send(ServerCommand::AgentQuotaCodexResetFinished {
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            });
+        });
+    }
+
     pub(super) fn handle_agent_quota_claude_tui_finished(
         &mut self,
         client_id: u64,
@@ -208,6 +235,44 @@ impl ServerActor {
                 } else {
                     self.client_write(client_id, error_response(request_id, &error));
                 }
+            }
+        }
+    }
+
+    pub(super) fn handle_agent_quota_codex_reset_finished(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        environment_signature: u64,
+        result: HostResult<Value>,
+    ) {
+        match result {
+            Ok(mut payload) => {
+                if let Some(snapshot) = payload.get("snapshot").cloned() {
+                    let merged = upsert_quota_snapshot(
+                        self.agent_quota_cache
+                            .as_ref()
+                            .filter(|(_, signature, _)| *signature == environment_signature)
+                            .map(|(_, _, cached)| cached),
+                        snapshot,
+                    );
+                    self.agent_quota_cache =
+                        Some((Instant::now(), environment_signature, merged.clone()));
+                    if let Some(object) = payload.as_object_mut() {
+                        object.insert(
+                            "snapshots".to_string(),
+                            merged
+                                .get("snapshots")
+                                .cloned()
+                                .unwrap_or_else(|| json!([])),
+                        );
+                    }
+                }
+                self.client_write(client_id, ok_response(request_id, payload));
+                self.broadcast_authenticated(event("agentQuotasChanged", json!({})));
+            }
+            Err(error) => {
+                self.client_write(client_id, error_response(request_id, &error));
             }
         }
     }

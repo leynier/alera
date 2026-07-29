@@ -188,6 +188,12 @@ pub enum ServerCommand {
         environment_signature: u64,
         result: HostResult<Value>,
     },
+    AgentQuotaCodexResetFinished {
+        client_id: u64,
+        request_id: i64,
+        environment_signature: u64,
+        result: HostResult<Value>,
+    },
     HostToolFinished {
         client_id: u64,
         request_id: i64,
@@ -651,6 +657,17 @@ impl ServerActor {
                 environment_signature,
                 result,
             } => self.handle_agent_quota_claude_tui_finished(
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            ),
+            ServerCommand::AgentQuotaCodexResetFinished {
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            } => self.handle_agent_quota_codex_reset_finished(
                 client_id,
                 request_id,
                 environment_signature,

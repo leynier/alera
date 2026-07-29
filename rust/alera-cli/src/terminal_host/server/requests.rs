@@ -266,6 +266,12 @@ impl ServerActor {
                 self.start_agent_quota_claude_tui_request(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "agentQuota.consumeCodexResetCredit" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_agent_quota_codex_reset_request(client_id, request_id, payload);
+                Ok(true)
+            }
             "cliRegistration.status" | "cliRegistration.install" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

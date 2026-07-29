@@ -17,7 +17,13 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 
 The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a 15-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. Automatic reads reuse that cache; the explicit refresh button bypasses it. For the local desktop host, Alera resolves configured variables missing from the GUI process through the user's login shell and sends their values directly to the runtime host in memory. Values are never persisted or returned in quota responses. Alera must be restarted after changing those shell exports because the resolver caches them for the app lifetime. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
 
-Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. When a Claude profile is not `ok` and the runtime advertises `agentQuotaClaudeTuiV1`, the card also offers **Try With TUI**. It refreshes when opened and every 15 minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
+Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. When a Claude profile is not `ok` and the runtime advertises `agentQuotaClaudeTuiV1`, the card also offers **Try With TUI**. Codex reset credits and their next expiry appear when the runtime advertises `codexResetCreditsV1`. It refreshes when opened and every 15 minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
+
+## Codex Reset Credits
+
+For the default Codex account, desktop hover cards, the desktop quota overview, and the mobile Quotas card show how many earned rate-limit resets are available and when the next available credit expires. Alera always asks for confirmation before spending one.
+
+Consumption is account- and offer-scoped. Alera re-reads the active Codex account and current offer immediately before the request, refuses the action if either changed, and requires the account identity from `auth.json`. The opaque offer revision never exposes that identity. Before contacting Codex, Alera stores a pending attempt and its idempotency key in `runtime.sqlite`; a retry after a timeout or restart reuses the same key. If that durable write fails, Alera does not call the provider. The host returns the provider outcome and a refreshed Codex snapshot, then updates all connected quota views.
 
 ## Claude CCS Profiles
 
@@ -44,7 +50,7 @@ The Kimi, MiniMax, and Z.ai variable names can be changed per host in settings. 
 
 - Claude prefers scoped Keychain or credential-file OAuth data and the official usage endpoint. A hidden PTY `/usage` scrape runs only when the user chooses **Try With TUI** for that profile.
 - Antigravity scrapes its official interactive usage command in a hidden PTY on normal snapshot and refresh paths.
-- Codex uses the read-only app-server rate-limit method.
+- Codex first queries the authenticated `wham/usage` backend used by Codex itself, including reset-credit metadata, and falls back to the read-only app-server rate-limit method. Older app-server responses are enriched from the reset-credit endpoint when possible.
 - Kimi calls its usage endpoint with the API key from the configured host environment variable, which defaults to `KIMI_API_KEY`.
 - Grok reads its existing local login metadata and calls its usage endpoint.
 - Cursor reads the local Cursor CLI session (`~/.config/cursor/auth.json`, or `$CURSOR_CONFIG_DIR/auth.json` / `$XDG_CONFIG_HOME/cursor/auth.json`) and queries the current-period usage endpoint used by `cursor-agent /usage`. Windows map to Included, Auto, and API percentages. This path is not a documented public Cursor API.

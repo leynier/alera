@@ -62,6 +62,29 @@ void main() {
     expect(snapshot.windows.first.remainingPercent, 80);
   });
 
+  test('parses Codex reset credits without exposing account identity', () {
+    final snapshot = AgentQuotaSnapshot.fromJson(<String, Object?>{
+      'provider': 'codex',
+      'status': 'ok',
+      'rateLimitResetCredits': <String, Object?>{
+        'availableCount': 2,
+        'totalEarnedCount': 5,
+        'nextExpiresAt': 1_900_000_000_000,
+        'offerRevision': 'opaque-revision',
+        'canConsume': true,
+      },
+    });
+
+    expect(snapshot.rateLimitResetCredits?.availableCount, 2);
+    expect(snapshot.rateLimitResetCredits?.totalEarnedCount, 5);
+    expect(
+      snapshot.rateLimitResetCredits?.nextExpiresAt,
+      DateTime.fromMillisecondsSinceEpoch(1_900_000_000_000, isUtc: true),
+    );
+    expect(snapshot.rateLimitResetCredits?.offerRevision, 'opaque-revision');
+    expect(snapshot.rateLimitResetCredits?.canConsume, isTrue);
+  });
+
   test(
     'parses quota buckets and falls back for malformed snapshot metadata',
     () {

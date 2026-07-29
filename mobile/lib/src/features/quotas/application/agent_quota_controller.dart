@@ -72,4 +72,41 @@ class AgentQuotaController extends _$AgentQuotaController {
       ),
     );
   }
+
+  Future<CodexResetConsumeResult> consumeCodexResetCredit(
+    QuotaSnapshot snapshot,
+  ) async {
+    final credits = snapshot.rateLimitResetCredits;
+    if (credits == null || !credits.canConsume) {
+      throw StateError('No Codex Reset Credit Is Available.');
+    }
+    final client = await ref.read(
+      hostConnectionControllerProvider(hostId).future,
+    );
+    if (!client.supportsCodexResetCredits) {
+      throw UnsupportedError('Update The Runtime To Use Codex Resets.');
+    }
+    final result = await client.consumeCodexResetCredit(credits.offerRevision);
+    final previous = state.value;
+    if (previous == null) {
+      ref.invalidateSelf();
+      return result;
+    }
+    final snapshots = <QuotaSnapshot>[
+      for (final item in previous.snapshots)
+        if (item.provider == result.snapshot.provider &&
+            item.accountId == result.snapshot.accountId)
+          result.snapshot
+        else
+          item,
+    ];
+    state = AsyncData(
+      QuotaSnapshotState(
+        snapshots: snapshots,
+        environment: previous.environment,
+        fetchedAt: DateTime.now().toUtc(),
+      ),
+    );
+    return result;
+  }
 }

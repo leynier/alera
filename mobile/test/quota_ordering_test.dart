@@ -64,6 +64,23 @@ void main() {
       'Fable',
     ]);
   });
+
+  test('parses Codex reset credits', () {
+    final snapshot = QuotaSnapshot.fromJson(<String, Object?>{
+      'provider': 'codex',
+      'status': 'ok',
+      'rateLimitResetCredits': <String, Object?>{
+        'availableCount': 1,
+        'nextExpiresAt': 1_900_000_000_000,
+        'offerRevision': 'opaque-revision',
+        'canConsume': true,
+      },
+    });
+
+    expect(snapshot.rateLimitResetCredits?.availableCount, 1);
+    expect(snapshot.rateLimitResetCredits?.offerRevision, 'opaque-revision');
+    expect(snapshot.rateLimitResetCredits?.canConsume, isTrue);
+  });
 }
 
 QuotaSnapshot _snapshot({

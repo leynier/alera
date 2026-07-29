@@ -32,6 +32,7 @@ const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
 const String mobileAgentQuotaClaudeTuiCapability = 'agentQuotaClaudeTuiV1';
+const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
 
 class MobileRuntimeEvent {

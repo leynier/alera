@@ -2,6 +2,44 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 
 enum AgentQuotaStatus { ok, stale, error, unavailable }
 
+enum CodexResetConsumeStatus { consumed, rejected }
+
+enum CodexResetConsumeOutcome {
+  reset,
+  nothingToReset,
+  noCredit,
+  alreadyRedeemed,
+}
+
+class CodexResetCredits {
+  const CodexResetCredits({
+    required this.availableCount,
+    required this.totalEarnedCount,
+    required this.nextExpiresAt,
+    required this.offerRevision,
+    required this.canConsume,
+  });
+
+  factory CodexResetCredits.fromJson(Map<String, Object?> json) {
+    return CodexResetCredits(
+      availableCount: switch (json['availableCount']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      totalEarnedCount: json['totalEarnedCount'] as int?,
+      nextExpiresAt: _dateFromMillis(json['nextExpiresAt']),
+      offerRevision: json['offerRevision'] as String? ?? '',
+      canConsume: json['canConsume'] == true,
+    );
+  }
+
+  final int availableCount;
+  final int? totalEarnedCount;
+  final DateTime? nextExpiresAt;
+  final String offerRevision;
+  final bool canConsume;
+}
+
 class AgentQuotaWindow {
   const AgentQuotaWindow({
     required this.label,
@@ -68,6 +106,7 @@ class AgentQuotaSnapshot {
     required this.error,
     required this.windows,
     required this.buckets,
+    this.rateLimitResetCredits,
   });
 
   factory AgentQuotaSnapshot.fromJson(Map<String, Object?> json) {
@@ -101,6 +140,12 @@ class AgentQuotaSnapshot {
       buckets: _objectList(
         json['buckets'],
       ).map(AgentQuotaBucket.fromJson).toList(growable: false),
+      rateLimitResetCredits: switch (json['rateLimitResetCredits']) {
+        final Map value => CodexResetCredits.fromJson(
+          Map<String, Object?>.from(value),
+        ),
+        _ => null,
+      },
     );
   }
 
@@ -128,6 +173,7 @@ class AgentQuotaSnapshot {
   final String? error;
   final List<AgentQuotaWindow> windows;
   final List<AgentQuotaBucket> buckets;
+  final CodexResetCredits? rateLimitResetCredits;
 
   String get key => '${provider.name}:$accountId';
 
@@ -158,8 +204,43 @@ class AgentQuotaSnapshot {
       error: freshError,
       windows: windows,
       buckets: buckets,
+      rateLimitResetCredits: rateLimitResetCredits,
     );
   }
+}
+
+class CodexResetConsumeResult {
+  const CodexResetConsumeResult({
+    required this.status,
+    required this.outcome,
+    required this.reason,
+    required this.snapshot,
+  });
+
+  factory CodexResetConsumeResult.fromJson(Map<String, Object?> json) {
+    final snapshot = json['snapshot'];
+    if (snapshot is! Map) {
+      throw const FormatException('Codex reset response missing snapshot.');
+    }
+    return CodexResetConsumeResult(
+      status: CodexResetConsumeStatus.values.firstWhere(
+        (status) => status.name == json['status'],
+        orElse: () => CodexResetConsumeStatus.rejected,
+      ),
+      outcome: CodexResetConsumeOutcome.values
+          .where((outcome) => outcome.name == json['outcome'])
+          .firstOrNull,
+      reason: json['reason'] as String?,
+      snapshot: AgentQuotaSnapshot.fromJson(
+        Map<String, Object?>.from(snapshot),
+      ),
+    );
+  }
+
+  final CodexResetConsumeStatus status;
+  final CodexResetConsumeOutcome? outcome;
+  final String? reason;
+  final AgentQuotaSnapshot snapshot;
 }
 
 class AgentQuotaState {
@@ -196,6 +277,13 @@ class AgentQuotaState {
       }
     }
     return null;
+  }
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    return iterator.moveNext() ? iterator.current : null;
   }
 }
 
