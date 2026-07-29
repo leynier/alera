@@ -14,6 +14,7 @@ const String _agentPresenceCoalesceKey = 'agentPresence';
 void runtimeAgentStatusSync(Ref ref) {
   final client = ref.watch(runtimeHostClientProvider);
   final coalescer = ref.watch(runtimeChangeCoalescerProvider);
+  final coalesceOwner = Object();
   var disposed = false;
   var generation = 0;
 
@@ -47,17 +48,17 @@ void runtimeAgentStatusSync(Ref ref) {
     // task emits a steady stream of them. Each one costs a full snapshot RPC
     // plus a rebuild of every listener, hence the coalescing.
     if (event.name == 'agentPresenceChanged') {
-      coalescer.schedule(_agentPresenceCoalesceKey, refresh);
+      coalescer.schedule(_agentPresenceCoalesceKey, coalesceOwner, refresh);
     } else if (event.name == aleraRuntimeHostConnectedEvent) {
       // Reconnecting means the local snapshot may be stale in either
       // direction, so resync now instead of waiting out the debounce.
-      coalescer.cancel(_agentPresenceCoalesceKey);
+      coalescer.cancel(_agentPresenceCoalesceKey, coalesceOwner);
       unawaited(refresh());
     }
   });
   ref.onDispose(() {
     disposed = true;
-    coalescer.cancel(_agentPresenceCoalesceKey);
+    coalescer.cancel(_agentPresenceCoalesceKey, coalesceOwner);
     unawaited(subscription.cancel());
   });
   unawaited(refresh());

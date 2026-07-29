@@ -126,6 +126,50 @@ void main() {
     expect(reads, 2, reason: '10 events must collapse into one read');
   });
 
+  test('refreshes every snapshot stream that shares a key', () async {
+    final client = _FakeRuntimeHostClient();
+    final coalescer = _coalescer();
+    addTearDown(coalescer.dispose);
+    var firstValue = 0;
+    var secondValue = 10;
+    final firstEmitted = <int>[];
+    final secondEmitted = <int>[];
+
+    final firstSubscription = runtimeSnapshotStream<int>(
+      client: client,
+      eventNames: const <String>{'changed'},
+      readSnapshot: () async => ++firstValue,
+      coalesceKey: 'shared',
+      coalescer: coalescer,
+    ).listen(firstEmitted.add);
+    final secondSubscription = runtimeSnapshotStream<int>(
+      client: client,
+      eventNames: const <String>{'changed'},
+      readSnapshot: () async => ++secondValue,
+      coalesceKey: 'shared',
+      coalescer: coalescer,
+    ).listen(secondEmitted.add);
+    addTearDown(firstSubscription.cancel);
+    addTearDown(secondSubscription.cancel);
+
+    await _settle();
+    expect(firstEmitted, <int>[1]);
+    expect(secondEmitted, <int>[11]);
+
+    client.emit(const RuntimeHostEvent('changed', <String, Object?>{}));
+    await _settle();
+
+    expect(firstEmitted, <int>[1, 2]);
+    expect(secondEmitted, <int>[11, 12]);
+
+    await firstSubscription.cancel();
+    client.emit(const RuntimeHostEvent('changed', <String, Object?>{}));
+    await _settle();
+
+    expect(firstEmitted, <int>[1, 2]);
+    expect(secondEmitted, <int>[11, 12, 13]);
+  });
+
   test('de-duplicates an event arriving while a read is in flight', () async {
     final client = _FakeRuntimeHostClient();
     final coalescer = _coalescer();

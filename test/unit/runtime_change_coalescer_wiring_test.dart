@@ -20,7 +20,7 @@ void main() {
     var runs = 0;
 
     container.dispose();
-    coalescer.schedule('key', () async => runs += 1);
+    coalescer.schedule('key', Object(), () async => runs += 1);
     await Future<void>.delayed(const Duration(milliseconds: 250));
 
     expect(runs, 0, reason: 'a disposed coalescer must not leak timers');
@@ -50,11 +50,16 @@ void main() {
     addTearDown(coalescer.dispose);
     var tabRuns = 0;
     var projectRuns = 0;
+    final tabOwner = Object();
 
     for (var i = 0; i < 5; i++) {
-      coalescer.schedule('tabs:workspace-1', () async => tabRuns += 1);
+      coalescer.schedule(
+        'tabs:workspace-1',
+        tabOwner,
+        () async => tabRuns += 1,
+      );
     }
-    coalescer.schedule('projects', () async => projectRuns += 1);
+    coalescer.schedule('projects', Object(), () async => projectRuns += 1);
     await Future<void>.delayed(const Duration(milliseconds: 80));
 
     expect(tabRuns, 1);
