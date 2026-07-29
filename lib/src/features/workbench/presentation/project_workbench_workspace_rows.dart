@@ -533,9 +533,8 @@ class _WorkspaceAgentRunList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // Keyed by tab: the run order tracks recency, so an unkeyed row would
-        // be reused by index across a reorder and briefly paint the previous
-        // agent's identity.
+        // Keyed by tab so each row keeps its identity and state across the
+        // status updates that refresh this list.
         for (final run in runs)
           _AgentRunRow(
             key: ValueKey<String>(run.tab.id),
