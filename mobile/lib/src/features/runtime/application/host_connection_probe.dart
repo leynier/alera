@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'host_connection_probe.g.dart';
 
@@ -41,7 +42,14 @@ class HostConnectionProbe extends _$HostConnectionProbe {
     }
     try {
       await client.mobileStatus().timeout(_probeTimeout);
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      // Drops the connection and forces a reconnect, which the user sees as
+      // the app reloading for no visible reason.
+      Logger('HostConnectionProbe').warning(
+        'status probe failed for host $hostId; dropping the connection',
+        error,
+        stackTrace,
+      );
       ref.invalidate(hostConnectionControllerProvider(hostId));
     }
   }
