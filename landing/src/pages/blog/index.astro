@@ -1,0 +1,53 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+import BlogPostCard from '../../components/blog/BlogPostCard.astro';
+import { getPublishedBlogPosts } from '../../lib/blog';
+
+const posts = await getPublishedBlogPosts();
+---
+
+<Layout
+  title="Blog - Alera"
+  description="Notes from the team building Alera, a native workbench for CLI coding agents."
+  canonicalPath="/blog"
+>
+  <Navbar />
+  <main class="px-6 pt-24 pb-20">
+    <div class="mx-auto max-w-3xl">
+      <div class="mb-12">
+        <div class="flex items-end justify-between gap-4 mb-4">
+          <h1
+            class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground"
+          >
+            Blog
+          </h1>
+          <a
+            href="/rss.xml"
+            class="text-body-md text-foreground-faint hover:text-foreground transition-colors duration-fast shrink-0"
+          >
+            RSS
+          </a>
+        </div>
+        <p class="text-[15px] text-foreground-muted leading-relaxed">
+          What we are building, what broke along the way, and what we changed
+          our minds about.
+        </p>
+      </div>
+
+      {
+        posts.length === 0 ? (
+          <p class="text-[15px] text-foreground-muted">No Posts Yet.</p>
+        ) : (
+          <div>
+            {posts.map((post) => (
+              <BlogPostCard post={post} />
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </main>
+  <Footer />
+</Layout>

@@ -1,0 +1,54 @@
+---
+import { render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+import BlogPostHeader from '../../components/blog/BlogPostHeader.astro';
+import Prose from '../../components/blog/Prose.astro';
+import { getPublishedBlogPosts } from '../../lib/blog';
+
+export async function getStaticPaths() {
+  const posts = await getPublishedBlogPosts();
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const canonicalPath = `/blog/${post.id}`;
+---
+
+<Layout
+  title={`${post.data.title} - Alera Blog`}
+  description={post.data.description}
+  canonicalPath={canonicalPath}
+  ogType="article"
+  publishedTime={post.data.pubDate}
+  modifiedTime={post.data.updatedDate}
+>
+  <Navbar />
+  <main class="px-6 pt-24 pb-20">
+    <article class="mx-auto max-w-3xl">
+      <p class="mb-8">
+        <a
+          href="/blog"
+          class="text-body-md text-foreground-faint hover:text-foreground transition-colors duration-fast"
+        >
+          Back To Blog
+        </a>
+      </p>
+      <BlogPostHeader
+        title={post.data.title}
+        description={post.data.description}
+        pubDate={post.data.pubDate}
+        updatedDate={post.data.updatedDate}
+      />
+      <Prose>
+        <Content />
+      </Prose>
+    </article>
+  </main>
+  <Footer />
+</Layout>
