@@ -150,6 +150,98 @@ void _registerWorkspaceServiceRemovalTests() {
     );
   });
 
+  test(
+    'removeWorkspace removes stale metadata when worktree and branch are missing',
+    () async {
+      gitBackend.sourceBranches = <String>['main'];
+      final linkedWorkspace = (await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/stale',
+      )).workspace;
+      gitBackend.removeWorktreeError = WorktreeNotFoundException(
+        linkedWorkspace.path,
+      );
+      gitBackend.deleteBranchError = const BranchNotFoundException(
+        'feature/stale',
+      );
+
+      await service.removeWorkspace(
+        project: project,
+        workspace: linkedWorkspace,
+        deleteBranch: true,
+      );
+
+      expect(
+        repository.workspaces.any(
+          (workspace) => workspace.id == linkedWorkspace.id,
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test('removeWorkspace preserves an unregistered filesystem entry', () async {
+    gitBackend.sourceBranches = <String>['main'];
+    final linkedWorkspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/occupied',
+    )).workspace;
+    final sentinel = File(p.join(linkedWorkspace.path, 'keep.txt'));
+    sentinel.createSync(recursive: true);
+    sentinel.writeAsStringSync('keep');
+    gitBackend.removeWorktreeError = WorktreeNotFoundException(
+      linkedWorkspace.path,
+    );
+
+    await expectLater(
+      service.removeWorkspace(
+        project: project,
+        workspace: linkedWorkspace,
+        deleteBranch: true,
+      ),
+      throwsA(isA<WorkspaceException>()),
+    );
+
+    expect(sentinel.existsSync(), isTrue);
+    expect(
+      repository.workspaces.any(
+        (workspace) => workspace.id == linkedWorkspace.id,
+      ),
+      isTrue,
+    );
+    expect(
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+      isFalse,
+    );
+  });
+
+  test('removeWorkspace accepts an already deleted branch', () async {
+    gitBackend.sourceBranches = <String>['main'];
+    final linkedWorkspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/missing-branch',
+    )).workspace;
+    gitBackend.deleteBranchError = const BranchNotFoundException(
+      'feature/missing-branch',
+    );
+
+    await service.removeWorkspace(
+      project: project,
+      workspace: linkedWorkspace,
+      deleteBranch: true,
+    );
+
+    expect(
+      repository.workspaces.any(
+        (workspace) => workspace.id == linkedWorkspace.id,
+      ),
+      isFalse,
+    );
+  });
+
   test('removeWorkspace surfaces git branch deletion failures', () async {
     gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = (await service.createLinkedWorkspace(
