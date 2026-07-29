@@ -10,7 +10,8 @@ use crate::terminal_host::alera_account::{
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, event, ok_response};
 
-use super::requests::{parse_payload, require_string_key};
+use super::request_payloads::parse_payload;
+use super::requests::require_string_key;
 use super::{ServerActor, ServerCommand};
 
 #[derive(Debug, Clone, Copy)]

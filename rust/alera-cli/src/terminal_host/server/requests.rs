@@ -26,6 +26,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
+use super::request_payloads::{json_result, parse_payload};
 use super::runtime_change_broadcasts::string_scope;
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::runtime_mutations::RuntimeMutationRequest;
@@ -1341,25 +1342,6 @@ fn host_shutdown_busy_message(
         "Runtime host has {active_agents} active agent(s), {active_sessions} active terminal session(s), {active_jobs} active background job(s), and {} active push subscription(s). Retry with --force to stop it.",
         usize::from(has_push_subscriptions)
     ))
-}
-
-pub(super) fn parse_payload<T>(payload: &Value) -> HostResult<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    serde_json::from_value(payload.clone()).map_err(|error| HostError::format(error.to_string()))
-}
-
-fn json_result<T, E>(result: Result<T, E>) -> HostResult<Value>
-where
-    T: serde::Serialize,
-    E: std::fmt::Display,
-{
-    result
-        .map_err(|error| HostError::state(error.to_string()))
-        .and_then(|value| {
-            serde_json::to_value(value).map_err(|error| HostError::format(error.to_string()))
-        })
 }
 
 #[cfg(test)]
