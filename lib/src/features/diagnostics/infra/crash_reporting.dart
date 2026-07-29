@@ -3,13 +3,20 @@ import 'dart:async';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/core/diagnostics/sentry_dsn.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sentry/sentry.dart';
 
 /// Opt-in crash reporting.
 ///
 /// Reporting is off unless the user turns it on, and the switch is read inside
 /// `beforeSend` rather than by tearing the client down, so flipping it takes
 /// effect immediately without an app restart.
+///
+/// Uses the pure-Dart SDK rather than `sentry_flutter`, whose Linux plugin
+/// forces the crashpad backend and so requires libcurl built with AsynchDNS.
+/// That would make libcurl a build and runtime dependency of Alera on Linux for
+/// every user, in exchange for native crash capture the app barely needs: Dart
+/// errors are already covered by the global handlers, and the crashes worth
+/// catching natively happen in the Rust sidecar, which reports them itself.
 abstract final class CrashReporting {
   static bool _enabled = false;
   static bool _initialized = false;
@@ -29,36 +36,29 @@ abstract final class CrashReporting {
       return null;
     }
     final message = event.message;
-    return event.copyWith(
-      message: message == null
-          ? null
-          : SentryMessage(
-              redactLogText(message.formatted),
-              template: message.template,
-              params: message.params,
-            ),
-      exceptions: event.exceptions
-          ?.map(
-            (exception) => exception.copyWith(
-              value: exception.value == null
-                  ? null
-                  : redactLogText(exception.value!),
-            ),
-          )
-          .toList(),
-      breadcrumbs: event.breadcrumbs
-          ?.map(
-            (crumb) => crumb.copyWith(
-              message: crumb.message == null
-                  ? null
-                  : redactLogText(crumb.message!),
-            ),
-          )
-          .toList(),
-    );
+    if (message != null) {
+      event.message = SentryMessage(
+        redactLogText(message.formatted),
+        template: message.template,
+        params: message.params,
+      );
+    }
+    for (final exception in event.exceptions ?? const <SentryException>[]) {
+      final value = exception.value;
+      if (value != null) {
+        exception.value = redactLogText(value);
+      }
+    }
+    for (final crumb in event.breadcrumbs ?? const <Breadcrumb>[]) {
+      final crumbMessage = crumb.message;
+      if (crumbMessage != null) {
+        crumb.message = redactLogText(crumbMessage);
+      }
+    }
+    return event;
   }
 
-  static void _applyOptions(SentryFlutterOptions options, String release) {
+  static void _applyOptions(SentryOptions options, String release) {
     options.dsn = kAleraDesktopSentryDsn;
     // The app handles repository paths, branch names and command lines; there
     // is no reason to attach IPs or request headers on top of that.
@@ -83,7 +83,7 @@ abstract final class CrashReporting {
       return;
     }
     _initialized = true;
-    await SentryFlutter.init(
+    await Sentry.init(
       (options) => _applyOptions(options, release),
       appRunner: () async => appRunner(),
     );

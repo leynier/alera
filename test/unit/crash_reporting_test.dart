@@ -1,7 +1,7 @@
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sentry/sentry.dart';
 
 void main() {
   setUp(() {

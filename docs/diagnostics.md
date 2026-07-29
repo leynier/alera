@@ -49,6 +49,8 @@ Off by default on both apps and on the sidecar. When enabled, crashes go to Sent
 
 The DSNs are committed in `lib/src/core/diagnostics/sentry_dsn.dart`, its mobile counterpart, and `sentry_reporting.rs`. A DSN is not a secret: it is designed to travel inside the client and ends up in the distributed binary regardless.
 
+The desktop uses the **pure-Dart `sentry` package, not `sentry_flutter`**. The latter's Linux plugin forces the crashpad backend, which requires libcurl built with `AsynchDNS`; that would make libcurl a build and runtime dependency of Alera on Linux for every user, in exchange for native crash capture this app barely needs. Dart errors are already covered by the global handlers, and the crashes worth catching natively happen in the Rust sidecar, which reports them itself. Mobile keeps `sentry_flutter`, where the platform SDKs carry no such constraint.
+
 `sendDefaultPii` is off everywhere. The desktop and the sidecar handle repository paths, branch names and command lines; there is no reason to attach IPs or request headers on top of that.
 
 The switch is read inside `beforeSend` rather than by tearing the client down, so turning it off takes effect immediately, including for a sidecar that is already running: the desktop sends `crashReporting` on every `configure`. The build flavor becomes the Sentry `environment`, so dev noise can be filtered out; the app passes `ALERA_FLAVOR` to the sidecar, which cannot otherwise know which flavor launched it.
