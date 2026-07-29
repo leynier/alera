@@ -814,6 +814,10 @@ void _registerSettingsDialogCoreTests() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Thanks for the support!'), findsOneWidget);
+      expect(
+        container.read(settingsControllerProvider).general.starClicked,
+        isTrue,
+      );
 
       final errorController = _FakeGitHubStarController(
         GitHubStarState.error,

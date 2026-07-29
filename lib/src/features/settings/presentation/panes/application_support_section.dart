@@ -13,6 +13,14 @@ class SupportAleraSection extends ConsumerWidget {
 
   final GitHubStarState state;
 
+  Future<void> _starFromSettings(WidgetRef ref) async {
+    await ref.read(gitHubStarControllerProvider.notifier).star();
+    if (ref.read(gitHubStarControllerProvider) != GitHubStarState.starred) {
+      return;
+    }
+    await ref.read(settingsControllerProvider.notifier).markStarClicked();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -39,8 +47,7 @@ class SupportAleraSection extends ConsumerWidget {
               description: null,
               child: _StarControl(
                 state: state,
-                onStar: () =>
-                    ref.read(gitHubStarControllerProvider.notifier).star(),
+                onStar: () => _starFromSettings(ref),
               ),
             ),
           ],
