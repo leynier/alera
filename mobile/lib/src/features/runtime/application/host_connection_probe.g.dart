@@ -74,7 +74,7 @@ final class HostConnectionProbeProvider
 }
 
 String _$hostConnectionProbeHash() =>
-    r'f0b3aa16583675a1e6203b0e4c81c818f398ed01';
+    r'7ee43b89257ca1f60fc6a1085747299682c387ba';
 
 /// Re-checks one host's socket when the app comes back to the foreground.
 ///

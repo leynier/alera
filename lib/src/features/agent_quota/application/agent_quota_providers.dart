@@ -273,6 +273,45 @@ class AgentQuotaService {
     }
     return snapshot;
   }
+
+  Future<CodexResetConsumeResult> consumeCodexResetCredit({
+    required String hostId,
+    required SshTarget? target,
+    required String offerRevision,
+  }) async {
+    final payload = hostId == 'local' && _runtimeClient != null
+        ? _mapValue(
+            await _runtimeClient.runtimeRequest(
+              'agentQuota.consumeCodexResetCredit',
+              <String, Object?>{'offerRevision': offerRevision},
+              const Duration(seconds: 45),
+            ),
+          )
+        : await _client.request(
+            hostId: hostId,
+            target: target,
+            type: 'agentQuota.consumeCodexResetCredit',
+            payload: <String, Object?>{'offerRevision': offerRevision},
+            timeout: const Duration(seconds: 45),
+          );
+    final result = CodexResetConsumeResult.fromJson(payload);
+    final previous = _cache[hostId];
+    final snapshots = <AgentQuotaSnapshot>[
+      for (final snapshot
+          in previous?.snapshots ?? const <AgentQuotaSnapshot>[])
+        if (snapshot.key == result.snapshot.key) result.snapshot else snapshot,
+    ];
+    if (!snapshots.any((snapshot) => snapshot.key == result.snapshot.key)) {
+      snapshots.add(result.snapshot);
+    }
+    _cache[hostId] = AgentQuotaState(
+      hostId: hostId,
+      snapshots: snapshots,
+      environment: previous?.environment ?? const <String, bool>{},
+      fetchedAt: DateTime.now().toUtc(),
+    );
+    return result;
+  }
 }
 
 Map<String, Object?> _mapValue(Object? value) {

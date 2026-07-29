@@ -26,6 +26,10 @@ class RuntimeManagedWorkspaceClient implements ManagedWorkspaceRuntime {
       'projectId': project.id,
       'branch': newBranchName,
       'reuseExistingBranch': reuseExistingBranch,
+      // The desktop shows the worktree setup in a "Setup" terminal instead of
+      // holding the create dialog open until it finishes. A host that predates
+      // the flag ignores it and runs the setup inline, as before.
+      'deferSetup': true,
     };
     if (!reuseExistingBranch) {
       request['sourceBranch'] = sourceBranch;
@@ -70,6 +74,7 @@ WorkspaceCreationResult _creationResultFromJson(Map<String, Object?> json) {
   return WorkspaceCreationResult(
     workspace: _workspaceFromJson(_asMap(json['workspace'])),
     setupReport: _setupReportFromJson(_asMap(json['setupReport'])),
+    deferredSetupCommand: _emptyToNull(json['deferredSetupCommand']),
   );
 }
 

@@ -109,6 +109,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
                 for (final snapshot in snapshots)
                   _QuotaOverviewRow(
                     snapshot: snapshot,
+                    hostId: hostId,
                     profileLabel: profileLabels[snapshot.key],
                     pinned: !settings.unpinnedQuotaKeys.contains(
                       snapshot.pinKey,
@@ -127,12 +128,14 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
 class _QuotaOverviewRow extends StatelessWidget {
   const _QuotaOverviewRow({
     required this.snapshot,
+    required this.hostId,
     required this.profileLabel,
     required this.pinned,
     required this.onTogglePinned,
   });
 
   final AgentQuotaSnapshot snapshot;
+  final String hostId;
   final String? profileLabel;
   final bool pinned;
   final AgentQuotaPinToggle onTogglePinned;
@@ -148,67 +151,79 @@ class _QuotaOverviewRow extends StatelessWidget {
         horizontal: AleraTokens.space8,
         vertical: AleraTokens.space2,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          AgentQuotaProviderIcon(
-            provider: snapshot.provider,
-            size: 14,
-            showTooltip: false,
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          Expanded(
-            child: Tooltip(
-              message: _quotaTooltip(snapshot, profileLabel: profileLabel),
-              waitDuration: AleraTokens.durationMid,
-              child: Text(
-                name,
-                overflow: TextOverflow.ellipsis,
-                style: AleraTokens.monoStyle.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _quotaOverviewNameColor(snapshot.status),
+          Row(
+            children: <Widget>[
+              AgentQuotaProviderIcon(
+                provider: snapshot.provider,
+                size: 14,
+                showTooltip: false,
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              Expanded(
+                child: Tooltip(
+                  message: _quotaTooltip(snapshot, profileLabel: profileLabel),
+                  waitDuration: AleraTokens.durationMid,
+                  child: Text(
+                    name,
+                    overflow: TextOverflow.ellipsis,
+                    style: AleraTokens.monoStyle.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: _quotaOverviewNameColor(snapshot.status),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: AleraTokens.space6),
-          if (readings.isEmpty)
-            Text(
-              '-',
-              style: AleraTokens.monoStyle.copyWith(
-                fontSize: 10,
-                color: _quotaColor(snapshot.status, null),
-              ),
-            )
-          else
-            for (final (index, reading) in readings.indexed) ...<Widget>[
-              if (index > 0) const SizedBox(width: AleraTokens.space6),
-              Tooltip(
-                message: _quotaTooltipLine(
-                  label: reading.fullLabel,
-                  remainingPercent: reading.remainingPercent,
-                  resetsAt: reading.resetsAt,
-                  resetDescription: reading.resetDescription,
-                ),
-                waitDuration: AleraTokens.durationMid,
-                child: _QuotaReadingView(
-                  reading: reading,
-                  status: snapshot.status,
-                  compact: false,
-                ),
+              const SizedBox(width: AleraTokens.space6),
+              if (readings.isEmpty)
+                Text(
+                  '-',
+                  style: AleraTokens.monoStyle.copyWith(
+                    fontSize: 10,
+                    color: _quotaColor(snapshot.status, null),
+                  ),
+                )
+              else
+                for (final (index, reading) in readings.indexed) ...<Widget>[
+                  if (index > 0) const SizedBox(width: AleraTokens.space6),
+                  Tooltip(
+                    message: _quotaTooltipLine(
+                      label: reading.fullLabel,
+                      remainingPercent: reading.remainingPercent,
+                      resetsAt: reading.resetsAt,
+                      resetDescription: reading.resetDescription,
+                    ),
+                    waitDuration: AleraTokens.durationMid,
+                    child: _QuotaReadingView(
+                      reading: reading,
+                      status: snapshot.status,
+                      compact: false,
+                    ),
+                  ),
+                ],
+              const SizedBox(width: AleraTokens.space6),
+              AleraIconButton(
+                tooltip: pinned ? 'Unpin From Status Bar' : 'Pin To Status Bar',
+                icon: pinned ? AleraIcons.pin : AleraIcons.pinOff,
+                iconSize: 12,
+                minSize: 22,
+                iconColor: pinned
+                    ? AleraTokens.foregroundMuted
+                    : AleraTokens.foregroundFaint,
+                onPressed: () => onTogglePinned(snapshot.pinKey, !pinned),
               ),
             ],
-          const SizedBox(width: AleraTokens.space6),
-          AleraIconButton(
-            tooltip: pinned ? 'Unpin From Status Bar' : 'Pin To Status Bar',
-            icon: pinned ? AleraIcons.pin : AleraIcons.pinOff,
-            iconSize: 12,
-            minSize: 22,
-            iconColor: pinned
-                ? AleraTokens.foregroundMuted
-                : AleraTokens.foregroundFaint,
-            onPressed: () => onTogglePinned(snapshot.pinKey, !pinned),
           ),
+          if (snapshot.provider == AgentQuotaProviderId.codex &&
+              snapshot.rateLimitResetCredits != null)
+            _CodexResetCreditsPanel(
+              hostId: hostId,
+              snapshot: snapshot,
+              compact: true,
+            ),
         ],
       ),
     );

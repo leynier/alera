@@ -73,6 +73,7 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+mod managed_workspace_requests;
 mod mobile_terminal_requests;
 mod orchestration_agent_spawn_requests;
 mod orchestration_owned_spawn;
@@ -176,6 +177,11 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    WorkspaceSetupFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
@@ -183,6 +189,12 @@ pub enum ServerCommand {
         result: HostResult<Value>,
     },
     AgentQuotaClaudeTuiFinished {
+        client_id: u64,
+        request_id: i64,
+        environment_signature: u64,
+        result: HostResult<Value>,
+    },
+    AgentQuotaCodexResetFinished {
         client_id: u64,
         request_id: i64,
         environment_signature: u64,
@@ -357,6 +369,11 @@ pub async fn run_terminal_host_server(
     }
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
+    // A deferred setup script deletes itself when it finishes, so anything
+    // still here outlived the host that wrote it and its terminal is gone.
+    if let Some(directory) = actor.setup_script_directory() {
+        crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
+    }
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -634,6 +651,14 @@ impl ServerActor {
                 self.handle_managed_workspace_created(client_id, request_id, result)
                     .await
             }
+            ServerCommand::WorkspaceSetupFinished {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.handle_workspace_setup_finished(client_id, request_id, result)
+                    .await
+            }
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
@@ -651,6 +676,17 @@ impl ServerActor {
                 environment_signature,
                 result,
             } => self.handle_agent_quota_claude_tui_finished(
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            ),
+            ServerCommand::AgentQuotaCodexResetFinished {
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            } => self.handle_agent_quota_codex_reset_finished(
                 client_id,
                 request_id,
                 environment_signature,

@@ -219,7 +219,7 @@ pub async fn effective_project_config(
     }
     let parsed = std::fs::read_to_string(&config_path)
         .with_context(|| format!("Could not load {}", config_path.display()))
-        .and_then(|contents| crate::managed_workspace::parse_project_config_toml(&contents));
+        .and_then(|contents| crate::project_config_toml::parse_project_config_toml(&contents));
     match parsed {
         Ok(config) => Ok(EffectiveProjectConfigPayload {
             config,

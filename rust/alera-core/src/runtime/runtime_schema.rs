@@ -212,4 +212,12 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         claimedDeviceId TEXT
     );",
     "CREATE INDEX IF NOT EXISTS mobilePairingOffersActiveIdx ON mobilePairingOffers(expiresAt, claimedDeviceId);",
+    "CREATE TABLE IF NOT EXISTS codexResetCreditAttempts (
+        accountId TEXT PRIMARY KEY,
+        offerRevision TEXT NOT NULL,
+        idempotencyKey TEXT NOT NULL,
+        state TEXT NOT NULL,
+        outcome TEXT,
+        updatedAt INTEGER NOT NULL
+    );",
 ];

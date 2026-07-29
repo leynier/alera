@@ -5,6 +5,7 @@ import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_b
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -105,6 +106,40 @@ void main() {
     expect(find.byIcon(AleraIcons.pinOff), findsOneWidget);
     expect(find.byTooltip('Unpin From Status Bar'), findsNWidgets(2));
     expect(find.byTooltip('Pin To Status Bar'), findsOneWidget);
+  });
+
+  testWidgets('shows Codex reset count and action in the overview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        settings: const AgentQuotaHostSettings(
+          enabledProviders: <AgentQuotaProviderId>[AgentQuotaProviderId.codex],
+        ),
+        snapshots: <AgentQuotaSnapshot>[
+          _snapshot(
+            provider: AgentQuotaProviderId.codex,
+            windows: <AgentQuotaWindow>[_window('5 Hour', 100)],
+            resetCredits: CodexResetCredits(
+              availableCount: 2,
+              totalEarnedCount: 4,
+              nextExpiresAt: DateTime.utc(2030),
+              offerRevision: 'opaque-revision',
+              canConsume: true,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(
+      find.byIcon(AleraIcons.quota),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 Rate-Limit Resets Available'), findsOneWidget);
+    expect(find.text('Use Reset'), findsOneWidget);
   });
 
   testWidgets('pin buttons report the toggled key and value', (tester) async {
@@ -296,19 +331,21 @@ Widget _wrap({
   AgentQuotaPinToggle? onTogglePinned,
   double width = 1100,
 }) {
-  return MaterialApp(
-    theme: buildAleraDarkTheme(),
-    home: Scaffold(
-      body: Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          width: width,
-          child: AgentQuotaStatusBarView(
-            hostId: 'local',
-            snapshots: snapshots,
-            settings: settings,
-            onRefresh: () {},
-            onTogglePinned: onTogglePinned ?? (_, _) {},
+  return ProviderScope(
+    child: MaterialApp(
+      theme: buildAleraDarkTheme(),
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            width: width,
+            child: AgentQuotaStatusBarView(
+              hostId: 'local',
+              snapshots: snapshots,
+              settings: settings,
+              onRefresh: () {},
+              onTogglePinned: onTogglePinned ?? (_, _) {},
+            ),
           ),
         ),
       ),
@@ -324,6 +361,7 @@ AgentQuotaSnapshot _snapshot({
   String? error,
   List<AgentQuotaWindow> windows = const <AgentQuotaWindow>[],
   List<AgentQuotaBucket> buckets = const <AgentQuotaBucket>[],
+  CodexResetCredits? resetCredits,
 }) {
   return AgentQuotaSnapshot(
     provider: provider,
@@ -334,6 +372,7 @@ AgentQuotaSnapshot _snapshot({
     error: error,
     windows: windows,
     buckets: buckets,
+    rateLimitResetCredits: resetCredits,
   );
 }
 

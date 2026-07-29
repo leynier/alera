@@ -47,6 +47,17 @@ mixin MobileRuntimeClientHostTools {
     return QuotaSnapshot.fromJson(asJsonMap(raw));
   }
 
+  Future<CodexResetConsumeResult> consumeCodexResetCredit(
+    String offerRevision,
+  ) async {
+    final payload = await requestMap(
+      'agentQuota.consumeCodexResetCredit',
+      <String, Object?>{'offerRevision': offerRevision},
+      const Duration(seconds: 45),
+    );
+    return CodexResetConsumeResult.fromJson(payload);
+  }
+
   Future<CliRegistrationStatus> cliRegistrationStatus() async {
     final payload = await requestMap(
       'cliRegistration.status',

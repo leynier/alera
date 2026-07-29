@@ -8,9 +8,7 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
-use crate::managed_workspace::{
-    create_managed_workspace, ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
-};
+use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
@@ -26,7 +24,6 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
-use super::runtime_change_broadcasts::string_scope;
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -161,8 +158,20 @@ impl ServerActor {
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                let request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
+                let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
+                request.setup_script_directory = self.setup_script_directory();
                 self.start_managed_workspace_create(client_id, request_id, request);
+                Ok(true)
+            }
+            "workspace.runSetup" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let workspace_id = require_string_key(payload, "id")?;
+                let copies_only = payload
+                    .get("copiesOnly")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                self.start_workspace_setup(client_id, request_id, workspace_id, copies_only);
                 Ok(true)
             }
             "workspace.removeManaged" => {
@@ -266,6 +275,12 @@ impl ServerActor {
                 self.start_agent_quota_claude_tui_request(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "agentQuota.consumeCodexResetCredit" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_agent_quota_codex_reset_request(client_id, request_id, payload);
+                Ok(true)
+            }
             "cliRegistration.status" | "cliRegistration.install" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
@@ -295,46 +310,6 @@ impl ServerActor {
             }
             _ => Ok(false),
         }
-    }
-
-    fn start_managed_workspace_create(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        request: ManagedWorkspaceCreateRequest,
-    ) {
-        self.managed_workspace_jobs += 1;
-        self.cancel_shutdown_timer();
-        let store = self.runtime_store.clone();
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            let result = json_result(create_managed_workspace(&store, request).await);
-            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
-                client_id,
-                request_id,
-                result,
-            });
-        });
-    }
-
-    pub(super) async fn handle_managed_workspace_created(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        result: HostResult<Value>,
-    ) {
-        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
-        match result {
-            Ok(payload) => {
-                let project_id = string_scope(&payload, "projectId");
-                self.client_write(client_id, ok_response(request_id, payload));
-                self.broadcast_workspaces_changed(project_id.as_deref());
-            }
-            Err(error) => {
-                self.client_write(client_id, error_response(request_id, &error));
-            }
-        }
-        self.schedule_shutdown_if_idle();
     }
 
     async fn handle_request(
@@ -1329,7 +1304,7 @@ where
     serde_json::from_value(payload.clone()).map_err(|error| HostError::format(error.to_string()))
 }
 
-fn json_result<T, E>(result: Result<T, E>) -> HostResult<Value>
+pub(super) fn json_result<T, E>(result: Result<T, E>) -> HostResult<Value>
 where
     T: serde::Serialize,
     E: std::fmt::Display,

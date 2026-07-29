@@ -91,7 +91,65 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
     expect(result.workspace.branch, 'feature/second-try');
     expect(_controller.state.error, isNull);
   });
+
+  test(
+    'createWorkspace opens a Setup terminal for a deferred worktree setup',
+    () async {
+      await _harness.dispose();
+      _harness = _WorkbenchHarness(
+        const _ManagedWorkspaceRuntimeWithDeferredSetup(_setupCommand),
+      );
+      _controller = _harness._controller;
+      await _controller.bootstrap();
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+
+      final result = await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/deferred-setup',
+      );
+
+      final tabs = _controller.state.tabsFor(result.workspace.id);
+      expect(tabs.map((tab) => tab.title), <String>['Terminal 1', 'Setup']);
+      final setup = tabs.last;
+      expect(setup.initialCommand, _setupCommand);
+      expect(setup.initialCommandOnce, isTrue);
+      expect(setup.spawnOnCreate, isTrue);
+      expect(_controller.state.activeWorkspaceTab?.title, 'Setup');
+      expect(_controller.state.error, isNull);
+    },
+  );
+
+  test(
+    'createWorkspace leaves the workspace with one terminal when nothing is deferred',
+    () async {
+      await _harness.dispose();
+      _harness = _WorkbenchHarness(
+        const _ManagedWorkspaceRuntimeWithDeferredSetup(null),
+      );
+      _controller = _harness._controller;
+      await _controller.bootstrap();
+      await _flushUntil(
+        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+      );
+
+      final result = await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/no-setup',
+      );
+
+      expect(
+        _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
+        <String>['Terminal 1'],
+      );
+    },
+  );
 }
+
+const String _setupCommand = '/bin/sh "/run/alera/worktree-setup-ws.sh"';
 
 class _ManagedWorkspaceRuntimeWithoutWatcher
     implements ManagedWorkspaceRuntime {
@@ -121,6 +179,49 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
         reusesExistingBranch: reuseExistingBranch,
       ),
       setupReport: WorktreeSetupReport.empty,
+    );
+  }
+
+  @override
+  Future<void> removeWorkspace({
+    required Workspace workspace,
+    bool? deleteBranch,
+  }) async {}
+}
+
+/// Stands in for a host that prepared the worktree setup instead of running it.
+/// A null command is what a host without deferral support reports.
+class _ManagedWorkspaceRuntimeWithDeferredSetup
+    implements ManagedWorkspaceRuntime {
+  const _ManagedWorkspaceRuntimeWithDeferredSetup(this.deferredSetupCommand);
+
+  final String? deferredSetupCommand;
+
+  @override
+  Future<WorkspaceCreationResult> createLinkedWorkspace({
+    required Project project,
+    required String sourceBranch,
+    required String newBranchName,
+    required bool reuseExistingBranch,
+    String? name,
+  }) async {
+    final now = DateTime.utc(2026, 5, 22, 3);
+    return WorkspaceCreationResult(
+      workspace: Workspace(
+        id: 'workspace-with-deferred-setup',
+        projectId: project.id,
+        name: name ?? newBranchName,
+        branch: newBranchName,
+        path: p.join(project.repoPath, 'deferred-workspace'),
+        createdAt: now,
+        updatedAt: now,
+        kind: WorkspaceKind.linked,
+        status: WorkspaceStatus.active,
+        sourceBranch: reuseExistingBranch ? null : sourceBranch,
+        reusesExistingBranch: reuseExistingBranch,
+      ),
+      setupReport: WorktreeSetupReport.empty,
+      deferredSetupCommand: deferredSetupCommand,
     );
   }
 

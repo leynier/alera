@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/quotas/application/agent_quota_controller.dart';
@@ -121,6 +123,89 @@ class _QuotaCard extends ConsumerStatefulWidget {
 
 class _QuotaCardState extends ConsumerState<_QuotaCard> {
   var _tryingTui = false;
+  var _usingReset = false;
+  Timer? _expiryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleExpiryRefresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant _QuotaCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.snapshot.rateLimitResetCredits?.nextExpiresAt !=
+        widget.snapshot.rateLimitResetCredits?.nextExpiresAt) {
+      _scheduleExpiryRefresh();
+    }
+  }
+
+  @override
+  void dispose() {
+    _expiryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleExpiryRefresh() {
+    _expiryTimer?.cancel();
+    final expiry = widget.snapshot.rateLimitResetCredits?.nextExpiresAt;
+    if (expiry == null) return;
+    final remaining = expiry.difference(DateTime.now().toUtc());
+    if (remaining <= Duration.zero) return;
+    final interval = remaining > const Duration(days: 1)
+        ? const Duration(hours: 1)
+        : const Duration(minutes: 1);
+    _expiryTimer = Timer(interval, () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleExpiryRefresh();
+    });
+  }
+
+  Future<void> _useCodexReset() async {
+    final credits = widget.snapshot.rateLimitResetCredits;
+    if (_usingReset || credits == null || !credits.canConsume) return;
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Use Codex Reset'),
+            content: const Text(
+              'Use One Codex Rate-Limit Reset Credit? Alera Will Re-Check The Active Account And Offer Before Applying It.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Use Reset'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() => _usingReset = true);
+    try {
+      final result = await ref
+          .read(agentQuotaControllerProvider(widget.hostId).notifier)
+          .consumeCodexResetCredit(widget.snapshot);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Codex Reset Failed: $error')));
+    } finally {
+      if (mounted) setState(() => _usingReset = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,10 +216,15 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
     );
     final supportsClaudeTui =
         connection.asData?.value.supportsAgentQuotaClaudeTui ?? false;
+    final supportsCodexResets =
+        connection.asData?.value.supportsCodexResetCredits ?? false;
     final showTryTui =
         supportsClaudeTui &&
         snapshot.provider == 'claude' &&
         snapshot.status != 'ok';
+    final resetCredits = snapshot.provider == 'codex'
+        ? snapshot.rateLimitResetCredits
+        : null;
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
@@ -175,6 +265,41 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                       : AleraTokens.error,
                 ),
               ),
+            if (resetCredits case final credits?) ...<Widget>[
+              const SizedBox(height: AleraTokens.spaceMd),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '${credits.availableCount} Rate-Limit ${credits.availableCount == 1 ? 'Reset' : 'Resets'} Available',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        if (_codexResetExpiryText(credits.nextExpiresAt)
+                            case final expiry?)
+                          Text(
+                            expiry,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AleraTokens.foregroundMuted),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (credits.availableCount > 0)
+                    TextButton(
+                      onPressed:
+                          supportsCodexResets &&
+                              credits.canConsume &&
+                              !_usingReset
+                          ? _useCodexReset
+                          : null,
+                      child: Text(_usingReset ? 'Applying...' : 'Use Reset'),
+                    ),
+                ],
+              ),
+            ],
             if (showTryTui) ...<Widget>[
               const SizedBox(height: AleraTokens.spaceMd),
               Align(
@@ -209,6 +334,34 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
       ),
     );
   }
+}
+
+String _codexResetMessage(CodexResetConsumeResult result) {
+  if (result.status == 'rejected') {
+    return result.reason == 'offerChanged'
+        ? 'Codex Reset Offer Changed. Review The Updated Credits.'
+        : 'No Codex Reset Credit Is Available.';
+  }
+  return switch (result.outcome) {
+    'reset' => 'Codex Rate Limit Reset Applied.',
+    'nothingToReset' => 'Codex Has No Active Rate Limit To Reset.',
+    'noCredit' => 'No Codex Reset Credit Is Available.',
+    'alreadyRedeemed' => 'This Codex Reset Was Already Applied.',
+    _ => 'Codex Reset Result Was Unavailable.',
+  };
+}
+
+String? _codexResetExpiryText(DateTime? expiry) {
+  if (expiry == null) return null;
+  final remaining = expiry.difference(DateTime.now().toUtc());
+  if (remaining <= Duration.zero) return 'Next Reset Expired';
+  if (remaining.inDays > 0) {
+    return 'Next Reset Expires In ${remaining.inDays}d ${remaining.inHours % 24}h';
+  }
+  if (remaining.inHours > 0) {
+    return 'Next Reset Expires In ${remaining.inHours}h ${remaining.inMinutes % 60}m';
+  }
+  return 'Next Reset Expires In ${remaining.inMinutes.clamp(1, 59)}m';
 }
 
 class _QuotaMeterRow extends StatelessWidget {

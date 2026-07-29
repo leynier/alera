@@ -36,6 +36,7 @@ class QuotaSnapshot {
     required this.error,
     required this.windows,
     required this.buckets,
+    this.rateLimitResetCredits,
   });
 
   factory QuotaSnapshot.fromJson(Map<String, Object?> json) {
@@ -59,6 +60,10 @@ class QuotaSnapshot {
           if (item is Map)
             QuotaMeter.fromJson(asJsonMap(item), labelKey: 'name'),
       ],
+      rateLimitResetCredits: switch (json['rateLimitResetCredits']) {
+        final Map value => CodexResetCredits.fromJson(asJsonMap(value)),
+        _ => null,
+      },
     );
   }
 
@@ -70,6 +75,63 @@ class QuotaSnapshot {
   final String? error;
   final List<QuotaMeter> windows;
   final List<QuotaMeter> buckets;
+  final CodexResetCredits? rateLimitResetCredits;
+}
+
+class CodexResetCredits {
+  const CodexResetCredits({
+    required this.availableCount,
+    required this.nextExpiresAt,
+    required this.offerRevision,
+    required this.canConsume,
+  });
+
+  factory CodexResetCredits.fromJson(Map<String, Object?> json) {
+    final expiry = json['nextExpiresAt'] as int?;
+    return CodexResetCredits(
+      availableCount: switch (json['availableCount']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      nextExpiresAt: expiry == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(expiry, isUtc: true),
+      offerRevision: json['offerRevision'] as String? ?? '',
+      canConsume: json['canConsume'] == true,
+    );
+  }
+
+  final int availableCount;
+  final DateTime? nextExpiresAt;
+  final String offerRevision;
+  final bool canConsume;
+}
+
+class CodexResetConsumeResult {
+  const CodexResetConsumeResult({
+    required this.status,
+    required this.outcome,
+    required this.reason,
+    required this.snapshot,
+  });
+
+  factory CodexResetConsumeResult.fromJson(Map<String, Object?> json) {
+    final rawSnapshot = json['snapshot'];
+    if (rawSnapshot is! Map) {
+      throw const FormatException('Codex reset response missing snapshot.');
+    }
+    return CodexResetConsumeResult(
+      status: json['status'] as String? ?? 'rejected',
+      outcome: json['outcome'] as String?,
+      reason: json['reason'] as String?,
+      snapshot: QuotaSnapshot.fromJson(asJsonMap(rawSnapshot)),
+    );
+  }
+
+  final String status;
+  final String? outcome;
+  final String? reason;
+  final QuotaSnapshot snapshot;
 }
 
 class QuotaMeter {

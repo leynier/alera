@@ -5,19 +5,7 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
 
-class WorkspaceFileTabPathMoveResult {
-  const WorkspaceFileTabPathMoveResult({
-    required this.updatedTabs,
-    required this.closedTabIds,
-  });
-
-  final List<WorkspaceTabRecord> updatedTabs;
-  final List<String> closedTabIds;
-
-  List<String> get removedTabIds => closedTabIds;
-
-  bool get isEmpty => updatedTabs.isEmpty && closedTabIds.isEmpty;
-}
+part 'workspace_tab_path_moves.dart';
 
 class WorkspaceTabService {
   factory WorkspaceTabService({
@@ -54,17 +42,43 @@ class WorkspaceTabService {
     return createTerminalTab(workspaceId);
   }
 
-  Future<WorkspaceTabRecord> createTerminalTab(String workspaceId) async {
+  /// Creates a terminal tab.
+  ///
+  /// A [title] also pins the tab against runtime OSC retitling, because a
+  /// caller that named the tab meant that name. [initialCommand] is written
+  /// into the shell once it starts; with [spawnOnCreate] the host starts the
+  /// PTY immediately instead of waiting for the tab to become visible, and with
+  /// [initialCommandOnce] the command is dropped from the record after the
+  /// first delivery so a later PTY starts a clean shell.
+  Future<WorkspaceTabRecord> createTerminalTab(
+    String workspaceId, {
+    String? title,
+    String? initialCommand,
+    bool spawnOnCreate = false,
+    bool initialCommandOnce = false,
+  }) async {
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     final tabId = _uuid.v4();
+    final trimmedTitle = title?.trim();
+    final trimmedCommand = initialCommand?.trim();
     final tab = WorkspaceTabRecord(
       id: tabId,
       workspaceId: workspaceId,
-      title: 'Terminal ${_nextOrdinal(existing)}',
+      title: trimmedTitle == null || trimmedTitle.isEmpty
+          ? 'Terminal ${_nextOrdinal(existing)}'
+          : trimmedTitle,
       createdAt: _now(),
       updatedAt: _now(),
       payload: <String, Object?>{
         workspaceTabTerminalSessionIdPayloadKey: tabId,
+        if (trimmedTitle != null && trimmedTitle.isNotEmpty)
+          workspaceTabManualTitlePayloadKey: true,
+        if (trimmedCommand != null && trimmedCommand.isNotEmpty) ...{
+          workspaceTabInitialCommandPayloadKey: trimmedCommand,
+          if (initialCommandOnce)
+            workspaceTabInitialCommandOncePayloadKey: true,
+        },
+        if (spawnOnCreate) workspaceTabSpawnOnCreatePayloadKey: true,
       },
     );
     await _repository.upsertWorkspaceTab(tab);
@@ -303,163 +317,6 @@ class WorkspaceTabService {
     return next;
   }
 
-  Future<WorkspaceFileTabPathMoveResult> updateFileTabPathsAfterMove({
-    required String workspaceId,
-    required String oldRelativePath,
-    required String newRelativePath,
-  }) async {
-    final oldPath = _normalizeRelativePath(oldRelativePath);
-    final newPath = _normalizeRelativePath(newRelativePath);
-    final tabs = await _repository.listWorkspaceTabs(workspaceId);
-    final updatedById = <String, WorkspaceTabRecord>{};
-    final closed = <String>[];
-    final fileBackedPaths = <String>{};
-    void trackUpdated(WorkspaceTabRecord tab) {
-      updatedById[tab.id] = tab;
-    }
-
-    for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
-        continue;
-      }
-      if (tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
-        continue;
-      }
-      final root = tab.gitDiffRoot!;
-      final nextRoot = _replacePathPrefix(
-        path: root,
-        oldPath: oldPath,
-        newPath: newPath,
-      );
-      if (nextRoot == null || nextRoot == root) {
-        continue;
-      }
-      final next = tab.copyWith(
-        title: _titleForGitDiff(
-          scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
-          path: tab.filePath,
-          area: tab.gitDiffArea,
-          root: nextRoot,
-        ),
-        updatedAt: _now(),
-        payload: <String, Object?>{
-          ...tab.payload,
-          workspaceTabGitDiffRootPayloadKey: nextRoot,
-        },
-      );
-      await _repository.upsertWorkspaceTab(next);
-      trackUpdated(next);
-    }
-    for (final tab in tabs) {
-      if (_isRetargetableFileBackedTab(tab) && !tab.isMermanPreview) {
-        final filePath = tab.filePath;
-        if (filePath != null) {
-          fileBackedPaths.add(
-            _replacePathPrefix(
-                  path: filePath,
-                  oldPath: oldPath,
-                  newPath: newPath,
-                ) ??
-                filePath,
-          );
-        }
-      }
-    }
-    for (final originalTab in tabs) {
-      final rootWasRetargeted = updatedById.containsKey(originalTab.id);
-      final tab = updatedById[originalTab.id] ?? originalTab;
-      if (tab.kind == WorkspaceTabKind.gitDiff &&
-          tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
-        continue;
-      }
-      if (!_isFileTabKind(tab.kind)) {
-        continue;
-      }
-      if (tab.kind == WorkspaceTabKind.gitDiff &&
-          tab.gitDiffArea == GitChangeArea.staged &&
-          !rootWasRetargeted) {
-        continue;
-      }
-      final filePath = tab.filePath;
-      if (filePath == null) {
-        continue;
-      }
-      final nextPath = _replacePathPrefix(
-        path: filePath,
-        oldPath: oldPath,
-        newPath: newPath,
-      );
-      if (nextPath == null || nextPath == filePath) {
-        continue;
-      }
-      final nextKind = _fileTabKindAfterPathMove(tab: tab, nextPath: nextPath);
-      if (tab.isMermanPreview && !isWorkspaceMermanFilePath(nextPath)) {
-        if (fileBackedPaths.contains(nextPath)) {
-          await _repository.removeWorkspaceTab(tab.id);
-          closed.add(tab.id);
-          updatedById.remove(tab.id);
-          continue;
-        }
-        final nextPayload = <String, Object?>{
-          ...tab.payload,
-          workspaceTabFilePathPayloadKey: nextPath,
-        }..remove(workspaceTabFileRolePayloadKey);
-        final next = tab.copyWith(
-          kind: _fileBackedKindForPath(nextPath),
-          title: _titleForPath(nextPath),
-          updatedAt: _now(),
-          payload: nextPayload,
-        );
-        await _repository.upsertWorkspaceTab(next);
-        trackUpdated(next);
-        fileBackedPaths.add(nextPath);
-        continue;
-      }
-      if (nextKind == null) {
-        await _repository.removeWorkspaceTab(tab.id);
-        closed.add(tab.id);
-        updatedById.remove(tab.id);
-        continue;
-      }
-      final next = tab.copyWith(
-        kind: nextKind,
-        title: tab.isMermanPreview
-            ? _previewTitleForPath(nextPath)
-            : tab.kind == WorkspaceTabKind.gitDiff
-            ? _titleForGitDiff(
-                scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
-                path: nextPath,
-                area: tab.gitDiffArea,
-                root: tab.gitDiffRoot,
-              )
-            : _titleForPath(nextPath),
-        updatedAt: _now(),
-        payload: <String, Object?>{
-          ...tab.payload,
-          workspaceTabFilePathPayloadKey: nextPath,
-        },
-      );
-      await _repository.upsertWorkspaceTab(next);
-      trackUpdated(next);
-    }
-    return WorkspaceFileTabPathMoveResult(
-      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updatedById.values),
-      closedTabIds: List<String>.unmodifiable(closed),
-    );
-  }
-
-  Future<WorkspaceFileTabPathMoveResult> updateEditorPathsAfterMove({
-    required String workspaceId,
-    required String oldRelativePath,
-    required String newRelativePath,
-  }) {
-    return updateFileTabPathsAfterMove(
-      workspaceId: workspaceId,
-      oldRelativePath: oldRelativePath,
-      newRelativePath: newRelativePath,
-    );
-  }
-
   Future<WorkspaceTabRecord> _openOrCreateFileTab({
     required String workspaceId,
     required String relativePath,
@@ -496,16 +353,6 @@ class WorkspaceTabService {
     await _repository.upsertWorkspaceTab(tab);
     return tab;
   }
-
-  bool _isFileTabKind(WorkspaceTabKind kind) => switch (kind) {
-    WorkspaceTabKind.editor ||
-    WorkspaceTabKind.markdownViewer ||
-    WorkspaceTabKind.pdf ||
-    WorkspaceTabKind.gitDiff => true,
-    WorkspaceTabKind.terminal ||
-    WorkspaceTabKind.browser ||
-    WorkspaceTabKind.mobileEmulator => false,
-  };
 
   bool _canRetargetFileBackedTab({
     required WorkspaceTabKind from,
@@ -555,12 +402,6 @@ class WorkspaceTabService {
     return '${_titleForPath(path)} preview';
   }
 
-  bool _isRetargetableFileBackedTab(WorkspaceTabRecord tab) {
-    return tab.kind == WorkspaceTabKind.editor ||
-        tab.kind == WorkspaceTabKind.pdf ||
-        tab.kind == WorkspaceTabKind.markdownViewer;
-  }
-
   WorkspaceTabKind _fileBackedKindForPath(String path) {
     if (isWorkspaceMarkdownFilePath(path)) {
       return WorkspaceTabKind.markdownViewer;
@@ -570,28 +411,6 @@ class WorkspaceTabService {
     }
     return WorkspaceTabKind.editor;
   }
-
-  WorkspaceTabKind? _fileTabKindAfterPathMove({
-    required WorkspaceTabRecord tab,
-    required String nextPath,
-  }) => switch (tab.kind) {
-    WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
-    WorkspaceTabKind.markdownViewer =>
-      isWorkspaceMarkdownFilePath(nextPath)
-          ? WorkspaceTabKind.markdownViewer
-          : null,
-    WorkspaceTabKind.editor =>
-      isWorkspacePdfFilePath(nextPath)
-          ? WorkspaceTabKind.pdf
-          : WorkspaceTabKind.editor,
-    WorkspaceTabKind.pdf =>
-      isWorkspacePdfFilePath(nextPath)
-          ? WorkspaceTabKind.pdf
-          : WorkspaceTabKind.editor,
-    WorkspaceTabKind.terminal ||
-    WorkspaceTabKind.browser ||
-    WorkspaceTabKind.mobileEmulator => null,
-  };
 
   String _titleForGitDiff({
     required WorkspaceGitDiffScope scope,
@@ -618,20 +437,5 @@ class WorkspaceTabService {
       WorkspaceGitDiffScope.file ||
       WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} $compareRef',
     };
-  }
-
-  String? _replacePathPrefix({
-    required String path,
-    required String oldPath,
-    required String newPath,
-  }) {
-    if (path == oldPath) {
-      return newPath;
-    }
-    final prefix = '$oldPath/';
-    if (!path.startsWith(prefix)) {
-      return null;
-    }
-    return '$newPath/${path.substring(prefix.length)}';
   }
 }

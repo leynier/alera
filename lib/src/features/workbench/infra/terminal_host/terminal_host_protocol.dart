@@ -15,6 +15,8 @@ const String aleraRuntimeHostManagedAgentProfilesCapability =
     'orchestrationManagedAgentProfilesV1';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
+const String aleraRuntimeHostCodexResetCreditsCapability =
+    'codexResetCreditsV1';
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';

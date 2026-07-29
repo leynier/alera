@@ -1,20 +1,23 @@
-use std::path::{Path, PathBuf};
-use std::process::Stdio;
+//! Lifecycle of an Alera-managed Git worktree workspace: validating a create
+//! or remove request, resolving where the worktree lives, and driving `git`.
+//!
+//! Applying the project's `worktree.copy` rules and `worktree.setup` commands
+//! lives in [`crate::worktree_setup`].
 
-use alera_core::child_process::windowless_async_command;
+use std::path::{Path, PathBuf};
+
 use alera_core::git as core_git;
 use alera_core::runtime::{
-    Project, ProjectConfig, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult,
-    WorkspaceKind, WorkspaceStatus, WorktreeCopyRule, WorktreeSetupReport, WorktreeSetupStepKind,
-    WorktreeSetupStepReport, LOCAL_HOST_ID,
+    Project, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult, WorkspaceKind,
+    WorkspaceStatus, LOCAL_HOST_ID,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
 use serde::Deserialize;
-use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 
-const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
+use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceCreateRequest {
@@ -34,6 +37,15 @@ pub struct ManagedWorkspaceCreateRequest {
     pub path: Option<String>,
     #[serde(default)]
     pub parent_workspace_id: Option<String>,
+    /// Asks the host to prepare the worktree setup instead of running it, so
+    /// the caller can show it in a terminal. Defaults to running it inline,
+    /// which is what the `alera` CLI and the mobile gateway still want.
+    #[serde(default)]
+    pub defer_setup: bool,
+    /// Directory the deferred setup script is written to. The host fills this
+    /// in from its own state directory; a caller cannot choose it.
+    #[serde(skip)]
+    pub setup_script_directory: Option<PathBuf>,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -172,10 +184,25 @@ pub async fn create_managed_workspace(
             .await?
             .ok_or_else(|| anyhow!("Workspace disappeared after linking: {}", workspace.id))?;
     }
+    if request.defer_setup {
+        let (setup_report, deferred_setup_command) = prepare_deferred_worktree_setup(
+            store,
+            &project,
+            &workspace,
+            request.setup_script_directory.as_deref(),
+        )
+        .await;
+        return Ok(WorkspaceCreationResult {
+            workspace,
+            setup_report,
+            deferred_setup_command,
+        });
+    }
     let setup_report = run_worktree_setup(store, &project, &workspace).await;
     Ok(WorkspaceCreationResult {
         workspace,
         setup_report,
+        deferred_setup_command: None,
     })
 }
 
@@ -357,502 +384,6 @@ fn canonical_path(path: &str) -> String {
     path.trim_end_matches('/').to_string()
 }
 
-async fn run_worktree_setup(
-    store: &RuntimeStore,
-    project: &Project,
-    workspace: &Workspace,
-) -> WorktreeSetupReport {
-    match effective_project_config(store, project).await {
-        Ok(config) if config.is_empty() => WorktreeSetupReport::empty(),
-        Ok(config) => run_setup_config(project, workspace, &config).await,
-        Err(error) => WorktreeSetupReport {
-            steps: vec![WorktreeSetupStepReport {
-                kind: WorktreeSetupStepKind::Config,
-                label: "alera.toml".to_string(),
-                succeeded: false,
-                message: Some(error.to_string()),
-                exit_code: None,
-                stdout_tail: None,
-                stderr_tail: None,
-            }],
-        },
-    }
-}
-
-async fn effective_project_config(
-    store: &RuntimeStore,
-    project: &Project,
-) -> Result<ProjectConfig> {
-    if let Some(config) = store.find_project_config(&project.id).await? {
-        return Ok(config);
-    }
-    let config_path = Path::new(&project.repo_path).join("alera.toml");
-    if !config_path.exists() {
-        return Ok(ProjectConfig::default());
-    }
-    let contents = std::fs::read_to_string(&config_path)
-        .with_context(|| format!("Could not load {}", config_path.display()))?;
-    parse_project_config_toml(&contents)
-}
-
-pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
-    let value: toml::Value = contents.parse().context("Invalid alera.toml")?;
-    let Some(root) = value.as_table() else {
-        bail!("alera.toml must contain a table");
-    };
-    let git_hosting_provider = parse_git_hosting_provider(root.get("git_hosting_provider"))?;
-    let Some(worktree) = root.get("worktree") else {
-        return Ok(ProjectConfig {
-            git_hosting_provider,
-            ..ProjectConfig::default()
-        });
-    };
-    let Some(worktree) = worktree.as_table() else {
-        bail!("alera.toml [worktree] must be a table");
-    };
-    let copy = parse_copy_rules(worktree.get("copy"))?;
-    let setup = parse_setup_commands(worktree.get("setup"))?;
-    Ok(ProjectConfig {
-        worktree: alera_core::runtime::WorktreeSetupConfig { copy, setup },
-        git_hosting_provider,
-    })
-}
-
-fn parse_git_hosting_provider(value: Option<&toml::Value>) -> Result<Option<String>> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let Some(raw) = value.as_str() else {
-        bail!("git_hosting_provider must be a string");
-    };
-    match raw.trim().to_lowercase().as_str() {
-        "github" | "githubenterprise" | "github_enterprise" | "github-enterprise" => {
-            Ok(Some("github".to_string()))
-        }
-        "azuredevops" | "azure_devops" | "azure-devops" | "azure" => {
-            Ok(Some("azureDevops".to_string()))
-        }
-        "gitlab" | "git_lab" | "git-lab" => Ok(Some("gitlab".to_string())),
-        _ => bail!(
-            "git_hosting_provider must be one of: github, githubEnterprise, azureDevops, gitlab"
-        ),
-    }
-}
-
-fn parse_copy_rules(value: Option<&toml::Value>) -> Result<Vec<WorktreeCopyRule>> {
-    let Some(value) = value else {
-        return Ok(Vec::new());
-    };
-    let Some(items) = value.as_array() else {
-        bail!("worktree.copy must be a list");
-    };
-    let mut rules = Vec::with_capacity(items.len());
-    for (index, item) in items.iter().enumerate() {
-        let Some(table) = item.as_table() else {
-            bail!("worktree.copy[{index}] must be a table");
-        };
-        let from = required_string(table.get("from"), &format!("worktree.copy[{index}].from"))?;
-        let to = optional_string(table.get("to"), &format!("worktree.copy[{index}].to"))?;
-        let overwrite = table
-            .get("overwrite")
-            .map(|value| {
-                value
-                    .as_bool()
-                    .ok_or_else(|| anyhow!("worktree.copy[{index}].overwrite must be a boolean"))
-            })
-            .transpose()?
-            .unwrap_or(false);
-        rules.push(WorktreeCopyRule {
-            from: normalize_config_path(&from, &format!("worktree.copy[{index}].from"))?,
-            to: to
-                .map(|value| normalize_config_path(&value, &format!("worktree.copy[{index}].to")))
-                .transpose()?,
-            overwrite,
-        });
-    }
-    Ok(rules)
-}
-
-fn parse_setup_commands(value: Option<&toml::Value>) -> Result<Vec<String>> {
-    let Some(value) = value else {
-        return Ok(Vec::new());
-    };
-    let Some(items) = value.as_array() else {
-        bail!("worktree.setup must be a list");
-    };
-    let mut commands = Vec::with_capacity(items.len());
-    for (index, item) in items.iter().enumerate() {
-        commands.push(required_string(
-            Some(item),
-            &format!("worktree.setup[{index}]"),
-        )?);
-    }
-    Ok(commands)
-}
-
-fn required_string(value: Option<&toml::Value>, label: &str) -> Result<String> {
-    let Some(value) = value else {
-        bail!("{label} must be a non-empty string");
-    };
-    let Some(value) = value.as_str() else {
-        bail!("{label} must be a non-empty string");
-    };
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        bail!("{label} must be a non-empty string");
-    }
-    Ok(trimmed.to_string())
-}
-
-fn optional_string(value: Option<&toml::Value>, label: &str) -> Result<Option<String>> {
-    match value {
-        Some(value) => required_string(Some(value), label).map(Some),
-        None => Ok(None),
-    }
-}
-
-fn normalize_config_path(value: &str, label: &str) -> Result<String> {
-    let path = value.trim().replace('\\', "/");
-    if path.is_empty() {
-        bail!("{label} must be a non-empty string");
-    }
-    if path.starts_with('/') || path.contains(':') {
-        bail!("{label} Must Be a Relative Path");
-    }
-    let mut parts = Vec::new();
-    for part in path.split('/') {
-        if part.is_empty() || part == "." {
-            continue;
-        }
-        if part == ".." {
-            bail!("{label} Must Stay Inside the Project");
-        }
-        parts.push(part);
-    }
-    if parts.is_empty() {
-        bail!("{label} must be a non-empty string");
-    }
-    Ok(parts.join("/"))
-}
-
-async fn run_setup_config(
-    project: &Project,
-    workspace: &Workspace,
-    config: &ProjectConfig,
-) -> WorktreeSetupReport {
-    let mut steps = Vec::new();
-    for rule in &config.worktree.copy {
-        let report = copy_rule(project, workspace, rule);
-        let succeeded = report.succeeded;
-        steps.push(report);
-        if !succeeded {
-            return WorktreeSetupReport { steps };
-        }
-    }
-    let command_environment = if config.worktree.setup.is_empty() {
-        Vec::new()
-    } else {
-        crate::login_shell_environment::setup_command_environment().await
-    };
-    for command in &config.worktree.setup {
-        let report = run_setup_command(&workspace.path, command, &command_environment).await;
-        let succeeded = report.succeeded;
-        steps.push(report);
-        if !succeeded {
-            return WorktreeSetupReport { steps };
-        }
-    }
-    WorktreeSetupReport { steps }
-}
-
-fn copy_rule(
-    project: &Project,
-    workspace: &Workspace,
-    rule: &WorktreeCopyRule,
-) -> WorktreeSetupStepReport {
-    let label = format!("{} -> {}", rule.from, rule.destination());
-    match copy_rule_inner(project, workspace, rule) {
-        Ok(()) => WorktreeSetupStepReport {
-            kind: WorktreeSetupStepKind::Copy,
-            label,
-            succeeded: true,
-            message: None,
-            exit_code: None,
-            stdout_tail: None,
-            stderr_tail: None,
-        },
-        Err(error) => WorktreeSetupStepReport {
-            kind: WorktreeSetupStepKind::Copy,
-            label,
-            succeeded: false,
-            message: Some(error.to_string()),
-            exit_code: None,
-            stdout_tail: None,
-            stderr_tail: None,
-        },
-    }
-}
-
-fn copy_rule_inner(
-    project: &Project,
-    workspace: &Workspace,
-    rule: &WorktreeCopyRule,
-) -> Result<()> {
-    let project_root = std::fs::canonicalize(&project.repo_path)?;
-    let workspace_root = std::fs::canonicalize(&workspace.path)?;
-    let source_path = join_config_path(&project_root, &rule.from);
-    let target_path = join_config_path(&workspace_root, rule.destination());
-    reject_symlink(&source_path, "Source is a symlink")?;
-    let source_metadata = std::fs::metadata(&source_path).context("Source does not exist")?;
-    let source_canonical = std::fs::canonicalize(&source_path)?;
-    if !is_within_or_equal(&project_root, &source_canonical) {
-        bail!("Source escapes the project root");
-    }
-    prepare_target(&target_path, &workspace_root, rule.overwrite)?;
-    if source_metadata.is_dir() {
-        copy_directory(&source_path, &target_path, &workspace_root)?;
-    } else if source_metadata.is_file() {
-        std::fs::copy(&source_path, &target_path)?;
-    } else {
-        bail!("Unsupported source type");
-    }
-    Ok(())
-}
-
-fn join_config_path(root: &Path, relative: &str) -> PathBuf {
-    relative
-        .split('/')
-        .fold(root.to_path_buf(), |path, part| path.join(part))
-}
-
-fn reject_symlink(path: &Path, message: &str) -> Result<()> {
-    if std::fs::symlink_metadata(path)
-        .map(|metadata| metadata.file_type().is_symlink())
-        .unwrap_or(false)
-    {
-        bail!("{message}");
-    }
-    Ok(())
-}
-
-fn prepare_target(target_path: &Path, workspace_root: &Path, overwrite: bool) -> Result<()> {
-    validate_destination_parent(target_path, workspace_root)?;
-    if let Some(parent) = target_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    validate_destination_parent(target_path, workspace_root)?;
-    let target_metadata = match std::fs::symlink_metadata(target_path) {
-        Ok(metadata) => Some(metadata),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(error.into()),
-    };
-    let Some(target_metadata) = target_metadata else {
-        return Ok(());
-    };
-    if !overwrite {
-        bail!("Destination already exists");
-    }
-    if target_metadata.is_dir() {
-        std::fs::remove_dir_all(target_path)?;
-    } else {
-        std::fs::remove_file(target_path)?;
-    }
-    Ok(())
-}
-
-fn copy_directory(source_path: &Path, target_path: &Path, workspace_root: &Path) -> Result<()> {
-    std::fs::create_dir_all(target_path)?;
-    let target_canonical = std::fs::canonicalize(target_path)?;
-    if !is_within_or_equal(workspace_root, &target_canonical) {
-        bail!("Destination escapes the workspace root");
-    }
-    for entry in std::fs::read_dir(source_path)? {
-        let entry = entry?;
-        let child_source = entry.path();
-        reject_symlink(&child_source, "Directory contains a symlink")?;
-        let child_target = target_path.join(entry.file_name());
-        let metadata = entry.metadata()?;
-        if metadata.is_dir() {
-            copy_directory(&child_source, &child_target, workspace_root)?;
-        } else if metadata.is_file() {
-            std::fs::copy(&child_source, &child_target)?;
-        } else {
-            bail!("Directory contains an unsupported entry");
-        }
-    }
-    Ok(())
-}
-
-fn validate_destination_parent(target_path: &Path, workspace_root: &Path) -> Result<()> {
-    let mut current = target_path
-        .parent()
-        .ok_or_else(|| anyhow!("Destination escapes the workspace root"))?
-        .to_path_buf();
-    loop {
-        if current.exists() {
-            reject_symlink(&current, "Destination contains a symlink")?;
-            if !current.is_dir() {
-                bail!("Destination parent is not a directory");
-            }
-            let canonical = std::fs::canonicalize(&current)?;
-            if !is_within_or_equal(workspace_root, &canonical) {
-                bail!("Destination escapes the workspace root");
-            }
-        }
-        if current == workspace_root {
-            return Ok(());
-        }
-        let Some(parent) = current.parent() else {
-            bail!("Destination escapes the workspace root");
-        };
-        if parent == current {
-            bail!("Destination escapes the workspace root");
-        }
-        current = parent.to_path_buf();
-    }
-}
-
-fn is_within_or_equal(parent: &Path, child: &Path) -> bool {
-    child == parent || child.starts_with(parent)
-}
-
-async fn run_setup_command(
-    workspace_path: &str,
-    command: &str,
-    environment: &[(String, String)],
-) -> WorktreeSetupStepReport {
-    let (executable, args) = shell_invocation(command);
-    let mut child = match windowless_async_command(executable)
-        .args(args)
-        .current_dir(workspace_path)
-        .envs(environment.iter().map(|(key, value)| (key, value)))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(error) => {
-            return WorktreeSetupStepReport {
-                kind: WorktreeSetupStepKind::Command,
-                label: command.to_string(),
-                succeeded: false,
-                message: Some(error.to_string()),
-                exit_code: None,
-                stdout_tail: None,
-                stderr_tail: None,
-            };
-        }
-    };
-    let stdout_tail = child
-        .stdout
-        .take()
-        .map(|stdout| tokio::spawn(read_bounded_tail(stdout)));
-    let stderr_tail = child
-        .stderr
-        .take()
-        .map(|stderr| tokio::spawn(read_bounded_tail(stderr)));
-    match child.wait().await {
-        Ok(status) => {
-            let code = status.code().unwrap_or(-1) as i64;
-            WorktreeSetupStepReport {
-                kind: WorktreeSetupStepKind::Command,
-                label: command.to_string(),
-                succeeded: status.success(),
-                message: if status.success() {
-                    None
-                } else {
-                    Some(format!("Command exited with code {code}"))
-                },
-                exit_code: Some(code),
-                stdout_tail: await_tail(stdout_tail).await,
-                stderr_tail: await_tail(stderr_tail).await,
-            }
-        }
-        Err(error) => WorktreeSetupStepReport {
-            kind: WorktreeSetupStepKind::Command,
-            label: command.to_string(),
-            succeeded: false,
-            message: Some(error.to_string()),
-            exit_code: None,
-            stdout_tail: None,
-            stderr_tail: None,
-        },
-    }
-}
-
-async fn await_tail(handle: Option<tokio::task::JoinHandle<Option<String>>>) -> Option<String> {
-    match handle {
-        Some(handle) => handle.await.ok().flatten(),
-        None => None,
-    }
-}
-
-async fn read_bounded_tail<R>(mut reader: R) -> Option<String>
-where
-    R: tokio::io::AsyncRead + Unpin + Send + 'static,
-{
-    let mut tail = BoundedOutputTail::default();
-    let mut buffer = [0_u8; 8192];
-    loop {
-        match reader.read(&mut buffer).await {
-            Ok(0) => break,
-            Ok(count) => tail.push(&buffer[..count]),
-            Err(_) => break,
-        }
-    }
-    tail.value()
-}
-
-#[derive(Default)]
-struct BoundedOutputTail {
-    bytes: Vec<u8>,
-}
-
-impl BoundedOutputTail {
-    fn push(&mut self, chunk: &[u8]) {
-        self.bytes.extend_from_slice(chunk);
-        if self.bytes.len() > SETUP_OUTPUT_TAIL_BYTES {
-            let excess = self.bytes.len() - SETUP_OUTPUT_TAIL_BYTES;
-            self.bytes.drain(0..excess);
-        }
-    }
-
-    fn value(self) -> Option<String> {
-        text_tail(&self.bytes)
-    }
-}
-
-fn shell_invocation(command: &str) -> (&'static str, Vec<String>) {
-    if cfg!(windows) {
-        (
-            "cmd.exe",
-            vec![
-                "/d".to_string(),
-                "/s".to_string(),
-                "/c".to_string(),
-                command.to_string(),
-            ],
-        )
-    } else {
-        ("/bin/sh", vec!["-c".to_string(), command.to_string()])
-    }
-}
-
-fn text_tail(bytes: &[u8]) -> Option<String> {
-    let text = String::from_utf8_lossy(bytes).trim().to_string();
-    if text.is_empty() {
-        return None;
-    }
-    const MAX_CHARS: usize = 4000;
-    if text.chars().count() <= MAX_CHARS {
-        return Some(text);
-    }
-    let mut chars = text.chars().rev().take(MAX_CHARS).collect::<Vec<_>>();
-    chars.reverse();
-    Some(chars.into_iter().collect())
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -860,48 +391,17 @@ mod tests {
 
     use alera_core::runtime::{
         Project, ProjectKind, RuntimeStore, Workspace, WorkspaceKind, WorkspaceStatus,
-        LOCAL_HOST_ID,
+        WorktreeSetupStepKind, LOCAL_HOST_ID,
     };
     use chrono::Utc;
 
-    use super::{
-        create_managed_workspace, parse_project_config_toml, prepare_target, slugify, text_tail,
-        ManagedWorkspaceCreateRequest,
-    };
-
-    #[test]
-    fn project_config_accepts_gitlab_hosting_provider() {
-        let config = parse_project_config_toml("git_hosting_provider = \"gitlab\"").unwrap();
-        assert_eq!(config.git_hosting_provider.as_deref(), Some("gitlab"));
-    }
-
-    #[test]
-    fn project_config_accepts_github_enterprise_alias() {
-        let config =
-            parse_project_config_toml("git_hosting_provider = \"githubEnterprise\"").unwrap();
-        assert_eq!(config.git_hosting_provider.as_deref(), Some("github"));
-    }
+    use super::{create_managed_workspace, slugify, ManagedWorkspaceCreateRequest};
 
     #[test]
     fn slugify_matches_workspace_path_segments() {
         assert_eq!(slugify("Feature/Coverage").unwrap(), "feature-coverage");
         assert_eq!(slugify("  Fix UI  State  ").unwrap(), "fix-ui-state");
         assert!(slugify("///").is_err());
-    }
-
-    #[test]
-    fn text_tail_keeps_unicode_boundaries() {
-        let input = format!("{}{}", "a".repeat(4001), "ñ");
-        let tail = text_tail(input.as_bytes()).unwrap();
-
-        assert!(tail.starts_with('a'));
-        assert!(tail.ends_with('ñ'));
-        assert_eq!(tail.chars().count(), 4000);
-    }
-
-    #[test]
-    fn text_tail_trims_empty_output() {
-        assert_eq!(text_tail(b" \n\t "), None);
     }
 
     #[tokio::test]
@@ -963,6 +463,8 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
+                defer_setup: false,
+                setup_script_directory: None,
             },
         )
         .await;
@@ -1010,6 +512,8 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
+                defer_setup: false,
+                setup_script_directory: None,
             },
         )
         .await;
@@ -1081,6 +585,8 @@ mod tests {
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
+                defer_setup: false,
+                setup_script_directory: None,
             },
         )
         .await
@@ -1092,26 +598,194 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn prepare_target_treats_dangling_symlink_as_existing() {
+    #[tokio::test]
+    async fn deferred_setup_writes_a_script_instead_of_running_the_commands() {
         let dir = tempfile::tempdir().unwrap();
-        let raw_workspace_root = dir.path().join("workspace");
-        std::fs::create_dir(&raw_workspace_root).unwrap();
-        let workspace_root = std::fs::canonicalize(&raw_workspace_root).unwrap();
-        let target = workspace_root.join("copied.env");
-        let outside = dir.path().join("outside.env");
-        std::os::unix::fs::symlink(&outside, &target).unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        std::fs::write(repo.join(".env"), "TOKEN=1\n").unwrap();
+        std::fs::write(
+            repo.join("alera.toml"),
+            "[worktree]\ncopy = [{ from = \".env\" }]\nsetup = [\"pnpm install\", \"pnpm build\"]\n",
+        )
+        .unwrap();
+        let store = seed_project(dir.path(), &repo).await;
+        let scripts = dir.path().join("scripts");
+        let worktree_path = dir.path().join("workspaces").join("feature-deferred");
 
-        let error = prepare_target(&target, &workspace_root, false)
-            .unwrap_err()
-            .to_string();
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-deferred".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/deferred".to_string()),
+                branch: "feature/deferred".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                setup_script_directory: Some(scripts.clone()),
+            },
+        )
+        .await
+        .unwrap();
 
-        assert!(error.contains("Destination already exists"));
-        assert!(!outside.exists());
-        prepare_target(&target, &workspace_root, true).unwrap();
-        assert!(std::fs::symlink_metadata(&target).is_err());
-        assert!(!outside.exists());
+        // Nothing ran: no copy landed and the report carries no steps, so the
+        // create dialog has nothing to wait on.
+        assert!(result.setup_report.steps.is_empty());
+        assert!(!worktree_path.join(".env").exists());
+
+        let command = result.deferred_setup_command.expect("deferred command");
+        let script = crate::worktree_setup_script::setup_script_path(
+            &scripts,
+            "workspace-deferred",
+            cfg!(windows),
+        );
+        assert!(script.exists(), "{}", script.display());
+        assert!(command.contains(&script.display().to_string()), "{command}");
+        let contents = std::fs::read_to_string(&script).unwrap();
+        assert!(contents.contains("pnpm install"), "{contents}");
+        assert!(contents.contains("pnpm build"), "{contents}");
+        assert!(contents.contains("--copies-only"), "{contents}");
+        assert!(!contents.contains("&&"), "{contents}");
+    }
+
+    #[tokio::test]
+    async fn deferred_setup_stays_quiet_when_the_project_configures_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        let store = seed_project(dir.path(), &repo).await;
+        let scripts = dir.path().join("scripts");
+        let worktree_path = dir.path().join("workspaces").join("feature-plain");
+
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-plain".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/plain".to_string()),
+                branch: "feature/plain".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                setup_script_directory: Some(scripts.clone()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.deferred_setup_command, None);
+        assert!(result.setup_report.steps.is_empty());
+        assert!(!scripts.exists());
+    }
+
+    #[tokio::test]
+    async fn deferred_setup_reports_an_invalid_config_like_the_inline_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        std::fs::write(repo.join("alera.toml"), "[worktree]\nsetup = 3\n").unwrap();
+        let store = seed_project(dir.path(), &repo).await;
+        let worktree_path = dir.path().join("workspaces").join("feature-broken");
+
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-broken".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/broken".to_string()),
+                branch: "feature/broken".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                setup_script_directory: Some(dir.path().join("scripts")),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.deferred_setup_command, None);
+        let step = result.setup_report.steps.first().expect("config step");
+        assert_eq!(step.kind, WorktreeSetupStepKind::Config);
+        assert!(!step.succeeded);
+    }
+
+    #[tokio::test]
+    async fn setup_copies_only_applies_the_copy_rules_and_keeps_going_after_a_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        std::fs::write(repo.join(".env"), "TOKEN=1\n").unwrap();
+        std::fs::write(
+            repo.join("alera.toml"),
+            "[worktree]\ncopy = [{ from = \"missing.env\" }, { from = \".env\" }]\nsetup = [\"exit 7\"]\n",
+        )
+        .unwrap();
+        let store = seed_project(dir.path(), &repo).await;
+        let worktree_path = dir.path().join("workspaces").join("feature-copies");
+        create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-copies".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/copies".to_string()),
+                branch: "feature/copies".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                setup_script_directory: Some(dir.path().join("scripts")),
+            },
+        )
+        .await
+        .unwrap();
+
+        let report = crate::worktree_setup::run_workspace_setup(&store, "workspace-copies", true)
+            .await
+            .unwrap();
+
+        // The first rule fails and the second still runs, matching what the
+        // script does with the commands.
+        assert_eq!(report.steps.len(), 2);
+        assert!(!report.steps[0].succeeded);
+        assert!(report.steps[1].succeeded);
+        assert!(report
+            .steps
+            .iter()
+            .all(|step| step.kind == WorktreeSetupStepKind::Copy));
+        assert!(worktree_path.join(".env").exists());
+    }
+
+    async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
+        let store = RuntimeStore::open(&root.join("runtime")).await.unwrap();
+        let now = Utc::now();
+        store
+            .upsert_project(Project {
+                id: "project-1".to_string(),
+                name: "Project".to_string(),
+                repo_path: repo.to_string_lossy().into_owned(),
+                created_at: now,
+                updated_at: now,
+                kind: ProjectKind::GitRepository,
+            })
+            .await
+            .unwrap();
+        store
     }
 
     fn init_git_repo(repo: &Path) {
