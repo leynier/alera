@@ -22,7 +22,11 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'runtime_managed_workspace_client_test_cases.dart';
+
 void main() {
+  _registerRuntimeManagedWorkspaceClientTests();
+
   test(
     'RuntimeProjectRepository refreshes project stream from runtime events',
     () async {
@@ -151,36 +155,6 @@ void main() {
 
       expect(settings.general.workspaceDirectory, '/migrated');
       expect(client.requests, <String>['runtimeSettings.get']);
-    },
-  );
-
-  test(
-    'RuntimeManagedWorkspaceClient uses long-running RPC timeouts',
-    () async {
-      final client = _FakeRuntimeHostClient();
-      final repository = RuntimeManagedWorkspaceClient(client);
-      client.responses['workspace.createManaged'] = <String, Object?>{
-        'workspace': _workspaceJson(id: 'workspace-1'),
-        'setupReport': <String, Object?>{'steps': <Object?>[]},
-      };
-
-      await repository.createLinkedWorkspace(
-        project: _project(id: 'project-1', name: 'Alera'),
-        sourceBranch: 'main',
-        newBranchName: 'feature/managed',
-        reuseExistingBranch: false,
-      );
-      await repository.removeWorkspace(
-        workspace: _workspace(id: 'workspace-1', projectId: 'project-1'),
-        deleteBranch: true,
-      );
-
-      expect(client.timeouts['workspace.createManaged'], <Duration?>[
-        const Duration(minutes: 30),
-      ]);
-      expect(client.timeouts['workspace.removeManaged'], <Duration?>[
-        const Duration(minutes: 10),
-      ]);
     },
   );
 

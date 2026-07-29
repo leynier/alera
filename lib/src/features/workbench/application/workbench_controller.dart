@@ -47,8 +47,10 @@ class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
         _WorkbenchControllerBrowser,
-        _WorkbenchControllerProjects,
+        // Opening tabs comes first: creating a workspace opens its "Setup"
+        // terminal, so the projects mixin builds on this one.
         _WorkbenchControllerTabOpening,
+        _WorkbenchControllerProjects,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSync {

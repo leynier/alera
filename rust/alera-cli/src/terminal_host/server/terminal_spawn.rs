@@ -57,25 +57,30 @@ impl ServerActor {
             .upsert_workspace_tab(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        if let Err(error) = self.ensure_spawn_on_create_terminal(&saved).await {
-            let _ = self.runtime_store.remove_workspace_tab(&saved.id).await;
-            self.terminate_sessions_for_tab(&saved.id).await;
-            return Err(error);
-        }
+        let saved = match self.ensure_spawn_on_create_terminal(&saved).await {
+            Ok(rewritten) => rewritten.unwrap_or(saved),
+            Err(error) => {
+                let _ = self.runtime_store.remove_workspace_tab(&saved.id).await;
+                self.terminate_sessions_for_tab(&saved.id).await;
+                return Err(error);
+            }
+        };
         self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
         Ok(saved)
     }
 
+    /// Spawns the PTY a `spawnOnCreate` tab asks for. Returns the tab record
+    /// when spawning rewrote it, which happens for a one-shot initial command.
     pub(super) async fn ensure_spawn_on_create_terminal(
         &mut self,
         tab: &WorkspaceTabRecord,
-    ) -> HostResult<bool> {
+    ) -> HostResult<Option<WorkspaceTabRecord>> {
         if !spawns_on_create(tab) {
-            return Ok(false);
+            return Ok(None);
         }
         let session_id = terminal_session_id(tab);
         if self.sessions.get(&session_id).is_some_and(Session::running) {
-            return Ok(false);
+            return Ok(None);
         }
         let workspace = self
             .runtime_store
@@ -131,8 +136,34 @@ impl ServerActor {
                 default_launch.interactive_shell,
                 command,
             );
+            // A one-shot command is spent as soon as it is on its way. Agent
+            // tabs deliberately do not set the flag: they re-mint their command
+            // on every new PTY, including after host recovery.
+            if delivers_initial_command_once(tab) {
+                return Ok(self.clear_initial_command(tab).await);
+            }
         }
-        Ok(true)
+        Ok(None)
+    }
+
+    async fn clear_initial_command(
+        &mut self,
+        tab: &WorkspaceTabRecord,
+    ) -> Option<WorkspaceTabRecord> {
+        let mut next = tab.clone();
+        let payload = next.payload.as_object_mut()?;
+        payload.remove("initialCommand");
+        payload.remove("initialCommandOnce");
+        match self.runtime_store.upsert_workspace_tab(next).await {
+            Ok(saved) => Some(saved),
+            Err(error) => {
+                eprintln!(
+                    "failed to clear the one-shot initial command of tab {}: {error}",
+                    tab.id
+                );
+                None
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -338,6 +369,13 @@ fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
+}
+
+fn delivers_initial_command_once(tab: &WorkspaceTabRecord) -> bool {
+    tab.payload
+        .get("initialCommandOnce")
+        .and_then(Value::as_bool)
+        == Some(true)
 }
 
 fn initial_prompt(tab: &WorkspaceTabRecord) -> Option<String> {
