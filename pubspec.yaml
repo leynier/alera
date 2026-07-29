@@ -33,6 +33,7 @@ dependencies:
   wakelock_plus: ^1.5.0
   riverpod_annotation: ^4.0.2
   dart_mappable: ^4.8.0
+  desktop_drop: ^0.7.1
   drift: ^2.33.0
   meta: ^1.18.0
   sqlite3: ^3.3.1

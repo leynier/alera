@@ -113,6 +113,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// Moves keyboard focus to this terminal's text input so subsequent
   /// keypresses are routed to its PTY instead of any sidebar control.
   void requestFocus();
+
+  /// Inserts [text] as if the user pasted it (bracketed paste when enabled).
+  ///
+  /// Default is a no-op so test doubles stay source-compatible.
+  void pasteText(String text) {}
 }
 
 enum TerminalSessionOperation { starting, reconnecting, restarting }

@@ -112,7 +112,7 @@ void main() {
     ]);
   });
 
-  test('reveals the parent folder on Linux for files', () async {
+  test('reveals an item via FileManager1.ShowItems on Linux', () async {
     final processRunner = _FakeProcessRunner();
     final directory = await Directory.systemTemp.createTemp(
       'alera-reveal-item-',
@@ -133,9 +133,60 @@ void main() {
 
     expect(result.ok, isTrue);
     expect(processRunner.calls, <_ProcessCall>[
-      _ProcessCall('xdg-open', <String>[directory.path]),
+      _ProcessCall('gdbus', <String>[
+        'call',
+        '--session',
+        '--dest',
+        'org.freedesktop.FileManager1',
+        '--object-path',
+        '/org/freedesktop/FileManager1',
+        '--method',
+        'org.freedesktop.FileManager1.ShowItems',
+        "['${Uri.file(file.path)}']",
+        '',
+      ]),
     ]);
   });
+
+  test(
+    'falls back to the parent folder on Linux when ShowItems fails',
+    () async {
+      final processRunner = _FakeProcessRunner(exitCodes: <int>[1, 0]);
+      final directory = await Directory.systemTemp.createTemp(
+        'alera-reveal-item-',
+      );
+      final file = File('${directory.path}/note.txt');
+      await file.writeAsString('note');
+      addTearDown(() async {
+        if (await directory.exists()) {
+          await directory.delete(recursive: true);
+        }
+      });
+      final opener = WorkspaceFolderOpener(
+        processRunner: processRunner,
+        platform: WorkspaceFolderPlatform.linux,
+      );
+
+      final result = await opener.reveal(file.path);
+
+      expect(result.ok, isTrue);
+      expect(processRunner.calls, <_ProcessCall>[
+        _ProcessCall('gdbus', <String>[
+          'call',
+          '--session',
+          '--dest',
+          'org.freedesktop.FileManager1',
+          '--object-path',
+          '/org/freedesktop/FileManager1',
+          '--method',
+          'org.freedesktop.FileManager1.ShowItems',
+          "['${Uri.file(file.path)}']",
+          '',
+        ]),
+        _ProcessCall('xdg-open', <String>[directory.path]),
+      ]);
+    },
+  );
 
   test('falls back to gio on Linux when xdg-open fails', () async {
     final processRunner = _FakeProcessRunner(exitCodes: <int>[1, 0]);
