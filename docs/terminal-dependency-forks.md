@@ -1,6 +1,8 @@
 # Terminal dependency forks
 
-Alera keeps terminal dependency fixes local through submodules while the fixes are reviewed upstream.
+Alera keeps terminal dependency fixes reproducible through submodules while the fixes are released from maintained forks or reviewed upstream.
+
+The `ghostty_vte` package names remain owned and published by the upstream project on pub.dev. Alera consumes the maintained fork only through the path overrides in `pubspec.yaml`; the fork's GitHub releases supply the matching native artifacts.
 
 ## Pattern
 
@@ -14,5 +16,5 @@ Alera keeps terminal dependency fixes local through submodules while the fixes a
 
 | Package | Submodule | Fork branch | Upstream PR |
 | --- | --- | --- | --- |
-| `ghostty_vte` | `third_party/dart_terminal` | `fix/puro-pub-cache-detection` | <https://github.com/kingwill101/dart_terminal/pull/15> |
+| `ghostty_vte` | `third_party/dart_terminal` | `master` | <https://github.com/kingwill101/dart_terminal/pull/15> |
 | `xterm` | `third_party/xterm` | `next` | See `third_party/xterm/ALERA_PATCHES.md` |
