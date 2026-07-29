@@ -203,7 +203,8 @@ void main() {
       expect(setup, contains('using the runner-local cache'));
       expect(setup, contains('if sccache --start-server; then'));
       expect(setup, contains('could not authenticate to R2'));
-      expect(setup, contains('echo "SCCACHE_BUCKET="'));
+      expect(setup, contains('export SCCACHE_BUCKET='));
+      expect(setup, isNot(contains('echo "SCCACHE_BUCKET="')));
       expect(setup, isNot(contains('Swatinem/rust-cache')));
     });
 

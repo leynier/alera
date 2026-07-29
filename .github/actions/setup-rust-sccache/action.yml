@@ -47,35 +47,25 @@ runs:
           exit 0
         fi
 
-        {
-          echo "SCCACHE_BUCKET=$ALERA_SCCACHE_R2_BUCKET"
-          echo "SCCACHE_ENDPOINT=https://$ALERA_SCCACHE_R2_ACCOUNT_ID.r2.cloudflarestorage.com"
-          echo "SCCACHE_REGION=auto"
-          echo "SCCACHE_S3_KEY_PREFIX=alera/rust-v1"
-          echo "AWS_ACCESS_KEY_ID=$ALERA_SCCACHE_R2_ACCESS_KEY_ID"
-          echo "AWS_SECRET_ACCESS_KEY=$ALERA_SCCACHE_R2_SECRET_ACCESS_KEY"
-        } >>"$GITHUB_ENV"
-
-    - name: Verify sccache backend
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [[ -z "${SCCACHE_BUCKET:-}" ]]; then
-          exit 0
-        fi
+        export SCCACHE_BUCKET="$ALERA_SCCACHE_R2_BUCKET"
+        export SCCACHE_ENDPOINT="https://$ALERA_SCCACHE_R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+        export SCCACHE_REGION=auto
+        export SCCACHE_S3_KEY_PREFIX=alera/rust-v1
+        export AWS_ACCESS_KEY_ID="$ALERA_SCCACHE_R2_ACCESS_KEY_ID"
+        export AWS_SECRET_ACCESS_KEY="$ALERA_SCCACHE_R2_SECRET_ACCESS_KEY"
         if sccache --start-server; then
+          {
+            echo "SCCACHE_BUCKET=$SCCACHE_BUCKET"
+            echo "SCCACHE_ENDPOINT=$SCCACHE_ENDPOINT"
+            echo "SCCACHE_REGION=$SCCACHE_REGION"
+            echo "SCCACHE_S3_KEY_PREFIX=$SCCACHE_S3_KEY_PREFIX"
+            echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+            echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+          } >>"$GITHUB_ENV"
           exit 0
         fi
 
         echo "::warning::sccache could not authenticate to R2; using the runner-local cache."
         unset SCCACHE_BUCKET SCCACHE_ENDPOINT SCCACHE_REGION
         unset SCCACHE_S3_KEY_PREFIX AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-        {
-          echo "SCCACHE_BUCKET="
-          echo "SCCACHE_ENDPOINT="
-          echo "SCCACHE_REGION="
-          echo "SCCACHE_S3_KEY_PREFIX="
-          echo "AWS_ACCESS_KEY_ID="
-          echo "AWS_SECRET_ACCESS_KEY="
-        } >>"$GITHUB_ENV"
         sccache --start-server
