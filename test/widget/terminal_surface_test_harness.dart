@@ -138,6 +138,14 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
 
   @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {}
+
+  @override
   Future<void> setOutputPaused(bool paused) async {
     outputPausedCalls.add(paused);
     if (paused) {
@@ -189,10 +197,11 @@ class _FakeTerminalPtySession implements TerminalPtySession {
 }
 
 class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
-  _ImmediateNotifySessionHandle({required this.tabId});
+  _ImmediateNotifySessionHandle({required this.tabId, this.refreshCompleter});
 
   @override
   final String tabId;
+  final Completer<void>? refreshCompleter;
 
   int ensureStartedCallCount = 0;
   int refreshRenderingCallCount = 0;
@@ -242,8 +251,9 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void refreshRendering() {
+  Future<void> refreshRendering() async {
     refreshRenderingCallCount += 1;
+    await refreshCompleter?.future;
   }
 
   @override

@@ -104,11 +104,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
     FocusOnKeyEventCallback? onKeyEvent,
   });
 
-  /// Reapplies the mounted viewport and schedules a one-shot repaint.
+  /// Pulses the mounted PTY viewport and schedules a one-shot repaint.
   ///
   /// Handles without a measured view intentionally do nothing. Refreshing must
   /// never replace the emulator or the PTY session.
-  void refreshRendering() {}
+  Future<void> refreshRendering() async {}
 
   /// Moves keyboard focus to this terminal's text input so subsequent
   /// keypresses are routed to its PTY instead of any sidebar control.
@@ -228,6 +228,17 @@ abstract interface class TerminalPtySession {
   Future<bool> writeBytesAndWait(List<int> bytes);
 
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
+
+  /// Briefly applies an adjacent PTY size before restoring the measured size.
+  ///
+  /// This forces full-screen terminal apps to redraw without resizing the
+  /// Flutter view or replacing the emulator.
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  );
 
   Future<void> setOutputPaused(bool paused);
 

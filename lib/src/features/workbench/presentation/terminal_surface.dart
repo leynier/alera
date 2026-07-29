@@ -29,6 +29,8 @@ class TerminalSurface extends ConsumerStatefulWidget {
 
 class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   TerminalVisibilityLease? _visibilityLease;
+  bool _refreshing = false;
+  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -41,6 +43,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   void didUpdateWidget(TerminalSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
+      _refreshGeneration += 1;
+      _refreshing = false;
       _visibilityLease?.dispose();
       _visibilityLease = widget.session.acquireVisibility();
       _scheduleStart(widget.session);
@@ -61,6 +65,21 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       }
       unawaited(session.ensureStarted());
     });
+  }
+
+  Future<void> _refreshTerminal() async {
+    if (_refreshing) {
+      return;
+    }
+    final generation = ++_refreshGeneration;
+    setState(() => _refreshing = true);
+    try {
+      await widget.session.refreshRendering();
+    } finally {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _refreshing = false);
+      }
+    }
   }
 
   /// Intercepts Alera shortcuts before the key reaches the PTY. Returning
@@ -138,11 +157,15 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
               top: AleraTokens.space4,
               right: AleraTokens.space4,
               child: AleraIconButton(
-                tooltip: 'Refresh Terminal',
-                icon: AleraIcons.refresh,
+                tooltip: _refreshing
+                    ? 'Refreshing Terminal'
+                    : 'Refresh Terminal',
+                icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
                 backgroundColor: AleraTokens.surfaceElevated,
                 borderColor: AleraTokens.borderSubtle,
-                onPressed: widget.session.refreshRendering,
+                onPressed: _refreshing
+                    ? null
+                    : () => unawaited(_refreshTerminal()),
               ),
             ),
           ],

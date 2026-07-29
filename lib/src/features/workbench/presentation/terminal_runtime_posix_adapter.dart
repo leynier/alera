@@ -78,6 +78,37 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
   }
 
   @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {
+    final pty = _pty;
+    if (_disposed || pty == null) {
+      return;
+    }
+    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    try {
+      _resizePty(
+        rows: rows,
+        cols: pulseCols,
+        resize: ({required rows, required cols}) =>
+            pty.resize(rows: rows, cols: cols),
+        events: _events,
+      );
+    } finally {
+      _resizePty(
+        rows: rows,
+        cols: cols,
+        resize: ({required rows, required cols}) =>
+            pty.resize(rows: rows, cols: cols),
+        events: _events,
+      );
+    }
+  }
+
+  @override
   Future<void> setOutputPaused(bool paused) async {}
 
   void _handleReadMessage(Object? message) {
