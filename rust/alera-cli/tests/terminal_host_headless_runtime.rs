@@ -13,6 +13,9 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
+#[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
+mod startup_command_cases;
+
 const PROTOCOL_VERSION: i64 = 4;
 
 struct HostGuard(Child);

@@ -9,11 +9,21 @@ mixin _WorkbenchControllerTabOpening
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
+    String? title,
+    String? initialCommand,
+    bool spawnOnCreate = false,
+    bool initialCommandOnce = false,
   }) async {
     try {
       final previousTabs = state.tabsFor(workspace.id);
       final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceTabService.createTerminalTab(workspace.id);
+      final tab = await _workspaceTabService.createTerminalTab(
+        workspace.id,
+        title: title,
+        initialCommand: initialCommand,
+        spawnOnCreate: spawnOnCreate,
+        initialCommandOnce: initialCommandOnce,
+      );
       final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
       _setTabsForWorkspace(workspace.id, tabs);
       final groupId = targetGroupId ?? layout.activeGroupId;
@@ -27,6 +37,31 @@ mixin _WorkbenchControllerTabOpening
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
+    }
+  }
+
+  /// Opens the "Setup" terminal for a workspace whose worktree setup the host
+  /// prepared instead of running, so a long `pnpm install` is visible work
+  /// rather than a spinner on the create dialog.
+  ///
+  /// A failure here does not fail the creation: the workspace exists and the
+  /// setup can be run by hand, so it is reported as an error on the state
+  /// instead of unwinding the flow.
+  Future<void> _openDeferredSetupTab(WorkspaceCreationResult result) async {
+    final command = result.deferredSetupCommand?.trim();
+    if (command == null || command.isEmpty) {
+      return;
+    }
+    try {
+      await createTerminalTab(
+        result.workspace,
+        title: 'Setup',
+        initialCommand: command,
+        spawnOnCreate: true,
+        initialCommandOnce: true,
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
     }
   }
 

@@ -1,7 +1,10 @@
 part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerProjects
-    on _$WorkbenchController, _WorkbenchControllerInternals {
+    on
+        _$WorkbenchController,
+        _WorkbenchControllerInternals,
+        _WorkbenchControllerTabOpening {
   Future<List<String>> listSourceBranches(Project project) {
     return _workspaceService.listSourceBranches(project);
   }
@@ -140,6 +143,7 @@ mixin _WorkbenchControllerProjects
       );
       _reconcileCreatedWorkspace(project, result.workspace);
       await selectWorkspace(project: project, workspace: result.workspace);
+      await _openDeferredSetupTab(result);
       final parentId = parentWorkspaceId?.trim();
       if (parentId != null && parentId.isNotEmpty) {
         try {

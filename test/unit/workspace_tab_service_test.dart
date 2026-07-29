@@ -6,8 +6,12 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'workspace_tab_path_moves_test_cases.dart';
+
 void main() {
   group('WorkspaceTabService', () {
+    _registerWorkspaceTabPathMoveTests();
+
     test(
       'ensureInitialTerminalTab creates the first terminal workspace tab when none exist',
       () async {
@@ -56,6 +60,49 @@ void main() {
         );
       },
     );
+    test('createTerminalTab builds a named one-shot setup terminal', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21),
+      );
+
+      final tab = await service.createTerminalTab(
+        'workspace-1',
+        title: '  Setup  ',
+        initialCommand: '  /bin/sh "/run/alera/worktree-setup-ws.sh"  ',
+        spawnOnCreate: true,
+        initialCommandOnce: true,
+      );
+
+      expect(tab.title, 'Setup');
+      // Pinned, so a title the setup command emits over OSC cannot rename it.
+      expect(tab.hasManualTitle, isTrue);
+      expect(tab.initialCommand, '/bin/sh "/run/alera/worktree-setup-ws.sh"');
+      expect(tab.initialCommandOnce, isTrue);
+      expect(tab.spawnOnCreate, isTrue);
+      expect(repository.tabs.single.title, 'Setup');
+    });
+
+    test(
+      'createTerminalTab leaves an ordinal terminal free of setup payload keys',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21),
+        );
+
+        final tab = await service.createTerminalTab('workspace-1');
+
+        expect(tab.title, 'Terminal 1');
+        expect(tab.hasManualTitle, isFalse);
+        expect(tab.initialCommand, isNull);
+        expect(tab.initialCommandOnce, isFalse);
+        expect(tab.spawnOnCreate, isFalse);
+      },
+    );
+
     test(
       'openOrCreateEditorTab creates an editor tab for a normalized path',
       () async {
@@ -579,489 +626,6 @@ void main() {
         throwsStateError,
       );
     });
-
-    test(
-      'updates open editor tab paths and titles after a file move',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'note.txt',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/note.txt',
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final result = await service.updateFileTabPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/note.txt',
-          newRelativePath: 'docs/renamed-note.txt',
-        );
-
-        final updated = result.updatedTabs;
-        expect(updated.single.filePath, 'docs/renamed-note.txt');
-        expect(updated.single.title, 'renamed-note.txt');
-        expect(result.closedTabIds, isEmpty);
-        expect(repository.tabs.single.filePath, 'docs/renamed-note.txt');
-        expect(repository.tabs.single.title, 'renamed-note.txt');
-      },
-    );
-
-    test('updates descendant file tab paths after a folder move', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.addAll(<WorkspaceTabRecord>[
-          WorkspaceTabRecord(
-            id: 'tab-1',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.editor,
-            title: 'main.dart',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabFilePathPayloadKey: 'src/main.dart',
-            },
-          ),
-          WorkspaceTabRecord(
-            id: 'tab-2',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.markdownViewer,
-            title: 'readme.md',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabFilePathPayloadKey: 'src/readme.md',
-            },
-          ),
-        ]);
-      final service = WorkspaceTabService(repository: repository);
-
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'src',
-        newRelativePath: 'lib/src',
-      );
-
-      final updated = result.updatedTabs;
-      expect(updated, hasLength(2));
-      expect(updated.map((tab) => tab.filePath), <String>[
-        'lib/src/main.dart',
-        'lib/src/readme.md',
-      ]);
-      expect(result.closedTabIds, isEmpty);
-      expect(repository.tabs.first.filePath, 'lib/src/main.dart');
-      expect(repository.tabs.last.filePath, 'lib/src/readme.md');
-    });
-
-    test(
-      'updates merman preview tab paths and keeps preview titles after a file move',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'diagram.mmd preview',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
-                workspaceTabFileRolePayloadKey:
-                    workspaceTabFileRoleMermanPreview,
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final updated = await service.updateEditorPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/diagram.mmd',
-          newRelativePath: 'docs/renamed.mmd',
-        );
-
-        expect(updated.updatedTabs.single.filePath, 'docs/renamed.mmd');
-        expect(updated.updatedTabs.single.title, 'renamed.mmd preview');
-        expect(updated.updatedTabs.single.isMermanPreview, isTrue);
-        expect(updated.removedTabIds, isEmpty);
-      },
-    );
-
-    test(
-      'converts stale merman preview tabs to editor tabs after a non-merman rename',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'preview-tab',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'diagram.mmd preview',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
-                workspaceTabFileRolePayloadKey:
-                    workspaceTabFileRoleMermanPreview,
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final updated = await service.updateEditorPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/diagram.mmd',
-          newRelativePath: 'docs/diagram.txt',
-        );
-
-        expect(updated.removedTabIds, isEmpty);
-        expect(updated.updatedTabs.single.id, 'preview-tab');
-        expect(updated.updatedTabs.single.filePath, 'docs/diagram.txt');
-        expect(updated.updatedTabs.single.title, 'diagram.txt');
-        expect(updated.updatedTabs.single.isMermanPreview, isFalse);
-        expect(
-          updated.updatedTabs.single.payload,
-          isNot(contains(workspaceTabFileRolePayloadKey)),
-        );
-
-        final editor = await service.openOrCreateEditorTab(
-          workspaceId: 'workspace-1',
-          relativePath: 'docs/diagram.txt',
-        );
-
-        expect(editor.id, 'preview-tab');
-        expect(repository.tabs, hasLength(1));
-      },
-    );
-
-    test(
-      'removes redundant preview tabs when a merman file is renamed to a text file with an editor open',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.addAll(<WorkspaceTabRecord>[
-            WorkspaceTabRecord(
-              id: 'editor-tab',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'diagram.mmd',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
-              },
-            ),
-            WorkspaceTabRecord(
-              id: 'preview-tab',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'diagram.mmd preview',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
-                workspaceTabFileRolePayloadKey:
-                    workspaceTabFileRoleMermanPreview,
-              },
-            ),
-          ]);
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final updated = await service.updateEditorPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/diagram.mmd',
-          newRelativePath: 'docs/diagram.txt',
-        );
-
-        expect(updated.removedTabIds, <String>['preview-tab']);
-        expect(updated.updatedTabs.single.id, 'editor-tab');
-        expect(updated.updatedTabs.single.filePath, 'docs/diagram.txt');
-        expect(updated.updatedTabs.single.title, 'diagram.txt');
-        expect(repository.tabs, hasLength(1));
-        expect(repository.tabs.single.id, 'editor-tab');
-      },
-    );
-
-    test(
-      'updates open git diff tab paths and titles after a file move',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.gitDiff,
-              title: 'note.txt unstaged',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/note.txt',
-                workspaceTabGitDiffScopePayloadKey: 'file',
-                workspaceTabGitDiffAreaPayloadKey: 'unstaged',
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final result = await service.updateFileTabPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/note.txt',
-          newRelativePath: 'docs/renamed-note.txt',
-        );
-
-        final updated = result.updatedTabs;
-        expect(updated.single.filePath, 'docs/renamed-note.txt');
-        expect(updated.single.title, 'renamed-note.txt unstaged');
-        expect(result.closedTabIds, isEmpty);
-        expect(repository.tabs.single.filePath, 'docs/renamed-note.txt');
-        expect(repository.tabs.single.title, 'renamed-note.txt unstaged');
-      },
-    );
-
-    test('keeps staged git diff tab paths after a file move', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.add(
-          WorkspaceTabRecord(
-            id: 'tab-1',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'note.txt staged',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabFilePathPayloadKey: 'docs/note.txt',
-              workspaceTabGitDiffScopePayloadKey: 'file',
-              workspaceTabGitDiffAreaPayloadKey: 'staged',
-            },
-          ),
-        );
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21, 1),
-      );
-
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'docs/note.txt',
-        newRelativePath: 'docs/renamed-note.txt',
-      );
-
-      expect(result.updatedTabs, isEmpty);
-      expect(result.closedTabIds, isEmpty);
-      expect(repository.tabs.single.filePath, 'docs/note.txt');
-      expect(repository.tabs.single.title, 'note.txt staged');
-    });
-
-    test('updates staged git diff paths when their root moves', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.add(
-          WorkspaceTabRecord(
-            id: 'tab-1',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'main.dart staged',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
-              workspaceTabGitDiffScopePayloadKey: 'file',
-              workspaceTabGitDiffAreaPayloadKey: 'staged',
-              workspaceTabGitDiffRootPayloadKey: 'packages/app',
-            },
-          ),
-        );
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21, 1),
-      );
-
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'packages',
-        newRelativePath: 'modules',
-      );
-
-      expect(result.updatedTabs, hasLength(1));
-      expect(result.updatedTabs.single.filePath, 'modules/app/lib/main.dart');
-      expect(result.updatedTabs.single.gitDiffRoot, 'modules/app');
-      expect(repository.tabs.single.filePath, 'modules/app/lib/main.dart');
-      expect(repository.tabs.single.gitDiffRoot, 'modules/app');
-    });
-
-    test(
-      'closes markdown viewer tabs when a file move removes the md extension',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.addAll(<WorkspaceTabRecord>[
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'readme.md',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/readme.md',
-              },
-            ),
-            WorkspaceTabRecord(
-              id: 'tab-2',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.markdownViewer,
-              title: 'readme.md',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/readme.md',
-              },
-            ),
-          ]);
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final result = await service.updateFileTabPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/readme.md',
-          newRelativePath: 'docs/readme.txt',
-        );
-
-        expect(result.closedTabIds, <String>['tab-2']);
-        expect(result.updatedTabs.single.kind, WorkspaceTabKind.editor);
-        expect(result.updatedTabs.single.filePath, 'docs/readme.txt');
-        expect(repository.tabs.map((tab) => tab.id), <String>['tab-1']);
-        expect(repository.tabs.single.filePath, 'docs/readme.txt');
-      },
-    );
-
-    test('updates open PDF tab paths and titles after a file move', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.add(
-          WorkspaceTabRecord(
-            id: 'tab-1',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.pdf,
-            title: 'guide.pdf',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
-            },
-          ),
-        );
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21, 1),
-      );
-
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'docs/guide.pdf',
-        newRelativePath: 'reference/guide.pdf',
-      );
-
-      final updated = result.updatedTabs;
-      expect(updated.single.kind, WorkspaceTabKind.pdf);
-      expect(updated.single.filePath, 'reference/guide.pdf');
-      expect(updated.single.title, 'guide.pdf');
-      expect(result.closedTabIds, isEmpty);
-      expect(repository.tabs.single.filePath, 'reference/guide.pdf');
-    });
-
-    test(
-      'changes editor tab to PDF when a move gives it a PDF extension',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.editor,
-              title: 'note.txt',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/note.txt',
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final result = await service.updateFileTabPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/note.txt',
-          newRelativePath: 'docs/note.pdf',
-        );
-
-        final updated = result.updatedTabs;
-        expect(updated.single.kind, WorkspaceTabKind.pdf);
-        expect(updated.single.filePath, 'docs/note.pdf');
-        expect(updated.single.title, 'note.pdf');
-        expect(result.closedTabIds, isEmpty);
-        expect(repository.tabs.single.kind, WorkspaceTabKind.pdf);
-      },
-    );
-
-    test(
-      'changes PDF tab to editor when a move removes the PDF extension',
-      () async {
-        final repository = _FakeWorkbenchRepository()
-          ..tabs.add(
-            WorkspaceTabRecord(
-              id: 'tab-1',
-              workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.pdf,
-              title: 'guide.pdf',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
-              payload: const <String, Object?>{
-                workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
-              },
-            ),
-          );
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
-
-        final result = await service.updateFileTabPathsAfterMove(
-          workspaceId: 'workspace-1',
-          oldRelativePath: 'docs/guide.pdf',
-          newRelativePath: 'docs/guide.txt',
-        );
-
-        final updated = result.updatedTabs;
-        expect(updated.single.kind, WorkspaceTabKind.editor);
-        expect(updated.single.filePath, 'docs/guide.txt');
-        expect(updated.single.title, 'guide.txt');
-        expect(result.closedTabIds, isEmpty);
-        expect(repository.tabs.single.kind, WorkspaceTabKind.editor);
-      },
-    );
 
     test('renames a tab and marks its title as manual', () async {
       final repository = _FakeWorkbenchRepository()

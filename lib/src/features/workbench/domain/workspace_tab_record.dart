@@ -36,6 +36,7 @@ enum WorkspaceTabKind {
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
+const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
@@ -189,6 +190,12 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   /// created PTY, including a transparent remint after host recovery.
   String? get initialCommand =>
       _nonEmptyPayloadString(workspaceTabInitialCommandPayloadKey);
+
+  /// Whether [initialCommand] is spent after the first delivery. The host drops
+  /// it from the record once it is on its way, so a later PTY starts a clean
+  /// shell. Agent tabs leave this off because they want the remint.
+  bool get initialCommandOnce =>
+      payload[workspaceTabInitialCommandOncePayloadKey] == true;
 
   /// Whether the terminal session should start as soon as the tab record
   /// appears, without waiting for the tab to become visible.

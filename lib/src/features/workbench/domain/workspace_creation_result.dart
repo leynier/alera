@@ -5,11 +5,17 @@ class WorkspaceCreationResult {
     required this.workspace,
     required this.setupReport,
     this.parentLinkError,
+    this.deferredSetupCommand,
   });
 
   final Workspace workspace;
   final WorktreeSetupReport setupReport;
   final String? parentLinkError;
+
+  /// Single line to run in a terminal tab named "Setup" instead of having the
+  /// host run the worktree setup inline. Null when the setup already ran, which
+  /// is what a host without deferral support always reports.
+  final String? deferredSetupCommand;
 
   bool get hasSetupWarnings => setupReport.hasFailures;
 

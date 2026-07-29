@@ -469,6 +469,11 @@ pub enum WorktreeSetupStepKind {
 pub struct WorkspaceCreationResult {
     pub workspace: Workspace,
     pub setup_report: WorktreeSetupReport,
+    /// Single line the app types into a terminal tab named "Setup" when the
+    /// caller asked for the worktree setup to be deferred. Absent means the
+    /// setup already ran, which is what an older host always reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deferred_setup_command: Option<String>,
 }
 
 pub type ProjectConfigMap = BTreeMap<String, ProjectConfig>;

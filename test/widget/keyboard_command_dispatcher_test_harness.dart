@@ -82,6 +82,10 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
+    String? title,
+    String? initialCommand,
+    bool spawnOnCreate = false,
+    bool initialCommandOnce = false,
   }) async {
     createdTerminalWorkspaceIds.add(workspace.id);
     final tab = createdTab ?? _tab(id: 'tab-new');
