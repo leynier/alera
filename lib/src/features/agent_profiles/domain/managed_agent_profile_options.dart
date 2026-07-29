@@ -332,9 +332,6 @@ String managedAgentCommandPreview(
 }
 
 String _quotePreviewArgument(String value) {
-  if (value.isEmpty) {
-    return "''";
-  }
   if (RegExp(r'^[A-Za-z0-9_./:=+-]+$').hasMatch(value)) {
     return value;
   }
