@@ -55,3 +55,27 @@ runs:
           echo "AWS_ACCESS_KEY_ID=$ALERA_SCCACHE_R2_ACCESS_KEY_ID"
           echo "AWS_SECRET_ACCESS_KEY=$ALERA_SCCACHE_R2_SECRET_ACCESS_KEY"
         } >>"$GITHUB_ENV"
+
+    - name: Verify sccache backend
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ -z "${SCCACHE_BUCKET:-}" ]]; then
+          exit 0
+        fi
+        if sccache --start-server; then
+          exit 0
+        fi
+
+        echo "::warning::sccache could not authenticate to R2; using the runner-local cache."
+        unset SCCACHE_BUCKET SCCACHE_ENDPOINT SCCACHE_REGION
+        unset SCCACHE_S3_KEY_PREFIX AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+        {
+          echo "SCCACHE_BUCKET="
+          echo "SCCACHE_ENDPOINT="
+          echo "SCCACHE_REGION="
+          echo "SCCACHE_S3_KEY_PREFIX="
+          echo "AWS_ACCESS_KEY_ID="
+          echo "AWS_SECRET_ACCESS_KEY="
+        } >>"$GITHUB_ENV"
+        sccache --start-server

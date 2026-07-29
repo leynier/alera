@@ -201,6 +201,9 @@ void main() {
       expect(setup, contains('SCCACHE_IGNORE_SERVER_IO_ERROR=1'));
       expect(setup, contains('SCCACHE_S3_KEY_PREFIX=alera/rust-v1'));
       expect(setup, contains('using the runner-local cache'));
+      expect(setup, contains('if sccache --start-server; then'));
+      expect(setup, contains('could not authenticate to R2'));
+      expect(setup, contains('echo "SCCACHE_BUCKET="'));
       expect(setup, isNot(contains('Swatinem/rust-cache')));
     });
 
