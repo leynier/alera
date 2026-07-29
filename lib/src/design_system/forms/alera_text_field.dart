@@ -6,9 +6,10 @@ import 'package:flutter/services.dart';
 ///
 /// - Default ([dense] == false): relies on the global `inputDecorationTheme`
 ///   (the standard surface-variant field used in dialogs and settings).
-/// - [dense] == true: the compact, surface-filled variant used inside the
-///   narrow sidebar, where the field must contrast against a surface-variant
-///   background.
+/// - [dense] == true: the compact filled variant. Defaults to a surface fill
+///   for surface-variant backgrounds (sidebars). On a surface chrome bar,
+///   pass [fillColor] as [AleraTokens.surfaceVariant] so the field still
+///   contrasts.
 class AleraTextField extends StatelessWidget {
   const AleraTextField({
     super.key,
@@ -27,6 +28,7 @@ class AleraTextField extends StatelessWidget {
     this.onTap,
     this.autofocus = false,
     this.dense = false,
+    this.fillColor,
     this.readOnly = false,
     this.enabled,
   });
@@ -46,6 +48,9 @@ class AleraTextField extends StatelessWidget {
   final VoidCallback? onTap;
   final bool autofocus;
   final bool dense;
+
+  /// Dense fill color. Defaults to [AleraTokens.surface].
+  final Color? fillColor;
   final bool readOnly;
   final bool? enabled;
 
@@ -100,7 +105,7 @@ class AleraTextField extends StatelessWidget {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: AleraTokens.surface,
+          fillColor: fillColor ?? AleraTokens.surface,
           labelText: labelText,
           hintText: hintText,
           errorText: errorText,

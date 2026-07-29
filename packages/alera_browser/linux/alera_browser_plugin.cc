@@ -107,6 +107,11 @@ void alera_browser_plugin_register_with_registrar(FlPluginRegistrar* registrar) 
     GtkWidget* parent = gtk_widget_get_parent(GTK_WIDGET(view));
     if (parent != nullptr && GTK_IS_OVERLAY(parent)) {
       plugin->overlay = GTK_OVERLAY(parent);
+      // Hard-allocate browser pages to the Flutter-reported frame. Without
+      // this, WebKitGTK's preferred size grows across the overlay and covers
+      // the right sidebar and status bar.
+      g_signal_connect(plugin->overlay, "get-child-position",
+                       G_CALLBACK(browser_overlay_get_child_position), plugin);
     }
   }
 

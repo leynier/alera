@@ -40,6 +40,9 @@ class BrowserToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // denseHeight (40) must fit inside sidebarHeaderHeight (44). Vertical
+    // padding would clip the address field borders and text, so center the
+    // row instead and only pad horizontally.
     return Material(
       color: AleraTokens.surface,
       child: SizedBox(
@@ -52,11 +55,8 @@ class BrowserToolbar extends StatelessWidget {
               fit: StackFit.expand,
               children: <Widget>[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AleraTokens.space8,
-                    AleraTokens.space4,
-                    AleraTokens.space8,
-                    AleraTokens.space4,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space8,
                   ),
                   child: Row(
                     children: <Widget>[
@@ -96,6 +96,9 @@ class BrowserToolbar extends StatelessWidget {
                           controller: addressController,
                           focusNode: addressFocusNode,
                           dense: true,
+                          // Toolbar chrome is surface; dense defaults to a
+                          // surface fill meant for surface-variant sidebars.
+                          fillColor: AleraTokens.surfaceVariant,
                           hintText: 'Search Or Enter Address',
                           onSubmitted: onSubmitAddress,
                         ),
