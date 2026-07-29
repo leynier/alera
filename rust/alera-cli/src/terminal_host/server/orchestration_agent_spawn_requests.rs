@@ -132,9 +132,12 @@ impl ServerActor {
         let id = uuid::Uuid::new_v4().to_string();
         // Hook-driven adapters get a bare terminal that dispatches once the
         // agent reports presence, so the stage profile only decides the command.
-        let launch_command = match ready.first() {
-            None => None,
-            Some(task) => self.coordinator_profile_command_for_task(task).await,
+        let (launch_command, managed_launch) = match ready.first() {
+            None => (None, None),
+            Some(task) => self
+                .coordinator_profile_launch_for_task(task)
+                .await
+                .unwrap_or((None, None)),
         };
         let tab = WorkspaceTabRecord {
             id: id.clone(),
@@ -147,6 +150,7 @@ impl ServerActor {
                 "terminalSessionId": id,
                 "initialCommand": launch_command
                     .unwrap_or_else(|| adapter.default_command.to_string()),
+                "initialManagedAgentLaunch": managed_launch,
                 "spawnOnCreate": true,
             }),
         };
@@ -223,10 +227,13 @@ impl ServerActor {
             )));
         }
         let id = uuid::Uuid::new_v4().to_string();
-        let command = resolved
-            .command
-            .clone()
-            .unwrap_or_else(|| adapter.default_command.to_string());
+        let command = resolved.command.clone().unwrap_or_else(|| {
+            if resolved.managed_launch.is_some() {
+                String::new()
+            } else {
+                adapter.default_command.to_string()
+            }
+        });
         let keep_on_failure = payload
             .get("keepOnFailure")
             .and_then(Value::as_bool)
@@ -287,6 +294,7 @@ impl ServerActor {
             payload: json!({
                 "terminalSessionId": id,
                 "initialCommand": command,
+                "initialManagedAgentLaunch": resolved.managed_launch,
                 "initialPrompt": bootstrap.clone(),
                 "spawnOnCreate": true,
                 "pendingOrchestration": pending_orchestration,

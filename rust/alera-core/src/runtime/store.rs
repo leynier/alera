@@ -116,6 +116,14 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("browserHistory", "visitCount", "INTEGER NOT NULL DEFAULT 1")
             .await?;
+        self.ensure_column(
+            "agentProfiles",
+            "launchMode",
+            "TEXT NOT NULL DEFAULT 'command'",
+        )
+        .await?;
+        self.ensure_column("agentProfiles", "managedConfig", "TEXT")
+            .await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE
         // IF NOT EXISTS is a no-op on an existing database, so every column
         // added after the v2 rebuild must also be backfilled here.

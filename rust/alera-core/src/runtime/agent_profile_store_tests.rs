@@ -1,6 +1,8 @@
 use chrono::Utc;
+use serde_json::json;
+use sqlx::sqlite::SqliteConnectOptions;
 
-use super::{AgentProfile, RuntimeStore};
+use super::{AgentProfile, AgentProfileLaunchMode, RuntimeStore, RUNTIME_DATABASE_FILE_NAME};
 
 async fn store() -> (tempfile::TempDir, RuntimeStore) {
     let dir = tempfile::tempdir().unwrap();
@@ -15,6 +17,8 @@ fn profile(id: &str, name: &str) -> AgentProfile {
         name: name.to_string(),
         agent_type: "codex".to_string(),
         command: "codex".to_string(),
+        launch_mode: AgentProfileLaunchMode::Command,
+        managed_config: None,
         description: String::new(),
         quota_group: None,
         created_at: now,
@@ -114,6 +118,92 @@ async fn rejects_empty_required_fields() {
     let mut blank_command = profile("prof_b", "Codex Sol");
     blank_command.command = "   ".to_string();
     assert!(store.upsert_agent_profile(blank_command).await.is_err());
+}
+
+#[tokio::test]
+async fn round_trips_managed_configuration() {
+    let (_dir, store) = store().await;
+    let mut managed = profile("prof_managed", "Managed Codex");
+    managed.command = "codex --model gpt-5.6-sol --search".to_string();
+    managed.launch_mode = AgentProfileLaunchMode::Managed;
+    managed.managed_config = Some(json!({
+        "model": "gpt-5.6-sol",
+        "webSearch": true
+    }));
+
+    let stored = store.upsert_agent_profile(managed).await.unwrap();
+    assert_eq!(stored.launch_mode, AgentProfileLaunchMode::Managed);
+    assert_eq!(
+        stored.managed_config,
+        Some(json!({"model": "gpt-5.6-sol", "webSearch": true}))
+    );
+}
+
+#[tokio::test]
+async fn command_profiles_discard_managed_configuration() {
+    let (_dir, store) = store().await;
+    let mut command = profile("prof_command", "Command Codex");
+    command.managed_config = Some(json!({"model": "ignored"}));
+
+    let stored = store.upsert_agent_profile(command).await.unwrap();
+    assert_eq!(stored.launch_mode, AgentProfileLaunchMode::Command);
+    assert_eq!(stored.managed_config, None);
+}
+
+#[tokio::test]
+async fn migrates_existing_profiles_to_command_mode() {
+    let dir = tempfile::tempdir().unwrap();
+    let options = SqliteConnectOptions::new()
+        .filename(dir.path().join(RUNTIME_DATABASE_FILE_NAME))
+        .create_if_missing(true);
+    let pool = sqlx::SqlitePool::connect_with(options).await.unwrap();
+    sqlx::query(
+        "CREATE TABLE agentProfiles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            agentType TEXT NOT NULL,
+            command TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            quotaGroup TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL
+        )",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO agentProfiles
+         (id, name, agentType, command, description, createdAt, updatedAt)
+         VALUES ('prof_legacy', 'Legacy Codex', 'codex', 'codex --search', '', ?, ?)",
+    )
+    .bind("2026-07-01T00:00:00.000Z")
+    .bind("2026-07-01T00:00:00.000Z")
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let profile = store
+        .find_agent_profile("prof_legacy")
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(profile.launch_mode, AgentProfileLaunchMode::Command);
+    assert_eq!(profile.command, "codex --search");
+    assert_eq!(profile.managed_config, None);
+}
+
+#[tokio::test]
+async fn rejects_managed_configuration_that_is_not_an_object() {
+    let (_dir, store) = store().await;
+    let mut managed = profile("prof_managed", "Managed Codex");
+    managed.launch_mode = AgentProfileLaunchMode::Managed;
+    managed.managed_config = Some(json!(["not", "an", "object"]));
+
+    assert!(store.upsert_agent_profile(managed).await.is_err());
 }
 
 #[tokio::test]

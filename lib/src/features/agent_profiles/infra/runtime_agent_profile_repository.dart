@@ -38,21 +38,44 @@ class RuntimeAgentProfileRepository {
     String? id,
     required String name,
     required String agentType,
-    required String command,
+    required AgentProfileLaunchMode launchMode,
+    String command = '',
+    Map<String, Object?> managedConfig = const <String, Object?>{},
     String description = '',
     String? quotaGroup,
   }) async {
     await beforeAccess?.call();
-    final payload = await _client
-        .runtimeRequest('agentProfile.upsert', <String, Object?>{
-          'id': ?id,
-          'name': name,
-          'agentType': agentType,
-          'command': command,
-          'description': description,
-          'quotaGroup': quotaGroup,
-        });
+    if (launchMode == AgentProfileLaunchMode.managed) {
+      await _requireManagedProfileSupport();
+    }
+    final payload = await _client.runtimeRequest(
+      'agentProfile.upsert',
+      <String, Object?>{
+        'id': ?id,
+        'name': name,
+        'agentType': agentType,
+        'command': launchMode == AgentProfileLaunchMode.command ? command : '',
+        'launchMode': launchMode.name,
+        if (launchMode == AgentProfileLaunchMode.managed)
+          'managedConfig': managedConfig,
+        'description': description,
+        'quotaGroup': quotaGroup,
+      },
+    );
     return AgentProfile.fromJson(_mapFromPayload(payload));
+  }
+
+  Future<void> _requireManagedProfileSupport() async {
+    final status = _mapFromPayload(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    final supported =
+        capabilities is List &&
+        capabilities.contains(aleraRuntimeHostManagedAgentProfilesCapability);
+    if (!supported) {
+      throw StateError(
+        'Managed Agent Profiles Require A Newer Runtime Host. Restart Alera To Replace The Running Host, Or Use Command Mode.',
+      );
+    }
   }
 
   Future<void> remove(String profileId) async {

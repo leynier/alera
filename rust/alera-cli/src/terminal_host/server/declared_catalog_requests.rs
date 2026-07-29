@@ -2,13 +2,16 @@
 //! targets. Both are configuration rather than run state, both are edited from
 //! Settings, and both broadcast a change event the app watches.
 
-use alera_core::runtime::{AgentProfile, SshTarget};
+use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, SshTarget};
 use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_registry::{adapter_for, AGENT_ADAPTERS};
+use crate::terminal_host::orchestration::managed_agent_launch::{
+    build_managed_agent_launch, managed_launch_preview,
+};
 use crate::terminal_host::protocol::event;
 
 use super::requests::require_string_key;
@@ -117,11 +120,29 @@ fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> {
     let now = Utc::now();
     let id = optional_profile_string(payload, "id")
         .unwrap_or_else(|| format!("prof_{}", Uuid::new_v4().simple()));
+    let launch_mode = optional_profile_string(payload, "launchMode")
+        .unwrap_or_else(|| "command".to_string())
+        .parse::<AgentProfileLaunchMode>()
+        .map_err(HostError::format)?;
+    let (command, managed_config) = match launch_mode {
+        AgentProfileLaunchMode::Command => (require_profile_string(payload, "command")?, None),
+        AgentProfileLaunchMode::Managed => {
+            let config = payload
+                .get("managedConfig")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let launch =
+                build_managed_agent_launch(&agent_type, &config).map_err(HostError::format)?;
+            (managed_launch_preview(&launch), Some(config))
+        }
+    };
     Ok(AgentProfile {
         id,
         name: require_profile_string(payload, "name")?,
         agent_type,
-        command: require_profile_string(payload, "command")?,
+        command,
+        launch_mode,
+        managed_config,
         description: optional_profile_string(payload, "description").unwrap_or_default(),
         quota_group: optional_profile_string(payload, "quotaGroup"),
         created_at: now,
@@ -141,4 +162,60 @@ fn optional_profile_string(payload: &Value, key: &str) -> Option<String> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
+}
+
+#[cfg(test)]
+mod tests {
+    use alera_core::runtime::AgentProfileLaunchMode;
+    use serde_json::json;
+
+    use super::profile_from_payload;
+
+    #[test]
+    fn legacy_profile_payload_defaults_to_command_mode() {
+        let profile = profile_from_payload(&json!({
+            "name": "Codex",
+            "agentType": "codex",
+            "command": "codex --search"
+        }))
+        .unwrap();
+
+        assert_eq!(profile.launch_mode, AgentProfileLaunchMode::Command);
+        assert_eq!(profile.command, "codex --search");
+        assert_eq!(profile.managed_config, None);
+    }
+
+    #[test]
+    fn managed_profile_payload_builds_a_command_preview() {
+        let profile = profile_from_payload(&json!({
+            "name": "Codex",
+            "agentType": "codex",
+            "launchMode": "managed",
+            "managedConfig": {
+                "model": "gpt-5.6-sol",
+                "webSearch": true
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(profile.launch_mode, AgentProfileLaunchMode::Managed);
+        assert!(profile.command.contains("--model"));
+        assert!(profile.command.contains("gpt-5.6-sol"));
+        assert!(profile.command.contains("--search"));
+    }
+
+    #[test]
+    fn managed_profile_payload_rejects_unknown_options() {
+        let error = profile_from_payload(&json!({
+            "name": "Codex",
+            "agentType": "codex",
+            "launchMode": "managed",
+            "managedConfig": {"unknown": true}
+        }))
+        .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("unsupported managed agent option"));
+    }
 }

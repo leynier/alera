@@ -3,6 +3,17 @@
 /// The catalog is the closed list an orchestrating agent may dispatch to. Alera
 /// never derives a profile from a provider, an account, or a quota reading: the
 /// user writes every field.
+enum AgentProfileLaunchMode {
+  managed,
+  command;
+
+  static AgentProfileLaunchMode fromJson(Object? value) {
+    return value == 'managed'
+        ? AgentProfileLaunchMode.managed
+        : AgentProfileLaunchMode.command;
+  }
+}
+
 class AgentProfile {
   const AgentProfile({
     required this.id,
@@ -13,6 +24,8 @@ class AgentProfile {
     required this.updatedAt,
     this.description = '',
     this.quotaGroup,
+    this.launchMode = AgentProfileLaunchMode.command,
+    this.managedConfig = const <String, Object?>{},
   });
 
   factory AgentProfile.fromJson(Map<String, Object?> json) {
@@ -21,6 +34,8 @@ class AgentProfile {
       name: _requiredString(json, 'name'),
       agentType: _requiredString(json, 'agentType'),
       command: _requiredString(json, 'command'),
+      launchMode: AgentProfileLaunchMode.fromJson(json['launchMode']),
+      managedConfig: _jsonObject(json['managedConfig']),
       description: _optionalString(json['description']) ?? '',
       quotaGroup: _optionalString(json['quotaGroup']),
       createdAt: _dateTime(json['createdAt']),
@@ -38,6 +53,10 @@ class AgentProfile {
   /// The interactive launch command. A one-shot mode cannot satisfy the worker
   /// contract of accept, heartbeat and complete.
   final String command;
+  final AgentProfileLaunchMode launchMode;
+
+  /// Adapter-specific overrides. Missing keys mean the CLI's own default.
+  final Map<String, Object?> managedConfig;
 
   /// Free-form routing signal the orchestrator reads when choosing a profile
   /// for a stage.
@@ -57,6 +76,10 @@ class AgentProfile {
       'name': name,
       'agentType': agentType,
       'command': command,
+      'launchMode': launchMode.name,
+      'managedConfig': launchMode == AgentProfileLaunchMode.managed
+          ? managedConfig
+          : null,
       'description': description,
       'quotaGroup': quotaGroup,
       'createdAt': createdAt.toUtc().toIso8601String(),
@@ -68,6 +91,8 @@ class AgentProfile {
     String? name,
     String? agentType,
     String? command,
+    AgentProfileLaunchMode? launchMode,
+    Map<String, Object?>? managedConfig,
     String? description,
     String? quotaGroup,
     bool clearQuotaGroup = false,
@@ -77,12 +102,20 @@ class AgentProfile {
       name: name ?? this.name,
       agentType: agentType ?? this.agentType,
       command: command ?? this.command,
+      launchMode: launchMode ?? this.launchMode,
+      managedConfig: managedConfig ?? this.managedConfig,
       description: description ?? this.description,
       quotaGroup: clearQuotaGroup ? null : (quotaGroup ?? this.quotaGroup),
       createdAt: createdAt,
       updatedAt: DateTime.now().toUtc(),
     );
   }
+}
+
+Map<String, Object?> _jsonObject(Object? value) {
+  return value is Map
+      ? Map<String, Object?>.from(value)
+      : const <String, Object?>{};
 }
 
 String _requiredString(Map<String, Object?> json, String key) {

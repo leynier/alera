@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/infra/runtime_agent_profile_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -23,9 +25,30 @@ void main() {
       expect(profile.name, 'Codex Sol');
       expect(profile.agentType, 'codex');
       expect(profile.command, 'codex --model gpt-5.6-sol');
+      expect(profile.launchMode, AgentProfileLaunchMode.command);
       expect(profile.quotaGroup, 'codex-personal');
       expect(profile.createdAt, DateTime.utc(2026, 7));
       expect(profile.toJson()['quotaGroup'], 'codex-personal');
+    });
+
+    test('parses managed configuration from a host payload', () {
+      final profile = AgentProfile.fromJson(<String, Object?>{
+        'id': 'prof_1',
+        'name': 'Managed Codex',
+        'agentType': 'codex',
+        'command': 'codex --model gpt-5.6-sol',
+        'launchMode': 'managed',
+        'managedConfig': <String, Object?>{
+          'model': 'gpt-5.6-sol',
+          'webSearch': true,
+        },
+        'createdAt': '2026-07-01T00:00:00.000Z',
+        'updatedAt': '2026-07-02T00:00:00.000Z',
+      });
+
+      expect(profile.launchMode, AgentProfileLaunchMode.managed);
+      expect(profile.managedConfig['model'], 'gpt-5.6-sol');
+      expect(profile.toJson()['managedConfig'], profile.managedConfig);
     });
 
     test('treats a blank quota group and description as absent', () {
@@ -146,12 +169,14 @@ void main() {
       await repository.upsert(
         name: 'Codex Sol',
         agentType: 'codex',
+        launchMode: AgentProfileLaunchMode.command,
         command: 'codex',
       );
 
       final payload = client.payloads['agentProfile.upsert']!.single;
       expect(payload.containsKey('id'), isFalse);
       expect(payload['name'], 'Codex Sol');
+      expect(payload['launchMode'], 'command');
       expect(payload['quotaGroup'], isNull);
     });
 
@@ -167,6 +192,7 @@ void main() {
         id: 'prof_1',
         name: 'Renamed',
         agentType: 'codex',
+        launchMode: AgentProfileLaunchMode.command,
         command: 'codex',
         quotaGroup: 'codex-personal',
       );
@@ -174,6 +200,69 @@ void main() {
       final payload = client.payloads['agentProfile.upsert']!.single;
       expect(payload['id'], 'prof_1');
       expect(payload['quotaGroup'], 'codex-personal');
+    });
+
+    test('managed upsert sends structured config and no raw command', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['status.get'] = <String, Object?>{
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostManagedAgentProfilesCapability,
+        ],
+      };
+      client.responses['agentProfile.upsert'] = <String, Object?>{
+        ..._profilePayload('prof_1', 'Managed Codex'),
+        'launchMode': 'managed',
+        'managedConfig': <String, Object?>{
+          'model': 'gpt-5.6-sol',
+          'webSearch': true,
+        },
+      };
+      final repository = RuntimeAgentProfileRepository(client);
+
+      await repository.upsert(
+        name: 'Managed Codex',
+        agentType: 'codex',
+        launchMode: AgentProfileLaunchMode.managed,
+        command: 'this must not be trusted',
+        managedConfig: const <String, Object?>{
+          'model': 'gpt-5.6-sol',
+          'webSearch': true,
+        },
+      );
+
+      final payload = client.payloads['agentProfile.upsert']!.single;
+      expect(payload['launchMode'], 'managed');
+      expect(payload['command'], isEmpty);
+      expect(payload['managedConfig'], <String, Object?>{
+        'model': 'gpt-5.6-sol',
+        'webSearch': true,
+      });
+    });
+
+    test('managed upsert refuses an older live host', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['status.get'] = <String, Object?>{
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostOrchestrationCapability,
+        ],
+      };
+      final repository = RuntimeAgentProfileRepository(client);
+
+      await expectLater(
+        repository.upsert(
+          name: 'Managed Codex',
+          agentType: 'codex',
+          launchMode: AgentProfileLaunchMode.managed,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Restart Alera'),
+          ),
+        ),
+      );
+      expect(client.payloads['agentProfile.upsert'], isNull);
     });
 
     test('watchAll refreshes when the host reports a catalog change', () async {
@@ -207,6 +296,54 @@ void main() {
       expect(seen, containsAllInOrder(<int>[1, 2]));
       await subscription.cancel();
       client.close();
+    });
+  });
+
+  group('AgentProfiles controller', () {
+    test('keeps a saved mutation over a delayed stale snapshot', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['agentProfile.list'] = <String, Object?>{
+        'items': <Object?>[_profilePayload('prof_1', 'Old Name')],
+      };
+      client.responses['agentProfile.upsert'] = <String, Object?>{
+        ..._profilePayload('prof_1', 'New Name'),
+      };
+      final repository = RuntimeAgentProfileRepository(client);
+      final container = ProviderContainer(
+        overrides: [
+          agentProfileRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+        client.close();
+      });
+      await container.read(agentProfilesProvider.future);
+
+      await container
+          .read(agentProfilesProvider.notifier)
+          .upsert(
+            id: 'prof_1',
+            name: 'New Name',
+            agentType: 'codex',
+            launchMode: AgentProfileLaunchMode.command,
+            command: 'codex',
+          );
+
+      expect(
+        container.read(agentProfilesProvider).requireValue.single.name,
+        'New Name',
+      );
+
+      client.emit(
+        const RuntimeHostEvent('agentProfilesChanged', <String, Object?>{}),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(
+        container.read(agentProfilesProvider).requireValue.single.name,
+        'New Name',
+      );
     });
   });
 }
