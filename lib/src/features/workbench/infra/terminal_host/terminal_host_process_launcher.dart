@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:alera/src/core/build_flavor.dart';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -54,6 +55,7 @@ final class DefaultTerminalHostProcessLauncher
         config.detachedSessionShutdownDelaySeconds.toString(),
         '--scrollback-bytes',
         config.scrollbackBytes.toString(),
+        if (config.crashReporting) '--crash-reporting',
       ],
       workingDirectory: command.workingDirectory,
       mode: ProcessStartMode.detached,
@@ -63,7 +65,12 @@ final class DefaultTerminalHostProcessLauncher
 }
 
 Map<String, String> _terminalHostEnvironment() {
-  final environment = <String, String>{'ALERA_TERMINAL_HOST': '1'};
+  final environment = <String, String>{
+    'ALERA_TERMINAL_HOST': '1',
+    // The sidecar tags its crash reports with this so dev noise can be filtered
+    // out in Sentry; it cannot infer the flavor of the app that launched it.
+    'ALERA_FLAVOR': kAleraFlavor,
+  };
   if (_compiledRuntimeArchivePublicKey.isNotEmpty) {
     environment['ALERA_RUNTIME_ARCHIVE_PUBLIC_KEY'] =
         _compiledRuntimeArchivePublicKey;

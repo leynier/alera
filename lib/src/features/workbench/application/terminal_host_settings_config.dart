@@ -6,7 +6,10 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 /// Shared by the workbench warmup and the runtime-host lifecycle service: both
 /// send `configure`, and a host that got two different configurations
 /// depending on which one ran last would behave differently between launches.
-TerminalHostConfig terminalHostConfigFor(TerminalSettings settings) {
+TerminalHostConfig terminalHostConfigFor(
+  TerminalSettings settings, {
+  bool crashReporting = false,
+}) {
   return TerminalHostConfig(
     emptyShutdownDelaySeconds: settings.hostEmptyShutdownDelaySeconds,
     detachedSessionShutdownDelaySeconds:
@@ -14,6 +17,7 @@ TerminalHostConfig terminalHostConfigFor(TerminalSettings settings) {
     scrollbackBytes: settings.hostScrollbackBytes,
     restoreSnapshotBytes: restoreSnapshotBytesFor(settings),
     loginShell: settings.resolvedLoginShell,
+    crashReporting: crashReporting,
   );
 }
 

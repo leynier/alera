@@ -67,9 +67,16 @@ mixin MobileRuntimeTerminalOutputResync {
           replacesScrollback: true,
         ),
       );
-    } on Object {
+    } on Object catch (error, stackTrace) {
       // The host re-arms its own retry, so a failed attempt is picked up by the
-      // next event rather than looped here.
+      // next event rather than looped here. It is still recorded: a resync that
+      // keeps failing shows up as missing terminal output, which is otherwise
+      // very hard to explain after the fact.
+      Logger('MobileTerminalResync').warning(
+        'failed to resynchronise output for session $sessionId',
+        error,
+        stackTrace,
+      );
     }
   }
 }

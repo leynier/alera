@@ -341,6 +341,31 @@ class _LegacyAgentSettingsHook extends MappingHook {
   }
 }
 
+/// Log levels offered in Settings, kept as a closed set so the stored value
+/// cannot drift into something `package:logging` will not accept.
+@MappableEnum()
+enum DiagnosticsLogLevel { error, warning, info, debug }
+
+@MappableClass()
+class DiagnosticsSettings with DiagnosticsSettingsMappable {
+  const DiagnosticsSettings({
+    this.logLevel = DiagnosticsLogLevel.info,
+    this.crashReportingEnabled = false,
+  });
+
+  /// Detail written to the app and runtime log files.
+  final DiagnosticsLogLevel logLevel;
+
+  /// Send crashes to Sentry. Default-off because it leaves the machine; the
+  /// local log file is what makes diagnosis possible without it.
+  final bool crashReportingEnabled;
+
+  static const DiagnosticsSettings defaults = DiagnosticsSettings();
+
+  factory DiagnosticsSettings.fromJson(Map<String, Object?> json) =>
+      DiagnosticsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
 @MappableClass(hook: _LegacyAgentSettingsHook())
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
@@ -348,6 +373,7 @@ class AleraSettings with AleraSettingsMappable {
     this.agents = AgentSettings.defaults,
     this.aiTextGeneration = AiTextGenerationSettings.defaults,
     this.editor = EditorSettings.defaults,
+    this.diagnostics = DiagnosticsSettings.defaults,
     required this.terminal,
     required this.keyboard,
   });
@@ -356,6 +382,7 @@ class AleraSettings with AleraSettingsMappable {
   final AgentSettings agents;
   final AiTextGenerationSettings aiTextGeneration;
   final EditorSettings editor;
+  final DiagnosticsSettings diagnostics;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
@@ -364,6 +391,7 @@ class AleraSettings with AleraSettingsMappable {
     agents: AgentSettings.defaults,
     aiTextGeneration: AiTextGenerationSettings.defaults,
     editor: EditorSettings.defaults,
+    diagnostics: DiagnosticsSettings.defaults,
     terminal: TerminalSettings.defaults,
     keyboard: KeyboardShortcutSettings.defaults,
   );

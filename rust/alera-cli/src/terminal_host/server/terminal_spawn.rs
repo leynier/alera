@@ -20,7 +20,7 @@ impl ServerActor {
         let workspaces = match self.runtime_store.list_all_workspaces().await {
             Ok(workspaces) => workspaces,
             Err(error) => {
-                eprintln!("failed to list workspaces for terminal reconciliation: {error}");
+                tracing::error!("failed to list workspaces for terminal reconciliation: {error}");
                 return;
             }
         };
@@ -28,7 +28,7 @@ impl ServerActor {
             let tabs = match self.runtime_store.list_workspace_tabs(&workspace.id).await {
                 Ok(tabs) => tabs,
                 Err(error) => {
-                    eprintln!(
+                    tracing::error!(
                         "failed to list terminal tabs for workspace {}: {error}",
                         workspace.id
                     );
@@ -37,7 +37,7 @@ impl ServerActor {
             };
             for tab in tabs.into_iter().filter(spawns_on_create) {
                 if let Err(error) = self.ensure_spawn_on_create_terminal(&tab).await {
-                    eprintln!(
+                    tracing::error!(
                         "failed to restore spawn-on-create terminal {}: {}",
                         tab.id,
                         error.wire_message()

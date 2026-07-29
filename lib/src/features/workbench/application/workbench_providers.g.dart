@@ -904,7 +904,7 @@ final class TerminalHostClientProvider
 }
 
 String _$terminalHostClientHash() =>
-    r'40a575a070bb61e534e68a979a44d0c7f389db46';
+    r'75b97ca74789d8a7285b5192db033b823f30f4c0';
 
 @ProviderFor(terminalHostWarmupCoordinator)
 final terminalHostWarmupCoordinatorProvider =
@@ -947,7 +947,7 @@ final class TerminalHostWarmupCoordinatorProvider
 }
 
 String _$terminalHostWarmupCoordinatorHash() =>
-    r'619dde1ecbc702bcccbdf3caa42d8dcb75039787';
+    r'e3da3d9a686e7a2f7da75b9a4ead06cd16643987';
 
 @ProviderFor(terminalRuntime)
 final terminalRuntimeProvider = TerminalRuntimeProvider._();

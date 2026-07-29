@@ -277,7 +277,7 @@ impl ServerActor {
         // lock is released by the time the coordinator reads the result.
         if message_type.is_lifecycle() {
             for message in &inserted {
-                let mut log = |line: String| eprintln!("[orchestration] {line}");
+                let mut log = |line: String| tracing::info!("[orchestration] {line}");
                 let _ = reconcile_lifecycle_message(&self.runtime_store, message, &mut log).await;
             }
         }
@@ -374,7 +374,7 @@ impl ServerActor {
         }
         for message in &messages {
             if message.message_type.is_lifecycle() {
-                let mut log = |line: String| eprintln!("[orchestration] {line}");
+                let mut log = |line: String| tracing::info!("[orchestration] {line}");
                 let _ = reconcile_lifecycle_message(&self.runtime_store, message, &mut log).await;
             }
         }

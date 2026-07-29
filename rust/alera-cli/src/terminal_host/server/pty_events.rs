@@ -235,7 +235,7 @@ impl ServerActor {
                     Ok(true) => {}
                     Ok(false) => self.immediate_checkpoint(&session_id).await,
                     Err(error) => {
-                        eprintln!(
+                        tracing::error!(
                             "failed to remove tab for exited terminal {session_id}: {}",
                             error.wire_message()
                         );
@@ -276,7 +276,7 @@ impl ServerActor {
             .record_workspace_activity(&workspace_id, chrono::Utc::now())
             .await
         {
-            eprintln!("failed to record activity for workspace {workspace_id}: {error}");
+            tracing::error!("failed to record activity for workspace {workspace_id}: {error}");
         }
         self.flush_all_output(session_id);
         self.await_output_writes(session_id).await;
@@ -389,7 +389,7 @@ impl ServerActor {
         .await
         .is_err()
         {
-            eprintln!(
+            tracing::warn!(
                 "terminal output persistence barrier timed out for session {session_id}; continuing without blocking the host actor"
             );
         }

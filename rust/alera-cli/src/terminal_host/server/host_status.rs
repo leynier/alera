@@ -1,0 +1,94 @@
+use serde_json::{json, Value};
+
+use crate::terminal_host::protocol::{
+    PROTOCOL_VERSION, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
+    RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY, RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
+    RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
+    RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+};
+
+use super::ServerActor;
+
+impl ServerActor {
+    /// Payload of `status.get`: versions, advertised capabilities and live
+    /// counts.
+    ///
+    /// Kept out of the request dispatch table because the capability list grows
+    /// with every additive feature and was pushing that file past its size
+    /// limit on its own.
+    pub(super) fn host_status_payload(&self) -> Value {
+        json!({
+            "runtimeHostVersion": option_env!("ALERA_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+            "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown"),
+            "protocolVersion": PROTOCOL_VERSION,
+            "orchestrationProtocolVersion": crate::terminal_host::protocol::ORCHESTRATION_PROTOCOL_VERSION,
+            "dispatchPreambleVersion": crate::terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
+            "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
+            "runtime": "alera",
+            "runtimeCapabilities": [
+                RUNTIME_HOST_CAPABILITY,
+                RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+                RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                RUNTIME_HOST_MOBILE_CAPABILITY,
+                RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+                RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+                RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
+                RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+                RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+                RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+                RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+                RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
+                RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+                RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+                RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY,
+                RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+                RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
+                RUNTIME_HOST_RUN_POLICY_CAPABILITY,
+                RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
+                RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+                RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+                RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+                RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+                RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
+                RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
+                RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
+                RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY,
+                RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
+                RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
+                RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
+                RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY,
+            ],
+            // Absent when the host has not initialized file logging, so
+            // a client must treat it as optional rather than required.
+            "logDirectory": crate::terminal_host::diagnostics::log_directory()
+                .map(|path| path.to_string_lossy().to_string()),
+            "crashReportingEnabled": crate::terminal_host::diagnostics::sentry_reporting::is_enabled(),
+            "authenticated": true,
+            "persistent": self.config.persistent,
+            "activeSessions": self.sessions.values().filter(|session| session.running()).count(),
+            "activeEmulators": self.emulators.as_ref().map_or(0, |emulators| {
+                emulators
+                    .try_lock()
+                    .map_or(1, |manager| manager.active_count())
+            }),
+            "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
+            "mobileGatewayEnabled": self.mobile_gateway.is_some(),
+        })
+    }
+}

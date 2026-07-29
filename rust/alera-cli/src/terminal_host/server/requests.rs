@@ -21,25 +21,7 @@ use crate::mobile_access::{
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
-    error_response, event, int_or, ok_response, TerminalHostConfig, PROTOCOL_VERSION,
-    RUNTIME_HOST_AGENT_PROFILES_CAPABILITY, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
-    RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY, RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
-    RUNTIME_HOST_RUN_POLICY_CAPABILITY, RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    error_response, event, int_or, ok_response, TerminalHostConfig,
 };
 use crate::terminal_host::session::SessionDriver;
 
@@ -435,6 +417,12 @@ impl ServerActor {
         match request_type {
             "configure" => {
                 self.require_auth(client_id)?;
+                // Crash reporting is a live switch rather than a start-up flag:
+                // the sidecar outlives the app, so requiring a restart would
+                // leave the setting lying about what is actually happening.
+                if let Some(enabled) = payload.get("crashReporting").and_then(Value::as_bool) {
+                    crate::terminal_host::diagnostics::sentry_reporting::set_enabled(enabled);
+                }
                 let config = TerminalHostConfig::from_json(payload)?;
                 self.apply_config(config).await;
                 Ok(json!({}))
@@ -618,58 +606,7 @@ impl ServerActor {
             }
             "status.get" => {
                 self.require_auth(client_id)?;
-                Ok(json!({
-                    "runtimeHostVersion": option_env!("ALERA_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
-                    "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown"),
-                    "protocolVersion": PROTOCOL_VERSION,
-                    "orchestrationProtocolVersion": crate::terminal_host::protocol::ORCHESTRATION_PROTOCOL_VERSION,
-                    "dispatchPreambleVersion": crate::terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
-                    "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
-                    "runtime": "alera",
-                    "runtimeCapabilities": [
-                        RUNTIME_HOST_CAPABILITY,
-                        RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-                        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-                        RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-                        RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
-                        RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
-                        RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY,
-                        RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
-                        RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
-                        RUNTIME_HOST_RUN_POLICY_CAPABILITY,
-                        RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-                        RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-                        RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
-                        RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-                        RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-                        RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY,
-                        RUNTIME_HOST_COMPUTER_USE_CAPABILITY,
-                        RUNTIME_HOST_BROWSER_AUTOMATION_ROUTING_CAPABILITY,
-                        RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY,
-                        RUNTIME_HOST_BROWSER_PROFILES_CAPABILITY,
-                        RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
-                        RUNTIME_HOST_SHELL_ENVIRONMENT_RELOAD_CAPABILITY,
-                    ],
-                    "authenticated": true,
-                    "persistent": self.config.persistent,
-                    "activeSessions": self.sessions.values().filter(|session| session.running()).count(),
-                    "activeEmulators": self.emulators.as_ref().map_or(0, |emulators| {
-                        emulators
-                            .try_lock()
-                            .map_or(1, |manager| manager.active_count())
-                    }),
-                    "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
-                    "mobileGatewayEnabled": self.mobile_gateway.is_some(),
-                }))
+                Ok(self.host_status_payload())
             }
             "resources.snapshot" => {
                 self.require_auth(client_id)?;

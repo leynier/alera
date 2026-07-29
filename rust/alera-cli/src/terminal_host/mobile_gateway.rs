@@ -27,7 +27,7 @@ pub fn spawn_mobile_gateway_accept_loop(
             let inbox = inbox.clone();
             tokio::spawn(async move {
                 if let Err(error) = accept_mobile_connection(stream, id, inbox).await {
-                    eprintln!("alera mobile gateway connection failed: {error}");
+                    tracing::warn!("alera mobile gateway connection failed: {error}");
                 }
             });
         }

@@ -214,6 +214,16 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - The desktop re-checks for a release every 15 minutes while the window is visible (`AleraUpdateCheckScheduler`), and parks while it is hidden: a check nobody can see the result of still costs a request, and on Linux still costs a composited frame. Returning to a visible window checks immediately rather than waiting out a fresh interval. A find is announced once per version by `UpdateAvailabilityWatch`, because the recurring check runs with nobody looking at Settings and a toast every 15 minutes for a release the user already declined is noise.
 - The mobile app checks once per launch, Android only, and never auto-installs. It resolves the newest `vX.Y.Z-mobile` tag through the GitHub Releases API and offers the **universal** APK: per-ABI assets would need the device's ABI, which is a guess that fails on a device reporting several. Drafts and prereleases are skipped, because the release commit reaches `main` before the draft is published and a draft's assets 404 for everyone else. A failed check is silent: it is not worth interrupting a launch over a rate limit or a dead network.
 
+## Diagnostics And Logging
+
+- All three surfaces write rotating JSON Lines log files: the sidecar under `<runtimeDir>/logs/`, the desktop and mobile apps under `<applicationSupport>/logs/`. The canonical reference is `docs/diagnostics.md`.
+- New diagnostics in the sidecar MUST use `tracing::warn!`/`error!`/`info!`, never `eprintln!`. The `println!`/`eprintln!` calls in `main.rs` and the `*_commands.rs` files are user-facing command output and stay as they are.
+- Redaction lives in the sink, never at the call sites, because a diagnostics bundle is meant to be shared and a call site that forgets to mask is indistinguishable from one with nothing to mask. Register a newly minted secret with `register_secret` / `registerLogSecret` where it is created rather than trusting the pattern list.
+- Crash reporting is opt-in and off by default, one Sentry project per surface. The switch is read inside `before_send`/`beforeSend` rather than by tearing the client down, so turning it off takes effect immediately, including on an already-running sidecar. DSNs are committed on purpose: a DSN is not a secret and ships inside the binary either way.
+- The sidecar's panic hook MUST be installed before `sentry::init`, whose panic integration chains the previous hook. That ordering is what puts a panic in the local log file even when reporting is disabled or its upload fails.
+- `logDirectory`, `crashReportingEnabled` on `status.get`, the `crashReporting` field on `configure`, and `hostDiagnosticsLogsV1` are additive and MUST NOT bump `aleraTerminalHostProtocolVersion`.
+- Logging MUST NOT be able to stop the app from starting: every sink failure degrades to no file instead of throwing, and the settings applier falls back to defaults when settings are unavailable.
+
 ## Reference Projects
 
 - `reference_projects/` contains non-runtime references for agentic development and orchestration patterns.

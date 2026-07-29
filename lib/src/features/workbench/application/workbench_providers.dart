@@ -229,19 +229,27 @@ WorkspaceService workspaceService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 TerminalHostClient terminalHostClient(Ref ref) {
+  final settings = ref.read(settingsControllerProvider);
   final initialConfig = terminalHostConfigFor(
-    ref.read(settingsControllerProvider).terminal,
+    settings.terminal,
+    crashReporting: settings.diagnostics.crashReportingEnabled,
   );
   final client = ref.watch(runtimeHostClientProvider);
   unawaited(
     client.configure(initialConfig).catchError(_ignoreProviderAsyncError),
   );
-  ref.listen<TerminalSettings>(
-    settingsControllerProvider.select((settings) => settings.terminal),
+  // Selected as a record so the comparison stays structural: TerminalHostConfig
+  // has no value equality, so selecting it directly would reconfigure the host
+  // on every unrelated settings write.
+  ref.listen<(TerminalSettings, bool)>(
+    settingsControllerProvider.select(
+      (settings) =>
+          (settings.terminal, settings.diagnostics.crashReportingEnabled),
+    ),
     (_, next) {
       unawaited(
         client
-            .configure(terminalHostConfigFor(next))
+            .configure(terminalHostConfigFor(next.$1, crashReporting: next.$2))
             .catchError(_ignoreProviderAsyncError),
       );
     },
@@ -258,6 +266,10 @@ void terminalHostWarmupCoordinator(Ref ref) {
         .ensureStarted(
           config: terminalHostConfigFor(
             ref.read(settingsControllerProvider).terminal,
+            crashReporting: ref
+                .read(settingsControllerProvider)
+                .diagnostics
+                .crashReportingEnabled,
           ),
         )
         .catchError(_ignoreProviderAsyncError),

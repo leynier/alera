@@ -63,7 +63,7 @@ impl ServerActor {
             Ok(Some(tab)) => tab,
             Ok(None) => return,
             Err(error) => {
-                eprintln!(
+                tracing::error!(
                     "failed to inspect orchestration spawn tab {tab_id} after acceptance: {error}"
                 );
                 return;
@@ -85,7 +85,9 @@ impl ServerActor {
         updated.updated_at = chrono::Utc::now();
         let workspace_id = updated.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(updated).await {
-            eprintln!("failed to consume orchestration spawn prompt for tab {tab_id}: {error}");
+            tracing::error!(
+                "failed to consume orchestration spawn prompt for tab {tab_id}: {error}"
+            );
             return;
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
@@ -151,7 +153,9 @@ impl ServerActor {
         tab.updated_at = chrono::Utc::now();
         let workspace_id = tab.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(tab).await {
-            eprintln!("failed to persist orchestration spawn failure for tab {tab_id}: {error}");
+            tracing::error!(
+                "failed to persist orchestration spawn failure for tab {tab_id}: {error}"
+            );
             return false;
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
@@ -187,7 +191,7 @@ impl ServerActor {
         tab.updated_at = chrono::Utc::now();
         let workspace_id = tab.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(tab).await {
-            eprintln!(
+            tracing::error!(
                 "failed to preserve orchestration spawn diagnostics for tab {tab_id}: {error}"
             );
             return false;
