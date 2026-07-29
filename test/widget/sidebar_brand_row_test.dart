@@ -59,6 +59,10 @@ void main() {
     expect(find.byTooltip('Collapse Sidebar'), findsNothing);
     expect(find.byTooltip('Expand Sidebar'), findsOneWidget);
 
+    final headerRect = tester.getRect(find.byType(SidebarBrandRow));
+    final expandRect = tester.getRect(find.byTooltip('Expand Sidebar'));
+    expect(expandRect.right, headerRect.right);
+
     await tester.tap(find.byTooltip('Expand Sidebar'));
 
     expect(addProjectTaps, 0);

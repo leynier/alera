@@ -31,7 +31,7 @@ class SidebarBrandRow extends StatelessWidget {
     if (collapsed) {
       return SizedBox(
         height: AleraTokens.sidebarHeaderHeight,
-        child: Center(child: toggle),
+        child: Align(alignment: Alignment.centerRight, child: toggle),
       );
     }
     return Container(
