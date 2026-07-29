@@ -56,7 +56,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   static final Uri defaultReleasePageUrl = Uri.parse(
     'https://github.com/leynier/alera/releases',
   );
-  static final Uri installGuideUrl = Uri.parse('https://alera.build/#install');
+  static final Uri installGuideUrl = Uri.parse('https://alera.build/download');
 
   @MappableField(hook: _UriStringHook())
   final Uri archiveUrl;

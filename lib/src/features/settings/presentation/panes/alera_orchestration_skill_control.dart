@@ -29,6 +29,7 @@ class AleraOrchestrationSkillControl extends ConsumerWidget {
         );
         return AleraSkillInstallStatus(
           result.summary,
+          detail: result.detail,
           needsAttention:
               !result.succeeded ||
               result.hookError != null ||

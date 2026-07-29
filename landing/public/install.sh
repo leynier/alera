@@ -28,7 +28,7 @@ ALERA_DOCS_URL="https://alera.build/#install"
 # repository is trusted with. Piping this script to sh already means trusting
 # alera.build; it must not also mean trusting whatever key updates.alera.build
 # happens to serve.
-ALERA_KEY_FINGERPRINT="01DAF16E430AF8B2607BA44D457D8143C91B4732"
+ALERA_KEY_FINGERPRINT="5DE97E7CFE234A1C5869EC54708DA940734CF23A"
 
 ALERA_APT_KEYRING_PATH="/etc/apt/keyrings/alera-archive-keyring.asc"
 ALERA_APT_SOURCES_PATH="/etc/apt/sources.list.d/alera.sources"
@@ -210,12 +210,17 @@ ensure_gpg() {
   fi
 }
 
-# Emits one line per primary key in the file. --show-keys is the modern spelling;
-# --with-fingerprint is the fallback for gpg older than 2.1.23.
+# Emits one line per primary key in the file. Only the fingerprint that follows a
+# `pub` record is taken: a normal key carries a signing subkey, which emits its
+# own `fpr` record, so matching every `fpr` would count one key as two and would
+# compare the pin against whichever record happened to come first.
+# --show-keys is the modern spelling; --with-fingerprint is the fallback for gpg
+# older than 2.1.23.
 keyring_fingerprints() {
   for option in --show-keys --with-fingerprint; do
     found="$(gpg --batch --with-colons "$option" "$1" 2>/dev/null |
-      awk -F: '/^fpr:/ { print toupper($10) }' || true)"
+      awk -F: '/^pub:/ { primary = 1; next }
+               /^fpr:/ && primary { print toupper($10); primary = 0 }' || true)"
     if [ -n "$found" ]; then
       printf '%s\n' "$found"
       return 0

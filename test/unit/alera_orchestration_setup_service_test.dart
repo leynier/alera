@@ -131,6 +131,7 @@ class _FakeSkillService extends AleraCliSkillService {
     this.runner = runner;
     return AleraCliSkillInstallResult(
       runner: runner,
+      skill: skill,
       attempts: <AleraCliSkillInstallAttempt>[
         AleraCliSkillInstallAttempt(
           runner: runner == AleraCliSkillRunner.auto

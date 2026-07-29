@@ -18,7 +18,10 @@ void main() {
     expect(workflow, isNot(contains('alera-\${RELEASE_VERSION}-linux.tar.gz')));
     expect(
       workflow,
-      contains('[[ "\$CHANNEL" == "rc" && "\$PLATFORM" != "linux" ]]'),
+      contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
+      reason:
+          'Linux is the one platform excluded from automatic installation, '
+          'because dpkg and rpm do not resolve the libmpv dependency closure',
     );
     expect(
       workflow,

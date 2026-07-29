@@ -2,11 +2,28 @@
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
+import releases from '../data/releases.json';
 
 const installCommand = 'curl -fsSL https://alera.build/install.sh | sh';
-const keyFingerprint = '01DAF16E430AF8B2607BA44D457D8143C91B4732';
+const keyFingerprint = '5DE97E7CFE234A1C5869EC54708DA940734CF23A';
 const releasesUrl = 'https://github.com/leynier/alera/releases/latest';
+const mobileReleasesUrl =
+  'https://github.com/leynier/alera/releases?q=mobile&expanded=true';
 const keyringUrl = 'https://updates.alera.build/linux/alera-archive-keyring.asc';
+
+// `releases.json` is rewritten by tool/release/update_landing_release_links.dart
+// inside the release commit, so these point at the exact files the cut just
+// published instead of dropping the visitor on a releases listing.
+const assetUrl = (tag: string, file: string) =>
+  `https://github.com/leynier/alera/releases/download/${tag}/${file}`;
+
+const macosAsset = `alera-${releases.desktop.version}-macos.tar.gz`;
+const windowsAsset = `alera-${releases.desktop.version}-windows.tar.gz`;
+const androidAsset = `alera-${releases.mobile.version}-android.apk`;
+
+const macosUrl = assetUrl(releases.desktop.tag, macosAsset);
+const windowsUrl = assetUrl(releases.desktop.tag, windowsAsset);
+const androidUrl = assetUrl(releases.mobile.tag, androidAsset);
 
 // Wording mandated verbatim by the SignPath Foundation code of conduct. It is
 // kept as one contiguous string, with the links in a separate sentence, so a
@@ -29,23 +46,55 @@ gpgcheck=0
 repo_gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-alera`;
 
-const desktopDownloads = [
+// Drives both the detected-system card and the section order, so the two can
+// never disagree about what a platform offers.
+const platforms = [
   {
-    platform: 'macOS',
-    asset: 'alera-<version>-macos.tar.gz',
-    note: 'Unpack it and move Alera.app to your Applications folder.',
+    id: 'macos',
+    name: 'macOS',
+    summary: `Download ${macosAsset}.`,
+    action: 'Download for macOS',
+    href: macosUrl,
+    available: true,
   },
   {
-    platform: 'Windows',
-    asset: 'alera-<version>-windows.tar.gz',
-    note: 'Unpack it anywhere and run Alera.exe.',
+    id: 'windows',
+    name: 'Windows',
+    summary: `Download ${windowsAsset}.`,
+    action: 'Download for Windows',
+    href: windowsUrl,
+    available: true,
+  },
+  {
+    id: 'linux',
+    name: 'Linux',
+    summary: 'Install from the signed package repository.',
+    action: 'See the Command',
+    href: '#linux',
+    available: true,
+  },
+  {
+    id: 'android',
+    name: 'Android',
+    summary: `Download ${androidAsset}.`,
+    action: 'Download the APK',
+    href: androidUrl,
+    available: true,
+  },
+  {
+    id: 'ios',
+    name: 'iOS',
+    summary: 'Not available yet.',
+    action: 'Coming Soon',
+    href: null,
+    available: false,
   },
 ];
 ---
 
 <Layout
-  title="Download Alera - Install On macOS, Windows, And Linux"
-  description="Download Alera for macOS and Windows, or install it on Linux from the signed package repository."
+  title="Download Alera - Install On macOS, Windows, Linux, And Android"
+  description="Download Alera for macOS, Windows, and Android, or install it on Linux from the signed package repository."
   canonicalPath="/download"
 >
   <Navbar />
@@ -56,13 +105,104 @@ const desktopDownloads = [
       >
         Download Alera
       </h1>
-      <p class="text-[15px] text-foreground-muted mb-14 leading-relaxed">
-        Alera runs on macOS, Windows, and Linux. On Linux it installs from a
-        signed package repository so system dependencies resolve through apt or
-        dnf; the same command installs and updates.
+      <p class="text-[15px] text-foreground-muted mb-10 leading-relaxed">
+        The desktop workbench runs on macOS, Windows, and Linux. The companion
+        mobile app runs on Android.
       </p>
 
-      <h2 class="text-headline-sm text-foreground mb-3">Linux</h2>
+      <!-- Detected system. Rendered as a neutral chooser so it stays useful
+           without JavaScript, then narrowed to one platform by the script. -->
+      <section
+        id="your-system"
+        data-platforms={JSON.stringify(platforms)}
+        class="rounded-lg border border-border bg-surface-variant p-6 mb-14"
+      >
+        <p class="text-label-md text-foreground-faint mb-2">Your System</p>
+        <p id="detected-name" class="text-title-lg text-foreground mb-2">
+          Choose Your Platform
+        </p>
+        <p
+          id="detected-summary"
+          class="text-body-md text-foreground-muted mb-5 leading-relaxed"
+        >
+          Pick the platform you are installing on from the sections below.
+        </p>
+        <a
+          id="detected-action"
+          href="#macos"
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+        >
+          See All Platforms
+        </a>
+        <span
+          id="detected-unavailable"
+          hidden
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-border text-body-md text-foreground-faint"
+        >
+          Coming Soon
+        </span>
+      </section>
+
+      <h2 id="macos" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
+        macOS
+      </h2>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Unpack <span class="font-mono break-all">{macosAsset}</span> and move
+        Alera.app to your Applications folder. Alera updates itself from there
+        once installed, so this is a one-time download.
+      </p>
+      <div class="flex flex-wrap items-center gap-3 mb-12">
+        <a
+          href={macosUrl}
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+        >
+          Download for macOS
+        </a>
+        <a
+          href={releasesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
+        >
+          All Releases
+        </a>
+      </div>
+
+      <h2
+        id="windows"
+        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
+      >
+        Windows
+      </h2>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Unpack <span class="font-mono break-all">{windowsAsset}</span> anywhere and
+        run Alera.exe. Alera updates itself from there once installed, so this is
+        a one-time download.
+      </p>
+      <div class="flex flex-wrap items-center gap-3 mb-12">
+        <a
+          href={windowsUrl}
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+        >
+          Download for Windows
+        </a>
+        <a
+          href={releasesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
+        >
+          All Releases
+        </a>
+      </div>
+
+      <h2 id="linux" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
+        Linux
+      </h2>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        Alera installs from a signed package repository so system dependencies
+        resolve through apt or dnf. The same command installs and updates.
+      </p>
       <div class="rounded-lg border border-border bg-surface-variant p-4 mb-4">
         <div class="flex items-start gap-4">
           <code
@@ -87,41 +227,55 @@ const desktopDownloads = [
         provides under different names.
       </p>
 
-      <h2 class="text-headline-sm text-foreground mb-3">macOS And Windows</h2>
-      <p class="text-body-md text-foreground-muted mb-5 leading-relaxed">
-        Grab the latest build from GitHub Releases. Alera updates itself from
-        there once installed, so this is a one-time download.
+      <h2
+        id="android"
+        class="text-headline-sm text-foreground mb-3 scroll-mt-20"
+      >
+        Android
+      </h2>
+      <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
+        The companion app pairs with a running desktop workbench over your own
+        network; it is not a standalone editor. Mobile ships on its own version
+        sequence, so its releases carry a <span class="font-mono">-mobile</span> tag
+        suffix. This is the universal <span class="font-mono break-all"
+          >{androidAsset}</span
+        >; per-architecture APKs are on the release page.
       </p>
-      <div class="grid gap-4 sm:grid-cols-2 mb-5">
-        {
-          desktopDownloads.map((download) => (
-            <div class="rounded-lg border border-border bg-surface-variant p-5">
-              <p class="text-title-lg text-foreground mb-2">
-                {download.platform}
-              </p>
-              <p class="font-mono text-body-md text-foreground-faint break-all mb-4">
-                {download.asset}
-              </p>
-              <p class="text-body-md text-foreground-muted mb-5 leading-relaxed">
-                {download.note}
-              </p>
-              <a
-                href={releasesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
-              >
-                Go To Releases
-              </a>
-            </div>
-          ))
-        }
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <a
+          href={androidUrl}
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-accent text-on-accent text-body-md font-medium hover:opacity-90 transition-opacity duration-fast"
+        >
+          Download the APK
+        </a>
+        <a
+          href={mobileReleasesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-body-md text-foreground-faint underline underline-offset-4 hover:text-foreground transition-colors duration-fast"
+        >
+          All Mobile Releases
+        </a>
       </div>
       <p class="text-body-md text-foreground-faint mb-12 leading-relaxed">
-        The file name carries the version, so there is no fixed download link
-        that always points at the newest build. The releases page always shows
-        it.
+        Sideloading an APK means Android asks you to allow installs from your
+        browser or file manager. There is no Play Store listing yet.
       </p>
+
+      <h2 id="ios" class="text-headline-sm text-foreground mb-3 scroll-mt-20">
+        iOS
+      </h2>
+      <div class="rounded-lg border border-border bg-surface-variant p-5 mb-14">
+        <span
+          class="inline-flex items-center px-2.5 py-1 rounded-pill border border-border text-label-md text-foreground-faint mb-3"
+        >
+          Coming Soon
+        </span>
+        <p class="text-body-md text-foreground-muted leading-relaxed">
+          There is no iOS build to install yet. The companion app targets
+          Android today; iOS is planned and has no date.
+        </p>
+      </div>
 
       <h2 class="text-headline-sm text-foreground mb-3">Manual Linux Setup</h2>
       <p class="text-body-md text-foreground-muted mb-4 leading-relaxed">
@@ -132,23 +286,41 @@ const desktopDownloads = [
         of these files.
       </p>
       <div class="grid gap-4 md:grid-cols-2 mb-4">
-        <div
-          class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto"
-        >
-          <p class="text-label-md text-foreground-faint mb-2">
-            /etc/apt/sources.list.d/alera.sources
-          </p>
-          <pre
-            class="font-mono text-body-md text-foreground leading-relaxed"><code>{aptSource}</code></pre>
+        <div class="rounded-lg border border-border bg-surface-variant p-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <p class="text-label-md text-foreground-faint break-all">
+              /etc/apt/sources.list.d/alera.sources
+            </p>
+            <button
+              type="button"
+              data-copy-target="alera-apt-source"
+              class="shrink-0 px-2.5 py-1 rounded-md border border-border text-label-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <pre
+              class="font-mono text-body-md text-foreground leading-relaxed"><code id="alera-apt-source">{aptSource}</code></pre>
+          </div>
         </div>
-        <div
-          class="rounded-lg border border-border bg-surface-variant p-4 overflow-x-auto"
-        >
-          <p class="text-label-md text-foreground-faint mb-2">
-            /etc/yum.repos.d/alera.repo
-          </p>
-          <pre
-            class="font-mono text-body-md text-foreground leading-relaxed"><code>{rpmRepo}</code></pre>
+        <div class="rounded-lg border border-border bg-surface-variant p-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <p class="text-label-md text-foreground-faint break-all">
+              /etc/yum.repos.d/alera.repo
+            </p>
+            <button
+              type="button"
+              data-copy-target="alera-rpm-repo"
+              class="shrink-0 px-2.5 py-1 rounded-md border border-border text-label-md text-foreground-muted hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <pre
+              class="font-mono text-body-md text-foreground leading-relaxed"><code id="alera-rpm-repo">{rpmRepo}</code></pre>
+          </div>
         </div>
       </div>
       <p class="text-body-md text-foreground-faint mb-14 leading-relaxed">
@@ -226,4 +398,73 @@ const desktopDownloads = [
       }, 2000);
     });
   });
+</script>
+
+<script>
+  // Narrow the "Your System" card to the visitor's platform. Without this the
+  // card stays a neutral chooser, so a no-JS visitor loses nothing.
+  interface DownloadPlatform {
+    id: string;
+    name: string;
+    summary: string;
+    action: string;
+    href: string | null;
+    available: boolean;
+  }
+
+  const card = document.getElementById('your-system');
+  const nameNode = document.getElementById('detected-name');
+  const summaryNode = document.getElementById('detected-summary');
+  const actionNode = document.getElementById('detected-action');
+  const unavailableNode = document.getElementById('detected-unavailable');
+
+  const detectPlatformId = (): string | null => {
+    const data = (
+      navigator as Navigator & {
+        userAgentData?: { platform?: string };
+      }
+    ).userAgentData;
+    const hint = `${data?.platform ?? ''} ${navigator.userAgent}`.toLowerCase();
+    // iPadOS reports a desktop user agent, so a touch-capable "mac" is an iPad.
+    const touchMac = hint.includes('mac') && navigator.maxTouchPoints > 1;
+    if (hint.includes('android')) {
+      return 'android';
+    }
+    if (hint.includes('iphone') || hint.includes('ipad') || touchMac) {
+      return 'ios';
+    }
+    if (hint.includes('win')) {
+      return 'windows';
+    }
+    if (hint.includes('mac')) {
+      return 'macos';
+    }
+    if (hint.includes('linux') || hint.includes('x11')) {
+      return 'linux';
+    }
+    return null;
+  };
+
+  if (card && nameNode && summaryNode && actionNode && unavailableNode) {
+    const platforms: DownloadPlatform[] = JSON.parse(
+      card.dataset.platforms ?? '[]',
+    );
+    const platform = platforms.find((entry) => entry.id === detectPlatformId());
+    if (platform) {
+      nameNode.textContent = platform.name;
+      summaryNode.textContent = platform.summary;
+      if (platform.available && platform.href) {
+        actionNode.setAttribute('href', platform.href);
+        actionNode.textContent = platform.action;
+        if (platform.href.startsWith('http')) {
+          actionNode.setAttribute('target', '_blank');
+          actionNode.setAttribute('rel', 'noopener noreferrer');
+        }
+      } else {
+        // Never leave a CTA that implies an install we cannot deliver.
+        actionNode.hidden = true;
+        unavailableNode.hidden = false;
+      }
+    }
+  }
 </script>
