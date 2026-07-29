@@ -21,7 +21,7 @@ pub enum MobileAction {
     Disable,
     /// Create a short-lived pairing offer.
     Pairing(MobilePairingCommand),
-    /// List, rename, or revoke paired devices.
+    /// List, rename, revoke, or delete paired devices.
     Devices(MobileDevicesCommand),
 }
 
@@ -88,6 +88,8 @@ pub enum MobileDevicesAction {
     Rename(MobileDeviceRenameArgs),
     /// Revoke a paired mobile device.
     Revoke(IdArgs),
+    /// Permanently delete a revoked mobile device record.
+    Delete(IdArgs),
 }
 
 #[derive(Debug, Args)]

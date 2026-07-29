@@ -55,10 +55,10 @@ use crate::cli::{
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
 use crate::mobile_access::{
-    cancel_mobile_pairing_offer, list_mobile_devices, mobile_status, pair_mobile_device,
-    rename_mobile_device, revoke_mobile_device, update_mobile_settings, MobileDevicePairRequest,
-    MobileDeviceSummary, MobilePairingCreateRequest, MobilePairingOfferPayload,
-    MobileSettingsUpdateRequest,
+    cancel_mobile_pairing_offer, delete_mobile_device, list_mobile_devices, mobile_status,
+    pair_mobile_device, rename_mobile_device, revoke_mobile_device, update_mobile_settings,
+    MobileDevicePairRequest, MobileDeviceSummary, MobilePairingCreateRequest,
+    MobilePairingOfferPayload, MobileSettingsUpdateRequest,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
@@ -923,6 +923,25 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                             &json!({ "id": revoked_id }),
                             json_output,
                             "mobile device revoked",
+                        ),
+                        Err(error) => return print_error(error),
+                    }
+                }
+                MobileDevicesAction::Delete(IdArgs { id }) => {
+                    let payload = json!({ "id": id });
+                    let deleted_id = id.clone();
+                    match mobile_runtime_host_or_store_unit(
+                        &runtime,
+                        "mobile.device.delete",
+                        &payload,
+                        |store| async move { delete_mobile_device(&store, &id).await },
+                    )
+                    .await
+                    {
+                        Ok(()) => print_value(
+                            &json!({ "id": deleted_id }),
+                            json_output,
+                            "mobile device deleted",
                         ),
                         Err(error) => return print_error(error),
                     }
