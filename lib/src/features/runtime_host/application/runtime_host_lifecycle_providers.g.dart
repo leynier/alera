@@ -105,7 +105,7 @@ final class RuntimeHostLifecycleServiceProvider
 }
 
 String _$runtimeHostLifecycleServiceHash() =>
-    r'9c78d5059d3b6a0434e8ce942e9512ddebe4764a';
+    r'e28c6039d6caccaf67b07e5b93c2d0d9b6d8c21f';
 
 @ProviderFor(runtimeHostStatus)
 final runtimeHostStatusProvider = RuntimeHostStatusProvider._();

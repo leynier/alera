@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_f
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -487,6 +488,9 @@ final class SocketTerminalHostClient
   }) async {
     await _failIfIncompatibleHostHoldsRuntime(runtime);
     final token = _newToken();
+    // Masked in logs and crash reports from here on: the token grants full
+    // control of the runtime, and a diagnostics bundle is meant to be shared.
+    registerLogSecret(token);
     await _launcher.start(
       runtimeDir: runtime.runtimeDir.path,
       controlFilePath: controlFile.path,

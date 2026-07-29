@@ -1,6 +1,9 @@
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:logging/logging.dart';
+
+final Logger _log = Logger('RuntimeWorkbenchViewPrefsRepository');
 
 class RuntimeWorkbenchViewPrefsRepository
     implements WorkbenchViewPrefsRepository {
@@ -36,7 +39,14 @@ class RuntimeWorkbenchViewPrefsRepository
       final merged = _mergeShared(local, _asMap(record['prefs']));
       await legacyRepository.save(merged);
       return merged;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // The local prefs still render, so the only visible symptom is that a
+      // change made on another device never arrives.
+      _log.warning(
+        'could not merge shared view prefs from the runtime; using local only',
+        error,
+        stackTrace,
+      );
       return local;
     }
   }

@@ -221,7 +221,7 @@ impl ServerActor {
         {
             Ok(jobs) => jobs,
             Err(error) => {
-                eprintln!("alera project clone recovery unavailable: {error}");
+                tracing::warn!("alera project clone recovery unavailable: {error}");
                 return;
             }
         };

@@ -37,6 +37,7 @@ final class TerminalHostConfig {
     this.scrollbackBytes = defaultTerminalHostScrollbackBytes,
     this.restoreSnapshotBytes = defaultTerminalHostScrollbackBytes,
     this.loginShell = false,
+    this.crashReporting = false,
   });
 
   factory TerminalHostConfig.fromJson(Map<String, Object?> json) {
@@ -55,6 +56,7 @@ final class TerminalHostConfig {
         'restoreSnapshotBytes',
       ),
       loginShell: json['loginShell'] == true,
+      crashReporting: json['crashReporting'] == true,
     );
   }
 
@@ -72,6 +74,11 @@ final class TerminalHostConfig {
   /// host does not have to fall back to its own platform default.
   final bool loginShell;
 
+  /// Forward crashes from the sidecar to Sentry. Sent on every `configure` so
+  /// turning the setting off reaches a host that is already running, instead of
+  /// waiting for a restart the user has no reason to expect.
+  final bool crashReporting;
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'emptyShutdownDelaySeconds': emptyShutdownDelaySeconds,
@@ -80,6 +87,7 @@ final class TerminalHostConfig {
       'scrollbackBytes': scrollbackBytes,
       'restoreSnapshotBytes': restoreSnapshotBytes,
       'loginShell': loginShell,
+      'crashReporting': crashReporting,
     };
   }
 }

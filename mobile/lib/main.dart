@@ -1,7 +1,30 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/alera_mobile_app.dart';
+import 'package:alera_mobile/src/core/logging/global_error_handlers.dart';
+import 'package:alera_mobile/src/core/logging/mobile_logger.dart';
+import 'package:alera_mobile/src/features/diagnostics/application/diagnostics_settings.dart';
+import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-void main() {
-  runApp(const ProviderScope(child: AleraMobileApp()));
+Future<void> main() async {
+  // The app used to start with no bootstrap at all, so nothing could be wired
+  // before the first frame and no failure left a trace.
+  WidgetsFlutterBinding.ensureInitialized();
+  await MobileLogger.configure();
+  installGlobalErrorHandlers();
+
+  final info = await PackageInfo.fromPlatform();
+  final crashReportingEnabled = await readCrashReportingEnabled();
+
+  await CrashReporting.run(
+    enabled: crashReportingEnabled,
+    release: 'alera-mobile@${info.version}+${info.buildNumber}',
+    appRunner: () => runZonedGuarded<void>(
+      () => runApp(const ProviderScope(child: AleraMobileApp())),
+      recordZoneError,
+    ),
+  );
 }

@@ -73,6 +73,11 @@ pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 // clients feature-check this instead of the protocol version.
 pub const RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY: &str = "resourceMonitorV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
+// Advertised once the host writes a rotated log file and reports its directory
+// through `status.get`, so the desktop can collect runtime logs into a
+// diagnostics bundle. Additive: a host without it simply reports no directory,
+// so clients feature-check this instead of comparing protocol versions.
+pub const RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY: &str = "hostDiagnosticsLogsV1";
 // Advertised once the host answers `shellEnvironment.reload`: re-probing the
 // user's login shell so a tool installed mid-session resolves without a host
 // restart. Additive, so clients feature-check this instead of the protocol
@@ -405,6 +410,19 @@ mod tests {
         assert_eq!(launch.environment.get("A").map(String::as_str), Some("1"));
         assert_eq!(launch.environment.get("C").map(String::as_str), Some("3"));
         assert!(!launch.environment.contains_key("B"));
+    }
+
+    /// Diagnostics logging is advertised as a capability, never as a protocol
+    /// bump: a version mismatch makes the app treat a live host as unusable, so
+    /// an additive feature that raised the version would break every client
+    /// that is still on the previous build.
+    #[test]
+    fn diagnostics_logging_stayed_additive() {
+        assert_eq!(PROTOCOL_VERSION, 4);
+        assert_eq!(
+            RUNTIME_HOST_DIAGNOSTICS_LOGS_CAPABILITY,
+            "hostDiagnosticsLogsV1"
+        );
     }
 
     #[test]

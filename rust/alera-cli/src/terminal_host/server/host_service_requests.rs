@@ -67,7 +67,7 @@ impl ServerActor {
             .await
             .unwrap_or_else(|error| vec![error.to_string()]);
             for warning in warnings {
-                eprintln!("alera agent integration warning: {warning}");
+                tracing::warn!("alera agent integration warning: {warning}");
             }
             self.broadcast_agent_presence_changed();
         }

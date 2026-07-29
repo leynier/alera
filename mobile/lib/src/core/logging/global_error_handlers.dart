@@ -1,0 +1,28 @@
+import 'package:alera_mobile/src/core/logging/mobile_logger.dart';
+import 'package:flutter/foundation.dart';
+
+/// Routes errors that never reach a `try`/`catch` into the log file.
+///
+/// Without these an uncaught error on a phone is invisible: there is no console
+/// to read and the app had no crash reporting either.
+void installGlobalErrorHandlers() {
+  final previousOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    MobileLogger.recordError(
+      details.exception,
+      details.stack,
+      context: 'FlutterError',
+    );
+    previousOnError?.call(details);
+  };
+
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    MobileLogger.recordError(error, stack, context: 'PlatformDispatcher');
+    return true;
+  };
+}
+
+/// Records an error that escaped an async gap and reached the guarding zone.
+void recordZoneError(Object error, StackTrace stack) {
+  MobileLogger.recordError(error, stack, context: 'Zone');
+}

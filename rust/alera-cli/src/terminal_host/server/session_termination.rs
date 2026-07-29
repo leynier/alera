@@ -192,7 +192,7 @@ fn close_emulator_tab_deferred(emulators: Option<Arc<Mutex<EmulatorManager>>>, t
     };
     tokio::spawn(async move {
         for warning in emulators.lock().await.close_tab(&tab_id).await {
-            eprintln!("alera emulator cleanup warning: {warning}");
+            tracing::warn!("alera emulator cleanup warning: {warning}");
         }
     });
 }

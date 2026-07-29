@@ -7,6 +7,9 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_insta
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+final Logger _log = Logger('AleraCliRegistrationControl');
 
 class AleraCliSkillControl extends ConsumerWidget {
   const AleraCliSkillControl({super.key});
@@ -67,7 +70,8 @@ class _AleraCliRegistrationControlState
       setState(() {
         _status = status;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning('alera CLI registration check failed', error, stackTrace);
       if (!mounted) {
         return;
       }
@@ -102,7 +106,8 @@ class _AleraCliRegistrationControlState
       setState(() {
         _status = status;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning('alera CLI registration failed', error, stackTrace);
       if (!mounted) {
         return;
       }

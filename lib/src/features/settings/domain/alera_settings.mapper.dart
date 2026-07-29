@@ -58,6 +58,60 @@ extension TerminalCursorShapeMapperExtension on TerminalCursorShape {
   }
 }
 
+class DiagnosticsLogLevelMapper extends EnumMapper<DiagnosticsLogLevel> {
+  DiagnosticsLogLevelMapper._();
+
+  static DiagnosticsLogLevelMapper? _instance;
+  static DiagnosticsLogLevelMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = DiagnosticsLogLevelMapper._());
+    }
+    return _instance!;
+  }
+
+  static DiagnosticsLogLevel fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  DiagnosticsLogLevel decode(dynamic value) {
+    switch (value) {
+      case r'error':
+        return DiagnosticsLogLevel.error;
+      case r'warning':
+        return DiagnosticsLogLevel.warning;
+      case r'info':
+        return DiagnosticsLogLevel.info;
+      case r'debug':
+        return DiagnosticsLogLevel.debug;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(DiagnosticsLogLevel self) {
+    switch (self) {
+      case DiagnosticsLogLevel.error:
+        return r'error';
+      case DiagnosticsLogLevel.warning:
+        return r'warning';
+      case DiagnosticsLogLevel.info:
+        return r'info';
+      case DiagnosticsLogLevel.debug:
+        return r'debug';
+    }
+  }
+}
+
+extension DiagnosticsLogLevelMapperExtension on DiagnosticsLogLevel {
+  String toValue() {
+    DiagnosticsLogLevelMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<DiagnosticsLogLevel>(this) as String;
+  }
+}
+
 class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
   AgentQuotaProviderIdMapper._();
 
@@ -2380,6 +2434,155 @@ class _AgentQuotaEnvironmentSettingsCopyWithImpl<$R, $Out>
       _AgentQuotaEnvironmentSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class DiagnosticsSettingsMapper extends ClassMapperBase<DiagnosticsSettings> {
+  DiagnosticsSettingsMapper._();
+
+  static DiagnosticsSettingsMapper? _instance;
+  static DiagnosticsSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = DiagnosticsSettingsMapper._());
+      DiagnosticsLogLevelMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'DiagnosticsSettings';
+
+  static DiagnosticsLogLevel _$logLevel(DiagnosticsSettings v) => v.logLevel;
+  static const Field<DiagnosticsSettings, DiagnosticsLogLevel> _f$logLevel =
+      Field('logLevel', _$logLevel, opt: true, def: DiagnosticsLogLevel.info);
+  static bool _$crashReportingEnabled(DiagnosticsSettings v) =>
+      v.crashReportingEnabled;
+  static const Field<DiagnosticsSettings, bool> _f$crashReportingEnabled =
+      Field(
+        'crashReportingEnabled',
+        _$crashReportingEnabled,
+        opt: true,
+        def: false,
+      );
+
+  @override
+  final MappableFields<DiagnosticsSettings> fields = const {
+    #logLevel: _f$logLevel,
+    #crashReportingEnabled: _f$crashReportingEnabled,
+  };
+
+  static DiagnosticsSettings _instantiate(DecodingData data) {
+    return DiagnosticsSettings(
+      logLevel: data.dec(_f$logLevel),
+      crashReportingEnabled: data.dec(_f$crashReportingEnabled),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static DiagnosticsSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<DiagnosticsSettings>(map);
+  }
+
+  static DiagnosticsSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<DiagnosticsSettings>(json);
+  }
+}
+
+mixin DiagnosticsSettingsMappable {
+  String toJson() {
+    return DiagnosticsSettingsMapper.ensureInitialized()
+        .encodeJson<DiagnosticsSettings>(this as DiagnosticsSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return DiagnosticsSettingsMapper.ensureInitialized()
+        .encodeMap<DiagnosticsSettings>(this as DiagnosticsSettings);
+  }
+
+  DiagnosticsSettingsCopyWith<
+    DiagnosticsSettings,
+    DiagnosticsSettings,
+    DiagnosticsSettings
+  >
+  get copyWith =>
+      _DiagnosticsSettingsCopyWithImpl<
+        DiagnosticsSettings,
+        DiagnosticsSettings
+      >(this as DiagnosticsSettings, $identity, $identity);
+  @override
+  String toString() {
+    return DiagnosticsSettingsMapper.ensureInitialized().stringifyValue(
+      this as DiagnosticsSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return DiagnosticsSettingsMapper.ensureInitialized().equalsValue(
+      this as DiagnosticsSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return DiagnosticsSettingsMapper.ensureInitialized().hashValue(
+      this as DiagnosticsSettings,
+    );
+  }
+}
+
+extension DiagnosticsSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, DiagnosticsSettings, $Out> {
+  DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, $Out>
+  get $asDiagnosticsSettings => $base.as(
+    (v, t, t2) => _DiagnosticsSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class DiagnosticsSettingsCopyWith<
+  $R,
+  $In extends DiagnosticsSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({DiagnosticsLogLevel? logLevel, bool? crashReportingEnabled});
+  DiagnosticsSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _DiagnosticsSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, DiagnosticsSettings, $Out>
+    implements DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, $Out> {
+  _DiagnosticsSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<DiagnosticsSettings> $mapper =
+      DiagnosticsSettingsMapper.ensureInitialized();
+  @override
+  $R call({DiagnosticsLogLevel? logLevel, bool? crashReportingEnabled}) =>
+      $apply(
+        FieldCopyWithData({
+          if (logLevel != null) #logLevel: logLevel,
+          if (crashReportingEnabled != null)
+            #crashReportingEnabled: crashReportingEnabled,
+        }),
+      );
+  @override
+  DiagnosticsSettings $make(CopyWithData data) => DiagnosticsSettings(
+    logLevel: data.get(#logLevel, or: $value.logLevel),
+    crashReportingEnabled: data.get(
+      #crashReportingEnabled,
+      or: $value.crashReportingEnabled,
+    ),
+  );
+
+  @override
+  DiagnosticsSettingsCopyWith<$R2, DiagnosticsSettings, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _DiagnosticsSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   AleraSettingsMapper._();
 
@@ -2391,6 +2594,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       AgentSettingsMapper.ensureInitialized();
       AiTextGenerationSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
+      DiagnosticsSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
       KeyboardShortcutSettingsMapper.ensureInitialized();
     }
@@ -2428,6 +2632,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: EditorSettings.defaults,
   );
+  static DiagnosticsSettings _$diagnostics(AleraSettings v) => v.diagnostics;
+  static const Field<AleraSettings, DiagnosticsSettings> _f$diagnostics = Field(
+    'diagnostics',
+    _$diagnostics,
+    opt: true,
+    def: DiagnosticsSettings.defaults,
+  );
   static TerminalSettings _$terminal(AleraSettings v) => v.terminal;
   static const Field<AleraSettings, TerminalSettings> _f$terminal = Field(
     'terminal',
@@ -2443,6 +2654,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     #agents: _f$agents,
     #aiTextGeneration: _f$aiTextGeneration,
     #editor: _f$editor,
+    #diagnostics: _f$diagnostics,
     #terminal: _f$terminal,
     #keyboard: _f$keyboard,
   };
@@ -2455,6 +2667,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       agents: data.dec(_f$agents),
       aiTextGeneration: data.dec(_f$aiTextGeneration),
       editor: data.dec(_f$editor),
+      diagnostics: data.dec(_f$diagnostics),
       terminal: data.dec(_f$terminal),
       keyboard: data.dec(_f$keyboard),
     );
@@ -2531,6 +2744,8 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   >
   get aiTextGeneration;
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
+  DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, DiagnosticsSettings>
+  get diagnostics;
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings> get terminal;
   KeyboardShortcutSettingsCopyWith<
     $R,
@@ -2543,6 +2758,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
+    DiagnosticsSettings? diagnostics,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   });
@@ -2575,6 +2791,10 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor =>
       $value.editor.copyWith.$chain((v) => call(editor: v));
   @override
+  DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, DiagnosticsSettings>
+  get diagnostics =>
+      $value.diagnostics.copyWith.$chain((v) => call(diagnostics: v));
+  @override
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings>
   get terminal => $value.terminal.copyWith.$chain((v) => call(terminal: v));
   @override
@@ -2590,6 +2810,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
+    DiagnosticsSettings? diagnostics,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   }) => $apply(
@@ -2598,6 +2819,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
       if (agents != null) #agents: agents,
       if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
       if (editor != null) #editor: editor,
+      if (diagnostics != null) #diagnostics: diagnostics,
       if (terminal != null) #terminal: terminal,
       if (keyboard != null) #keyboard: keyboard,
     }),
@@ -2608,6 +2830,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     agents: data.get(#agents, or: $value.agents),
     aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
     editor: data.get(#editor, or: $value.editor),
+    diagnostics: data.get(#diagnostics, or: $value.diagnostics),
     terminal: data.get(#terminal, or: $value.terminal),
     keyboard: data.get(#keyboard, or: $value.keyboard),
   );

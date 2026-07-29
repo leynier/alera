@@ -27,6 +27,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_status_notification_providers.dart';
@@ -234,62 +235,87 @@ Future<Map<String, String>?> terminalLaunchEnvironmentFor({
       hooks.amp) {
     try {
       await agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
-    } catch (_) {}
+    } on Object catch (error, stackTrace) {
+      _agentHookLog.warning(
+        'failed to clear terminal overlays for $terminalSessionId; '
+        'a stale overlay may shadow the new one',
+        error,
+        stackTrace,
+      );
+    }
   }
   if (hooks.codex) {
-    try {
-      final preparation = await codexRuntimeHome.prepareForTerminalLaunch();
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+    await _addAgentHookEnvironment(environment, 'Codex', () async {
+      return (await codexRuntimeHome.prepareForTerminalLaunch()).environment;
+    });
   }
   if (hooks.claude) {
-    try {
-      final preparation = await claudeRuntimeHome.prepareForTerminalLaunch();
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+    await _addAgentHookEnvironment(environment, 'Claude', () async {
+      return (await claudeRuntimeHome.prepareForTerminalLaunch()).environment;
+    });
   }
   if (hooks.copilot) {
-    try {
-      final preparation = await agentRuntimeOverlay
-          .prepareCopilotForTerminalLaunch(
-            terminalSessionId: terminalSessionId,
-          );
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+    await _addAgentHookEnvironment(environment, 'Copilot', () async {
+      return (await agentRuntimeOverlay.prepareCopilotForTerminalLaunch(
+        terminalSessionId: terminalSessionId,
+      )).environment;
+    });
   }
   if (hooks.cursor) {
-    try {
-      final preparation = await agentRuntimeOverlay
-          .prepareCursorForTerminalLaunch(terminalSessionId: terminalSessionId);
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+    await _addAgentHookEnvironment(environment, 'Cursor', () async {
+      return (await agentRuntimeOverlay.prepareCursorForTerminalLaunch(
+        terminalSessionId: terminalSessionId,
+      )).environment;
+    });
   }
   if (hooks.opencode) {
-    try {
-      final preparation = await agentRuntimeOverlay
-          .prepareOpenCodeForTerminalLaunch(
-            terminalSessionId: terminalSessionId,
-          );
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+    await _addAgentHookEnvironment(environment, 'OpenCode', () async {
+      return (await agentRuntimeOverlay.prepareOpenCodeForTerminalLaunch(
+        terminalSessionId: terminalSessionId,
+      )).environment;
+    });
   }
   if (hooks.pi) {
-    try {
-      final preparation = await agentRuntimeOverlay.preparePiForTerminalLaunch(
+    await _addAgentHookEnvironment(environment, 'Pi', () async {
+      return (await agentRuntimeOverlay.preparePiForTerminalLaunch(
         terminalSessionId: terminalSessionId,
-      );
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+      )).environment;
+    });
   }
   if (hooks.amp) {
-    try {
-      final preparation = await agentRuntimeOverlay.prepareAmpForTerminalLaunch(
+    await _addAgentHookEnvironment(environment, 'Amp', () async {
+      return (await agentRuntimeOverlay.prepareAmpForTerminalLaunch(
         terminalSessionId: terminalSessionId,
-      );
-      environment.addAll(preparation.environment);
-    } catch (_) {}
+      )).environment;
+    });
   }
   return environment.isEmpty ? null : environment;
+}
+
+final Logger _agentHookLog = Logger('AgentHookLaunchEnvironment');
+
+/// Merges one agent's launch environment, keeping a failure from blocking the
+/// terminal.
+///
+/// A failure here is silent by design: the terminal must still open. That is
+/// exactly why it has to be recorded. The user turned this hook on in Settings,
+/// so without a log the agent simply never reports status and nothing explains
+/// why the setting appears to do nothing.
+Future<void> _addAgentHookEnvironment(
+  Map<String, String> environment,
+  String agent,
+  Future<Map<String, String>> Function() prepare,
+) async {
+  try {
+    environment.addAll(await prepare());
+  } on Object catch (error, stackTrace) {
+    _agentHookLog.warning(
+      'failed to prepare the $agent hook environment; '
+      'the terminal starts without agent status',
+      error,
+      stackTrace,
+    );
+  }
 }
 
 bool isAgentStatusHookEnabled(
@@ -310,5 +336,17 @@ bool isAgentStatusHookEnabled(
 }
 
 // coverage:ignore-start
-void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
+/// Absorbs a failure from agent-status work started without awaiting it.
+///
+/// Discarding these meant the awake lock, the hook receiver and the status
+/// reconciler could all fail without leaving anything behind, which reads to
+/// the user as a status integration that silently does nothing.
+void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {
+  _agentHookLog.warning(
+    'background agent status work failed',
+    error,
+    stackTrace,
+  );
+}
+
 // coverage:ignore-end

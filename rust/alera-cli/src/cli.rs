@@ -181,6 +181,14 @@ pub struct TerminalHostArgs {
     /// Keep the runtime alive until an explicit shutdown request.
     #[arg(long)]
     pub persistent: bool,
+
+    /// Log level for the host log file. ALERA_HOST_LOG overrides it.
+    #[arg(long = "log-level", value_name = "level", default_value = "info")]
+    pub log_level: String,
+
+    /// Send crashes to Sentry. Off unless the user opted in.
+    #[arg(long = "crash-reporting")]
+    pub crash_reporting: bool,
 }
 
 #[derive(Debug, Args, Clone)]

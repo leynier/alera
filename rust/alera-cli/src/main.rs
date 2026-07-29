@@ -228,6 +228,16 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
         return code;
     }
 
+    // Diagnostics come up before the server so a failure during startup is
+    // recorded rather than lost: the sidecar runs detached and its stderr goes
+    // nowhere. The Sentry guard must outlive the server for its flush on drop.
+    terminal_host::diagnostics::init(
+        terminal_host::diagnostics::DiagnosticsConfig::new(&runtime_dir)
+            .with_level(args.log_level.clone()),
+    );
+    let _crash_reporting = terminal_host::diagnostics::sentry_reporting::init(args.crash_reporting);
+    terminal_host::diagnostics::redaction::register_secret(&token);
+
     let config = TerminalHostConfig {
         empty_shutdown_delay_seconds: args.empty_shutdown_delay_seconds,
         detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
@@ -248,6 +258,7 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
     {
         Ok(()) => 0,
         Err(error) => {
+            tracing::error!(target: "alera.host", "runtime host exited with an error: {error}");
             eprintln!("{error}");
             1
         }

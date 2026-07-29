@@ -71,6 +71,7 @@ mod emulator_request_queue;
 mod emulator_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
+mod host_status;
 mod lifecycle;
 mod mobile_terminal_requests;
 mod orchestration_agent_spawn_requests;
@@ -295,7 +296,7 @@ pub async fn run_terminal_host_server(
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
     if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
-        eprintln!("alera agent hook receiver unavailable: {error}");
+        tracing::warn!("alera agent hook receiver unavailable: {error}");
     }
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
@@ -307,7 +308,7 @@ pub async fn run_terminal_host_server(
     let emulators = match EmulatorManager::new(&runtime_dir).await {
         Ok(manager) => Some(Arc::new(Mutex::new(manager))),
         Err(error) => {
-            eprintln!("alera emulator manager unavailable: {}", error.message);
+            tracing::warn!("alera emulator manager unavailable: {}", error.message);
             None
         }
     };
@@ -349,10 +350,10 @@ pub async fn run_terminal_host_server(
     .await
     .unwrap_or_else(|error| vec![error.to_string()]);
     for warning in hook_warnings {
-        eprintln!("alera agent integration warning: {warning}");
+        tracing::warn!("alera agent integration warning: {warning}");
     }
     if let Err(error) = actor.restart_mobile_gateway().await {
-        eprintln!("alera mobile gateway unavailable: {}", error.wire_message());
+        tracing::warn!("alera mobile gateway unavailable: {}", error.wire_message());
     }
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
@@ -365,7 +366,7 @@ pub async fn run_terminal_host_server(
         if let Some(slept) = sleep_detector.observe() {
             // The first thing to happen after a wake says so, which is what
             // keeps a lid closed overnight from being read later as a freeze.
-            eprintln!(
+            tracing::info!(
                 "alera terminal host resumed after {}s of system sleep",
                 slept.as_secs()
             );
