@@ -13,6 +13,8 @@ import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+part 'workspace_service_removal.dart';
+
 class WorkspaceException implements Exception {
   WorkspaceException(this.message, {this.stderr});
 
@@ -322,56 +324,6 @@ class WorkspaceService {
       workspace: workspace,
       config: effective.config,
     );
-  }
-
-  Future<void> removeWorkspace({
-    required Project project,
-    required Workspace workspace,
-    required bool deleteBranch,
-  }) async {
-    if (workspace.isMain) {
-      throw WorkspaceException('The main workspace cannot be removed');
-    }
-    final shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
-    final managedRuntime = _managedRuntime;
-    if (managedRuntime != null) {
-      await managedRuntime.removeWorkspace(
-        workspace: workspace,
-        deleteBranch: shouldDeleteBranch,
-      );
-      return;
-    }
-    try {
-      await _gitBackend.removeWorktree(
-        repoPath: project.repoPath,
-        path: workspace.path,
-        force: true,
-      );
-    } on GitException catch (error) {
-      throw WorkspaceException(
-        'git worktree remove failed',
-        stderr: error.context,
-      );
-    }
-    if (shouldDeleteBranch) {
-      final branch = workspace.branch;
-      if (branch == null || branch.isEmpty) {
-        throw WorkspaceException('Workspace Branch Is Required');
-      }
-      try {
-        await _gitBackend.deleteBranch(
-          repoPath: project.repoPath,
-          branch: branch,
-          force: true,
-        );
-      } on GitException catch (error) {
-        throw WorkspaceException(
-          'git branch -D $branch failed',
-          stderr: error.context,
-        );
-      }
-    }
-    await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
   }
 
   Future<List<Workspace>> reconcile(Project project) async {

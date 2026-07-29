@@ -63,9 +63,11 @@ class FakeGitBackend
 
   /// Worktree paths whose [removeWorktree] should fail.
   final Set<String> failingWorktreeRemovePaths = <String>{};
+  GitException? removeWorktreeError;
 
   /// Branch names whose [deleteBranch] should fail.
   final Set<String> failingBranchDeletes = <String>{};
+  GitException? deleteBranchError;
 
   /// When set, [clone] throws [cloneError].
   bool cloneFails = false;
@@ -228,6 +230,10 @@ class FakeGitBackend
     if (failingWorktreeRemovePaths.contains(path)) {
       throw const GitInternalException('remove failed');
     }
+    final error = removeWorktreeError;
+    if (error != null) {
+      throw error;
+    }
   }
 
   @override
@@ -245,6 +251,10 @@ class FakeGitBackend
     );
     if (failingBranchDeletes.contains(branch)) {
       throw const GitInternalException('delete failed');
+    }
+    final error = deleteBranchError;
+    if (error != null) {
+      throw error;
     }
   }
 

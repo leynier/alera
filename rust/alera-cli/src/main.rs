@@ -15,6 +15,8 @@ mod emulator_commands;
 mod host_tools;
 mod login_shell_environment;
 mod managed_workspace;
+#[cfg(test)]
+mod managed_workspace_removal_tests;
 mod mobile_access;
 mod orchestration_command_summaries;
 mod orchestration_commands;

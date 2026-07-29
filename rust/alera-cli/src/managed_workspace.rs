@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use alera_core::git as core_git;
+use alera_core::git::{self as core_git, GitErrorKind};
 use alera_core::runtime::{
     Project, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult, WorkspaceKind,
     WorkspaceStatus, LOCAL_HOST_ID,
@@ -221,8 +221,13 @@ pub async fn remove_managed_workspace(
         .find_project(&workspace.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
-    core_git::remove_worktree(&project.repo_path, &workspace.path, true)
-        .context("git worktree remove failed")?;
+    match core_git::remove_worktree(&project.repo_path, &workspace.path, true) {
+        Ok(()) => {}
+        Err(error)
+            if error.kind == GitErrorKind::WorktreeNotFound
+                && filesystem_entry_is_missing(&workspace.path)? => {}
+        Err(error) => return Err(error).context("git worktree remove failed"),
+    }
     let should_delete_branch = request
         .delete_branch
         .unwrap_or(!workspace.reuses_existing_branch);
@@ -232,11 +237,26 @@ pub async fn remove_managed_workspace(
             .as_deref()
             .filter(|branch| !branch.is_empty())
             .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?;
-        core_git::delete_branch(&project.repo_path, branch, true)
-            .with_context(|| format!("git branch -D {branch} failed"))?;
+        match core_git::delete_branch(&project.repo_path, branch, true) {
+            Ok(()) => {}
+            Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
+            Err(error) => {
+                return Err(error).with_context(|| format!("git branch -D {branch} failed"));
+            }
+        }
     }
     store.remove_workspace(&workspace.id, true).await?;
     Ok(workspace)
+}
+
+fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
+        Err(error) => {
+            Err(error).with_context(|| format!("Could not inspect workspace path \"{path}\""))
+        }
+    }
 }
 
 fn require_trimmed(value: &str, message: &str) -> Result<String> {
