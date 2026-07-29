@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -22,7 +23,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_directory_tree/flutter_directory_tree.dart' as tree;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 part 'workspace_explorer_actions.dart';
 part 'workspace_explorer_refresh.dart';
@@ -227,12 +227,21 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
           _canDrop(details.data, entry.relativePath),
       onAcceptWithDetails: (details) =>
           unawaited(_moveEntry(details.data.relativePath, entry.relativePath)),
-      builder: (context, _, _) => LongPressDraggable<_ExplorerDragData>(
-        data: _ExplorerDragData(relativePath: entry.relativePath),
-        feedback: Material(color: Colors.transparent, child: child),
-        childWhenDragging: Opacity(opacity: 0.45, child: child),
-        child: child,
-      ),
+      builder: (context, _, _) =>
+          TerminalPathLongPressDraggable<_ExplorerDragData>(
+            data: _ExplorerDragData(
+              relativePath: entry.relativePath,
+              absolutePath: _absolutePath(entry.relativePath),
+            ),
+            feedback: Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                width: AleraTokens.sidebarDefaultWidth,
+                child: child,
+              ),
+            ),
+            child: child,
+          ),
     );
   }
 

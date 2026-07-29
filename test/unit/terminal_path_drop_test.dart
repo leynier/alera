@@ -1,14 +1,44 @@
-import 'package:alera/src/features/workbench/presentation/terminal_file_drop.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
+  test('resolves terminal paths with the active platform context', () {
+    expect(
+      terminalAbsolutePath(
+        rootPath: '/tmp/project',
+        relativePath: 'packages/app/main.dart',
+        pathContext: p.Context(style: p.Style.posix),
+      ),
+      '/tmp/project/packages/app/main.dart',
+    );
+  });
+
+  test('resolves Git paths with Windows separators', () {
+    expect(
+      terminalAbsolutePath(
+        rootPath: r'C:\project',
+        relativePath: 'packages/app/main.dart',
+        pathContext: p.Context(style: p.Style.windows),
+      ),
+      r'C:\project\packages\app\main.dart',
+    );
+  });
+
+  test('keeps the root path for an empty relative path', () {
+    expect(
+      terminalAbsolutePath(rootPath: '/tmp/project', relativePath: ''),
+      '/tmp/project',
+    );
+  });
+
   test('pastes formatted paths and requests focus', () {
     final session = _CapturingTerminalSessionHandle();
 
-    handleTerminalOsFileDrop(
+    handleTerminalPathDrop(
       session: session,
       paths: <String>['/tmp/foo', '/tmp/my file'],
     );
@@ -20,7 +50,7 @@ void main() {
   test('ignores empty path lists', () {
     final session = _CapturingTerminalSessionHandle();
 
-    handleTerminalOsFileDrop(session: session, paths: <String>['', '  ']);
+    handleTerminalPathDrop(session: session, paths: <String>['', '  ']);
 
     expect(session.pasted, isEmpty);
     expect(session.focusRequests, 0);
