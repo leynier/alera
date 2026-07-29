@@ -29,33 +29,26 @@ abstract final class CrashReporting {
       return null;
     }
     final message = event.message;
-    return event.copyWith(
-      message: message == null
-          ? null
-          : SentryMessage(
-              redactLogText(message.formatted),
-              template: message.template,
-              params: message.params,
-            ),
-      exceptions: event.exceptions
-          ?.map(
-            (exception) => exception.copyWith(
-              value: exception.value == null
-                  ? null
-                  : redactLogText(exception.value!),
-            ),
-          )
-          .toList(),
-      breadcrumbs: event.breadcrumbs
-          ?.map(
-            (crumb) => crumb.copyWith(
-              message: crumb.message == null
-                  ? null
-                  : redactLogText(crumb.message!),
-            ),
-          )
-          .toList(),
-    );
+    if (message != null) {
+      event.message = SentryMessage(
+        redactLogText(message.formatted),
+        template: message.template,
+        params: message.params,
+      );
+    }
+    for (final exception in event.exceptions ?? const <SentryException>[]) {
+      final value = exception.value;
+      if (value != null) {
+        exception.value = redactLogText(value);
+      }
+    }
+    for (final breadcrumb in event.breadcrumbs ?? const <Breadcrumb>[]) {
+      final message = breadcrumb.message;
+      if (message != null) {
+        breadcrumb.message = redactLogText(message);
+      }
+    }
+    return event;
   }
 
   static void _applyOptions(SentryFlutterOptions options, String release) {
