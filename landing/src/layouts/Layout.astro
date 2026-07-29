@@ -7,9 +7,19 @@ interface Props {
   description?: string;
   canonicalPath?: string;
   noIndex?: boolean;
+  ogType?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
 }
 
-const { title, canonicalPath = Astro.url.pathname, noIndex = false } = Astro.props;
+const {
+  title,
+  canonicalPath = Astro.url.pathname,
+  noIndex = false,
+  ogType = 'website',
+  publishedTime,
+  modifiedTime,
+} = Astro.props;
 
 const defaultDescription = 'Run every CLI coding agent in parallel: Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, or any other CLI agent. Native performance with Flutter + Rust + Ghostty. No Electron, no Chromium. Available for macOS, Windows, and Linux.';
 const description = Astro.props.description ?? defaultDescription;
@@ -18,8 +28,9 @@ const siteUrl = 'https://alera.build';
 const canonicalUrl = new URL(canonicalPath, siteUrl).toString();
 const ogImage = `${siteUrl}/og-banner.jpg`;
 const ogImageAlt = 'Alera: Run Every CLI Coding Agent In Parallel';
+const twitterDescription = Astro.props.description ?? shortDescription;
 
-const jsonLd = {
+const softwareJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Alera',
@@ -43,6 +54,37 @@ const jsonLd = {
   codeRepository: 'https://github.com/leynier/alera',
   programmingLanguage: ['Dart', 'Rust'],
 };
+
+const articleJsonLd =
+  ogType === 'article'
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: title,
+        description,
+        url: canonicalUrl,
+        image: ogImage,
+        datePublished: publishedTime?.toISOString(),
+        dateModified: (modifiedTime ?? publishedTime)?.toISOString(),
+        author: {
+          '@type': 'Person',
+          name: 'Leynier Gutiérrez González',
+          url: 'https://github.com/leynier',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Alera',
+          url: siteUrl,
+          logo: `${siteUrl}/logo.png`,
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': canonicalUrl,
+        },
+      }
+    : null;
+
+const jsonLd = articleJsonLd ?? softwareJsonLd;
 ---
 
 <!doctype html>
@@ -56,6 +98,12 @@ const jsonLd = {
     <!-- Canonical -->
     <link rel="canonical" href={canonicalUrl} />
     {noIndex && <meta name="robots" content="noindex, nofollow" />}
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Alera Blog"
+      href="/rss.xml"
+    />
 
     <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -65,7 +113,7 @@ const jsonLd = {
     <!-- Open Graph -->
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:type" content="image/jpeg" />
@@ -73,11 +121,27 @@ const jsonLd = {
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={ogImageAlt} />
     <meta property="og:site_name" content="Alera" />
+    {
+      publishedTime && (
+        <meta
+          property="article:published_time"
+          content={publishedTime.toISOString()}
+        />
+      )
+    }
+    {
+      modifiedTime && (
+        <meta
+          property="article:modified_time"
+          content={modifiedTime.toISOString()}
+        />
+      )
+    }
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={shortDescription} />
+    <meta name="twitter:description" content={twitterDescription} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={ogImageAlt} />
 

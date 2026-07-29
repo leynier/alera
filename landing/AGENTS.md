@@ -14,12 +14,19 @@ This document defines governance only. It does not change runtime APIs, schemas,
 - `astro.config.mjs` MUST keep `output: 'static'` and the canonical site URL `https://alera.build`.
 - Use the existing landing structure before adding new patterns:
   - `src/pages/*.astro` for page composition: `index.astro` is the marketing home, `download.astro` is the install page, and the trust documents live at `privacy.astro`, `terms.astro`, and `account/delete.astro`.
+  - `src/pages/blog/index.astro` is the blog index, and `src/pages/blog/[id].astro` renders individual posts from the `blog` content collection.
+  - `src/pages/rss.xml.ts` emits the blog RSS feed at `/rss.xml`.
+  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader). Posts live as Markdown files under `src/content/blog/`.
+  - `src/lib/blog.ts` holds shared blog helpers (`getPublishedBlogPosts`, date formatting). Draft posts (`draft: true`) MUST be omitted from production builds and remain visible in local/dev builds.
+  - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`, `Prose`).
   - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.
-  - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell.
+  - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell. Blog posts MAY pass `ogType="article"` plus optional `publishedTime` / `modifiedTime`.
   - `src/components/*.astro` for page sections and reusable UI.
   - `src/styles/global.css` for the Tailwind `@theme` tokens, global layers, CSS variables, and shared `@utility` definitions (Tailwind CSS v4 has no `tailwind.config.mjs`; the plugin is registered in `astro.config.mjs` via `@tailwindcss/vite`).
   - `public/` for static assets referenced with root-relative paths.
+  - `@astrojs/sitemap` is registered in `astro.config.mjs` and MUST stay enabled while `site` is set.
 - Do not edit `dist/`, `.astro/`, `node_modules/`, or other generated output as source.
+- Prefer Astro Content Collections for blog posts. Do not add loose Markdown routes under `src/pages/blog/` or use removed APIs such as `Astro.glob()` / `entry.slug`.
 
 ## Bun Usage
 

@@ -1,0 +1,36 @@
+---
+import { formatBlogDate } from '../../lib/blog';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  updatedDate?: Date;
+}
+
+const { title, description, pubDate, updatedDate } = Astro.props;
+---
+
+<header class="mb-10 pb-8 border-b border-border-subtle">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-label-md uppercase tracking-wide text-foreground-faint mb-4">
+    <time datetime={pubDate.toISOString()}>{formatBlogDate(pubDate)}</time>
+    {
+      updatedDate && (
+        <span>
+          Updated{' '}
+          <time datetime={updatedDate.toISOString()}>
+            {formatBlogDate(updatedDate)}
+          </time>
+        </span>
+      )
+    }
+  </div>
+  <h1
+    class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4"
+  >
+    {title}
+  </h1>
+  <p class="text-[15px] text-foreground-muted leading-relaxed">
+    {description}
+  </p>
+</header>

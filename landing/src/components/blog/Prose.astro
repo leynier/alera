@@ -1,0 +1,114 @@
+---
+---
+
+<div class="blog-prose">
+  <slot />
+</div>
+
+<style>
+  .blog-prose :global(h2) {
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    font-size: var(--text-headline-sm);
+    line-height: var(--text-headline-sm--line-height);
+    letter-spacing: var(--text-headline-sm--letter-spacing);
+    font-weight: var(--text-headline-sm--font-weight);
+    color: var(--color-foreground);
+  }
+
+  .blog-prose :global(h3) {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: var(--text-title-lg--font-weight);
+    color: var(--color-foreground);
+  }
+
+  .blog-prose :global(p) {
+    margin-bottom: 1rem;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--color-foreground-muted);
+  }
+
+  .blog-prose :global(ul),
+  .blog-prose :global(ol) {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--color-foreground-muted);
+  }
+
+  .blog-prose :global(ul) {
+    list-style-type: disc;
+  }
+
+  .blog-prose :global(ol) {
+    list-style-type: decimal;
+  }
+
+  .blog-prose :global(li) {
+    margin-bottom: 0.35rem;
+  }
+
+  .blog-prose :global(li::marker) {
+    color: var(--color-foreground-faint);
+  }
+
+  .blog-prose :global(a) {
+    color: var(--color-foreground);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--color-border);
+    transition: text-decoration-color var(--transition-duration-fast) ease;
+  }
+
+  .blog-prose :global(a:hover) {
+    text-decoration-color: var(--color-foreground-muted);
+  }
+
+  .blog-prose :global(strong) {
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
+
+  .blog-prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    padding: 0.15em 0.35em;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-variant);
+    color: var(--color-foreground);
+  }
+
+  .blog-prose :global(pre) {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.125rem;
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-variant);
+  }
+
+  .blog-prose :global(pre code) {
+    padding: 0;
+    background: transparent;
+    font-size: var(--text-body-md);
+    line-height: 1.6;
+  }
+
+  .blog-prose :global(blockquote) {
+    margin: 1.25rem 0;
+    padding-left: 1rem;
+    border-left: 2px solid var(--color-border);
+    color: var(--color-foreground-muted);
+  }
+
+  .blog-prose :global(hr) {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+</style>
