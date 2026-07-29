@@ -84,8 +84,8 @@ const List<SettingsSearchEntry> mobileDeviceSearchEntries =
       ),
       SettingsSearchEntry(
         title: 'Paired Devices',
-        description: 'Rename Or Revoke Paired Mobile Devices.',
-        keywords: <String>['revoke', 'rename', 'device', 'token'],
+        description: 'Rename, Revoke, Or Delete Paired Mobile Devices.',
+        keywords: <String>['revoke', 'rename', 'delete', 'device', 'token'],
         groupId: 'devices',
       ),
     ];

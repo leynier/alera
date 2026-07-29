@@ -128,6 +128,31 @@ void main() {
       'device-1',
     );
     expect(find.text('Revoked'), findsOneWidget);
+    expect(find.byTooltip('Delete Device'), findsOneWidget);
+    expect(find.byTooltip('Revoke Device'), findsNothing);
+    expect(find.byTooltip('Rename Device'), findsNothing);
+  });
+
+  testWidgets('delete asks for confirmation and removes a revoked device', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()..deviceRevoked = true;
+    await pumpPane(tester, client: client);
+
+    await tester.ensureVisible(find.byTooltip('Delete Device'));
+    await tester.tap(find.byTooltip('Delete Device'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Permanently removes'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(client.requestsOfType('mobile.device.delete'), hasLength(1));
+    expect(
+      client.requestsOfType('mobile.device.delete').single['id'],
+      'device-1',
+    );
+    expect(find.text('No Paired Devices'), findsOneWidget);
   });
 
   testWidgets('rename dialog submits the trimmed name', (tester) async {
@@ -212,6 +237,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
       StreamController<RuntimeHostEvent>.broadcast();
 
   bool deviceRevoked = false;
+  bool deviceDeleted = false;
   String deviceName = 'Phone';
   bool offerCancelled = false;
   String bindHost = '127.0.0.1';
@@ -241,6 +267,12 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
         return _status();
       case 'mobile.device.revoke':
         deviceRevoked = true;
+        _events.add(
+          const RuntimeHostEvent('mobileDevicesChanged', <String, Object?>{}),
+        );
+        return <String, Object?>{};
+      case 'mobile.device.delete':
+        deviceDeleted = true;
         _events.add(
           const RuntimeHostEvent('mobileDevicesChanged', <String, Object?>{}),
         );
@@ -306,7 +338,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
         'endpointMode': endpointMode,
       },
       if (tailscaleStatus != null) 'tailscale': tailscaleStatus,
-      'devices': <Object?>[_device()],
+      'devices': deviceDeleted ? const <Object?>[] : <Object?>[_device()],
       'activePairings': offerCancelled
           ? const <Object?>[]
           : <Object?>[
