@@ -673,7 +673,15 @@ impl ServerActor {
             tab.payload["pendingOrchestration"] = Value::Null;
             tab.updated_at = chrono::Utc::now();
             let workspace_id = tab.workspace_id.clone();
-            let _ = self.runtime_store.upsert_workspace_tab(tab).await;
+            let tab_id = tab.id.clone();
+            // Dropping this leaves the tab claiming a dispatch it already
+            // consumed, so a restart replays the prompt.
+            if let Err(error) = self.runtime_store.upsert_workspace_tab(tab).await {
+                tracing::error!(
+                    tab_id = %tab_id,
+                    "failed to clear the pending orchestration payload: {error}"
+                );
+            }
             self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         }
     }
