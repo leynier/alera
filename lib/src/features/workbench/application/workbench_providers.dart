@@ -46,6 +46,7 @@ import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -421,7 +422,17 @@ WorkspaceTabRecord? findTabById(
 }
 
 // coverage:ignore-start
-void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
+/// Absorbs a failure from provider work started without awaiting it.
+///
+/// These must not surface as uncaught zone errors, but discarding them left the
+/// workbench with no explanation for a host that never configured or a terminal
+/// that never warmed up. Recorded at warning level rather than severe: the app
+/// keeps working, it is the follow-up work that did not happen.
+void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {
+  Logger(
+    'WorkbenchProviders',
+  ).warning('background provider work failed', error, stackTrace);
+}
 // coverage:ignore-end
 
 /// Joins path-list environment values (PATH-style), not filesystem path segments.

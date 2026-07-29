@@ -2,8 +2,11 @@ import 'package:alera/src/features/updater/application/update_providers.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'update_controller.g.dart';
+
+final Logger _log = Logger('UpdateController');
 
 @Riverpod(keepAlive: true)
 class AleraUpdateController extends _$AleraUpdateController {
@@ -60,7 +63,8 @@ class AleraUpdateController extends _$AleraUpdateController {
                 : 'Update ${latest.version} is available for manual download.'),
         progress: 0,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning('update check failed', error, stackTrace);
       if (_disposed) {
         return;
       }
@@ -115,7 +119,10 @@ class AleraUpdateController extends _$AleraUpdateController {
         message: 'Update handoff complete. Alera will restart shortly.',
         progress: 1,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      // The banner message is gone as soon as it is dismissed, and a failed
+      // install is exactly the kind of thing reported after the fact.
+      _log.severe('update installation failed', error, stackTrace);
       if (_disposed) {
         return;
       }

@@ -3,6 +3,9 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:logging/logging.dart';
+
+final Logger _log = Logger('AleraOrchestrationSetupService');
 
 class AleraOrchestrationSetupResult {
   const AleraOrchestrationSetupResult({
@@ -81,7 +84,12 @@ class AleraOrchestrationSetupService {
             .where((status) => enabled.contains(status.agentType))
             .toList(growable: false),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _log.warning(
+        'orchestration hook setup failed after the skill install',
+        error,
+        stackTrace,
+      );
       return AleraOrchestrationSetupResult(
         skillResult: skillResult,
         hooksSelected: hooks.anyEnabled,

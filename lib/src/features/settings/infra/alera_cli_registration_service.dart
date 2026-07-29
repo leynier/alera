@@ -5,6 +5,7 @@ import 'package:alera/src/shared/infra/process/command_environment_resolver.dart
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:logging/logging.dart';
 
 typedef AleraCliRegistrationSupportDirectoryResolver =
     Future<Directory> Function();
@@ -20,6 +21,8 @@ enum AleraCliRegistrationState {
 }
 
 enum AleraCliRegistrationInstallMethod { wrapper }
+
+final Logger _log = Logger('AleraCliRegistrationService');
 
 class AleraCliRegistrationStatus {
   const AleraCliRegistrationStatus({
@@ -128,7 +131,15 @@ class AleraCliRegistrationService {
     final String content;
     try {
       content = await file.readAsString();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // The reported status says the file is not readable as text, but the
+      // reason (permissions, encoding, a dangling symlink) is what the user
+      // needs to fix it.
+      _log.warning(
+        'cannot read the registered alera command at ${spec.commandPath}',
+        error,
+        stackTrace,
+      );
       return _statusFor(
         spec,
         pathConfigured: pathConfigured,
