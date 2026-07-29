@@ -85,7 +85,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   DateTime? _lastVisibleAt;
   final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
       ValueNotifier<TerminalRestoreProgress?>(null);
-  int _restoreTotalChars = 0, _restoreWrittenChars = 0;
+  int _restoreGeneration = 0, _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
   int _pointerInputCatchUpChars = 0;
   bool _pointerInputResumePending = false;
