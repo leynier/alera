@@ -204,6 +204,18 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   }
 
   @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {
+    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    resize(pulseCols, rows, cellWidthPx, cellHeightPx);
+    resize(cols, rows, cellWidthPx, cellHeightPx);
+  }
+
+  @override
   Future<void> setOutputPaused(bool paused) async {
     outputPausedCalls.add(paused);
   }

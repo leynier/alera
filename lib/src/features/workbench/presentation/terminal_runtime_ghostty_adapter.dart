@@ -84,6 +84,25 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
   }
 
   @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {
+    final session = _session;
+    if (_disposed || session == null) {
+      return;
+    }
+    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    try {
+      session.resize(rows: rows, cols: pulseCols);
+    } finally {
+      session.resize(rows: rows, cols: cols);
+    }
+  }
+
+  @override
   Future<void> setOutputPaused(bool paused) async {}
 
   @override

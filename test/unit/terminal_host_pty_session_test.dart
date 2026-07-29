@@ -11,6 +11,7 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'terminal_host_test_fakes.dart';
 
 part 'terminal_host_pty_output_resync_cases.dart';
+part 'terminal_host_pty_refresh_cases.dart';
 part 'terminal_host_pty_resume_cases.dart';
 
 void main() {
@@ -134,6 +135,8 @@ void main() {
       expect(client.terminated, <String>['session-2']);
     },
   );
+
+  _registerTerminalHostPtyRefreshTests();
 
   test(
     'reconnect attaches without restarting and restart is explicit',

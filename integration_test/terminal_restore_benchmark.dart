@@ -402,6 +402,14 @@ final class _BenchmarkPtySession implements TerminalPtySession {
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
 
   @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {}
+
+  @override
   Future<void> setOutputPaused(bool paused) async {}
 
   @override
