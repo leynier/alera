@@ -382,6 +382,17 @@ pub async fn revoke_mobile_device(store: &RuntimeStore, id: &str) -> Result<()> 
     store.revoke_mobile_device(id).await
 }
 
+pub async fn delete_mobile_device(store: &RuntimeStore, id: &str) -> Result<()> {
+    let id = id.trim();
+    if id.is_empty() {
+        bail!("mobile device id is required");
+    }
+    if !store.delete_mobile_device(id).await? {
+        bail!("mobile device not found or still active; revoke it first");
+    }
+    Ok(())
+}
+
 pub async fn cancel_mobile_pairing_offer(store: &RuntimeStore, id: &str) -> Result<()> {
     let id = id.trim();
     if id.is_empty() {

@@ -234,6 +234,7 @@ class _MobileDevicesSettingsPaneState
                   device: device,
                   onRename: () => _renameDevice(device),
                   onRevoke: () => _revokeDevice(device),
+                  onDelete: () => _deleteDevice(device),
                 ),
             ],
           ),
@@ -411,6 +412,30 @@ class _MobileDevicesSettingsPaneState
     }
     try {
       await ref.read(mobileAccessRepositoryProvider).revokeDevice(device.id);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
+      }
+    }
+  }
+
+  Future<void> _deleteDevice(MobileDevice device) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Delete ${device.displayName}',
+        message:
+            'Permanently removes this revoked device record from the list. '
+            'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await ref.read(mobileAccessRepositoryProvider).deleteDevice(device.id);
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());

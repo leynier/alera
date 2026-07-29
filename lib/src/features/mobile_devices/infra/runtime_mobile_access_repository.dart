@@ -90,6 +90,12 @@ class RuntimeMobileAccessRepository {
       'id': id,
     });
   }
+
+  Future<void> deleteDevice(String id) async {
+    await _client.runtimeRequest('mobile.device.delete', <String, Object?>{
+      'id': id,
+    });
+  }
 }
 
 Map<String, Object?> _mapFromPayload(Object? payload) {

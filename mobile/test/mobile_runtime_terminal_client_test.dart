@@ -265,7 +265,9 @@ void main() {
       gateway.emit('outputResyncRequired', <String, Object?>{
         'sessionId': 'session-1',
       });
-      await pumpEventQueue();
+      // Wait for the snapshot event itself: pumpEventQueue alone can finish
+      // before the fake gateway round-trip delivers the resume reply.
+      await _waitUntil(() => received.length == 1);
 
       expect(received, hasLength(1));
       expect(received.single.sessionId, 'session-1');

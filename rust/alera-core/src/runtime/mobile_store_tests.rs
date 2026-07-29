@@ -256,6 +256,23 @@ async fn mobile_devices_can_be_revoked() {
 }
 
 #[tokio::test]
+async fn mobile_devices_can_be_deleted_only_when_revoked() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_mobile_device(mobile_device("phone", "hash"))
+        .await
+        .unwrap();
+
+    assert!(!store.delete_mobile_device("phone").await.unwrap());
+    assert_eq!(store.list_mobile_devices(true).await.unwrap().len(), 1);
+
+    store.revoke_mobile_device("phone").await.unwrap();
+    assert!(store.delete_mobile_device("phone").await.unwrap());
+    assert!(store.list_mobile_devices(true).await.unwrap().is_empty());
+    assert!(!store.delete_mobile_device("phone").await.unwrap());
+}
+
+#[tokio::test]
 async fn mobile_device_seen_update_does_not_revive_revoked_device() {
     let (_dir, store) = store().await;
     let mut stale = store

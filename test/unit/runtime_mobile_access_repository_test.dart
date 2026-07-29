@@ -174,33 +174,40 @@ void main() {
       },
     );
 
-    test('cancel, rename, and revoke send the expected payloads', () async {
-      final client = _FakeRuntimeHostClient();
-      client.responses['mobile.device.rename'] = _devicePayload(
-        id: 'device-1',
-        displayName: 'Renamed',
-      );
-      final repository = RuntimeMobileAccessRepository(client);
+    test(
+      'cancel, rename, revoke, and delete send the expected payloads',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        client.responses['mobile.device.rename'] = _devicePayload(
+          id: 'device-1',
+          displayName: 'Renamed',
+        );
+        final repository = RuntimeMobileAccessRepository(client);
 
-      await repository.cancelPairingOffer('offer-1');
-      final renamed = await repository.renameDevice(
-        id: 'device-1',
-        displayName: 'Renamed',
-      );
-      await repository.revokeDevice('device-1');
+        await repository.cancelPairingOffer('offer-1');
+        final renamed = await repository.renameDevice(
+          id: 'device-1',
+          displayName: 'Renamed',
+        );
+        await repository.revokeDevice('device-1');
+        await repository.deleteDevice('device-1');
 
-      expect(renamed.displayName, 'Renamed');
-      expect(client.payloads['mobile.pairing.cancel']!.single, {
-        'id': 'offer-1',
-      });
-      expect(client.payloads['mobile.device.rename']!.single, {
-        'id': 'device-1',
-        'displayName': 'Renamed',
-      });
-      expect(client.payloads['mobile.device.revoke']!.single, {
-        'id': 'device-1',
-      });
-    });
+        expect(renamed.displayName, 'Renamed');
+        expect(client.payloads['mobile.pairing.cancel']!.single, {
+          'id': 'offer-1',
+        });
+        expect(client.payloads['mobile.device.rename']!.single, {
+          'id': 'device-1',
+          'displayName': 'Renamed',
+        });
+        expect(client.payloads['mobile.device.revoke']!.single, {
+          'id': 'device-1',
+        });
+        expect(client.payloads['mobile.device.delete']!.single, {
+          'id': 'device-1',
+        });
+      },
+    );
   });
 }
 

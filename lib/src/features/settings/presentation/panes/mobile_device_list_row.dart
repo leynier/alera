@@ -11,11 +11,13 @@ class MobileDeviceListRow extends StatelessWidget {
     required this.device,
     required this.onRename,
     required this.onRevoke,
+    required this.onDelete,
   });
 
   final MobileDevice device;
   final VoidCallback? onRename;
   final VoidCallback? onRevoke;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +81,14 @@ class MobileDeviceListRow extends StatelessWidget {
               ],
             ),
           ),
-          if (!device.isRevoked) ...<Widget>[
+          if (device.isRevoked)
+            AleraIconButton(
+              tooltip: 'Delete Device',
+              icon: AleraIcons.delete,
+              iconColor: AleraTokens.error,
+              onPressed: onDelete,
+            )
+          else ...<Widget>[
             AleraIconButton(
               tooltip: 'Rename Device',
               icon: AleraIcons.edit,

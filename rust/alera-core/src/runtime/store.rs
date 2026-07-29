@@ -586,6 +586,17 @@ impl RuntimeStore {
         Ok(())
     }
 
+    /// Permanently remove a revoked device record. Active devices must be
+    /// revoked first so accidental hard-deletes do not bypass the soft revoke.
+    pub async fn delete_mobile_device(&self, device_id: &str) -> Result<bool> {
+        let result =
+            sqlx::query("DELETE FROM mobileDevices WHERE id = ? AND revokedAt IS NOT NULL")
+                .bind(device_id)
+                .execute(&self.pool)
+                .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     pub async fn rename_mobile_device(
         &self,
         device_id: &str,
