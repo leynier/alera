@@ -231,6 +231,77 @@ fn accepts_legacy_cli_fallback_flag_without_enabling_tui() {
     assert!(request.allow_cli_fallback);
 }
 
+#[test]
+fn maps_codex_reset_credits_and_scopes_offer_revision_to_account() {
+    let raw = json!({
+        "available_count": 2,
+        "total_earned_count": 5,
+        "credits": [
+            {
+                "status": "available",
+                "expires_at": "2030-01-02T03:04:05Z"
+            },
+            {
+                "status": "used",
+                "expires_at": "2030-01-01T03:04:05Z"
+            }
+        ]
+    });
+    let first = map_codex_reset_credits(&raw, Some("account-a")).unwrap();
+    let second = map_codex_reset_credits(&raw, Some("account-b")).unwrap();
+    assert_eq!(first.available_count, 2);
+    assert_eq!(first.total_earned_count, Some(5));
+    assert_eq!(
+        first.next_expires_at,
+        parse_timestamp_millis("2030-01-02T03:04:05Z")
+    );
+    assert!(first.can_consume);
+    assert_ne!(first.offer_revision, second.offer_revision);
+    assert!(!map_codex_reset_credits(&raw, None).unwrap().can_consume);
+}
+
+#[tokio::test]
+async fn codex_reset_attempt_reuses_pending_idempotency_key() {
+    let runtime = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(runtime.path()).await.unwrap();
+    let first = prepare_codex_reset_attempt(&store, "account-a", "offer-a")
+        .await
+        .unwrap();
+    let first_key = match first {
+        PreparedCodexReset::Pending { idempotency_key } => idempotency_key,
+        PreparedCodexReset::Settled { .. } => panic!("expected pending attempt"),
+    };
+    drop(store);
+    let store = RuntimeStore::open(runtime.path()).await.unwrap();
+    let retry = prepare_codex_reset_attempt(&store, "account-a", "offer-b")
+        .await
+        .unwrap();
+    let retry_key = match retry {
+        PreparedCodexReset::Pending { idempotency_key } => idempotency_key,
+        PreparedCodexReset::Settled { .. } => panic!("expected pending retry"),
+    };
+    assert_eq!(retry_key, first_key);
+    assert_eq!(
+        settle_codex_reset_attempt(&store, "account-a", &first_key, "reset")
+            .await
+            .unwrap(),
+        "reset"
+    );
+    assert_eq!(
+        settle_codex_reset_attempt(&store, "account-a", &first_key, "alreadyRedeemed")
+            .await
+            .unwrap(),
+        "reset"
+    );
+    let settled = prepare_codex_reset_attempt(&store, "account-a", "offer-a")
+        .await
+        .unwrap();
+    assert!(matches!(
+        settled,
+        PreparedCodexReset::Settled { outcome } if outcome == "reset"
+    ));
+}
+
 #[tokio::test]
 #[ignore = "network smoke; run with --ignored when signed into cursor-agent"]
 async fn live_fetch_cursor_period_usage_when_signed_in() {

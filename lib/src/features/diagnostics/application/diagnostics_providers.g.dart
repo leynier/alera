@@ -118,7 +118,7 @@ final class DiagnosticsSettingsApplierProvider
 }
 
 String _$diagnosticsSettingsApplierHash() =>
-    r'f3836b007a4b3a9f242748751dadc6533f107a05';
+    r'61dcab46e0664cec378a187adebaf4499627d7a2';
 
 /// Runtime facts for the bundle, read from a live host.
 ///

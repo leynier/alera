@@ -6,13 +6,13 @@ use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use alera_core::child_process::windowless_async_command;
+use alera_core::runtime::RuntimeStore;
 use anyhow::{anyhow, Context, Result};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use regex::Regex;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-#[cfg(target_os = "macos")]
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
 use tokio::sync::Semaphore;
@@ -148,7 +148,17 @@ struct QuotaBucket {
     reset_description: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexResetCredits {
+    available_count: i64,
+    total_earned_count: Option<i64>,
+    next_expires_at: Option<i64>,
+    offer_revision: String,
+    can_consume: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct QuotaSnapshot {
     provider: String,
@@ -159,6 +169,8 @@ struct QuotaSnapshot {
     error: Option<String>,
     windows: Vec<QuotaWindow>,
     buckets: Vec<QuotaBucket>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rate_limit_reset_credits: Option<Box<CodexResetCredits>>,
 }
 
 impl QuotaSnapshot {
@@ -177,6 +189,7 @@ impl QuotaSnapshot {
             error: Some(error.into()),
             windows: Vec::new(),
             buckets: Vec::new(),
+            rate_limit_reset_credits: None,
         }
     }
 
@@ -195,6 +208,7 @@ impl QuotaSnapshot {
             error: Some(error.into()),
             windows: Vec::new(),
             buckets: Vec::new(),
+            rate_limit_reset_credits: None,
         }
     }
 
@@ -214,17 +228,22 @@ impl QuotaSnapshot {
             error: None,
             windows,
             buckets,
+            rate_limit_reset_credits: None,
         }
     }
 }
 
 pub(crate) async fn run_runtime_proxy() -> i32 {
+    let store = RuntimeStore::open(&crate::runtime_dir(&crate::cli::RuntimeDirArgs {
+        runtime_dir: None,
+    }))
+    .await;
     let stdin = tokio::io::stdin();
     let mut lines = AsyncBufReader::new(stdin).lines();
     let mut stdout = tokio::io::stdout();
     while let Ok(Some(line)) = lines.next_line().await {
         let response = match serde_json::from_str::<ProxyRequest>(&line) {
-            Ok(request) => handle_proxy_request(request).await,
+            Ok(request) => handle_proxy_request(request, store.as_ref().ok()).await,
             Err(error) => json!({
                 "id": Value::Null,
                 "ok": false,
@@ -246,10 +265,16 @@ pub(crate) async fn run_runtime_proxy() -> i32 {
     0
 }
 
-async fn handle_proxy_request(request: ProxyRequest) -> Value {
+async fn handle_proxy_request(request: ProxyRequest, store: Option<&RuntimeStore>) -> Value {
     let result = match request.request_type.as_str() {
         "agentQuota.fetch" => fetch_agent_quotas(request.payload).await,
         "agentQuota.fetchClaudeTui" => fetch_claude_tui_proxy(request.payload).await,
+        "agentQuota.consumeCodexResetCredit" => match store {
+            Some(store) => consume_codex_reset_credit(store, request.payload).await,
+            None => Err(anyhow!(
+                "Codex reset attempt storage is unavailable in this runtime"
+            )),
+        },
         other => Err(anyhow!("Unsupported runtime proxy request: {other}")),
     };
     match result {
@@ -393,6 +418,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
 include!("agent_quota/claude.rs");
 include!("agent_quota/tui.rs");
 include!("agent_quota/codex.rs");
+include!("agent_quota/codex_reset_store.rs");
 include!("agent_quota/grok.rs");
 include!("agent_quota/cursor.rs");
 include!("agent_quota/kimi.rs");

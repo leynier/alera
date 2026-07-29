@@ -131,6 +131,9 @@ class _AgentQuotaHoverSection extends StatelessWidget {
               if (index > 0) const SizedBox(height: AleraTokens.space12),
               _QuotaHoverReading(entry: entry, status: snapshot.status),
             ],
+          if (snapshot.provider == AgentQuotaProviderId.codex &&
+              snapshot.rateLimitResetCredits != null)
+            _CodexResetCreditsPanel(hostId: hostId, snapshot: snapshot),
           if (_shouldOfferClaudeTui(snapshot)) ...<Widget>[
             const SizedBox(height: AleraTokens.space12),
             _ClaudeTryWithTuiButton(hostId: hostId, snapshot: snapshot),

@@ -156,6 +156,8 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(mobileAgentQuotaCapability);
   bool get supportsAgentQuotaClaudeTui =>
       _runtimeCapabilities.contains(mobileAgentQuotaClaudeTuiCapability);
+  bool get supportsCodexResetCredits =>
+      _runtimeCapabilities.contains(codexResetCreditsCapability);
   bool get supportsHostTools =>
       _runtimeCapabilities.contains(mobileHostToolsCapability);
 

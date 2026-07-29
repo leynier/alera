@@ -4,6 +4,8 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
@@ -20,6 +22,7 @@ part 'agent_quota_status_bar_menus.dart';
 part 'agent_quota_hover_card.dart';
 part 'agent_quota_status_bar_readings.dart';
 part 'agent_quota_overview_panel.dart';
+part 'agent_quota_codex_reset.dart';
 
 typedef AgentQuotaPinToggle = void Function(String pinKey, bool pinned);
 
