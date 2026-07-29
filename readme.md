@@ -159,9 +159,33 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHE
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-### macOS and Windows
+### macOS
 
-Download the latest build from [GitHub Releases](https://github.com/leynier/alera/releases). Alera updates itself from there once installed.
+```bash
+brew tap leynier/tap
+brew install --cask alera
+```
+
+Requires Apple Silicon and macOS 14 or newer. The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet.
+
+Or download `alera-<version>-macos.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and move `Alera.app` to `/Applications`.
+
+### Windows
+
+```powershell
+scoop bucket add leynier https://github.com/leynier/scoop-bucket
+scoop install leynier/alera
+```
+
+```powershell
+choco install alera
+```
+
+Requires 64-bit Windows. Or download `alera-<version>-windows.zip` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it anywhere.
+
+### Updating
+
+Alera updates itself only when no package manager owns the installation. Under Homebrew or Scoop, **Settings → Updates** runs that manager's own upgrade and reopens Alera; under Chocolatey and on Linux it shows the command to run, because those upgrades need elevation or a dependency resolution Alera must not do itself.
 
 ### Code signing policy
 

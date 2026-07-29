@@ -3,6 +3,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,13 +16,20 @@ class UpdateSettingsSection extends ConsumerWidget {
     final state = ref.watch(aleraUpdateControllerProvider);
     final controller = ref.read(aleraUpdateControllerProvider.notifier);
     final theme = Theme.of(context);
-    final upgradeCommand =
-        state.status == AleraUpdateStatus.manualDownloadRequired
-        ? linuxPackageUpgradeCommand(
+    final packageInstall = ref.watch(packageManagerInstallProvider);
+    final needsManualPath =
+        state.status == AleraUpdateStatus.manualDownloadRequired ||
+        (state.status == AleraUpdateStatus.error && state.latest != null);
+    final upgradeCommand = needsManualPath
+        ? packageManagerUpgradeCommand(
             update: state.latest,
             channel: state.config.channel,
+            installMethod: packageInstall.method,
           )
         : null;
+    final managerLabel = packageManagerLabel(packageInstall.method);
+    final canRunUpgrade =
+        needsManualPath && packageInstall.canRunUpgrade && !state.isBusy;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -72,6 +80,16 @@ class UpdateSettingsSection extends ConsumerWidget {
                 const SizedBox(height: AleraTokens.space12),
                 _UpgradeCommand(command: upgradeCommand),
               ],
+              if (canRunUpgrade) ...<Widget>[
+                const SizedBox(height: AleraTokens.space8),
+                Text(
+                  'Alera will close, let $managerLabel install the update, '
+                  'and open again.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ],
               const SizedBox(height: AleraTokens.space16),
               Wrap(
                 alignment: WrapAlignment.end,
@@ -88,7 +106,7 @@ class UpdateSettingsSection extends ConsumerWidget {
                     ),
                   ),
                   if (state.status == AleraUpdateStatus.manualDownloadRequired)
-                    FilledButton.icon(
+                    OutlinedButton.icon(
                       onPressed: controller.openDownloadPage,
                       icon: const Icon(AleraIcons.external, size: 16),
                       label: Text(
@@ -97,6 +115,12 @@ class UpdateSettingsSection extends ConsumerWidget {
                             : 'Installation Guide',
                       ),
                     ),
+                  if (canRunUpgrade)
+                    FilledButton.icon(
+                      onPressed: controller.upgradeThroughPackageManager,
+                      icon: const Icon(AleraIcons.download, size: 16),
+                      label: Text('Update With $managerLabel'),
+                    ),
                   if (state.status == AleraUpdateStatus.available)
                     FilledButton.icon(
                       onPressed: controller.installLatest,
@@ -104,7 +128,8 @@ class UpdateSettingsSection extends ConsumerWidget {
                       label: const Text('Install Update'),
                     ),
                   if (state.status == AleraUpdateStatus.error &&
-                      state.latest != null)
+                      state.latest != null &&
+                      !packageInstall.canRunUpgrade)
                     FilledButton.icon(
                       onPressed: controller.installLatest,
                       icon: const Icon(AleraIcons.refresh, size: 16),
@@ -120,8 +145,9 @@ class UpdateSettingsSection extends ConsumerWidget {
   }
 }
 
-/// Shows the package-manager command that performs the update, for the Linux
-/// packages Alera detects but never installs itself.
+/// Shows the package-manager command that performs the update, for every
+/// installation Alera detects but must not replace itself: Linux packages,
+/// Chocolatey, and as the fallback when running the upgrade fails.
 class _UpgradeCommand extends StatefulWidget {
   const _UpgradeCommand({required this.command});
 

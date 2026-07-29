@@ -1,0 +1,30 @@
+VERIFICATION
+
+Verification is intended to assist the Chocolatey moderators and community in
+verifying that this package's contents are trustworthy.
+
+This package does not embed any binary. It downloads the official Windows
+archive published by the Alera release workflow:
+
+  https://github.com/leynier/alera/releases/download/{{TAG}}/alera-{{VERSION}}-windows.zip
+
+The SHA-256 checksum embedded in tools\chocolateyinstall.ps1 is computed by the
+release workflow (.github/workflows/release-cut.yml) from the very archive it
+uploads to that release, and this package is generated and pushed by that same
+workflow run.
+
+To verify the archive yourself:
+
+  1. Download the URL above.
+  2. Run: checksum -t sha256 -f alera-{{VERSION}}-windows.zip
+     (or: Get-FileHash alera-{{VERSION}}-windows.zip -Algorithm SHA256)
+  3. Compare the result against the Checksum64 value in
+     tools\chocolateyinstall.ps1.
+
+The GitHub release also carries build provenance attestations, which can be
+verified with:
+
+  gh attestation verify alera-{{VERSION}}-windows.zip --repo leynier/alera
+
+Alera is MIT licensed. The license is included as tools\LICENSE.txt and is
+available at https://github.com/leynier/alera/blob/main/LICENSE.
