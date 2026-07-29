@@ -140,6 +140,7 @@ class WorkspaceFolderOpener {
       case WorkspaceFolderPlatform.linux:
         final target = _fileManagerTargetForReveal(path);
         return <_WorkspaceFolderOpenCommand>[
+          _showItemsCommand(path),
           _WorkspaceFolderOpenCommand('xdg-open', <String>[target]),
           _WorkspaceFolderOpenCommand('gio', <String>['open', target]),
         ];
@@ -156,6 +157,25 @@ class WorkspaceFolderOpener {
         ? path
         : File(path).parent.path;
   }
+}
+
+/// FreeDesktop FileManager1.ShowItems selects the path in the session file
+/// manager (Nautilus, Dolphin, ...). The GVariant array is one argv token so
+/// ProcessRunner shell-quoting leaves it intact for `gdbus`.
+_WorkspaceFolderOpenCommand _showItemsCommand(String path) {
+  final uri = Uri.file(path).toString();
+  return _WorkspaceFolderOpenCommand('gdbus', <String>[
+    'call',
+    '--session',
+    '--dest',
+    'org.freedesktop.FileManager1',
+    '--object-path',
+    '/org/freedesktop/FileManager1',
+    '--method',
+    'org.freedesktop.FileManager1.ShowItems',
+    "['$uri']",
+    '',
+  ]);
 }
 
 WorkspaceFolderPlatform currentWorkspaceFolderPlatform() {

@@ -639,6 +639,14 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
+  void pasteText(String text) {
+    if (_disposed || text.isEmpty) {
+      return;
+    }
+    _terminal.paste(text);
+  }
+
+  @override
   void dispose({bool terminatePty = true}) {
     _disposed = true;
     _startAttempt += 1;
