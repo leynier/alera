@@ -17,7 +17,7 @@ void _registerXtermRuntimeWidgetTests() {
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
       try {
-        session.refreshRendering();
+        await session.refreshRendering();
         expect(fakeSession.resizeCalls, isEmpty);
 
         await tester.pumpWidget(
@@ -33,12 +33,20 @@ void _registerXtermRuntimeWidgetTests() {
         writeTerminalOutputForTesting(session, 'preserved output');
         final bufferBefore = terminalBufferTextForTesting(session);
 
-        session.refreshRendering();
+        await session.refreshRendering();
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(fakeSession.resizeCalls, hasLength(1));
-        expect(fakeSession.resizeCalls.single.cols, greaterThan(0));
-        expect(fakeSession.resizeCalls.single.rows, greaterThan(0));
+        expect(fakeSession.resizeCalls, hasLength(2));
+        expect(
+          fakeSession.resizeCalls.first.cols,
+          fakeSession.resizeCalls.last.cols - 1,
+        );
+        expect(
+          fakeSession.resizeCalls.first.rows,
+          fakeSession.resizeCalls.last.rows,
+        );
+        expect(fakeSession.resizeCalls.last.cols, greaterThan(0));
+        expect(fakeSession.resizeCalls.last.rows, greaterThan(0));
         expect(terminalBufferTextForTesting(session), bufferBefore);
         expect(runtime.peekSession('tab-1'), same(session));
         expect(fakeSession.writes, isEmpty);

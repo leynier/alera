@@ -31,6 +31,7 @@ abstract final class AleraIcons {
   static const IconData delete = LucideIcons.trash2;
   static const IconData copy = LucideIcons.copy;
   static const IconData refresh = LucideIcons.refreshCw;
+  static const IconData loading = LucideIcons.loaderCircle;
   static const IconData link = LucideIcons.link;
   static const IconData external = LucideIcons.externalLink;
   static const IconData theme = LucideIcons.moon;

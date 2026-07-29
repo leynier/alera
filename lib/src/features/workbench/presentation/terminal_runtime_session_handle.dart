@@ -317,8 +317,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void refreshRendering() {
+  Future<void> refreshRendering() async {
     if (_disposed) {
+      return;
+    }
+    final session = _ptySession;
+    if (session == null) {
       return;
     }
     final viewState = _terminalViewKey.currentState;
@@ -332,13 +336,19 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     final cellSize = renderTerminal.cellSize;
-    _terminal.resize(
+    await session.refreshViewport(
       _terminal.viewWidth,
       _terminal.viewHeight,
       cellSize.width.round(),
       cellSize.height.round(),
     );
+    if (_disposed ||
+        !identical(_terminalViewKey.currentState, viewState) ||
+        !renderTerminal.attached) {
+      return;
+    }
     renderTerminal.markNeedsLayout();
+    renderTerminal.markNeedsPaint();
   }
 
   Future<bool> _startPtySession() async {

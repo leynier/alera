@@ -64,6 +64,7 @@ final class TerminalHostPtySession implements RecoverableTerminalPtySession {
   bool _startedNewProcess = false;
   bool _outputPaused = false;
   Future<void>? _startFuture;
+  Future<void> _resizeOperations = Future<void>.value();
   Future<void> Function()? _onProcessCreated;
 
   @override
@@ -199,7 +200,37 @@ final class TerminalHostPtySession implements RecoverableTerminalPtySession {
     if (!_started) {
       return;
     }
-    unawaited(_resize(cols: cols, rows: rows).catchError(_emitHostError));
+    unawaited(_enqueueResize(() => _resize(cols: cols, rows: rows)));
+  }
+
+  @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) {
+    if (_disposed || !_started) {
+      return Future<void>.value();
+    }
+    _cols = cols;
+    _rows = rows;
+    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    return _enqueueResize(() async {
+      try {
+        await _resize(cols: pulseCols, rows: rows);
+      } finally {
+        await _resize(cols: cols, rows: rows);
+      }
+    });
+  }
+
+  Future<void> _enqueueResize(Future<void> Function() operation) {
+    final next = _resizeOperations
+        .then((_) => _disposed ? null : operation())
+        .catchError(_emitHostError);
+    _resizeOperations = next;
+    return next;
   }
 
   Future<void> _writeBytes(List<int> bytes) async {

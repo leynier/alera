@@ -34,6 +34,7 @@ class TerminalTabView extends ConsumerStatefulWidget {
 class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
   final GlobalKey<_TerminalSurfaceState> _surfaceKey =
       GlobalKey<_TerminalSurfaceState>();
+  bool _refreshing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -103,19 +104,29 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
           top: AleraTokens.spaceXs,
           right: AleraTokens.spaceXs,
           child: AleraIconButton(
-            tooltip: 'Refresh Terminal',
-            icon: AleraIcons.refresh,
+            tooltip: _refreshing ? 'Refreshing Terminal' : 'Refresh Terminal',
+            icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
             backgroundColor: AleraTokens.surfaceElevated,
             borderColor: AleraTokens.borderSubtle,
-            onPressed: _refreshTerminal,
+            onPressed: _refreshing ? null : _refreshTerminal,
           ),
         ),
       ],
     );
   }
 
-  void _refreshTerminal() {
-    _surfaceKey.currentState?.refreshRendering();
+  Future<void> _refreshTerminal() async {
+    if (_refreshing) {
+      return;
+    }
+    setState(() => _refreshing = true);
+    try {
+      await _surfaceKey.currentState?.refreshRendering();
+    } finally {
+      if (mounted) {
+        setState(() => _refreshing = false);
+      }
+    }
   }
 
   Future<void> _confirmRestart(
@@ -172,11 +183,13 @@ class _TerminalSurface extends StatefulWidget {
 class _TerminalSurfaceState extends State<_TerminalSurface> {
   late Terminal _terminal;
   final TerminalController _controller = TerminalController();
-  final GlobalKey<TerminalViewState> _terminalViewKey =
-      GlobalKey<TerminalViewState>();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode(debugLabel: 'MobileTerminal');
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
   bool _outputEnded = false;
+  int _viewGeneration = 0;
+  (int, int)? _suppressedViewportSize;
 
   @override
   void initState() {
@@ -201,6 +214,8 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     unawaited(_outputSub?.cancel());
     _batcher?.dispose();
     _controller.dispose();
+    _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -230,7 +245,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     final next = Terminal(
       maxLines: 5000,
       onOutput: (data) => widget.onInput(data),
-      onResize: (width, height, _, _) => widget.onViewportResize(width, height),
+      onResize: (width, height, _, _) => _handleViewportResize(width, height),
     );
     // One write per frame. Writing every chunk straight through made a noisy
     // build parse and repaint many times inside a single frame.
@@ -259,25 +274,26 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     setState(() => _outputEnded = true);
   }
 
-  void refreshRendering() {
-    final viewState = _terminalViewKey.currentState;
-    if (viewState == null) {
+  void _handleViewportResize(int width, int height) {
+    final suppressed = _suppressedViewportSize;
+    _suppressedViewportSize = null;
+    if (suppressed == (width, height)) {
       return;
     }
-    final renderTerminal = viewState.renderTerminal;
-    if (!renderTerminal.attached ||
-        !renderTerminal.hasSize ||
-        renderTerminal.size.isEmpty) {
+    widget.onViewportResize(width, height);
+  }
+
+  Future<void> refreshRendering() async {
+    if (!mounted) {
       return;
     }
-    final cellSize = renderTerminal.cellSize;
-    _terminal.resize(
-      _terminal.viewWidth,
-      _terminal.viewHeight,
-      cellSize.width.round(),
-      cellSize.height.round(),
-    );
-    renderTerminal.markNeedsLayout();
+    final restoreFocus = _focusNode.hasFocus;
+    _suppressedViewportSize = (_terminal.viewWidth, _terminal.viewHeight);
+    setState(() => _viewGeneration += 1);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && restoreFocus) {
+      _focusNode.requestFocus();
+    }
   }
 
   @override
@@ -291,12 +307,14 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
             color: AleraTokens.background,
             child: TerminalView(
               _terminal,
-              key: _terminalViewKey,
+              key: ValueKey<int>(_viewGeneration),
               controller: _controller,
+              scrollController: _scrollController,
+              focusNode: _focusNode,
               // Compose mode keeps the terminal read-only so tapping it scrolls
               // instead of raising the soft keyboard; direct mode streams keys.
               readOnly: !direct,
-              autofocus: direct,
+              autofocus: direct && _viewGeneration == 0,
               backgroundOpacity: 0,
               textStyle: const TerminalStyle(
                 fontFamily: AleraTokens.monoFontFamily,

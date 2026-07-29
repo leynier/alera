@@ -42,6 +42,33 @@ void _registerTerminalSurfaceRuntimeTests() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('refresh control stays busy and ignores repeated presses', (
+    tester,
+  ) async {
+    final refreshCompleter = Completer<void>();
+    final session = _ImmediateNotifySessionHandle(
+      tabId: 'tab-1',
+      refreshCompleter: refreshCompleter,
+    );
+
+    await _pumpTerminalSurface(tester, session);
+    await tester.tap(find.byTooltip('Refresh Terminal'));
+    await tester.pump();
+
+    expect(find.byTooltip('Refreshing Terminal'), findsOneWidget);
+    expect(
+      tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+      isNull,
+    );
+    expect(session.refreshRenderingCallCount, 1);
+
+    refreshCompleter.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Refresh Terminal'), findsOneWidget);
+    expect(session.refreshRenderingCallCount, 1);
+  });
+
   test('working directory launch keeps the shell usable if cd fails', () {
     const launch = GhosttyTerminalShellLaunch(
       label: 'zsh',
