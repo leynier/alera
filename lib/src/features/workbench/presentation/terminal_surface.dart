@@ -8,7 +8,7 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
-import 'package:alera/src/features/workbench/presentation/terminal_file_drop.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -120,65 +120,76 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         return DropTarget(
           enable: error == null,
           onDragDone: (details) {
-            handleTerminalOsFileDrop(
+            handleTerminalPathDrop(
               session: widget.session,
               paths: details.files.map((file) => file.path),
             );
           },
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: error == null
-                    ? DecoratedBox(
-                        decoration: const BoxDecoration(color: AleraTokens.bg),
-                        child: widget.session.buildView(
-                          autofocus: widget.autofocus,
-                          onKeyEvent: _handleTerminalKey,
+          child: DragTarget<TerminalPathDragPayload>(
+            onWillAcceptWithDetails: (_) => error == null,
+            onAcceptWithDetails: (details) {
+              handleTerminalPathDrop(
+                session: widget.session,
+                paths: details.data.paths,
+              );
+            },
+            builder: (context, _, _) => Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: error == null
+                      ? DecoratedBox(
+                          decoration: const BoxDecoration(
+                            color: AleraTokens.bg,
+                          ),
+                          child: widget.session.buildView(
+                            autofocus: widget.autofocus,
+                            onKeyEvent: _handleTerminalKey,
+                          ),
+                        )
+                      : _TerminalErrorState(
+                          message: error,
+                          onReconnect: widget.session.reconnect,
+                          onRestart: widget.session.canRestart
+                              ? () => _confirmRestart(context)
+                              : null,
                         ),
-                      )
-                    : _TerminalErrorState(
-                        message: error,
-                        onReconnect: widget.session.reconnect,
-                        onRestart: widget.session.canRestart
-                            ? () => _confirmRestart(context)
-                            : null,
-                      ),
-              ),
-              if (operation != null)
-                Positioned.fill(
-                  child: _TerminalOperationState(operation: operation),
                 ),
-              // Restoring an evicted terminal replays its whole scrollback over
-              // several frames. The corner spinner does not read as a wait that
-              // long, so cover the area until the history is back.
-              if (error == null)
-                Positioned.fill(
-                  child: ValueListenableBuilder<TerminalRestoreProgress?>(
-                    valueListenable: widget.session.restoreProgress,
-                    builder: (context, progress, _) {
-                      if (progress == null) {
-                        return const SizedBox.shrink();
-                      }
-                      return _TerminalRestoreState(progress: progress);
-                    },
+                if (operation != null)
+                  Positioned.fill(
+                    child: _TerminalOperationState(operation: operation),
+                  ),
+                // Restoring an evicted terminal replays its whole scrollback over
+                // several frames. The corner spinner does not read as a wait that
+                // long, so cover the area until the history is back.
+                if (error == null)
+                  Positioned.fill(
+                    child: ValueListenableBuilder<TerminalRestoreProgress?>(
+                      valueListenable: widget.session.restoreProgress,
+                      builder: (context, progress, _) {
+                        if (progress == null) {
+                          return const SizedBox.shrink();
+                        }
+                        return _TerminalRestoreState(progress: progress);
+                      },
+                    ),
+                  ),
+                Positioned(
+                  top: AleraTokens.space4,
+                  right: AleraTokens.space4,
+                  child: AleraIconButton(
+                    tooltip: _refreshing
+                        ? 'Refreshing Terminal'
+                        : 'Refresh Terminal',
+                    icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
+                    backgroundColor: AleraTokens.surfaceElevated,
+                    borderColor: AleraTokens.borderSubtle,
+                    onPressed: _refreshing
+                        ? null
+                        : () => unawaited(_refreshTerminal()),
                   ),
                 ),
-              Positioned(
-                top: AleraTokens.space4,
-                right: AleraTokens.space4,
-                child: AleraIconButton(
-                  tooltip: _refreshing
-                      ? 'Refreshing Terminal'
-                      : 'Refresh Terminal',
-                  icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
-                  backgroundColor: AleraTokens.surfaceElevated,
-                  borderColor: AleraTokens.borderSubtle,
-                  onPressed: _refreshing
-                      ? null
-                      : () => unawaited(_refreshTerminal()),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

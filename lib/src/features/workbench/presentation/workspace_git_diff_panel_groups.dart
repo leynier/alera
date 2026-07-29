@@ -139,6 +139,10 @@ class _GitDiffGroup extends StatelessWidget {
               for (final entry in group.entries) ...<Widget>[
                 _GitDiffFileRow(
                   entry: entry,
+                  absolutePath: _terminalPathForGitEntry(
+                    workspacePath,
+                    entry.path,
+                  ),
                   depth: 0,
                   showRelativePath: true,
                   busy: busy,

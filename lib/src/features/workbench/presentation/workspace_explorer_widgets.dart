@@ -461,10 +461,17 @@ class _ExplorerClipboard {
   final bool cut;
 }
 
-class _ExplorerDragData {
-  const _ExplorerDragData({required this.relativePath});
+class _ExplorerDragData implements TerminalPathDragPayload {
+  const _ExplorerDragData({
+    required this.relativePath,
+    required this.absolutePath,
+  });
 
   final String relativePath;
+  final String absolutePath;
+
+  @override
+  Iterable<String> get paths => <String>[absolutePath];
 }
 
 enum _ExplorerAction {

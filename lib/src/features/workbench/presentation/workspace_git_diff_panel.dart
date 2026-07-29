@@ -20,6 +20,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_history_graph.dart';
@@ -30,6 +31,7 @@ import 'package:flutter/services.dart';
 
 part 'workspace_git_diff_panel_types.dart';
 part 'workspace_git_diff_panel_groups.dart';
+part 'workspace_git_diff_panel_rows.dart';
 part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
 part 'workspace_git_diff_panel_toolbar.dart';
