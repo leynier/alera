@@ -23,6 +23,17 @@ class WorkspaceAttention {
   final DateTime? attentionAt;
 }
 
+/// Comparable activity for a workspace that currently has an open terminal.
+class AgentActivityRank {
+  const AgentActivityRank({
+    required this.attentionClass,
+    required this.activityAt,
+  });
+
+  final AgentAttentionClass attentionClass;
+  final DateTime activityAt;
+}
+
 /// Classifies a workspace by its live agent runs for the Agent Activity sort.
 WorkspaceAttention workspaceAttention({
   required Iterable<WorkspaceTabRecord> tabs,
@@ -74,63 +85,103 @@ bool _moreUrgent(WorkspaceAttention a, WorkspaceAttention b) {
   return aAt.isAfter(bAt);
 }
 
-/// Comparator for the Agent Activity sort: urgency class ascending, then the
-/// attention (or fallback recency) timestamp descending, then name.
-int compareByAgentActivity({
-  required WorkspaceAttention aAttention,
-  required DateTime aFallback,
-  required String aName,
-  required WorkspaceAttention bAttention,
-  required DateTime bFallback,
-  required String bName,
+AgentActivityRank agentActivityRank({
+  required WorkspaceAttention attention,
+  required DateTime fallback,
 }) {
-  final byClass = aAttention.attentionClass.index.compareTo(
-    bAttention.attentionClass.index,
+  return AgentActivityRank(
+    attentionClass: attention.attentionClass,
+    activityAt: attention.attentionAt ?? fallback,
   );
+}
+
+int compareAgentActivityRanks(AgentActivityRank a, AgentActivityRank b) {
+  final byClass = a.attentionClass.index.compareTo(b.attentionClass.index);
   if (byClass != 0) {
     return byClass;
   }
-  final aAt = aAttention.attentionAt ?? aFallback;
-  final bAt = bAttention.attentionAt ?? bFallback;
-  final byTime = bAt.compareTo(aAt);
-  if (byTime != 0) {
-    return byTime;
+  return b.activityAt.compareTo(a.activityAt);
+}
+
+AgentActivityRank? bestAgentActivityRank(
+  AgentActivityRank? current,
+  AgentActivityRank? candidate,
+) {
+  if (current == null) {
+    return candidate;
+  }
+  if (candidate == null) {
+    return current;
+  }
+  return compareAgentActivityRanks(candidate, current) < 0
+      ? candidate
+      : current;
+}
+
+/// Returns each workspace's best activity across itself and its visible
+/// descendants. A cycle edge contributes the node's direct activity without
+/// recursing again.
+Map<String, AgentActivityRank?> aggregateAgentActivityBySubtree({
+  required Iterable<({String id, String? parentId})> workspaces,
+  required Map<String, AgentActivityRank?> directActivityByWorkspaceId,
+}) {
+  final entries = workspaces.toList(growable: false);
+  final ids = <String>{for (final entry in entries) entry.id};
+  final childrenByParentId = <String, List<String>>{};
+  for (final entry in entries) {
+    final parentId = entry.parentId;
+    if (parentId == null || parentId == entry.id || !ids.contains(parentId)) {
+      continue;
+    }
+    childrenByParentId.putIfAbsent(parentId, () => <String>[]).add(entry.id);
+  }
+
+  final aggregateById = <String, AgentActivityRank?>{};
+  final visiting = <String>{};
+
+  AgentActivityRank? visit(String workspaceId) {
+    final cached = aggregateById[workspaceId];
+    if (cached != null || aggregateById.containsKey(workspaceId)) {
+      return cached;
+    }
+    if (!visiting.add(workspaceId)) {
+      return directActivityByWorkspaceId[workspaceId];
+    }
+    var best = directActivityByWorkspaceId[workspaceId];
+    for (final childId in childrenByParentId[workspaceId] ?? const <String>[]) {
+      best = bestAgentActivityRank(best, visit(childId));
+    }
+    visiting.remove(workspaceId);
+    aggregateById[workspaceId] = best;
+    return best;
+  }
+
+  for (final entry in entries) {
+    visit(entry.id);
+  }
+  return aggregateById;
+}
+
+/// Comparator for the Agent Activity sort. Entries with terminal activity
+/// rank first by urgency and time; entries without terminals sort by name.
+int compareByAgentActivity({
+  required AgentActivityRank? aActivity,
+  required String aName,
+  required AgentActivityRank? bActivity,
+  required String bName,
+}) {
+  if (aActivity == null || bActivity == null) {
+    if (aActivity != null) {
+      return -1;
+    }
+    if (bActivity != null) {
+      return 1;
+    }
+    return aName.toLowerCase().compareTo(bName.toLowerCase());
+  }
+  final byActivity = compareAgentActivityRanks(aActivity, bActivity);
+  if (byActivity != 0) {
+    return byActivity;
   }
   return aName.toLowerCase().compareTo(bName.toLowerCase());
-}
-
-/// Mutable holder for the workspace order of the last sidebar render. Owned by
-/// a keep-alive provider so [buildSidebarRows] can stay pure while the active
-/// row keeps its position across rebuilds.
-class SidebarOrderMemory {
-  List<String> order = const <String>[];
-}
-
-/// Re-inserts the active workspace at the index it occupied in the previously
-/// rendered order so live status changes never reorder the row the user is
-/// interacting with.
-List<T> stabilizeActiveEntry<T>({
-  required List<T> sorted,
-  required String Function(T) idOf,
-  required List<String> previousOrder,
-  required String? activeId,
-}) {
-  if (activeId == null) {
-    return sorted;
-  }
-  final currentIndex = sorted.indexWhere((entry) => idOf(entry) == activeId);
-  if (currentIndex < 0) {
-    return sorted;
-  }
-  final previousIndex = previousOrder.indexOf(activeId);
-  if (previousIndex < 0 || previousIndex == currentIndex) {
-    return sorted;
-  }
-  final result = List<T>.from(sorted);
-  final entry = result.removeAt(currentIndex);
-  result.insert(
-    previousIndex >= result.length ? result.length : previousIndex,
-    entry,
-  );
-  return result;
 }

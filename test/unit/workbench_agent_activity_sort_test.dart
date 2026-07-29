@@ -112,15 +112,15 @@ void main() {
   group('compareByAgentActivity', () {
     test('lower class ranks first regardless of recency', () {
       final result = compareByAgentActivity(
-        aAttention: const WorkspaceAttention(
+        aActivity: AgentActivityRank(
           attentionClass: AgentAttentionClass.working,
+          activityAt: _now,
         ),
-        aFallback: _now,
         aName: 'a',
-        bAttention: const WorkspaceAttention(
+        bActivity: AgentActivityRank(
           attentionClass: AgentAttentionClass.needsYou,
+          activityAt: _now.subtract(const Duration(days: 1)),
         ),
-        bFallback: _now.subtract(const Duration(days: 1)),
         bName: 'b',
       );
       expect(result, greaterThan(0));
@@ -128,64 +128,91 @@ void main() {
 
     test('same class ranks by recency then name', () {
       final result = compareByAgentActivity(
-        aAttention: WorkspaceAttention(
+        aActivity: AgentActivityRank(
           attentionClass: AgentAttentionClass.done,
-          attentionAt: _now,
+          activityAt: _now,
         ),
-        aFallback: _now,
         aName: 'a',
-        bAttention: WorkspaceAttention(
+        bActivity: AgentActivityRank(
           attentionClass: AgentAttentionClass.done,
-          attentionAt: _now.subtract(const Duration(minutes: 1)),
+          activityAt: _now.subtract(const Duration(minutes: 1)),
         ),
-        bFallback: _now,
         bName: 'b',
       );
       expect(result, lessThan(0));
     });
 
-    test('idle entries fall back to the provided timestamp', () {
+    test(
+      'terminal activity ranks before an alphabetically earlier inactive',
+      () {
+        final result = compareByAgentActivity(
+          aActivity: AgentActivityRank(
+            attentionClass: AgentAttentionClass.idle,
+            activityAt: _now,
+          ),
+          aName: 'zebra',
+          bActivity: null,
+          bName: 'alpha',
+        );
+        expect(result, lessThan(0));
+      },
+    );
+
+    test('inactive entries sort alphabetically', () {
       final result = compareByAgentActivity(
-        aAttention: WorkspaceAttention.idle,
-        aFallback: _now.subtract(const Duration(days: 2)),
-        aName: 'a',
-        bAttention: WorkspaceAttention.idle,
-        bFallback: _now,
-        bName: 'b',
+        aActivity: null,
+        aName: 'zebra',
+        bActivity: null,
+        bName: 'alpha',
       );
       expect(result, greaterThan(0));
     });
   });
 
-  group('stabilizeActiveEntry', () {
-    test('re-inserts the active id at its previous index', () {
-      final stabilized = stabilizeActiveEntry<String>(
-        sorted: <String>['b', 'c', 'a'],
-        idOf: (id) => id,
-        previousOrder: <String>['a', 'b', 'c'],
-        activeId: 'a',
+  group('aggregateAgentActivityBySubtree', () {
+    test('promotes an ancestor using its best descendant activity', () {
+      final working = AgentActivityRank(
+        attentionClass: AgentAttentionClass.working,
+        activityAt: _now,
       );
-      expect(stabilized, <String>['a', 'b', 'c']);
+      final waiting = AgentActivityRank(
+        attentionClass: AgentAttentionClass.needsYou,
+        activityAt: _now.subtract(const Duration(minutes: 5)),
+      );
+      final ranks = aggregateAgentActivityBySubtree(
+        workspaces: <({String id, String? parentId})>[
+          (id: 'root', parentId: null),
+          (id: 'child', parentId: 'root'),
+          (id: 'grandchild', parentId: 'child'),
+        ],
+        directActivityByWorkspaceId: <String, AgentActivityRank?>{
+          'child': working,
+          'grandchild': waiting,
+        },
+      );
+
+      expect(ranks['root'], same(waiting));
+      expect(ranks['child'], same(waiting));
+      expect(ranks['grandchild'], same(waiting));
     });
 
-    test('leaves the order untouched without an active id', () {
-      final stabilized = stabilizeActiveEntry<String>(
-        sorted: <String>['b', 'a'],
-        idOf: (id) => id,
-        previousOrder: <String>['a', 'b'],
-        activeId: null,
+    test('terminates when parent relationships contain a cycle', () {
+      final activity = AgentActivityRank(
+        attentionClass: AgentAttentionClass.working,
+        activityAt: _now,
       );
-      expect(stabilized, <String>['b', 'a']);
-    });
+      final ranks = aggregateAgentActivityBySubtree(
+        workspaces: <({String id, String? parentId})>[
+          (id: 'a', parentId: 'b'),
+          (id: 'b', parentId: 'a'),
+        ],
+        directActivityByWorkspaceId: <String, AgentActivityRank?>{
+          'b': activity,
+        },
+      );
 
-    test('ignores an active id missing from the previous order', () {
-      final stabilized = stabilizeActiveEntry<String>(
-        sorted: <String>['b', 'a'],
-        idOf: (id) => id,
-        previousOrder: const <String>[],
-        activeId: 'a',
-      );
-      expect(stabilized, <String>['b', 'a']);
+      expect(ranks['a'], same(activity));
+      expect(ranks['b'], same(activity));
     });
   });
 }
