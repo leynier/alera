@@ -350,6 +350,11 @@ jobs:
             Write-Output "::warning::Windows code-signing certificate is not configured; packaging an unsigned Windows release."
           }
           tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
+          # Chocolatey and Scoop both unpack a zip natively; a tar.gz costs them
+          # a two-step 7zip extraction. The tar.gz stays the updater artifact,
+          # so this zip is a GitHub release asset only.
+          Compress-Archive -Path "$env:BUNDLE_DIR\*" `
+            -DestinationPath "release-assets/alera-$env:RELEASE_VERSION-windows.zip"
 
       - name: Package Linux release
         if: matrix.platform == 'linux'
@@ -371,6 +376,12 @@ jobs:
             name="$(basename "$asset")"
             # Runtime sidecars are GitHub release assets, not desktop updater artifacts.
             if [[ "$name" == alera-runtime-* ]]; then
+              continue
+            fi
+            # So is the Windows zip: it carries the same bytes as the tar.gz the
+            # updater already ships, and staging it would add a second Windows
+            # item to the signed manifest and a duplicate payload to R2.
+            if [[ "$name" == *-windows.zip ]]; then
               continue
             fi
             cp "$asset" "$ASSET_DIR/"
@@ -1036,3 +1047,151 @@ jobs:
           if [[ "$PUSHED_MAIN" == "true" && "$DESKTOP_PUBLISHED" != "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
             git push --force-with-lease origin HEAD~1:refs/heads/main
           fi
+
+  # The desktop packages are downstream of a release that is already public:
+  # they only ever point at assets `publish` uploaded, so they run after it and
+  # a failure here never rolls the release back. Release candidates are excluded
+  # for the same reason the Linux stable repositories exclude them.
+  publish_packages:
+    name: publish brew and scoop
+    needs:
+      - plan
+      - publish
+    if: >-
+      needs.plan.outputs.desktop_should_release == 'true' &&
+      needs.plan.outputs.channel == 'stable'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          submodules: false
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
+
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Render package manifests
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          TAG: ${{ needs.plan.outputs.desktop_tag }}
+        run: |
+          set -euo pipefail
+          macos_asset="release-assets/alera-${RELEASE_VERSION}-macos.tar.gz"
+          windows_asset="release-assets/alera-${RELEASE_VERSION}-windows.zip"
+          for asset in "$macos_asset" "$windows_asset"; do
+            test -s "$asset" || { echo "::error::Missing $asset"; exit 1; }
+          done
+          # The checksums are read from the very files the release carries, so a
+          # package can never advertise a digest for something else.
+          dart tool/release/render_package_manifests.dart \
+            --version "$RELEASE_VERSION" \
+            --tag "$TAG" \
+            --macos-sha256 "$(sha256sum "$macos_asset" | cut -d' ' -f1)" \
+            --windows-sha256 "$(sha256sum "$windows_asset" | cut -d' ' -f1)" \
+            --out packaging-out
+
+      - name: Publish the Homebrew cask and the Scoop manifest
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.ALERA_HOMEBREW_TAP_DEPLOY_KEY }}
+          SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.ALERA_SCOOP_BUCKET_DEPLOY_KEY }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+        run: |
+          set -euo pipefail
+          # Pin GitHub's SSH host keys from an endpoint TLS already authenticates
+          # rather than trusting the first connection. A runner that accepted a
+          # forged host key would push the manifest somewhere else and still
+          # report success, which is the failure nobody would notice.
+          mkdir -p ~/.ssh
+          curl -fsSL https://api.github.com/meta |
+            python3 -c 'import json,sys; print("\n".join(f"github.com {k}" for k in json.load(sys.stdin)["ssh_keys"]))' \
+            >>~/.ssh/known_hosts
+
+          # Each repository gets its own deploy key rather than one account-wide
+          # token, so a key that leaks or needs rotating reaches nothing else.
+          publish_manifest() {
+            local repository="$1" key_value="$2" rendered="$3" destination="$4"
+            if [[ -z "$key_value" ]]; then
+              echo "::warning::No deploy key is configured for $repository; skipping it."
+              return 0
+            fi
+            local key_file checkout
+            key_file="$(mktemp)"
+            chmod 600 "$key_file"
+            printf '%s\n' "$key_value" >"$key_file"
+            checkout="$(mktemp -d)"
+            GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes" \
+              git clone --depth 1 "git@github.com:${repository}.git" "$checkout"
+            mkdir -p "$checkout/$(dirname "$destination")"
+            cp "$rendered" "$checkout/$destination"
+            git -C "$checkout" config user.name "github-actions[bot]"
+            git -C "$checkout" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C "$checkout" add "$destination"
+            if git -C "$checkout" diff --cached --quiet; then
+              echo "$repository already carries Alera $RELEASE_VERSION"
+              rm -f "$key_file"
+              return 0
+            fi
+            git -C "$checkout" commit -m "alera $RELEASE_VERSION"
+            GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes" \
+              git -C "$checkout" push
+            rm -f "$key_file"
+          }
+          publish_manifest leynier/homebrew-tap "${HOMEBREW_TAP_DEPLOY_KEY:-}" \
+            packaging-out/homebrew/Casks/alera.rb Casks/alera.rb
+          publish_manifest leynier/scoop-bucket "${SCOOP_BUCKET_DEPLOY_KEY:-}" \
+            packaging-out/scoop/bucket/alera.json bucket/alera.json
+
+      - name: Upload the Chocolatey package source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: chocolatey-package
+          path: packaging-out/chocolatey/
+          retention-days: 1
+          if-no-files-found: error
+
+  # `choco pack` and `choco push` only run on a Windows runner in a supported
+  # configuration, so this is deliberately a second job rather than a step.
+  publish_chocolatey:
+    name: publish chocolatey
+    needs:
+      - plan
+      - publish_packages
+    if: >-
+      needs.plan.outputs.desktop_should_release == 'true' &&
+      needs.plan.outputs.channel == 'stable'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download the Chocolatey package source
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: chocolatey-package
+          path: chocolatey
+
+      - name: Pack and push the Chocolatey package
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CHOCOLATEY_API_KEY)) {
+            Write-Output "::warning::CHOCOLATEY_API_KEY is not configured; skipping the Chocolatey push."
+            exit 0
+          }
+          choco pack chocolatey/alera.nuspec --out chocolatey
+          $package = "chocolatey/alera.$env:RELEASE_VERSION.nupkg"
+          if (-not (Test-Path $package)) {
+            Write-Output "::error::Missing $package"
+            exit 1
+          }
+          choco push $package --source https://push.chocolatey.org/ `
+            --api-key $env:CHOCOLATEY_API_KEY

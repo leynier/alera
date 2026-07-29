@@ -2,6 +2,7 @@ import 'package:alera/src/features/app_window/application/app_window_providers.d
 import 'package:alera/src/features/updater/application/update_check_scheduler.dart';
 import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +25,15 @@ AleraUpdateService aleraUpdateService(Ref ref) {
   );
   ref.onDispose(service.dispose);
   return service;
+}
+
+/// The package manager that owns this installation, if any.
+///
+/// Read from the service so the detection stays in one place: the same value
+/// decides whether an update may be auto-installed and what Settings offers.
+@Riverpod(keepAlive: true)
+PackageManagerInstall packageManagerInstall(Ref ref) {
+  return ref.watch(aleraUpdateServiceProvider).packageInstall;
 }
 
 /// Nothing reads this provider's value: mounting it is what starts the

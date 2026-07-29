@@ -99,6 +99,68 @@ final class AleraUpdateServiceProvider
 String _$aleraUpdateServiceHash() =>
     r'39471705611dc7ed46547918ace9138b5dd92fbd';
 
+/// The package manager that owns this installation, if any.
+///
+/// Read from the service so the detection stays in one place: the same value
+/// decides whether an update may be auto-installed and what Settings offers.
+
+@ProviderFor(packageManagerInstall)
+final packageManagerInstallProvider = PackageManagerInstallProvider._();
+
+/// The package manager that owns this installation, if any.
+///
+/// Read from the service so the detection stays in one place: the same value
+/// decides whether an update may be auto-installed and what Settings offers.
+
+final class PackageManagerInstallProvider
+    extends
+        $FunctionalProvider<
+          PackageManagerInstall,
+          PackageManagerInstall,
+          PackageManagerInstall
+        >
+    with $Provider<PackageManagerInstall> {
+  /// The package manager that owns this installation, if any.
+  ///
+  /// Read from the service so the detection stays in one place: the same value
+  /// decides whether an update may be auto-installed and what Settings offers.
+  PackageManagerInstallProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'packageManagerInstallProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$packageManagerInstallHash();
+
+  @$internal
+  @override
+  $ProviderElement<PackageManagerInstall> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  PackageManagerInstall create(Ref ref) {
+    return packageManagerInstall(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PackageManagerInstall value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PackageManagerInstall>(value),
+    );
+  }
+}
+
+String _$packageManagerInstallHash() =>
+    r'3d966f40da8258def2939eab16af39fbd53658b4';
+
 /// Nothing reads this provider's value: mounting it is what starts the
 /// recurring check, so the app shell watches it to keep it alive.
 

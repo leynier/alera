@@ -5,7 +5,9 @@ import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_artifact_selector.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_handoff.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_stager.dart';
+import 'package:alera/src/features/updater/infra/package_manager_update_launcher.dart';
 import 'package:alera/src/features/updater/infra/update_archive.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/process/rust_process_runner.dart';
@@ -30,6 +32,8 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     String? resolvedExecutable,
     int? processId,
     AleraAppExit? exitApp,
+    PackageManagerInstall? packageInstall,
+    PackageManagerUpdateLauncher? packageManagerLauncher,
   }) : config = config ?? AleraUpdateConfig.fromEnvironment(),
        _client = client ?? http.Client(),
        _ownsClient = client == null,
@@ -38,6 +42,12 @@ class DesktopAleraUpdateService implements AleraUpdateService {
        _platform = platform ?? Platform.operatingSystem,
        _loadArtifactPreferences =
            loadArtifactPreferences ?? loadDesktopUpdateArtifactPreferences {
+    _packageInstall =
+        packageInstall ??
+        packageManagerInstallFromExecutablePath(
+          platform: _platform,
+          executablePath: resolvedExecutable ?? Platform.resolvedExecutable,
+        );
     _stager =
         stager ?? DesktopUpdateStager(client: _client, platform: _platform);
     _handoff =
@@ -46,6 +56,13 @@ class DesktopAleraUpdateService implements AleraUpdateService {
           processRunner: processRunner ?? const RustProcessRunner(),
           platform: _platform,
           resolvedExecutable: resolvedExecutable,
+          processId: processId,
+          exitApp: exitApp,
+        );
+    _packageManagerLauncher =
+        packageManagerLauncher ??
+        PackageManagerUpdateLauncher(
+          processRunner: processRunner ?? const RustProcessRunner(),
           processId: processId,
           exitApp: exitApp,
         );
@@ -68,7 +85,12 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   final DesktopUpdateArtifactPreferences _loadArtifactPreferences;
   late final AleraDesktopUpdateStager _stager;
   late final AleraDesktopUpdateHandoff _handoff;
+  late final PackageManagerInstall _packageInstall;
+  late final PackageManagerUpdateLauncher _packageManagerLauncher;
   StagedDesktopUpdate? _stagedUpdate;
+
+  @override
+  PackageManagerInstall get packageInstall => _packageInstall;
 
   @override
   Future<AleraUpdateCheckResult> checkForUpdates() async {
@@ -128,6 +150,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
         archive.schemaVersion >= 2 &&
         latest.sha256 != null &&
         latest.size != null &&
+        !_packageInstall.isPackageManaged &&
         _supportsAutomaticInstall(latest);
     if (autoInstallAllowed) {
       return AleraUpdateCheckResult(
@@ -139,7 +162,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
 
     return AleraUpdateCheckResult(
       latest: latest,
-      message: _manualUpdateMessage(config, archive, latest),
+      message: _manualUpdateMessage(config, archive, latest, _packageInstall),
     );
   }
 
@@ -150,6 +173,13 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   }) async {
     if (!config.canAutoInstall) {
       throw StateError('Automatic update installation is disabled.');
+    }
+    final manager = packageManagerLabel(_packageInstall.method);
+    if (manager != null) {
+      throw StateError(
+        'Alera does not replace an installation $manager owns. Upgrade '
+        'through $manager instead.',
+      );
     }
     if (update.platform == 'linux') {
       throw StateError(
@@ -173,8 +203,18 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   }
 
   @override
+  Future<void> upgradeThroughPackageManager() {
+    return _packageManagerLauncher.upgradeAndRestart(_packageInstall);
+  }
+
+  @override
   Future<void> openDownloadPage(AleraUpdateInfo? update) async {
-    final launched = await _launchUrl(config.downloadPageUrlFor(update));
+    // Sending someone to download a loose archive is the opposite of what the
+    // update copy tells them to do when a package manager owns the install.
+    final destination = _packageInstall.isPackageManaged
+        ? AleraUpdateConfig.installGuideUrl
+        : config.downloadPageUrlFor(update);
+    final launched = await _launchUrl(destination);
     if (!launched) {
       throw StateError('The release download page could not be opened.');
     }
@@ -219,7 +259,12 @@ String _manualUpdateMessage(
   AleraUpdateConfig config,
   AleraUpdateArchive archive,
   AleraUpdateInfo update,
+  PackageManagerInstall packageInstall,
 ) {
+  final manager = packageManagerLabel(packageInstall.method);
+  if (manager != null) {
+    return 'Update ${update.version} is available through $manager.';
+  }
   if (update.platform == 'linux' &&
       update.installerKind != 'deb' &&
       update.installerKind != 'rpm') {

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>alera</id>
+    <version>{{VERSION}}</version>
+    <packageSourceUrl>https://github.com/leynier/alera/tree/main/packaging/chocolatey</packageSourceUrl>
+    <owners>leynier</owners>
+    <title>Alera</title>
+    <authors>Leynier Gutierrez Gonzalez</authors>
+    <projectUrl>https://alera.build/</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/leynier/alera@{{TAG}}/assets/logo/alera-logo-desktop.png</iconUrl>
+    <copyright>2026 Leynier Gutierrez Gonzalez</copyright>
+    <licenseUrl>https://github.com/leynier/alera/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/leynier/alera</projectSourceUrl>
+    <docsUrl>https://github.com/leynier/alera#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/leynier/alera/issues</bugTrackerUrl>
+    <tags>alera terminal git worktree agents ide developer-tools foss</tags>
+    <summary>Native agentic development environment for terminals, worktrees, and CLI agents.</summary>
+    <description><![CDATA[
+Alera is a native, performance-first agentic development environment.
+
+Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor or any
+other CLI agent side by side, each in its own Git worktree, all tracked in one place.
+
+Built with Flutter, Rust, and the Ghostty terminal engine. No Electron and no bundled
+Chromium.
+
+Alera does not update itself when Chocolatey owns the installation. Upgrade with:
+
+    choco upgrade alera -y
+]]></description>
+    <releaseNotes>https://github.com/leynier/alera/releases/tag/{{TAG}}</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

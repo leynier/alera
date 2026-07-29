@@ -1,4 +1,5 @@
 import 'package:alera/src/core/build_flavor.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:meta/meta.dart';
 
@@ -177,6 +178,32 @@ String? linuxPackageUpgradeCommand({
     'deb' => 'sudo apt-get update && sudo apt-get install --only-upgrade alera',
     'rpm' => 'sudo dnf upgrade alera',
     _ => null,
+  };
+}
+
+/// The command that upgrades Alera through whatever package manager owns it.
+///
+/// Subsumes [linuxPackageUpgradeCommand]: on Linux the manager is inferred from
+/// the artifact Alera would have downloaded, everywhere else from where the
+/// running executable lives. Release candidates return null on every platform,
+/// because they are published as GitHub assets and never reach a package
+/// manager, so telling someone to run an upgrade would only report no change.
+String? packageManagerUpgradeCommand({
+  required AleraUpdateInfo? update,
+  required AleraUpdateChannel channel,
+  required PackageInstallMethod installMethod,
+}) {
+  if (channel != AleraUpdateChannel.stable) {
+    return null;
+  }
+  return switch (installMethod) {
+    PackageInstallMethod.homebrewCask => 'brew upgrade --cask alera',
+    PackageInstallMethod.scoop => 'scoop update alera',
+    PackageInstallMethod.chocolatey => 'choco upgrade alera -y',
+    PackageInstallMethod.unmanaged => linuxPackageUpgradeCommand(
+      update: update,
+      channel: channel,
+    ),
   };
 }
 
