@@ -126,10 +126,12 @@ void main() {
     await tester.ensureVisible(workspaceRow);
     await tester.pumpAndSettle();
     await tester.tap(workspaceRow);
-    await _pumpUntilFound(tester, find.byTooltip('New Terminal'));
+    await _pumpUntilFound(tester, find.byTooltip('New Tab'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 
-    await tester.tap(find.byTooltip('New Terminal').first);
+    await tester.tap(find.byTooltip('New Tab').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Terminal'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 2'));
 
     expect(
