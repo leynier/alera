@@ -21,8 +21,9 @@ Future<void> _pumpWorkbenchView(
   Size size = const Size(420, 280),
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
+  FakeBrowserEngine? providedBrowserEngine,
 }) async {
-  final browserEngine = FakeBrowserEngine();
+  final browserEngine = providedBrowserEngine ?? FakeBrowserEngine();
   final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
   addTearDown(browserEngine.dispose);
   await tester.pumpWidget(
@@ -166,13 +167,11 @@ WorkspaceTabRecord _tab(
   String? filePath,
   bool mermanPreview = false,
 }) {
-  final payload = filePath == null
-      ? const <String, Object?>{}
-      : <String, Object?>{
-          workspaceTabFilePathPayloadKey: filePath,
-          if (mermanPreview)
-            workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
-        };
+  final payload = <String, Object?>{
+    workspaceTabFilePathPayloadKey: ?filePath,
+    if (mermanPreview)
+      workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
+  };
   return WorkspaceTabRecord(
     id: id,
     workspaceId: _workspaceId,

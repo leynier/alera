@@ -111,41 +111,16 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
   Future<T> _withFlutterOverlay<T>(
     _BrowserSessionEntry entry,
     Future<T> Function() operation,
-  ) {
-    return _runCommand<T>(entry, BrowserLifecycleReason.overlay, () async {
-      final firstOverlay = entry.overlayCount++ == 0;
-      try {
-        if (firstOverlay) {
-          await _queueOverlay(
-            entry,
-            () => _engine.setPageObscured(entry.pageId, obscured: true),
-          );
-        } else {
-          await entry.overlayTail;
-        }
-        return await operation();
-      } finally {
-        if (entry.overlayCount > 0) {
-          entry.overlayCount -= 1;
-        }
-        if (entry.overlayCount == 0) {
-          await _queueOverlay(
-            entry,
-            () => _engine.setPageObscured(entry.pageId, obscured: false),
-          );
-        }
-      }
-    }, serialized: false);
-  }
-
-  Future<void> _queueOverlay(
-    _BrowserSessionEntry entry,
-    Future<void> Function() operation,
-  ) {
-    final next = entry.overlayTail
-        .catchError((Object _) {})
-        .then((_) => operation());
-    entry.overlayTail = next;
-    return next;
+  ) async {
+    final obscuration = _acquireObscuration(
+      entry,
+      BrowserObscurationReason.overlay,
+    );
+    try {
+      await obscuration.ready;
+      return await operation();
+    } finally {
+      await obscuration.dispose();
+    }
   }
 }

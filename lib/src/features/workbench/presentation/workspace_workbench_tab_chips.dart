@@ -33,6 +33,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tabDragController = _WorkbenchTabDragScope.controllerOf(context);
     // peek, not sessionFor: building a handle here allocated a full xterm
     // buffer for every tab of the active workspace, including ones the user
     // never opened. Selecting the tab is what actually needs a session.
@@ -50,6 +51,9 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: AleraTokens.space8),
       child: Draggable<_WorkspaceTabDragData>(
+        onDragStarted: tabDragController.begin,
+        onDragEnd: (_) => tabDragController.finishAfterLayout(),
+        onDraggableCanceled: (_, _) => tabDragController.finishAfterLayout(),
         data: _WorkspaceTabDragData(
           workspaceId: workspace.id,
           sourceGroupId: groupId,

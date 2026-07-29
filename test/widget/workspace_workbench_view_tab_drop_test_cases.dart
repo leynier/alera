@@ -31,6 +31,137 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+    'obscures every browser page while dragging any tab and restores on exit',
+    (tester) async {
+      final firstBrowser = _tab(
+        'browser-1',
+        title: 'Browser 1',
+        kind: WorkspaceTabKind.browser,
+      );
+      final terminal = _tab('terminal-1', title: 'Terminal');
+      final secondBrowser = _tab(
+        'browser-2',
+        title: 'Browser 2',
+        kind: WorkspaceTabKind.browser,
+      );
+      final tabs = <WorkspaceTabRecord>[firstBrowser, terminal, secondBrowser];
+      final browserEngine = FakeBrowserEngine();
+      final layout = WorkbenchLayout(
+        workspaceId: _workspaceId,
+        root: WorkbenchLayoutNode.split(
+          axis: WorkbenchSplitAxis.horizontal,
+          ratio: 0.5,
+          first: WorkbenchLayoutNode.leaf('group-a'),
+          second: WorkbenchLayoutNode.leaf('group-b'),
+        ),
+        groups: <String, WorkbenchPaneGroup>{
+          'group-a': WorkbenchPaneGroup(
+            id: 'group-a',
+            tabIds: <String>[firstBrowser.id, terminal.id],
+            activeTabId: firstBrowser.id,
+          ),
+          'group-b': WorkbenchPaneGroup(
+            id: 'group-b',
+            tabIds: <String>[secondBrowser.id],
+            activeTabId: secondBrowser.id,
+          ),
+        },
+        activeGroupId: 'group-a',
+      );
+
+      await _pumpWorkbenchView(
+        tester,
+        tabs: tabs,
+        terminalRuntime: terminalRuntime,
+        layout: layout,
+        createdTabs: createdTabs,
+        selectedTabs: selectedTabs,
+        closedTabs: closedTabs,
+        closedTabGroups: closedTabGroups,
+        renamedTabs: renamedTabs,
+        movedTabs: movedTabs,
+        splitGroups: splitGroups,
+        mergedGroups: mergedGroups,
+        updatedRatios: updatedRatios,
+        providedBrowserEngine: browserEngine,
+        size: const Size(900, 420),
+      );
+      await tester.pumpAndSettle();
+
+      const placeholderKey = ValueKey<String>('browser-tab-drag-placeholder');
+      expect(find.byKey(placeholderKey), findsNothing);
+      expect(find.text('Search Or Enter Address'), findsNWidgets(2));
+
+      final terminalDraggable = find.ancestor(
+        of: find.text('Terminal'),
+        matching: draggableTabs(),
+      );
+      var gesture = await tester.startGesture(
+        tester.getTopLeft(terminalDraggable) + grabDelta,
+      );
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 80));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byKey(placeholderKey), findsNWidgets(2));
+      expect(find.text('Browser Temporarily Hidden'), findsNWidgets(2));
+      expect(find.text('Search Or Enter Address'), findsNWidgets(2));
+      expect(
+        browserEngine.calls
+            .where(
+              (call) => call.startsWith('obscured:') && call.endsWith(':true'),
+            )
+            .toSet(),
+        <String>{'obscured:browser-1:true', 'obscured:browser-2:true'},
+      );
+
+      await gesture.moveTo(const Offset(2, 2));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(placeholderKey), findsNothing);
+      expect(
+        browserEngine.calls
+            .where(
+              (call) => call.startsWith('obscured:') && call.endsWith(':false'),
+            )
+            .toSet(),
+        <String>{'obscured:browser-1:false', 'obscured:browser-2:false'},
+      );
+
+      gesture = await tester.startGesture(
+        tester.getTopLeft(terminalDraggable) + grabDelta,
+      );
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 80));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(placeholderKey), findsNWidgets(2));
+
+      final secondBrowserChip = find.text('Browser 2');
+      await dropAt(tester, gesture, tester.getCenter(secondBrowserChip));
+
+      expect(find.byKey(placeholderKey), findsNothing);
+      expect(movedTabs, isNotEmpty);
+      expect(
+        browserEngine.calls
+            .where(
+              (call) => call.startsWith('obscured:') && call.endsWith(':true'),
+            )
+            .length,
+        4,
+      );
+      expect(
+        browserEngine.calls
+            .where(
+              (call) => call.startsWith('obscured:') && call.endsWith(':false'),
+            )
+            .length,
+        4,
+      );
+    },
+  );
+
   testWidgets('dropping on the right half of a chip reorders the tab', (
     tester,
   ) async {

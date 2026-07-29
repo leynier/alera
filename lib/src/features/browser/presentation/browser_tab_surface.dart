@@ -11,6 +11,7 @@ import 'package:alera/src/features/browser/presentation/browser_downloads_dialog
 import 'package:alera/src/features/browser/presentation/browser_page_body.dart';
 import 'package:alera/src/features/browser/presentation/browser_profile_picker_dialog.dart';
 import 'package:alera/src/features/browser/presentation/browser_security_dialog.dart';
+import 'package:alera/src/features/browser/presentation/browser_tab_drag_placeholder.dart';
 import 'package:alera/src/features/browser/presentation/browser_toolbar.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -26,10 +27,12 @@ class BrowserTabSurface extends ConsumerStatefulWidget {
     super.key,
     required this.tab,
     this.autofocus = false,
+    this.pageObscured = false,
   });
 
   final WorkspaceTabRecord tab;
   final bool autofocus;
+  final bool pageObscured;
 
   @override
   ConsumerState<BrowserTabSurface> createState() => _BrowserTabSurfaceState();
@@ -41,9 +44,12 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
   Future<BrowserSessionHandle>? _session;
   List<BrowserProfile> _profileValues = const <BrowserProfile>[];
   BrowserVisibilityLease? _visibility;
+  BrowserObscurationLease? _obscuration;
   Object? _sessionIdentity;
   bool _wantsNativeVisibility = false;
+  bool _wantsNativeObscuration = false;
   final Set<Object> _visibilityAcquisitions = <Object>{};
+  final Set<Object> _obscurationAcquisitions = <Object>{};
 
   @override
   void initState() {
@@ -66,7 +72,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     if (oldWidget.tab.id != widget.tab.id ||
         oldWidget.tab.workspaceId != widget.tab.workspaceId ||
         oldWidget.tab.browserProfileId != widget.tab.browserProfileId) {
-      unawaited(_releaseVisibility());
+      unawaited(_releasePresentation());
       _session = _loadSession();
       unawaited(_loadProfiles());
     }
@@ -74,7 +80,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
 
   @override
   void dispose() {
-    unawaited(_releaseVisibility());
+    unawaited(_releasePresentation());
     _addressController.dispose();
     _addressFocusNode.dispose();
     super.dispose();
@@ -120,12 +126,18 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     return values;
   }
 
-  Future<void> _releaseVisibility() async {
+  Future<void> _releasePresentation() async {
     _wantsNativeVisibility = false;
+    _wantsNativeObscuration = false;
     _sessionIdentity = null;
     final visibility = _visibility;
+    final obscuration = _obscuration;
     _visibility = null;
-    await visibility?.dispose();
+    _obscuration = null;
+    await Future.wait(<Future<void>>[
+      if (visibility != null) visibility.dispose(),
+      if (obscuration != null) obscuration.dispose(),
+    ]);
   }
 
   @override
@@ -158,6 +170,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
               handle,
               browserStateShowsNativeSurface(state) && routeIsCurrent,
             );
+            _syncNativeObscuration(handle, widget.pageObscured);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -191,13 +204,22 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                 ),
                 const Divider(height: AleraTokens.dividerExtent),
                 Expanded(
-                  child: BrowserPageBody(
-                    state: state,
-                    surface: _BrowserNativePageSurface(pageId: handle.pageId),
-                    onRetry: () => _runCommand(handle.reload),
-                    onOpenExternally: canOpenBrowserUrlExternally(state.url)
-                        ? () => _openExternally(state.url)
-                        : null,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      BrowserPageBody(
+                        state: state,
+                        surface: _BrowserNativePageSurface(
+                          pageId: handle.pageId,
+                        ),
+                        onRetry: () => _runCommand(handle.reload),
+                        onOpenExternally: canOpenBrowserUrlExternally(state.url)
+                            ? () => _openExternally(state.url)
+                            : null,
+                      ),
+                      if (widget.pageObscured)
+                        const BrowserTabDragPlaceholder(),
+                    ],
                   ),
                 ),
               ],
@@ -243,6 +265,45 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
         await lease.dispose();
       } finally {
         _visibilityAcquisitions.remove(identity);
+      }
+    }());
+  }
+
+  void _syncNativeObscuration(
+    BrowserSessionHandle handle,
+    bool shouldBeObscured,
+  ) {
+    _wantsNativeObscuration = shouldBeObscured;
+    if (!shouldBeObscured) {
+      final obscuration = _obscuration;
+      _obscuration = null;
+      if (obscuration != null) {
+        unawaited(obscuration.dispose());
+      }
+      return;
+    }
+    if (_obscuration != null) {
+      return;
+    }
+    final identity = _sessionIdentity;
+    if (identity == null || !_obscurationAcquisitions.add(identity)) {
+      return;
+    }
+    final lease = handle.acquireObscuration(BrowserObscurationReason.tabDrag);
+    unawaited(() async {
+      try {
+        await lease.ready;
+        if (!mounted ||
+            !_wantsNativeObscuration ||
+            !identical(_sessionIdentity, identity)) {
+          await lease.dispose();
+        } else {
+          _obscuration = lease;
+        }
+      } catch (_) {
+        await lease.dispose();
+      } finally {
+        _obscurationAcquisitions.remove(identity);
       }
     }());
   }
@@ -323,7 +384,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     WorkspaceTabRecord tab, {
     bool reconcileIdentity = false,
   }) async {
-    await _releaseVisibility();
+    await _releasePresentation();
     if (!mounted) {
       return;
     }
