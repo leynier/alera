@@ -27,6 +27,13 @@ void _handleTerminalPrivateOsc(
   handle._osc8LinkTracker.handlePrivateOsc(code, args);
 }
 
+void _pasteTerminalText(_XtermTerminalSessionHandle handle, String text) {
+  if (handle._disposed || text.isEmpty) {
+    return;
+  }
+  handle._terminal.paste(text);
+}
+
 Future<void> _pasteTerminalClipboard(_XtermTerminalSessionHandle handle) async {
   String? text;
   try {
@@ -38,7 +45,7 @@ Future<void> _pasteTerminalClipboard(_XtermTerminalSessionHandle handle) async {
     return;
   }
   if (text != null && text.isNotEmpty) {
-    handle._terminal.paste(text);
+    _pasteTerminalText(handle, text);
     return;
   }
   try {

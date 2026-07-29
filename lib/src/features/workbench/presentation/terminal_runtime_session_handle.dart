@@ -639,12 +639,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void pasteText(String text) {
-    if (_disposed || text.isEmpty) {
-      return;
-    }
-    _terminal.paste(text);
-  }
+  void pasteText(String text) => _pasteTerminalText(this, text);
 
   @override
   void dispose({bool terminatePty = true}) {
