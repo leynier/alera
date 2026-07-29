@@ -1,6 +1,6 @@
 # Alera Cloud Operations
 
-This runbook deploys and operates the account and push service described in [`cloud-backend.md`](cloud-backend.md). Production is `api.alera.build`; local development uses the Docker Compose Postgres service in `cloud/`. There is no staging environment in the initial cost-minimized deployment.
+This runbook deploys and operates the account and push service described in [`cloud-backend.md`](cloud-backend.md). Complete the account, provider, credential, and first-deployment checklist in [`cloud-setup.md`](cloud-setup.md) before using this operational runbook. Production is `api.alera.build`; local development uses the Docker Compose Postgres service in `cloud/`. There is no staging environment in the initial cost-minimized deployment.
 
 ## Required Accounts And Tools
 
