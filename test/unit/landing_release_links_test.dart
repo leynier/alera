@@ -62,6 +62,15 @@ void main() {
 
       expect(workflow, contains('publish_manifest leynier/homebrew-tap'));
       expect(workflow, contains('publish_manifest leynier/scoop-bucket'));
+      // One deploy key per destination, never an account-wide token: a key that
+      // leaks or needs rotating must not reach the rest of the account.
+      expect(workflow, contains('ALERA_HOMEBREW_TAP_DEPLOY_KEY'));
+      expect(workflow, contains('ALERA_SCOOP_BUCKET_DEPLOY_KEY'));
+      expect(
+        workflow,
+        isNot(contains('StrictHostKeyChecking=accept-new')),
+        reason: 'the host keys are pinned from api.github.com/meta instead',
+      );
       expect(
         page,
         contains('https://github.com/leynier/scoop-bucket'),

@@ -1101,21 +1101,35 @@ jobs:
 
       - name: Publish the Homebrew cask and the Scoop manifest
         env:
-          ALERA_PACKAGES_TOKEN: ${{ secrets.ALERA_PACKAGES_TOKEN }}
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.ALERA_HOMEBREW_TAP_DEPLOY_KEY }}
+          SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.ALERA_SCOOP_BUCKET_DEPLOY_KEY }}
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
-          if [[ -z "${ALERA_PACKAGES_TOKEN:-}" ]]; then
-            echo "::warning::ALERA_PACKAGES_TOKEN is not configured; skipping the Homebrew tap and Scoop bucket."
-            exit 0
-          fi
+          # Pin GitHub's SSH host keys from an endpoint TLS already authenticates
+          # rather than trusting the first connection. A runner that accepted a
+          # forged host key would push the manifest somewhere else and still
+          # report success, which is the failure nobody would notice.
+          mkdir -p ~/.ssh
+          curl -fsSL https://api.github.com/meta |
+            python3 -c 'import json,sys; print("\n".join(f"github.com {k}" for k in json.load(sys.stdin)["ssh_keys"]))' \
+            >>~/.ssh/known_hosts
+
+          # Each repository gets its own deploy key rather than one account-wide
+          # token, so a key that leaks or needs rotating reaches nothing else.
           publish_manifest() {
-            local repository="$1" rendered="$2" destination="$3"
-            local checkout
+            local repository="$1" key_value="$2" rendered="$3" destination="$4"
+            if [[ -z "$key_value" ]]; then
+              echo "::warning::No deploy key is configured for $repository; skipping it."
+              return 0
+            fi
+            local key_file checkout
+            key_file="$(mktemp)"
+            chmod 600 "$key_file"
+            printf '%s\n' "$key_value" >"$key_file"
             checkout="$(mktemp -d)"
-            git clone --depth 1 \
-              "https://x-access-token:${ALERA_PACKAGES_TOKEN}@github.com/${repository}.git" \
-              "$checkout"
+            GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes" \
+              git clone --depth 1 "git@github.com:${repository}.git" "$checkout"
             mkdir -p "$checkout/$(dirname "$destination")"
             cp "$rendered" "$checkout/$destination"
             git -C "$checkout" config user.name "github-actions[bot]"
@@ -1123,14 +1137,17 @@ jobs:
             git -C "$checkout" add "$destination"
             if git -C "$checkout" diff --cached --quiet; then
               echo "$repository already carries Alera $RELEASE_VERSION"
+              rm -f "$key_file"
               return 0
             fi
             git -C "$checkout" commit -m "alera $RELEASE_VERSION"
-            git -C "$checkout" push
+            GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes" \
+              git -C "$checkout" push
+            rm -f "$key_file"
           }
-          publish_manifest leynier/homebrew-tap \
+          publish_manifest leynier/homebrew-tap "${HOMEBREW_TAP_DEPLOY_KEY:-}" \
             packaging-out/homebrew/Casks/alera.rb Casks/alera.rb
-          publish_manifest leynier/scoop-bucket \
+          publish_manifest leynier/scoop-bucket "${SCOOP_BUCKET_DEPLOY_KEY:-}" \
             packaging-out/scoop/bucket/alera.json bucket/alera.json
 
       - name: Upload the Chocolatey package source
