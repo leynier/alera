@@ -2,6 +2,8 @@
 
 Alera keeps terminal dependency fixes reproducible through submodules while the fixes are released from maintained forks or reviewed upstream.
 
+The `ghostty_vte` package names remain owned and published by the upstream project on pub.dev. Alera consumes the maintained fork only through the path overrides in `pubspec.yaml`; the fork's GitHub releases supply the matching native artifacts.
+
 ## Pattern
 
 - Create a fork under `leynier/*`.
