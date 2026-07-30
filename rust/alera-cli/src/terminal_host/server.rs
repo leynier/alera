@@ -48,6 +48,10 @@ use resource_requests::ResourceMonitorState;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
+mod agent_profile_launch_requests;
+mod ai_text_grok_plan;
+mod ai_text_requests;
+mod ai_text_workspace_identity;
 mod browser_artifact_requests;
 mod browser_artifact_store;
 mod browser_broker;
@@ -520,6 +524,11 @@ impl ServerActor {
                 self.handle_workspace_setup_finished(client_id, request_id, result)
                     .await
             }
+            ServerCommand::AiTextGenerationFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_ai_text_generation_finished(client_id, request_id, result),
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,

@@ -113,6 +113,7 @@ impl ServerActor {
             DEFAULT_TERMINAL_ROWS,
             initial_scrollback,
             initial_output_stream_bytes,
+            pending_agent_type(tab),
         )
         .await?;
         let managed_launch = initial_managed_agent_launch(tab)?;
@@ -157,6 +158,9 @@ impl ServerActor {
             if delivers_initial_command_once(tab) {
                 return Ok(self.clear_initial_command(tab).await);
             }
+            if delivers_initial_prompt_once(tab) {
+                return Ok(self.clear_initial_prompt(tab).await);
+            }
         }
         Ok(None)
     }
@@ -181,6 +185,26 @@ impl ServerActor {
         }
     }
 
+    async fn clear_initial_prompt(
+        &mut self,
+        tab: &WorkspaceTabRecord,
+    ) -> Option<WorkspaceTabRecord> {
+        let mut next = tab.clone();
+        let payload = next.payload.as_object_mut()?;
+        payload.remove("initialPrompt");
+        payload.remove("initialPromptOnce");
+        match self.runtime_store.upsert_workspace_tab(next).await {
+            Ok(saved) => Some(saved),
+            Err(error) => {
+                tracing::error!(
+                    tab_id = %tab.id,
+                    "failed to clear one-shot initial agent prompt: {error}"
+                );
+                None
+            }
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) async fn start_new_terminal_session(
         &mut self,
@@ -193,12 +217,16 @@ impl ServerActor {
         rows: u16,
         initial_scrollback: Vec<u8>,
         initial_output_stream_bytes: u64,
+        forced_agent_hook: Option<&str>,
     ) -> HostResult<()> {
-        let agent_settings = self
+        let mut agent_settings = self
             .runtime_store
             .agent_status_hook_settings()
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        if let Some(agent) = forced_agent_hook {
+            agent_settings.set_enabled(agent, true);
+        }
         let runtime_dir = self.runtime_dir.clone();
         let launch_session_id = session_id.clone();
         let launch_workspace_id = workspace_id.clone();
@@ -406,10 +434,24 @@ fn delivers_initial_command_once(tab: &WorkspaceTabRecord) -> bool {
         == Some(true)
 }
 
+fn delivers_initial_prompt_once(tab: &WorkspaceTabRecord) -> bool {
+    tab.payload
+        .get("initialPromptOnce")
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
 fn initial_prompt(tab: &WorkspaceTabRecord) -> Option<String> {
     tab.payload
         .get("initialPrompt")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
+}
+
+fn pending_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
+    tab.payload
+        .pointer("/pendingAgentPrompt/agent")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
 }

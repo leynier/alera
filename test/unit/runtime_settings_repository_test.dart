@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -19,6 +20,10 @@ void main() {
       final payload = client.payloads['runtimeSettings.update']!.single;
       expect(payload['agentStatusHooks'], isA<Map<String, Object?>>());
       expect(payload['agentQuotas'], isA<Map<String, Object?>>());
+      expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
+      final aiText = payload['aiTextGeneration']! as Map<String, Object?>;
+      expect(aiText['agent'], 'codex');
+      expect(aiText, isNot(contains('discoveredModelsByAgent')));
       expect(
         (payload['agentQuotas']! as Map<String, Object?>)['enabledProviders'],
         <String>[
@@ -73,6 +78,60 @@ void main() {
       expect(local.claudeDefaultEnabled, isFalse);
       expect(local.selectedClaudeProfile, 'leynierdev');
       expect(local.unpinnedQuotaKeys, <String>['codex', 'claude:leynierdev']);
+    },
+  );
+
+  test(
+    'load combines shared AI Text execution settings with local discovery',
+    () async {
+      final legacyRepository = _MemorySettingsRepository();
+      legacyRepository.settings = AleraSettings.defaults.copyWith(
+        aiTextGeneration: const AiTextGenerationSettings(
+          discoveredModelsByAgent:
+              <AiTextGenerationAgent, List<AiTextDiscoveredModel>>{
+                AiTextGenerationAgent.codex: <AiTextDiscoveredModel>[
+                  AiTextDiscoveredModel(
+                    id: 'local-model',
+                    label: 'Local Model',
+                  ),
+                ],
+              },
+        ),
+      );
+      final client = _RecordingRuntimeHostClient();
+      client.responses['runtimeSettings.get'] = <String, Object?>{
+        'workspaceDirectory': '/tmp/workspaces',
+        'aiTextGeneration': <String, Object?>{
+          'enabled': true,
+          'agent': 'claude',
+          'selectedModelByAgent': <String, String>{'claude': 'opus'},
+          'instructionsByOperation': <String, String>{
+            'workspaceIdentity': 'Use feature branches.',
+          },
+          'timeoutSeconds': 180,
+        },
+      };
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacyRepository,
+      );
+
+      final loaded = await repository.load();
+
+      expect(loaded.aiTextGeneration.agent, AiTextGenerationAgent.claude);
+      expect(
+        loaded.aiTextGeneration.instructionsFor(
+          AiTextGenerationOperation.workspaceIdentity,
+        ),
+        'Use feature branches.',
+      );
+      expect(
+        loaded.aiTextGeneration
+            .discoveredModelsFor(AiTextGenerationAgent.codex)
+            .single
+            .id,
+        'local-model',
+      );
     },
   );
 }

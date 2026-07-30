@@ -155,6 +155,12 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<bool> {
         match request_type {
+            "aiText.workspaceIdentity.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
@@ -977,7 +983,18 @@ impl ServerActor {
             }
             "agentProfile.list" => {
                 self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
                 self.agent_profile_list().await
+            }
+            "agentProfile.launch" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.launch_agent_profile(payload).await
+            }
+            "aiText.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.cancel_ai_text_generation(payload)
             }
             "agentProfile.upsert" => {
                 self.require_auth(client_id)?;

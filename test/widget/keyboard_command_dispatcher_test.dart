@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
@@ -18,6 +20,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'keyboard_command_dispatcher_test_harness.dart';
+
+class _DispatcherAgentProfiles extends AgentProfiles {
+  @override
+  Future<List<AgentProfile>> build() async => const <AgentProfile>[];
+}
 
 void main() {
   testWidgets('split command stays safe after the dispatcher host unmounts', (
@@ -333,6 +340,6 @@ void main() {
 
     dispatcher.dispatch(KeyboardActionId.createWorkspace);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
+    expect(find.text('From Prompt'), findsOneWidget);
   });
 }

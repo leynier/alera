@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
@@ -24,6 +25,15 @@ class RuntimeSettingsRepository implements SettingsRepository {
         return legacy;
       }
       final legacyLocalQuotas = legacy.agents.quotas.forHost('local');
+      final runtimeAiText = _asMap(runtime['aiTextGeneration']);
+      final sharedAiText = runtimeAiText.isEmpty
+          ? legacy.aiTextGeneration
+          : AiTextGenerationSettings.fromJson(runtimeAiText).copyWith(
+              discoveredModelsByAgent:
+                  legacy.aiTextGeneration.discoveredModelsByAgent,
+              discoveredDefaultModelByAgent:
+                  legacy.aiTextGeneration.discoveredDefaultModelByAgent,
+            );
       return legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
@@ -51,6 +61,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
             ),
           ),
         ),
+        aiTextGeneration: sharedAiText,
       );
     } catch (_) {
       return legacy;
@@ -67,8 +78,27 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
       'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
+      'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
     });
   }
+}
+
+Map<String, Object?> _runtimeAiTextSettings(AiTextGenerationSettings settings) {
+  return <String, Object?>{
+    'enabled': settings.enabled,
+    'agent': settings.agent.key,
+    'selectedModelByAgent': <String, String>{
+      for (final entry in settings.selectedModelByAgent.entries)
+        entry.key.key: entry.value,
+    },
+    'selectedThinkingByModel': settings.selectedThinkingByModel,
+    'customCommand': settings.customCommand,
+    'instructionsByOperation': <String, String>{
+      for (final entry in settings.instructionsByOperation.entries)
+        entry.key.key: entry.value,
+    },
+    'timeoutSeconds': settings.timeoutSeconds,
+  };
 }
 
 Map<String, Object?> _asMap(Object? value) {

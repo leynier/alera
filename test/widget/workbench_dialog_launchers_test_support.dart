@@ -3,6 +3,8 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -24,6 +26,9 @@ Future<void> pumpFlowHarness(
     ProviderScope(
       overrides: [
         workbenchControllerProvider.overrideWith(() => controller),
+        agentProfilesProvider.overrideWith(
+          () => DialogLaunchersAgentProfiles(),
+        ),
         gitBackendProvider.overrideWithValue(FakeGitBackend()),
         settingsControllerProvider.overrideWith(
           () => DialogLaunchersSettingsController(AleraSettings.defaults),
@@ -51,6 +56,11 @@ Future<void> pumpFlowHarness(
     ),
   );
   await tester.pump();
+}
+
+class DialogLaunchersAgentProfiles extends AgentProfiles {
+  @override
+  Future<List<AgentProfile>> build() async => const <AgentProfile>[];
 }
 
 Project buildProject(

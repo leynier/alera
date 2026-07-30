@@ -10,7 +10,7 @@ void _registerAleraShellSidebarActionTests() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
+      expect(find.text('From Prompt'), findsOneWidget);
     },
   );
 
@@ -661,7 +661,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
+    expect(find.text('From Prompt'), findsOneWidget);
   });
 
   testWidgets('project context menu can open the create workspace dialog', (
@@ -681,6 +681,6 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
+    expect(find.text('From Prompt'), findsOneWidget);
   });
 }
