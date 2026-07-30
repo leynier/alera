@@ -134,3 +134,31 @@ jobs:
       - name: Test Plan Guard
         working-directory: tool/cloud
         run: python3 -m unittest -v test_validate_tofu_plan.py
+
+  cloud-ready:
+    name: cloud-ready
+    if: always()
+    needs:
+      - backend
+      - edge
+      - infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require cloud checks
+        shell: bash
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          EDGE_RESULT: ${{ needs.edge.result }}
+          INFRASTRUCTURE_RESULT: ${{ needs.infrastructure.result }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for result_name in BACKEND_RESULT EDGE_RESULT INFRASTRUCTURE_RESULT; do
+            result="${!result_name}"
+            if [ "$result" != "success" ]; then
+              echo "::error::${result_name} was ${result}"
+              failed=1
+            fi
+          done
+          exit "$failed"

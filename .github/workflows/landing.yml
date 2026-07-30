@@ -36,3 +36,22 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  landing-ready:
+    name: landing-ready
+    if: always()
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require landing checks
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          set -euo pipefail
+          if [ "$BUILD_RESULT" != "success" ]; then
+            echo "::error::BUILD_RESULT was ${BUILD_RESULT}"
+            exit 1
+          fi
