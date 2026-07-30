@@ -74,6 +74,7 @@ keyring = { version = "3.6.3", features = [
     "windows-native",
     "sync-secret-service",
     "crypto-rust",
+    "vendored",
 ] }
 
 # Signalling a PTY shell's descendants. Already in the tree through
