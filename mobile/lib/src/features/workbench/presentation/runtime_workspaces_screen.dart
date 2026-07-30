@@ -241,6 +241,7 @@ class _WorkspaceListBody extends ConsumerWidget {
       prefs: prefs,
       activity: data.activity,
       agentPresence: data.agentPresence,
+      terminalTabCountByWorkspaceId: data.terminalTabCountByWorkspaceId,
       searchQuery: ref.watch(workspaceSearchControllerProvider(hostId)),
     );
     final prefsController = ref.read(

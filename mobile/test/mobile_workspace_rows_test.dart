@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -5,14 +6,36 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dar
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Activity sort matches desktop urgency before shared recency', () {
+  test('Activity sort ranks terminals first and inactive names last', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(
       workspaces: <WorkspaceSummary>[
-        _workspace('idle', now.subtract(const Duration(minutes: 1))),
-        _workspace('working', now.subtract(const Duration(minutes: 4))),
-        _workspace('done', now.subtract(const Duration(minutes: 3))),
-        _workspace('waiting', now.subtract(const Duration(minutes: 2))),
+        _workspace('inactive-zebra', now, name: 'zebra'),
+        _workspace(
+          'idle-terminal',
+          now.subtract(const Duration(minutes: 1)),
+          name: 'idle',
+        ),
+        _workspace(
+          'working',
+          now.subtract(const Duration(minutes: 4)),
+          name: 'working',
+        ),
+        _workspace(
+          'done',
+          now.subtract(const Duration(minutes: 3)),
+          name: 'done',
+        ),
+        _workspace(
+          'waiting',
+          now.subtract(const Duration(minutes: 2)),
+          name: 'waiting',
+        ),
+        _workspace(
+          'inactive-alpha',
+          now.subtract(const Duration(days: 1)),
+          name: 'alpha',
+        ),
       ],
       projects: const [],
       prefs: const MobileViewPrefs(
@@ -20,7 +43,8 @@ void main() {
         workspaceSort: MobileWorkbenchSortBy.activity,
       ),
       activity: <String, DateTime>{
-        'idle': now,
+        'inactive-zebra': now,
+        'idle-terminal': now.subtract(const Duration(minutes: 1)),
         'working': now.subtract(const Duration(minutes: 4)),
         'done': now.subtract(const Duration(minutes: 3)),
         'waiting': now.subtract(const Duration(minutes: 2)),
@@ -38,13 +62,21 @@ void main() {
           now.subtract(const Duration(minutes: 2)),
         ),
       ],
+      terminalTabCountByWorkspaceId: const <String, int>{'idle-terminal': 1},
       now: now,
     );
 
-    expect(_workspaceIds(rows), <String>['waiting', 'done', 'working', 'idle']);
+    expect(_workspaceIds(rows), <String>[
+      'waiting',
+      'done',
+      'working',
+      'idle-terminal',
+      'inactive-alpha',
+      'inactive-zebra',
+    ]);
   });
 
-  test('Stale presence falls back to shared activity', () {
+  test('Stale presence keeps its terminal ahead of inactive workspaces', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(
       workspaces: <WorkspaceSummary>[
@@ -63,16 +95,111 @@ void main() {
       now: now,
     );
 
-    expect(_workspaceIds(rows), <String>['recent', 'stale']);
+    expect(_workspaceIds(rows), <String>['stale', 'recent']);
+  });
+
+  test('An open terminal is active without live agent presence', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('inactive', now, name: 'alpha'),
+        _workspace(
+          'terminal',
+          now.subtract(const Duration(days: 1)),
+          name: 'zebra',
+        ),
+      ],
+      projects: const [],
+      prefs: const MobileViewPrefs(
+        groupBy: MobileWorkspaceGroupBy.none,
+        workspaceSort: MobileWorkbenchSortBy.activity,
+      ),
+      terminalTabCountByWorkspaceId: const <String, int>{'terminal': 1},
+      now: now,
+    );
+
+    expect(_workspaceIds(rows), <String>['terminal', 'inactive']);
+  });
+
+  test('Inactive projects sort alphabetically after active projects', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('active', now, projectId: 'p-zeta'),
+        _workspace('inactive-zeta', now, projectId: 'p-charlie'),
+        _workspace('inactive-alpha', now, projectId: 'p-alpha'),
+      ],
+      projects: <ProjectSummary>[
+        _project('p-charlie', 'Charlie', now),
+        _project('p-zeta', 'Zeta', now.subtract(const Duration(days: 1))),
+        _project('p-alpha', 'Alpha', now.subtract(const Duration(days: 2))),
+      ],
+      prefs: const MobileViewPrefs(projectSort: MobileWorkbenchSortBy.activity),
+      terminalTabCountByWorkspaceId: const <String, int>{'active': 1},
+      now: now,
+    );
+
+    expect(
+      rows
+          .whereType<MobileProjectHeaderRow>()
+          .map((row) => row.projectId)
+          .toList(),
+      <String>['p-zeta', 'p-alpha', 'p-charlie'],
+    );
+  });
+
+  test('An active descendant promotes its workspace tree', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('inactive-root', now, name: 'alpha-root'),
+        _workspace('active-root', now, name: 'zeta-root'),
+        _workspace(
+          'active-child',
+          now,
+          name: 'active-child',
+          parentWorkspaceId: 'active-root',
+        ),
+      ],
+      projects: const [],
+      prefs: const MobileViewPrefs(
+        groupBy: MobileWorkspaceGroupBy.none,
+        workspaceSort: MobileWorkbenchSortBy.activity,
+      ),
+      terminalTabCountByWorkspaceId: const <String, int>{'active-child': 1},
+      now: now,
+    );
+
+    expect(_workspaceIds(rows), <String>[
+      'active-root',
+      'active-child',
+      'inactive-root',
+    ]);
   });
 }
 
-WorkspaceSummary _workspace(String id, DateTime updatedAt) {
+WorkspaceSummary _workspace(
+  String id,
+  DateTime updatedAt, {
+  String? name,
+  String projectId = 'project',
+  String? parentWorkspaceId,
+}) {
   return WorkspaceSummary(
     id: id,
-    projectId: 'project',
-    name: id,
+    projectId: projectId,
+    name: name ?? id,
     path: '/tmp/$id',
+    parentWorkspaceId: parentWorkspaceId,
+    updatedAt: updatedAt,
+  );
+}
+
+ProjectSummary _project(String id, String name, DateTime updatedAt) {
+  return ProjectSummary(
+    id: id,
+    name: name,
+    repoPath: '/tmp/$id',
     updatedAt: updatedAt,
   );
 }

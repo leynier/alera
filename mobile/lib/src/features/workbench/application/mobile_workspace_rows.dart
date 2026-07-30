@@ -59,6 +59,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   required MobileViewPrefs prefs,
   Map<String, DateTime> activity = const <String, DateTime>{},
   List<AgentPresenceSummary> agentPresence = const <AgentPresenceSummary>[],
+  Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
   String searchQuery = '',
   DateTime? now,
 }) {
@@ -80,24 +81,41 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
     );
   }
 
-  final visibleWorkspaces =
-      <WorkspaceSummary>[
-        for (final workspace in workspaces)
-          if (_matchesFilters(
-                workspace,
-                projectById[workspace.projectId],
-                prefs,
-              ) &&
-              _matchesSearch(
-                workspace,
-                projectById[workspace.projectId],
-                normalizedQuery,
-              ))
+  final visibleWorkspaces = <WorkspaceSummary>[
+    for (final workspace in workspaces)
+      if (_matchesFilters(workspace, projectById[workspace.projectId], prefs) &&
+          _matchesSearch(
             workspace,
-      ]..sort(
-        (left, right) =>
-            _compareWorkspaces(left, right, prefs, activity, attentionOf),
-      );
+            projectById[workspace.projectId],
+            normalizedQuery,
+          ))
+        workspace,
+  ];
+  final workspacesWithAgentPresence = <String>{
+    for (final status in agentPresence) status.workspaceId,
+  };
+  final directActivityByWorkspaceId = <String, MobileAgentActivityRank?>{
+    for (final workspace in visibleWorkspaces)
+      workspace.id:
+          (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
+              workspacesWithAgentPresence.contains(workspace.id)
+          ? mobileAgentActivityRank(
+              attention: attentionOf(workspace),
+              fallback:
+                  activity[workspace.id] ?? workspace.updatedAt ?? DateTime(0),
+            )
+          : null,
+  };
+  final subtreeActivityByWorkspaceId = aggregateMobileAgentActivityBySubtree(
+    workspaces: visibleWorkspaces.map(
+      (workspace) => (id: workspace.id, parentId: workspace.parentWorkspaceId),
+    ),
+    directActivityByWorkspaceId: directActivityByWorkspaceId,
+  );
+  visibleWorkspaces.sort(
+    (left, right) =>
+        _compareWorkspaces(left, right, prefs, subtreeActivityByWorkspaceId),
+  );
 
   final pinned = <WorkspaceSummary>[
     for (final workspace in visibleWorkspaces)
@@ -150,8 +168,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
             byProject[left] ?? const <WorkspaceSummary>[],
             byProject[right] ?? const <WorkspaceSummary>[],
             prefs,
-            activity,
-            attentionOf,
+            directActivityByWorkspaceId,
           ),
         );
     for (final projectId in orderedProjectIds) {
@@ -242,8 +259,7 @@ int _compareWorkspaces(
   WorkspaceSummary left,
   WorkspaceSummary right,
   MobileViewPrefs prefs,
-  Map<String, DateTime> activity,
-  MobileWorkspaceAttention Function(WorkspaceSummary) attentionOf,
+  Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
   if (prefs.workspaceSort == MobileWorkbenchSortBy.name &&
       left.isMain != right.isMain) {
@@ -263,11 +279,9 @@ int _compareWorkspaces(
       left.updatedAt,
     ),
     MobileWorkbenchSortBy.activity => compareMobileAgentActivity(
-      leftAttention: attentionOf(left),
-      leftFallback: activity[left.id] ?? left.updatedAt ?? DateTime(0),
+      leftActivity: activityByWorkspaceId[left.id],
       leftName: left.name,
-      rightAttention: attentionOf(right),
-      rightFallback: activity[right.id] ?? right.updatedAt ?? DateTime(0),
+      rightActivity: activityByWorkspaceId[right.id],
       rightName: right.name,
     ),
   };
@@ -280,8 +294,7 @@ int _compareProjects(
   List<WorkspaceSummary> leftWorkspaces,
   List<WorkspaceSummary> rightWorkspaces,
   MobileViewPrefs prefs,
-  Map<String, DateTime> activity,
-  MobileWorkspaceAttention Function(WorkspaceSummary) attentionOf,
+  Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
   final order = switch (prefs.projectSort) {
     MobileWorkbenchSortBy.name => (left?.name ?? '').toLowerCase().compareTo(
@@ -296,8 +309,7 @@ int _compareProjects(
       leftWorkspaces,
       right,
       rightWorkspaces,
-      activity,
-      attentionOf,
+      activityByWorkspaceId,
     ),
   };
   return order != 0 ? order : (left?.name ?? '').compareTo(right?.name ?? '');
@@ -308,51 +320,33 @@ int _compareProjectActivity(
   List<WorkspaceSummary> leftWorkspaces,
   ProjectSummary? right,
   List<WorkspaceSummary> rightWorkspaces,
-  Map<String, DateTime> activity,
-  MobileWorkspaceAttention Function(WorkspaceSummary) attentionOf,
+  Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
-  final leftRank = _projectActivityRank(
-    left,
-    leftWorkspaces,
-    activity,
-    attentionOf,
-  );
+  final leftRank = _projectActivityRank(leftWorkspaces, activityByWorkspaceId);
   final rightRank = _projectActivityRank(
-    right,
     rightWorkspaces,
-    activity,
-    attentionOf,
+    activityByWorkspaceId,
   );
-  final byClass = leftRank.attention.attentionClass.index.compareTo(
-    rightRank.attention.attentionClass.index,
+  return compareMobileAgentActivity(
+    leftActivity: leftRank,
+    leftName: left?.name ?? '',
+    rightActivity: rightRank,
+    rightName: right?.name ?? '',
   );
-  if (byClass != 0) return byClass;
-  return rightRank.at.compareTo(leftRank.at);
 }
 
-({MobileWorkspaceAttention attention, DateTime at}) _projectActivityRank(
-  ProjectSummary? project,
+MobileAgentActivityRank? _projectActivityRank(
   List<WorkspaceSummary> workspaces,
-  Map<String, DateTime> activity,
-  MobileWorkspaceAttention Function(WorkspaceSummary) attentionOf,
+  Map<String, MobileAgentActivityRank?> activityByWorkspaceId,
 ) {
-  var best = MobileWorkspaceAttention.idle;
-  var bestAt = project?.updatedAt ?? DateTime(0);
+  MobileAgentActivityRank? best;
   for (final workspace in workspaces) {
-    final candidate = attentionOf(workspace);
-    final candidateAt =
-        candidate.at ??
-        activity[workspace.id] ??
-        workspace.updatedAt ??
-        DateTime(0);
-    if (candidate.attentionClass.index < best.attentionClass.index ||
-        (candidate.attentionClass == best.attentionClass &&
-            candidateAt.isAfter(bestAt))) {
-      best = candidate;
-      bestAt = candidateAt;
-    }
+    best = bestMobileAgentActivityRank(
+      best,
+      activityByWorkspaceId[workspace.id],
+    );
   }
-  return (attention: best, at: bestAt);
+  return best;
 }
 
 int _compareDates(DateTime? left, DateTime? right) {
