@@ -1,6 +1,10 @@
 ---
 name: computer-use
-description: Use when reading or operating local desktop application windows through Alera: listing apps and windows, reading a window's accessibility tree, clicking controls, writing values, or invoking accessibility actions. Also covers browser windows and webviews as desktop apps.
+description: >-
+  Use when reading or operating local desktop application windows through
+  Alera: listing apps and windows, reading a window's accessibility tree,
+  clicking controls, writing values, or invoking accessibility actions. Also
+  covers browser windows and webviews as desktop apps.
 metadata:
   version: 1
 ---

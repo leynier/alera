@@ -58,6 +58,16 @@ void main() {
       );
     });
 
+    test('builds the computer use skill command', () {
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.bunx,
+          skill: AleraAgentSkill.computerUse,
+        ),
+        'bunx skills add https://github.com/leynier/alera --skill computer-use --global',
+      );
+    });
+
     test('builds the emulator skill command', () {
       expect(
         aleraCliSkillInstallCommand(

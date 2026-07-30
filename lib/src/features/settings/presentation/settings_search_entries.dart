@@ -128,6 +128,20 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
     groupId: 'cliSkill',
   ),
   SettingsSearchEntry(
+    title: 'Alera Computer Use Skill',
+    description: 'Install Agent Instructions For Desktop Computer Use.',
+    keywords: <String>[
+      'computer use',
+      'desktop',
+      'accessibility',
+      'skill',
+      'agent',
+      'click',
+      'window',
+    ],
+    groupId: 'cliSkill',
+  ),
+  SettingsSearchEntry(
     title: 'Codex Hooks',
     description: 'Use Alera-managed Codex runtime hooks.',
     keywords: <String>['codex', 'agent', 'status', 'hooks'],
