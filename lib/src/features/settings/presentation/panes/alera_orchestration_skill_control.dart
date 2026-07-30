@@ -1,5 +1,4 @@
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/infra/alera_orchestration_setup_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_skill_install_control.dart';
@@ -30,14 +29,7 @@ class AleraOrchestrationSkillControl extends ConsumerWidget {
         return AleraSkillInstallStatus(
           result.summary,
           detail: result.detail,
-          needsAttention:
-              !result.succeeded ||
-              result.hookError != null ||
-              result.hookStatuses.any(
-                (status) =>
-                    status.state == ManagedAgentHookInstallState.error ||
-                    status.state == ManagedAgentHookInstallState.partial,
-              ),
+          needsAttention: result.needsAttention,
         );
       },
     );

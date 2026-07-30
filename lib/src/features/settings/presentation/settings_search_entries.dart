@@ -95,6 +95,20 @@ applicationSearchEntries = <SettingsSearchEntry>[
 
 const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
+    title: 'All Alera Skills',
+    description: 'Install Or Update Every Alera Agent Skill.',
+    keywords: <String>[
+      'all',
+      'install',
+      'update',
+      'skills',
+      'computer use',
+      'emulator',
+      'orchestration',
+    ],
+    groupId: 'cliSkill',
+  ),
+  SettingsSearchEntry(
     title: 'Alera CLI Skill',
     description: 'Install agent instructions for the Alera CLI.',
     keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],

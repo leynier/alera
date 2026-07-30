@@ -8,6 +8,7 @@ import 'package:alera/src/features/agent_status/infra/managed_agent_hook_install
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
@@ -188,6 +189,39 @@ void main() {
     expect(service.skill, AleraAgentSkill.emulator);
   });
 
+  testWidgets('all skills control installs every skill and reapplies hooks', (
+    tester,
+  ) async {
+    final service = _FakeAleraCliSkillService();
+    final reconciler = _FakeHookReconciler();
+    final settings = AleraSettings.defaults.copyWith(
+      agents: AleraSettings.defaults.agents.copyWith(
+        agentStatusHooks: const AgentStatusHookSettings(codex: true),
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aleraCliSkillServiceProvider.overrideWithValue(service),
+          agentHookReconciliationServiceProvider.overrideWithValue(reconciler),
+          settingsControllerProvider.overrideWithValue(settings),
+        ],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(body: AleraAllSkillsControl()),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Install / Update All'));
+    await tester.pumpAndSettle();
+
+    expect(service.skills, AleraAgentSkill.values);
+    expect(reconciler.settings?.codex, isTrue);
+    expect(find.text('All 4 Alera Skills Installed / Updated'), findsOneWidget);
+    expect(find.text('View Output'), findsOneWidget);
+  });
+
   testWidgets('a failed install exposes the untruncated output', (
     tester,
   ) async {
@@ -304,6 +338,7 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
   final AleraCliSkillInstallAttempt? failure;
   AleraCliSkillRunner? runner;
   AleraAgentSkill? skill;
+  final List<AleraAgentSkill> skills = <AleraAgentSkill>[];
 
   @override
   Future<AleraCliSkillInstallResult> installOrUpdate({
@@ -312,6 +347,7 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
   }) async {
     this.runner = runner;
     this.skill = skill;
+    skills.add(skill);
     final attemptRunner = runner == AleraCliSkillRunner.auto
         ? AleraCliSkillRunner.npx
         : runner;

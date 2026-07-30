@@ -29,11 +29,15 @@ class AleraSkillInstallControl extends StatefulWidget {
   const AleraSkillInstallControl({
     super.key,
     required this.install,
-    required this.commandFor,
+    this.commandFor,
+    this.installLabel = 'Install / Update',
+    this.installingLabel = 'Installing',
   });
 
   final AleraSkillInstaller install;
-  final AleraSkillCommandBuilder commandFor;
+  final AleraSkillCommandBuilder? commandFor;
+  final String installLabel;
+  final String installingLabel;
 
   @override
   State<AleraSkillInstallControl> createState() =>
@@ -78,7 +82,7 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
   }
 
   Future<void> _copyCommand() async {
-    await Clipboard.setData(ClipboardData(text: widget.commandFor(_runner)));
+    await Clipboard.setData(ClipboardData(text: widget.commandFor!(_runner)));
     if (mounted) {
       setState(() {
         _status = const AleraSkillInstallStatus('Install Command Copied');
@@ -134,14 +138,15 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
                 ),
               ),
             ),
-            SizedBox(
-              height: kSupportControlHeight,
-              child: OutlinedButton.icon(
-                onPressed: _installing ? null : _copyCommand,
-                icon: const Icon(AleraIcons.copy, size: 16),
-                label: const Text('Copy'),
+            if (widget.commandFor != null)
+              SizedBox(
+                height: kSupportControlHeight,
+                child: OutlinedButton.icon(
+                  onPressed: _installing ? null : _copyCommand,
+                  icon: const Icon(AleraIcons.copy, size: 16),
+                  label: const Text('Copy'),
+                ),
               ),
-            ),
             if (status != null && status.detail.isNotEmpty)
               SizedBox(
                 height: kSupportControlHeight,
@@ -169,7 +174,9 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
                         ),
                       )
                     : const Icon(AleraIcons.download, size: 16),
-                label: Text(_installing ? 'Installing' : 'Install / Update'),
+                label: Text(
+                  _installing ? widget.installingLabel : widget.installLabel,
+                ),
               ),
             ),
           ],

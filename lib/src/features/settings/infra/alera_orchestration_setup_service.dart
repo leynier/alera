@@ -22,6 +22,16 @@ class AleraOrchestrationSetupResult {
 
   bool get succeeded => skillResult.succeeded;
 
+  bool get needsAttention {
+    return !succeeded ||
+        hookError != null ||
+        hookStatuses.any(
+          (status) =>
+              status.state == ManagedAgentHookInstallState.error ||
+              status.state == ManagedAgentHookInstallState.partial,
+        );
+  }
+
   /// Forwarded so a failed orchestration setup exposes the same full installer
   /// output as the plain skill controls.
   String get detail => skillResult.detail;

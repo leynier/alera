@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
@@ -42,6 +43,13 @@ class AgentsSettingsPane extends ConsumerWidget {
                     'Register The Alera Command On PATH For Terminals And Agents.',
                 controlWidth: 360,
                 child: AleraCliRegistrationControl(),
+              ),
+              AleraSettingRow(
+                title: 'All Alera Skills',
+                description:
+                    'Install Or Update CLI, Orchestration, Computer Use, And Emulator Skills. Reapplies Selected Status Hooks.',
+                controlWidth: 360,
+                child: AleraAllSkillsControl(),
               ),
               AleraSettingRow(
                 title: 'Alera CLI Skill',
