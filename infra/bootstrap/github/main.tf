@@ -3,6 +3,7 @@ locals {
   deployer_project_roles = toset([
     "roles/artifactregistry.admin",
     "roles/cloudkms.admin",
+    "roles/cloudkms.publicKeyViewer",
     "roles/firebase.admin",
     "roles/iam.serviceAccountAdmin",
     "roles/resourcemanager.projectIamAdmin",
