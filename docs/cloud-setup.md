@@ -493,8 +493,8 @@ This is a best-effort preview with no SLA. Cold starts and provider outages may 
 
 - [`cloud-backend.md`](cloud-backend.md) describes the architecture and trust boundaries.
 - [`cloud-operations.md`](cloud-operations.md) describes deployment, rotation, cleanup, incident response, and operational procedures.
-- [`../infra/production/README.md`](../infra/production/README.md) describes the OpenTofu root.
-- [`../edge/README.md`](../edge/README.md) describes the Cloudflare Worker.
+- [`../infra/production/readme.md`](../infra/production/readme.md) describes the OpenTofu root.
+- [`../edge/readme.md`](../edge/readme.md) describes the Cloudflare Worker.
 - [`../cloud/readme.md`](../cloud/readme.md) describes backend routes and runtime configuration.
 - [`../mobile/readme.md`](../mobile/readme.md) describes mobile Firebase and release behavior.
 - [`release-trust.md`](release-trust.md) describes release signing and artifact trust.
