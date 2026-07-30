@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,5 +95,22 @@ void main() {
       CrashReporting.filterEvent(SentryEvent(message: SentryMessage('b'))),
       isNull,
     );
+  });
+
+  test('runs the app callback in the caller zone', () async {
+    final callerZone = Zone.current;
+    late Zone appZone;
+
+    try {
+      await CrashReporting.run(
+        enabled: false,
+        release: 'alera@test',
+        appRunner: () => appZone = Zone.current,
+      );
+    } finally {
+      await Sentry.close();
+    }
+
+    expect(appZone, same(callerZone));
   });
 }

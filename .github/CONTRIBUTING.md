@@ -11,6 +11,27 @@ Thanks for contributing to Alera.
 
 ## Local Setup
 
+On Ubuntu and Debian, install the native dependencies required by the Linux desktop build:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  clang \
+  cmake \
+  ninja-build \
+  pkg-config \
+  libgtk-3-dev \
+  libwebkit2gtk-4.1-dev \
+  libjson-glib-dev \
+  libsecret-1-dev \
+  libsqlite3-dev \
+  libssl-dev \
+  libepoxy-dev \
+  libmpv-dev
+```
+
+These packages provide the compiler toolchain and the native browser, video, storage, and security libraries used by the desktop plugins.
+
 ```bash
 git submodule update --init third_party/xterm third_party/dart_terminal
 flutter pub get

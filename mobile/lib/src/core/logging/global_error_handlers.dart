@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/core/logging/mobile_logger.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Routes errors that never reach a `try`/`catch` into the log file.
 ///
@@ -25,4 +28,5 @@ void installGlobalErrorHandlers() {
 /// Records an error that escaped an async gap and reached the guarding zone.
 void recordZoneError(Object error, StackTrace stack) {
   MobileLogger.recordError(error, stack, context: 'Zone');
+  unawaited(Sentry.captureException(error, stackTrace: stack));
 }
