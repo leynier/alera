@@ -464,6 +464,47 @@ impl ServerActor {
                     "activePushSubscriptions": self.account_push.active_subscriptions,
                 }))
             }
+            "host.restart" => {
+                let force = payload
+                    .get("force")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let active_sessions = self
+                    .sessions
+                    .values()
+                    .filter(|session| session.running())
+                    .count();
+                let active_jobs = self.ssh_bootstrap_jobs.len()
+                    + usize::from(self.managed_workspace_jobs > 0)
+                    + self.coordinators.len()
+                    + self.emulator_requests.outstanding()
+                    + self.emulators.as_ref().map_or(0, |emulators| {
+                        emulators
+                            .try_lock()
+                            .map_or(1, |manager| manager.active_count())
+                    })
+                    + self.browser.active_jobs();
+                let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
+                if !force {
+                    if let Some(message) = host_shutdown_busy_message(
+                        active_agents,
+                        active_sessions,
+                        active_jobs,
+                        self.account_push.active_subscriptions > 0,
+                    ) {
+                        return Err(HostError::state(message));
+                    }
+                }
+                let _ = self.inbox.send(ServerCommand::RequestedRestart);
+                Ok(json!({
+                    "restarting": true,
+                    "forced": force,
+                    "activeSessions": active_sessions,
+                    "activeJobs": active_jobs,
+                    "activeAgents": active_agents,
+                    "activePushSubscriptions": self.account_push.active_subscriptions,
+                }))
+            }
             "createOrAttach" => {
                 self.require_auth(client_id)?;
                 self.create_or_attach(client_id, payload).await

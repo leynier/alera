@@ -180,6 +180,19 @@ pub struct TerminalHostArgs {
     )]
     pub scrollback_bytes: u64,
 
+    /// Maximum bytes replayed into a client emulator after attach.
+    #[arg(
+        long = "restore-snapshot-bytes",
+        value_name = "bytes",
+        value_parser = clap::value_parser!(u64).range(1..),
+        hide = true,
+    )]
+    pub restore_snapshot_bytes: Option<u64>,
+
+    /// Whether new terminal sessions use the platform login shell.
+    #[arg(long = "login-shell", value_name = "bool", hide = true)]
+    pub login_shell: Option<bool>,
+
     /// Keep the runtime alive until an explicit shutdown request.
     #[arg(long)]
     pub persistent: bool,

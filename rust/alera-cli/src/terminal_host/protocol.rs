@@ -85,6 +85,11 @@ pub const RUNTIME_HOST_BINARY_FRAMES_CAPABILITY: &str = "binaryFrames";
 /// framed, so a reader can flip on seeing it without any out-of-band signal.
 pub const BINARY_FRAMES_ENABLED_EVENT: &str = "binaryFramesEnabled";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
+/// The host can replace its own sidecar process through `host.restart`.
+///
+/// This is separate from the older lifecycle capability because older hosts
+/// advertise that capability but only implement shutdown.
+pub const RUNTIME_HOST_RESTART_CAPABILITY: &str = "runtimeHostRestartV1";
 // Advertised once the host samples per-session CPU and memory and answers
 // `resources.snapshot`. Additive: older hosts simply do not offer the verb, so
 // clients feature-check this instead of the protocol version.

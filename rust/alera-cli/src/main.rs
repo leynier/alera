@@ -40,7 +40,9 @@ mod worktree_setup_script;
 use std::future::Future;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
+use alera_core::child_process::detached_windowless_async_command;
 use alera_core::runtime::{
     CascadePreview, MobileAccessSettings, MobileEndpointMode, Project, ProjectKind, RuntimeStore,
     SshAuthKind, SshTarget, WorkspaceTag,
@@ -73,7 +75,7 @@ use crate::ssh_bootstrap::{
 };
 use crate::tab_record_factory::tab_from_args;
 use crate::terminal_host::protocol::TerminalHostConfig;
-use crate::terminal_host::server::run_terminal_host_server;
+use crate::terminal_host::server::{run_terminal_host_server, TerminalHostExit};
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
@@ -250,9 +252,11 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
         detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
         scrollback_bytes: args.scrollback_bytes,
         // Standalone host: the app overrides this in its `configure`.
-        restore_snapshot_bytes: args.scrollback_bytes,
+        restore_snapshot_bytes: args.restore_snapshot_bytes.unwrap_or(args.scrollback_bytes),
         persistent: args.persistent,
-        login_shell: terminal_host::protocol::default_login_shell(),
+        login_shell: args
+            .login_shell
+            .unwrap_or_else(terminal_host::protocol::default_login_shell),
     };
 
     match run_terminal_host_server(
@@ -263,13 +267,65 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
     )
     .await
     {
-        Ok(()) => 0,
+        Ok(TerminalHostExit::Shutdown) => 0,
+        Ok(TerminalHostExit::Restart(config)) => {
+            match spawn_replacement_runtime_host(&args, config) {
+                Ok(()) => 0,
+                Err(error) => {
+                    tracing::error!(
+                        target: "alera.host",
+                        "failed to restart runtime host: {error}"
+                    );
+                    1
+                }
+            }
+        }
         Err(error) => {
             tracing::error!(target: "alera.host", "runtime host exited with an error: {error}");
             eprintln!("{error}");
             1
         }
     }
+}
+
+fn spawn_replacement_runtime_host(
+    args: &TerminalHostArgs,
+    config: TerminalHostConfig,
+) -> anyhow::Result<()> {
+    let executable = std::env::current_exe()?;
+    let token = Uuid::new_v4().to_string();
+    let mut command = detached_windowless_async_command(executable);
+    command
+        .arg("runtime-host")
+        .arg("--runtime-dir")
+        .arg(&args.runtime_dir)
+        .arg("--control-file")
+        .arg(&args.control_file)
+        .arg("--token")
+        .arg(token)
+        .arg("--empty-shutdown-delay-seconds")
+        .arg(config.empty_shutdown_delay_seconds.to_string())
+        .arg("--detached-session-shutdown-delay-seconds")
+        .arg(config.detached_session_shutdown_delay_seconds.to_string())
+        .arg("--scrollback-bytes")
+        .arg(config.scrollback_bytes.to_string())
+        .arg("--restore-snapshot-bytes")
+        .arg(config.restore_snapshot_bytes.to_string())
+        .arg("--login-shell")
+        .arg(config.login_shell.to_string())
+        .arg("--log-level")
+        .arg(&args.log_level)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if config.persistent {
+        command.arg("--persistent");
+    }
+    if terminal_host::diagnostics::sentry_reporting::is_enabled() {
+        command.arg("--crash-reporting");
+    }
+    command.spawn()?;
+    Ok(())
 }
 
 fn required_option_error(value: &str, name: &str) -> Option<i32> {

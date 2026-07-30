@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::cli::{Cli, Command, IdArgs, WorkspaceAction, WorkspaceCommand};
+use crate::cli::{Cli, Command, IdArgs, TerminalHostArgs, WorkspaceAction, WorkspaceCommand};
 use crate::cli::{
     EmulatorAction, EmulatorCommand, EmulatorLogLevelArg, EmulatorPermissionOperationArg,
     EmulatorPlatformArg,
@@ -26,6 +26,47 @@ fn workspace_pin_commands_parse_workspace_ids() {
             action: WorkspaceAction::Unpin(IdArgs { id }),
             ..
         }) if id == "workspace-2"
+    ));
+}
+
+#[test]
+fn replacement_runtime_host_arguments_preserve_effective_configuration() {
+    let cli = Cli::try_parse_from([
+        "alera",
+        "runtime-host",
+        "--runtime-dir",
+        "/tmp/alera",
+        "--control-file",
+        "/tmp/alera/runtime-host.json",
+        "--token",
+        "replacement-token",
+        "--empty-shutdown-delay-seconds",
+        "41",
+        "--detached-session-shutdown-delay-seconds",
+        "73",
+        "--scrollback-bytes",
+        "4096",
+        "--restore-snapshot-bytes",
+        "2048",
+        "--login-shell",
+        "false",
+        "--persistent",
+        "--crash-reporting",
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        cli.command,
+        Command::RuntimeHost(TerminalHostArgs {
+            empty_shutdown_delay_seconds: 41,
+            detached_session_shutdown_delay_seconds: 73,
+            scrollback_bytes: 4096,
+            restore_snapshot_bytes: Some(2048),
+            login_shell: Some(false),
+            persistent: true,
+            crash_reporting: true,
+            ..
+        })
     ));
 }
 

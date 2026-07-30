@@ -52,6 +52,7 @@ pub enum ServerCommand {
         generation: u64,
     },
     RequestedShutdown,
+    RequestedRestart,
     AgentHookEvent {
         event: AgentHookEvent,
     },
