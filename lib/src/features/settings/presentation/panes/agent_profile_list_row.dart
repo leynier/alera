@@ -32,6 +32,7 @@ class AgentProfileListRow extends StatelessWidget {
       color: selected ? AleraTokens.accentSubtle : Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space12),
           child: Row(
