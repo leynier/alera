@@ -38,6 +38,7 @@ part 'workbench_controller_internals.dart';
 part 'workbench_controller_browser.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_tab_opening.dart';
+part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_sync.dart';
@@ -47,10 +48,11 @@ class WorkbenchController extends _$WorkbenchController
     with
         _WorkbenchControllerInternals,
         _WorkbenchControllerBrowser,
-        // Opening tabs comes first: creating a workspace opens its "Setup"
-        // terminal, so the projects mixin builds on this one.
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects,
+        // Creation builds on project selection and tab opening so the prompt
+        // flow can synchronize its agent before appending Setup.
+        _WorkbenchControllerWorkspaceCreation,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
         _WorkbenchControllerSync {
