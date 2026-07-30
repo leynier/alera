@@ -234,6 +234,26 @@ void main() {
       expect(setup, isNot(contains('Swatinem/rust-cache')));
     });
 
+    test('skips Chocolatey only while its first version is in moderation', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final chocolateyJob = workflow.substring(
+        workflow.indexOf('  publish_chocolatey:'),
+      );
+
+      expect(chocolateyJob, isNot(contains('continue-on-error')));
+      expect(chocolateyJob, contains('CHOCOLATEY_API_KEY'));
+      expect(chocolateyJob, contains('api/v2/Packages()'));
+      expect(chocolateyJob, contains(r'$pendingModeration'));
+      expect(chocolateyJob, contains(r'$hasApprovedVersion'));
+      expect(
+        chocolateyJob,
+        contains(r'if ($pendingModeration -and -not $hasApprovedVersion) {'),
+      );
+      expect(chocolateyJob, contains('choco push \$package'));
+    });
+
     test('cleans closed pull request caches without a checkout', () {
       final cleanup = File(
         '.github/workflows/cache-cleanup.yml',

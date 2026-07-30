@@ -1315,6 +1315,21 @@ jobs:
             Write-Output "::warning::CHOCOLATEY_API_KEY is not configured; skipping the Chocolatey push."
             exit 0
           }
+          $packageId = "alera"
+          $packagePageUri = "https://community.chocolatey.org/packages/$packageId"
+          $approvedFeedUri = "https://community.chocolatey.org/api/v2/Packages()?`$filter=Id%20eq%20%27$packageId%27&`$top=1"
+          try {
+            $packagePage = Invoke-WebRequest -Uri $packagePageUri -UseBasicParsing
+            $approvedFeed = Invoke-WebRequest -Uri $approvedFeedUri -UseBasicParsing
+            $pendingModeration = $packagePage.Content -match "This version is in[\s\S]*moderation[\s\S]*has not yet been approved"
+            $hasApprovedVersion = $approvedFeed.Content -match "<entry(?:\s|>)"
+            if ($pendingModeration -and -not $hasApprovedVersion) {
+              Write-Output "::warning::The first Chocolatey package version is still in moderation; skipping this version until the package has an approved version."
+              exit 0
+            }
+          } catch {
+            Write-Output "::notice::Could not inspect Chocolatey moderation state; attempting the package push."
+          }
           choco pack chocolatey/alera.nuspec --out chocolatey
           $package = "chocolatey/alera.$env:RELEASE_VERSION.nupkg"
           if (-not (Test-Path $package)) {
