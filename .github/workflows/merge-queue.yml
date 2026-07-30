@@ -1,0 +1,108 @@
+name: Merge Queue
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden:
+    name: queue golden
+    if: startsWith(github.head_ref, 'mergify/merge-queue/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          linux-toolchain: 'false'
+
+      - name: Golden tests
+        run: flutter test test/golden
+
+  desktop_e2e_linux:
+    name: queue desktop e2e linux
+    if: startsWith(github.head_ref, 'mergify/merge-queue/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          xvfb: 'true'
+          enable-linux-desktop: 'true'
+          rust: 'true'
+
+      # One invocation per file on purpose: `flutter test integration_test`
+      # launches the app once and fails to start it again for the second suite
+      # ("Unable to start the app on the device"), so a directory run can only
+      # ever hold one desktop integration test.
+      - name: Desktop E2E
+        run: |
+          set -euo pipefail
+          for suite in integration_test/*_test.dart; do
+            echo "::group::${suite}"
+            xvfb-run -a flutter test "${suite}" -d linux -r github
+            echo "::endgroup::"
+          done
+
+      - name: Report sccache statistics
+        if: always()
+        run: |
+          {
+            echo "### sccache desktop E2E"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  desktop_builds:
+    name: queue desktop builds
+    if: startsWith(github.head_ref, 'mergify/merge-queue/')
+    uses: ./.github/workflows/desktop-build.yml
+
+  queue_ready:
+    name: queue-ready
+    if: ${{ always() && startsWith(github.head_ref, 'mergify/merge-queue/') }}
+    needs:
+      - golden
+      - desktop_e2e_linux
+      - desktop_builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require queue checks
+        shell: bash
+        env:
+          GOLDEN_RESULT: ${{ needs.golden.result }}
+          DESKTOP_E2E_RESULT: ${{ needs.desktop_e2e_linux.result }}
+          DESKTOP_BUILDS_RESULT: ${{ needs.desktop_builds.result }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for result_name in GOLDEN_RESULT DESKTOP_E2E_RESULT DESKTOP_BUILDS_RESULT; do
+            result="${!result_name}"
+            if [ "$result" != "success" ]; then
+              echo "::error::${result_name} was ${result}"
+              failed=1
+            fi
+          done
+          exit "$failed"

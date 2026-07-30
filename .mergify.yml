@@ -1,0 +1,47 @@
+merge_queue:
+  mode: serial
+  max_parallel_checks: 1
+  queue_controls_comment: true
+  reset_on_external_merge: always
+  skip_intermediate_results: false
+
+commands_restrictions:
+  queue:
+    conditions:
+      - sender = leynier
+  dequeue:
+    conditions:
+      - sender = leynier
+  requeue:
+    conditions:
+      - sender = leynier
+
+queue_rules:
+  - name: default
+    queue_branch_prefix: mergify/merge-queue/
+    batch_size:
+      min: 2
+      max: 4
+    batch_max_wait_time: 60 min
+    max_checks_retries: 0
+    merge_method: squash
+    queue_conditions:
+      - base = main
+      - -draft
+      - -conflict
+      - check-success = @github-actions/pr-ready
+      - or:
+          - '-files ~= ^(cloud/|edge/|infra/|tool/cloud/|\.github/workflows/(cloud-deploy|cloud)\.yml$)'
+          - check-success = @github-actions/cloud-ready
+      - or:
+          - '-files ~= ^(landing/|\.github/workflows/landing\.yml$)'
+          - check-success = @github-actions/landing-ready
+    merge_conditions:
+      - check-success = @github-actions/pr-ready
+      - check-success = @github-actions/queue-ready
+      - or:
+          - '-files ~= ^(cloud/|edge/|infra/|tool/cloud/|\.github/workflows/(cloud-deploy|cloud)\.yml$)'
+          - check-success = @github-actions/cloud-ready
+      - or:
+          - '-files ~= ^(landing/|\.github/workflows/landing\.yml$)'
+          - check-success = @github-actions/landing-ready
