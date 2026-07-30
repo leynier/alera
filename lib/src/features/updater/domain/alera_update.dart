@@ -10,8 +10,6 @@ enum AleraUpdateChannel {
   stable,
   rc;
 
-  bool get includesPrereleases => this == AleraUpdateChannel.rc;
-
   static AleraUpdateChannel parse(String value) {
     return switch (value.trim().toLowerCase()) {
       'rc' || 'release-candidate' => AleraUpdateChannel.rc,
