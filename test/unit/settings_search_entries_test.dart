@@ -12,6 +12,15 @@ void main() {
     expect(entry.groupId, 'cliSkill');
   });
 
+  test('computer use skill is searchable in the agents skill group', () {
+    final entry = agentsSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Alera Computer Use Skill',
+    );
+
+    expect(entry.matches('accessibility'), isTrue);
+    expect(entry.groupId, 'cliSkill');
+  });
+
   test('Grok Build hooks are searchable in the hooks group', () {
     final entry = agentsSearchEntries.singleWhere(
       (candidate) => candidate.title == 'Grok Build Hooks',
