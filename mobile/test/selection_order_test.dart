@@ -10,11 +10,13 @@ void main() {
       _project(id: 'alera-lower', name: 'alera'),
       _project(id: 'orca', name: 'Orca'),
       _project(id: 'alera-upper', name: 'Alera'),
+      _project(id: 'alera-first', name: 'Alera'),
     ];
 
     final sorted = sortProjectsForSelection(projects);
 
     expect(sorted.map((project) => project.id), <String>[
+      'alera-first',
       'alera-upper',
       'alera-lower',
       'orca',
@@ -25,6 +27,7 @@ void main() {
       'alera-lower',
       'orca',
       'alera-upper',
+      'alera-first',
     ]);
   });
 
@@ -79,6 +82,97 @@ void main() {
       'alera-feature',
     ]);
   });
+
+  test(
+    'parent choices use deterministic project and workspace tie-breakers',
+    () {
+      expect(
+        compareWorkspaceParentSelectionKeys(
+          _parent(
+            projectId: 'project-alera',
+            projectName: 'Alera',
+            workspaceId: 'workspace-a',
+            workspaceName: 'Workspace',
+          ),
+          _parent(
+            projectId: 'project-beta',
+            projectName: 'Beta',
+            workspaceId: 'workspace-b',
+            workspaceName: 'Workspace',
+          ),
+        ),
+        isNegative,
+      );
+      expect(
+        compareWorkspaceParentSelectionKeys(
+          _parent(
+            projectId: 'project-upper',
+            projectName: 'Alera',
+            workspaceId: 'workspace-a',
+            workspaceName: 'Workspace',
+          ),
+          _parent(
+            projectId: 'project-lower',
+            projectName: 'alera',
+            workspaceId: 'workspace-b',
+            workspaceName: 'Workspace',
+          ),
+        ),
+        isNegative,
+      );
+      expect(
+        compareWorkspaceParentSelectionKeys(
+          _parent(
+            projectId: 'project-a',
+            projectName: 'Alera',
+            workspaceId: 'workspace-a',
+            workspaceName: 'Workspace',
+          ),
+          _parent(
+            projectId: 'project-b',
+            projectName: 'Alera',
+            workspaceId: 'workspace-b',
+            workspaceName: 'Workspace',
+          ),
+        ),
+        isNegative,
+      );
+      expect(
+        compareWorkspaceParentSelectionKeys(
+          _parent(
+            projectId: 'project-a',
+            projectName: 'Alera',
+            workspaceId: 'workspace-upper',
+            workspaceName: 'Feature',
+          ),
+          _parent(
+            projectId: 'project-a',
+            projectName: 'Alera',
+            workspaceId: 'workspace-lower',
+            workspaceName: 'feature',
+          ),
+        ),
+        isNegative,
+      );
+      expect(
+        compareWorkspaceParentSelectionKeys(
+          _parent(
+            projectId: 'project-a',
+            projectName: 'Alera',
+            workspaceId: 'workspace-a',
+            workspaceName: 'Feature',
+          ),
+          _parent(
+            projectId: 'project-a',
+            projectName: 'Alera',
+            workspaceId: 'workspace-b',
+            workspaceName: 'Feature',
+          ),
+        ),
+        isNegative,
+      );
+    },
+  );
 }
 
 ProjectSummary _project({required String id, required String name}) {

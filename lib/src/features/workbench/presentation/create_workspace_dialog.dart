@@ -18,6 +18,7 @@ import 'package:alera/src/features/workbench/domain/workspace_parent_selection_o
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
+part 'create_workspace_dialog_selection_order.dart';
 
 class CreateWorkspaceDialog extends StatefulWidget {
   const CreateWorkspaceDialog({
@@ -97,9 +98,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Timer? _validationDebounce;
   bool _isValidatingBranch = false;
   String? _branchValidationError;
-
-  List<Project> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
 
   @override
   void initState() {
@@ -181,33 +179,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   List<String> _branchesForMode(bool reuseExistingBranch) {
     return reuseExistingBranch ? _localBranches : _branches;
-  }
-
-  List<WorkspaceParentCandidate> get _parentCandidates {
-    final candidates = <WorkspaceParentCandidate>[
-      for (final candidate in widget.parentCandidates)
-        if (candidate.workspace.status == WorkspaceStatus.active) candidate,
-    ];
-    candidates.sort(
-      (left, right) => compareWorkspaceParentSelectionKeys(
-        (
-          isDefault: left.workspace.isMain,
-          projectId: left.project.id,
-          projectName: left.project.name,
-          workspaceId: left.workspace.id,
-          workspaceName: left.workspace.name,
-        ),
-        (
-          isDefault: right.workspace.isMain,
-          projectId: right.project.id,
-          projectName: right.project.name,
-          workspaceId: right.workspace.id,
-          workspaceName: right.workspace.name,
-        ),
-        preferredProjectId: _selectedProject?.id,
-      ),
-    );
-    return candidates;
   }
 
   String _parentLabel(WorkspaceParentCandidate candidate) {
