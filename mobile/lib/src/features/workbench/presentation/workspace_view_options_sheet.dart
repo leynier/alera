@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
@@ -48,6 +49,7 @@ class _WorkspaceViewOptions extends ConsumerWidget {
       mobileViewPrefsControllerProvider(hostId).notifier,
     );
     final groupByProject = prefs.groupBy == MobileWorkspaceGroupBy.project;
+    final orderedProjects = sortProjectsForSelection(data.projects);
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
@@ -123,7 +125,7 @@ class _WorkspaceViewOptions extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: Text('Projects'),
             ),
-            for (final project in data.projects)
+            for (final project in orderedProjects)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(project.name),

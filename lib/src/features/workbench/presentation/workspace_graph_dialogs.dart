@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:flutter/material.dart';
 
 class WorkspaceTagSelection {
@@ -329,6 +330,28 @@ class _WorkspaceParentDialog extends StatefulWidget {
 class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
   late String? _selectedParentId = _initialParentId();
 
+  List<WorkspaceParentOption> get _orderedOptions {
+    return <WorkspaceParentOption>[...widget.options]..sort(
+      (left, right) => compareWorkspaceParentSelectionKeys(
+        (
+          isDefault: left.workspace.isMain,
+          projectId: left.project.id,
+          projectName: left.project.name,
+          workspaceId: left.workspace.id,
+          workspaceName: left.workspace.name,
+        ),
+        (
+          isDefault: right.workspace.isMain,
+          projectId: right.project.id,
+          projectName: right.project.name,
+          workspaceId: right.workspace.id,
+          workspaceName: right.workspace.name,
+        ),
+        preferredProjectId: widget.workspace.projectId,
+      ),
+    );
+  }
+
   String? _initialParentId() {
     final parentId = widget.workspace.parentWorkspaceId;
     if (parentId == null) {
@@ -379,7 +402,7 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
                   value: null,
                   label: 'No Parent',
                 ),
-                for (final option in widget.options)
+                for (final option in _orderedOptions)
                   if (option.workspace.id != widget.workspace.id)
                     AleraDropdownFieldEntry<String?>(
                       value: option.workspace.id,

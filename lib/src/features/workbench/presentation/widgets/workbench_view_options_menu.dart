@@ -12,6 +12,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter/material.dart';
@@ -202,11 +203,12 @@ class _WorkbenchViewOptionsPanelState
     final prefs = state.viewPrefs;
     final theme = Theme.of(context);
 
+    final orderedProjects = sortProjectsForSelection(state.projects);
     final selectedProjects = <Project>[
-      for (final id in prefs.selectedProjectIds)
-        ...state.projects.where((p) => p.id == id),
+      for (final project in orderedProjects)
+        if (prefs.selectedProjectIds.contains(project.id)) project,
     ];
-    final availableProjects = state.projects
+    final availableProjects = orderedProjects
         .where((p) => !prefs.selectedProjectIds.contains(p.id))
         .where(
           (p) =>

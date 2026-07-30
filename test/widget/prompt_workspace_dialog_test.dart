@@ -194,7 +194,7 @@ void main() {
                   showDialog<PromptWorkspaceDialogResult>(
                     context: context,
                     builder: (_) => PromptWorkspaceDialog(
-                      projects: <Project>[alera, orca],
+                      projects: <Project>[orca, alera],
                       agentProfiles: <AgentProfile>[profile],
                       loadBranches: (_) async => <String>['main'],
                       checkBranchExists: (_, _) async => false,
@@ -276,15 +276,19 @@ void main() {
               widget.labelText == 'Project',
         ),
       );
+      expect(projectField.entries.map((entry) => entry.value.id), <String>[
+        alera.id,
+        orca.id,
+      ]);
       projectField.onChanged(orca);
       await tester.pumpAndSettle();
 
       expect(parentField().value, orcaMain.id);
       expect(parentField().entries.map((entry) => entry.value), <String?>[
         null,
-        aleraMain.id,
         orcaMain.id,
         orcaFeature.id,
+        aleraMain.id,
       ]);
 
       parentField().onChanged(orcaFeature.id);

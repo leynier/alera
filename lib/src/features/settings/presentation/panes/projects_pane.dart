@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor_loader.dart';
@@ -49,7 +50,8 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
             message: 'Add A Project Before Configuring Workspace Setup.',
           );
         }
-        final selected = _selectedProject(projects);
+        final orderedProjects = sortProjectsForSelection(projects);
+        final selected = _selectedProject(orderedProjects);
         return overridesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _ProjectSettingsError(message: error.toString()),
@@ -58,7 +60,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
               masterTitle: 'Projects',
               master: SingleChildScrollView(
                 child: _ProjectConfigProjectList(
-                  projects: projects,
+                  projects: orderedProjects,
                   selectedProjectId: selected.id,
                   overrideProjectIds: overrides.keys.toSet(),
                   onSelect: (project) {

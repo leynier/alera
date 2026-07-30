@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/features/projects/domain/project_management_models.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -42,7 +43,7 @@ class ProjectsController extends _$ProjectsController {
         ? await client.listProjectCloneJobs()
         : const <ProjectCloneJob>[];
     return ProjectManagementSnapshot(
-      projects: projects,
+      projects: sortProjectsForSelection(projects),
       cloneJobs: jobs,
       supported: client.supportsProjectManagement,
     );

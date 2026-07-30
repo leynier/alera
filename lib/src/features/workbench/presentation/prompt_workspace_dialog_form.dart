@@ -23,7 +23,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               labelText: 'Project',
               value: _project,
               entries: <AleraDropdownFieldEntry<Project>>[
-                for (final project in widget.projects)
+                for (final project in _orderedProjects)
                   AleraDropdownFieldEntry<Project>(
                     value: project,
                     label: project.name,
@@ -126,7 +126,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                 ] else
                   FilledButton.icon(
                     onPressed:
-                        widget.projects.isEmpty ||
+                        _orderedProjects.isEmpty ||
                             widget.agentProfiles.isEmpty ||
                             _loadingBranches
                         ? null

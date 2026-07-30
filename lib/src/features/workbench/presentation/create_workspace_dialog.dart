@@ -11,8 +11,10 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
@@ -96,6 +98,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   bool _isValidatingBranch = false;
   String? _branchValidationError;
 
+  List<Project> get _orderedProjects =>
+      sortProjectsForSelection(widget.projects);
+
   @override
   void initState() {
     super.initState();
@@ -120,16 +125,13 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Project? _pickInitialProject() {
     final initial = widget.initialProject;
     if (initial != null) {
-      for (final project in widget.projects) {
+      for (final project in _orderedProjects) {
         if (project.id == initial.id) {
           return project;
         }
       }
     }
-    if (widget.projects.isEmpty) {
-      return null;
-    }
-    return widget.projects.first;
+    return _orderedProjects.firstOrNull;
   }
 
   String? _pickDefaultSourceBranch(List<String> branches) {
@@ -182,10 +184,30 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   }
 
   List<WorkspaceParentCandidate> get _parentCandidates {
-    return <WorkspaceParentCandidate>[
+    final candidates = <WorkspaceParentCandidate>[
       for (final candidate in widget.parentCandidates)
         if (candidate.workspace.status == WorkspaceStatus.active) candidate,
     ];
+    candidates.sort(
+      (left, right) => compareWorkspaceParentSelectionKeys(
+        (
+          isDefault: left.workspace.isMain,
+          projectId: left.project.id,
+          projectName: left.project.name,
+          workspaceId: left.workspace.id,
+          workspaceName: left.workspace.name,
+        ),
+        (
+          isDefault: right.workspace.isMain,
+          projectId: right.project.id,
+          projectName: right.project.name,
+          workspaceId: right.workspace.id,
+          workspaceName: right.workspace.name,
+        ),
+        preferredProjectId: _selectedProject?.id,
+      ),
+    );
+    return candidates;
   }
 
   String _parentLabel(WorkspaceParentCandidate candidate) {
@@ -676,7 +698,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               _ProjectPicker(
-                                projects: widget.projects,
+                                projects: _orderedProjects,
                                 selectedProject: selectedProject,
                                 query: _projectQuery,
                                 controller: _projectSearchController,

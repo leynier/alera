@@ -8,8 +8,10 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -95,6 +97,9 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   WorkspaceCreationResult? _created;
   String? _activeOperationId;
 
+  List<Project> get _orderedProjects =>
+      sortProjectsForSelection(widget.projects);
+
   @override
   void initState() {
     super.initState();
@@ -118,13 +123,13 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   Project? _initialProject() {
     final preferred = widget.initialProject;
     if (preferred != null) {
-      for (final project in widget.projects) {
+      for (final project in _orderedProjects) {
         if (project.id == preferred.id) {
           return project;
         }
       }
     }
-    return widget.projects.firstOrNull;
+    return _orderedProjects.firstOrNull;
   }
 
   Future<void> _loadBranches(Project project) async {
@@ -169,10 +174,33 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   List<Workspace> get _parentWorkspaces {
-    return <Workspace>[
+    final projectNameById = <String, String>{
+      for (final project in widget.projects) project.id: project.name,
+    };
+    final workspaces = <Workspace>[
       for (final workspace in widget.parentWorkspaces)
         if (workspace.isActive) workspace,
     ];
+    workspaces.sort(
+      (left, right) => compareWorkspaceParentSelectionKeys(
+        (
+          isDefault: left.isMain,
+          projectId: left.projectId,
+          projectName: projectNameById[left.projectId] ?? left.projectId,
+          workspaceId: left.id,
+          workspaceName: left.name,
+        ),
+        (
+          isDefault: right.isMain,
+          projectId: right.projectId,
+          projectName: projectNameById[right.projectId] ?? right.projectId,
+          workspaceId: right.id,
+          workspaceName: right.name,
+        ),
+        preferredProjectId: _project?.id,
+      ),
+    );
+    return workspaces;
   }
 
   String? _defaultParentWorkspaceId(Project? project) {
@@ -194,7 +222,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
 
   String _parentWorkspaceLabel(Workspace workspace) {
     Project? project;
-    for (final candidate in widget.projects) {
+    for (final candidate in _orderedProjects) {
       if (candidate.id == workspace.projectId) {
         project = candidate;
         break;

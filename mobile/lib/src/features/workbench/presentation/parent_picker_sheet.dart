@@ -1,6 +1,8 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
+import 'package:alera_mobile/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:flutter/material.dart';
 
 /// Picks a parent workspace for [child]. Pops with the chosen workspace id.
@@ -10,12 +12,35 @@ Future<String?> showParentPickerSheet(
   BuildContext context, {
   required WorkspaceSummary child,
   required List<WorkspaceSummary> workspaces,
+  required List<ProjectSummary> projects,
 }) {
   final excluded = workspaceDescendantIds(workspaces, child.id)..add(child.id);
-  final candidates = <WorkspaceSummary>[
-    for (final workspace in workspaces)
-      if (!excluded.contains(workspace.id)) workspace,
-  ];
+  final projectNameById = <String, String>{
+    for (final project in projects) project.id: project.name,
+  };
+  final candidates =
+      <WorkspaceSummary>[
+        for (final workspace in workspaces)
+          if (!excluded.contains(workspace.id)) workspace,
+      ]..sort(
+        (left, right) => compareWorkspaceParentSelectionKeys(
+          (
+            isDefault: left.isMain,
+            projectId: left.projectId,
+            projectName: projectNameById[left.projectId] ?? left.projectId,
+            workspaceId: left.id,
+            workspaceName: left.name,
+          ),
+          (
+            isDefault: right.isMain,
+            projectId: right.projectId,
+            projectName: projectNameById[right.projectId] ?? right.projectId,
+            workspaceId: right.id,
+            workspaceName: right.name,
+          ),
+          preferredProjectId: child.projectId,
+        ),
+      );
   return showModalBottomSheet<String>(
     context: context,
     builder: (context) => SafeArea(
