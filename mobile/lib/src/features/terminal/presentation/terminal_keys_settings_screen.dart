@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/custom_key_dialog.dart';
 import 'package:flutter/material.dart';
@@ -82,6 +83,7 @@ class _KeyList extends StatelessWidget {
       itemBuilder: (context, index) {
         final key = keys[index];
         final isCustom = customIds.contains(key.id);
+        final isPinned = pinnedTerminalAccessoryKeyIds.contains(key.id);
         return SwitchListTile(
           key: ValueKey<String>(key.id),
           value: !layout.hiddenIds.contains(key.id),
@@ -90,12 +92,23 @@ class _KeyList extends StatelessWidget {
             key.label,
             style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
           ),
-          subtitle: Text(isCustom ? 'Custom Key' : key.accessibilityLabel),
+          subtitle: Text(
+            isCustom
+                ? 'Custom Key'
+                : isPinned
+                ? '${key.accessibilityLabel} - Pinned'
+                : key.accessibilityLabel,
+          ),
           secondary: isCustom
               ? IconButton(
                   tooltip: 'Delete Custom Key',
                   onPressed: () => controller.removeCustomKey(key.id),
                   icon: const Icon(Icons.delete_outline),
+                )
+              : isPinned
+              ? const Tooltip(
+                  message: 'Pinned Quick Key',
+                  child: Icon(Icons.push_pin_outlined),
                 )
               : ReorderableDragStartListener(
                   index: index,

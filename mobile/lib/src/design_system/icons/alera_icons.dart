@@ -30,6 +30,7 @@ abstract final class AleraIcons {
   static const IconData edit = LucideIcons.pencil;
   static const IconData delete = LucideIcons.trash2;
   static const IconData copy = LucideIcons.copy;
+  static const IconData paste = LucideIcons.clipboard;
   static const IconData refresh = LucideIcons.refreshCw;
   static const IconData loading = LucideIcons.loaderCircle;
   static const IconData link = LucideIcons.link;
