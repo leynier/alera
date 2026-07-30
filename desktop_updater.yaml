@@ -1,0 +1,14 @@
+updates:
+  baseUrl: https://updates.alera.build/updates/stable
+
+hooks:
+  prePackage:
+    - command: bash tool/release/sign_macos_if_configured.sh
+      platforms: [macos]
+    - command: pwsh -NoProfile -File tool/release/sign_windows_if_configured.ps1
+      platforms: [windows]
+  postPackage:
+    - command: dart run desktop_updater:release sign --release "$DESKTOP_UPDATER_RELEASE_FILE" --public-key-id "$ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID" --private-key-env ALERA_UPDATE_MANIFEST_PRIVATE_KEY
+      platforms: [macos, linux]
+    - command: dart run desktop_updater:release sign --release "%DESKTOP_UPDATER_RELEASE_FILE%" --public-key-id "%ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID%" --private-key-env ALERA_UPDATE_MANIFEST_PRIVATE_KEY
+      platforms: [windows]

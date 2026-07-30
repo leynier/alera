@@ -56,7 +56,7 @@ void main() {
       expect(
         workflow,
         contains(
-          '--dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=\$auto_install_enabled"',
+          '--dart-define="ALERA_UPDATE_AUTO_INSTALL_ENABLED=\$auto_install_enabled"',
         ),
       );
       // Scoped to the block that decides auto-install. The signing steps still
@@ -91,6 +91,32 @@ void main() {
           contains('--dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false"'),
         ),
       );
+    });
+
+    test('uses only the desktop_updater 2.7 release format', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final config = File('desktop_updater.yaml').readAsStringSync();
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final updaterSources = Directory(
+        'lib/src/features/updater',
+      ).listSync(recursive: true).whereType<File>();
+
+      expect(pubspec, contains('desktop_updater: ^2.7.0'));
+      expect(
+        updaterSources.map((file) => file.readAsStringSync()).join('\n'),
+        isNot(contains('package:desktop_updater/src/')),
+      );
+      expect(workflow, contains('dart run desktop_updater:release publish'));
+      expect(workflow, contains('--output "pages/updates/\$CHANNEL"'));
+      expect(workflow, contains('merge_desktop_update_indexes.dart'));
+      expect(workflow, contains('verify_desktop_update_channel.dart'));
+      expect(workflow, isNot(contains('tool/release/build_app_archive.dart')));
+      expect(config, contains('desktop_updater:release sign'));
+      expect(config, contains('hooks:'));
+      expect(config, contains('prePackage:'));
+      expect(config, contains('postPackage:'));
     });
 
     test('builds native apps and cross runtimes in parallel', () {

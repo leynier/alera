@@ -140,12 +140,17 @@ void main() {
       );
     });
 
-    test('keeps the windows zip out of the signed updater manifest', () {
+    test('publishes the windows updater through the schema 3 manifest', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
       ).readAsStringSync();
 
-      expect(workflow, contains(r'if [[ "$name" == *-windows.zip ]]; then'));
+      expect(workflow, contains('dart run desktop_updater:release publish'));
+      expect(workflow, contains(r'pages/updates/$CHANNEL/app-archive.json'));
+      expect(
+        workflow,
+        isNot(contains(r'if [[ "$name" == *-windows.zip ]]; then')),
+      );
     });
 
     test('declares only the architectures CI actually builds', () {

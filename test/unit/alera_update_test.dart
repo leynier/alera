@@ -17,7 +17,9 @@ void main() {
     test('exposes the canonical default URLs and environment defaults', () {
       expect(
         AleraUpdateConfig.defaultArchiveUrl,
-        Uri.parse('https://updates.alera.build/app-archive.json'),
+        Uri.parse(
+          'https://updates.alera.build/updates/stable/app-archive.json',
+        ),
       );
       expect(
         AleraUpdateConfig.defaultReleasePageUrl,
@@ -27,6 +29,7 @@ void main() {
       final config = AleraUpdateConfig.fromEnvironment();
       expect(config.archiveUrl, AleraUpdateConfig.defaultArchiveUrl);
       expect(config.releasePageUrl, AleraUpdateConfig.defaultReleasePageUrl);
+      expect(config.manifestPublicKeyId, 'alera-release-v1');
     });
 
     test('round-trips through json', () {

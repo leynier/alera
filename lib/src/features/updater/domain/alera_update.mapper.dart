@@ -177,6 +177,14 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
     opt: true,
     def: '',
   );
+  static String _$manifestPublicKeyId(AleraUpdateConfig v) =>
+      v.manifestPublicKeyId;
+  static const Field<AleraUpdateConfig, String> _f$manifestPublicKeyId = Field(
+    'manifestPublicKeyId',
+    _$manifestPublicKeyId,
+    opt: true,
+    def: 'alera-release-v1',
+  );
 
   @override
   final MappableFields<AleraUpdateConfig> fields = const {
@@ -186,6 +194,7 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
     #autoInstallEnabled: _f$autoInstallEnabled,
     #signedRelease: _f$signedRelease,
     #manifestPublicKey: _f$manifestPublicKey,
+    #manifestPublicKeyId: _f$manifestPublicKeyId,
   };
 
   static AleraUpdateConfig _instantiate(DecodingData data) {
@@ -196,6 +205,7 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
       autoInstallEnabled: data.dec(_f$autoInstallEnabled),
       signedRelease: data.dec(_f$signedRelease),
       manifestPublicKey: data.dec(_f$manifestPublicKey),
+      manifestPublicKeyId: data.dec(_f$manifestPublicKeyId),
     );
   }
 
@@ -277,6 +287,7 @@ abstract class AleraUpdateConfigCopyWith<
     bool? autoInstallEnabled,
     bool? signedRelease,
     String? manifestPublicKey,
+    String? manifestPublicKeyId,
   });
   AleraUpdateConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -299,6 +310,7 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
     bool? autoInstallEnabled,
     bool? signedRelease,
     String? manifestPublicKey,
+    String? manifestPublicKeyId,
   }) => $apply(
     FieldCopyWithData({
       if (archiveUrl != null) #archiveUrl: archiveUrl,
@@ -307,6 +319,8 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
       if (autoInstallEnabled != null) #autoInstallEnabled: autoInstallEnabled,
       if (signedRelease != null) #signedRelease: signedRelease,
       if (manifestPublicKey != null) #manifestPublicKey: manifestPublicKey,
+      if (manifestPublicKeyId != null)
+        #manifestPublicKeyId: manifestPublicKeyId,
     }),
   );
   @override
@@ -322,6 +336,10 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
     manifestPublicKey: data.get(
       #manifestPublicKey,
       or: $value.manifestPublicKey,
+    ),
+    manifestPublicKeyId: data.get(
+      #manifestPublicKeyId,
+      or: $value.manifestPublicKeyId,
     ),
   );
 
