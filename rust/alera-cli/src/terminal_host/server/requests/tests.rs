@@ -94,10 +94,16 @@ async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
     assert_eq!(response["id"], 1);
     assert_eq!(response["ok"], true);
     assert_eq!(response["payload"]["restarting"], true);
+    let marker = receiver.recv().await.unwrap();
     assert!(matches!(
-        inbox_receiver.try_recv().unwrap(),
-        ServerCommand::RequestedRestart
+        marker,
+        crate::terminal_host::client::ClientFrame::OrderedControl { frame, .. }
+            if matches!(
+                *frame,
+                crate::terminal_host::client::ClientFrame::RestartRuntimeAfterWrite { .. }
+            )
     ));
+    assert!(inbox_receiver.try_recv().is_err());
 }
 
 #[test]

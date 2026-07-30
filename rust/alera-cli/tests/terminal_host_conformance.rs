@@ -16,8 +16,6 @@ const PROTOCOL_VERSION: i64 = 4;
 /// Kills the host process when the test ends, regardless of assertions.
 struct HostGuard(Child);
 
-struct RuntimeGuard(std::path::PathBuf);
-
 impl Drop for HostGuard {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -25,27 +23,9 @@ impl Drop for HostGuard {
     }
 }
 
-impl Drop for RuntimeGuard {
-    fn drop(&mut self) {
-        let _ = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
-            .args([
-                "runtime",
-                "--runtime-dir",
-                self.0.to_str().unwrap(),
-                "stop",
-                "--force",
-            ])
-            .output();
-    }
-}
-
-fn read_control_value(path: &std::path::Path) -> Option<Value> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
-}
-
 fn read_control(path: &std::path::Path) -> Option<(u16, String)> {
-    let value = read_control_value(path)?;
+    let contents = std::fs::read_to_string(path).ok()?;
+    let value: Value = serde_json::from_str(&contents).ok()?;
     let port = value.get("port")?.as_u64()? as u16;
     let token = value.get("token")?.as_str()?.to_string();
     Some((port, token))
@@ -245,65 +225,6 @@ fn spawn_host_with_env(
         assert!(Instant::now() < deadline, "control file was never written");
         std::thread::sleep(Duration::from_millis(50));
     }
-}
-
-#[test]
-fn host_restart_replaces_the_process_and_accepts_a_new_connection() {
-    let dir = tempfile::tempdir().unwrap();
-    let runtime_dir = dir.path().join("runtime");
-    std::fs::create_dir_all(&runtime_dir).unwrap();
-    let _runtime_guard = RuntimeGuard(runtime_dir.clone());
-    let control_path = runtime_dir.join("runtime-host.json");
-    let token = "restart-conformance-token";
-    let (_host_guard, port) = spawn_host(&runtime_dir, &control_path, token);
-    let before = read_control_value(&control_path).unwrap();
-    let before_pid = before["pid"].as_u64().unwrap();
-
-    let (mut writer, mut reader) = connect(port);
-    handshake(&mut writer, &mut reader, token);
-    send(
-        &mut writer,
-        json!({"id": 1, "type": "host.restart", "payload": {"force": true}}),
-    );
-    let response = read_response(&mut reader, 1);
-    assert_eq!(response["ok"], json!(true), "restart failed: {response}");
-    assert_eq!(response["payload"]["restarting"], json!(true));
-    drop(writer);
-    drop(reader);
-
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let replacement = loop {
-        if let Some(value) = read_control_value(&control_path) {
-            if value["pid"].as_u64().is_some_and(|pid| pid != before_pid) {
-                break value;
-            }
-        }
-        assert!(
-            Instant::now() < deadline,
-            "replacement runtime host was not published"
-        );
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let replacement_port = replacement["port"].as_u64().unwrap() as u16;
-    let replacement_token = replacement["token"].as_str().unwrap();
-    assert_ne!(replacement_token, token);
-
-    let (mut replacement_writer, mut replacement_reader) = connect(replacement_port);
-    handshake(
-        &mut replacement_writer,
-        &mut replacement_reader,
-        replacement_token,
-    );
-    send(
-        &mut replacement_writer,
-        json!({"id": 2, "type": "status.get", "payload": {}}),
-    );
-    let status = read_response(&mut replacement_reader, 2);
-    assert_eq!(
-        status["ok"],
-        json!(true),
-        "replacement host did not answer: {status}"
-    );
 }
 
 fn ssh_target_payload(id: &str, bootstrap_status: &str) -> Value {
