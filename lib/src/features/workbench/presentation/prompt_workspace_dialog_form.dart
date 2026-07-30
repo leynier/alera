@@ -94,6 +94,15 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                 ),
               ),
             ],
+            const SizedBox(height: AleraTokens.space12),
+            AleraCheckbox(
+              value: _createAnother,
+              enabled: !_working && created == null,
+              onChanged: (value) {
+                _update(() => _createAnother = value);
+              },
+              label: 'Create Another',
+            ),
             const SizedBox(height: AleraTokens.space20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

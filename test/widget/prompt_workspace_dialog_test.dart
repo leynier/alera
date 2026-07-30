@@ -133,6 +133,129 @@ void main() {
     expect(dialogResult?.agentTabId, 'tab-1');
   });
 
+  testWidgets('Create Another keeps the prompt dialog open and resets it', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 7, 30);
+    final project = Project(
+      id: 'project-1',
+      name: 'Alera',
+      repoPath: '/repo/alera',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final profile = AgentProfile(
+      id: 'profile-1',
+      name: 'Codex Builder',
+      agentType: 'codex',
+      command: 'codex',
+      createdAt: now,
+      updatedAt: now,
+    );
+    var createAnotherCallbacks = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () {
+                showDialog<PromptWorkspaceDialogResult>(
+                  context: context,
+                  builder: (_) => PromptWorkspaceDialog(
+                    projects: <Project>[project],
+                    agentProfiles: <AgentProfile>[profile],
+                    loadBranches: (_) async => <String>['main'],
+                    checkBranchExists: (_, _) async => false,
+                    workspaceBranches: (_) => const <String>{},
+                    parentWorkspaces: const <Workspace>[],
+                    generateIdentity:
+                        ({
+                          required operationId,
+                          required projectId,
+                          required prompt,
+                        }) async => const GeneratedWorkspaceIdentity(
+                          workspaceName: 'Prompt Workspace',
+                          branchName: 'feat/prompt-workspace',
+                        ),
+                    cancelGeneration: (_) async {},
+                    createWorkspace:
+                        ({
+                          required project,
+                          required sourceBranch,
+                          required newBranchName,
+                          required name,
+                          parentWorkspaceId,
+                        }) async {
+                          return WorkspaceCreationResult(
+                            workspace: Workspace(
+                              id: 'workspace-1',
+                              projectId: project.id,
+                              name: name,
+                              branch: newBranchName,
+                              sourceBranch: sourceBranch,
+                              path: '/repo/alera-workspace',
+                              kind: WorkspaceKind.linked,
+                              status: WorkspaceStatus.active,
+                              createdAt: now,
+                              updatedAt: now,
+                            ),
+                            setupReport: WorktreeSetupReport.empty,
+                          );
+                        },
+                    launchAgent:
+                        ({
+                          required workspaceId,
+                          required profileId,
+                          required prompt,
+                        }) async => const AgentProfileLaunchResult(
+                          tabId: 'tab-1',
+                          agentType: 'codex',
+                          profileId: 'profile-1',
+                        ),
+                    onCreateAnother:
+                        ({required creation, required agentTabId}) async {
+                          createAnotherCallbacks += 1;
+                        },
+                  ),
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+      'Build the first workspace',
+    );
+    await tester.ensureVisible(find.text('Create Another'));
+    await tester.tap(find.text('Create Another'));
+    await tester.pump();
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create And Start Agent'));
+    await tester.pumpAndSettle();
+
+    expect(createAnotherCallbacks, 1);
+    expect(find.text('New Workspace'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Initial Prompt'))
+          .controller
+          ?.text,
+      isEmpty,
+    );
+    expect(find.text('Create Another'), findsOneWidget);
+  });
+
   testWidgets(
     'defaults the parent to the selected project main workspace and allows changing it',
     (tester) async {

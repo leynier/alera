@@ -28,10 +28,32 @@ class WorkspaceSetupStep {
 }
 
 class WorkspaceCreationResult {
-  const WorkspaceCreationResult({required this.workspace, required this.steps});
+  const WorkspaceCreationResult({
+    required this.workspace,
+    required this.steps,
+    this.deferredSetupCommand,
+    this.setupLaunchError,
+  });
 
   final WorkspaceSummary workspace;
   final List<WorkspaceSetupStep> steps;
+  final String? deferredSetupCommand;
+  final String? setupLaunchError;
+
+  bool get hasDeferredSetup =>
+      deferredSetupCommand != null && deferredSetupCommand!.trim().isNotEmpty;
+
+  bool get hasSetupWarnings =>
+      setupLaunchError != null || steps.any((step) => !step.succeeded);
+
+  WorkspaceCreationResult withSetupLaunchError(Object error) {
+    return WorkspaceCreationResult(
+      workspace: workspace,
+      steps: steps,
+      deferredSetupCommand: deferredSetupCommand,
+      setupLaunchError: error.toString(),
+    );
+  }
 
   factory WorkspaceCreationResult.fromJson(Map<String, Object?> json) {
     return WorkspaceCreationResult(
@@ -40,6 +62,7 @@ class WorkspaceCreationResult {
         for (final item in json.mapValue('setupReport').objectList('steps'))
           if (item is Map) WorkspaceSetupStep.fromJson(asJsonMap(item)),
       ],
+      deferredSetupCommand: json.optionalString('deferredSetupCommand'),
     );
   }
 }

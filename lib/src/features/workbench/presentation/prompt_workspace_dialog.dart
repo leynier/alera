@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -17,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
+part 'prompt_workspace_dialog_selection_order.dart';
 
 enum NewWorkspaceMode { fromPrompt, manual }
 
@@ -46,6 +48,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required this.createWorkspace,
     required this.launchAgent,
     this.initialProject,
+    this.onCreateAnother,
   });
 
   final List<Project> projects;
@@ -77,6 +80,11 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required String prompt,
   })
   launchAgent;
+  final Future<void> Function({
+    required WorkspaceCreationResult creation,
+    required String agentTabId,
+  })?
+  onCreateAnother;
 
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
@@ -96,9 +104,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _error;
   WorkspaceCreationResult? _created;
   String? _activeOperationId;
-
-  List<Project> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
+  bool _createAnother = false;
 
   @override
   void initState() {
@@ -171,36 +177,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       }
     }
     return branches.firstOrNull;
-  }
-
-  List<Workspace> get _parentWorkspaces {
-    final projectNameById = <String, String>{
-      for (final project in widget.projects) project.id: project.name,
-    };
-    final workspaces = <Workspace>[
-      for (final workspace in widget.parentWorkspaces)
-        if (workspace.isActive) workspace,
-    ];
-    workspaces.sort(
-      (left, right) => compareWorkspaceParentSelectionKeys(
-        (
-          isDefault: left.isMain,
-          projectId: left.projectId,
-          projectName: projectNameById[left.projectId] ?? left.projectId,
-          workspaceId: left.id,
-          workspaceName: left.name,
-        ),
-        (
-          isDefault: right.isMain,
-          projectId: right.projectId,
-          projectName: projectNameById[right.projectId] ?? right.projectId,
-          workspaceId: right.id,
-          workspaceName: right.name,
-        ),
-        preferredProjectId: _project?.id,
-      ),
-    );
-    return workspaces;
   }
 
   String? _defaultParentWorkspaceId(Project? project) {
@@ -330,12 +306,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         prompt: prompt,
       );
       if (mounted) {
-        Navigator.of(context).pop(
-          PromptWorkspaceDialogResult(
-            creation: creation,
-            agentTabId: launch.tabId,
-          ),
-        );
+        await _finishCreation(creation, launch.tabId);
       }
     } catch (error) {
       if (mounted) {
@@ -380,12 +351,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         prompt: prompt,
       );
       if (mounted) {
-        Navigator.of(context).pop(
-          PromptWorkspaceDialogResult(
-            creation: creation,
-            agentTabId: launch.tabId,
-          ),
-        );
+        await _finishCreation(creation, launch.tabId);
       }
     } catch (error) {
       if (mounted) {
@@ -396,6 +362,33 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         });
       }
     }
+  }
+
+  Future<void> _finishCreation(
+    WorkspaceCreationResult creation,
+    String agentTabId,
+  ) async {
+    if (!_createAnother) {
+      Navigator.of(context).pop(
+        PromptWorkspaceDialogResult(creation: creation, agentTabId: agentTabId),
+      );
+      return;
+    }
+    await widget.onCreateAnother?.call(
+      creation: creation,
+      agentTabId: agentTabId,
+    );
+    if (!mounted) {
+      return;
+    }
+    _promptController.clear();
+    setState(() {
+      _working = false;
+      _phase = null;
+      _error = null;
+      _created = null;
+      _selectedParentWorkspaceId = null;
+    });
   }
 
   @override

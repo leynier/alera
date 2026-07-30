@@ -275,6 +275,15 @@ Future<void> showCreateWorkspaceFlow(
             );
           },
       launchAgent: runtime.launchAgent,
+      onCreateAnother: ({required creation, required agentTabId}) async {
+        await controller.completePromptWorkspaceCreation(
+          creation: creation,
+          agentTabId: agentTabId,
+        );
+        if (context.mounted) {
+          _showWorkspaceCreationToast(context, creation);
+        }
+      },
     ),
   );
   if (!context.mounted || promptResult == null) {
@@ -342,6 +351,11 @@ Future<void> showCreateWorkspaceFlow(
           Navigator.of(context).pop();
           unawaited(showAddProjectFlow(context, ref));
         },
+        onWorkspaceCreated: (creation) {
+          if (context.mounted) {
+            _showWorkspaceCreationToast(context, creation);
+          }
+        },
       ),
     );
   } else {
@@ -355,31 +369,38 @@ Future<void> showCreateWorkspaceFlow(
   }
 
   if (result != null && context.mounted) {
-    if (result.hasSetupWarnings) {
-      AleraToast.show(
-        context,
-        message:
-            'Workspace Created With Setup Warnings: ${result.setupReport.summary}',
-        tone: AleraToastTone.error,
-        duration: const Duration(seconds: 6),
-      );
-      return;
-    }
-    if (result.hasParentLinkError) {
-      AleraToast.show(
-        context,
-        message: 'Workspace Created, But Parent Link Failed',
-        tone: AleraToastTone.error,
-        duration: const Duration(seconds: 6),
-      );
-      return;
-    }
+    _showWorkspaceCreationToast(context, result);
+  }
+}
+
+void _showWorkspaceCreationToast(
+  BuildContext context,
+  WorkspaceCreationResult result,
+) {
+  if (result.hasSetupWarnings) {
     AleraToast.show(
       context,
-      message: 'Workspace Created',
-      tone: AleraToastTone.success,
+      message:
+          'Workspace Created With Setup Warnings: ${result.setupReport.summary}',
+      tone: AleraToastTone.error,
+      duration: const Duration(seconds: 6),
     );
+    return;
   }
+  if (result.hasParentLinkError) {
+    AleraToast.show(
+      context,
+      message: 'Workspace Created, But Parent Link Failed',
+      tone: AleraToastTone.error,
+      duration: const Duration(seconds: 6),
+    );
+    return;
+  }
+  AleraToast.show(
+    context,
+    message: 'Workspace Created',
+    tone: AleraToastTone.success,
+  );
 }
 
 Future<T> _runWithProgress<T>(

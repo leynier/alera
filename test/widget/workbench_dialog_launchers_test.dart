@@ -270,6 +270,48 @@ void main() {
       },
     );
 
+    testWidgets(
+      'showCreateWorkspaceFlow toasts and resets when Create Another is on',
+      (tester) async {
+        final project = buildProject('project-1', 'Alera');
+        final controller = DialogLaunchersTestController(
+          WorkbenchState(projects: <Project>[project]),
+        )..sourceBranches = <String>['main'];
+
+        await pumpFlowHarness(
+          tester,
+          controller: controller,
+          onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await openManualWorkspaceDialog(tester);
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'New Branch Name *'),
+          'feature/one',
+        );
+        await tester.tap(find.text('Create Another'));
+        await tester.pump();
+        await tester.tap(find.text('Create Workspace'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Workspace Created'), findsOneWidget);
+        expect(find.text('New Workspace - Settings'), findsOneWidget);
+        expect(
+          tester
+              .widget<TextField>(
+                find.widgetWithText(TextField, 'New Branch Name *'),
+              )
+              .controller
+              ?.text,
+          isEmpty,
+        );
+      },
+    );
+
     testWidgets('showCreateWorkspaceFlow warns when setup steps fail', (
       tester,
     ) async {

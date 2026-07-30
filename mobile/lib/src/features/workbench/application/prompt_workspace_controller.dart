@@ -1,6 +1,8 @@
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -45,6 +47,8 @@ class PromptWorkspaceState {
     bool clearSourceBranch = false,
     bool clearPhase = false,
     bool clearError = false,
+    bool clearCreation = false,
+    bool clearAgentTabId = false,
   }) {
     return PromptWorkspaceState(
       projectId: projectId ?? this.projectId,
@@ -57,8 +61,8 @@ class PromptWorkspaceState {
       loading: loading ?? this.loading,
       phase: clearPhase ? null : (phase ?? this.phase),
       error: clearError ? null : (error ?? this.error),
-      creation: creation ?? this.creation,
-      agentTabId: agentTabId ?? this.agentTabId,
+      creation: clearCreation ? null : (creation ?? this.creation),
+      agentTabId: clearAgentTabId ? null : (agentTabId ?? this.agentTabId),
     );
   }
 }
@@ -176,12 +180,22 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         }
         state = state.copyWith(phase: 'Creating Workspace');
         try {
-          creation = await client.createManagedWorkspace(
+          final created = await client.createManagedWorkspace(
             projectId: projectId,
             branch: identity.branchName,
             sourceBranch: sourceBranch,
             name: identity.workspaceName,
           );
+          creation = created;
+          if (created.hasDeferredSetup) {
+            final terminalClient = await ref.read(
+              terminalClientProvider(hostId).future,
+            );
+            creation = await launchDeferredWorkspaceSetup(
+              terminalClient,
+              created,
+            );
+          }
           break;
         } on Object catch (error) {
           if (attempt == 0 && _looksLikeCollision(error)) {
@@ -247,6 +261,16 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         error: error.toString(),
       );
     }
+  }
+
+  void resetForAnother() {
+    state = state.copyWith(
+      loading: false,
+      clearPhase: true,
+      clearError: true,
+      clearCreation: true,
+      clearAgentTabId: true,
+    );
   }
 
   Future<void> cancelGeneration() async {

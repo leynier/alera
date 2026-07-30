@@ -30,7 +30,7 @@ Paths are repo-relative literal paths. Absolute paths and `..` escapes are rejec
 
 ## Where the setup runs
 
-The desktop app does not hold the New Workspace dialog open while the setup runs. It asks the runtime host to *prepare* the setup instead (`deferSetup`), so the dialog closes as soon as the Git worktree exists, and the workspace opens with its usual `Terminal 1` plus a second terminal named **Setup** where the work happens in view.
+The desktop and mobile apps do not hold the New Workspace UI open while the setup runs. They ask the runtime host to *prepare* the setup instead (`deferSetup`), so creation completes as soon as the Git worktree exists. Each app starts the returned command once in a terminal named **Setup** and detaches from it so the setup continues in the runtime host. On desktop, the workspace opens with its usual `Terminal 1` plus the **Setup** terminal where the work happens in view.
 
 The Setup terminal runs a script the host generates. That script exists because the terminal hosts whatever interactive shell the user configured, and chaining with `&&` is not portable: PowerShell 5.1 rejects it at parse time and nushell removed it. Writing one command per line up front does not work either, since the later lines would be delivered to the standard input of the process the earlier line started. So the terminal runs a single portable line (`/bin/sh "<script>"`, or `cmd /d /c "<script>"` on Windows) and the script does the sequencing.
 
