@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -307,6 +308,81 @@ void main() {
     );
   });
 
+  test('Session automatically reattaches when the client changes', () async {
+    final firstClient = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final secondAttach = Completer<void>();
+    final secondClient = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachCompletion = secondAttach.future;
+    final thirdClient = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    var currentClient = firstClient;
+    final container = ProviderContainer(
+      overrides: [
+        terminalClientProvider(
+          'host-1',
+        ).overrideWith((ref) async => currentClient),
+      ],
+    );
+    addTearDown(firstClient.dispose);
+    addTearDown(secondClient.dispose);
+    addTearDown(thirdClient.dispose);
+    addTearDown(container.dispose);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+    final notifier = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+    );
+    await notifier.resize(48, 22);
+
+    currentClient = secondClient;
+    container.invalidate(terminalClientProvider('host-1'));
+    await _waitUntil(() => secondClient.attachments.isNotEmpty);
+    currentClient = thirdClient;
+    container.invalidate(terminalClientProvider('host-1'));
+    secondAttach.complete();
+    await _waitUntil(() => thirdClient.attachments.isNotEmpty);
+
+    expect(secondClient.attachments.single, (
+      tabId: 'tab-1',
+      cols: 48,
+      rows: 22,
+    ));
+    expect(thirdClient.attachments.single, (
+      tabId: 'tab-1',
+      cols: 48,
+      rows: 22,
+    ));
+    expect(thirdClient.calls, isNot(contains('restart tab-1')));
+    expect(
+      thirdClient.calls.where((call) => call.startsWith('terminate ')),
+      isEmpty,
+    );
+    final recovered = container
+        .read(terminalSessionControllerProvider('host-1', 'tab-1'))
+        .requireValue;
+    expect(recovered.sessionId, 'session-tab-1');
+
+    final output = <Uint8List>[];
+    final outputSub = recovered.output.listen(
+      (event) => output.add(event.data),
+    );
+    addTearDown(outputSub.cancel);
+    thirdClient.emitOutput(
+      'session-tab-1',
+      Uint8List.fromList(<int>[114, 101, 97, 100, 121]),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(output.single, Uint8List.fromList(<int>[114, 101, 97, 100, 121]));
+  });
+
   test(
     'Desktop reclaim flips the session into the reclaimed error state',
     () async {
@@ -372,4 +448,14 @@ ProviderContainer _container(FakeTerminalClient client) {
   );
   addTearDown(subscription.close);
   return container;
+}
+
+Future<void> _waitUntil(bool Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('Condition was not reached.');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }

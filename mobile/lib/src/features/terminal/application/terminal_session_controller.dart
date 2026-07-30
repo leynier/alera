@@ -46,6 +46,8 @@ class TerminalSessionController extends _$TerminalSessionController {
   StreamSubscription<MobileRuntimeEvent>? _driverSub;
   bool _cleanupRegistered = false;
   bool _recovering = false;
+  bool _desktopReclaimed = false;
+  MobileTerminalClient? _pendingRecoveryClient;
   int _cols = defaultTerminalCols;
   int _rows = defaultTerminalRows;
 
@@ -57,8 +59,18 @@ class TerminalSessionController extends _$TerminalSessionController {
     // controller on every reconnect. Recovery owns the loading phase so the UI
     // can distinguish reconnecting from a first start.
     ref.listen(terminalClientProvider(hostId), (_, next) {
-      if (next case AsyncError(:final error, :final stackTrace)) {
-        state = AsyncError(error, stackTrace);
+      switch (next) {
+        case AsyncLoading() when _client != null && !_desktopReclaimed:
+          state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
+        case AsyncError(:final error, :final stackTrace) when !_recovering:
+          state = AsyncError(error, stackTrace);
+        case AsyncData(value: final client)
+            when _client != null &&
+                !identical(_client, client) &&
+                !_desktopReclaimed:
+          unawaited(_recoverWithClient(client));
+        default:
+          break;
       }
     });
     final client = await ref.read(terminalClientProvider(hostId).future);
@@ -108,6 +120,7 @@ class TerminalSessionController extends _$TerminalSessionController {
         }
         final driver = asJsonMap(event.payload['driver']);
         if (driver['kind'] == 'desktop') {
+          _desktopReclaimed = true;
           state = AsyncError(
             const DesktopReclaimedTerminal(),
             StackTrace.current,
@@ -115,7 +128,9 @@ class TerminalSessionController extends _$TerminalSessionController {
         }
       },
       onError: (Object error, StackTrace stackTrace) {
-        state = AsyncError(error, stackTrace);
+        if (!_recovering && identical(_client, client)) {
+          state = AsyncError(error, stackTrace);
+        }
       },
       onDone: () {
         if (!_recovering && identical(_client, client)) {
@@ -131,6 +146,39 @@ class TerminalSessionController extends _$TerminalSessionController {
         (event) => event.sessionId == sessionId,
       ),
     );
+  }
+
+  Future<void> _recoverWithClient(MobileTerminalClient client) async {
+    if (_recovering) {
+      _pendingRecoveryClient = client;
+      return;
+    }
+    _recovering = true;
+    var nextClient = client;
+    try {
+      while (!_desktopReclaimed) {
+        _pendingRecoveryClient = null;
+        state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
+        try {
+          final session = await nextClient.attachTerminal(
+            tabId,
+            cols: _cols,
+            rows: _rows,
+          );
+          state = AsyncData(_bindSession(nextClient, session));
+        } catch (error, stackTrace) {
+          state = AsyncError(error, stackTrace);
+        }
+        final pendingClient = _pendingRecoveryClient;
+        if (pendingClient == null || identical(pendingClient, nextClient)) {
+          break;
+        }
+        nextClient = pendingClient;
+      }
+    } finally {
+      _pendingRecoveryClient = null;
+      _recovering = false;
+    }
   }
 
   Future<void> reconnect() async {

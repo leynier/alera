@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -102,8 +104,11 @@ class ProjectsScreen extends ConsumerWidget {
           ),
           AsyncError(:final error) => _ErrorState(
             error: error,
-            onRetry: () =>
-                ref.invalidate(hostConnectionControllerProvider(host.id)),
+            onRetry: () => unawaited(
+              ref
+                  .read(hostConnectionControllerProvider(host.id).notifier)
+                  .reconnectNow(),
+            ),
           ),
           _ => const Center(child: CircularProgressIndicator()),
         },
