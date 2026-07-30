@@ -118,6 +118,8 @@ class _FormsPanelScenario extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: const <Widget>[
+          AleraTextField(dense: true, hintText: 'Search Or Enter Address'),
+          SizedBox(height: AleraTokens.space12),
           AleraTextField(
             dense: true,
             prefixIcon: AleraIcons.search,

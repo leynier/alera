@@ -1,5 +1,5 @@
+import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/browser/domain/browser_page.dart';
 import 'package:alera/src/features/browser/domain/browser_page_state.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
@@ -20,6 +20,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: buildAleraDarkTheme(),
         home: SizedBox(
           width: 900,
           child: BrowserToolbar(
@@ -44,7 +45,7 @@ void main() {
     await tester.tap(find.byTooltip('Go Back'));
     await tester.tap(find.byTooltip('Reload Page'));
     await tester.tap(find.byTooltip('Secure Connection - https://example.com'));
-    await tester.tap(find.byTooltip('Browser Profile'));
+    await tester.tap(find.byTooltip('Browser Profile: Default'));
     await tester.tap(find.byTooltip('Downloads'));
     await tester.tap(find.byTooltip('Open DevTools'));
     await tester.tap(find.byTooltip('Open Externally'));
@@ -62,6 +63,7 @@ void main() {
     ]);
     expect(submitted, 'example.org');
     expect(find.byTooltip('Go Forward'), findsOneWidget);
+    expect(find.text('Default'), findsNothing);
   });
 
   testWidgets('keeps the essential controls on compact panes', (tester) async {
@@ -72,6 +74,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: buildAleraDarkTheme(),
         home: Align(
           child: SizedBox(
             width: 600,
@@ -113,6 +116,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: buildAleraDarkTheme(),
         home: Align(
           child: SizedBox(
             width: 900,
@@ -136,11 +140,15 @@ void main() {
       ),
     );
 
-    final toolbarSize = tester.getSize(find.byType(BrowserToolbar));
-    final fieldSize = tester.getSize(find.byType(TextField));
-    expect(toolbarSize.height, AleraTokens.sidebarHeaderHeight);
-    expect(fieldSize.height, AleraTextField.denseHeight);
-    expect(fieldSize.height, lessThanOrEqualTo(toolbarSize.height));
+    final toolbarRect = tester.getRect(find.byType(BrowserToolbar));
+    final fieldRect = tester.getRect(find.byType(TextField));
+    final hintRect = tester.getRect(find.text('Search Or Enter Address'));
+    expect(toolbarRect.height, AleraTokens.sidebarHeaderHeight);
+    expect(fieldRect.height, AleraTokens.space32);
+    expect(fieldRect.center.dy, toolbarRect.center.dy);
+    expect(hintRect.center.dy, closeTo(fieldRect.center.dy, 0.5));
+    expect(fieldRect.top - toolbarRect.top, AleraTokens.space6);
+    expect(toolbarRect.bottom - fieldRect.bottom, AleraTokens.space6);
   });
 }
 

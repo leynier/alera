@@ -33,7 +33,10 @@ void main() {
 
     expect(
       decoration.contentPadding,
-      const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
+      const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space8,
+        vertical: AleraTokens.space16,
+      ),
     );
     expect(border.borderRadius, BorderRadius.circular(AleraTokens.radiusLg));
     expect(

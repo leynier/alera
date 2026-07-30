@@ -40,9 +40,6 @@ class BrowserToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // denseHeight (40) must fit inside sidebarHeaderHeight (44). Vertical
-    // padding would clip the address field borders and text, so center the
-    // row instead and only pad horizontally.
     return Material(
       color: AleraTokens.surface,
       child: SizedBox(
@@ -96,6 +93,10 @@ class BrowserToolbar extends StatelessWidget {
                           controller: addressController,
                           focusNode: addressFocusNode,
                           dense: true,
+                          denseHeight: AleraTokens.space32,
+                          // The constrained decorator centers its text line
+                          // only when the editable content uses bottom alignment.
+                          textAlignVertical: TextAlignVertical.bottom,
                           // Toolbar chrome is surface; dense defaults to a
                           // surface fill meant for surface-variant sidebars.
                           fillColor: AleraTokens.surfaceVariant,
@@ -104,19 +105,11 @@ class BrowserToolbar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AleraTokens.space6),
-                      if (wide)
-                        _BrowserToolbarLabelButton(
-                          tooltip: 'Browser Profile',
-                          icon: AleraIcons.profile,
-                          label: profileLabel,
-                          onPressed: onSelectProfile,
-                        )
-                      else
-                        AleraIconButton(
-                          tooltip: 'Browser Profile: $profileLabel',
-                          icon: AleraIcons.profile,
-                          onPressed: onSelectProfile,
-                        ),
+                      AleraIconButton(
+                        tooltip: 'Browser Profile: $profileLabel',
+                        icon: AleraIcons.profile,
+                        onPressed: onSelectProfile,
+                      ),
                       _BrowserDownloadsButton(
                         count: state.downloads
                             .where((download) => !download.isTerminal)
@@ -151,43 +144,6 @@ class BrowserToolbar extends StatelessWidget {
               ],
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _BrowserToolbarLabelButton extends StatelessWidget {
-  const _BrowserToolbarLabelButton({
-    required this.tooltip,
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: AleraTokens.space16),
-        label: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AleraTokens.space48 * 2),
-          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(
-            AleraTokens.space48,
-            AleraTokens.space24 + AleraTokens.space4,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
-          visualDensity: VisualDensity.compact,
         ),
       ),
     );

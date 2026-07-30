@@ -114,7 +114,7 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(
               minWidth: 24,
-              minHeight: AleraTextField.denseHeight,
+              minHeight: AleraTextField.defaultDenseHeight,
             ),
           )
         : null;
