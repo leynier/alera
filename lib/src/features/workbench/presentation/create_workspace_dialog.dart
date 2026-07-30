@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
@@ -16,6 +17,7 @@ import 'package:alera/src/features/workbench/domain/workspace_creation_result.da
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
+part 'create_workspace_dialog_submission.dart';
 
 class CreateWorkspaceDialog extends StatefulWidget {
   const CreateWorkspaceDialog({
@@ -29,6 +31,7 @@ class CreateWorkspaceDialog extends StatefulWidget {
     this.parentCandidates = const <WorkspaceParentCandidate>[],
     this.initialProject,
     this.onAddProject,
+    this.onWorkspaceCreated,
   });
 
   final List<Project> projects;
@@ -49,6 +52,7 @@ class CreateWorkspaceDialog extends StatefulWidget {
   final Set<String> Function(Project project) getProjectWorkspaceBranches;
   final List<WorkspaceParentCandidate> parentCandidates;
   final VoidCallback? onAddProject;
+  final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated;
 
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -87,6 +91,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String? _newBranchError;
   String? _selectedParentWorkspaceId;
   bool _reuseExistingBranch = false;
+  bool _createAnother = false;
 
   // New state fields for 2-step flow and inline creation
   int _currentStep = 1; // 1: Selection, 2: Config/Preview
@@ -95,6 +100,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Timer? _validationDebounce;
   bool _isValidatingBranch = false;
   String? _branchValidationError;
+
+  void _update(VoidCallback callback) => setState(callback);
 
   @override
   void initState() {
@@ -404,62 +411,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         setState(() => _isValidatingBranch = false);
       }
     });
-  }
-
-  void _submit() async {
-    final project = _selectedProject;
-    if (project == null) {
-      return;
-    }
-    final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)
-        .trim();
-    final newBranchName = _targetBranchName(sourceBranch);
-    final name = _nameController.text.trim();
-
-    final sourceBranchError = sourceBranch.isEmpty
-        ? _sourceBranchRequiredError()
-        : null;
-    final newBranchError = newBranchName.isEmpty
-        ? _targetBranchRequiredError()
-        : null;
-
-    if (sourceBranchError != null || newBranchError != null) {
-      setState(() {
-        _sourceBranchError = sourceBranchError;
-        _newBranchError = newBranchError;
-      });
-      return;
-    }
-
-    if (_branchValidationError != null) {
-      return; // Do not submit if validation error exists
-    }
-
-    setState(() {
-      _creating = true;
-      _creationError = null;
-    });
-
-    try {
-      final result = await widget.onCreateWorkspace(
-        project: project,
-        sourceBranch: sourceBranch,
-        newBranchName: newBranchName,
-        reuseExistingBranch: _reuseExistingBranch,
-        name: name.isEmpty ? null : name,
-        parentWorkspaceId: _selectedParentWorkspaceId,
-      );
-      if (mounted) {
-        Navigator.of(context).pop(result);
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _creating = false;
-          _creationError = error.toString();
-        });
-      }
-    }
   }
 
   String _targetBranchName(String sourceBranch) {
@@ -1116,6 +1067,20 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
               ),
             ),
             const SizedBox(height: AleraTokens.space16),
+            if (!isStep1) ...<Widget>[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AleraCheckbox(
+                  value: _createAnother,
+                  enabled: !_creating,
+                  onChanged: (value) {
+                    setState(() => _createAnother = value);
+                  },
+                  label: 'Create Another',
+                ),
+              ),
+              const SizedBox(height: AleraTokens.space8),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[

@@ -109,6 +109,21 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
+        const SizedBox(height: AleraTokens.spaceMd),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _createAnother,
+          onChanged: _creating
+              ? null
+              : (value) {
+                  _update(() {
+                    _createAnother = value ?? false;
+                  });
+                },
+          title: const Text('Create Another'),
+          subtitle: const Text('Keep This Screen Open After Creation'),
+        ),
         const SizedBox(height: AleraTokens.spaceXl),
         FilledButton.icon(
           onPressed: _canSubmit ? _create : null,
@@ -122,52 +137,6 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
               : const Icon(Icons.add),
           label: Text(_creating ? 'Creating' : 'Create Workspace'),
         ),
-      ],
-    );
-  }
-}
-
-class _SetupReportView extends StatelessWidget {
-  const _SetupReportView({required this.result, required this.onDone});
-
-  final WorkspaceCreationResult result;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListView(
-      padding: AleraTokens.pagePadding,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Icon(Icons.check_circle_outline, color: AleraTokens.success),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Expanded(
-              child: Text(
-                result.workspace.name,
-                style: theme.textTheme.titleLarge,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        for (final step in result.steps)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(
-              step.succeeded ? Icons.check : Icons.close,
-              color: step.succeeded ? AleraTokens.success : AleraTokens.error,
-            ),
-            title: Text(step.label, overflow: TextOverflow.ellipsis),
-            subtitle: step.message == null
-                ? null
-                : Text(step.message!, overflow: TextOverflow.ellipsis),
-          ),
-        const SizedBox(height: AleraTokens.spaceXl),
-        FilledButton(onPressed: onDone, child: const Text('Done')),
       ],
     );
   }

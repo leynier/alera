@@ -72,16 +72,22 @@ mixin MobileRuntimeWorkspaceClient {
     String? name,
     String? parentWorkspaceId,
   }) async {
-    final payload =
-        await requestMap('workspace.createManaged', <String, Object?>{
-          'projectId': projectId,
-          'branch': branch,
-          'reuseExistingBranch': reuseExistingBranch,
-          if (!reuseExistingBranch && sourceBranch != null)
-            'sourceBranch': sourceBranch,
-          'name': ?name,
-          'parentWorkspaceId': ?parentWorkspaceId,
-        }, _managedWorkspaceCreateTimeout);
+    final payload = await requestMap(
+      'workspace.createManaged',
+      <String, Object?>{
+        'projectId': projectId,
+        'branch': branch,
+        'reuseExistingBranch': reuseExistingBranch,
+        if (!reuseExistingBranch && sourceBranch != null)
+          'sourceBranch': sourceBranch,
+        'name': ?name,
+        'parentWorkspaceId': ?parentWorkspaceId,
+        // Older hosts ignore this and keep running setup inline. Newer hosts
+        // return a portable command that mobile starts in a Setup terminal.
+        'deferSetup': true,
+      },
+      _managedWorkspaceCreateTimeout,
+    );
     return WorkspaceCreationResult.fromJson(payload);
   }
 

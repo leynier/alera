@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -122,17 +124,29 @@ class WorkspaceListController extends _$WorkspaceListController {
     String? name,
     String? parentWorkspaceId,
   }) async {
-    final client = await ref.read(workspaceClientProvider(hostId).future);
-    final result = await client.createManagedWorkspace(
-      projectId: projectId,
-      branch: branch,
-      sourceBranch: sourceBranch,
-      reuseExistingBranch: reuseExistingBranch,
-      name: name,
-      parentWorkspaceId: parentWorkspaceId,
-    );
-    ref.invalidateSelf();
-    return result;
+    final keepAlive = ref.keepAlive();
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      final creation = await client.createManagedWorkspace(
+        projectId: projectId,
+        branch: branch,
+        sourceBranch: sourceBranch,
+        reuseExistingBranch: reuseExistingBranch,
+        name: name,
+        parentWorkspaceId: parentWorkspaceId,
+      );
+      var result = creation;
+      if (creation.hasDeferredSetup) {
+        final terminalClient = await ref.read(
+          terminalClientProvider(hostId).future,
+        );
+        result = await launchDeferredWorkspaceSetup(terminalClient, creation);
+      }
+      ref.invalidateSelf();
+      return result;
+    } finally {
+      keepAlive.close();
+    }
   }
 
   Future<void> deleteWorkspace(String workspaceId, {bool? deleteBranch}) async {
