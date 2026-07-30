@@ -43,6 +43,9 @@ class FakeTerminalClient
   /// The raw payload of each `writeTerminal`, for tests that care about the
   /// bytes and not just their count.
   final List<List<int>> writes = <List<int>>[];
+  final List<({String tabId, int cols, int rows})> attachments =
+      <({String tabId, int cols, int rows})>[];
+  Future<void>? attachCompletion;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   int _createdTabs = 0;
 
@@ -185,6 +188,8 @@ class FakeTerminalClient
     int rows = defaultTerminalRows,
   }) async {
     calls.add('attach $tabId');
+    attachments.add((tabId: tabId, cols: cols, rows: rows));
+    await attachCompletion;
     final tab = tabs.firstWhere((tab) => tab.id == tabId);
     return MobileTerminalSession(
       tab: tab,

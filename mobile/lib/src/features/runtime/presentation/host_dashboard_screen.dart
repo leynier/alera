@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -71,7 +73,11 @@ class HostDashboardScreen extends ConsumerWidget {
           AsyncError(:final error) => _ErrorState(
             error: error,
             onRetry: () {
-              ref.invalidate(hostConnectionControllerProvider(host.id));
+              unawaited(
+                ref
+                    .read(hostConnectionControllerProvider(host.id).notifier)
+                    .reconnectNow(),
+              );
             },
           ),
           _ => const Center(child: CircularProgressIndicator()),

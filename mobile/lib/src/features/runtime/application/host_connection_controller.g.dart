@@ -9,21 +9,24 @@ part of 'host_connection_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Owns the WebSocket connection to one paired runtime host. The client is
-/// connected and authenticated before it is exposed, and disposed together
-/// with the provider so leaving the host screens tears the socket down.
+/// connected and authenticated before it is exposed. Transport failures recover
+/// while the app is in the foreground, and leaving every host surface disposes
+/// the client and stops retry work.
 
 @ProviderFor(HostConnectionController)
 final hostConnectionControllerProvider = HostConnectionControllerFamily._();
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
-/// connected and authenticated before it is exposed, and disposed together
-/// with the provider so leaving the host screens tears the socket down.
+/// connected and authenticated before it is exposed. Transport failures recover
+/// while the app is in the foreground, and leaving every host surface disposes
+/// the client and stops retry work.
 final class HostConnectionControllerProvider
     extends
         $AsyncNotifierProvider<HostConnectionController, MobileRuntimeClient> {
   /// Owns the WebSocket connection to one paired runtime host. The client is
-  /// connected and authenticated before it is exposed, and disposed together
-  /// with the provider so leaving the host screens tears the socket down.
+  /// connected and authenticated before it is exposed. Transport failures recover
+  /// while the app is in the foreground, and leaving every host surface disposes
+  /// the client and stops retry work.
   HostConnectionControllerProvider._({
     required HostConnectionControllerFamily super.from,
     required String super.argument,
@@ -62,11 +65,12 @@ final class HostConnectionControllerProvider
 }
 
 String _$hostConnectionControllerHash() =>
-    r'63a5ce5f4728a9451cf4d7802b7c69343cec3bcd';
+    r'80f3b29961f7de91a312cfe2fcbf378d9890bdef';
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
-/// connected and authenticated before it is exposed, and disposed together
-/// with the provider so leaving the host screens tears the socket down.
+/// connected and authenticated before it is exposed. Transport failures recover
+/// while the app is in the foreground, and leaving every host surface disposes
+/// the client and stops retry work.
 
 final class HostConnectionControllerFamily extends $Family
     with
@@ -87,8 +91,9 @@ final class HostConnectionControllerFamily extends $Family
       );
 
   /// Owns the WebSocket connection to one paired runtime host. The client is
-  /// connected and authenticated before it is exposed, and disposed together
-  /// with the provider so leaving the host screens tears the socket down.
+  /// connected and authenticated before it is exposed. Transport failures recover
+  /// while the app is in the foreground, and leaving every host surface disposes
+  /// the client and stops retry work.
 
   HostConnectionControllerProvider call(String hostId) =>
       HostConnectionControllerProvider._(argument: hostId, from: this);
@@ -98,8 +103,9 @@ final class HostConnectionControllerFamily extends $Family
 }
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
-/// connected and authenticated before it is exposed, and disposed together
-/// with the provider so leaving the host screens tears the socket down.
+/// connected and authenticated before it is exposed. Transport failures recover
+/// while the app is in the foreground, and leaving every host surface disposes
+/// the client and stops retry work.
 
 abstract class _$HostConnectionController
     extends $AsyncNotifier<MobileRuntimeClient> {
