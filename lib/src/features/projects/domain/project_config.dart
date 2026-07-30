@@ -7,21 +7,35 @@ part 'project_config.mapper.dart';
 class ProjectConfig with ProjectConfigMappable {
   const ProjectConfig({
     this.worktree = WorktreeSetupConfig.defaults,
+    this.newWorkspace = NewWorkspaceConfig.defaults,
     this.gitHostingProvider,
   });
 
   final WorktreeSetupConfig worktree;
+  final NewWorkspaceConfig newWorkspace;
 
   /// Overrides auto-detection of the git hosting provider for this project.
   /// Null means auto-detect from the repository's remote.
   final GitHostingProvider? gitHostingProvider;
 
-  bool get isEmpty => worktree.isEmpty && gitHostingProvider == null;
+  bool get isEmpty =>
+      worktree.isEmpty && newWorkspace.isEmpty && gitHostingProvider == null;
 
   static const ProjectConfig empty = ProjectConfig();
 
   factory ProjectConfig.fromJson(Map<String, Object?> json) =>
       ProjectConfigMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+@MappableClass()
+class NewWorkspaceConfig with NewWorkspaceConfigMappable {
+  const NewWorkspaceConfig({this.promptAppend = ''});
+
+  final String promptAppend;
+
+  bool get isEmpty => promptAppend.trim().isEmpty;
+
+  static const NewWorkspaceConfig defaults = NewWorkspaceConfig();
 }
 
 @MappableClass()

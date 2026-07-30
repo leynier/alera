@@ -418,4 +418,17 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
     ],
     groupId: 'instructions',
   ),
+  SettingsSearchEntry(
+    title: 'AI Text Prompt Overrides',
+    description: 'Choose An Agent Or Model For Each Generated Text Prompt.',
+    keywords: <String>[
+      'prompt',
+      'agent',
+      'model',
+      'inherit',
+      'global',
+      'workspace identity',
+    ],
+    groupId: 'promptOverrides',
+  ),
 ];

@@ -3,7 +3,7 @@
 //! Split out of `worktree_setup.rs`, which keeps the execution side: applying
 //! the copy rules and running the setup commands.
 
-use alera_core::runtime::{ProjectConfig, WorktreeCopyRule};
+use alera_core::runtime::{NewWorkspaceConfig, ProjectConfig, WorktreeCopyRule};
 use anyhow::{anyhow, bail, Context, Result};
 
 pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
@@ -12,8 +12,10 @@ pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig>
         bail!("alera.toml must contain a table");
     };
     let git_hosting_provider = parse_git_hosting_provider(root.get("git_hosting_provider"))?;
+    let new_workspace = parse_new_workspace_config(root.get("new_workspace"))?;
     let Some(worktree) = root.get("worktree") else {
         return Ok(ProjectConfig {
+            new_workspace,
             git_hosting_provider,
             ..ProjectConfig::default()
         });
@@ -25,8 +27,30 @@ pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig>
     let setup = parse_setup_commands(worktree.get("setup"))?;
     Ok(ProjectConfig {
         worktree: alera_core::runtime::WorktreeSetupConfig { copy, setup },
+        new_workspace,
         git_hosting_provider,
     })
+}
+
+fn parse_new_workspace_config(value: Option<&toml::Value>) -> Result<NewWorkspaceConfig> {
+    let Some(value) = value else {
+        return Ok(NewWorkspaceConfig::default());
+    };
+    let Some(table) = value.as_table() else {
+        bail!("alera.toml [new_workspace] must be a table");
+    };
+    let prompt_append = table
+        .get("prompt_append")
+        .map(|value| {
+            value
+                .as_str()
+                .map(str::trim)
+                .map(str::to_string)
+                .ok_or_else(|| anyhow!("new_workspace.prompt_append must be a string"))
+        })
+        .transpose()?
+        .unwrap_or_default();
+    Ok(NewWorkspaceConfig { prompt_append })
 }
 
 fn parse_git_hosting_provider(value: Option<&toml::Value>) -> Result<Option<String>> {
@@ -161,5 +185,23 @@ mod tests {
         let config =
             parse_project_config_toml("git_hosting_provider = \"githubEnterprise\"").unwrap();
         assert_eq!(config.git_hosting_provider.as_deref(), Some("github"));
+    }
+
+    #[test]
+    fn project_config_reads_new_workspace_prompt_append() {
+        let config = parse_project_config_toml(
+            r#"
+[new_workspace]
+prompt_append = """
+Run The Focused Tests.
+Preserve Existing APIs.
+"""
+"#,
+        )
+        .unwrap();
+        assert_eq!(
+            config.new_workspace.prompt_append,
+            "Run The Focused Tests.\nPreserve Existing APIs."
+        );
     }
 }

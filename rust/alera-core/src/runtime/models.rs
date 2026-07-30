@@ -387,6 +387,8 @@ pub struct ProjectConfigRecord {
 pub struct ProjectConfig {
     #[serde(default)]
     pub worktree: WorktreeSetupConfig,
+    #[serde(default)]
+    pub new_workspace: NewWorkspaceConfig,
     // Opaque provider override string (e.g. "github", "azureDevops") set by the
     // Dart client; round-tripped so it survives config upserts. Null/absent
     // means auto-detect.
@@ -398,8 +400,16 @@ impl ProjectConfig {
     pub fn is_empty(&self) -> bool {
         self.worktree.copy.is_empty()
             && self.worktree.setup.is_empty()
+            && self.new_workspace.prompt_append.trim().is_empty()
             && self.git_hosting_provider.is_none()
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NewWorkspaceConfig {
+    #[serde(default)]
+    pub prompt_append: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

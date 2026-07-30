@@ -16,6 +16,7 @@ class ProjectConfigMapper extends ClassMapperBase<ProjectConfig> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = ProjectConfigMapper._());
       WorktreeSetupConfigMapper.ensureInitialized();
+      NewWorkspaceConfigMapper.ensureInitialized();
       GitHostingProviderMapper.ensureInitialized();
     }
     return _instance!;
@@ -31,6 +32,13 @@ class ProjectConfigMapper extends ClassMapperBase<ProjectConfig> {
     opt: true,
     def: WorktreeSetupConfig.defaults,
   );
+  static NewWorkspaceConfig _$newWorkspace(ProjectConfig v) => v.newWorkspace;
+  static const Field<ProjectConfig, NewWorkspaceConfig> _f$newWorkspace = Field(
+    'newWorkspace',
+    _$newWorkspace,
+    opt: true,
+    def: NewWorkspaceConfig.defaults,
+  );
   static GitHostingProvider? _$gitHostingProvider(ProjectConfig v) =>
       v.gitHostingProvider;
   static const Field<ProjectConfig, GitHostingProvider> _f$gitHostingProvider =
@@ -39,12 +47,14 @@ class ProjectConfigMapper extends ClassMapperBase<ProjectConfig> {
   @override
   final MappableFields<ProjectConfig> fields = const {
     #worktree: _f$worktree,
+    #newWorkspace: _f$newWorkspace,
     #gitHostingProvider: _f$gitHostingProvider,
   };
 
   static ProjectConfig _instantiate(DecodingData data) {
     return ProjectConfig(
       worktree: data.dec(_f$worktree),
+      newWorkspace: data.dec(_f$newWorkspace),
       gitHostingProvider: data.dec(_f$gitHostingProvider),
     );
   }
@@ -113,8 +123,11 @@ abstract class ProjectConfigCopyWith<$R, $In extends ProjectConfig, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   WorktreeSetupConfigCopyWith<$R, WorktreeSetupConfig, WorktreeSetupConfig>
   get worktree;
+  NewWorkspaceConfigCopyWith<$R, NewWorkspaceConfig, NewWorkspaceConfig>
+  get newWorkspace;
   $R call({
     WorktreeSetupConfig? worktree,
+    NewWorkspaceConfig? newWorkspace,
     GitHostingProvider? gitHostingProvider,
   });
   ProjectConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -132,18 +145,25 @@ class _ProjectConfigCopyWithImpl<$R, $Out>
   WorktreeSetupConfigCopyWith<$R, WorktreeSetupConfig, WorktreeSetupConfig>
   get worktree => $value.worktree.copyWith.$chain((v) => call(worktree: v));
   @override
+  NewWorkspaceConfigCopyWith<$R, NewWorkspaceConfig, NewWorkspaceConfig>
+  get newWorkspace =>
+      $value.newWorkspace.copyWith.$chain((v) => call(newWorkspace: v));
+  @override
   $R call({
     WorktreeSetupConfig? worktree,
+    NewWorkspaceConfig? newWorkspace,
     Object? gitHostingProvider = $none,
   }) => $apply(
     FieldCopyWithData({
       if (worktree != null) #worktree: worktree,
+      if (newWorkspace != null) #newWorkspace: newWorkspace,
       if (gitHostingProvider != $none) #gitHostingProvider: gitHostingProvider,
     }),
   );
   @override
   ProjectConfig $make(CopyWithData data) => ProjectConfig(
     worktree: data.get(#worktree, or: $value.worktree),
+    newWorkspace: data.get(#newWorkspace, or: $value.newWorkspace),
     gitHostingProvider: data.get(
       #gitHostingProvider,
       or: $value.gitHostingProvider,
@@ -463,5 +483,136 @@ class _WorktreeCopyRuleCopyWithImpl<$R, $Out>
   WorktreeCopyRuleCopyWith<$R2, WorktreeCopyRule, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _WorktreeCopyRuleCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class NewWorkspaceConfigMapper extends ClassMapperBase<NewWorkspaceConfig> {
+  NewWorkspaceConfigMapper._();
+
+  static NewWorkspaceConfigMapper? _instance;
+  static NewWorkspaceConfigMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = NewWorkspaceConfigMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'NewWorkspaceConfig';
+
+  static String _$promptAppend(NewWorkspaceConfig v) => v.promptAppend;
+  static const Field<NewWorkspaceConfig, String> _f$promptAppend = Field(
+    'promptAppend',
+    _$promptAppend,
+    opt: true,
+    def: '',
+  );
+
+  @override
+  final MappableFields<NewWorkspaceConfig> fields = const {
+    #promptAppend: _f$promptAppend,
+  };
+
+  static NewWorkspaceConfig _instantiate(DecodingData data) {
+    return NewWorkspaceConfig(promptAppend: data.dec(_f$promptAppend));
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static NewWorkspaceConfig fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<NewWorkspaceConfig>(map);
+  }
+
+  static NewWorkspaceConfig fromJson(String json) {
+    return ensureInitialized().decodeJson<NewWorkspaceConfig>(json);
+  }
+}
+
+mixin NewWorkspaceConfigMappable {
+  String toJson() {
+    return NewWorkspaceConfigMapper.ensureInitialized()
+        .encodeJson<NewWorkspaceConfig>(this as NewWorkspaceConfig);
+  }
+
+  Map<String, dynamic> toMap() {
+    return NewWorkspaceConfigMapper.ensureInitialized()
+        .encodeMap<NewWorkspaceConfig>(this as NewWorkspaceConfig);
+  }
+
+  NewWorkspaceConfigCopyWith<
+    NewWorkspaceConfig,
+    NewWorkspaceConfig,
+    NewWorkspaceConfig
+  >
+  get copyWith =>
+      _NewWorkspaceConfigCopyWithImpl<NewWorkspaceConfig, NewWorkspaceConfig>(
+        this as NewWorkspaceConfig,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return NewWorkspaceConfigMapper.ensureInitialized().stringifyValue(
+      this as NewWorkspaceConfig,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return NewWorkspaceConfigMapper.ensureInitialized().equalsValue(
+      this as NewWorkspaceConfig,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return NewWorkspaceConfigMapper.ensureInitialized().hashValue(
+      this as NewWorkspaceConfig,
+    );
+  }
+}
+
+extension NewWorkspaceConfigValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, NewWorkspaceConfig, $Out> {
+  NewWorkspaceConfigCopyWith<$R, NewWorkspaceConfig, $Out>
+  get $asNewWorkspaceConfig => $base.as(
+    (v, t, t2) => _NewWorkspaceConfigCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class NewWorkspaceConfigCopyWith<
+  $R,
+  $In extends NewWorkspaceConfig,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? promptAppend});
+  NewWorkspaceConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _NewWorkspaceConfigCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, NewWorkspaceConfig, $Out>
+    implements NewWorkspaceConfigCopyWith<$R, NewWorkspaceConfig, $Out> {
+  _NewWorkspaceConfigCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<NewWorkspaceConfig> $mapper =
+      NewWorkspaceConfigMapper.ensureInitialized();
+  @override
+  $R call({String? promptAppend}) => $apply(
+    FieldCopyWithData({if (promptAppend != null) #promptAppend: promptAppend}),
+  );
+  @override
+  NewWorkspaceConfig $make(CopyWithData data) => NewWorkspaceConfig(
+    promptAppend: data.get(#promptAppend, or: $value.promptAppend),
+  );
+
+  @override
+  NewWorkspaceConfigCopyWith<$R2, NewWorkspaceConfig, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _NewWorkspaceConfigCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 

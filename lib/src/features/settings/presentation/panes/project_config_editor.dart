@@ -18,6 +18,8 @@ class ProjectConfigEditor extends StatelessWidget {
     required this.sourceLabel,
     required this.copyRules,
     required this.setupCommands,
+    required this.promptAppend,
+    required this.onPromptAppendChanged,
     required this.saveError,
     required this.saving,
     required this.updateCopyRule,
@@ -38,6 +40,8 @@ class ProjectConfigEditor extends StatelessWidget {
   final String? sourceError;
   final List<EditableCopyRule> copyRules;
   final List<String> setupCommands;
+  final String promptAppend;
+  final ValueChanged<String> onPromptAppendChanged;
   final GitHostingProvider? gitHostingProvider;
   final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
   final String? saveError;
@@ -80,6 +84,25 @@ class ProjectConfigEditor extends StatelessWidget {
                   ),
                 ),
               ),
+          ],
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        AleraSettingsGroup(
+          title: 'New Workspace',
+          description:
+              'Project Instructions Appended To Prompts That Start An Agent.',
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AleraTokens.space16),
+              child: _ProjectConfigTextField(
+                value: promptAppend,
+                labelText: 'Prompt Append',
+                hintText: 'Add Project-Specific Agent Instructions',
+                minLines: 3,
+                maxLines: 6,
+                onChanged: onPromptAppendChanged,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
@@ -309,12 +332,16 @@ class _ProjectConfigTextField extends StatefulWidget {
     required this.onChanged,
     this.labelText,
     this.hintText,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   final String value;
   final ValueChanged<String> onChanged;
   final String? labelText;
   final String? hintText;
+  final int? minLines;
+  final int? maxLines;
 
   @override
   State<_ProjectConfigTextField> createState() =>
@@ -350,6 +377,8 @@ class _ProjectConfigTextFieldState extends State<_ProjectConfigTextField> {
       controller: _controller,
       labelText: widget.labelText,
       hintText: widget.hintText,
+      minLines: widget.minLines,
+      maxLines: widget.maxLines,
       onChanged: widget.onChanged,
     );
   }
@@ -443,6 +472,8 @@ String projectConfigSignature(ProjectConfig config) {
   }
   buffer
     ..write('\u{1d}')
-    ..write(config.gitHostingProvider?.name ?? '');
+    ..write(config.gitHostingProvider?.name ?? '')
+    ..write('\u{1d}')
+    ..write(config.newWorkspace.promptAppend);
   return buffer.toString();
 }
