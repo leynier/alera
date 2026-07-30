@@ -17,7 +17,7 @@ void _registerXtermRuntimeWidgetTests() {
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
       try {
-        session.refreshRendering();
+        await session.refreshRendering();
         expect(fakeSession.resizeCalls, isEmpty);
 
         await tester.pumpWidget(
@@ -33,12 +33,20 @@ void _registerXtermRuntimeWidgetTests() {
         writeTerminalOutputForTesting(session, 'preserved output');
         final bufferBefore = terminalBufferTextForTesting(session);
 
-        session.refreshRendering();
+        await session.refreshRendering();
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(fakeSession.resizeCalls, hasLength(1));
-        expect(fakeSession.resizeCalls.single.cols, greaterThan(0));
-        expect(fakeSession.resizeCalls.single.rows, greaterThan(0));
+        expect(fakeSession.resizeCalls, hasLength(2));
+        expect(
+          fakeSession.resizeCalls.first.cols,
+          fakeSession.resizeCalls.last.cols - 1,
+        );
+        expect(
+          fakeSession.resizeCalls.first.rows,
+          fakeSession.resizeCalls.last.rows,
+        );
+        expect(fakeSession.resizeCalls.last.cols, greaterThan(0));
+        expect(fakeSession.resizeCalls.last.rows, greaterThan(0));
         expect(terminalBufferTextForTesting(session), bufferBefore);
         expect(runtime.peekSession('tab-1'), same(session));
         expect(fakeSession.writes, isEmpty);
@@ -51,6 +59,131 @@ void _registerXtermRuntimeWidgetTests() {
       }
     },
   );
+
+  testWidgets('completed restore refreshes the measured viewport once', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedBuilder(
+              animation: session,
+              builder: (context, _) => session.buildView(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await session.ensureStarted();
+      await tester.pump(const Duration(milliseconds: 200));
+      fakeSession.resizeCalls.clear();
+      fakeSession.writes.clear();
+
+      const marker = 'restored-tail-marker';
+      fakeSession.emitSnapshot(utf8.encode('$marker\r\n'));
+      await tester.idle();
+
+      while (pendingRestoreTerminalOutputCharsForTesting(session) > 0) {
+        flushTerminalOutputForTesting(session);
+      }
+      final bufferBeforeRefresh = terminalBufferTextForTesting(session);
+      expect(session.restoreProgress.value, isNull);
+      expect(bufferBeforeRefresh, contains(marker));
+      expect(fakeSession.resizeCalls, isEmpty);
+
+      await tester.pump();
+
+      expect(fakeSession.resizeCalls, hasLength(2));
+      expect(
+        fakeSession.resizeCalls.first.cols,
+        fakeSession.resizeCalls.last.cols - 1,
+      );
+      expect(
+        fakeSession.resizeCalls.first.rows,
+        fakeSession.resizeCalls.last.rows,
+      );
+      expect(terminalBufferTextForTesting(session), bufferBeforeRefresh);
+      expect(runtime.peekSession('tab-1'), same(session));
+      expect(fakeSession.writes, isEmpty);
+      expect(fakeSession.terminated, isFalse);
+    } finally {
+      visibility.dispose();
+      runtime.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a replacement invalidates a pending restore refresh', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedBuilder(
+              animation: session,
+              builder: (context, _) => session.buildView(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await session.ensureStarted();
+      await tester.pump(const Duration(milliseconds: 200));
+      fakeSession.resizeCalls.clear();
+
+      fakeSession.emitSnapshot(utf8.encode('superseded'));
+      await tester.idle();
+      flushTerminalOutputForTesting(session);
+      expect(session.restoreProgress.value, isNull);
+
+      fakeSession.emitSnapshot(utf8.encode('latest-tail-marker\r\n'));
+      await tester.idle();
+      expect(session.restoreProgress.value, isNotNull);
+      flushTerminalOutputForTesting(session);
+      expect(session.restoreProgress.value, isNull);
+      expect(fakeSession.resizeCalls, isEmpty);
+
+      await tester.pump();
+
+      expect(fakeSession.resizeCalls, hasLength(2));
+    } finally {
+      visibility.dispose();
+      runtime.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets(
     'build view supports deferred focus, direct input, and OSC updates',

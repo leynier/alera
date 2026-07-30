@@ -7,6 +7,7 @@
 #include "generated_plugin_registrant.h"
 
 #include <alera_browser/alera_browser_plugin.h>
+#include <desktop_drop/desktop_drop_plugin.h>
 #include <desktop_updater/desktop_updater_plugin.h>
 #include <file_selector_linux/file_selector_plugin.h>
 #include <media_kit_libs_linux/media_kit_libs_linux_plugin.h>
@@ -19,6 +20,9 @@ void fl_register_plugins(FlPluginRegistry* registry) {
   g_autoptr(FlPluginRegistrar) alera_browser_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "AleraBrowserPlugin");
   alera_browser_plugin_register_with_registrar(alera_browser_registrar);
+  g_autoptr(FlPluginRegistrar) desktop_drop_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry, "DesktopDropPlugin");
+  desktop_drop_plugin_register_with_registrar(desktop_drop_registrar);
   g_autoptr(FlPluginRegistrar) desktop_updater_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "DesktopUpdaterPlugin");
   desktop_updater_plugin_register_with_registrar(desktop_updater_registrar);

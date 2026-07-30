@@ -1234,7 +1234,11 @@ void _appendProjectedChild(
 }
 
 class _FakeWorkspaceFolderOpener extends WorkspaceFolderOpener {
-  _FakeWorkspaceFolderOpener() : super(processRunner: _NoopProcessRunner());
+  _FakeWorkspaceFolderOpener()
+    : super(
+        processRunner: _NoopProcessRunner(),
+        platform: WorkspaceFolderPlatform.macos,
+      );
 
   final List<String> revealedPaths = <String>[];
 

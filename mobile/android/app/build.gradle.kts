@@ -64,7 +64,7 @@ android {
             signingConfig = if (releaseSigningAvailable) {
                 signingConfigs.getByName("release")
             } else {
-                println("WARNING: key.properties not found; signing release with the debug key. APKs signed this way cannot update over release-signed installs.")
+                println("INFO: key.properties not found; signing release with the debug key. APKs signed this way cannot update over release-signed installs.")
                 signingConfigs.getByName("debug")
             }
         }

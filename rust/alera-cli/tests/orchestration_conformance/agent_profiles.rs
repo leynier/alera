@@ -74,6 +74,60 @@ fn agent_profiles_round_trip_through_the_host() {
 }
 
 #[test]
+fn managed_agent_profiles_round_trip_structured_configuration() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let created = request(
+        &mut writer,
+        &mut reader,
+        205,
+        "agentProfile.upsert",
+        json!({
+            "name": "Managed Codex",
+            "agentType": "codex",
+            "launchMode": "managed",
+            "managedConfig": {
+                "model": "gpt-5.6-sol",
+                "sandbox": "workspace-write",
+                "webSearch": true
+            }
+        }),
+    );
+    assert_eq!(created["ok"], json!(true), "upsert rejected: {created}");
+    assert_eq!(payload(&created)["launchMode"], json!("managed"));
+    assert_eq!(
+        payload(&created)["managedConfig"],
+        json!({
+            "model": "gpt-5.6-sol",
+            "sandbox": "workspace-write",
+            "webSearch": true
+        })
+    );
+    assert!(
+        payload(&created)["command"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("--model"),
+        "managed preview missing: {created}"
+    );
+
+    let listed = request(
+        &mut writer,
+        &mut reader,
+        206,
+        "agentProfile.list",
+        json!({}),
+    );
+    assert_eq!(payload(&listed)["items"][0]["launchMode"], json!("managed"));
+    assert_eq!(
+        payload(&listed)["items"][0]["managedConfig"]["model"],
+        json!("gpt-5.6-sol")
+    );
+}
+
+#[test]
 fn agent_profile_upsert_rejects_an_unknown_adapter() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
@@ -131,7 +185,7 @@ fn agent_profile_upsert_rejects_a_duplicate_name() {
 }
 
 #[test]
-fn agent_profile_upsert_requires_a_name_and_command() {
+fn command_agent_profile_upsert_requires_a_name_and_command() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
@@ -166,5 +220,9 @@ fn the_host_advertises_the_agent_profiles_capability() {
     assert!(
         capabilities.contains(&json!("orchestrationAgentProfilesV1")),
         "capability missing: {capabilities:?}"
+    );
+    assert!(
+        capabilities.contains(&json!("orchestrationManagedAgentProfilesV1")),
+        "managed capability missing: {capabilities:?}"
     );
 }

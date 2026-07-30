@@ -22,9 +22,12 @@ class AgentProfileListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final adapter = agentProfileAdapterFromKey(profile.agentType);
+    final launchLabel = profile.launchMode == AgentProfileLaunchMode.managed
+        ? 'Managed'
+        : 'Command';
     final subtitle = profile.quotaGroup == null
-        ? profile.command
-        : '${profile.command}  ·  ${profile.quotaGroup}';
+        ? '$launchLabel  ·  ${profile.command}'
+        : '$launchLabel  ·  ${profile.command}  ·  ${profile.quotaGroup}';
     return Material(
       color: selected ? AleraTokens.accentSubtle : Colors.transparent,
       child: InkWell(

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +16,8 @@ pub struct RuntimeSettings {
     pub agent_quotas: RuntimeAgentQuotaSettings,
     #[serde(default)]
     pub mobile_push_notifications: RuntimeMobilePushSettings,
+    #[serde(default)]
+    pub ai_text_generation: Option<RuntimeAiTextGenerationSettings>,
 }
 
 impl Default for RuntimeSettings {
@@ -26,6 +29,7 @@ impl Default for RuntimeSettings {
             agent_status_hooks: RuntimeAgentStatusHookSettings::default(),
             agent_quotas: RuntimeAgentQuotaSettings::default(),
             mobile_push_notifications: RuntimeMobilePushSettings::default(),
+            ai_text_generation: None,
         }
     }
 }
@@ -54,6 +58,70 @@ impl Default for RuntimeMobilePushSettings {
             terminal_exit: false,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeAiTextGenerationSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_ai_text_agent")]
+    pub agent: String,
+    #[serde(default)]
+    pub selected_model_by_agent: HashMap<String, String>,
+    #[serde(default)]
+    pub selected_thinking_by_model: HashMap<String, String>,
+    #[serde(default)]
+    pub custom_command: String,
+    #[serde(default)]
+    pub instructions_by_operation: HashMap<String, String>,
+    #[serde(default = "default_ai_text_timeout")]
+    pub timeout_seconds: u64,
+}
+
+impl Default for RuntimeAiTextGenerationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            agent: default_ai_text_agent(),
+            selected_model_by_agent: HashMap::new(),
+            selected_thinking_by_model: HashMap::new(),
+            custom_command: String::new(),
+            instructions_by_operation: HashMap::new(),
+            timeout_seconds: default_ai_text_timeout(),
+        }
+    }
+}
+
+impl RuntimeAiTextGenerationSettings {
+    pub fn normalized(mut self) -> Self {
+        self.agent = self.agent.trim().to_ascii_lowercase();
+        self.custom_command = self.custom_command.trim().to_string();
+        self.selected_model_by_agent = normalized_string_map(self.selected_model_by_agent);
+        self.selected_thinking_by_model = normalized_string_map(self.selected_thinking_by_model);
+        self.instructions_by_operation = normalized_string_map(self.instructions_by_operation);
+        self.timeout_seconds = self.timeout_seconds.clamp(10, 600);
+        self
+    }
+}
+
+fn normalized_string_map(values: HashMap<String, String>) -> HashMap<String, String> {
+    values
+        .into_iter()
+        .filter_map(|(key, value)| {
+            let key = key.trim().to_string();
+            let value = value.trim().to_string();
+            (!key.is_empty() && !value.is_empty()).then_some((key, value))
+        })
+        .collect()
+}
+
+fn default_ai_text_agent() -> String {
+    "codex".to_string()
+}
+
+fn default_ai_text_timeout() -> u64 {
+    120
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

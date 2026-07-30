@@ -15,10 +15,13 @@ mod emulator_commands;
 mod host_tools;
 mod login_shell_environment;
 mod managed_workspace;
+#[cfg(test)]
+mod managed_workspace_removal_tests;
 mod mobile_access;
 mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_terminal_commands;
+mod project_config_toml;
 mod project_management;
 mod runtime_archive;
 mod runtime_commands;
@@ -30,6 +33,10 @@ mod terminal_alias_commands;
 mod terminal_host;
 mod workspace_pinning;
 mod workspace_registration;
+mod workspace_setup_command;
+mod worktree_copy;
+mod worktree_setup;
+mod worktree_setup_script;
 use std::future::Future;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -362,6 +369,16 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Err(error) => return print_error(error),
             };
             print_value(&value, json_output, "workspace created");
+        }
+        WorkspaceAction::Setup(args) => {
+            let client = match runtime_host_required(&runtime).await {
+                Ok(client) => client,
+                Err(error) => return print_error(error),
+            };
+            match workspace_setup_command::run(client, args, json_output).await {
+                Ok(()) => {}
+                Err(exit_code) => return exit_code,
+            }
         }
         WorkspaceAction::Remove(args) => {
             let delete_branch = if args.delete_branch {

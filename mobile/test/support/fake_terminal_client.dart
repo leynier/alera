@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -43,7 +44,19 @@ class FakeTerminalClient
   /// The raw payload of each `writeTerminal`, for tests that care about the
   /// bytes and not just their count.
   final List<List<int>> writes = <List<int>>[];
+  final List<({String tabId, int cols, int rows})> attachments =
+      <({String tabId, int cols, int rows})>[];
+  Future<void>? attachCompletion;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
+  List<String> projectBranches = const <String>[];
+  List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
+    AgentProfileSummary(id: 'profile-1', name: 'Codex', agentType: 'codex'),
+  ];
+  GeneratedWorkspaceIdentity generatedWorkspaceIdentity =
+      const GeneratedWorkspaceIdentity(
+        workspaceName: 'Generated Workspace',
+        branchName: 'feat/generated-workspace',
+      );
   int _createdTabs = 0;
 
   void emitEvent(String name) {
@@ -122,6 +135,9 @@ class FakeTerminalClient
   bool get supportsTabRename => true;
 
   @override
+  bool get supportsPromptWorkspaceCreation => true;
+
+  @override
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return const WorkspaceSidebarSnapshot(
       projects: <ProjectSummary>[],
@@ -185,6 +201,8 @@ class FakeTerminalClient
     int rows = defaultTerminalRows,
   }) async {
     calls.add('attach $tabId');
+    attachments.add((tabId: tabId, cols: cols, rows: rows));
+    await attachCompletion;
     final tab = tabs.firstWhere((tab) => tab.id == tabId);
     return MobileTerminalSession(
       tab: tab,
@@ -255,8 +273,41 @@ class FakeTerminalClient
   Future<ProjectBranches> listBranches(String projectId) async {
     return ProjectBranches(
       projectId: projectId,
-      branches: const <String>[],
-      localBranches: const <String>[],
+      branches: projectBranches,
+      localBranches: projectBranches,
+    );
+  }
+
+  @override
+  Future<List<AgentProfileSummary>> listAgentProfiles() async {
+    return agentProfiles;
+  }
+
+  @override
+  Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
+    required String operationId,
+    required String projectId,
+    required String prompt,
+  }) async {
+    calls.add('generateWorkspaceIdentity $projectId');
+    return generatedWorkspaceIdentity;
+  }
+
+  @override
+  Future<void> cancelWorkspaceIdentity(String operationId) async {
+    calls.add('cancelWorkspaceIdentity $operationId');
+  }
+
+  @override
+  Future<AgentProfileLaunchResult> launchAgentProfile({
+    required String workspaceId,
+    required String profileId,
+    required String prompt,
+  }) async {
+    calls.add('launchAgentProfile $workspaceId $profileId $prompt');
+    return const AgentProfileLaunchResult(
+      tabId: 'agent-tab',
+      agentType: 'codex',
     );
   }
 

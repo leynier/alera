@@ -85,7 +85,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   DateTime? _lastVisibleAt;
   final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
       ValueNotifier<TerminalRestoreProgress?>(null);
-  int _restoreTotalChars = 0, _restoreWrittenChars = 0;
+  int _restoreGeneration = 0, _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
   int _pointerInputCatchUpChars = 0;
   bool _pointerInputResumePending = false;
@@ -317,8 +317,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void refreshRendering() {
+  Future<void> refreshRendering() async {
     if (_disposed) {
+      return;
+    }
+    final session = _ptySession;
+    if (session == null) {
       return;
     }
     final viewState = _terminalViewKey.currentState;
@@ -332,13 +336,19 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     final cellSize = renderTerminal.cellSize;
-    _terminal.resize(
+    await session.refreshViewport(
       _terminal.viewWidth,
       _terminal.viewHeight,
       cellSize.width.round(),
       cellSize.height.round(),
     );
+    if (_disposed ||
+        !identical(_terminalViewKey.currentState, viewState) ||
+        !renderTerminal.attached) {
+      return;
+    }
     renderTerminal.markNeedsLayout();
+    renderTerminal.markNeedsPaint();
   }
 
   Future<bool> _startPtySession() async {
@@ -627,6 +637,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     // switching workspaces) before we ask the FocusNode to claim focus.
     WidgetsBinding.instance.addPostFrameCallback((_) => _requestFocusNow());
   }
+
+  @override
+  void pasteText(String text) => _pasteTerminalText(this, text);
 
   @override
   void dispose({bool terminatePty = true}) {

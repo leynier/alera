@@ -146,9 +146,8 @@ class _GroupCluster extends StatelessWidget {
 
 /// One run per agent type, ordered by agent type rather than by the run order.
 ///
-/// Runs are sorted by recency, which changes on every hook event, so taking
-/// them as they come would shuffle a group's icons on every update of any
-/// agent in it.
+/// Runs arrive in creation order; sorting the representatives by agent type
+/// keeps a group's icons in a fixed order regardless of status churn.
 List<WorkspaceAgentRun> _representativeRunsByAgentType(
   List<WorkspaceAgentRun> runs,
 ) {

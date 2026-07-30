@@ -55,11 +55,36 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
       case GhosttyTerminalPtyOutputEvent(:final data):
         _events.add(TerminalPtyOutputEvent(data));
       case GhosttyTerminalPtyExitEvent(:final exitCode):
+        _drainOutputAfterExit();
         _events.add(TerminalPtyExitEvent(exitCode));
       case GhosttyTerminalPtyErrorEvent(:final error):
         _events.add(TerminalPtyErrorEvent(error));
       case GhosttyTerminalPtyStateChangeEvent():
         break;
+    }
+  }
+
+  void _drainOutputAfterExit() {
+    final pty = _session?.pty;
+    if (pty == null) {
+      return;
+    }
+    while (true) {
+      try {
+        final data = pty.readSync(64 * 1024);
+        if (data.isEmpty) {
+          return;
+        }
+        _events.add(TerminalPtyOutputEvent(data));
+        if (data.length < 64 * 1024) {
+          return;
+        }
+      } on StateError {
+        return;
+      } catch (error) {
+        _events.add(TerminalPtyErrorEvent(error));
+        return;
+      }
     }
   }
 
@@ -81,6 +106,25 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
       return;
     }
     _session?.resize(rows: rows, cols: cols);
+  }
+
+  @override
+  Future<void> refreshViewport(
+    int cols,
+    int rows,
+    int cellWidthPx,
+    int cellHeightPx,
+  ) async {
+    final session = _session;
+    if (_disposed || session == null) {
+      return;
+    }
+    final pulseCols = cols > 1 ? cols - 1 : cols + 1;
+    try {
+      session.resize(rows: rows, cols: pulseCols);
+    } finally {
+      session.resize(rows: rows, cols: cols);
+    }
   }
 
   @override

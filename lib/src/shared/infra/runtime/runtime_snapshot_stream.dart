@@ -52,6 +52,7 @@ Stream<T> runtimeSnapshotStream<T>({
   Duration retryDelay = const Duration(seconds: 1),
   Duration maxRetryDelay = const Duration(seconds: 15),
 }) {
+  final coalesceOwner = Object();
   late final StreamController<T> controller;
   StreamSubscription<RuntimeHostEvent>? eventSub;
   Timer? retryTimer;
@@ -86,11 +87,11 @@ Stream<T> runtimeSnapshotStream<T>({
           if (event.name == aleraRuntimeHostConnectedEvent) {
             retryTimer?.cancel();
             backoff = retryDelay;
-            coalescer.schedule(coalesceKey, refresh);
+            coalescer.schedule(coalesceKey, coalesceOwner, refresh);
             return;
           }
           if (eventNames.contains(event.name) && matchesScope(event.payload)) {
-            coalescer.schedule(coalesceKey, refresh);
+            coalescer.schedule(coalesceKey, coalesceOwner, refresh);
           }
         },
         onError: (Object _) {},
@@ -101,7 +102,7 @@ Stream<T> runtimeSnapshotStream<T>({
     onCancel: () {
       retryTimer?.cancel();
       retryTimer = null;
-      coalescer.cancel(coalesceKey);
+      coalescer.cancel(coalesceKey, coalesceOwner);
       final sub = eventSub;
       eventSub = null;
       return sub?.cancel();

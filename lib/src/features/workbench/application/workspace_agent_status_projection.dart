@@ -8,6 +8,8 @@ class WorkspaceAgentRun {
   final AgentStatusEntry status;
 }
 
+// Runs keep the incoming tab order (creation order): sorting by status or
+// recency would reshuffle sidebar rows on every agent hook event.
 List<WorkspaceAgentRun> visibleWorkspaceAgentRuns({
   required Iterable<WorkspaceTabRecord> tabs,
   required Map<String, AgentStatusEntry> agentStatuses,
@@ -23,7 +25,6 @@ List<WorkspaceAgentRun> visibleWorkspaceAgentRuns({
     }
     runs.add(WorkspaceAgentRun(tab: tab, status: entry));
   }
-  runs.sort(_compareAgentRuns);
   return runs;
 }
 
@@ -35,7 +36,16 @@ AgentStatusEntry? aggregateWorkspaceAgentStatus({
     tabs: tabs,
     agentStatuses: agentStatuses,
   );
-  return runs.isEmpty ? null : runs.first.status;
+  if (runs.isEmpty) {
+    return null;
+  }
+  var mostUrgent = runs.first;
+  for (final run in runs.skip(1)) {
+    if (_compareAgentRuns(run, mostUrgent) < 0) {
+      mostUrgent = run;
+    }
+  }
+  return mostUrgent.status;
 }
 
 AgentStatusEntry? matchingAgentStatusForTab({
@@ -55,6 +65,8 @@ AgentStatusEntry? matchingAgentStatusForTab({
   return entry;
 }
 
+// Urgency ranking for the aggregate workspace status only; row order stays
+// in creation order.
 int _compareAgentRuns(WorkspaceAgentRun a, WorkspaceAgentRun b) {
   final aPriority = _workspaceStatusPriority(a.status.state);
   final bPriority = _workspaceStatusPriority(b.status.state);

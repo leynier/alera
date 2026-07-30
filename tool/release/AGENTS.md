@@ -16,6 +16,7 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 - Windows publishes `alera-<version>-windows.zip` for Chocolatey and Scoop in addition to the `.tar.gz` the updater consumes. The zip MUST stay out of the updater staging step: it carries the same bytes as the tarball, and staging it would add a second Windows item to the signed manifest and a duplicate payload to R2.
 - Keep release scripts deterministic and testable outside GitHub Actions where practical.
 - The shipped terminal-host sidecar is the Rust binary (`rust/alera-cli`), built by the platform native build hooks via `cargo build --locked --release` and installed at `resources/alera/alera[.exe]` (macOS `Contents/Resources/alera/alera`). It is bundled as part of the built app, so the archive scripts pick it up generically; an unsigned helper binary still ships until the signing/notarization phase covers it.
+- Standalone runtime archives are assembled by `package_runtime_sidecars.dart` from three native app inputs and three cross-compiled inputs. The native input supplies the platform helper bundle and the sidecar architecture already built into the app; the cross input supplies only the other architecture. Intermediate inputs must remain tarred while passing through GitHub Artifacts so executable modes and case-sensitive names survive. The packager must keep producing exactly the six platform and architecture pairs required by `build_runtime_archive.dart`.
 
 ## Updater Policy
 

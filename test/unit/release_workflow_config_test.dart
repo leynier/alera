@@ -92,5 +92,138 @@ void main() {
         ),
       );
     });
+
+    test('builds native apps and cross runtimes in parallel', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final appJob = workflow.substring(
+        workflow.indexOf('  build_desktop_app:'),
+        workflow.indexOf('  build_runtime_cross:'),
+      );
+      final crossJob = workflow.substring(
+        workflow.indexOf('  build_runtime_cross:'),
+        workflow.indexOf('  package_runtime:'),
+      );
+      final packageJob = workflow.substring(
+        workflow.indexOf('  package_runtime:'),
+        workflow.indexOf('  build_android:'),
+      );
+
+      expect(appJob, contains('timeout-minutes: 75'));
+      expect(
+        appJob,
+        contains(
+          'platform: macos\n            os: macos-latest\n            native_arch: arm64',
+        ),
+      );
+      expect(
+        appJob,
+        contains(
+          'platform: windows\n            os: windows-latest\n            native_arch: x64',
+        ),
+      );
+      expect(
+        appJob,
+        contains(
+          'platform: linux\n            os: ubuntu-latest\n            native_arch: x64',
+        ),
+      );
+      expect(
+        appJob.indexOf('Restore cargokit build'),
+        lessThan(appJob.indexOf('Build release bundle')),
+      );
+      expect(appJob, contains('uses: ./.github/actions/tune-windows-build'));
+      expect(appJob, contains('Stage native runtime input'));
+      expect(
+        appJob,
+        contains(
+          r'runtime-native-${{ matrix.platform }}-${{ matrix.native_arch }}',
+        ),
+      );
+      expect(appJob, isNot(contains('runtime_targets=')));
+      expect(appJob, isNot(contains('cargo build')));
+
+      expect(crossJob, contains('timeout-minutes: 45'));
+      expect(crossJob, contains('target: x86_64-apple-darwin'));
+      expect(crossJob, contains('target: aarch64-pc-windows-msvc'));
+      expect(crossJob, contains('target: aarch64-unknown-linux-gnu'));
+      expect(crossJob, contains('uses: ./.github/actions/setup-rust-sccache'));
+      expect(crossJob, isNot(contains('setup-flutter-workspace')));
+      expect(crossJob, isNot(contains('setup-zig')));
+      expect(crossJob, contains('retention-days: 1'));
+
+      expect(packageJob, contains('- build_desktop_app'));
+      expect(packageJob, contains('- build_runtime_cross'));
+      expect(packageJob, contains('Expected 6 runtime input archives'));
+      expect(packageJob, contains('package_runtime_sidecars.dart'));
+      expect(packageJob, contains('name: release-runtime'));
+    });
+
+    test('gates publishing on complete desktop runtime packaging', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final publish = workflow.substring(workflow.indexOf('  publish:'));
+
+      expect(publish, contains('- build_desktop_app'));
+      expect(publish, contains('- package_runtime'));
+      expect(publish, contains('- build_android'));
+      expect(
+        publish,
+        contains(
+          "needs.build_desktop_app.result == 'success' && needs.package_runtime.result == 'success'",
+        ),
+      );
+    });
+
+    test('uses dedicated R2 sccache credentials with local fallback', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final buildJobs = workflow.substring(
+        workflow.indexOf('  build_desktop_app:'),
+        workflow.indexOf('  build_android:'),
+      );
+      final setup = File(
+        '.github/actions/setup-rust-sccache/action.yml',
+      ).readAsStringSync();
+
+      expect(buildJobs, contains(r'vars.SCCACHE_R2_ACCOUNT_ID'));
+      expect(buildJobs, contains(r'vars.SCCACHE_R2_BUCKET'));
+      expect(buildJobs, contains(r'secrets.SCCACHE_R2_ACCESS_KEY_ID'));
+      expect(buildJobs, contains(r'secrets.SCCACHE_R2_SECRET_ACCESS_KEY'));
+      expect(buildJobs, isNot(contains(r'secrets.R2_ACCESS_KEY_ID')));
+      expect(buildJobs, isNot(contains('ALERA_R2_BUCKET')));
+      expect(setup, contains('RUSTC_WRAPPER=sccache'));
+      expect(setup, contains('CARGO_INCREMENTAL=0'));
+      expect(setup, contains('SCCACHE_BASEDIRS=\$GITHUB_WORKSPACE'));
+      expect(setup, contains('SCCACHE_IGNORE_SERVER_IO_ERROR=1'));
+      expect(setup, contains('SCCACHE_S3_KEY_PREFIX=alera/rust-v1'));
+      expect(setup, contains('using the runner-local cache'));
+      expect(setup, contains('if sccache --start-server; then'));
+      expect(setup, contains('could not authenticate to R2'));
+      expect(setup, contains('export SCCACHE_BUCKET='));
+      expect(setup, isNot(contains('echo "SCCACHE_BUCKET="')));
+      expect(setup, isNot(contains('Swatinem/rust-cache')));
+    });
+
+    test('cleans closed pull request caches without a checkout', () {
+      final cleanup = File(
+        '.github/workflows/cache-cleanup.yml',
+      ).readAsStringSync();
+
+      expect(cleanup, contains('pull_request:'));
+      expect(cleanup, contains('- closed'));
+      expect(cleanup, contains('actions: write'));
+      expect(
+        cleanup,
+        contains(
+          r'CACHE_REF: refs/pull/${{ github.event.pull_request.number }}/merge',
+        ),
+      );
+      expect(cleanup, contains('gh cache delete'));
+      expect(cleanup, isNot(contains('actions/checkout')));
+    });
   });
 }

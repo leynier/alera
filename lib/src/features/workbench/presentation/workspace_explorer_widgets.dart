@@ -251,12 +251,14 @@ class _ExplorerNameDialogState extends State<_ExplorerNameDialog> {
 
 class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
   const _ExplorerMenuDelegate({
+    required this.fileManagerLabel,
     required this.canFocusSourceControlFolders,
     required this.isFocusedSourceControlRoot,
     required this.onMenuOpening,
     required this.onAction,
   });
 
+  final String fileManagerLabel;
   final bool canFocusSourceControlFolders;
   final bool Function(tree.VisibleNode node) isFocusedSourceControlRoot;
   final VoidCallback onMenuOpening;
@@ -328,10 +330,10 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
             label: 'Duplicate',
             leading: Icon(AleraIcons.duplicate, size: 16),
           ),
-          const AleraDropdownEntry<_ExplorerAction>(
+          AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.reveal,
-            label: 'Reveal in Finder',
-            leading: Icon(AleraIcons.external, size: 16),
+            label: 'Reveal in $fileManagerLabel',
+            leading: const Icon(AleraIcons.external, size: 16),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_ExplorerAction>(
@@ -459,10 +461,17 @@ class _ExplorerClipboard {
   final bool cut;
 }
 
-class _ExplorerDragData {
-  const _ExplorerDragData({required this.relativePath});
+class _ExplorerDragData implements TerminalPathDragPayload {
+  const _ExplorerDragData({
+    required this.relativePath,
+    required this.absolutePath,
+  });
 
   final String relativePath;
+  final String absolutePath;
+
+  @override
+  Iterable<String> get paths => <String>[absolutePath];
 }
 
 enum _ExplorerAction {

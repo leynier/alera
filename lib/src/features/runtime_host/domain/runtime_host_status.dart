@@ -26,13 +26,41 @@ final class RuntimeHostStatusSnapshot {
   final int activePushSubscriptions;
   final String? error;
 
+  bool get hasBuildMismatch {
+    final runningVersion = runtimeHostVersion;
+    if (!running ||
+        runningVersion == null ||
+        runningVersion.isEmpty ||
+        compareRuntimeHostVersions(bundledVersion, runningVersion) != 0) {
+      return false;
+    }
+    final bundledBuild = _knownRuntimeHostCommit(bundledCommit);
+    final runningBuild = _knownRuntimeHostCommit(runtimeHostCommit);
+    return bundledBuild != null &&
+        runningBuild != null &&
+        bundledBuild != runningBuild;
+  }
+
   bool get updateAvailable {
     final runningVersion = runtimeHostVersion;
     if (!running || runningVersion == null || runningVersion.isEmpty) {
       return false;
     }
-    return isRuntimeHostVersionNewer(bundledVersion, runningVersion);
+    final versionComparison = compareRuntimeHostVersions(
+      bundledVersion,
+      runningVersion,
+    );
+    return versionComparison > 0 ||
+        (versionComparison == 0 && hasBuildMismatch);
   }
+}
+
+String? _knownRuntimeHostCommit(String? value) {
+  final commit = value?.trim();
+  if (commit == null || commit.isEmpty || commit.toLowerCase() == 'unknown') {
+    return null;
+  }
+  return commit;
 }
 
 final class RuntimeHostShutdownResult {

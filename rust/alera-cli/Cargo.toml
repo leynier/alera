@@ -25,25 +25,26 @@ tokio = { version = "1", features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-portable-pty = "0.8"
-sqlx = { version = "0.8", default-features = false, features = [
+portable-pty = "0.9"
+sqlx = { version = "0.9", default-features = false, features = [
     "sqlite",
-    "runtime-tokio-rustls",
+    "runtime-tokio",
+    "tls-rustls",
 ] }
 anyhow = "1"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
-ed25519-dalek = "2"
+ed25519-dalek = "3"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = "0.4"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
-sha2 = "0.10"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "stream"] }
+sha2 = "0.11"
 png = "0.18"
-jsonschema = { version = "0.47", default-features = false }
-tokio-tungstenite = "0.27"
-toml = "0.8"
+jsonschema = { version = "0.49", default-features = false }
+tokio-tungstenite = "0.30"
+toml = "1.1"
 url = "2.5"
 dirs = "6"
 regex = "1"
@@ -61,7 +62,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 ] }
 # Default features pull in native-tls, which would put a second TLS stack in a
 # sidecar that already speaks rustls through reqwest and sqlx.
-sentry = { version = "0.48", default-features = false, features = [
+sentry = { version = "0.49", default-features = false, features = [
     "backtrace",
     "contexts",
     "panic",
@@ -94,5 +95,5 @@ objc2-core-foundation = "0.3"
 [dev-dependencies]
 tempfile = "3"
 serde_json = "1"
-base64 = "0.22"
+base64 = "0.23"
 git2 = { version = "0.21", default-features = false }

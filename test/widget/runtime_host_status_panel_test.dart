@@ -82,6 +82,30 @@ void main() {
     );
   });
 
+  testWidgets('different same-version builds advertise a runtime update', (
+    tester,
+  ) async {
+    const snapshot = RuntimeHostStatusSnapshot(
+      running: true,
+      bundledVersion: '0.1.0',
+      bundledCommit: '9d848d7b67d4',
+      runtimeHostVersion: '0.1.0',
+      runtimeHostCommit: '1032e34432f5',
+    );
+
+    await tester.pumpWidget(_wrapChip(snapshot));
+
+    expect(find.text('Update Available'), findsOneWidget);
+
+    await tester.pumpWidget(_wrapPanel(snapshot));
+
+    expect(find.text('Host Build'), findsOneWidget);
+    expect(find.text('1032e34'), findsOneWidget);
+    expect(find.text('Bundled Build'), findsOneWidget);
+    expect(find.text('9d848d7'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Update Runtime'), findsOneWidget);
+  });
+
   testWidgets('the longest label keeps a gap before its value', (tester) async {
     await tester.pumpWidget(
       _wrapPanel(

@@ -151,6 +151,10 @@ class _ShellTestWorkbenchController extends WorkbenchController {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
+    String? title,
+    String? initialCommand,
+    bool spawnOnCreate = false,
+    bool initialCommandOnce = false,
   }) async {
     final tabs = state.tabsFor(workspace.id);
     final tab = _newTerminalTab(workspace.id, tabs.length + 1);

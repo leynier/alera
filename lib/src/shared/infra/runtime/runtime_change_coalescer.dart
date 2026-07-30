@@ -1,12 +1,13 @@
 import 'dart:async';
 
-/// Collapses bursts of runtime host change events into at most one refresh per
+/// Collapses bursts of runtime host change events into one refresh batch per
 /// key.
 ///
 /// The host broadcasts one change event per mutation, so orchestration spawning
 /// many terminals emits one event per terminal. Without coalescing every one of
 /// those costs a socket round-trip per watcher, which is what saturates the
-/// single-threaded host actor under load.
+/// single-threaded host actor under load. Every owner registered for a key runs
+/// once in the batch, so one watcher cannot replace another watcher's refresh.
 class RuntimeChangeCoalescer {
   RuntimeChangeCoalescer({
     this.debounce = const Duration(milliseconds: 120),
@@ -24,14 +25,19 @@ class RuntimeChangeCoalescer {
   final Map<String, _CoalescedKey> _keys = <String, _CoalescedKey>{};
   bool _disposed = false;
 
-  /// Schedules [run] for [key], collapsing repeat calls inside the debounce
-  /// window into a single run. A call arriving while a run is in flight marks
-  /// the key dirty and re-runs exactly once after it settles.
-  void schedule(String key, Future<void> Function() run) {
+  /// Schedules [run] for [owner] under [key], collapsing repeat calls inside
+  /// the debounce window into a single batch. A call arriving while a batch is
+  /// in flight marks the key dirty and re-runs every live owner exactly once
+  /// after it settles.
+  void schedule(String key, Object owner, Future<void> Function() run) {
     if (_disposed) {
       return;
     }
-    final entry = _keys.putIfAbsent(key, _CoalescedKey.new)..run = run;
+    final entry = _keys.putIfAbsent(key, _CoalescedKey.new)..runs[owner] = run;
+    _schedule(key, entry);
+  }
+
+  void _schedule(String key, _CoalescedKey entry) {
     if (entry.inFlight != null) {
       entry.dirty = true;
       return;
@@ -54,7 +60,7 @@ class RuntimeChangeCoalescer {
   /// de-duplication. Returns once the resulting run settles.
   Future<void> flush(String key) async {
     final entry = _keys[key];
-    if (entry == null || entry.run == null) {
+    if (entry == null || entry.runs.isEmpty) {
       return;
     }
     entry.timer?.cancel();
@@ -74,10 +80,20 @@ class RuntimeChangeCoalescer {
     await _start(key, entry);
   }
 
-  void cancel(String key) {
-    final entry = _keys.remove(key);
-    entry?.timer?.cancel();
-    entry?.dirty = false;
+  /// Stops pending work for one [owner] without affecting other watchers that
+  /// share [key].
+  void cancel(String key, Object owner) {
+    final entry = _keys[key];
+    if (entry == null) {
+      return;
+    }
+    entry.runs.remove(owner);
+    if (entry.runs.isNotEmpty) {
+      return;
+    }
+    _keys.remove(key);
+    entry.timer?.cancel();
+    entry.dirty = false;
   }
 
   void dispose() {
@@ -89,14 +105,16 @@ class RuntimeChangeCoalescer {
   }
 
   Future<void> _start(String key, _CoalescedKey entry) async {
-    final run = entry.run;
-    if (run == null || !identical(_keys[key], entry)) {
+    if (entry.runs.isEmpty || !identical(_keys[key], entry)) {
       return;
     }
     entry.timer = null;
     entry.firstScheduledAt = null;
     entry.dirty = false;
-    final future = run();
+    final runs = entry.runs.values.toList(growable: false);
+    final future = Future.wait<void>(<Future<void>>[
+      for (final run in runs) run(),
+    ]);
     entry.inFlight = future;
     try {
       await future;
@@ -110,15 +128,16 @@ class RuntimeChangeCoalescer {
       // Go back through the debounce rather than re-running straight away.
       // Events that keep landing during a run would otherwise chain into one
       // run per event, which is the fan-out this class exists to prevent.
-      schedule(key, run);
+      _schedule(key, entry);
     }
   }
 }
 
 class _CoalescedKey {
+  final Map<Object, Future<void> Function()> runs =
+      <Object, Future<void> Function()>{};
   Timer? timer;
   Future<void>? inFlight;
   bool dirty = false;
   DateTime? firstScheduledAt;
-  Future<void> Function()? run;
 }

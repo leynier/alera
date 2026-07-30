@@ -29,33 +29,26 @@ abstract final class CrashReporting {
       return null;
     }
     final message = event.message;
-    return event.copyWith(
-      message: message == null
-          ? null
-          : SentryMessage(
-              redactLogText(message.formatted),
-              template: message.template,
-              params: message.params,
-            ),
-      exceptions: event.exceptions
-          ?.map(
-            (exception) => exception.copyWith(
-              value: exception.value == null
-                  ? null
-                  : redactLogText(exception.value!),
-            ),
-          )
-          .toList(),
-      breadcrumbs: event.breadcrumbs
-          ?.map(
-            (crumb) => crumb.copyWith(
-              message: crumb.message == null
-                  ? null
-                  : redactLogText(crumb.message!),
-            ),
-          )
-          .toList(),
-    );
+    if (message != null) {
+      event.message = SentryMessage(
+        redactLogText(message.formatted),
+        template: message.template,
+        params: message.params,
+      );
+    }
+    for (final exception in event.exceptions ?? const <SentryException>[]) {
+      final value = exception.value;
+      if (value != null) {
+        exception.value = redactLogText(value);
+      }
+    }
+    for (final breadcrumb in event.breadcrumbs ?? const <Breadcrumb>[]) {
+      final message = breadcrumb.message;
+      if (message != null) {
+        breadcrumb.message = redactLogText(message);
+      }
+    }
+    return event;
   }
 
   static void _applyOptions(SentryFlutterOptions options, String release) {
@@ -68,7 +61,7 @@ abstract final class CrashReporting {
     options.beforeSend = (event, hint) async => filterEvent(event);
   }
 
-  /// Starts Sentry and runs [appRunner] inside it.
+  /// Starts Sentry and then runs [appRunner] in the caller's zone.
   ///
   /// Initialization happens regardless of the setting so the switch can be
   /// flipped later without a restart; nothing is transmitted while it is off.
@@ -78,15 +71,11 @@ abstract final class CrashReporting {
     required FutureOr<void> Function() appRunner,
   }) async {
     setEnabled(enabled);
-    if (_initialized) {
-      await appRunner();
-      return;
+    if (!_initialized) {
+      _initialized = true;
+      await SentryFlutter.init((options) => _applyOptions(options, release));
     }
-    _initialized = true;
-    await SentryFlutter.init(
-      (options) => _applyOptions(options, release),
-      appRunner: () async => appRunner(),
-    );
+    await appRunner();
   }
 
   /// Test seam so a suite can exercise the filter without a live client.

@@ -82,6 +82,10 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
   Future<WorkspaceTabRecord> createTerminalTab(
     Workspace workspace, {
     String? targetGroupId,
+    String? title,
+    String? initialCommand,
+    bool spawnOnCreate = false,
+    bool initialCommandOnce = false,
   }) async {
     createdTerminalWorkspaceIds.add(workspace.id);
     final tab = createdTab ?? _tab(id: 'tab-new');
@@ -321,6 +325,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   final container = ProviderContainer(
     overrides: [
       workbenchControllerProvider.overrideWith(() => controller),
+      agentProfilesProvider.overrideWith(() => _DispatcherAgentProfiles()),
       terminalRuntimeProvider.overrideWith((ref) => runtime),
       browserAvailabilityProvider.overrideWith(
         (ref) => _stableBrowserCapabilities,

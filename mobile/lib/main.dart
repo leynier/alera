@@ -11,6 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 Future<void> main() async {
+  await runZonedGuarded<Future<void>>(_bootstrap, recordZoneError);
+}
+
+Future<void> _bootstrap() async {
   // The app used to start with no bootstrap at all, so nothing could be wired
   // before the first frame and no failure left a trace.
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +28,6 @@ Future<void> main() async {
   await CrashReporting.run(
     enabled: crashReportingEnabled,
     release: 'alera-mobile@${info.version}+${info.buildNumber}',
-    appRunner: () => runZonedGuarded<void>(
-      () => runApp(const ProviderScope(child: AleraMobileApp())),
-      recordZoneError,
-    ),
+    appRunner: () => runApp(const ProviderScope(child: AleraMobileApp())),
   );
 }

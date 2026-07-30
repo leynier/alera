@@ -15,7 +15,7 @@ import 'support/fake_terminal_client.dart';
 
 void main() {
   testWidgets(
-    'Refresh control is top right and preserves the terminal session',
+    'Refresh control remounts the view and preserves terminal state',
     (tester) async {
       final client = FakeTerminalClient()
         ..tabs = <WorkspaceTabSummary>[
@@ -23,9 +23,20 @@ void main() {
         ];
       await _pumpTab(tester, client);
       final before = _terminalOf(tester);
-      final resizeCountBefore = client.calls
-          .where((call) => call.startsWith('resize session-tab-1 '))
-          .length;
+      final viewStateBefore = tester.state<TerminalViewState>(
+        find.byType(TerminalView),
+      );
+      final viewBefore = tester.widget<TerminalView>(find.byType(TerminalView));
+      final controller = viewBefore.controller!;
+      final scrollController = viewBefore.scrollController!;
+      final focusNode = viewBefore.focusNode!;
+      controller.setSelection(
+        before.buffer.createAnchor(0, 0),
+        before.buffer.createAnchor(1, 0),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+      final callsBefore = List<String>.of(client.calls);
       final terminalRect = tester.getRect(find.byType(TerminalView));
       final refreshRect = tester.getRect(find.byTooltip('Refresh Terminal'));
       expect(
@@ -38,17 +49,27 @@ void main() {
       );
 
       await tester.tap(find.byTooltip('Refresh Terminal'));
+      await tester.pump();
+
+      expect(find.byTooltip('Refreshing Terminal'), findsOneWidget);
+      expect(
+        tester.state<TerminalViewState>(find.byType(TerminalView)),
+        isNot(same(viewStateBefore)),
+      );
+
       await tester.pumpAndSettle();
 
       expect(_terminalOf(tester), same(before));
-      expect(
-        client.calls
-            .where((call) => call.startsWith('resize session-tab-1 '))
-            .length,
-        resizeCountBefore + 1,
-      );
+      final viewAfter = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(viewAfter.controller, same(controller));
+      expect(viewAfter.scrollController, same(scrollController));
+      expect(viewAfter.focusNode, same(focusNode));
+      expect(controller.selection, isNotNull);
+      expect(focusNode.hasFocus, isTrue);
+      expect(client.calls, callsBefore);
       expect(client.writes, isEmpty);
       expect(client.calls, isNot(contains('restart tab-1')));
+      expect(find.byTooltip('Refresh Terminal'), findsOneWidget);
     },
   );
 

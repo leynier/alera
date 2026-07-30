@@ -6,8 +6,11 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
-    int_or, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    int_or, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
+    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
@@ -46,12 +49,16 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
+    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
     RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
 ];
 
@@ -307,6 +314,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.repositoryWebUrl"
             | "workspace.createManaged"
             | "workspace.removeManaged"
+            | "agentProfile.list"
+            | "agentProfile.launch"
+            | "aiText.workspaceIdentity.generate"
+            | "aiText.cancel"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
@@ -317,6 +328,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.cloudSubscriptions.refresh"
             | "agentQuota.snapshot"
             | "agentQuota.fetchClaudeTui"
+            | "agentQuota.consumeCodexResetCredit"
             | "cliRegistration.status"
             | "cliRegistration.install"
             | "agentSkill.install"

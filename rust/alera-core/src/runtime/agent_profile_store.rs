@@ -2,25 +2,28 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::Row;
 
-use super::{format_timestamp, parse_timestamp, AgentProfile, RuntimeStore, RuntimeStoreError};
+use super::{
+    format_timestamp, parse_timestamp, AgentProfile, AgentProfileLaunchMode, RuntimeStore,
+    RuntimeStoreError,
+};
 
 const PROFILE_COLUMNS: &str =
-    "id, name, agentType, command, description, quotaGroup, createdAt, updatedAt";
+    "id, name, agentType, command, launchMode, managedConfig, description, quotaGroup, createdAt, updatedAt";
 
 impl RuntimeStore {
     pub async fn list_agent_profiles(&self) -> Result<Vec<AgentProfile>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles ORDER BY name COLLATE NOCASE ASC"
-        ))
+        )))
         .fetch_all(self.pool())
         .await?;
         rows.into_iter().map(agent_profile_from_row).collect()
     }
 
     pub async fn find_agent_profile(&self, profile_id: &str) -> Result<Option<AgentProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles WHERE id = ?"
-        ))
+        )))
         .bind(profile_id)
         .fetch_optional(self.pool())
         .await?;
@@ -30,9 +33,9 @@ impl RuntimeStore {
     /// Profiles are addressed by name in execution policies, so name lookup is
     /// the primary resolution path for spawning and fallback selection.
     pub async fn agent_profile_by_name(&self, name: &str) -> Result<Option<AgentProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles WHERE name = ? COLLATE NOCASE"
-        ))
+        )))
         .bind(name.trim())
         .fetch_optional(self.pool())
         .await?;
@@ -59,10 +62,11 @@ impl RuntimeStore {
         let now = format_timestamp(Utc::now());
         sqlx::query(
             "INSERT INTO agentProfiles \
-             (id, name, agentType, command, description, quotaGroup, createdAt, updatedAt) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             (id, name, agentType, command, launchMode, managedConfig, description, quotaGroup, createdAt, updatedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              name = excluded.name, agentType = excluded.agentType, command = excluded.command, \
+             launchMode = excluded.launchMode, managedConfig = excluded.managedConfig, \
              description = excluded.description, quotaGroup = excluded.quotaGroup, \
              updatedAt = excluded.updatedAt",
         )
@@ -70,6 +74,14 @@ impl RuntimeStore {
         .bind(&profile.name)
         .bind(&profile.agent_type)
         .bind(&profile.command)
+        .bind(profile.launch_mode.as_str())
+        .bind(
+            profile
+                .managed_config
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()?,
+        )
         .bind(&profile.description)
         .bind(&profile.quota_group)
         .bind(format_timestamp(profile.created_at))
@@ -123,6 +135,22 @@ fn normalize_agent_profile(mut profile: AgentProfile) -> Result<AgentProfile> {
             "agent profile command is required".to_string()
         ));
     }
+    match profile.launch_mode {
+        AgentProfileLaunchMode::Command => {
+            profile.managed_config = None;
+        }
+        AgentProfileLaunchMode::Managed => {
+            if !profile
+                .managed_config
+                .as_ref()
+                .is_some_and(serde_json::Value::is_object)
+            {
+                anyhow::bail!(RuntimeStoreError::Message(
+                    "managed agent profile config must be an object".to_string()
+                ));
+            }
+        }
+    }
     Ok(profile)
 }
 
@@ -132,6 +160,14 @@ fn agent_profile_from_row(row: sqlx::sqlite::SqliteRow) -> Result<AgentProfile> 
         name: row.try_get("name")?,
         agent_type: row.try_get("agentType")?,
         command: row.try_get("command")?,
+        launch_mode: row
+            .try_get::<String, _>("launchMode")?
+            .parse()
+            .map_err(|error: String| anyhow::anyhow!(error))?,
+        managed_config: row
+            .try_get::<Option<String>, _>("managedConfig")?
+            .map(|value| serde_json::from_str(&value))
+            .transpose()?,
         description: row.try_get("description")?,
         quota_group: row.try_get("quotaGroup")?,
         created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),

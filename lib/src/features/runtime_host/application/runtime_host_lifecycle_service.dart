@@ -110,7 +110,7 @@ final class RuntimeHostLifecycleService {
     await _client.ensureStarted(config: _readConfig());
   }
 
-  Future<void> stop({
+  Future<bool> stop({
     bool force = false,
     RuntimeHostForceConfirm? confirmForce,
   }) async {
@@ -126,19 +126,25 @@ final class RuntimeHostLifecycleService {
         confirmLabel: 'Force Stop',
       );
       if (!confirmed) {
-        return;
+        return false;
       }
       await _client.shutdownRuntime(force: true);
     }
     await _waitUntilStopped();
+    return true;
   }
 
-  Future<void> updateIfNewer({RuntimeHostForceConfirm? confirmForce}) async {
+  Future<void> updateIfAvailable({
+    RuntimeHostForceConfirm? confirmForce,
+  }) async {
     final status = await loadStatus();
     if (!status.updateAvailable) {
       return;
     }
-    await stop(confirmForce: confirmForce);
+    final stopped = await stop(confirmForce: confirmForce);
+    if (!stopped) {
+      return;
+    }
     await start();
   }
 

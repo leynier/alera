@@ -3,8 +3,11 @@ use super::*;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
-    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
+    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
@@ -72,12 +75,17 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.runtimeSettings.update"));
     assert!(mobile_request_allowed("agentQuota.snapshot"));
     assert!(mobile_request_allowed("agentQuota.fetchClaudeTui"));
+    assert!(mobile_request_allowed("agentQuota.consumeCodexResetCredit"));
     assert!(mobile_request_allowed("cliRegistration.status"));
     assert!(mobile_request_allowed("cliRegistration.install"));
     assert!(mobile_request_allowed("agentSkill.install"));
     assert!(mobile_request_allowed("terminal.restart"));
     assert!(mobile_request_allowed("mobile.cloudEnrollment.create"));
     assert!(mobile_request_allowed("mobile.cloudSubscriptions.refresh"));
+    assert!(mobile_request_allowed("agentProfile.list"));
+    assert!(mobile_request_allowed("agentProfile.launch"));
+    assert!(mobile_request_allowed("aiText.workspaceIdentity.generate"));
+    assert!(mobile_request_allowed("aiText.cancel"));
 }
 
 #[test]
@@ -221,6 +229,11 @@ fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
     );
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
     assert!(!MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_ACCOUNT_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY));
+    assert!(
+        MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY)
+    );
 }
 
 #[test]

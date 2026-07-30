@@ -198,6 +198,16 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Report sccache statistics
+        if: always()
+        run: |
+          {
+            echo "### sccache desktop E2E"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   # Split out of desktop-e2e-linux: the smoke run takes about as long as the
   # integration tests themselves and is continue-on-error, so it can never fail
   # a pull request, yet it was what made that job the critical path.
@@ -211,20 +221,8 @@ jobs:
       - name: Install Linux dependencies
         run: sudo apt-get update && sudo apt-get install --yes libdbus-1-dev pkg-config
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96"
-          components: rustfmt, clippy
-
-      # A separate shared-key from the build jobs on purpose: this cache holds
-      # dev-dependencies and test binaries, which is legitimately different
-      # content from what the native build hooks produce.
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-          shared-key: alera-tests
+      - name: Setup Rust and sccache
+        uses: ./.github/actions/setup-rust-sccache
 
       - name: Format
         run: cargo fmt --check
@@ -239,3 +237,13 @@ jobs:
       - name: Test
         run: cargo test --workspace
         working-directory: rust
+
+      - name: Report sccache statistics
+        if: always()
+        run: |
+          {
+            echo "### sccache Rust checks"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

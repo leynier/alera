@@ -407,14 +407,23 @@ void main() {
       final release = File(
         '.github/workflows/release-cut.yml',
       ).readAsStringSync();
+      final runtimePackager = File(
+        'tool/release/package_runtime_sidecars.dart',
+      ).readAsStringSync();
       expect(desktopBuild, contains('verify_desktop_runtime_bundle.dart'));
       expect(release, contains('verify_desktop_runtime_bundle.dart'));
       expect(
         release,
         contains('tool/native_helpers/verify_native_helper_bundle.dart'),
       );
-      expect(release, contains(r'cp -R "$helper_dir" "$package_dir/emulator"'));
-      expect(release, contains('"emulatorHelpers": "emulator/manifest.json"'));
+      expect(
+        release,
+        contains(r'cp -R "$runtime_root/emulator" "$input_root/emulator"'),
+      );
+      expect(
+        runtimePackager,
+        contains("'emulatorHelpers': 'emulator/manifest.json'"),
+      );
 
       final macosSigning = File(
         'tool/release/sign_macos.sh',

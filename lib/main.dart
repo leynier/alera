@@ -16,6 +16,10 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 Future<void> main(List<String> args) async {
+  await runZonedGuarded<Future<void>>(_bootstrap, recordZoneError);
+}
+
+Future<void> _bootstrap() async {
   AleraPerformanceTrace.startStartup();
   WidgetsFlutterBinding.ensureInitialized();
   AleraPerformanceTrace.mark('widgets_initialized');
@@ -33,7 +37,7 @@ Future<void> main(List<String> args) async {
   await CrashReporting.run(
     enabled: false,
     release: 'alera@${packageInfo.version}+${packageInfo.buildNumber}',
-    appRunner: () => runZonedGuarded<Future<void>>(_startApp, recordZoneError),
+    appRunner: _startApp,
   );
 }
 

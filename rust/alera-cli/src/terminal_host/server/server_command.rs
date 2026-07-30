@@ -12,7 +12,8 @@ use super::{
     runtime_mutations, ClientKind,
 };
 
-/// Messages processed serially by the single server actor. Every state mutation happens here.
+/// Messages processed serially by the single server actor. Every state mutation
+/// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
     ClientConnected {
         id: u64,
@@ -67,6 +68,16 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    WorkspaceSetupFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    AiTextGenerationFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
@@ -74,6 +85,12 @@ pub enum ServerCommand {
         result: HostResult<Value>,
     },
     AgentQuotaClaudeTuiFinished {
+        client_id: u64,
+        request_id: i64,
+        environment_signature: u64,
+        result: HostResult<Value>,
+    },
+    AgentQuotaCodexResetFinished {
         client_id: u64,
         request_id: i64,
         environment_signature: u64,
@@ -98,11 +115,13 @@ pub enum ServerCommand {
         client_id: u64,
         generation: u64,
     },
+    /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
         waiter_id: u64,
         effective_timeout_ms: u64,
     },
     OrchestrationStateWaitPoll(u64),
+    /// Fires the deferred Enter after an injected orchestration banner.
     OrchestrationDeferredEnter {
         session_id: String,
         session_instance_id: u64,
@@ -125,10 +144,13 @@ pub enum ServerCommand {
     ProjectCloneFinished {
         job_id: String,
     },
+    /// One coordinator loop iteration, enqueued by the ticker task.
     CoordinatorTick {
         run_id: String,
     },
+    /// One resource sampling iteration, enqueued by the ticker task.
     ResourceSampleTick,
+    /// A finished sweep coming back from its blocking thread.
     ResourceSampleReady {
         snapshot: Value,
     },

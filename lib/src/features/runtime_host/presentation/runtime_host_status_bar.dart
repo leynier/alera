@@ -59,7 +59,7 @@ class _RuntimeHostStatusBarControlState
           _runAction((confirm) async {
             await ref
                 .read(runtimeHostLifecycleServiceProvider)
-                .updateIfNewer(confirmForce: confirm);
+                .updateIfAvailable(confirmForce: confirm);
             ref.invalidate(runtimeHostStatusProvider);
           }),
         ),

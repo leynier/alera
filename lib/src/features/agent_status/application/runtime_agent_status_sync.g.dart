@@ -49,4 +49,4 @@ final class RuntimeAgentStatusSyncProvider
 }
 
 String _$runtimeAgentStatusSyncHash() =>
-    r'ec77ac3b54de7bd33d7f64c5e951c62c43c6bb72';
+    r'aeb5cc640eb9515ecc699ec0bf6d98e743e8669d';

@@ -95,7 +95,7 @@ abstract class _$WorkspaceSearchController
   WorkspaceSearchState build(String workspaceId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<WorkspaceSearchState, WorkspaceSearchState>;
     final element =
         ref.element
@@ -105,6 +105,6 @@ abstract class _$WorkspaceSearchController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

@@ -24,9 +24,25 @@ setup = [
 
 `copy` entries copy files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`, and `overwrite` defaults to `false`.
 
-`setup` commands run sequentially from the new linked workspace root. Commands stop on the first non-zero exit code.
+`setup` commands run sequentially from the new linked workspace root. When they run inline (see below) they stop on the first non-zero exit code.
 
 Paths are repo-relative literal paths. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of v1.
+
+## Where the setup runs
+
+The desktop app does not hold the New Workspace dialog open while the setup runs. It asks the runtime host to *prepare* the setup instead (`deferSetup`), so the dialog closes as soon as the Git worktree exists, and the workspace opens with its usual `Terminal 1` plus a second terminal named **Setup** where the work happens in view.
+
+The Setup terminal runs a script the host generates. That script exists because the terminal hosts whatever interactive shell the user configured, and chaining with `&&` is not portable: PowerShell 5.1 rejects it at parse time and nushell removed it. Writing one command per line up front does not work either, since the later lines would be delivered to the standard input of the process the earlier line started. So the terminal runs a single portable line (`/bin/sh "<script>"`, or `cmd /d /c "<script>"` on Windows) and the script does the sequencing.
+
+Inside the Setup terminal:
+
+- the copy rules run first, through `alera workspace setup --id <workspace> --copies-only`, so their symlink and path-escape validation stays in Rust;
+- every `setup` command then runs in order, each preceded by an echoed `> <command>` marker, and **a failing command does not stop the ones after it** - the output is right there to read;
+- the script deletes itself when it finishes. A run interrupted before that leaves the script behind, and the host sweeps any leftovers the next time it starts.
+
+The command is delivered once. After it is on its way the host drops it from the tab record, so restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
+
+`alera workspace add` keeps running the setup inline and reporting it, because the CLI has no terminal tab to show it in. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace, with `--copies-only` for just the copy rules. An older runtime host that does not understand `deferSetup` ignores it and runs the setup inline, which is the behavior described in the rest of this page.
 
 ## Git hosting provider
 
@@ -40,4 +56,4 @@ When absent, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from th
 
 GitLab review pagination requires `glab` 1.80.0 or newer.
 
-If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace, then surfaces a setup warning so the user can fix the workspace in place. The UI and `alera workspace add` both execute this setup through the runtime host.
+If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace. When the setup ran inline, a setup warning is surfaced so the user can fix the workspace in place; when it ran in the Setup terminal, the terminal itself is the report. An invalid `alera.toml` is surfaced as a warning either way. The UI and `alera workspace add` both execute this setup through the runtime host.

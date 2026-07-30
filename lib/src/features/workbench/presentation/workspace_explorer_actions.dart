@@ -402,12 +402,9 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
   }
 
   String _absolutePath(String relativePath) {
-    if (relativePath.isEmpty) {
-      return widget.workspace.path;
-    }
-    return p.joinAll(<String>[
-      widget.workspace.path,
-      ...relativePath.split('/'),
-    ]);
+    return terminalAbsolutePath(
+      rootPath: widget.workspace.path,
+      relativePath: relativePath,
+    );
   }
 }

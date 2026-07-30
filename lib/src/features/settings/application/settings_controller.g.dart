@@ -42,13 +42,13 @@ final class SettingsControllerProvider
 }
 
 String _$settingsControllerHash() =>
-    r'b29c158c6f40832abbf4346f17509603908936b2';
+    r'35c1d8486dac86ec7b2e4f462222d9e576d31d6f';
 
 abstract class _$SettingsController extends $Notifier<AleraSettings> {
   AleraSettings build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AleraSettings, AleraSettings>;
     final element =
         ref.element
@@ -58,6 +58,6 @@ abstract class _$SettingsController extends $Notifier<AleraSettings> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

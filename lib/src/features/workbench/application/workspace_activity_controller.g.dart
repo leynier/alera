@@ -64,7 +64,7 @@ abstract class _$WorkspaceActivityController
   Map<String, DateTime> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<Map<String, DateTime>, Map<String, DateTime>>;
     final element =
         ref.element
@@ -74,7 +74,7 @@ abstract class _$WorkspaceActivityController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

@@ -1,0 +1,446 @@
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+
+use super::agent_registry::adapter_for;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ManagedAgentLaunch {
+    pub executable: String,
+    pub arguments: Vec<String>,
+}
+
+pub fn build_managed_agent_launch(
+    agent_type: &str,
+    config: &Value,
+) -> Result<ManagedAgentLaunch, String> {
+    let adapter =
+        adapter_for(agent_type).ok_or_else(|| format!("unsupported agent type: {agent_type}"))?;
+    let values = config
+        .as_object()
+        .ok_or_else(|| "managedConfig must be an object.".to_string())?;
+    let mut arguments = Vec::new();
+    match agent_type {
+        "codex" => build_codex(values, &mut arguments)?,
+        "claude" => build_claude(values, &mut arguments)?,
+        "copilot" => build_copilot(values, &mut arguments)?,
+        "cursor" => build_cursor(values, &mut arguments)?,
+        "agy" => build_agy(values, &mut arguments)?,
+        "opencode" => build_opencode(values, &mut arguments)?,
+        "pi" => build_pi(values, &mut arguments)?,
+        "amp" => build_amp(values, &mut arguments)?,
+        _ => return Err(format!("unsupported managed agent type: {agent_type}")),
+    }
+    Ok(ManagedAgentLaunch {
+        executable: adapter.default_command.to_string(),
+        arguments,
+    })
+}
+
+pub fn render_managed_launch(launch: &ManagedAgentLaunch, shell: &str) -> String {
+    let family = shell_family(shell);
+    std::iter::once(launch.executable.as_str())
+        .chain(launch.arguments.iter().map(String::as_str))
+        .map(|value| quote_argument(value, family))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+pub fn managed_launch_preview(launch: &ManagedAgentLaunch) -> String {
+    #[cfg(windows)]
+    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+    #[cfg(not(windows))]
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    render_managed_launch(launch, &shell)
+}
+
+fn build_codex(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "effort",
+            "sandbox",
+            "approvalPolicy",
+            "webSearch",
+            "bypassApprovalsAndSandbox",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    if let Some(effort) = enum_value(
+        values,
+        "effort",
+        &["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
+    )? {
+        arguments.extend([
+            "--config".to_string(),
+            format!("model_reasoning_effort={effort}"),
+        ]);
+    }
+    let bypass = bool_value(values, "bypassApprovalsAndSandbox")?;
+    if bypass == Some(true) {
+        if values.contains_key("sandbox") || values.contains_key("approvalPolicy") {
+            return Err(
+                "Codex bypassApprovalsAndSandbox conflicts with sandbox and approvalPolicy."
+                    .to_string(),
+            );
+        }
+        arguments.push("--dangerously-bypass-approvals-and-sandbox".to_string());
+    } else {
+        push_enum(
+            values,
+            "sandbox",
+            "--sandbox",
+            &["read-only", "workspace-write", "danger-full-access"],
+            arguments,
+        )?;
+        push_enum(
+            values,
+            "approvalPolicy",
+            "--ask-for-approval",
+            &["untrusted", "on-request", "never"],
+            arguments,
+        )?;
+    }
+    push_flag(values, "webSearch", "--search", arguments)?;
+    Ok(())
+}
+
+fn build_claude(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["model", "effort", "agent", "permissionMode"])?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "effort",
+        "--effort",
+        &["low", "medium", "high", "xhigh", "max"],
+        arguments,
+    )?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_enum(
+        values,
+        "permissionMode",
+        "--permission-mode",
+        &[
+            "acceptEdits",
+            "auto",
+            "bypassPermissions",
+            "manual",
+            "dontAsk",
+            "plan",
+        ],
+        arguments,
+    )
+}
+
+fn build_copilot(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "effort",
+            "agent",
+            "mode",
+            "context",
+            "allowAll",
+            "maxAiCredits",
+            "maxAutopilotContinues",
+            "noAskUser",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "effort",
+        "--effort",
+        &["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+        arguments,
+    )?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_enum(
+        values,
+        "mode",
+        "--mode",
+        &["interactive", "plan", "autopilot"],
+        arguments,
+    )?;
+    push_enum(
+        values,
+        "context",
+        "--context",
+        &["default", "long_context"],
+        arguments,
+    )?;
+    push_flag(values, "allowAll", "--allow-all", arguments)?;
+    push_positive_number(values, "maxAiCredits", "--max-ai-credits", arguments)?;
+    push_non_negative_integer(
+        values,
+        "maxAutopilotContinues",
+        "--max-autopilot-continues",
+        arguments,
+    )?;
+    push_flag(values, "noAskUser", "--no-ask-user", arguments)
+}
+
+fn build_cursor(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "mode",
+            "permissionMode",
+            "sandbox",
+            "trustWorkspace",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(values, "mode", "--mode", &["plan", "ask"], arguments)?;
+    if let Some(mode) = enum_value(values, "permissionMode", &["autoReview", "force"])? {
+        arguments.push(
+            match mode {
+                "autoReview" => "--auto-review",
+                "force" => "--force",
+                _ => unreachable!(),
+            }
+            .to_string(),
+        );
+    }
+    push_enum(
+        values,
+        "sandbox",
+        "--sandbox",
+        &["enabled", "disabled"],
+        arguments,
+    )?;
+    push_flag(values, "trustWorkspace", "--trust", arguments)
+}
+
+fn build_agy(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "effort",
+            "agent",
+            "mode",
+            "skipPermissions",
+            "sandbox",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "effort",
+        "--effort",
+        &["low", "medium", "high"],
+        arguments,
+    )?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_enum(
+        values,
+        "mode",
+        "--mode",
+        &["accept-edits", "plan"],
+        arguments,
+    )?;
+    push_flag(
+        values,
+        "skipPermissions",
+        "--dangerously-skip-permissions",
+        arguments,
+    )?;
+    push_flag(values, "sandbox", "--sandbox", arguments)
+}
+
+fn build_opencode(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["model", "agent", "autoApprove"])?;
+    push_string(values, "model", "--model", arguments)?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_flag(values, "autoApprove", "--auto", arguments)
+}
+
+fn build_pi(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["model", "thinking", "projectTrust"])?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "thinking",
+        "--thinking",
+        &["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        arguments,
+    )?;
+    if let Some(trust) = enum_value(values, "projectTrust", &["approve", "ignore"])? {
+        arguments.push(
+            match trust {
+                "approve" => "--approve",
+                "ignore" => "--no-approve",
+                _ => unreachable!(),
+            }
+            .to_string(),
+        );
+    }
+    Ok(())
+}
+
+fn build_amp(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["mode", "fast"])?;
+    push_enum(
+        values,
+        "mode",
+        "--mode",
+        &["low", "medium", "high", "ultra"],
+        arguments,
+    )?;
+    push_flag(values, "fast", "--fast", arguments)
+}
+
+fn require_known_keys(values: &Map<String, Value>, allowed: &[&str]) -> Result<(), String> {
+    if let Some(key) = values.keys().find(|key| !allowed.contains(&key.as_str())) {
+        return Err(format!("unsupported managed agent option: {key}"));
+    }
+    Ok(())
+}
+
+fn push_string(
+    values: &Map<String, Value>,
+    key: &str,
+    flag: &str,
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
+    if let Some(value) = string_value(values, key)? {
+        arguments.extend([flag.to_string(), value.to_string()]);
+    }
+    Ok(())
+}
+
+fn push_enum(
+    values: &Map<String, Value>,
+    key: &str,
+    flag: &str,
+    allowed: &[&str],
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
+    if let Some(value) = enum_value(values, key, allowed)? {
+        arguments.extend([flag.to_string(), value.to_string()]);
+    }
+    Ok(())
+}
+
+fn push_flag(
+    values: &Map<String, Value>,
+    key: &str,
+    flag: &str,
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
+    if bool_value(values, key)? == Some(true) {
+        arguments.push(flag.to_string());
+    }
+    Ok(())
+}
+
+fn string_value<'a>(values: &'a Map<String, Value>, key: &str) -> Result<Option<&'a str>, String> {
+    let Some(value) = values.get(key) else {
+        return Ok(None);
+    };
+    let value = value
+        .as_str()
+        .ok_or_else(|| format!("{key} must be a string."))?
+        .trim();
+    if value.is_empty() {
+        return Err(format!("{key} must not be empty."));
+    }
+    Ok(Some(value))
+}
+
+fn enum_value<'a>(
+    values: &'a Map<String, Value>,
+    key: &str,
+    allowed: &[&str],
+) -> Result<Option<&'a str>, String> {
+    let Some(value) = string_value(values, key)? else {
+        return Ok(None);
+    };
+    if allowed.contains(&value) {
+        Ok(Some(value))
+    } else {
+        Err(format!("unsupported {key}: {value}"))
+    }
+}
+
+fn bool_value(values: &Map<String, Value>, key: &str) -> Result<Option<bool>, String> {
+    values
+        .get(key)
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| format!("{key} must be a boolean."))
+        })
+        .transpose()
+}
+
+fn push_positive_number(
+    values: &Map<String, Value>,
+    key: &str,
+    flag: &str,
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
+    let Some(value) = values.get(key) else {
+        return Ok(());
+    };
+    let number = value
+        .as_f64()
+        .filter(|number| number.is_finite() && *number > 0.0)
+        .ok_or_else(|| format!("{key} must be a positive number."))?;
+    arguments.extend([flag.to_string(), number.to_string()]);
+    Ok(())
+}
+
+fn push_non_negative_integer(
+    values: &Map<String, Value>,
+    key: &str,
+    flag: &str,
+    arguments: &mut Vec<String>,
+) -> Result<(), String> {
+    let Some(value) = values.get(key) else {
+        return Ok(());
+    };
+    let number = value
+        .as_u64()
+        .ok_or_else(|| format!("{key} must be a non-negative integer."))?;
+    arguments.extend([flag.to_string(), number.to_string()]);
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShellFamily {
+    Posix,
+    PowerShell,
+    Cmd,
+}
+
+fn shell_family(shell: &str) -> ShellFamily {
+    let normalized = shell.replace('\\', "/").to_ascii_lowercase();
+    let executable = normalized.rsplit('/').next().unwrap_or(&normalized);
+    if matches!(
+        executable,
+        "powershell" | "powershell.exe" | "pwsh" | "pwsh.exe"
+    ) {
+        ShellFamily::PowerShell
+    } else if matches!(executable, "cmd" | "cmd.exe") {
+        ShellFamily::Cmd
+    } else {
+        ShellFamily::Posix
+    }
+}
+
+fn quote_argument(value: &str, family: ShellFamily) -> String {
+    match family {
+        ShellFamily::Posix => format!("'{}'", value.replace('\'', "'\"'\"'")),
+        ShellFamily::PowerShell => format!("'{}'", value.replace('\'', "''")),
+        ShellFamily::Cmd => format!("\"{}\"", value.replace('"', "\"\"")),
+    }
+}
+
+#[cfg(test)]
+#[path = "managed_agent_launch_tests.rs"]
+mod tests;

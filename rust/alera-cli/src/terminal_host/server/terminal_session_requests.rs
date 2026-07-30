@@ -51,6 +51,7 @@ impl ServerActor {
             rows,
             initial_scrollback,
             initial_output_stream_bytes,
+            None,
         )
         .await?;
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
@@ -109,6 +110,7 @@ impl ServerActor {
             rows,
             initial_scrollback,
             initial_output_stream_bytes,
+            None,
         )
         .await?;
 

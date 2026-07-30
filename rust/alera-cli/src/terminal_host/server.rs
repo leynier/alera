@@ -53,6 +53,10 @@ mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
+mod agent_profile_launch_requests;
+mod ai_text_grok_plan;
+mod ai_text_requests;
+mod ai_text_workspace_identity;
 mod browser_artifact_requests;
 mod browser_artifact_store;
 mod browser_broker;
@@ -78,6 +82,7 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+mod managed_workspace_requests;
 mod mobile_terminal_requests;
 mod orchestration_agent_spawn_requests;
 mod orchestration_owned_spawn;
@@ -243,6 +248,11 @@ pub async fn run_terminal_host_server(
         && actor.account_push.service.local_account().await?.is_some()
     {
         actor.start_push_subscription_sync(None);
+    }
+    // A deferred setup script deletes itself when it finishes, so anything
+    // still here outlived the host that wrote it and its terminal is gone.
+    if let Some(directory) = actor.setup_script_directory() {
+        crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
     }
     actor.schedule_shutdown_if_idle();
 
@@ -523,6 +533,19 @@ impl ServerActor {
                 self.handle_managed_workspace_created(client_id, request_id, result)
                     .await
             }
+            ServerCommand::WorkspaceSetupFinished {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.handle_workspace_setup_finished(client_id, request_id, result)
+                    .await
+            }
+            ServerCommand::AiTextGenerationFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_ai_text_generation_finished(client_id, request_id, result),
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
@@ -540,6 +563,17 @@ impl ServerActor {
                 environment_signature,
                 result,
             } => self.handle_agent_quota_claude_tui_finished(
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            ),
+            ServerCommand::AgentQuotaCodexResetFinished {
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            } => self.handle_agent_quota_codex_reset_finished(
                 client_id,
                 request_id,
                 environment_signature,

@@ -5,12 +5,18 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
+import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
+import 'package:alera/src/features/workbench/presentation/prompt_workspace_dialog.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -212,67 +218,133 @@ Future<void> showCreateWorkspaceFlow(
   final resolvedInitialProject =
       initialProject?.supportsLinkedWorkspaces == true ? initialProject : null;
 
-  final result = await showDialog<WorkspaceCreationResult>(
+  List<AgentProfile> profiles;
+  try {
+    profiles = await ref.read(agentProfilesProvider.future);
+  } catch (_) {
+    profiles = const <AgentProfile>[];
+  }
+  final runtime = PromptWorkspaceRuntimeClient(
+    ref.read(runtimeHostClientProvider),
+    beforeAccess: ref.read(runtimeStateMigrationProvider).ensureMigrated,
+  );
+  if (!context.mounted) {
+    return;
+  }
+  final promptResult = await showDialog<PromptWorkspaceDialogResult>(
     context: context,
-    builder: (_) => CreateWorkspaceDialog(
+    builder: (_) => PromptWorkspaceDialog(
       projects: projects,
+      agentProfiles: profiles,
       initialProject: resolvedInitialProject,
-      parentCandidates: parentCandidates,
       loadBranches: controller.listSourceBranches,
-      getProjectActiveBranch: (project) {
-        final state = ref.read(workbenchControllerProvider);
-        final workspaces = state.workspacesFor(project.id);
-        if (workspaces.isEmpty) return null;
-        try {
-          final activeWorkspace = workspaces.firstWhere(
-            (w) => w.id == state.activeWorkspaceId,
-            orElse: () => workspaces.firstWhere(
-              (w) => w.isMain,
-              orElse: () => workspaces.first,
-            ),
-          );
-          return activeWorkspace.branch;
-        } catch (_) {
-          return null;
-        }
+      checkBranchExists: (project, branchName) {
+        return ref
+            .read(gitBackendProvider)
+            .branchExists(project.repoPath, branchName);
       },
-      getProjectWorkspaceBranches: (project) {
-        final state = ref.read(workbenchControllerProvider);
-        return state
+      workspaceBranches: (project) {
+        return ref
+            .read(workbenchControllerProvider)
             .workspacesFor(project.id)
             .where((workspace) => workspace.isActive)
             .map((workspace) => workspace.branch?.trim() ?? '')
             .where((branch) => branch.isNotEmpty)
             .toSet();
       },
-      checkBranchExists: (project, branchName) async {
-        final gitBackend = ref.read(gitBackendProvider);
-        return gitBackend.branchExists(project.repoPath, branchName);
-      },
-      onCreateWorkspace:
+      generateIdentity: runtime.generateIdentity,
+      cancelGeneration: runtime.cancel,
+      createWorkspace:
           ({
             required project,
             required sourceBranch,
             required newBranchName,
-            required reuseExistingBranch,
-            name,
-            parentWorkspaceId,
-          }) async {
+            required name,
+          }) {
             return controller.createWorkspace(
               project: project,
               sourceBranch: sourceBranch,
               newBranchName: newBranchName,
-              reuseExistingBranch: reuseExistingBranch,
               name: name,
-              parentWorkspaceId: parentWorkspaceId,
             );
           },
-      onAddProject: () {
-        Navigator.of(context).pop();
-        unawaited(showAddProjectFlow(context, ref));
-      },
+      launchAgent: runtime.launchAgent,
     ),
   );
+  if (!context.mounted || promptResult == null) {
+    return;
+  }
+
+  WorkspaceCreationResult? result = promptResult.creation;
+  if (promptResult.openManual) {
+    result = await showDialog<WorkspaceCreationResult>(
+      context: context,
+      builder: (_) => CreateWorkspaceDialog(
+        projects: projects,
+        initialProject: resolvedInitialProject,
+        parentCandidates: parentCandidates,
+        loadBranches: controller.listSourceBranches,
+        getProjectActiveBranch: (project) {
+          final state = ref.read(workbenchControllerProvider);
+          final workspaces = state.workspacesFor(project.id);
+          if (workspaces.isEmpty) return null;
+          try {
+            final activeWorkspace = workspaces.firstWhere(
+              (w) => w.id == state.activeWorkspaceId,
+              orElse: () => workspaces.firstWhere(
+                (w) => w.isMain,
+                orElse: () => workspaces.first,
+              ),
+            );
+            return activeWorkspace.branch;
+          } catch (_) {
+            return null;
+          }
+        },
+        getProjectWorkspaceBranches: (project) {
+          final state = ref.read(workbenchControllerProvider);
+          return state
+              .workspacesFor(project.id)
+              .where((workspace) => workspace.isActive)
+              .map((workspace) => workspace.branch?.trim() ?? '')
+              .where((branch) => branch.isNotEmpty)
+              .toSet();
+        },
+        checkBranchExists: (project, branchName) async {
+          final gitBackend = ref.read(gitBackendProvider);
+          return gitBackend.branchExists(project.repoPath, branchName);
+        },
+        onCreateWorkspace:
+            ({
+              required project,
+              required sourceBranch,
+              required newBranchName,
+              required reuseExistingBranch,
+              name,
+              parentWorkspaceId,
+            }) async {
+              return controller.createWorkspace(
+                project: project,
+                sourceBranch: sourceBranch,
+                newBranchName: newBranchName,
+                reuseExistingBranch: reuseExistingBranch,
+                name: name,
+                parentWorkspaceId: parentWorkspaceId,
+              );
+            },
+        onAddProject: () {
+          Navigator.of(context).pop();
+          unawaited(showAddProjectFlow(context, ref));
+        },
+      ),
+    );
+  } else {
+    final creation = promptResult.creation;
+    final tabId = promptResult.agentTabId;
+    if (creation != null && tabId != null) {
+      controller.setActiveTab(workspaceId: creation.workspace.id, tabId: tabId);
+    }
+  }
 
   if (result != null && context.mounted) {
     if (result.hasSetupWarnings) {

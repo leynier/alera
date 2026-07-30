@@ -56,7 +56,7 @@ void main() {
       expect(status?.tabId, secondTab.id);
     });
 
-    test('returns visible runs sorted by status priority and recency', () {
+    test('keeps visible runs in creation order regardless of status churn', () {
       final doneTab = _tab('tab-done');
       final waitingTab = _tab('tab-waiting');
       final workingTab = _tab('tab-working');
@@ -79,9 +79,9 @@ void main() {
       );
 
       expect(runs.map((run) => run.tab.id), <String>[
+        'tab-done',
         'tab-waiting',
         'tab-working',
-        'tab-done',
       ]);
     });
 

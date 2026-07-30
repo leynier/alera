@@ -47,6 +47,10 @@ class _SubmoduleChanges extends ConsumerWidget {
             for (final child in result.entries)
               _GitDiffFileRow(
                 entry: child,
+                absolutePath: _terminalPathForGitEntry(
+                  workspacePath,
+                  child.path,
+                ),
                 depth: depth,
                 showRelativePath: true,
                 busy: busy,

@@ -16,18 +16,18 @@ impl RuntimeStore {
     ) -> Result<Vec<BrowserTrustedCertificate>> {
         let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
         let rows = if let Some(profile_id) = profile_id {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {TRUSTED_CERTIFICATE_COLUMNS} FROM browserTrustedCertificates \
                  WHERE profileId = ? ORDER BY host COLLATE NOCASE, createdAt"
-            ))
+            )))
             .bind(profile_id)
             .fetch_all(self.pool())
             .await?
         } else {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {TRUSTED_CERTIFICATE_COLUMNS} FROM browserTrustedCertificates \
                  ORDER BY profileId, host COLLATE NOCASE, createdAt"
-            ))
+            )))
             .fetch_all(self.pool())
             .await?
         };

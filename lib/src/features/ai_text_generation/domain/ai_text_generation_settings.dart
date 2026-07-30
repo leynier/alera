@@ -7,7 +7,8 @@ part 'ai_text_generation_settings.mapper.dart';
 enum AiTextGenerationOperation {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
-  branchName('branchName');
+  branchName('branchName'),
+  workspaceIdentity('workspaceIdentity');
 
   const AiTextGenerationOperation(this.key);
 
@@ -17,6 +18,7 @@ enum AiTextGenerationOperation {
     AiTextGenerationOperation.commitMessage => 'Commit Messages',
     AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
     AiTextGenerationOperation.branchName => 'Branch Names',
+    AiTextGenerationOperation.workspaceIdentity => 'Workspace Identity',
   };
 }
 

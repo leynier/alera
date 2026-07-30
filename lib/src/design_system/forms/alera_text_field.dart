@@ -22,15 +22,19 @@ class AleraTextField extends StatelessWidget {
     this.suffix,
     this.keyboardType,
     this.inputFormatters,
+    this.textAlignVertical,
     this.onChanged,
     this.onSubmitted,
     this.onEditingComplete,
     this.onTap,
     this.autofocus = false,
     this.dense = false,
+    this.denseHeight = defaultDenseHeight,
     this.fillColor,
     this.readOnly = false,
     this.enabled,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   final TextEditingController? controller;
@@ -42,20 +46,25 @@ class AleraTextField extends StatelessWidget {
   final Widget? suffix;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
+  final TextAlignVertical? textAlignVertical;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final VoidCallback? onEditingComplete;
   final VoidCallback? onTap;
   final bool autofocus;
   final bool dense;
+  final double denseHeight;
 
   /// Dense fill color. Defaults to [AleraTokens.surface].
   final Color? fillColor;
   final bool readOnly;
   final bool? enabled;
+  final int? minLines;
+  final int? maxLines;
 
-  /// Fixed height of the dense variant: `space32 + space8`.
-  static const double denseHeight = AleraTokens.space32 + AleraTokens.space8;
+  /// Default height of the dense variant: `space32 + space8`.
+  static const double defaultDenseHeight =
+      AleraTokens.space32 + AleraTokens.space8;
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +76,15 @@ class AleraTextField extends StatelessWidget {
         autofocus: autofocus,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
+        textAlignVertical: textAlignVertical,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
+        minLines: minLines,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: labelText,
           hintText: hintText,
@@ -97,7 +109,9 @@ class AleraTextField extends StatelessWidget {
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
-        textAlignVertical: TextAlignVertical.center,
+        minLines: minLines,
+        maxLines: maxLines,
+        textAlignVertical: textAlignVertical ?? TextAlignVertical.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foreground,
         ),
@@ -125,17 +139,18 @@ class AleraTextField extends StatelessWidget {
                     color: AleraTokens.foregroundFaint,
                   ),
                 ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 24,
+          prefixIconConstraints: BoxConstraints(
+            minWidth: AleraTokens.space24,
             minHeight: denseHeight,
           ),
           suffixIcon: suffix,
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 24,
+          suffixIconConstraints: BoxConstraints(
+            minWidth: AleraTokens.space24,
             minHeight: denseHeight,
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space16,
           ),
           border: _denseBorder(AleraTokens.borderSubtle),
           enabledBorder: _denseBorder(AleraTokens.borderSubtle),

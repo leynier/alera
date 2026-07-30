@@ -1,4 +1,6 @@
-use alera_core::runtime::{RuntimeAgentQuotaSettings, RuntimeMobilePushSettings};
+use alera_core::runtime::{
+    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeMobilePushSettings,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -101,6 +103,17 @@ impl ServerActor {
         }
         if refresh_push_subscriptions {
             self.start_push_subscription_sync(None);
+        }
+        if let Some(value) = payload.get("aiTextGeneration") {
+            let settings: RuntimeAiTextGenerationSettings =
+                serde_json::from_value(value.clone())
+                    .map_err(|_| HostError::format("aiTextGeneration is invalid."))?;
+            validate_ai_text_generation_settings(&settings)?;
+            runtime_value(
+                self.runtime_store
+                    .set_ai_text_generation_settings(settings)
+                    .await,
+            )?;
         }
         let value = runtime_value(self.runtime_store.runtime_settings().await)?;
         self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
@@ -229,6 +242,28 @@ impl ServerActor {
             ));
         }
     }
+}
+
+fn validate_ai_text_generation_settings(
+    settings: &RuntimeAiTextGenerationSettings,
+) -> HostResult<()> {
+    const AGENTS: [&str; 10] = [
+        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+    ];
+    if !AGENTS.contains(&settings.agent.trim()) {
+        return Err(HostError::format("aiTextGeneration.agent is unsupported."));
+    }
+    if settings.agent.trim() == "custom" && settings.custom_command.trim().is_empty() {
+        return Err(HostError::format(
+            "aiTextGeneration.customCommand is required for the custom agent.",
+        ));
+    }
+    if !(10..=600).contains(&settings.timeout_seconds) {
+        return Err(HostError::format(
+            "aiTextGeneration.timeoutSeconds must be between 10 and 600.",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn validate_agent_quota_settings(

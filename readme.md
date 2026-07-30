@@ -204,6 +204,8 @@ Current status: Linux packages are distributed through a repository whose metada
 
 Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.flutter.dev/get-started/install), a working Rust toolchain (`rustup`), and [Zig](https://ziglang.org/download/) 0.16.0. The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine, which a checkout like this one compiles from its own submodule rather than downloading.
 
+Linux source builds also require system development packages. Install the [Ubuntu and Debian prerequisites](.github/CONTRIBUTING.md#local-setup) before running the app.
+
 ```bash
 git clone https://github.com/leynier/alera.git
 cd alera

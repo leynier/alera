@@ -186,9 +186,9 @@ async fn policy_columns_are_backfilled_on_a_preexisting_database() {
         "execution_policy_status",
         "execution_policy_updated_at",
     ] {
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "ALTER TABLE orchestrationCoordinatorRuns DROP COLUMN {column}"
-        ))
+        )))
         .execute(&pool)
         .await
         .unwrap();

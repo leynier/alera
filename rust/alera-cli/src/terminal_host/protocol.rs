@@ -32,6 +32,7 @@ pub const RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY: &str = "mobileTerminal
 pub const RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY: &str = "mobilePortableSettingsV1";
 pub const RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY: &str = "mobileAgentQuotaV1";
 pub const RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY: &str = "agentQuotaClaudeTuiV1";
+pub const RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY: &str = "codexResetCreditsV1";
 pub const RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY: &str = "mobileHostToolsV1";
 /// Desktop account management backed by the Alera cloud identity service.
 /// Account verbs remain unavailable to paired mobile clients.
@@ -55,6 +56,13 @@ pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrat
 // Purely additive: older hosts simply do not answer agentProfile.* verbs, so
 // callers negotiate this instead of comparing protocol versions.
 pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProfilesV1";
+// Advertised once agent profiles may carry validated, adapter-specific launch
+// configuration. This is additive so a new app can fall back to Command when
+// attached to an older live host.
+pub const RUNTIME_HOST_MANAGED_AGENT_PROFILES_CAPABILITY: &str =
+    "orchestrationManagedAgentProfilesV1";
+pub const RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY: &str = "aiTextWorkspaceIdentityV1";
+pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProfilePromptLaunchV1";
 // Advertised once runs carry a user-approved execution policy. A run without a
 // policy schedules exactly as before, so this stays a feature check.
 pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";

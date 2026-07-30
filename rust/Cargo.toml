@@ -36,7 +36,7 @@ globset = "0.4"
 grep-matcher = "0.1"
 grep-regex = "0.1"
 regex = "1"
-merman = { version = "0.7.0-alpha.1", default-features = false, features = ["render"] }
+merman = { version = "0.7", default-features = false, features = ["render"] }
 png = "0.18"
 tempfile = "3"
 

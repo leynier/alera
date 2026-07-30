@@ -8,7 +8,9 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +31,8 @@ class TerminalSurface extends ConsumerStatefulWidget {
 
 class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   TerminalVisibilityLease? _visibilityLease;
+  bool _refreshing = false;
+  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -41,6 +45,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   void didUpdateWidget(TerminalSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
+      _refreshGeneration += 1;
+      _refreshing = false;
       _visibilityLease?.dispose();
       _visibilityLease = widget.session.acquireVisibility();
       _scheduleStart(widget.session);
@@ -61,6 +67,21 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       }
       unawaited(session.ensureStarted());
     });
+  }
+
+  Future<void> _refreshTerminal() async {
+    if (_refreshing) {
+      return;
+    }
+    final generation = ++_refreshGeneration;
+    setState(() => _refreshing = true);
+    try {
+      await widget.session.refreshRendering();
+    } finally {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _refreshing = false);
+      }
+    }
   }
 
   /// Intercepts Alera shortcuts before the key reaches the PTY. Returning
@@ -96,56 +117,80 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           _ => null,
         };
         final operation = error == null ? widget.session.operation : null;
-        return Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: error == null
-                  ? DecoratedBox(
-                      decoration: const BoxDecoration(color: AleraTokens.bg),
-                      child: widget.session.buildView(
-                        autofocus: widget.autofocus,
-                        onKeyEvent: _handleTerminalKey,
-                      ),
-                    )
-                  : _TerminalErrorState(
-                      message: error,
-                      onReconnect: widget.session.reconnect,
-                      onRestart: widget.session.canRestart
-                          ? () => _confirmRestart(context)
-                          : null,
-                    ),
-            ),
-            if (operation != null)
-              Positioned.fill(
-                child: _TerminalOperationState(operation: operation),
-              ),
-            // Restoring an evicted terminal replays its whole scrollback over
-            // several frames. The corner spinner does not read as a wait that
-            // long, so cover the area until the history is back.
-            if (error == null)
-              Positioned.fill(
-                child: ValueListenableBuilder<TerminalRestoreProgress?>(
-                  valueListenable: widget.session.restoreProgress,
-                  builder: (context, progress, _) {
-                    if (progress == null) {
-                      return const SizedBox.shrink();
-                    }
-                    return _TerminalRestoreState(progress: progress);
-                  },
+        return DropTarget(
+          enable: error == null,
+          onDragDone: (details) {
+            handleTerminalPathDrop(
+              session: widget.session,
+              paths: details.files.map((file) => file.path),
+            );
+          },
+          child: DragTarget<TerminalPathDragPayload>(
+            onWillAcceptWithDetails: (_) => error == null,
+            onAcceptWithDetails: (details) {
+              handleTerminalPathDrop(
+                session: widget.session,
+                paths: details.data.paths,
+              );
+            },
+            builder: (context, _, _) => Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: error == null
+                      ? DecoratedBox(
+                          decoration: const BoxDecoration(
+                            color: AleraTokens.bg,
+                          ),
+                          child: widget.session.buildView(
+                            autofocus: widget.autofocus,
+                            onKeyEvent: _handleTerminalKey,
+                          ),
+                        )
+                      : _TerminalErrorState(
+                          message: error,
+                          onReconnect: widget.session.reconnect,
+                          onRestart: widget.session.canRestart
+                              ? () => _confirmRestart(context)
+                              : null,
+                        ),
                 ),
-              ),
-            Positioned(
-              top: AleraTokens.space4,
-              right: AleraTokens.space4,
-              child: AleraIconButton(
-                tooltip: 'Refresh Terminal',
-                icon: AleraIcons.refresh,
-                backgroundColor: AleraTokens.surfaceElevated,
-                borderColor: AleraTokens.borderSubtle,
-                onPressed: widget.session.refreshRendering,
-              ),
+                if (operation != null)
+                  Positioned.fill(
+                    child: _TerminalOperationState(operation: operation),
+                  ),
+                // Restoring an evicted terminal replays its whole scrollback over
+                // several frames. The corner spinner does not read as a wait that
+                // long, so cover the area until the history is back.
+                if (error == null)
+                  Positioned.fill(
+                    child: ValueListenableBuilder<TerminalRestoreProgress?>(
+                      valueListenable: widget.session.restoreProgress,
+                      builder: (context, progress, _) {
+                        if (progress == null) {
+                          return const SizedBox.shrink();
+                        }
+                        return _TerminalRestoreState(progress: progress);
+                      },
+                    ),
+                  ),
+                Positioned(
+                  top: AleraTokens.space4,
+                  right: AleraTokens.space4,
+                  child: AleraIconButton(
+                    tooltip: _refreshing
+                        ? 'Refreshing Terminal'
+                        : 'Refresh Terminal',
+                    icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
+                    backgroundColor: AleraTokens.surfaceElevated,
+                    borderColor: AleraTokens.borderSubtle,
+                    onPressed: _refreshing
+                        ? null
+                        : () => unawaited(_refreshTerminal()),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );

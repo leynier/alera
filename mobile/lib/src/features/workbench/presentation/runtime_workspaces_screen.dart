@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
@@ -11,7 +13,6 @@ import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
-import 'package:alera_mobile/src/features/runtime/application/host_connection_probe.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -44,9 +45,6 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
     final data = ref.watch(workspaceListControllerProvider(host.id));
     final prefs = ref.watch(mobileViewPrefsControllerProvider(host.id));
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
-    // Mounted here because this screen already keeps the connection alive
-    // underneath the terminal, so the probe outlives the terminal screen.
-    ref.watch(hostConnectionProbeProvider(host.id));
     final currentHost =
         ref
             .watch(pairedHostsControllerProvider)
@@ -134,7 +132,13 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                 child: _ConnectionError(
                   error: error,
                   onRetry: () {
-                    ref.invalidate(hostConnectionControllerProvider(host.id));
+                    unawaited(
+                      ref
+                          .read(
+                            hostConnectionControllerProvider(host.id).notifier,
+                          )
+                          .reconnectNow(),
+                    );
                   },
                 ),
               ),

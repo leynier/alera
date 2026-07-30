@@ -52,7 +52,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Code edition with LSP support | 5 | 5 | Partial | In-app editor via `code_forge` with syntax themes, find, undo/redo, save/dirty state; no language server protocol yet |
 | Markdown editor | 4 | 3 | Planned | WYSIWYG markdown editing with toolbar, slash menu, code blocks, tables, mermaid |
 | Markdown viewer | 2 | 3 | Shipped | View rendered markdown files in workspace tabs |
-| Open in with other softwares | 2 | 4 | Partial | Open workspace/folder in OS file manager and open repository in browser; no VS Code / Cursor / Zed / custom editor launcher yet |
+| Open in with other softwares | 2 | 4 | Partial | Open workspace/folder in OS file manager (Linux selects via FileManager1.ShowItems with parent-folder fallback) and open repository in browser; no VS Code / Cursor / Zed / custom editor launcher yet |
 | Autosave | 2 | 4 | Planned | Automatic file saving with configurable behavior |
 | Editor scroll restore | 1 | 3 | Planned | Persist and restore scroll position across sessions |
 | External file watch | 2 | 4 | Partial | Explorer and source-control file watches are live; editor reloads/conflicts on external disk changes; no full prompt-to-reload product surface yet |
@@ -128,7 +128,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Workspace cleanup dialog | 2 | 3 | Planned | Bulk cleanup of stale worktrees |
 | Status bar | 2 | 4 | Partial | Agent quota status bar ships separately; no general SSH/ports/resources/disk status bar yet |
 | UI zoom controls | 1 | 3 | Planned | Zoom in/out/reset for the entire UI |
-| Global file drop | 2 | 3 | Planned | Drag files from OS into the app |
+| Global file drop | 2 | 3 | Partial | Terminal OS drop pastes absolute paths; explorer/editor/composer drops still planned |
 
 ---
 

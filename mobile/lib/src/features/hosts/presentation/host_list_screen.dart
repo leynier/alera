@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
@@ -6,6 +9,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:alera_mobile/src/features/hosts/presentation/pair_host_screen.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/home_quotas_section.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/presentation/app_settings_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/runtime_workspaces_screen.dart';
 import 'package:flutter/material.dart';
@@ -158,13 +162,31 @@ class HostListScreen extends ConsumerWidget {
             ],
           ),
           AsyncError(:final error) => Center(child: Text(error.toString())),
-          _ => const Center(child: CircularProgressIndicator()),
+          _ => const _HomeLoading(),
         },
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Pair Host',
         onPressed: () => _pairHost(context),
         child: const Icon(Icons.add_link),
+      ),
+    );
+  }
+}
+
+class _HomeLoading extends StatelessWidget {
+  const _HomeLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const CircularProgressIndicator(),
+          const SizedBox(height: AleraTokens.spaceMd),
+          Text('Loading Alera', style: Theme.of(context).textTheme.bodyMedium),
+        ],
       ),
     );
   }
@@ -208,7 +230,7 @@ class _EmptyHosts extends StatelessWidget {
 
 enum _HostAction { rename, remove }
 
-class _HostCard extends StatelessWidget {
+class _HostCard extends ConsumerWidget {
   const _HostCard({
     required this.host,
     required this.onOpen,
@@ -222,7 +244,8 @@ class _HostCard extends StatelessWidget {
   final VoidCallback onLongPress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connection = ref.watch(hostConnectionControllerProvider(host.id));
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
@@ -270,6 +293,20 @@ class _HostCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: AleraTokens.spaceSm),
+                    _HostConnectionStatus(
+                      connecting: connection.isLoading,
+                      ready: connection.hasValue && !connection.hasError,
+                      onRetry: () => unawaited(
+                        ref
+                            .read(
+                              hostConnectionControllerProvider(
+                                host.id,
+                              ).notifier,
+                            )
+                            .reconnectNow(),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -282,6 +319,48 @@ class _HostCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HostConnectionStatus extends StatelessWidget {
+  const _HostConnectionStatus({
+    required this.connecting,
+    required this.ready,
+    required this.onRetry,
+  });
+
+  final bool connecting;
+  final bool ready;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = connecting
+        ? 'Connecting'
+        : ready
+        ? 'Ready'
+        : 'Unavailable';
+    return Row(
+      children: <Widget>[
+        if (connecting)
+          const SizedBox.square(
+            dimension: AleraTokens.spaceMd,
+            child: CircularProgressIndicator(strokeWidth: AleraTokens.strokeSm),
+          )
+        else
+          AleraStatusDot(
+            active: ready,
+            size: AleraTokens.spaceSm,
+            color: ready ? null : AleraTokens.error,
+          ),
+        const SizedBox(width: AleraTokens.spaceSm),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        if (!connecting && !ready) ...<Widget>[
+          const SizedBox(width: AleraTokens.spaceSm),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ],
     );
   }
 }

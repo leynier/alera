@@ -106,6 +106,10 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
       return <Widget>[
         _GitDiffFileRow(
           entry: entry,
+          absolutePath: _terminalPathForGitEntry(
+            widget.workspacePath,
+            entry.path,
+          ),
           depth: row.depth,
           busy: widget.busy,
           onStage: widget.onStage,
@@ -140,6 +144,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
     return <Widget>[
       _GitDiffDirectoryRow(
         row: row,
+        absolutePath: _terminalPathForGitEntry(widget.workspacePath, row.path),
         busy: widget.busy,
         collapsed: collapsed,
         canStage: capabilities?.canStage ?? false,
@@ -175,6 +180,7 @@ class _GitDirectoryCapabilities {
 class _GitDiffDirectoryRow extends StatelessWidget {
   const _GitDiffDirectoryRow({
     required this.row,
+    required this.absolutePath,
     required this.busy,
     required this.collapsed,
     required this.canStage,
@@ -187,6 +193,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
   });
 
   final GitChangeTreeRow row;
+  final String absolutePath;
   final bool busy;
   final bool collapsed;
   final bool canStage;
@@ -210,20 +217,31 @@ class _GitDiffDirectoryRow extends StatelessWidget {
             color: AleraTokens.foregroundMuted,
           ),
           const SizedBox(width: AleraTokens.space2),
-          AleraFileIcon(
-            pathOrName: row.name,
-            kind: AleraFileIconKind.folder,
-            isExpanded: !collapsed,
-            size: 15,
-          ),
-          const SizedBox(width: AleraTokens.space6),
           Expanded(
-            child: Text(
-              row.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            child: _GitPathDragRegion(
+              absolutePath: absolutePath,
+              label: row.name,
+              isDirectory: true,
+              child: Row(
+                children: <Widget>[
+                  AleraFileIcon(
+                    pathOrName: row.name,
+                    kind: AleraFileIconKind.folder,
+                    isExpanded: !collapsed,
+                    size: 15,
+                  ),
+                  const SizedBox(width: AleraTokens.space6),
+                  Expanded(
+                    child: Text(
+                      row.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -252,6 +270,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
 class _GitDiffFileRow extends StatelessWidget {
   const _GitDiffFileRow({
     required this.entry,
+    required this.absolutePath,
     required this.depth,
     required this.onTap,
     required this.busy,
@@ -264,6 +283,7 @@ class _GitDiffFileRow extends StatelessWidget {
   });
 
   final GitChangeEntry entry;
+  final String absolutePath;
   final int depth;
   final VoidCallback onTap;
   final bool busy;
@@ -298,19 +318,32 @@ class _GitDiffFileRow extends StatelessWidget {
             )
           else
             const SizedBox(width: 16),
-          AleraFileIcon(
-            pathOrName: entry.path,
-            kind: AleraFileIconKind.file,
-            size: 15,
-          ),
-          const SizedBox(width: AleraTokens.space6),
           Expanded(
-            child: Text(
-              showRelativePath ? entry.path : entry.path.split('/').last,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            child: _GitPathDragRegion(
+              absolutePath: absolutePath,
+              label: showRelativePath ? entry.path : entry.path.split('/').last,
+              isDirectory: entry.submodule != null,
+              child: Row(
+                children: <Widget>[
+                  AleraFileIcon(
+                    pathOrName: entry.path,
+                    kind: AleraFileIconKind.file,
+                    size: 15,
+                  ),
+                  const SizedBox(width: AleraTokens.space6),
+                  Expanded(
+                    child: Text(
+                      showRelativePath
+                          ? entry.path
+                          : entry.path.split('/').last,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -434,109 +467,6 @@ class _AreaActions extends StatelessWidget {
               onPressed: busy ? null : onDiscard,
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _GitDiffBaseRow extends StatelessWidget {
-  const _GitDiffBaseRow({
-    required this.depth,
-    required this.child,
-    required this.onTap,
-  });
-
-  final int depth;
-  final Widget child;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: AleraTokens.space8 + (depth * AleraTokens.space12),
-            right: AleraTokens.space8,
-            top: AleraTokens.space4,
-            bottom: AleraTokens.space4,
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _LineStats extends StatelessWidget {
-  const _LineStats({required this.added, required this.removed});
-
-  final int? added;
-  final int? removed;
-
-  @override
-  Widget build(BuildContext context) {
-    final visibleAdded = added != null && added! > 0 ? added : null;
-    final visibleRemoved = removed != null && removed! > 0 ? removed : null;
-    if (visibleAdded == null && visibleRemoved == null) {
-      return const SizedBox(width: 64);
-    }
-    final style = Theme.of(context).textTheme.labelSmall;
-    return SizedBox(
-      width: 64,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          if (visibleAdded case final added?)
-            Flexible(
-              child: Text(
-                '+$added',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: style?.copyWith(color: AleraTokens.success),
-              ),
-            ),
-          if (visibleRemoved case final removed?) ...<Widget>[
-            const SizedBox(width: AleraTokens.space4),
-            Flexible(
-              child: Text(
-                '-$removed',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: style?.copyWith(color: AleraTokens.error),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _GitStatusLabel extends StatelessWidget {
-  const _GitStatusLabel({required this.status});
-
-  final GitChangeStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      GitChangeStatus.added => ('A', AleraTokens.success),
-      GitChangeStatus.untracked => ('U', AleraTokens.success),
-      GitChangeStatus.deleted => ('D', AleraTokens.error),
-      GitChangeStatus.renamed => ('R', AleraTokens.warning),
-      GitChangeStatus.copied => ('C', AleraTokens.warning),
-      GitChangeStatus.modified => ('M', AleraTokens.warning),
-    };
-    return SizedBox(
-      width: 12,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
       ),
     );
   }

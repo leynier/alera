@@ -81,19 +81,19 @@ impl RuntimeStore {
     ) -> Result<Vec<BrowserHistoryEntry>> {
         let limit = normalized_limit(limit);
         let rows = if let Some(profile_id) = profile_id {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {HISTORY_COLUMNS} FROM browserHistory \
                  WHERE profileId = ? ORDER BY visitedAt DESC LIMIT ?"
-            ))
+            )))
             .bind(profile_id.trim())
             .bind(limit)
             .fetch_all(self.pool())
             .await?
         } else {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {HISTORY_COLUMNS} FROM browserHistory \
                  ORDER BY visitedAt DESC LIMIT ?"
-            ))
+            )))
             .bind(limit)
             .fetch_all(self.pool())
             .await?
@@ -156,19 +156,19 @@ impl RuntimeStore {
     ) -> Result<Vec<BrowserClosedTab>> {
         let limit = normalized_limit(limit);
         let rows = if let Some(profile_id) = profile_id {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {CLOSED_TAB_COLUMNS} FROM browserClosedTabs \
                  WHERE profileId = ? ORDER BY closedAt DESC LIMIT ?"
-            ))
+            )))
             .bind(profile_id.trim())
             .bind(limit)
             .fetch_all(self.pool())
             .await?
         } else {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "SELECT {CLOSED_TAB_COLUMNS} FROM browserClosedTabs \
                  ORDER BY closedAt DESC LIMIT ?"
-            ))
+            )))
             .bind(limit)
             .fetch_all(self.pool())
             .await?

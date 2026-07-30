@@ -116,6 +116,8 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         name TEXT NOT NULL,
         agentType TEXT NOT NULL,
         command TEXT NOT NULL,
+        launchMode TEXT NOT NULL DEFAULT 'command',
+        managedConfig TEXT,
         description TEXT NOT NULL DEFAULT '',
         quotaGroup TEXT,
         createdAt TEXT NOT NULL,
@@ -220,5 +222,13 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         signedInAt TEXT NOT NULL,
         accessTokenExpiresAt TEXT NOT NULL,
         pushSubscriptionCount INTEGER NOT NULL DEFAULT 0
+    );",
+    "CREATE TABLE IF NOT EXISTS codexResetCreditAttempts (
+        accountId TEXT PRIMARY KEY,
+        offerRevision TEXT NOT NULL,
+        idempotencyKey TEXT NOT NULL,
+        state TEXT NOT NULL,
+        outcome TEXT,
+        updatedAt INTEGER NOT NULL
     );",
 ];

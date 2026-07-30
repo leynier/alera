@@ -1,4 +1,6 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -26,6 +28,9 @@ void main() {
           ),
           settingsControllerProvider.overrideWith(
             () => _WelcomeDashboardSettingsController(AleraSettings.defaults),
+          ),
+          agentProfilesProvider.overrideWith(
+            () => _WelcomeDashboardAgentProfiles(),
           ),
         ],
         child: const MaterialApp(home: WelcomeDashboard()),
@@ -118,6 +123,11 @@ void main() {
     await tester.tap(find.text('New Workspace').first);
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Manual'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue Manually'));
+    await tester.pumpAndSettle();
+
     // Tap Continue to go to Step 2
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
@@ -127,6 +137,11 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+class _WelcomeDashboardAgentProfiles extends AgentProfiles {
+  @override
+  Future<List<AgentProfile>> build() async => const <AgentProfile>[];
 }
 
 class _WelcomeDashboardController extends WorkbenchController {

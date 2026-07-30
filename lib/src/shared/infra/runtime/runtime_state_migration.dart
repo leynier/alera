@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/projects/application/project_config_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
@@ -23,6 +24,8 @@ const _legacyDriftRuntimeSettingsMigrationKey =
     'legacy_drift_runtime_settings_migrated_v1';
 const _legacyDriftPortableSettingsMigrationKey =
     'legacy_drift_portable_settings_migrated_v2';
+const _legacyDriftAiTextSettingsMigrationKey =
+    'legacy_drift_ai_text_settings_migrated_v1';
 
 @Riverpod(keepAlive: true)
 RuntimeStateMigration runtimeStateMigration(Ref ref) {
@@ -112,6 +115,11 @@ final class RuntimeStateMigration {
       await _migratePortableSettings(legacy);
       await _setMetadataValue(_legacyDriftPortableSettingsMigrationKey, 'true');
     }
+    if (await _metadataValue(_legacyDriftAiTextSettingsMigrationKey) !=
+        'true') {
+      await _migrateAiTextSettings(legacy);
+      await _setMetadataValue(_legacyDriftAiTextSettingsMigrationKey, 'true');
+    }
   }
 
   Future<void> _migratePortableSettings(
@@ -129,6 +137,41 @@ final class RuntimeStateMigration {
     if (patch.isNotEmpty) {
       await _runtimeClient.runtimeRequest('runtimeSettings.update', patch);
     }
+  }
+
+  Future<void> _migrateAiTextSettings(
+    RuntimeStateLegacyRepositories legacy,
+  ) async {
+    if (await _metadataValue('settings.aiTextGeneration') != null) {
+      return;
+    }
+    final settings = await legacy.settingsRepository.load();
+    await _runtimeClient.runtimeRequest(
+      'runtimeSettings.update',
+      <String, Object?>{
+        'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
+      },
+    );
+  }
+
+  Map<String, Object?> _runtimeAiTextSettings(
+    AiTextGenerationSettings settings,
+  ) {
+    return <String, Object?>{
+      'enabled': settings.enabled,
+      'agent': settings.agent.key,
+      'selectedModelByAgent': <String, String>{
+        for (final entry in settings.selectedModelByAgent.entries)
+          entry.key.key: entry.value,
+      },
+      'selectedThinkingByModel': settings.selectedThinkingByModel,
+      'customCommand': settings.customCommand,
+      'instructionsByOperation': <String, String>{
+        for (final entry in settings.instructionsByOperation.entries)
+          entry.key.key: entry.value,
+      },
+      'timeoutSeconds': settings.timeoutSeconds,
+    };
   }
 
   Future<void> _migrateProjectsAndWorkbench(

@@ -1,5 +1,35 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentProfileLaunchMode {
+    Managed,
+    #[default]
+    Command,
+}
+
+impl AgentProfileLaunchMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Command => "command",
+        }
+    }
+}
+
+impl std::str::FromStr for AgentProfileLaunchMode {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "managed" => Ok(Self::Managed),
+            "command" => Ok(Self::Command),
+            other => Err(format!("unsupported agent profile launch mode: {other}")),
+        }
+    }
+}
 
 /// A user-declared launch configuration for an orchestration worker agent.
 ///
@@ -16,8 +46,14 @@ pub struct AgentProfile {
     /// which owns that table.
     pub agent_type: String,
     /// The interactive launch command. A one-shot mode cannot satisfy the
-    /// worker contract of accept/heartbeat/complete.
+    /// worker contract of accept/heartbeat/complete. Managed profiles retain a
+    /// generated preview here for older clients; the host launches from
+    /// `managed_config`, never by reparsing the preview.
     pub command: String,
+    #[serde(default)]
+    pub launch_mode: AgentProfileLaunchMode,
+    #[serde(default)]
+    pub managed_config: Option<Value>,
     #[serde(default)]
     pub description: String,
     /// Profiles sharing a group drain the same usage bucket. Alera never

@@ -192,9 +192,11 @@ class CliAiTextGenerationService implements AiTextGenerationService {
             AiTextGenerationOperation.pullRequestDetails,
           ),
         ),
-      AiTextGenerationOperation.branchName => throw AiTextGenerationException(
-        '${request.operation.label} generation is not wired yet.',
-      ),
+      AiTextGenerationOperation.branchName ||
+      AiTextGenerationOperation.workspaceIdentity =>
+        throw AiTextGenerationException(
+          '${request.operation.label} generation is not wired yet.',
+        ),
     };
   }
 
@@ -453,7 +455,8 @@ class CliAiTextGenerationService implements AiTextGenerationService {
         stdout,
       ),
       AiTextGenerationOperation.pullRequestDetails ||
-      AiTextGenerationOperation.branchName => cleanGeneratedText(stdout),
+      AiTextGenerationOperation.branchName ||
+      AiTextGenerationOperation.workspaceIdentity => cleanGeneratedText(stdout),
     };
   }
 

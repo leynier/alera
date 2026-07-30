@@ -15,8 +15,12 @@ const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
     'mobileCloudEnrollmentV1';
 const String aleraRuntimeHostCloudPushCapability = 'cloudPushNotificationsV1';
+const String aleraRuntimeHostManagedAgentProfilesCapability =
+    'orchestrationManagedAgentProfilesV1';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
+const String aleraRuntimeHostCodexResetCreditsCapability =
+    'codexResetCreditsV1';
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';

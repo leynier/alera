@@ -11,20 +11,18 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
 part 'workbench_sidebar_rows.dart';
+part 'workbench_listing_sort.dart';
 
 /// Builds the flat list of rows the sidebar should render for the current
 /// [state]. Pure function - easy to unit test.
 ///
 /// [lastActivityByWorkspaceId] supplies the persisted recency fallback for the
-/// Agent Activity sort; [previousWorkspaceOrder] is the workspace-id order of
-/// the previous render, used to keep the active workspace pinned in place
-/// while live statuses reshuffle its siblings.
+/// Agent Activity sort.
 List<WorkbenchSidebarRow> buildSidebarRows(
   WorkbenchState state, {
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   Map<String, DateTime> lastActivityByWorkspaceId = const <String, DateTime>{},
-  List<String> previousWorkspaceOrder = const <String>[],
   DateTime? now,
 }) {
   final prefs = state.viewPrefs;
@@ -54,6 +52,22 @@ List<WorkbenchSidebarRow> buildSidebarRows(
 
   DateTime fallbackActivityOf(Workspace workspace) {
     return lastActivityByWorkspaceId[workspace.id] ?? workspace.updatedAt;
+  }
+
+  final activityCache = <String, AgentActivityRank?>{};
+  AgentActivityRank? activityOf(Workspace workspace) {
+    if (activityCache.containsKey(workspace.id)) {
+      return activityCache[workspace.id];
+    }
+    final tabs = state.tabsFor(workspace.id);
+    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
+        ? agentActivityRank(
+            attention: attentionOf(workspace),
+            fallback: fallbackActivityOf(workspace),
+          )
+        : null;
+    activityCache[workspace.id] = activity;
+    return activity;
   }
 
   bool workspaceVisible(Project project, Workspace workspace) {
@@ -89,96 +103,22 @@ List<WorkbenchSidebarRow> buildSidebarRows(
     List<Workspace> workspaces, {
     required bool pinMainOnRecent,
   }) {
-    final sorted = List<Workspace>.from(workspaces);
-    switch (prefs.workspaceSort) {
-      case WorkbenchSortBy.name:
-        sorted.sort((a, b) {
-          // Keep the main worktree pinned at the top regardless of name.
-          if (a.isMain != b.isMain) {
-            return a.isMain ? -1 : 1;
-          }
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        });
-      case WorkbenchSortBy.recent:
-        sorted.sort((a, b) {
-          if (pinMainOnRecent && a.isMain != b.isMain) {
-            return a.isMain ? -1 : 1;
-          }
-          return b.updatedAt.compareTo(a.updatedAt);
-        });
-      case WorkbenchSortBy.activity:
-        // Urgency outranks the main-worktree pin in this mode.
-        sorted.sort(
-          (a, b) => compareByAgentActivity(
-            aAttention: attentionOf(a),
-            aFallback: fallbackActivityOf(a),
-            aName: a.name,
-            bAttention: attentionOf(b),
-            bFallback: fallbackActivityOf(b),
-            bName: b.name,
-          ),
-        );
-    }
-    return stabilizeActiveEntry(
-      sorted: sorted,
-      idOf: (workspace) => workspace.id,
-      previousOrder: previousWorkspaceOrder,
-      activeId: prefs.workspaceSort == WorkbenchSortBy.activity
-          ? state.activeWorkspaceId
-          : null,
+    return _sortSidebarWorkspaces(
+      workspaces,
+      sortBy: prefs.workspaceSort,
+      pinMainOnRecent: pinMainOnRecent,
+      activityOf: activityOf,
     );
   }
 
   List<Project> sortProjects(List<Project> projects) {
-    final sorted = List<Project>.from(projects);
-    switch (prefs.projectSort) {
-      case WorkbenchSortBy.name:
-        sorted.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
-      case WorkbenchSortBy.recent:
-        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      case WorkbenchSortBy.activity:
-        // Rank each project by its most urgent / most recently active visible
-        // workspace.
-        final rank = <String, ({WorkspaceAttention attention, DateTime at})>{};
-        for (final project in sorted) {
-          var best = WorkspaceAttention.idle;
-          var bestAt = project.updatedAt;
-          for (final workspace in state.workspacesFor(project.id)) {
-            if (!workspaceVisible(project, workspace)) {
-              continue;
-            }
-            final attention = attentionOf(workspace);
-            final at = attention.attentionAt ?? fallbackActivityOf(workspace);
-            final better =
-                attention.attentionClass.index < best.attentionClass.index ||
-                (attention.attentionClass == best.attentionClass &&
-                    at.isAfter(bestAt));
-            if (better) {
-              best = attention;
-              bestAt = at;
-            }
-          }
-          rank[project.id] = (attention: best, at: bestAt);
-        }
-        sorted.sort((a, b) {
-          final ra = rank[a.id]!;
-          final rb = rank[b.id]!;
-          final byClass = ra.attention.attentionClass.index.compareTo(
-            rb.attention.attentionClass.index,
-          );
-          if (byClass != 0) {
-            return byClass;
-          }
-          final byTime = rb.at.compareTo(ra.at);
-          if (byTime != 0) {
-            return byTime;
-          }
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        });
-    }
-    return sorted;
+    return _sortSidebarProjects(
+      projects,
+      sortBy: prefs.projectSort,
+      workspacesFor: state.workspacesFor,
+      workspaceVisible: workspaceVisible,
+      activityOf: activityOf,
+    );
   }
 
   void appendWorkspaceTreeRows(
@@ -233,27 +173,52 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   var pinnedWorkspaceCount = 0;
   switch (prefs.groupBy) {
     case WorkbenchGroupBy.project:
-      for (final project in sortProjects(visibleProjects)) {
-        final pinned = sortWorkspaces(
-          state
-              .workspacesFor(project.id)
-              .where(
-                (workspace) =>
-                    workspace.isPinned && workspaceVisible(project, workspace),
-              )
-              .toList(),
-          pinMainOnRecent: true,
-        );
-        pinnedWorkspaceCount += pinned.length;
+      if (prefs.workspaceSort == WorkbenchSortBy.activity) {
+        final projectByWorkspaceId = <String, Project>{};
+        final pinned = <Workspace>[];
+        for (final project in visibleProjects) {
+          for (final workspace in state.workspacesFor(project.id)) {
+            if (!workspace.isPinned || !workspaceVisible(project, workspace)) {
+              continue;
+            }
+            projectByWorkspaceId[workspace.id] = project;
+            pinned.add(workspace);
+          }
+        }
+        pinnedWorkspaceCount = pinned.length;
         appendWorkspaceTreeRows(
           pinnedRows,
-          workspaces: pinned,
-          projectOf: (_) => project,
+          workspaces: sortWorkspaces(pinned, pinMainOnRecent: false),
+          projectOf: (workspace) => projectByWorkspaceId[workspace.id]!,
           baseIndent: 0,
           showProjectChip: true,
           isPinnedCopy: true,
           collapsedParentIds: const <String>{},
         );
+      } else {
+        for (final project in sortProjects(visibleProjects)) {
+          final pinned = sortWorkspaces(
+            state
+                .workspacesFor(project.id)
+                .where(
+                  (workspace) =>
+                      workspace.isPinned &&
+                      workspaceVisible(project, workspace),
+                )
+                .toList(),
+            pinMainOnRecent: true,
+          );
+          pinnedWorkspaceCount += pinned.length;
+          appendWorkspaceTreeRows(
+            pinnedRows,
+            workspaces: pinned,
+            projectOf: (_) => project,
+            baseIndent: 0,
+            showProjectChip: true,
+            isPinnedCopy: true,
+            collapsedParentIds: const <String>{},
+          );
+        }
       }
     case WorkbenchGroupBy.none:
       final projectByWorkspaceId = <String, Project>{};
@@ -467,8 +432,7 @@ bool _workspaceVisible(
   return false;
 }
 
-/// The workspace-id order of the rendered rows, used to remember the previous
-/// ordering for [buildSidebarRows]'s active-row stabilization.
+/// The workspace-id order of the rendered non-pinned rows.
 List<String> workspaceOrderOfRows(List<WorkbenchSidebarRow> rows) {
   return <String>[
     for (final row in rows)
