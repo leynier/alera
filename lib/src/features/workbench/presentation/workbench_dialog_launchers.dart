@@ -10,6 +10,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
@@ -252,6 +253,9 @@ Future<void> showCreateWorkspaceFlow(
             .where((branch) => branch.isNotEmpty)
             .toSet();
       },
+      parentWorkspaces: <Workspace>[
+        for (final candidate in parentCandidates) candidate.workspace,
+      ],
       generateIdentity: runtime.generateIdentity,
       cancelGeneration: runtime.cancel,
       createWorkspace:
@@ -260,12 +264,14 @@ Future<void> showCreateWorkspaceFlow(
             required sourceBranch,
             required newBranchName,
             required name,
+            parentWorkspaceId,
           }) {
-            return controller.createWorkspace(
+            return controller.createWorkspaceForPrompt(
               project: project,
               sourceBranch: sourceBranch,
               newBranchName: newBranchName,
               name: name,
+              parentWorkspaceId: parentWorkspaceId,
             );
           },
       launchAgent: runtime.launchAgent,
@@ -340,9 +346,11 @@ Future<void> showCreateWorkspaceFlow(
     );
   } else {
     final creation = promptResult.creation;
-    final tabId = promptResult.agentTabId;
-    if (creation != null && tabId != null) {
-      controller.setActiveTab(workspaceId: creation.workspace.id, tabId: tabId);
+    if (creation != null) {
+      await controller.completePromptWorkspaceCreation(
+        creation: creation,
+        agentTabId: promptResult.agentTabId,
+      );
     }
   }
 

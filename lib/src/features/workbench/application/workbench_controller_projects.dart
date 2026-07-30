@@ -125,66 +125,6 @@ mixin _WorkbenchControllerProjects
     }
   }
 
-  Future<WorkspaceCreationResult> createWorkspace({
-    required Project project,
-    required String sourceBranch,
-    required String newBranchName,
-    bool reuseExistingBranch = false,
-    String? name,
-    String? parentWorkspaceId,
-  }) async {
-    try {
-      final result = await _workspaceService.createLinkedWorkspace(
-        project: project,
-        sourceBranch: sourceBranch,
-        newBranchName: newBranchName,
-        reuseExistingBranch: reuseExistingBranch,
-        name: name,
-      );
-      _reconcileCreatedWorkspace(project, result.workspace);
-      await selectWorkspace(project: project, workspace: result.workspace);
-      await _openDeferredSetupTab(result);
-      final parentId = parentWorkspaceId?.trim();
-      if (parentId != null && parentId.isNotEmpty) {
-        try {
-          await _workspaceGraphRepository.linkWorkspaces(
-            parentWorkspaceId: parentId,
-            childWorkspaceId: result.workspace.id,
-          );
-        } catch (error) {
-          // The workspace itself was created successfully, so the failure is
-          // reported as a warning on the result instead of failing the flow.
-          state = state.copyWith(error: null);
-          return WorkspaceCreationResult(
-            workspace: result.workspace,
-            setupReport: result.setupReport,
-            parentLinkError: error.toString(),
-          );
-        }
-      }
-      state = state.copyWith(error: null);
-      return result;
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-      rethrow;
-    }
-  }
-
-  void _reconcileCreatedWorkspace(Project project, Workspace workspace) {
-    final workspaces = List<Workspace>.from(state.workspacesFor(project.id));
-    final index = workspaces.indexWhere((entry) => entry.id == workspace.id);
-    if (index == -1) {
-      workspaces.add(workspace);
-    } else {
-      workspaces[index] = workspace;
-    }
-    state = state.copyWith(
-      workspacesByProject: Map<String, List<Workspace>>.from(
-        state.workspacesByProject,
-      )..[project.id] = workspaces,
-    );
-  }
-
   Future<void> deleteWorkspace({
     required Project project,
     required Workspace workspace,
@@ -439,6 +379,18 @@ mixin _WorkbenchControllerProjects
   Future<void> selectWorkspace({
     required Project project,
     required Workspace workspace,
+  }) {
+    return _selectWorkspace(
+      project: project,
+      workspace: workspace,
+      ensureInitialTerminal: true,
+    );
+  }
+
+  Future<void> _selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+    required bool ensureInitialTerminal,
   }) async {
     final prefs = state.viewPrefs;
     final nextPrefs = _viewPrefsForProjectContext(
@@ -455,7 +407,9 @@ mixin _WorkbenchControllerProjects
     if (!identical(nextPrefs, prefs)) {
       unawaited(_persistViewPrefs());
     }
-    await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
+    if (ensureInitialTerminal) {
+      await _workspaceTabService.ensureInitialTerminalTab(workspace.id);
+    }
     final tabs = await _workspaceTabService.listTabs(workspace.id);
     _setTabsForWorkspace(workspace.id, tabs);
     final layout = await _ensureWorkbenchLayout(workspace.id, tabs);

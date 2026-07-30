@@ -31,10 +31,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               ],
               enabled: !_working && created == null,
               filterable: true,
-              onChanged: (project) {
-                _update(() => _project = project);
-                unawaited(_loadBranches(project));
-              },
+              onChanged: _selectProject,
             ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<String>(
@@ -48,6 +45,27 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               enabled: !_working && !_loadingBranches && created == null,
               filterable: true,
               onChanged: (branch) => _update(() => _sourceBranch = branch),
+            ),
+            const SizedBox(height: AleraTokens.space12),
+            AleraDropdownField<String?>(
+              labelText: 'Parent Workspace',
+              value: _selectedParentWorkspaceId,
+              entries: <AleraDropdownFieldEntry<String?>>[
+                const AleraDropdownFieldEntry<String?>(
+                  value: null,
+                  label: 'No Parent',
+                ),
+                for (final workspace in _parentWorkspaces)
+                  AleraDropdownFieldEntry<String?>(
+                    value: workspace.id,
+                    label: _parentWorkspaceLabel(workspace),
+                  ),
+              ],
+              enabled: !_working && created == null,
+              filterable: true,
+              filterHintText: 'Search Workspaces',
+              onChanged: (workspaceId) =>
+                  _update(() => _selectedParentWorkspaceId = workspaceId),
             ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<AgentProfile>(

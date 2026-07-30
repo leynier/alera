@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +38,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required this.loadBranches,
     required this.checkBranchExists,
     required this.workspaceBranches,
+    required this.parentWorkspaces,
     required this.generateIdentity,
     required this.cancelGeneration,
     required this.createWorkspace,
@@ -51,6 +53,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
   final Future<bool> Function(Project project, String branchName)
   checkBranchExists;
   final Set<String> Function(Project project) workspaceBranches;
+  final List<Workspace> parentWorkspaces;
   final Future<GeneratedWorkspaceIdentity> Function({
     required String operationId,
     required String projectId,
@@ -63,6 +66,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required String sourceBranch,
     required String newBranchName,
     required String name,
+    String? parentWorkspaceId,
   })
   createWorkspace;
   final Future<AgentProfileLaunchResult> Function({
@@ -83,6 +87,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   AgentProfile? _profile;
   List<String> _branches = const <String>[];
   String? _sourceBranch;
+  String? _selectedParentWorkspaceId;
   bool _loadingBranches = false;
   bool _working = false;
   String? _phase;
@@ -94,6 +99,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   void initState() {
     super.initState();
     _project = _initialProject();
+    _selectedParentWorkspaceId = _defaultParentWorkspaceId(_project);
     _profile = widget.agentProfiles.firstOrNull;
     final project = _project;
     if (project != null) {
@@ -162,6 +168,51 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     return branches.firstOrNull;
   }
 
+  List<Workspace> get _parentWorkspaces {
+    return <Workspace>[
+      for (final workspace in widget.parentWorkspaces)
+        if (workspace.isActive) workspace,
+    ];
+  }
+
+  String? _defaultParentWorkspaceId(Project? project) {
+    if (project == null) {
+      return null;
+    }
+    Workspace? firstProjectWorkspace;
+    for (final workspace in _parentWorkspaces) {
+      if (workspace.projectId != project.id) {
+        continue;
+      }
+      firstProjectWorkspace ??= workspace;
+      if (workspace.isMain) {
+        return workspace.id;
+      }
+    }
+    return firstProjectWorkspace?.id;
+  }
+
+  String _parentWorkspaceLabel(Workspace workspace) {
+    Project? project;
+    for (final candidate in widget.projects) {
+      if (candidate.id == workspace.projectId) {
+        project = candidate;
+        break;
+      }
+    }
+    final branch = workspace.branch?.trim();
+    final suffix = branch == null || branch.isEmpty ? '' : ' - $branch';
+    return '${project?.name ?? workspace.projectId} / ${workspace.name}$suffix';
+  }
+
+  void _selectProject(Project project) {
+    _update(() {
+      _project = project;
+      _selectedParentWorkspaceId = _defaultParentWorkspaceId(project);
+    });
+    unawaited(_loadBranches(project));
+  }
+
   Future<void> _submit() async {
     final project = _project;
     final profile = _profile;
@@ -223,6 +274,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
             sourceBranch: sourceBranch,
             newBranchName: identity.branchName,
             name: identity.workspaceName,
+            parentWorkspaceId: _selectedParentWorkspaceId,
           );
           break;
         } catch (error) {
