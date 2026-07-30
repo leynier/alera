@@ -7,6 +7,7 @@ part of 'terminal_runtime.dart';
 /// terminal.
 extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
   void _beginRestore(int totalChars) {
+    _restoreGeneration += 1;
     _restoreTotalChars = totalChars;
     _restoreWrittenChars = 0;
     _restoreProgress.value = totalChars <= 0
@@ -29,18 +30,34 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     );
   }
 
-  /// Takes the restore overlay down.
+  /// Takes the restore overlay down and refreshes the rebuilt view next frame.
   ///
   /// Any path that empties the backlog without going through [_advanceRestore]
   /// has to call this, or the overlay covers the terminal for good: nothing
   /// else clears it short of another snapshot or disposal.
+  /// Restore and PTY generations cancel the pulse after replacement or exit.
   void _finishRestore() {
     if (_restoreTotalChars <= 0) {
       return;
     }
+    final restoreGeneration = _restoreGeneration;
+    final ptyGeneration = _activePtyGeneration;
     _restoreTotalChars = 0;
     _restoreWrittenChars = 0;
     _restoreProgress.value = null;
+    if (ptyGeneration == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed ||
+          !_visible ||
+          _restoreGeneration != restoreGeneration ||
+          _activePtyGeneration != ptyGeneration ||
+          _restoreProgress.value != null) {
+        return;
+      }
+      unawaited(refreshRendering());
+    });
   }
 
   void _rebuildTerminalFromSnapshot(
