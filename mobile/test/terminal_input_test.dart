@@ -44,6 +44,7 @@ void main() {
             ],
             inputMode: TerminalInputMode.compose,
             onKey: written.add,
+            onPaste: () async {},
             onToggleMode: () {},
           ),
         ),
@@ -59,6 +60,52 @@ void main() {
       <int>[0x1b, 0x5b, 0x5a],
       <int>[0x03],
     ]);
+  });
+
+  testWidgets('Paste and vertical arrows stay in the pinned command rail', (
+    tester,
+  ) async {
+    final written = <List<int>>[];
+    var pasteCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              width: 320,
+              child: TerminalAccessoryBar(
+                keys: builtInTerminalAccessoryKeys,
+                inputMode: TerminalInputMode.compose,
+                onKey: written.add,
+                onPaste: () async {
+                  pasteCount += 1;
+                },
+                onToggleMode: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Paste Clipboard'));
+    final arrowUp = find.byKey(
+      const ValueKey<String>('terminal-accessory-arrowUp'),
+    );
+    final arrowDown = find.byKey(
+      const ValueKey<String>('terminal-accessory-arrowDown'),
+    );
+    await tester.tap(arrowUp);
+    await tester.tap(arrowDown);
+
+    expect(pasteCount, 1);
+    expect(written, <List<int>>[
+      <int>[0x1b, 0x5b, 0x41],
+      <int>[0x1b, 0x5b, 0x42],
+    ]);
+    expect(tester.getSize(arrowUp), const Size.square(48));
+    expect(tester.getSize(arrowDown), const Size.square(48));
   });
 
   testWidgets(

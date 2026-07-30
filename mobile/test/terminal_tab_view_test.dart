@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -7,6 +6,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
@@ -104,6 +104,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_terminalOf(tester), same(before));
+  });
+
+  testWidgets('Paste quick action writes clipboard text without Enter', (
+    tester,
+  ) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, Object?>{'text': 'first\nsecond'};
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    await _pumpTab(tester, client);
+
+    await tester.tap(find.byTooltip('Paste Clipboard'));
+    await tester.pumpAndSettle();
+
+    expect(client.writes.single, utf8.encode('first\nsecond'));
+    expect(
+      client.calls,
+      contains('write session-tab-1 12 paste=true enter=false'),
+    );
   });
 
   testWidgets('A resync snapshot replaces the emulator', (tester) async {

@@ -158,3 +158,10 @@ final Map<String, TerminalAccessoryKey> builtInTerminalAccessoryKeysById =
     <String, TerminalAccessoryKey>{
       for (final key in builtInTerminalAccessoryKeys) key.id: key,
     };
+
+/// Frequent navigation keys that stay visible while the configurable key list
+/// scrolls. Visibility still follows the saved accessory layout.
+const Set<String> pinnedTerminalAccessoryKeyIds = <String>{
+  'arrowUp',
+  'arrowDown',
+};

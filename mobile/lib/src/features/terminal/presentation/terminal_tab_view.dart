@@ -13,8 +13,10 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.da
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
+import 'package:logging/logging.dart';
 import 'package:xterm/xterm.dart';
 
 part 'terminal_tab_state_widgets.dart';
@@ -71,6 +73,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
             keys: accessoryKeys,
             inputMode: inputMode,
             onKey: notifier.write,
+            onPaste: () => _pasteClipboard(notifier),
             onToggleMode: ref
                 .read(
                   terminalInputModeControllerProvider(widget.tabId).notifier,
@@ -113,6 +116,31 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         ),
       ],
     );
+  }
+
+  Future<void> _pasteClipboard(TerminalSessionController notifier) async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text;
+      if (text == null || text.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Clipboard Has No Text')),
+          );
+        }
+        return;
+      }
+      await notifier.pasteText(text);
+    } catch (error, stackTrace) {
+      Logger(
+        'TerminalTabView',
+      ).warning('terminal clipboard paste failed', error, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could Not Paste Clipboard')),
+        );
+      }
+    }
   }
 
   Future<void> _refreshTerminal() async {

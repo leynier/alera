@@ -237,6 +237,24 @@ class TerminalSessionController extends _$TerminalSessionController {
     await client.writeTerminal(session.sessionId, bytes);
   }
 
+  /// Text from an explicit Paste action. It never submits the prompt, but it
+  /// uses bracketed paste when control characters or a large payload require
+  /// protection from the foreground line editor.
+  Future<void> pasteText(String text) async {
+    final session = await future;
+    final client = await ref.read(terminalClientProvider(hostId).future);
+    final delivery = TerminalComposeDelivery.forText(
+      text,
+      withEnter: false,
+      hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
+    );
+    await client.writeTerminal(
+      session.sessionId,
+      delivery.bytes,
+      bracketedPaste: delivery.bracketedPaste,
+    );
+  }
+
   /// Compose-mode send. The prompt and its Enter become separate PTY writes
   /// when the host supports it, because an agent TUI reads a CR arriving inside
   /// an input burst as a literal newline instead of a submit.

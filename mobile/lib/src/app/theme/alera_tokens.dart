@@ -85,7 +85,7 @@ abstract final class AleraTokens {
 
   /// Matches desktop editor-like tab title max width.
   static const double tabTitleMaxWidthEditor = 180;
-  static const double accessoryBarHeight = 44;
+  static const double accessoryBarHeight = minTapTarget + spaceSm;
   static const int composeBarMaxLines = 4;
 
   static const Duration keyRepeatInterval = Duration(milliseconds: 90);

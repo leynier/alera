@@ -83,6 +83,20 @@ void main() {
       ]),
     );
   });
+
+  test('Clipboard text is pasted without pressing Enter', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final notifier = await _notifier(client);
+
+    await notifier.pasteText('first\nsecond');
+
+    expect(
+      client.calls,
+      contains('write session-tab-1 12 paste=true enter=false'),
+    );
+    expect(client.writes.single, utf8.encode('first\nsecond'));
+  });
 }
 
 Future<TerminalSessionController> _notifier(FakeTerminalClient client) async {
