@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
+import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
@@ -73,12 +75,28 @@ class TerminalSessionController extends _$TerminalSessionController {
           break;
       }
     });
+    ref.listen(appLifecycleControllerProvider, _handleLifecycleChange);
     final client = await ref.read(terminalClientProvider(hostId).future);
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
     final session = await client.attachTerminal(tabId);
     _registerCleanup();
     return _bindSession(client, session);
+  }
+
+  void _handleLifecycleChange(
+    AppLifecycleState? previous,
+    AppLifecycleState next,
+  ) {
+    if (next != AppLifecycleState.resumed ||
+        previous == AppLifecycleState.resumed ||
+        _desktopReclaimed) {
+      return;
+    }
+    final client = _client;
+    if (client != null) {
+      unawaited(_recoverWithClient(client, showStartingState: true));
+    }
   }
 
   void _registerCleanup() {
@@ -148,7 +166,10 @@ class TerminalSessionController extends _$TerminalSessionController {
     );
   }
 
-  Future<void> _recoverWithClient(MobileTerminalClient client) async {
+  Future<void> _recoverWithClient(
+    MobileTerminalClient client, {
+    bool showStartingState = false,
+  }) async {
     if (_recovering) {
       _pendingRecoveryClient = client;
       return;
@@ -158,7 +179,10 @@ class TerminalSessionController extends _$TerminalSessionController {
     try {
       while (!_desktopReclaimed) {
         _pendingRecoveryClient = null;
-        state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
+        state = showStartingState
+            ? const AsyncLoading<TerminalTabSession>()
+            : const AsyncLoading<TerminalTabSession>(progress: 0.25);
+        showStartingState = false;
         try {
           final session = await nextClient.attachTerminal(
             tabId,
