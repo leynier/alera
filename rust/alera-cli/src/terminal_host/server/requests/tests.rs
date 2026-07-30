@@ -3,10 +3,13 @@ use super::*;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
+    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
 
 #[tokio::test]
@@ -77,6 +80,8 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("cliRegistration.install"));
     assert!(mobile_request_allowed("agentSkill.install"));
     assert!(mobile_request_allowed("terminal.restart"));
+    assert!(mobile_request_allowed("mobile.cloudEnrollment.create"));
+    assert!(mobile_request_allowed("mobile.cloudSubscriptions.refresh"));
     assert!(mobile_request_allowed("agentProfile.list"));
     assert!(mobile_request_allowed("agentProfile.launch"));
     assert!(mobile_request_allowed("aiText.workspaceIdentity.generate"));
@@ -99,6 +104,9 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("browser.capabilities"));
     assert!(!mobile_request_allowed("browser.tabs.open"));
     assert!(!mobile_request_allowed("browser.driver.register"));
+    assert!(!mobile_request_allowed("account.status"));
+    assert!(!mobile_request_allowed("account.signIn.start"));
+    assert!(!mobile_request_allowed("account.signOut"));
 }
 
 #[test]
@@ -185,6 +193,42 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_BINARY_FRAMES_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
+}
+
+#[test]
+fn mobile_hello_accepts_an_additive_cloud_device_id() {
+    let hello: MobileHelloRequest = serde_json::from_value(serde_json::json!({
+        "protocolVersion": MOBILE_PROTOCOL_VERSION,
+        "deviceId": "pairing-device",
+        "deviceToken": "pairing-token",
+        "cloudDeviceId": "installation-device",
+    }))
+    .unwrap();
+    assert_eq!(
+        hello.cloud_device_id.as_deref(),
+        Some("installation-device")
+    );
+
+    let legacy: MobileHelloRequest = serde_json::from_value(serde_json::json!({
+        "protocolVersion": MOBILE_PROTOCOL_VERSION,
+        "deviceId": "pairing-device",
+        "deviceToken": "pairing-token",
+    }))
+    .unwrap();
+    assert_eq!(legacy.cloud_device_id, None);
+}
+
+#[test]
+fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
+    assert_eq!(PROTOCOL_VERSION, 4);
+    assert_eq!(RUNTIME_HOST_ACCOUNT_CAPABILITY, "aleraAccountV1");
+    assert_eq!(
+        RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
+        "cloudPushNotificationsV1"
+    );
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
+    assert!(!MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_ACCOUNT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY));
     assert!(
@@ -194,17 +238,20 @@ fn mobile_hello_advertises_deferred_terminal_input() {
 
 #[test]
 fn soft_shutdown_busy_message_includes_agents() {
-    assert_eq!(host_shutdown_busy_message(0, 0, 0), None);
+    assert_eq!(host_shutdown_busy_message(0, 0, 0, false), None);
     assert_eq!(
-        host_shutdown_busy_message(2, 1, 0).as_deref(),
+        host_shutdown_busy_message(2, 1, 0, false).as_deref(),
         Some(
-            "Runtime host has 2 active agent(s), 1 active terminal session(s) and 0 active background job(s). Retry with --force to stop it."
+            "Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it."
         )
     );
     assert_eq!(
-        host_shutdown_busy_message(1, 0, 0).as_deref(),
+        host_shutdown_busy_message(1, 0, 0, false).as_deref(),
         Some(
-            "Runtime host has 1 active agent(s), 0 active terminal session(s) and 0 active background job(s). Retry with --force to stop it."
+            "Runtime host has 1 active agent(s), 0 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it."
         )
     );
+    assert!(host_shutdown_busy_message(0, 0, 0, true)
+        .unwrap()
+        .contains("1 active push subscription"));
 }

@@ -24,6 +24,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::SessionDriver;
 
 use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
+pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -43,6 +44,8 @@ struct MobileHelloRequest {
     protocol_version: i64,
     device_id: String,
     device_token: String,
+    #[serde(default)]
+    cloud_device_id: Option<String>,
 }
 
 impl ServerActor {
@@ -154,6 +157,9 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        if self.try_start_account_request(client_id, request_id, request_type, payload)? {
+            return Ok(true);
+        }
         match request_type {
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
@@ -355,6 +361,9 @@ impl ServerActor {
                     client.binary_frames = binary_frames;
                     client.mobile_device_id = Some(device.id.clone());
                     client.mobile_device_name = Some(device.display_name.clone());
+                    client.cloud_device_id = request
+                        .cloud_device_id
+                        .filter(|device_id| !device_id.trim().is_empty());
                 }
                 self.cancel_shutdown_timer();
                 if binary_frames {
@@ -436,9 +445,12 @@ impl ServerActor {
                     + self.browser.active_jobs();
                 let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
-                    if let Some(message) =
-                        host_shutdown_busy_message(active_agents, active_sessions, active_jobs)
-                    {
+                    if let Some(message) = host_shutdown_busy_message(
+                        active_agents,
+                        active_sessions,
+                        active_jobs,
+                        self.account_push.active_subscriptions > 0,
+                    ) {
                         return Err(HostError::state(message));
                     }
                 }
@@ -449,6 +461,7 @@ impl ServerActor {
                     "activeSessions": active_sessions,
                     "activeJobs": active_jobs,
                     "activeAgents": active_agents,
+                    "activePushSubscriptions": self.account_push.active_subscriptions,
                 }))
             }
             "createOrAttach" => {
@@ -552,6 +565,7 @@ impl ServerActor {
             "terminate" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
+                self.queue_terminal_exit_push(&session_id, None).await;
                 self.cleanup_orchestration_for_closed_session(
                     &session_id,
                     "terminal was explicitly terminated",
@@ -588,6 +602,11 @@ impl ServerActor {
             "status.get" => {
                 self.require_auth(client_id)?;
                 Ok(self.host_status_payload())
+            }
+            "account.status" => self.account_status().await,
+            "account.signIn.cancel" => {
+                self.require_auth(client_id)?;
+                Ok(self.cancel_account_sign_in())
             }
             "resources.snapshot" => {
                 self.require_auth(client_id)?;
@@ -635,12 +654,13 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 5] = [
+                const ALLOWED: [&str; 6] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
                     "agentStatusHooks",
                     "agentQuotas",
+                    "mobilePushNotifications",
                 ];
                 if let Some(key) = payload
                     .as_object()
@@ -1305,32 +1325,15 @@ fn host_shutdown_busy_message(
     active_agents: usize,
     active_sessions: usize,
     active_jobs: usize,
+    has_push_subscriptions: bool,
 ) -> Option<String> {
-    if active_agents == 0 && active_sessions == 0 && active_jobs == 0 {
+    if active_agents == 0 && active_sessions == 0 && active_jobs == 0 && !has_push_subscriptions {
         return None;
     }
     Some(format!(
-        "Runtime host has {active_agents} active agent(s), {active_sessions} active terminal session(s) and {active_jobs} active background job(s). Retry with --force to stop it."
+        "Runtime host has {active_agents} active agent(s), {active_sessions} active terminal session(s), {active_jobs} active background job(s), and {} active push subscription(s). Retry with --force to stop it.",
+        usize::from(has_push_subscriptions)
     ))
-}
-
-fn parse_payload<T>(payload: &Value) -> HostResult<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    serde_json::from_value(payload.clone()).map_err(|error| HostError::format(error.to_string()))
-}
-
-pub(super) fn json_result<T, E>(result: Result<T, E>) -> HostResult<Value>
-where
-    T: serde::Serialize,
-    E: std::fmt::Display,
-{
-    result
-        .map_err(|error| HostError::state(error.to_string()))
-        .and_then(|value| {
-            serde_json::to_value(value).map_err(|error| HostError::format(error.to_string()))
-        })
 }
 
 #[cfg(test)]

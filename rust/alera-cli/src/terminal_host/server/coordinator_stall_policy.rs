@@ -110,10 +110,13 @@ impl ServerActor {
             .create_orchestration_stall_gate(&dispatch.task_id, &question, &options)
             .await
         {
-            Ok(gate) => self.coordinator_log(&format!(
-                "opened stall gate {} for task {}",
-                gate.id, dispatch.task_id
-            )),
+            Ok(gate) => {
+                self.coordinator_log(&format!(
+                    "opened stall gate {} for task {}",
+                    gate.id, dispatch.task_id
+                ));
+                self.queue_gate_push(&dispatch.task_id, &question).await;
+            }
             Err(error) => self.coordinator_log(&format!(
                 "could not open a stall gate for task {}: {error}",
                 dispatch.task_id

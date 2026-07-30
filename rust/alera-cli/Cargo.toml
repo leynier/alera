@@ -69,6 +69,12 @@ sentry = { version = "0.49", default-features = false, features = [
     "reqwest",
     "rustls",
 ] }
+keyring = { version = "3.6.3", features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "crypto-rust",
+] }
 
 # Signalling a PTY shell's descendants. Already in the tree through
 # portable-pty, so declaring it directly adds no crate.

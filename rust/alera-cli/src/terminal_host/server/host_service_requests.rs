@@ -1,4 +1,6 @@
-use alera_core::runtime::{RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings};
+use alera_core::runtime::{
+    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeMobilePushSettings,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -16,6 +18,7 @@ impl ServerActor {
         &mut self,
         payload: &Value,
     ) -> HostResult<Value> {
+        let mut refresh_push_subscriptions = false;
         if let Some(value) = payload.get("workspaceDirectory") {
             let directory = match value {
                 Value::String(value) => Some(value.as_str()),
@@ -77,6 +80,29 @@ impl ServerActor {
             validate_agent_quota_settings(&settings)?;
             runtime_value(self.runtime_store.set_agent_quota_settings(settings).await)?;
             self.agent_quota_cache = None;
+        }
+        if let Some(value) = payload.get("mobilePushNotifications") {
+            let settings: RuntimeMobilePushSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("mobilePushNotifications is invalid."))?;
+            runtime_value(self.runtime_store.set_mobile_push_settings(&settings).await)?;
+            self.account_push.push_enabled = settings.enabled;
+            self.account_push.active_subscriptions = if settings.enabled {
+                let account = self
+                    .account_push
+                    .service
+                    .local_account()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                refresh_push_subscriptions = account.is_some();
+                account
+                    .map(|account| account.push_subscription_count.max(0) as usize)
+                    .unwrap_or_default()
+            } else {
+                0
+            };
+        }
+        if refresh_push_subscriptions {
+            self.start_push_subscription_sync(None);
         }
         if let Some(value) = payload.get("aiTextGeneration") {
             let settings: RuntimeAiTextGenerationSettings =

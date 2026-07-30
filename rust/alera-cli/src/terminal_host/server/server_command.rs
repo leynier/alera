@@ -2,12 +2,14 @@ use serde_json::Value;
 
 use crate::agent_status::AgentHookEvent;
 use crate::ssh_bootstrap::SshTargetBootstrapProgress;
+use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::session::PtyEvent;
 use alera_core::runtime::SshBootstrapStatus;
 
 use super::{
-    emulator_request_payloads, emulator_request_queue, runtime_mutations, ClientHandle, ClientKind,
+    account_requests, emulator_request_payloads, emulator_request_queue, push_delivery,
+    runtime_mutations, ClientKind,
 };
 
 /// Messages processed serially by the single server actor. Every state mutation
@@ -155,4 +157,6 @@ pub enum ServerCommand {
     BrowserRequestTimeout {
         correlation_id: String,
     },
+    Account(account_requests::AccountCommand),
+    Push(push_delivery::PushCommand),
 }

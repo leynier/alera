@@ -405,7 +405,10 @@ impl ServerActor {
                                 .create_orchestration_gate(&task_id, &question, &[])
                                 .await
                             {
-                                Ok(_) => logs.push(format!("gate created for task {task_id}")),
+                                Ok(_) => {
+                                    logs.push(format!("gate created for task {task_id}"));
+                                    self.queue_gate_push(&task_id, &question).await;
+                                }
                                 Err(error) => {
                                     logs.push(format!("gate for task {task_id} ignored: {error}"))
                                 }

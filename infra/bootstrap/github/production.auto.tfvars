@@ -1,0 +1,6 @@
+gcp_project_id             = "alera-production"
+state_bucket               = "alera-production-opentofu-state"
+github_repository          = "leynier/alera"
+github_repository_id       = "1162294215"
+github_repository_owner_id = "36774373"
+github_branch_ref          = "refs/heads/main"

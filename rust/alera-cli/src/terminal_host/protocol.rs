@@ -34,6 +34,15 @@ pub const RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY: &str = "mobileAgentQuotaV1
 pub const RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY: &str = "agentQuotaClaudeTuiV1";
 pub const RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY: &str = "codexResetCreditsV1";
 pub const RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY: &str = "mobileHostToolsV1";
+/// Desktop account management backed by the Alera cloud identity service.
+/// Account verbs remain unavailable to paired mobile clients.
+pub const RUNTIME_HOST_ACCOUNT_CAPABILITY: &str = "aleraAccountV1";
+/// A paired phone may exchange its authenticated runtime connection for a
+/// short-lived cloud enrollment code without learning the runtime credential.
+pub const RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY: &str = "mobileCloudEnrollmentV1";
+/// The runtime can deliver idempotent attention, done, and terminal-exit
+/// events to account-owned mobile subscriptions.
+pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";

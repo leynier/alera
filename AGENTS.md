@@ -196,6 +196,16 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Password managers are refused wholesale (`blocked_apps.rs`), not redacted field by field: their whole window is the secret. `computer.*` verbs MUST stay off the mobile allowlist, so a paired phone cannot drive the desktop; the allowlist is a whitelist and a conformance test keeps a later addition from granting it by accident.
 - AT-SPI's `Application.Id` is a registry index, not a pid. The process id MUST come from the bus (`GetConnectionUnixProcessID`), or a `pid:` selector names a process that does not exist.
 
+## Cloud Accounts And Mobile Push
+
+- Alera accounts remain optional for every local feature. Google and GitHub identity, cloud sessions, mobile enrollment, and push delivery are additive capabilities and MUST NOT bump the strict terminal-host or mobile protocol versions.
+- The cloud backend is an HTTP control plane only. It MUST NOT parse, proxy, or participate in the Alera terminal-host protocol; any future internet relay carries opaque end-to-end encrypted bytes.
+- Provider client secrets, token-signing private material, refresh tokens, bearer tokens, and FCM registration tokens MUST NOT be committed, logged, or placed in release artifacts. The runtime stores account refresh credentials behind its credential-store boundary, and the mobile app uses platform secure storage.
+- `account.*` requests remain local-client-only. The only mobile account bootstrap request is `mobile.cloudEnrollment.create`, and it uses the stable cloud installation id bound to the authenticated client by additive `mobile.hello.cloudDeviceId`, never an id supplied in that enrollment request. `mobile.cloudSubscriptions.refresh` may only ask the runtime to re-read its own authoritative count from Cloud; it never accepts a count or subscription claim from the phone.
+- FCM tokens and per-runtime mobile subscriptions live in the cloud backend. A runtime emits idempotent domain events only after explicit runtime opt-in and never stores a phone's FCM token.
+- Push payloads may contain the selected agent state plus project and workspace names. They MUST NOT contain prompts, commands, terminal input or output, source code, repository contents, or arbitrary orchestration text.
+- Attention includes waiting and blocked agents, escalation and decision gates, and coordinator stall gates. Agent done and terminal exit remain separate default-off categories. Replayed snapshots, cooldown repeats, and nearby bursts MUST be damped before cloud delivery.
+
 ## Build Flavors
 
 - Alera builds in two flavors selected by the `ALERA_FLAVOR` environment variable: `dev` (default) and `release`.

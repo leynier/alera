@@ -654,10 +654,27 @@ jobs:
 
       - name: Build Android release APKs
         working-directory: mobile
+        env:
+          ALERA_FIREBASE_API_KEY: ${{ vars.ALERA_FIREBASE_API_KEY }}
+          ALERA_FIREBASE_APP_ID: ${{ vars.ALERA_FIREBASE_APP_ID }}
+          ALERA_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.ALERA_FIREBASE_MESSAGING_SENDER_ID }}
+          ALERA_FIREBASE_PROJECT_ID: ${{ vars.ALERA_FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          flutter build apk --release
-          flutter build apk --release --split-per-abi
+          for var in ALERA_FIREBASE_API_KEY ALERA_FIREBASE_APP_ID ALERA_FIREBASE_MESSAGING_SENDER_ID ALERA_FIREBASE_PROJECT_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              echo "::error::$var is not configured. Android releases require the production Firebase client configuration; see docs/cloud-setup.md."
+              exit 1
+            fi
+          done
+          firebase_defines=(
+            --dart-define "ALERA_FIREBASE_API_KEY=$ALERA_FIREBASE_API_KEY"
+            --dart-define "ALERA_FIREBASE_APP_ID=$ALERA_FIREBASE_APP_ID"
+            --dart-define "ALERA_FIREBASE_MESSAGING_SENDER_ID=$ALERA_FIREBASE_MESSAGING_SENDER_ID"
+            --dart-define "ALERA_FIREBASE_PROJECT_ID=$ALERA_FIREBASE_PROJECT_ID"
+          )
+          flutter build apk --release "${firebase_defines[@]}"
+          flutter build apk --release --split-per-abi "${firebase_defines[@]}"
 
       - name: Verify Android APK signatures
         shell: bash

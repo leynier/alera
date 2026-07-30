@@ -196,6 +196,7 @@ impl ServerActor {
             self.broadcast_workspace_tabs_changed(Some(&tab.workspace_id));
             return Ok(true);
         }
+        self.queue_terminal_exit_push(handle, None).await;
         self.cleanup_orchestration_for_closed_session(handle, "terminal pruned")
             .await;
         if self.remove_terminal_session_tab(handle).await? {

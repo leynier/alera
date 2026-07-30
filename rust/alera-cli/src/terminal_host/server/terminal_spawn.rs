@@ -219,6 +219,7 @@ impl ServerActor {
         initial_output_stream_bytes: u64,
         forced_agent_hook: Option<&str>,
     ) -> HostResult<()> {
+        self.account_push.damper.reset_session(&session_id);
         let mut agent_settings = self
             .runtime_store
             .agent_status_hook_settings()

@@ -1,0 +1,2 @@
+bucket = "alera-production-opentofu-state"
+prefix = "alera/bootstrap/github"

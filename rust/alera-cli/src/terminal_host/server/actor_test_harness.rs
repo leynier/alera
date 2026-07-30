@@ -9,8 +9,6 @@ use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
-use alera_core::runtime::RuntimeStore;
-
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
@@ -18,7 +16,9 @@ use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::resource_requests::ResourceMonitorState;
 use crate::terminal_host::session::Session;
+use alera_core::runtime::RuntimeStore;
 
+use super::account_push_state::AccountPushState;
 use super::browser_broker::BrowserBroker;
 use super::client_delivery::LocalClientRole;
 use super::{ClientKind, ClientState, ServerActor};
@@ -39,6 +39,7 @@ impl ClientState {
             },
             mobile_device_id: None,
             mobile_device_name: None,
+            cloud_device_id: None,
         }
     }
 }
@@ -53,6 +54,7 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         local_role: LocalClientRole::Cli,
         mobile_device_id: Some(device.to_string()),
         mobile_device_name: Some(format!("{device} phone")),
+        cloud_device_id: Some(format!("cloud-{device}")),
     }
 }
 
@@ -66,6 +68,7 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         local_role: LocalClientRole::Cli,
         mobile_device_id: None,
         mobile_device_name: None,
+        cloud_device_id: None,
     }
 }
 
@@ -76,6 +79,9 @@ pub(super) async fn test_actor(
 ) -> ServerActor {
     let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
     let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+    let account_push = AccountPushState::new(dir.path().to_path_buf(), runtime_store.clone())
+        .await
+        .unwrap();
     let (inbox, _rx) = mpsc::unbounded_channel();
     ServerActor {
         runtime_dir: dir.path().to_path_buf(),
@@ -90,6 +96,7 @@ pub(super) async fn test_actor(
         managed_workspace_jobs: 0,
         emulator_requests: Default::default(),
         agent_quota_cache: None,
+        account_push,
         clients,
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),

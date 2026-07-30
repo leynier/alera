@@ -15,6 +15,8 @@ pub struct RuntimeSettings {
     #[serde(default)]
     pub agent_quotas: RuntimeAgentQuotaSettings,
     #[serde(default)]
+    pub mobile_push_notifications: RuntimeMobilePushSettings,
+    #[serde(default)]
     pub ai_text_generation: Option<RuntimeAiTextGenerationSettings>,
 }
 
@@ -26,7 +28,34 @@ impl Default for RuntimeSettings {
             confirm_workspace_removal: true,
             agent_status_hooks: RuntimeAgentStatusHookSettings::default(),
             agent_quotas: RuntimeAgentQuotaSettings::default(),
+            mobile_push_notifications: RuntimeMobilePushSettings::default(),
             ai_text_generation: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeMobilePushSettings {
+    /// Explicit runtime-level opt-in. Category defaults are inert until this
+    /// switch is enabled by the account owner.
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub attention: bool,
+    #[serde(default)]
+    pub done: bool,
+    #[serde(default)]
+    pub terminal_exit: bool,
+}
+
+impl Default for RuntimeMobilePushSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            attention: true,
+            done: false,
+            terminal_exit: false,
         }
     }
 }

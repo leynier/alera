@@ -9,6 +9,68 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
+  test('Creates Account Enrollment Through A Capable Paired Host', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final sockets = <WebSocket>[];
+    final requests = <Map<String, Object?>>[];
+    addTearDown(() async {
+      for (final socket in sockets) {
+        await socket.close();
+      }
+      await server.close(force: true);
+    });
+    final subscription = server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket);
+      socket.listen((raw) {
+        final message = jsonDecode(raw as String) as Map<String, Object?>;
+        requests.add(message);
+        final type = message['type'];
+        socket.add(
+          jsonEncode(<String, Object?>{
+            'id': message['id'],
+            'ok': true,
+            'payload': switch (type) {
+              'mobile.hello' => <String, Object?>{
+                'runtimeCapabilities': <String>[
+                  mobileCloudEnrollmentCapability,
+                ],
+              },
+              'mobile.cloudEnrollment.create' => <String, Object?>{
+                'code': 'enrollment-code',
+              },
+              'mobile.cloudSubscriptions.refresh' => <String, Object?>{
+                'activeSubscriptions': 2,
+              },
+              _ => <String, Object?>{},
+            },
+          }),
+        );
+      });
+    });
+    addTearDown(subscription.cancel);
+
+    final client = await MobileRuntimeClient.connect(
+      'ws://${server.address.address}:${server.port}',
+    );
+    addTearDown(client.dispose);
+    await client.authenticate(
+      deviceId: 'device-1',
+      deviceToken: 'token-1',
+      cloudDeviceId: 'cloud-installation-1',
+    );
+
+    expect(client.supportsCloudEnrollment, isTrue);
+    expect(await client.createCloudEnrollment(), 'enrollment-code');
+    expect(
+      (requests.first['payload']! as Map<String, Object?>)['cloudDeviceId'],
+      'cloud-installation-1',
+    );
+    expect(requests.last['type'], 'mobile.cloudEnrollment.create');
+    expect(await client.refreshCloudSubscriptions(), 2);
+    expect(requests.last['type'], 'mobile.cloudSubscriptions.refresh');
+  });
+
   test(
     'Feature detects Claude TUI quota capability during authentication',
     () async {

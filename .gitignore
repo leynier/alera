@@ -31,6 +31,21 @@ macos/Runner/Configs/Flavor.xcconfig
 
 # Cloudflare Wrangler local cache
 .wrangler/
+/edge/node_modules/
+
+# OpenTofu
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+/infra/production/backend.hcl
+/infra/production/terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
 
 # MacOS
 .DS_Store

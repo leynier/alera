@@ -5,7 +5,8 @@ use std::sync::{atomic::AtomicU64, Arc};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
-    MobileAccessSettings, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
+    prepare_private_runtime_directory, MobileAccessSettings, RuntimeStore, SshAuthKind,
+    SshBootstrapStatus, SshTarget,
 };
 use anyhow::Result;
 use serde_json::{json, Value};
@@ -37,7 +38,7 @@ use crate::terminal_host::orchestration::message_delivery::{
 use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
-use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
+use crate::terminal_host::session::{PtyWriteCompletion, Session};
 use crate::terminal_host::sleep_detector::SleepDetector;
 
 use client_accept_loop::{display_socket_address, spawn_accept_loop};
@@ -45,6 +46,10 @@ use client_accept_loop::{display_socket_address, spawn_accept_loop};
 use browser_broker::BrowserBroker;
 use resource_requests::ResourceMonitorState;
 
+mod account_push_state;
+mod account_requests;
+#[cfg(test)]
+mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
 mod agent_hook_events;
@@ -93,6 +98,8 @@ mod output_resume_tests;
 mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
+mod push_delivery;
+mod request_payloads;
 mod requests;
 mod resource_requests;
 mod runtime_change_broadcasts;
@@ -143,6 +150,7 @@ struct ClientState {
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
+    cloud_device_id: Option<String>,
 }
 
 struct SshBootstrapJobState {
@@ -161,12 +169,13 @@ pub async fn run_terminal_host_server(
     token: String,
     config: TerminalHostConfig,
 ) -> Result<()> {
-    if !runtime_dir.exists() {
-        std::fs::create_dir_all(&runtime_dir)?;
-    }
+    prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     runtime_store.ensure_default_browser_profile().await?;
+    let account_push =
+        account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
+            .await?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
@@ -202,6 +211,7 @@ pub async fn run_terminal_host_server(
         managed_workspace_jobs: 0,
         emulator_requests: Default::default(),
         agent_quota_cache: None,
+        account_push,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
@@ -234,6 +244,11 @@ pub async fn run_terminal_host_server(
     }
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
+    if actor.account_push.push_enabled
+        && actor.account_push.service.local_account().await?.is_some()
+    {
+        actor.start_push_subscription_sync(None);
+    }
     // A deferred setup script deletes itself when it finishes, so anything
     // still here outlived the host that wrote it and its terminal is gone.
     if let Some(directory) = actor.setup_script_directory() {
@@ -275,6 +290,7 @@ struct ServerActor {
     managed_workspace_jobs: usize,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
+    account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     agent_presence: AgentPresenceRegistry,
@@ -461,6 +477,7 @@ impl ServerActor {
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
                         mobile_device_name: None,
+                        cloud_device_id: None,
                     },
                 );
             }
@@ -635,6 +652,8 @@ impl ServerActor {
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
+            ServerCommand::Account(command) => self.handle_account_command(command).await,
+            ServerCommand::Push(command) => self.handle_push_command(command),
         }
     }
 
@@ -1154,6 +1173,15 @@ mod tests {
     };
     use std::net::Ipv6Addr;
 
+    async fn account_push_for_test(
+        dir: &tempfile::TempDir,
+        runtime_store: &RuntimeStore,
+    ) -> account_push_state::AccountPushState {
+        account_push_state::AccountPushState::new(dir.path().to_path_buf(), runtime_store.clone())
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
         let dir = tempfile::tempdir().unwrap();
@@ -1167,7 +1195,7 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1182,6 +1210,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1243,13 +1272,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1329,13 +1359,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1410,13 +1441,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1513,13 +1545,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1589,13 +1622,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1652,13 +1686,14 @@ mod tests {
             token: "token".to_string(),
             config: TerminalHostConfig::default(),
             store,
-            runtime_store,
+            runtime_store: runtime_store.clone(),
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
                 (2, ClientState::local(second_app_handle, true)),

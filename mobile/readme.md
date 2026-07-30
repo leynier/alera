@@ -15,6 +15,28 @@ Alera is the Android/iOS companion app for remote Alera work. It is a separate F
 - Terminal input has two modes per tab: compose (default), where you type a full command in a field and send it as one write (long-press Send offers sending without a newline), and direct, an opt-in toggle that streams every keystroke straight to the PTY. A configurable quick-key bar sits above the keyboard in both modes with Esc, Tab, Shift+Tab, arrows, and Ctrl combos; keys can be reordered, hidden, or extended with custom key combos (Ctrl/Alt/Shift plus any key) from the Terminal Quick Keys screen, persisted across launches.
 - Opening a terminal claims its viewport (the mobile presence lock): the PTY resizes to the phone screen, the desktop pane shows a banner naming the driving device with Take Back actions, and desktop resizes are held for later instead of fighting the phone. When the desktop takes the terminal back the phone returns to the workspace list; detaching or losing the connection releases the claim and restores the desktop dims automatically. Feature-detected through the `terminalDriverPresence` runtime capability.
 - Host status, projects, and branch summaries remain available under Host Details.
+- Keep multiple Alera account sessions in platform secure storage. Settings > Accounts asks a selected paired runtime for a one-time delegation and redeems it directly, without asking the phone to repeat Google or GitHub sign-in or making the user copy a second code. Enrolled runtimes are grouped under each account and control Attention, Done, and Terminal Exit notifications independently. Attention is enabled by default; Done and Terminal Exit are opt-in.
+- Register one app-wide FCM token with every enrolled account, reconcile subscriptions after token rotation, and receive notification-plus-data messages while foregrounded, backgrounded, or terminated. Foreground messages always use an Alera local banner. Tapping a message resolves the terminal first, then its workspace, then its paired host without opening an unrelated terminal when the original target is gone.
+
+## Cloud And Firebase Configuration
+
+The cloud client defaults to `https://api.alera.build/`. Override it for local development with `--dart-define=ALERA_CLOUD_BASE_URL=https://.../`. Tests override the injected API and never call the network.
+
+Android and iOS use the same Firebase app for debug and release. No production Firebase values are stored in this repository. Supply all four values when running or building:
+
+```bash
+flutter run \
+  --dart-define=ALERA_FIREBASE_API_KEY=... \
+  --dart-define=ALERA_FIREBASE_APP_ID=... \
+  --dart-define=ALERA_FIREBASE_MESSAGING_SENDER_ID=... \
+  --dart-define=ALERA_FIREBASE_PROJECT_ID=...
+```
+
+Android may instead use a real `android/app/google-services.json`; the Gradle plugin is applied only when that file exists, so analysis and tests stay buildable before Firebase is provisioned. `android/app/google-services.example.json` documents the expected package `dev.leynier.alera_mobile`. iOS can use the dart defines above; `ios/Runner/GoogleService-Info.example.plist` documents the matching bundle `dev.leynier.aleraMobile`.
+
+The Firebase sender must use notification-plus-data messages. Data keys are `accountId`, `runtimeId`, `eventId`, `eventType`, `category`, optional `workspaceId`, and optional `tabId`. Supported categories are `attention`, `done`, and `terminalExit`; event types describe the specific runtime event within those categories. Android channels are `alera_attention` and `alera_activity`.
+
+iOS background notification mode and the APNs entitlement are present, but real delivery remains unverified until Apple signing is configured and an APNs key is uploaded to Firebase. On Android, a force-stop from system settings prevents FCM delivery until the app is reopened. On iOS, swiping the app away can likewise pause background delivery until the next launch.
 
 ## Local Commands
 

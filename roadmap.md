@@ -99,7 +99,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Checks panel (CI/CD) | 4 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub, GitLab, and Azure DevOps |
 | GitHub Projects integration | 4 | 3 | Planned | Full project board with columns, cards, filtering, inline editing |
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
-| Multi-account support | 3 | 3 | Planned | Account switcher, manage multiple accounts per provider |
+| Alera account identity | 4 | 4 | Shipped | Optional Google and GitHub sign-in, linked verified identities, rotating Alera sessions, runtime ownership, mobile enrollment, and account deletion |
+| Multi-account support | 3 | 3 | Partial | Mobile retains multiple Alera account sessions; desktop provider-account switching and multiple simultaneous runtime identities are not implemented |
 
 ---
 
@@ -152,7 +153,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
 | Activity feed | 3 | 5 | Partial | Agent activity sort, sidebar agent runs, and status projection ship; no unified chronological activity feed yet |
-| Notification system | 3 | 4 | Partial | Native agent status notifications (waiting/blocked/done) with click-to-focus; no unread model or OS dock badge yet |
+| Notification system | 3 | 4 | Partial | Native desktop notifications plus opt-in FCM mobile push for attention, done, orchestration, and terminal-exit events with tap routing; no unread model or OS dock badge yet |
 | Agent auto-acknowledge | 1 | 3 | Shipped | Viewing a completed agent tab acknowledges that completion epoch and clears attention until the next run |
 
 ---
@@ -184,7 +185,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|:---:|---|
 | SSH | 5 | 4 | Partial | SSH targets, signed remote runtime bootstrap, Settings → Remote Hosts, `alera ssh-target`, and host-aware workspace metadata; full remote PTY/filesystem/git worktrees as local are not complete |
 | Computer Use | 5 | 3 | In Progress | `alera computer` reads and drives desktop windows through the accessibility layer; Linux only, no synthetic input or screen capture yet |
-| Mobile App | 5 | 3 | Shipped | Foundation plus sidebar parity: pairing UI/QR, `alera mobile` CLI, secure tokens, WebSocket gateway, projects/workspaces/tags, terminal create/attach/stream, settings/hooks/quotas, managed workspace actions; richer non-terminal tab surfaces planned |
+| Mobile App | 5 | 3 | Shipped | Pairing and terminal foundation plus sidebar parity, secure multi-account enrollment, FCM receipt and tap routing, settings/hooks/quotas, and managed workspace actions; richer non-terminal tab surfaces planned |
 
 ---
 

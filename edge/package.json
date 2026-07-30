@@ -1,0 +1,17 @@
+{
+  "name": "alera-edge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260728.1",
+    "@types/bun": "^1.3.14",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.114.0"
+  }
+}

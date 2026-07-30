@@ -18,11 +18,13 @@ class WorkspaceTabsScreen extends ConsumerStatefulWidget {
     required this.hostId,
     required this.workspace,
     this.initialTabId,
+    this.selectFallbackTab = true,
   });
 
   final String hostId;
   final WorkspaceSummary workspace;
   final String? initialTabId;
+  final bool selectFallbackTab;
 
   @override
   ConsumerState<WorkspaceTabsScreen> createState() =>
@@ -179,6 +181,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         return tab;
       }
     }
+    if (!widget.selectFallbackTab) {
+      return null;
+    }
     return terminals.first;
   }
 
@@ -258,7 +263,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
               hostId: widget.hostId,
               tabId: tab.id,
             ),
-            null => _EmptyTabs(creating: _creating, onCreate: _createTab),
+            null => _EmptyTabs(
+              creating: _creating,
+              onCreate: _createTab,
+              targetUnavailable:
+                  tabList.isNotEmpty && !widget.selectFallbackTab,
+            ),
           },
           AsyncError(:final error) => Center(
             child: Padding(
@@ -358,10 +368,15 @@ double _tabTitleMaxWidth(String kind) {
 }
 
 class _EmptyTabs extends StatelessWidget {
-  const _EmptyTabs({required this.creating, required this.onCreate});
+  const _EmptyTabs({
+    required this.creating,
+    required this.onCreate,
+    this.targetUnavailable = false,
+  });
 
   final bool creating;
   final VoidCallback onCreate;
+  final bool targetUnavailable;
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +392,17 @@ class _EmptyTabs extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
-            Text('No Tabs Yet', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              targetUnavailable ? 'Terminal Unavailable' : 'No Tabs Yet',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (targetUnavailable) ...<Widget>[
+              const SizedBox(height: AleraTokens.space8),
+              Text(
+                'Choose Another Terminal Above.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: AleraTokens.spaceMd),
             FilledButton.icon(
               onPressed: creating ? null : onCreate,

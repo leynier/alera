@@ -94,6 +94,28 @@ void main() {
       expect(client.shutdownCalls, isEmpty);
     });
 
+    test('prepareAppQuit leaves an active push runtime running', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '1.2.0',
+          'persistent': false,
+          'activePushSubscriptions': 1,
+        },
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '1.2.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+      );
+
+      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
+
+      expect(allowed, isTrue);
+      expect(client.shutdownCalls, isEmpty);
+    });
+
     test('prepareAppQuit soft-stops when status probe fails', () async {
       final client = _FakeRuntimeClient(
         status: <String, Object?>{
@@ -334,9 +356,11 @@ void main() {
             activeAgents: 2,
             activeSessions: 1,
             activeJobs: 0,
+            activePushSubscriptions: 1,
           ),
         ),
-        'The runtime has 2 open agent(s) and 1 active terminal session(s).',
+        'The runtime has 2 open agent(s), 1 active terminal session(s), and '
+        '1 active push subscription(s).',
       );
     });
   });

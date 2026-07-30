@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "ALERA_FIREBASE_MESSAGING_SENDER_ID",
+    "project_id": "ALERA_FIREBASE_PROJECT_ID",
+    "storage_bucket": "ALERA_FIREBASE_PROJECT_ID.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "ALERA_FIREBASE_APP_ID",
+        "android_client_info": {
+          "package_name": "dev.leynier.alera_mobile"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "ALERA_FIREBASE_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

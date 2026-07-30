@@ -7,7 +7,9 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 use crate::terminal_host::protocol::{
-    MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION, RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
+    MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
+    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
 };
 
 use super::actor_test_harness::{local_client, mobile_client, test_actor};
@@ -183,7 +185,7 @@ async fn tab_reads_hide_mobile_emulator_from_legacy_desktop_clients() {
 }
 
 #[tokio::test]
-async fn status_advertises_mobile_emulator_without_a_protocol_version_change() {
+async fn status_advertises_additive_capabilities_without_a_protocol_version_change() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = ClientHandle::test_channels();
     let mut actor = test_actor(
@@ -196,8 +198,14 @@ async fn status_advertises_mobile_emulator_without_a_protocol_version_change() {
     let status = request(&mut actor, 1, 1, "status.get", json!({}), &mut receiver).await;
 
     assert_eq!(status["protocolVersion"], PROTOCOL_VERSION);
-    assert!(status["runtimeCapabilities"]
-        .as_array()
-        .unwrap()
-        .contains(&json!(RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY)));
+    let capabilities = status["runtimeCapabilities"].as_array().unwrap();
+    for capability in [
+        RUNTIME_HOST_ACCOUNT_CAPABILITY,
+        RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
+        RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+        RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
+    ] {
+        assert!(capabilities.contains(&json!(capability)));
+    }
+    assert_eq!(status["activePushSubscriptions"], 0);
 }

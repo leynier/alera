@@ -33,6 +33,7 @@ Alera takes the opposite bet:
 - **Run many agents at once.** Each task gets its own Git worktree, its own tabs, and its own terminals, so Claude, Codex, Amp, and friends can work in parallel without stepping on each other
 - **Native performance.** Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer (`portable_pty`). Ghostty's VTE engine for terminal parsing. No Electron, no embedded browser, no JS event loop in the hot path
 - **See what your agents are doing.** Lifecycle hooks for the most popular CLI agents stream their activity into Alera so you can tell, at a glance, which terminals are idle, working, or waiting on you
+- **Take attention with you.** Optional Alera accounts and Firebase push can notify a subscribed phone when an agent waits, blocks, or reaches an orchestration decision, even after the desktop UI closes
 - **Track agent quotas.** A bottom status bar shows local or remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai
 - **See what they cost.** A Resource Manager in the status bar attributes live CPU and memory to each project, workspace, and terminal tab, so you can tell which agent is eating the machine
 - **Never lose a terminal again.** Terminal sessions persist across restarts. Close the app, reboot the machine, come back, and your scrollback, processes, and layout are still there
@@ -122,6 +123,8 @@ Stable and release-candidate update channels with a manual download flow today, 
 ### 📱 Mobile companion foundation
 
 A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app or through `alera mobile ...`. The mobile app stores device tokens in platform secure storage and connects directly to the runtime-host mobile WebSocket gateway, so the desktop app does not need to stay open. Its workspace surface mirrors the desktop sidebar with shared grouping, sorting, filtering, tags, collapse state, pins, workspace activity, direct-workspace agent presence, terminal indicators, and managed-workspace actions. Mobile can also browse the host filesystem, manage projects, rename every workspace tab, configure runtime-portable settings and agent hooks, inspect and configure agent quotas, register the host CLI, and install the Alera agent skills without a desktop process. Agent summaries expand locally per paired host, expose runtime-owned details, open the exact terminal tab, and confirm before closing it. Terminal Quick Keys remain local to each phone.
+
+Optional Alera accounts use Google or GitHub sign-in on the desktop. A paired runtime delegates a separate mobile session without asking the phone to repeat provider sign-in. A phone can retain multiple Alera account sessions and subscribe independently to multiple runtimes. After explicit opt-in, the runtime can send Firebase notifications for attention events while the app is closed, with agent-finished and terminal-exit categories available but off by default. Notification payloads can name the project and workspace, but never contain prompts, terminal input or output, source code, or repository contents. The implementation requires production OAuth, cloud, and Firebase configuration before a release can exercise it end to end; Android is the first verification target, while iOS additionally requires Apple signing and APNs configuration.
 
 The standalone runtime can be kept alive on a workstation or VPS with `alera runtime start`, inspected with `alera runtime status`, and stopped with `alera runtime stop`. A non-forced stop refuses to close while sessions or runtime jobs are active. Agent status integrations, automatic agent terminal spawning, and coordinator workers are runtime-owned; use `alera runtime agents status`, `enable`, or `disable` to manage integrations without launching desktop Flutter.
 
@@ -237,7 +240,8 @@ Alera is built around three deliberate engineering choices:
 - **Rust** for the PTY and process boundary through [`portable_pty`](https://crates.io/crates/portable-pty), so spawning, signalling, and resizing real terminals stays predictable on every OS
 - **Ghostty's VTE** through `ghostty_vte_flutter` for terminal parsing: the same engine that powers the Ghostty terminal emulator
 - **Drift / SQLite** for local persistence of projects, workspaces, tabs, layouts, settings, and terminal state
-- **No Electron, no Chromium, no Node runtime** in the app, and no plan to add them
+- **Axum / Postgres** for the optional account and push service, kept outside the local runtime-host protocol
+- **No Electron, no Chromium, no Node runtime** in the desktop or mobile apps
 
 For more, see [`docs/architecture.md`](docs/architecture.md).
 
@@ -275,6 +279,12 @@ Want to contribute or hack on Alera locally? Start with:
 - `lib/src/features/updater`: update archive parsing and desktop updater integration
 - `lib/src/features/shell`: top-level application shell
 - `lib/src/design_system`: shared Alera UI components
+- `mobile`: separate Android and iOS companion app
+- `rust`: native Flutter layer, shared runtime core, and the `alera` runtime-host CLI
+- `cloud`: containerized Axum account and push service
+- `edge`: Cloudflare Worker that protects and forwards the public API
+- `infra/production`: OpenTofu resources for the production cloud boundary
+- `landing`: static Astro website and account trust pages
 
 ### Checks
 

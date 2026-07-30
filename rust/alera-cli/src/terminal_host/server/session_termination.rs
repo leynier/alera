@@ -171,6 +171,7 @@ impl ServerActor {
         }
         let store = self.store.clone();
         for session_id in session_ids {
+            self.queue_terminal_exit_push(&session_id, None).await;
             self.cleanup_orchestration_for_closed_session(
                 &session_id,
                 "terminal was explicitly terminated",

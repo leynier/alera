@@ -11,6 +11,7 @@ final class RuntimeHostStatusSnapshot {
     this.persistent = false,
     this.activeSessions = 0,
     this.activeAgents = 0,
+    this.activePushSubscriptions = 0,
     this.error,
   });
 
@@ -22,6 +23,7 @@ final class RuntimeHostStatusSnapshot {
   final bool persistent;
   final int activeSessions;
   final int activeAgents;
+  final int activePushSubscriptions;
   final String? error;
 
   bool get hasBuildMismatch {
@@ -68,6 +70,7 @@ final class RuntimeHostShutdownResult {
     this.activeSessions = 0,
     this.activeJobs = 0,
     this.activeAgents = 0,
+    this.activePushSubscriptions = 0,
   });
 
   factory RuntimeHostShutdownResult.fromJson(Map<String, Object?> json) {
@@ -81,6 +84,9 @@ final class RuntimeHostShutdownResult {
       activeAgents: json['activeAgents'] is int
           ? json['activeAgents'] as int
           : 0,
+      activePushSubscriptions: json['activePushSubscriptions'] is int
+          ? json['activePushSubscriptions'] as int
+          : 0,
     );
   }
 
@@ -89,6 +95,7 @@ final class RuntimeHostShutdownResult {
   final int activeSessions;
   final int activeJobs;
   final int activeAgents;
+  final int activePushSubscriptions;
 }
 
 final class RuntimeHostBusyException implements Exception {
@@ -97,12 +104,14 @@ final class RuntimeHostBusyException implements Exception {
     this.activeSessions = 0,
     this.activeJobs = 0,
     this.activeAgents = 0,
+    this.activePushSubscriptions = 0,
   });
 
   final String message;
   final int activeSessions;
   final int activeJobs;
   final int activeAgents;
+  final int activePushSubscriptions;
 
   @override
   String toString() => message;

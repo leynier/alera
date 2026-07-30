@@ -1,5 +1,8 @@
 use std::path::Path;
 
+use alera_core::runtime::{
+    harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory,
+};
 use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
@@ -54,10 +57,9 @@ pub struct TerminalHostHistoryStore {
 
 impl TerminalHostHistoryStore {
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
-        if !runtime_dir.exists() {
-            std::fs::create_dir_all(runtime_dir)?;
-        }
+        prepare_private_runtime_directory(runtime_dir)?;
         let path = runtime_dir.join(HISTORY_DATABASE_FILE_NAME);
+        open_private_runtime_file(&path)?;
         let options = SqliteConnectOptions::new()
             .filename(&path)
             .create_if_missing(true)
@@ -76,6 +78,7 @@ impl TerminalHostHistoryStore {
         sqlx::query(CREATE_OUTPUT_CHUNKS_SESSION_INDEX_SQL)
             .execute(&pool)
             .await?;
+        harden_sqlite_files(&path)?;
         Ok(TerminalHostHistoryStore { pool })
     }
 
