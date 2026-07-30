@@ -10,5 +10,4 @@ resource "cloudflare_dns_record" "api" {
   proxied = true
   ttl     = 1
   comment = "Alera API origin. The alera-api-edge Worker route must intercept this hostname."
-  tags    = ["application:alera", "managed-by:opentofu"]
 }

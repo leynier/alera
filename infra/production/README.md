@@ -13,15 +13,23 @@ Neon remains an external free-tier service by design. `neon_project_id` records 
 - Google Application Default Credentials with permission to manage the declared resources.
 - Google desktop OAuth and GitHub OAuth App registrations.
 
-## Apply
+## GitHub Actions
 
-Copy the two example files without committing the populated copies:
+Production deploys normally through `.github/workflows/cloud-deploy.yml`. Static, non-secret values live in `production.auto.tfvars`; the workflow supplies `cloud_run_image`, `cloud_run_revision`, and the push-delivery circuit breaker explicitly. GitHub authenticates to Google through the separate WIF root in `../bootstrap/github` and uses independent Cloudflare tokens for OpenTofu and Wrangler.
+
+The production plan is rejected when any resource action contains a delete or replacement. After apply, the workflow deploys the Worker and verifies the public and origin routes. A failed verification rolls Cloud Run and the Worker back to their captured versions.
+
+## Break-Glass Apply
+
+For local recovery only, copy the example files without committing the populated copies:
 
 ```sh
 cp backend.hcl.example backend.hcl
 cp terraform.tfvars.example terraform.tfvars
 tofu init -backend-config=backend.hcl
 tofu plan -out=production.tfplan
+tofu show -json production.tfplan > production.tfplan.json
+python3 ../../tool/cloud/validate_tofu_plan.py production.tfplan.json
 tofu apply production.tfplan
 ```
 
@@ -49,7 +57,7 @@ Cloud KMS returns its public key in PEM/SPKI form. Convert the first version's r
 
 ## Deploy The Edge
 
-The DNS record fails closed before the Worker exists: Cloud Run does not own the public hostname, and every supported origin route except `/healthz` also requires the private edge token. From `edge/`, add `ORIGIN_BASE_URL` and the matching `EDGE_ORIGIN_TOKEN` with `wrangler secret put`, then deploy the Worker. Wrangler owns the Worker code, route, rate-limit binding, and secret values; OpenTofu owns the proxied DNS record.
+The DNS record fails closed before the Worker exists: Cloud Run does not own the public hostname, and every supported origin route except `/health` also requires the private edge token. From `edge/`, add `ORIGIN_BASE_URL` and the matching `EDGE_ORIGIN_TOKEN` with `wrangler secret put`, then deploy the Worker. Wrangler owns the Worker code, route, rate-limit binding, and secret values; OpenTofu owns the proxied DNS record.
 
 ## Firebase Client Configuration
 

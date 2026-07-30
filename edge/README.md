@@ -1,6 +1,8 @@
 # Alera API Edge
 
-This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, and `/healthz`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads.
+This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, and `/health`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads.
+
+Production deployment is owned by `.github/workflows/cloud-deploy.yml`. Wrangler receives a dedicated `cloud-production` Environment token limited to `Workers Scripts: Edit` on the Leynier account and `Workers Routes: Edit` on `alera.build`. Local `wrangler deploy` is a break-glass operation.
 
 ## Local Validation
 
@@ -25,4 +27,4 @@ bunx wrangler secret put EDGE_ORIGIN_TOKEN
 bun run deploy
 ```
 
-The backend rejects every route except `/healthz` unless the edge token matches. `ALERA_ALLOW_DIRECT_ORIGIN=true` is reserved for explicit local development and must never be enabled in production.
+The backend rejects every route except `/health` unless the edge token matches. `ALERA_ALLOW_DIRECT_ORIGIN=true` is reserved for explicit local development and must never be enabled in production.

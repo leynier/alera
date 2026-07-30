@@ -22,11 +22,11 @@ The service applies `migrations/` at startup, runs retention cleanup once, and r
 
 ## HTTP Contract
 
-All JSON uses camelCase. Every route except `GET /healthz` requires the `x-alera-origin-auth` header unless `ALERA_ALLOW_DIRECT_ORIGIN=true` is set explicitly.
+All JSON uses camelCase. Every route except `GET /health` requires the `x-alera-origin-auth` header unless `ALERA_ALLOW_DIRECT_ORIGIN=true` is set explicitly.
 
 | Method | Path | Authorization | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/healthz` | None | Container health |
+| `GET` | `/health` | None | Container health |
 | `GET` | `/.well-known/jwks.json` | Edge | Current and previous Alera signing keys |
 | `POST` | `/v1/auth/transactions` | Edge | Start Google or GitHub OAuth for a runtime |
 | `POST` | `/v1/auth/exchange` | Edge | Consume state, PKCE verifier, and provider code |

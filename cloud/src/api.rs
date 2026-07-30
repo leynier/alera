@@ -16,7 +16,7 @@ use crate::{accounts, auth, error::ApiError, mobile, push, runtimes, state::AppS
 
 pub fn router(state: AppState) -> Router {
     Router::new()
-        .route("/healthz", get(health))
+        .route("/health", get(health))
         .route("/.well-known/jwks.json", get(auth::jwks))
         .route("/v1/auth/transactions", post(auth::create_transaction))
         .route("/v1/auth/exchange", post(auth::exchange))
@@ -64,7 +64,7 @@ async fn require_edge_origin(
     request: Request<Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
-    if request.uri().path() == "/healthz" || state.config.allow_direct_origin {
+    if request.uri().path() == "/health" || state.config.allow_direct_origin {
         return Ok(next.run(request).await);
     }
     let provided = request

@@ -1,0 +1,1 @@
+{"resource_changes":[{"address":"example.replaced_destroy_first","change":{"actions":["delete","create"]}},{"address":"example.replaced_create_first","change":{"actions":["create","delete"]}}]}

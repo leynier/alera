@@ -13,6 +13,20 @@ This runbook deploys and operates the account and push service described in [`cl
 
 Use a dedicated versioned Google Cloud Storage bucket for OpenTofu state. State is not a secret delivery mechanism and access must still be restricted.
 
+## Production CD
+
+The normal production path is `.github/workflows/cloud-deploy.yml`. A merge into `main` that changes `cloud/`, `edge/`, `infra/production/`, `tool/cloud/`, or the workflow runs the full backend, PostgreSQL, container, Edge, and OpenTofu gates before deploying. The workflow builds and publishes a `linux/amd64` image, resolves its immutable digest, applies the guarded OpenTofu plan, deploys the Worker, and verifies public health, public JWKS, and the direct-origin JWKS rejection.
+
+The deployment job uses the `cloud-production` GitHub Environment. Google authentication is keyless through the WIF bootstrap under `infra/bootstrap/github`; Cloudflare uses independent DNS and Worker tokens. The environment is limited to `main` and has no manual approval. A push event is authorized only when its SHA is the merge commit of a pull request merged into `main`; `workflow_dispatch` from `main` is the explicit operational exception.
+
+Manual runs support:
+
+- `plan`: build and publish an immutable candidate image, then produce and validate the production plan without applying it.
+- `deploy`: run the same path used after an authorized merge.
+- `rollback`: restore an explicitly supplied full image digest and Worker version id.
+
+If verification fails after apply, the workflow rolls the Worker back to the version captured before deployment, reapplies OpenTofu with the previous Cloud Run digest, and repeats the probes. Structural infrastructure changes are not automatically undone. The failed run summary preserves the identifiers required for a manual rollback.
+
 ## Local Backend
 
 From `cloud/`:
@@ -41,9 +55,13 @@ Create a GitHub OAuth App, not a GitHub App. Use `https://alera.build` as its ho
 
 Add both client ids to `terraform.tfvars`. Add both client secrets directly to their Secret Manager containers after bootstrap.
 
-## Infrastructure Bootstrap
+## Break-Glass Local Deployment
 
-Copy `infra/production/backend.hcl.example` and `terraform.tfvars.example` to ignored local files, then initialize:
+Local production deployment is reserved for recovery when GitHub Actions or its federated identity is unavailable. Record the reason, use the same immutable inputs, run the plan guard, and restore GitHub CD as soon as possible. Do not create a service-account key as a workaround.
+
+### Infrastructure Bootstrap
+
+Static public production values are committed in `infra/production/production.auto.tfvars`. Copy only the backend example and keep the computed image and revision in an ignored local `terraform.tfvars`:
 
 ```sh
 tofu init -backend-config=backend.hcl
@@ -92,7 +110,7 @@ Generate independent high-entropy values for the edge token and tombstone pepper
 
 Cloud Run reads `latest` secret versions when instances start. Advance `cloud_run_revision` to a new lowercase marker and apply whenever a secret changes so the service deliberately creates a new revision. Do not rely on an idle instance restart to pick up a secret.
 
-## Build And Deploy Cloud Run
+### Build And Deploy Cloud Run
 
 Authenticate Docker to the provisioned Artifact Registry, build `cloud/Dockerfile`, push, and use the immutable digest in `cloud_run_image`:
 
@@ -107,12 +125,14 @@ Review and apply the full plan:
 
 ```sh
 tofu plan -out=production.tfplan
+tofu show -json production.tfplan > production.tfplan.json
+python3 ../../tool/cloud/validate_tofu_plan.py production.tfplan.json
 tofu apply production.tfplan
 ```
 
-Cloud Run scales from zero to at most two instances, uses the `alera-cloud` service account, reads secret versions at startup, signs through KMS, and sends FCM through workload identity. `/healthz` is the only origin route that does not require the private edge header because Cloud Run probes call it directly.
+Cloud Run scales from zero to at most two instances, uses the `alera-cloud` service account, reads secret versions at startup, signs through KMS, and sends FCM through workload identity. `/health` is the only origin route that does not require the private edge header because Cloud Run probes call it directly.
 
-## Deploy The Cloudflare Worker
+### Deploy The Cloudflare Worker
 
 From `edge/`, install the locked dependencies and set Worker secrets:
 
@@ -130,11 +150,11 @@ bun run deploy
 Before the Worker route exists, the public hostname fails closed because it is not mapped as a Cloud Run custom domain and supported origin routes require the private header. After deployment, verify:
 
 ```sh
-curl --fail https://api.alera.build/healthz
+curl --fail https://api.alera.build/health
 curl --fail https://api.alera.build/.well-known/jwks.json
 ```
 
-The direct Cloud Run `/healthz` may answer, but a direct request to any account or JWKS route must fail without the private header.
+The direct Cloud Run `/health` may answer, but a direct request to any account or JWKS route must fail without the private header.
 
 ## Firebase Client Files
 

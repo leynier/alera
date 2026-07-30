@@ -32,7 +32,7 @@ Cloudflare Worker -> Cloud Run API -> Neon Postgres
 - Cloud agents belong to a separate compute plane that runs the real Alera runtime host. The account service may provision or authorize that plane later, but it does not emulate a PTY.
 - Provider access tokens are used only to resolve identity during an OAuth exchange and are not persisted.
 - No service-account private key is created. Cloud Run uses its workload identity for FCM and KMS.
-- The Cloud Run origin is publicly addressable but every route except `/healthz` rejects a request that lacks the private edge header. Direct-origin bypass exists only behind the explicit `ALERA_ALLOW_DIRECT_ORIGIN=true` local-development setting.
+- The Cloud Run origin is publicly addressable but every route except `/health` rejects a request that lacks the private edge header. Direct-origin bypass exists only behind the explicit `ALERA_ALLOW_DIRECT_ORIGIN=true` local-development setting.
 - Account features are additive runtime capabilities and do not change the strict terminal-host or mobile protocol versions.
 
 ## Identity

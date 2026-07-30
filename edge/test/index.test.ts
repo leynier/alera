@@ -77,7 +77,7 @@ describe('Alera API edge', () => {
 
   test('maps an unreachable origin to a bounded error', async () => {
     const response = await handleRequest(
-      new Request('https://api.alera.build/healthz'),
+      new Request('https://api.alera.build/health'),
       environment(),
       async () => {
         throw new Error('network unavailable');

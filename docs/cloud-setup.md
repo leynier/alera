@@ -336,7 +336,7 @@ tofu output -raw public_api_url
 
 Cloud Run is configured with zero minimum instances and at most two instances. It signs access tokens through KMS and sends FCM messages through its workload identity.
 
-Only `/healthz` is intentionally reachable at the direct Cloud Run origin without the private edge header.
+Only `/health` is intentionally reachable at the direct Cloud Run origin without the private edge header.
 
 ## Cloudflare Worker Deployment
 
@@ -363,13 +363,13 @@ The Worker removes cookies, overwrites the origin-authentication header, admits 
 Verify the public edge:
 
 ```sh
-curl --fail https://api.alera.build/healthz
+curl --fail https://api.alera.build/health
 curl --fail https://api.alera.build/.well-known/jwks.json
 ```
 
 Verify the origin boundary:
 
-- Direct Cloud Run `/healthz` may succeed.
+- Direct Cloud Run `/health` may succeed.
 - Direct Cloud Run account, push, and JWKS routes must fail without the edge header.
 - Public `api.alera.build` routes must pass through the Worker.
 
@@ -421,20 +421,20 @@ The release workflow already requires these GitHub repository secrets for stable
 
 Keep a protected backup of the upload keystore outside GitHub. Losing it prevents existing users from installing updates signed by a replacement key.
 
-The current release build does not yet inject the four Firebase Dart definitions. Before publishing the first push-capable APK, complete one of these release-safe options:
+The release workflow requires these GitHub repository variables and passes them as `--dart-define` values to both Android build commands:
 
-1. Add the four `ALERA_FIREBASE_*` values as GitHub repository variables and pass them as `--dart-define` values to both Android build commands.
-2. Materialize `google-services.json` in the runner from protected repository configuration before the Android build.
+- `ALERA_FIREBASE_API_KEY`
+- `ALERA_FIREBASE_APP_ID`
+- `ALERA_FIREBASE_MESSAGING_SENDER_ID`
+- `ALERA_FIREBASE_PROJECT_ID`
 
-The first option matches local configuration and avoids reconstructing JSON in CI. Firebase client identifiers are not private credentials, but they should remain out of source to preserve the repository's current environment boundary.
-
-Treat Firebase injection as a release gate. An APK built without either configuration can run, but it cannot register for Alera FCM delivery.
+Firebase client identifiers are not private credentials, but they remain out of source to preserve the repository's current environment boundary. The workflow fails before building an APK when any required variable is missing because an APK without this configuration cannot register for Alera FCM delivery.
 
 ## Android End-To-End Verification
 
 Complete this sequence with a real Android device:
 
-1. Confirm `https://api.alera.build/healthz` and JWKS succeed.
+1. Confirm `https://api.alera.build/health` and JWKS succeed.
 2. Start the desktop app and open Settings > Account.
 3. Sign in with GitHub and confirm the loopback browser flow returns to Alera.
 4. Sign out, then sign in with Google using the same verified email and confirm it resolves to the same Alera account.

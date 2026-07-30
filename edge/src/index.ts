@@ -13,7 +13,7 @@ type OriginFetch = (request: Request) => Promise<Response>;
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE']);
 const SAFE_METHODS = new Set(['GET']);
 const ORIGIN_HEADER = 'x-alera-origin-auth';
-const PUBLIC_EXACT_PATHS = new Set(['/healthz', '/.well-known/jwks.json']);
+const PUBLIC_EXACT_PATHS = new Set(['/health', '/.well-known/jwks.json']);
 const PUBLIC_PREFIXES = ['/v1/'];
 
 function jsonError(status: number, code: string, message: string): Response {

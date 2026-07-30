@@ -1,0 +1,470 @@
+name: Cloud Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cloud/**'
+      - 'edge/**'
+      - 'infra/production/**'
+      - 'tool/cloud/**'
+      - '.github/workflows/cloud.yml'
+      - '.github/workflows/cloud-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Production operation
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - deploy
+          - rollback
+      rollback_image:
+        description: Full immutable Artifact Registry image for rollback mode
+        required: false
+        type: string
+      rollback_worker_version:
+        description: Known Cloudflare Worker version id for rollback mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'deploy' }}
+  PUBLIC_API_URL: https://api.alera.build
+  WORKER_NAME: alera-api-edge
+
+jobs:
+  authorize:
+    name: Authorize Production SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Require Main And Merged Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          ROLLBACK_WORKER_VERSION: ${{ inputs.rollback_worker_version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Production operations must run from refs/heads/main." >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            pulls="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls")"
+            if ! jq -e --arg sha "$GITHUB_SHA" \
+              'any(.[]; .merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)' \
+              <<<"$pulls" >/dev/null; then
+              echo "Refusing a direct push: $GITHUB_SHA is not the merge commit of a PR merged into main." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "$DEPLOY_MODE" == "rollback" ]]; then
+            image_pattern='^us-central1-docker\.pkg\.dev/alera-production/alera-cloud/alera-cloud@sha256:[0-9a-f]{64}$'
+            version_pattern='^[0-9a-fA-F-]{36}$'
+            if [[ ! "$ROLLBACK_IMAGE" =~ $image_pattern ]]; then
+              echo "rollback_image must be the full immutable alera-cloud Artifact Registry image." >&2
+              exit 1
+            fi
+            if [[ ! "$ROLLBACK_WORKER_VERSION" =~ $version_pattern ]]; then
+              echo "rollback_worker_version must be a known Worker version UUID." >&2
+              exit 1
+            fi
+          fi
+
+          {
+            echo "### Production Authorization"
+            echo
+            echo "- Event: \`$GITHUB_EVENT_NAME\`"
+            echo "- Mode: \`$DEPLOY_MODE\`"
+            echo "- SHA: \`$GITHUB_SHA\`"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  checks:
+    name: Cloud Checks
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'rollback' }}
+    needs: authorize
+    uses: ./.github/workflows/cloud.yml
+
+  gates:
+    name: Production Gates
+    if: ${{ always() }}
+    needs:
+      - authorize
+      - checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require Successful Gates
+        env:
+          AUTHORIZE_RESULT: ${{ needs.authorize.result }}
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$AUTHORIZE_RESULT" != "success" ]]; then
+            echo "Production authorization failed." >&2
+            exit 1
+          fi
+          if [[ "$DEPLOY_MODE" == "rollback" ]]; then
+            exit 0
+          fi
+          if [[ "$CHECKS_RESULT" != "success" ]]; then
+            echo "A production gate failed or was cancelled." >&2
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy Production
+    needs: gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: cloud-production
+      url: https://api.alera.build
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      GCP_PROJECT_ID: alera-production
+      GCP_REGION: us-central1
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      PUSH_DELIVERY_ENABLED: ${{ vars.PUSH_DELIVERY_ENABLED }}
+      STATE_BUCKET: ${{ vars.TOFU_STATE_BUCKET }}
+      STATE_PREFIX: ${{ vars.TOFU_STATE_PREFIX }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: false
+
+      - name: Authenticate To Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+        with:
+          tofu_version: 1.12.1
+          tofu_wrapper: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.3.14'
+
+      - name: Setup Docker Buildx
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Install Edge Dependencies
+        working-directory: edge
+        run: bun install --frozen-lockfile
+
+      - name: Initialize Production State
+        working-directory: infra/production
+        run: |
+          tofu init \
+            -reconfigure \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="prefix=$STATE_PREFIX" \
+            -input=false
+
+      - name: Capture Current Deployment
+        id: current
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          previous_image="$(
+            gcloud run services describe alera-cloud \
+              --project="$GCP_PROJECT_ID" \
+              --region="$GCP_REGION" \
+              --format='value(spec.template.spec.containers[0].image)'
+          )"
+          deployments="$(cd edge && bunx wrangler deployments list --json)"
+          previous_worker_version="$(
+            jq -er '
+              sort_by(.created_on)
+              | map(select(any(.versions[]; .percentage == 100)))
+              | last
+              | .versions[]
+              | select(.percentage == 100)
+              | .version_id
+            ' <<<"$deployments"
+          )"
+          echo "previous_image=$previous_image" >>"$GITHUB_OUTPUT"
+          echo "previous_worker_version=$previous_worker_version" >>"$GITHUB_OUTPUT"
+
+      - name: Configure Artifact Registry
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        run: gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+
+      - name: Build And Publish Image
+        id: image
+        if: ${{ env.DEPLOY_MODE != 'rollback' }}
+        run: |
+          set -euo pipefail
+          repository="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/alera-cloud/alera-cloud"
+          image_tag="$repository:$GITHUB_SHA"
+          docker buildx build \
+            --file cloud/Dockerfile \
+            --platform linux/amd64 \
+            --push \
+            --tag "$image_tag" \
+            --metadata-file "$RUNNER_TEMP/alera-cloud-build.json" \
+            cloud
+          digest="$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/alera-cloud-build.json")"
+          echo "target_image=$repository@$digest" >>"$GITHUB_OUTPUT"
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
+      - name: Select Deployment Target
+        id: target
+        env:
+          BUILT_IMAGE: ${{ steps.image.outputs.target_image }}
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+        run: |
+          set -euo pipefail
+          if [[ "$DEPLOY_MODE" == "rollback" ]]; then
+            target_image="$ROLLBACK_IMAGE"
+            revision="rollback-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          else
+            target_image="$BUILT_IMAGE"
+            revision="deploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          fi
+          echo "target_image=$target_image" >>"$GITHUB_OUTPUT"
+          echo "revision=$revision" >>"$GITHUB_OUTPUT"
+
+      - name: Plan Production
+        id: plan
+        working-directory: infra/production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOFU_API_TOKEN }}
+          TARGET_IMAGE: ${{ steps.target.outputs.target_image }}
+          TARGET_REVISION: ${{ steps.target.outputs.revision }}
+        run: |
+          set -euo pipefail
+          tofu plan \
+            -input=false \
+            -out=production.tfplan \
+            -var="cloud_run_image=$TARGET_IMAGE" \
+            -var="cloud_run_revision=$TARGET_REVISION" \
+            -var="push_delivery_enabled=$PUSH_DELIVERY_ENABLED"
+          tofu show -json production.tfplan >production.tfplan.json
+          python3 ../../tool/cloud/validate_tofu_plan.py \
+            production.tfplan.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Finish Plan Only
+        if: ${{ env.DEPLOY_MODE == 'plan' }}
+        env:
+          TARGET_IMAGE: ${{ steps.target.outputs.target_image }}
+        run: |
+          {
+            echo "### Plan Result"
+            echo
+            echo "- SHA: \`$GITHUB_SHA\`"
+            echo "- Image: \`$TARGET_IMAGE\`"
+            echo "- No production resources were changed."
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Apply Production
+        id: apply
+        if: ${{ env.DEPLOY_MODE == 'deploy' }}
+        working-directory: infra/production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOFU_API_TOKEN }}
+        run: |
+          tofu apply -input=false -auto-approve production.tfplan
+          echo "applied=true" >>"$GITHUB_OUTPUT"
+
+      - name: Deploy Worker
+        id: worker
+        if: ${{ env.DEPLOY_MODE == 'deploy' }}
+        continue-on-error: true
+        working-directory: edge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          bun run deploy
+          deployments="$(bunx wrangler deployments list --json)"
+          worker_version="$(
+            jq -er '
+              sort_by(.created_on)
+              | map(select(any(.versions[]; .percentage == 100)))
+              | last
+              | .versions[]
+              | select(.percentage == 100)
+              | .version_id
+            ' <<<"$deployments"
+          )"
+          echo "worker_version=$worker_version" >>"$GITHUB_OUTPUT"
+
+      - name: Verify Deployment
+        id: verify
+        if: ${{ env.DEPLOY_MODE == 'deploy' && steps.worker.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+
+      - name: Roll Back Worker Automatically
+        id: automatic_worker_rollback
+        if: ${{ env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+          PREVIOUS_WORKER_VERSION: ${{ steps.current.outputs.previous_worker_version }}
+        run: |
+          cd edge
+          bunx wrangler rollback "$PREVIOUS_WORKER_VERSION" \
+            --message "automatic rollback for GitHub run $GITHUB_RUN_ID" \
+            --yes
+
+      - name: Roll Back Cloud Run Automatically
+        id: automatic_cloud_run_rollback
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        continue-on-error: true
+        working-directory: infra/production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOFU_API_TOKEN }}
+          PREVIOUS_IMAGE: ${{ steps.current.outputs.previous_image }}
+        run: |
+          tofu plan \
+            -input=false \
+            -out=rollback.tfplan \
+            -var="cloud_run_image=$PREVIOUS_IMAGE" \
+            -var="cloud_run_revision=rollback-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            -var="push_delivery_enabled=$PUSH_DELIVERY_ENABLED"
+          tofu show -json rollback.tfplan >rollback.tfplan.json
+          python3 ../../tool/cloud/validate_tofu_plan.py \
+            rollback.tfplan.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+          tofu apply -input=false -auto-approve rollback.tfplan
+
+      - name: Verify Automatic Rollback
+        id: automatic_rollback_verify
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.automatic_cloud_run_rollback.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+
+      - name: Report Failed Deployment
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        env:
+          CLOUD_RUN_ROLLBACK: ${{ steps.automatic_cloud_run_rollback.outcome }}
+          PREVIOUS_IMAGE: ${{ steps.current.outputs.previous_image }}
+          PREVIOUS_WORKER_VERSION: ${{ steps.current.outputs.previous_worker_version }}
+          ROLLBACK_VERIFICATION: ${{ steps.automatic_rollback_verify.outcome }}
+          WORKER_ROLLBACK: ${{ steps.automatic_worker_rollback.outcome }}
+        run: |
+          {
+            echo "### Deployment Failed"
+            echo
+            echo "Automatic rollback was attempted."
+            echo
+            echo "- Worker rollback: \`$WORKER_ROLLBACK\`"
+            echo "- Cloud Run rollback: \`$CLOUD_RUN_ROLLBACK\`"
+            echo "- Rollback verification: \`$ROLLBACK_VERIFICATION\`"
+            echo "- Previous image: \`$PREVIOUS_IMAGE\`"
+            echo "- Previous Worker version: \`$PREVIOUS_WORKER_VERSION\`"
+            echo "- Recovery: rerun this workflow from \`main\` in \`rollback\` mode with these identifiers."
+          } >>"$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Roll Back Worker Manually
+        id: manual_worker
+        if: ${{ env.DEPLOY_MODE == 'rollback' }}
+        continue-on-error: true
+        working-directory: edge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+          ROLLBACK_WORKER_VERSION: ${{ inputs.rollback_worker_version }}
+        run: |
+          bunx wrangler rollback "$ROLLBACK_WORKER_VERSION" \
+            --message "manual rollback from GitHub run $GITHUB_RUN_ID" \
+            --yes
+
+      - name: Roll Back Cloud Run Manually
+        id: manual_cloud_run
+        if: ${{ env.DEPLOY_MODE == 'rollback' && always() }}
+        continue-on-error: true
+        working-directory: infra/production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOFU_API_TOKEN }}
+        run: tofu apply -input=false -auto-approve production.tfplan
+
+      - name: Verify Manual Rollback
+        id: manual_verify
+        if: ${{ env.DEPLOY_MODE == 'rollback' && steps.manual_cloud_run.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+
+      - name: Require Successful Manual Rollback
+        if: ${{ env.DEPLOY_MODE == 'rollback' && (steps.manual_worker.outcome != 'success' || steps.manual_cloud_run.outcome != 'success' || steps.manual_verify.outcome != 'success') }}
+        env:
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          ROLLBACK_WORKER_VERSION: ${{ inputs.rollback_worker_version }}
+        run: |
+          {
+            echo "### Manual Rollback Failed"
+            echo
+            echo "- Requested image: \`$ROLLBACK_IMAGE\`"
+            echo "- Requested Worker version: \`$ROLLBACK_WORKER_VERSION\`"
+            echo "- Re-run the rollback after checking the OpenTofu and Wrangler errors above."
+          } >>"$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Deployment Summary
+        if: ${{ always() }}
+        env:
+          NEW_WORKER_VERSION: ${{ steps.worker.outputs.worker_version }}
+          PREVIOUS_IMAGE: ${{ steps.current.outputs.previous_image }}
+          PREVIOUS_WORKER_VERSION: ${{ steps.current.outputs.previous_worker_version }}
+          TARGET_IMAGE: ${{ steps.target.outputs.target_image }}
+        run: |
+          revision="$(
+            gcloud run services describe alera-cloud \
+              --project="$GCP_PROJECT_ID" \
+              --region="$GCP_REGION" \
+              --format='value(status.latestReadyRevisionName)' 2>/dev/null || true
+          )"
+          {
+            echo "### Cloud Production"
+            echo
+            echo "- Mode: \`$DEPLOY_MODE\`"
+            echo "- SHA: \`$GITHUB_SHA\`"
+            echo "- Target image: \`$TARGET_IMAGE\`"
+            echo "- Previous image: \`$PREVIOUS_IMAGE\`"
+            echo "- Cloud Run revision: \`${revision:-unavailable}\`"
+            echo "- Worker version: \`${NEW_WORKER_VERSION:-unchanged}\`"
+            echo "- Previous Worker version: \`$PREVIOUS_WORKER_VERSION\`"
+          } >>"$GITHUB_STEP_SUMMARY"
