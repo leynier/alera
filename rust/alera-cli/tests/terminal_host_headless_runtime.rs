@@ -85,6 +85,7 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
             "60",
         ])
         .env("HOME", test_home)
+        .env("SHELL", "/bin/sh")
         .env_remove("CLAUDE_CONFIG_DIR")
         .env_remove("CODEX_HOME")
         .env_remove("COPILOT_HOME")

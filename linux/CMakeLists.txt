@@ -148,6 +148,12 @@ set(MIMALLOC_USE_STATIC_LIBS OFF CACHE BOOL
   "Do not replace Alera's process allocator for media playback" FORCE)
 include(flutter/generated_plugins.cmake)
 
+# jni 1.0.2 passes the typed JNIEnv pointer to the JNI API's required void**
+# parameter. Keep the upstream Clang diagnostic scoped to that dependency.
+if(TARGET jni AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(jni PRIVATE -Wno-incompatible-pointer-types)
+endif()
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build

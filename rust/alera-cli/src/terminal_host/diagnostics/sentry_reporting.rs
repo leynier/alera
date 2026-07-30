@@ -63,20 +63,19 @@ pub fn redact_event(mut event: Event<'static>) -> Event<'static> {
 }
 
 pub fn client_options() -> ClientOptions {
-    ClientOptions {
-        release: sentry::release_name!(),
-        environment: Some(Cow::Owned(environment())),
-        // The host handles repository paths, branch names and command lines;
-        // there is no reason to attach IPs or request headers on top.
-        send_default_pii: false,
-        before_send: Some(std::sync::Arc::new(|event| {
-            if !is_enabled() {
-                return None;
-            }
-            Some(redact_event(event))
-        })),
-        ..Default::default()
-    }
+    let mut options = ClientOptions::default();
+    options.release = sentry::release_name!();
+    options.environment = Some(Cow::Owned(environment()));
+    // The host handles repository paths, branch names and command lines;
+    // there is no reason to attach IPs or request headers on top.
+    options.send_default_pii = false;
+    options.before_send = Some(std::sync::Arc::new(|event| {
+        if !is_enabled() {
+            return None;
+        }
+        Some(redact_event(event))
+    }));
+    options
 }
 
 /// Starts crash reporting. The returned guard must stay alive for the whole

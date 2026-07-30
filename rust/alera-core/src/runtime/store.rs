@@ -66,14 +66,14 @@ impl RuntimeStore {
 
     async fn migrate(&self) -> Result<()> {
         for statement in RUNTIME_SCHEMA {
-            sqlx::query(statement).execute(&self.pool).await?;
+            sqlx::query(*statement).execute(&self.pool).await?;
         }
         for statement in super::project_clone_job_store::PROJECT_CLONE_JOB_SCHEMA {
-            sqlx::query(statement).execute(&self.pool).await?;
+            sqlx::query(*statement).execute(&self.pool).await?;
         }
         self.migrate_legacy_orchestration_schema().await?;
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
-            sqlx::query(statement).execute(&self.pool).await?;
+            sqlx::query(*statement).execute(&self.pool).await?;
         }
         self.set_metadata(
             "orchestration.schemaVersion",
@@ -183,7 +183,7 @@ impl RuntimeStore {
             "orchestrationDispatchStatusIdx",
             "orchestrationGatesTaskIdx",
         ] {
-            sqlx::query(&format!("DROP INDEX IF EXISTS {index}"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("DROP INDEX IF EXISTS {index}")))
                 .execute(&mut *tx)
                 .await?;
         }
@@ -194,12 +194,14 @@ impl RuntimeStore {
             "orchestrationDecisionGates",
             "orchestrationCoordinatorRuns",
         ] {
-            sqlx::query(&format!("ALTER TABLE {table} RENAME TO {table}LegacyV1"))
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "ALTER TABLE {table} RENAME TO {table}LegacyV1"
+            )))
+            .execute(&mut *tx)
+            .await?;
         }
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
-            sqlx::query(statement).execute(&mut *tx).await?;
+            sqlx::query(*statement).execute(&mut *tx).await?;
         }
         sqlx::query(
             "INSERT INTO orchestrationMessages \
@@ -264,7 +266,7 @@ impl RuntimeStore {
             "orchestrationDecisionGatesLegacyV1",
             "orchestrationCoordinatorRunsLegacyV1",
         ] {
-            sqlx::query(&format!("DROP TABLE {table}"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("DROP TABLE {table}")))
                 .execute(&mut *tx)
                 .await?;
         }
@@ -1944,7 +1946,7 @@ mod tests {
             "orchestrationTasks",
             "orchestrationCoordinatorRuns",
         ] {
-            sqlx::query(&format!("DROP TABLE IF EXISTS {table}"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("DROP TABLE IF EXISTS {table}")))
                 .execute(store.pool())
                 .await
                 .unwrap();

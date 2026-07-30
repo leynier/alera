@@ -48,7 +48,7 @@ abstract class _$SettingsController extends $Notifier<AleraSettings> {
   AleraSettings build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AleraSettings, AleraSettings>;
     final element =
         ref.element
@@ -58,6 +58,6 @@ abstract class _$SettingsController extends $Notifier<AleraSettings> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

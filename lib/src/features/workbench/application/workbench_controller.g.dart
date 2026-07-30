@@ -48,7 +48,7 @@ abstract class _$WorkbenchController extends $Notifier<WorkbenchState> {
   WorkbenchState build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<WorkbenchState, WorkbenchState>;
     final element =
         ref.element
@@ -58,6 +58,6 @@ abstract class _$WorkbenchController extends $Notifier<WorkbenchState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -104,9 +104,9 @@ impl RuntimeStore {
         &self,
         id: &str,
     ) -> Result<Option<OrchestrationCoordinatorRun>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(self.pool())
         .await?;
@@ -116,10 +116,10 @@ impl RuntimeStore {
     pub async fn active_orchestration_coordinator_run(
         &self,
     ) -> Result<Option<OrchestrationCoordinatorRun>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns \
              WHERE status = 'running' ORDER BY created_at DESC LIMIT 1"
-        ))
+        )))
         .fetch_optional(self.pool())
         .await?;
         row.map(run_from_row).transpose()
@@ -134,7 +134,7 @@ impl RuntimeStore {
             sql.push_str(" WHERE workspace_id = ?");
         }
         sql.push_str(" ORDER BY created_at DESC, id DESC");
-        let mut query = sqlx::query(&sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
         if let Some(workspace_id) = workspace_id {
             query = query.bind(workspace_id);
         }

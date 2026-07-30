@@ -7,6 +7,8 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
   ReceivePort? _readPort;
   StreamSubscription<Object?>? _readSub;
   Isolate? _readIsolate;
+  Timer? _exitPollTimer;
+  Timer? _exitDrainTimer;
   bool _disposed = false;
   bool _startedNewProcess = false;
 
@@ -43,6 +45,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
         <Object?>[pty.masterFd, _readPort!.sendPort],
         debugName: 'alera-posix-pty-reader',
       );
+      _startExitPolling();
       await onProcessCreated?.call();
     } catch (_) {
       dispose();
@@ -140,6 +143,25 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     dispose();
   }
 
+  void _startExitPolling() {
+    _exitPollTimer?.cancel();
+    _exitPollTimer = Timer.periodic(const Duration(milliseconds: 25), (_) {
+      final exitCode = _pty?.tryWait();
+      if (exitCode == null) {
+        return;
+      }
+      _exitPollTimer?.cancel();
+      _exitPollTimer = null;
+      // The native package retains its slave handle, so the blocking master
+      // read does not receive EOF. Give the reader isolate time to forward the
+      // final bytes before publishing the independently observed child exit.
+      _exitDrainTimer = Timer(
+        const Duration(milliseconds: 50),
+        () => _handleExit(exitCode),
+      );
+    });
+  }
+
   @override
   void dispose() {
     if (_disposed) {
@@ -152,6 +174,10 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     _readPort = null;
     _readIsolate?.kill(priority: Isolate.immediate);
     _readIsolate = null;
+    _exitPollTimer?.cancel();
+    _exitPollTimer = null;
+    _exitDrainTimer?.cancel();
+    _exitDrainTimer = null;
     final pty = _pty;
     _pty = null;
     if (pty != null) {

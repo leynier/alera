@@ -138,7 +138,7 @@ abstract class _$AgentProfiles extends $AsyncNotifier<List<AgentProfile>> {
   FutureOr<List<AgentProfile>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<AgentProfile>>, List<AgentProfile>>;
     final element =
@@ -149,6 +149,6 @@ abstract class _$AgentProfiles extends $AsyncNotifier<List<AgentProfile>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
