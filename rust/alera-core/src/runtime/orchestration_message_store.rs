@@ -286,9 +286,9 @@ impl RuntimeStore {
         &self,
         id: &str,
     ) -> Result<Option<OrchestrationMessage>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(self.pool())
         .await?;
@@ -311,7 +311,7 @@ impl RuntimeStore {
             }
         }
         sql.push_str(" ORDER BY sequence ASC");
-        let mut query = sqlx::query(&sql).bind(to_handle);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql)).bind(to_handle);
         if let Some(types) = types {
             for message_type in types {
                 query = query.bind(message_type.as_str());
@@ -326,7 +326,7 @@ impl RuntimeStore {
         to_handle: &str,
     ) -> Result<Vec<OrchestrationMessage>> {
         self.expire_orchestration_messages().await?;
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              WHERE to_handle = ? AND read = 0 AND state NOT IN ('expired','obsolete') AND ( \
                type IN ('worker_done', 'heartbeat', 'escalation') \
@@ -340,7 +340,7 @@ impl RuntimeStore {
                ) \
              ) \
              ORDER BY sequence ASC"
-        ))
+        )))
         .bind(to_handle)
         .fetch_all(self.pool())
         .await?;
@@ -352,11 +352,11 @@ impl RuntimeStore {
         to_handle: &str,
     ) -> Result<Vec<OrchestrationMessage>> {
         self.expire_orchestration_messages().await?;
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              WHERE to_handle = ? AND read = 0 AND delivered_at IS NULL AND state = 'queued' \
              ORDER BY sequence ASC"
-        ))
+        )))
         .bind(to_handle)
         .fetch_all(self.pool())
         .await?;
@@ -380,7 +380,7 @@ impl RuntimeStore {
             }
         }
         sql.push_str(" ORDER BY sequence DESC LIMIT ?");
-        let mut query = sqlx::query(&sql).bind(to_handle);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql)).bind(to_handle);
         if let Some(types) = types {
             for message_type in types {
                 query = query.bind(message_type.as_str());
@@ -396,10 +396,10 @@ impl RuntimeStore {
         limit: i64,
     ) -> Result<Vec<OrchestrationMessage>> {
         self.expire_orchestration_messages().await?;
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              WHERE from_handle = ? ORDER BY sequence DESC LIMIT ?"
-        ))
+        )))
         .bind(from_handle)
         .bind(limit)
         .fetch_all(self.pool())
@@ -409,10 +409,10 @@ impl RuntimeStore {
 
     pub async fn orchestration_inbox(&self, limit: i64) -> Result<Vec<OrchestrationMessage>> {
         self.expire_orchestration_messages().await?;
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              ORDER BY sequence DESC LIMIT ?"
-        ))
+        )))
         .bind(limit)
         .fetch_all(self.pool())
         .await?;
@@ -427,7 +427,7 @@ impl RuntimeStore {
             "UPDATE orchestrationMessages SET read = 1, state = CASE WHEN state = 'obsolete' THEN state ELSE 'read' END WHERE id IN ({})",
             id_placeholders(ids.len())
         );
-        let mut query = sqlx::query(&sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
         for id in ids {
             query = query.bind(id);
         }
@@ -444,7 +444,7 @@ impl RuntimeStore {
              state = CASE WHEN state = 'queued' THEN 'delivered' ELSE state END WHERE id IN ({})",
             id_placeholders(ids.len())
         );
-        let mut query = sqlx::query(&sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
         for id in ids {
             query = query.bind(id);
         }
@@ -460,11 +460,11 @@ impl RuntimeStore {
         to_handle: &str,
         after_sequence: i64,
     ) -> Result<Vec<OrchestrationMessage>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              WHERE thread_id = ? AND to_handle = ? AND sequence > ? \
              ORDER BY sequence ASC"
-        ))
+        )))
         .bind(thread_id)
         .bind(to_handle)
         .bind(after_sequence)

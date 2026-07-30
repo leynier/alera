@@ -7,7 +7,7 @@ use alera_core::runtime::{ProjectConfig, WorktreeCopyRule};
 use anyhow::{anyhow, bail, Context, Result};
 
 pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
-    let value: toml::Value = contents.parse().context("Invalid alera.toml")?;
+    let value: toml::Value = toml::from_str(contents).context("Invalid alera.toml")?;
     let Some(root) = value.as_table() else {
         bail!("alera.toml must contain a table");
     };

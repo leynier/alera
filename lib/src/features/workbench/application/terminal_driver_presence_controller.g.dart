@@ -70,7 +70,7 @@ abstract class _$TerminalDriverPresenceController
   Map<String, TerminalSessionDriver> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<
@@ -88,6 +88,6 @@ abstract class _$TerminalDriverPresenceController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

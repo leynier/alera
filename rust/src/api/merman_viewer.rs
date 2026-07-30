@@ -89,7 +89,8 @@ pub fn render_merman_workspace_file(
         .with_site_config(MermaidConfig::from_value(json!({
             "theme": "neutral",
         })))
-        .render_svg_resvg_safe_sync_with_diagram_id(&source, &relative_path)
+        .with_diagram_id(&relative_path)
+        .render_svg_resvg_safe_sync(&source)
         .map_err(|error| MermanViewerError::new(MermanViewerErrorKind::Render, error.to_string()))?
         .ok_or_else(|| {
             MermanViewerError::new(

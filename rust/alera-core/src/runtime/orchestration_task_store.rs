@@ -343,9 +343,9 @@ impl RuntimeStore {
     }
 
     pub async fn orchestration_task_by_id(&self, id: &str) -> Result<Option<OrchestrationTask>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {TASK_COLUMNS} FROM orchestrationTasks WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(self.pool())
         .await?;
@@ -393,7 +393,7 @@ impl RuntimeStore {
             sql.push_str(&clauses.join(" AND "));
         }
         sql.push_str(" ORDER BY created_at ASC, id ASC");
-        let mut query = sqlx::query(&sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
         if let Some(status) = status {
             query = query.bind(status.as_str());
         }

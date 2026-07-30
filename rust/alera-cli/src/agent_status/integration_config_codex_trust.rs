@@ -13,7 +13,10 @@ pub(super) fn codex_trusted_hash(event_label: &str, command: &str) -> String {
         ),
     ]);
     let serialized = serde_json::to_string(&identity).expect("serializable trust identity");
-    format!("sha256:{:x}", Sha256::digest(serialized.as_bytes()))
+    format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(serialized.as_bytes()))
+    )
 }
 
 pub(super) fn remap_codex_source_hook_trust(

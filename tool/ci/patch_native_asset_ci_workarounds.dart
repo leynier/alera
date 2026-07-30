@@ -10,7 +10,7 @@ const _sqlitePackageName = 'sqlite3';
 const _podspecRelativePath = 'darwin/pdfium_flutter.podspec';
 const _pdfiumDartBuildHookRelativePath = 'hook/build.dart';
 const _portablePtyBuildHookRelativePath = 'hook/build.dart';
-const _sqliteDescriptionRelativePath = 'lib/src/hook/description.dart';
+const _sqliteDescriptionRelativePath = 'lib/src/hook/compile/description.dart';
 const _upstreamHash =
     '948d9257f53f01cbed74b81bb8adc8758e52ac9390751772de7889026d32d5a1';
 const _observedHash =
@@ -97,16 +97,13 @@ const _sqliteRetriedDownloadSnippet = '''
     throw StateError('Failed to download SQLite: \${library.sourceFilename}');
 ''';
 const _sqliteUriSnippet = '''
-    final uri = Uri.https(
-      'github.com',
-      'simolus3/sqlite3.dart/releases/download/\${releaseTag!}/\$filename',
-    );
+    final uri = downloadUri(filename);
 ''';
 const _sqliteCacheBustedUriSnippet = '''
-    final uri = Uri.https(
-      'github.com',
-      'simolus3/sqlite3.dart/releases/download/\${releaseTag!}/\$filename',
-      {'ci_cache_bust': DateTime.now().microsecondsSinceEpoch.toString()},
+    final uri = downloadUri(filename).replace(
+      queryParameters: {
+        'ci_cache_bust': DateTime.now().microsecondsSinceEpoch.toString(),
+      },
     );
 ''';
 
@@ -144,7 +141,8 @@ void main() {
   }
 
   final current = podspec.readAsStringSync();
-  var patchedPodspec = current;
+  // Newer pdfium_flutter archives ship this podspec with CRLF line endings.
+  var patchedPodspec = current.replaceAll('\r\n', '\n');
   if (patchedPodspec.contains(_observedHash)) {
     patchedPodspec = patchedPodspec.replaceAll(_observedHash, _upstreamHash);
     stdout.writeln(

@@ -171,9 +171,9 @@ impl RuntimeStore {
         &self,
         id: &str,
     ) -> Result<Option<OrchestrationDispatchContext>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(self.pool())
         .await?;
@@ -185,11 +185,11 @@ impl RuntimeStore {
         &self,
         task_id: &str,
     ) -> Result<Option<OrchestrationDispatchContext>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE task_id = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled') \
              ORDER BY rowid DESC LIMIT 1"
-        ))
+        )))
         .bind(task_id)
         .fetch_optional(self.pool())
         .await?;
@@ -200,11 +200,11 @@ impl RuntimeStore {
         &self,
         assignee_handle: &str,
     ) -> Result<Option<OrchestrationDispatchContext>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE assignee_handle = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled') \
              ORDER BY rowid DESC LIMIT 1"
-        ))
+        )))
         .bind(assignee_handle)
         .fetch_optional(self.pool())
         .await?;
@@ -215,10 +215,10 @@ impl RuntimeStore {
         &self,
         assignee_handle: &str,
     ) -> Result<Option<OrchestrationDispatchContext>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE assignee_handle = ? ORDER BY rowid DESC LIMIT 1"
-        ))
+        )))
         .bind(assignee_handle)
         .fetch_optional(self.pool())
         .await?;
@@ -229,10 +229,10 @@ impl RuntimeStore {
         &self,
         task_id: &str,
     ) -> Result<Vec<OrchestrationDispatchContext>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE task_id = ? ORDER BY rowid ASC"
-        ))
+        )))
         .bind(task_id)
         .fetch_all(self.pool())
         .await?;
@@ -259,9 +259,9 @@ impl RuntimeStore {
         result: Option<&str>,
     ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
-        ))
+        )))
         .bind(dispatch_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -389,9 +389,9 @@ impl RuntimeStore {
         error: &str,
     ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
-        ))
+        )))
         .bind(dispatch_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -435,9 +435,9 @@ impl RuntimeStore {
         result: &str,
     ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
-        ))
+        )))
         .bind(dispatch_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -499,10 +499,10 @@ impl RuntimeStore {
         &self,
         threshold_iso: &str,
     ) -> Result<Vec<OrchestrationDispatchContext>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE status = 'dispatched' AND COALESCE(last_activity_at, accepted_at, dispatched_at) < ?"
-        ))
+        )))
         .bind(threshold_iso)
         .fetch_all(self.pool())
         .await?;
@@ -533,10 +533,10 @@ impl RuntimeStore {
         &self,
         threshold_iso: &str,
     ) -> Result<Vec<OrchestrationDispatchContext>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE status = 'awaiting_acceptance' AND dispatched_at < ?"
-        ))
+        )))
         .bind(threshold_iso)
         .fetch_all(self.pool())
         .await?;
@@ -560,11 +560,11 @@ impl RuntimeStore {
         &self,
         threshold_iso: &str,
     ) -> Result<Vec<OrchestrationDispatchContext>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
              WHERE status IN ('dispatched','awaiting_acceptance') AND dispatched_at < ? \
              AND (last_heartbeat_at IS NULL OR last_heartbeat_at < ?)"
-        ))
+        )))
         .bind(threshold_iso)
         .bind(threshold_iso)
         .fetch_all(self.pool())
@@ -628,9 +628,9 @@ impl RuntimeStore {
         &self,
         id: &str,
     ) -> Result<Option<OrchestrationDecisionGate>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {GATE_COLUMNS} FROM orchestrationDecisionGates WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(self.pool())
         .await?;
@@ -646,9 +646,9 @@ impl RuntimeStore {
         resolution: &str,
     ) -> Result<OrchestrationDecisionGate> {
         let mut tx = self.pool().begin().await?;
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {GATE_COLUMNS} FROM orchestrationDecisionGates WHERE id = ?"
-        ))
+        )))
         .bind(gate_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -699,7 +699,7 @@ impl RuntimeStore {
             sql.push_str(&clauses.join(" AND "));
         }
         sql.push_str(" ORDER BY created_at ASC, rowid ASC");
-        let mut query = sqlx::query(&sql);
+        let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
         if let Some(task_id) = task_id {
             query = query.bind(task_id);
         }

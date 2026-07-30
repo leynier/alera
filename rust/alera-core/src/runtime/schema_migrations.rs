@@ -10,7 +10,7 @@ impl RuntimeStore {
         column: &str,
         definition: &str,
     ) -> Result<()> {
-        let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!("PRAGMA table_info({table})")))
             .fetch_all(self.pool())
             .await?;
         let exists = rows.iter().any(|row| {
@@ -18,9 +18,9 @@ impl RuntimeStore {
                 .is_ok_and(|name| name == column)
         });
         if !exists {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "ALTER TABLE {table} ADD COLUMN {column} {definition}"
-            ))
+            )))
             .execute(self.pool())
             .await?;
         }

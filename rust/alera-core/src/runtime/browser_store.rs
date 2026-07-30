@@ -51,19 +51,19 @@ impl RuntimeStore {
     }
 
     pub async fn list_browser_profiles(&self) -> Result<Vec<BrowserProfile>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM browserProfiles \
              ORDER BY isDefault DESC, name COLLATE NOCASE ASC"
-        ))
+        )))
         .fetch_all(self.pool())
         .await?;
         rows.into_iter().map(browser_profile_from_row).collect()
     }
 
     pub async fn find_browser_profile(&self, profile_id: &str) -> Result<Option<BrowserProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM browserProfiles WHERE id = ?"
-        ))
+        )))
         .bind(profile_id.trim())
         .fetch_optional(self.pool())
         .await?;
@@ -71,10 +71,10 @@ impl RuntimeStore {
     }
 
     pub async fn browser_profile_by_name(&self, name: &str) -> Result<Option<BrowserProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM browserProfiles \
              WHERE name = ? COLLATE NOCASE"
-        ))
+        )))
         .bind(name.trim())
         .fetch_optional(self.pool())
         .await?;
@@ -155,10 +155,12 @@ impl RuntimeStore {
             "browserClosedTabs",
             "browserTrustedCertificates",
         ] {
-            sqlx::query(&format!("DELETE FROM {table} WHERE profileId = ?"))
-                .bind(&profile_id)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "DELETE FROM {table} WHERE profileId = ?"
+            )))
+            .bind(&profile_id)
+            .execute(&mut *tx)
+            .await?;
         }
         let result = sqlx::query("DELETE FROM browserProfiles WHERE id = ?")
             .bind(&profile_id)
@@ -177,39 +179,39 @@ impl RuntimeStore {
         let origin = origin.map(canonical_browser_origin).transpose()?;
         let rows = match (profile_id, origin.as_deref()) {
             (Some(profile_id), Some(origin)) => {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "SELECT {PERMISSION_COLUMNS} FROM browserPermissions \
                  WHERE profileId = ? AND origin = ? \
                  ORDER BY permission COLLATE NOCASE ASC"
-                ))
+                )))
                 .bind(profile_id)
                 .bind(origin)
                 .fetch_all(self.pool())
                 .await?
             }
             (Some(profile_id), None) => {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "SELECT {PERMISSION_COLUMNS} FROM browserPermissions \
                  WHERE profileId = ? ORDER BY origin, permission COLLATE NOCASE ASC"
-                ))
+                )))
                 .bind(profile_id)
                 .fetch_all(self.pool())
                 .await?
             }
             (None, Some(origin)) => {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "SELECT {PERMISSION_COLUMNS} FROM browserPermissions \
                  WHERE origin = ? ORDER BY profileId, permission COLLATE NOCASE ASC"
-                ))
+                )))
                 .bind(origin)
                 .fetch_all(self.pool())
                 .await?
             }
             (None, None) => {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "SELECT {PERMISSION_COLUMNS} FROM browserPermissions \
                  ORDER BY profileId, origin, permission COLLATE NOCASE ASC"
-                ))
+                )))
                 .fetch_all(self.pool())
                 .await?
             }

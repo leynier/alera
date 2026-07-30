@@ -125,8 +125,7 @@ fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
     write_json_object(&hooks_path, &config)?;
 
     let source_config = std::fs::read_to_string(source.join("config.toml")).unwrap_or_default();
-    let mut toml_value = source_config
-        .parse::<toml::Value>()
+    let mut toml_value = toml::from_str::<toml::Value>(&source_config)
         .unwrap_or_else(|_| toml::Value::Table(Default::default()));
     let root = toml_value
         .as_table_mut()

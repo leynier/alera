@@ -12,18 +12,18 @@ const PROFILE_COLUMNS: &str =
 
 impl RuntimeStore {
     pub async fn list_agent_profiles(&self) -> Result<Vec<AgentProfile>> {
-        let rows = sqlx::query(&format!(
+        let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles ORDER BY name COLLATE NOCASE ASC"
-        ))
+        )))
         .fetch_all(self.pool())
         .await?;
         rows.into_iter().map(agent_profile_from_row).collect()
     }
 
     pub async fn find_agent_profile(&self, profile_id: &str) -> Result<Option<AgentProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles WHERE id = ?"
-        ))
+        )))
         .bind(profile_id)
         .fetch_optional(self.pool())
         .await?;
@@ -33,9 +33,9 @@ impl RuntimeStore {
     /// Profiles are addressed by name in execution policies, so name lookup is
     /// the primary resolution path for spawning and fallback selection.
     pub async fn agent_profile_by_name(&self, name: &str) -> Result<Option<AgentProfile>> {
-        let row = sqlx::query(&format!(
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {PROFILE_COLUMNS} FROM agentProfiles WHERE name = ? COLLATE NOCASE"
-        ))
+        )))
         .bind(name.trim())
         .fetch_optional(self.pool())
         .await?;
