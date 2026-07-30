@@ -1,0 +1,92 @@
+import 'dart:async';
+
+import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_terminal_client.dart';
+
+void main() {
+  test(
+    'Open session starts again when the app returns to foreground',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final container = ProviderContainer(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          appLifecycleControllerProvider.overrideWith(() => lifecycle),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+      final notifier = container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+      );
+      await notifier.resize(48, 22);
+      final foregroundAttach = Completer<void>();
+      client.attachCompletion = foregroundAttach.future;
+
+      lifecycle.setLifecycleState(AppLifecycleState.inactive);
+      expect(client.attachments, hasLength(1));
+      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() => client.attachments.length == 2);
+
+      expect(client.attachments.last, (tabId: 'tab-1', cols: 48, rows: 22));
+      expect(
+        container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
+        isA<AsyncLoading<TerminalTabSession>>().having(
+          (value) => value.progress,
+          'progress',
+          isNull,
+        ),
+      );
+      expect(client.calls, isNot(contains('restart tab-1')));
+
+      foregroundAttach.complete();
+      await _waitUntil(
+        () => container
+            .read(terminalSessionControllerProvider('host-1', 'tab-1'))
+            .hasValue,
+      );
+    },
+  );
+}
+
+class _TestAppLifecycleController extends AppLifecycleController {
+  _TestAppLifecycleController(this.initialState);
+
+  final AppLifecycleState initialState;
+
+  @override
+  AppLifecycleState build() => initialState;
+
+  void setLifecycleState(AppLifecycleState next) {
+    state = next;
+  }
+}
+
+Future<void> _waitUntil(bool Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('Condition was not reached.');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
