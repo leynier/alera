@@ -96,6 +96,37 @@ void _registerAleraShellPinningTests() {
     expect(find.text('Pinned'), findsNothing);
   });
 
+  testWidgets('view preference hides the regular pinned workspace copy', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState();
+    final linked = seeded
+        .workspacesFor('project-1')[1]
+        .copyWith(isPinned: true);
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[
+            seeded.workspacesFor('project-1').first,
+            linked,
+          ],
+        },
+        viewPrefs: seeded.viewPrefs.copyWith(showPinnedWorkspacesBelow: false),
+      ),
+    );
+
+    expect(find.text('Feature login'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('workspace-row:pinned:workspace-2')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('workspace-row:regular:workspace-2')),
+      findsNothing,
+    );
+  });
+
   testWidgets('flat grouping shows collapsible pinned and all sections', (
     tester,
   ) async {

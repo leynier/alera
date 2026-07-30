@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
@@ -35,6 +36,8 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
         prefs.selectedTagIds.isNotEmpty ||
         prefs.workspaceKindFilter !=
             WorkbenchViewPrefs.defaults.workspaceKindFilter ||
+        prefs.showPinnedWorkspacesBelow !=
+            WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
@@ -281,6 +284,15 @@ class _WorkbenchViewOptionsPanelState
                   _WorkspaceKindSegmented(
                     value: prefs.workspaceKindFilter,
                     onChanged: controller.setWorkspaceKindFilter,
+                  ),
+                  const SizedBox(height: AleraTokens.space6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AleraCheckbox(
+                      value: prefs.showPinnedWorkspacesBelow,
+                      onChanged: controller.setShowPinnedWorkspacesBelow,
+                      label: 'Repeat Pinned Workspaces',
+                    ),
                   ),
                   const SizedBox(height: AleraTokens.space16),
                   const Divider(height: 1, color: AleraTokens.borderSubtle),

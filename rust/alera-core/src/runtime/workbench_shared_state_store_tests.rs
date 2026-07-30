@@ -11,6 +11,7 @@ async fn desktop_initializes_shared_prefs_and_mobile_rejects_stale_revision() {
     let store = RuntimeStore::open(dir.path()).await.unwrap();
     let prefs = SharedWorkbenchViewPrefs {
         workspace_sort: SharedWorkbenchSortBy::Activity,
+        show_pinned_workspaces_below: false,
         ..SharedWorkbenchViewPrefs::default()
     };
 
@@ -24,12 +25,26 @@ async fn desktop_initializes_shared_prefs_and_mobile_rejects_stale_revision() {
         .unwrap();
     assert!(desktop.desktop_initialized);
     assert_eq!(desktop.revision, 1);
+    assert!(!desktop.prefs.show_pinned_workspaces_below);
 
     let error = store
         .update_shared_workbench_view_prefs(prefs, Some(0), SharedWorkbenchPrefsWriter::Mobile)
         .await
         .unwrap_err();
     assert!(error.to_string().contains("changed on desktop"));
+}
+
+#[test]
+fn legacy_shared_view_prefs_show_pinned_workspaces_below() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("showPinnedWorkspacesBelow");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert!(restored.show_pinned_workspaces_below);
 }
 
 #[tokio::test]

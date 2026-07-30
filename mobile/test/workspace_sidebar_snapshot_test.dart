@@ -1,7 +1,19 @@
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
+import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('View prefs preserve the pinned workspace display option', () {
+    final hidden = MobileViewPrefs.fromJson(<String, Object?>{
+      'showPinnedWorkspacesBelow': false,
+    });
+    final legacy = MobileViewPrefs.fromJson(const <String, Object?>{});
+
+    expect(hidden.showPinnedWorkspacesBelow, isFalse);
+    expect(hidden.toJson()['showPinnedWorkspacesBelow'], isFalse);
+    expect(legacy.showPinnedWorkspacesBelow, isTrue);
+  });
+
   test('Parses runtime terminal counts and full agent details', () {
     final snapshot = WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
       'projects': <Object?>[],

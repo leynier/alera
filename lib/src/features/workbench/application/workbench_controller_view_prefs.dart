@@ -42,6 +42,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(workspaceKindFilter: filter));
   }
 
+  void setShowPinnedWorkspacesBelow(bool show) {
+    if (state.viewPrefs.showPinnedWorkspacesBelow == show) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show));
+  }
+
   void toggleProjectFilter(String projectId) {
     final next = Set<String>.from(state.viewPrefs.selectedProjectIds);
     if (!next.add(projectId)) {

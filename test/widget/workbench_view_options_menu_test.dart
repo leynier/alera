@@ -165,6 +165,30 @@ void main() {
       );
     });
 
+    testWidgets('toggles pinned workspace copies below the pinned section', (
+      tester,
+    ) async {
+      final controller = _ViewOptionsTestController(
+        WorkbenchState(projects: <Project>[_project('project-1', 'Alera')]),
+      );
+
+      await _pumpButton(tester, controller);
+      await tester.tap(_viewOptionsButton());
+      await tester.pumpAndSettle();
+
+      final option = find.text('Repeat Pinned Workspaces');
+      expect(option, findsOneWidget);
+      expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isTrue);
+
+      await tester.tap(option);
+      await tester.pumpAndSettle();
+      expect(controller.state.viewPrefs.showPinnedWorkspacesBelow, isFalse);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(_activeDot(), findsOneWidget);
+    });
+
     testWidgets('available project rows animate their hover state', (
       tester,
     ) async {
@@ -327,6 +351,13 @@ class _ViewOptionsTestController extends WorkbenchController {
   void setWorkspaceKindFilter(WorkspaceKindFilter filter) {
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(workspaceKindFilter: filter),
+    );
+  }
+
+  @override
+  void setShowPinnedWorkspacesBelow(bool show) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(showPinnedWorkspacesBelow: show),
     );
   }
 }

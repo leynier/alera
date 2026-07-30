@@ -48,8 +48,7 @@ class MobileWorkspaceEntryRow extends MobileWorkspaceRow {
 
   final WorkspaceTreeEntry entry;
 
-  /// True for the flat duplicate rendered inside the pinned section; the same
-  /// workspace still appears in its tree position below.
+  /// True for the flat copy rendered inside the pinned section.
   final bool isPinnedCopy;
 }
 
@@ -145,12 +144,18 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
     }
   }
 
+  final workspacesBelow = prefs.showPinnedWorkspacesBelow
+      ? visibleWorkspaces
+      : visibleWorkspaces
+            .where((workspace) => !workspace.isPinned)
+            .toList(growable: false);
+
   if (prefs.groupBy == MobileWorkspaceGroupBy.project) {
     final projectNames = <String, String>{
       for (final project in projects) project.id: project.name,
     };
     final byProject = <String, List<WorkspaceSummary>>{};
-    for (final workspace in visibleWorkspaces) {
+    for (final workspace in workspacesBelow) {
       byProject
           .putIfAbsent(workspace.projectId, () => <WorkspaceSummary>[])
           .add(workspace);
@@ -195,11 +200,11 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   } else {
     // Without project grouping, "All" is only useful as a sibling of Pinned.
     // A lone All header just adds an extra collapse step.
-    final showAllHeader = pinned.isNotEmpty;
+    final showAllHeader = pinned.isNotEmpty && workspacesBelow.isNotEmpty;
     if (showAllHeader) {
       rows.add(
         MobileAllHeaderRow(
-          count: visibleWorkspaces.length,
+          count: workspacesBelow.length,
           collapsed: prefs.allSectionCollapsed,
         ),
       );
@@ -208,7 +213,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
       }
     }
     for (final entry in buildWorkspaceTree(
-      entries: visibleWorkspaces,
+      entries: workspacesBelow,
       collapsedParentIds: prefs.collapsedParentWorkspaceIds,
     )) {
       rows.add(MobileWorkspaceEntryRow(entry: entry));

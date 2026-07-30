@@ -83,6 +83,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'collapsedParentWorkspaceIds': prefs.collapsedParentWorkspaceIds.toList(),
     'pinnedSectionCollapsed': prefs.pinnedSectionCollapsed,
     'allSectionCollapsed': prefs.allSectionCollapsed,
+    'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
   };
 }
@@ -115,6 +116,9 @@ WorkbenchViewPrefs _mergeShared(
     ),
     pinnedSectionCollapsed: shared['pinnedSectionCollapsed'] == true,
     allSectionCollapsed: shared['allSectionCollapsed'] == true,
+    showPinnedWorkspacesBelow:
+        shared['showPinnedWorkspacesBelow'] as bool? ??
+        local.showPinnedWorkspacesBelow,
     workspaceKindFilter: _enumByName(
       WorkspaceKindFilter.values,
       shared['workspaceKindFilter'],

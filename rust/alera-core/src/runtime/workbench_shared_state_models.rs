@@ -44,7 +44,13 @@ pub struct SharedWorkbenchViewPrefs {
     pub pinned_section_collapsed: bool,
     #[serde(default)]
     pub all_section_collapsed: bool,
+    #[serde(default = "default_true")]
+    pub show_pinned_workspaces_below: bool,
     pub workspace_kind_filter: SharedWorkspaceKindFilter,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for SharedWorkbenchViewPrefs {
@@ -59,6 +65,7 @@ impl Default for SharedWorkbenchViewPrefs {
             collapsed_parent_workspace_ids: Vec::new(),
             pinned_section_collapsed: false,
             all_section_collapsed: false,
+            show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
         }
     }

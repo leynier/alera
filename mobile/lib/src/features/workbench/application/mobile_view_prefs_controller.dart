@@ -53,6 +53,10 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     return _update((prefs) => prefs.copyWith(workspaceKindFilter: value));
   }
 
+  Future<void> setShowPinnedWorkspacesBelow(bool show) {
+    return _update((prefs) => prefs.copyWith(showPinnedWorkspacesBelow: show));
+  }
+
   Future<void> setProjectFilter(Set<String> ids) {
     return _update((prefs) => prefs.copyWith(selectedProjectIds: ids));
   }

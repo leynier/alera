@@ -40,6 +40,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.collapsedParentWorkspaceIds = const <String>{},
     this.pinnedSectionCollapsed = false,
     this.allSectionCollapsed = false,
+    this.showPinnedWorkspacesBelow = true,
     this.sourceControlRootByWorkspaceId = const <String, String>{},
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280,
@@ -83,6 +84,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// collapsed.
   final bool allSectionCollapsed;
 
+  /// Whether pinned workspaces also appear in the regular project or "All"
+  /// sections below the dedicated pinned section.
+  final bool showPinnedWorkspacesBelow;
+
   /// Folder-workspace ids mapped to the workspace-relative Git folder that
   /// should back the Source Control tab.
   final Map<String, String> sourceControlRootByWorkspaceId;
@@ -116,6 +121,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     collapsedParentWorkspaceIds: <String>{},
     pinnedSectionCollapsed: false,
     allSectionCollapsed: false,
+    showPinnedWorkspacesBelow: true,
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
