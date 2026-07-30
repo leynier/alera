@@ -114,3 +114,6 @@ flutter:
     - family: JetBrains Mono
       fonts:
         - asset: assets/fonts/JetBrainsMono-Variable.ttf
+    - family: Alera Codicons
+      fonts:
+        - asset: assets/fonts/VSCodeCodicons-0.0.46-24.ttf
