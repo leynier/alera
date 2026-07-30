@@ -2,6 +2,7 @@
 set -euo pipefail
 
 public_dir="${1:-public}"
+release_assets_dir="${2:-release-assets}"
 
 require_env() {
   local name="$1"
@@ -10,6 +11,34 @@ require_env() {
     exit 64
   fi
 }
+
+if [[ ! -d "$release_assets_dir" ]]; then
+  echo "::error::Missing release assets directory: $release_assets_dir" >&2
+  exit 66
+fi
+
+mapfile -t deb_packages < <(
+  find "$release_assets_dir" -maxdepth 1 -type f -name 'alera-*-linux.deb' -print |
+    sort
+)
+mapfile -t rpm_packages < <(
+  find "$release_assets_dir" -maxdepth 1 -type f -name 'alera-*-linux.rpm' -print |
+    sort
+)
+if [[ "${#deb_packages[@]}" -ne 1 ]]; then
+  echo "::error::Expected exactly one Linux DEB in $release_assets_dir, found ${#deb_packages[@]}." >&2
+  exit 66
+fi
+if [[ "${#rpm_packages[@]}" -ne 1 ]]; then
+  echo "::error::Expected exactly one Linux RPM in $release_assets_dir, found ${#rpm_packages[@]}." >&2
+  exit 66
+fi
+for package in "${deb_packages[0]}" "${rpm_packages[0]}"; do
+  if [[ ! -s "$package" ]]; then
+    echo "::error::Linux release package is empty: $package" >&2
+    exit 66
+  fi
+done
 
 require_env ALERA_LINUX_GPG_PRIVATE_KEY_BASE64
 require_env ALERA_LINUX_GPG_KEY_ID
@@ -64,8 +93,8 @@ apt_dist="$apt_root/dists/stable"
 rpm_arch="$rpm_root/x86_64"
 mkdir -p "$apt_pool" "$apt_dist/main/binary-amd64" "$rpm_arch"
 
-find "$public_dir/updates/stable" -type f -name '*.deb' -exec cp {} "$apt_pool/" \;
-find "$public_dir/updates/stable" -type f -name '*.rpm' -exec cp {} "$rpm_arch/" \;
+cp "${deb_packages[0]}" "$apt_pool/"
+cp "${rpm_packages[0]}" "$rpm_arch/"
 
 if ! command -v apt-ftparchive >/dev/null 2>&1; then
   echo "::error::apt-ftparchive is required to build the APT repository." >&2
@@ -79,6 +108,10 @@ fi
 (
   cd "$apt_root"
   apt-ftparchive packages pool/main/a/alera >dists/stable/main/binary-amd64/Packages
+  if [[ ! -s dists/stable/main/binary-amd64/Packages ]]; then
+    echo "::error::apt-ftparchive produced an empty Packages index." >&2
+    exit 1
+  fi
   gzip -fk dists/stable/main/binary-amd64/Packages
   apt-ftparchive \
     -o APT::FTPArchive::Release::Origin=Alera \

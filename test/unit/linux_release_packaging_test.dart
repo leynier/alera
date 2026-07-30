@@ -18,6 +18,12 @@ void main() {
     expect(workflow, isNot(contains('alera-\${RELEASE_VERSION}-linux.tar.gz')));
     expect(
       workflow,
+      contains(
+        'bash tool/release/build_linux_repositories.sh public release-assets',
+      ),
+    );
+    expect(
+      workflow,
       contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
       reason:
           'Linux is the one platform excluded from automatic installation, '
@@ -131,6 +137,49 @@ printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
         startsWith('-----BEGIN PGP PUBLIC KEY BLOCK-----'),
       );
       expect(await fixture.fingerprintOfKeyring(keyring), fixture.fingerprint);
+      expect(
+        File(
+          p.join(
+            fixture.publicDir.path,
+            'linux',
+            'apt',
+            'pool',
+            'main',
+            'a',
+            'alera',
+            'alera-1.0.0-linux.deb',
+          ),
+        ).existsSync(),
+        isTrue,
+      );
+      expect(
+        File(
+          p.join(
+            fixture.publicDir.path,
+            'linux',
+            'rpm',
+            'x86_64',
+            'alera-1.0.0-linux.rpm',
+          ),
+        ).existsSync(),
+        isTrue,
+      );
+    });
+
+    test('fails before signing when Linux release assets are absent', () async {
+      final fixture = await _LinuxRepositoryFixture.create();
+      addTearDown(fixture.dispose);
+      fixture.releaseAssets.deleteSync(recursive: true);
+      fixture.releaseAssets.createSync();
+
+      final result = await fixture.run(keyId: fixture.fingerprint);
+
+      expect(result.exitCode, 66);
+      expect(result.stderr, contains('Expected exactly one Linux DEB'));
+      expect(
+        Directory(p.join(fixture.publicDir.path, 'linux')).existsSync(),
+        isFalse,
+      );
     });
 
     test('fails when the signing key id resolves to no key', () async {
@@ -174,6 +223,7 @@ class _LinuxRepositoryFixture {
   _LinuxRepositoryFixture._({
     required this.root,
     required this.publicDir,
+    required this.releaseAssets,
     required this.tempRoot,
     required this.gpgHome,
     required this.fingerprint,
@@ -183,6 +233,7 @@ class _LinuxRepositoryFixture {
 
   final Directory root;
   final Directory publicDir;
+  final Directory releaseAssets;
   final Directory tempRoot;
   final Directory gpgHome;
   final String fingerprint;
@@ -229,11 +280,14 @@ class _LinuxRepositoryFixture {
     final privateKey = base64.encode(exported.stdout as List<int>);
 
     final publicDir = Directory(p.join(root.path, 'public'))..createSync();
-    final staged = Directory(
-      p.join(publicDir.path, 'updates', 'stable', '1.0.0+1-linux'),
-    )..createSync(recursive: true);
-    File(p.join(staged.path, 'alera-1.0.0-linux.deb')).writeAsStringSync('deb');
-    File(p.join(staged.path, 'alera-1.0.0-linux.rpm')).writeAsStringSync('rpm');
+    final releaseAssets = Directory(p.join(root.path, 'release-assets'))
+      ..createSync();
+    File(
+      p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'),
+    ).writeAsStringSync('deb');
+    File(
+      p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'),
+    ).writeAsStringSync('rpm');
 
     final fakeBin = Directory(p.join(root.path, 'bin'))..createSync();
     _writeExecutable(p.join(fakeBin.path, 'apt-ftparchive'), '''
@@ -251,6 +305,7 @@ printf '<repomd/>\n' >"$1/repodata/repomd.xml"
     return _LinuxRepositoryFixture._(
       root: root,
       publicDir: publicDir,
+      releaseAssets: releaseAssets,
       tempRoot: tempRoot,
       gpgHome: gpgHome,
       fingerprint: fingerprint,
@@ -262,7 +317,11 @@ printf '<repomd/>\n' >"$1/repodata/repomd.xml"
   Future<ProcessResult> run({required String keyId}) {
     return Process.run(
       'bash',
-      <String>['tool/release/build_linux_repositories.sh', publicDir.path],
+      <String>[
+        'tool/release/build_linux_repositories.sh',
+        publicDir.path,
+        releaseAssets.path,
+      ],
       workingDirectory: Directory.current.path,
       environment: <String, String>{
         'PATH': '${fakeBin.path}:${Platform.environment['PATH']}',

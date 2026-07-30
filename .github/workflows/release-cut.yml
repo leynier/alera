@@ -826,7 +826,7 @@ jobs:
         env:
           ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
           ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
-        run: bash tool/release/build_linux_repositories.sh public
+        run: bash tool/release/build_linux_repositories.sh public release-assets
 
       - name: Ensure AWS CLI
         if: needs.plan.outputs.desktop_should_release == 'true'
