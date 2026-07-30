@@ -53,6 +53,7 @@ impl ServerActor {
     /// messages without a request id drop the connection because there is no
     /// response target.
     pub(super) async fn handle_line(&mut self, client_id: u64, line: String) {
+        let mut restart_after_response = false;
         let decoded: Value = match serde_json::from_str(&line) {
             Ok(value) => value,
             // jsonDecode threw: no request id is available, so drop the client.
@@ -68,6 +69,7 @@ impl ServerActor {
         let request_id = obj.get("id").and_then(Value::as_i64);
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
+                restart_after_response = request_type == "host.restart";
                 if let Some(id) = request_id {
                     if self.emulator_requests.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type)
@@ -138,6 +140,9 @@ impl ServerActor {
             Ok(payload) => {
                 if let Some(id) = request_id {
                     self.client_write(client_id, ok_response(id, payload));
+                    if restart_after_response {
+                        self.restart_runtime_after_client_write(client_id);
+                    }
                 }
             }
             Err(error) => {
@@ -457,6 +462,46 @@ impl ServerActor {
                 let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 Ok(json!({
                     "stopped": true,
+                    "forced": force,
+                    "activeSessions": active_sessions,
+                    "activeJobs": active_jobs,
+                    "activeAgents": active_agents,
+                    "activePushSubscriptions": self.account_push.active_subscriptions,
+                }))
+            }
+            "host.restart" => {
+                let force = payload
+                    .get("force")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let active_sessions = self
+                    .sessions
+                    .values()
+                    .filter(|session| session.running())
+                    .count();
+                let active_jobs = self.ssh_bootstrap_jobs.len()
+                    + usize::from(self.managed_workspace_jobs > 0)
+                    + self.coordinators.len()
+                    + self.emulator_requests.outstanding()
+                    + self.emulators.as_ref().map_or(0, |emulators| {
+                        emulators
+                            .try_lock()
+                            .map_or(1, |manager| manager.active_count())
+                    })
+                    + self.browser.active_jobs();
+                let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
+                if !force {
+                    if let Some(message) = host_shutdown_busy_message(
+                        active_agents,
+                        active_sessions,
+                        active_jobs,
+                        self.account_push.active_subscriptions > 0,
+                    ) {
+                        return Err(HostError::state(message));
+                    }
+                }
+                Ok(json!({
+                    "restarting": true,
                     "forced": force,
                     "activeSessions": active_sessions,
                     "activeJobs": active_jobs,

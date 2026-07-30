@@ -7,7 +7,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
@@ -62,6 +62,50 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
     }
 }
 
+#[tokio::test]
+async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::mobile_client(handle, "phone"),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "host.restart",
+                "payload": {"force": false},
+            })
+            .to_string(),
+        )
+        .await;
+
+    let response = receiver.recv().await.unwrap().as_json().unwrap();
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["payload"]["restarting"], true);
+    let marker = receiver.recv().await.unwrap();
+    assert!(matches!(
+        marker,
+        crate::terminal_host::client::ClientFrame::OrderedControl { frame, .. }
+            if matches!(
+                *frame,
+                crate::terminal_host::client::ClientFrame::RestartRuntimeAfterWrite { .. }
+            )
+    ));
+    assert!(inbox_receiver.try_recv().is_err());
+}
+
 #[test]
 fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("workspace.setPinned"));
@@ -80,6 +124,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("cliRegistration.install"));
     assert!(mobile_request_allowed("agentSkill.install"));
     assert!(mobile_request_allowed("terminal.restart"));
+    assert!(mobile_request_allowed("host.restart"));
     assert!(mobile_request_allowed("mobile.cloudEnrollment.create"));
     assert!(mobile_request_allowed("mobile.cloudSubscriptions.refresh"));
     assert!(mobile_request_allowed("agentProfile.list"));
@@ -193,6 +238,7 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_BINARY_FRAMES_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
 }
 

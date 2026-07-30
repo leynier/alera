@@ -1,8 +1,11 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/projects/presentation/remote_directory_picker_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_screen.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools_section.dart';
@@ -49,6 +52,9 @@ class _SettingsBody extends ConsumerWidget {
     final controller = ref.read(
       hostSettingsControllerProvider(host.id).notifier,
     );
+    final connection = ref.watch(hostConnectionControllerProvider(host.id));
+    final supportsRuntimeRestart =
+        connection.value?.supportsRuntimeRestart == true;
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
@@ -117,6 +123,21 @@ class _SettingsBody extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
+        if (supportsRuntimeRestart) ...<Widget>[
+          Text('Runtime', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AleraTokens.spaceSm),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.restart_alt),
+              title: const Text('Restart Runtime'),
+              subtitle: const Text(
+                'Restart The Runtime Host And Reconnect This App.',
+              ),
+              onTap: () => _restartRuntime(context, ref, host.id),
+            ),
+          ),
+          const SizedBox(height: AleraTokens.spaceXl),
+        ],
         Text('Manage', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AleraTokens.spaceSm),
         Card(
@@ -166,6 +187,72 @@ class _SettingsBody extends ConsumerWidget {
       ],
     );
   }
+}
+
+Future<void> _restartRuntime(
+  BuildContext context,
+  WidgetRef ref,
+  String hostId,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (_) => const AleraConfirmDialog(
+      title: 'Restart Runtime?',
+      message:
+          'Restarting Disconnects Every Client. Active Terminals, Agents, Emulators, And Background Jobs Must Stop First.',
+      confirmLabel: 'Restart Runtime',
+    ),
+  );
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  final controller = ref.read(
+    hostConnectionControllerProvider(hostId).notifier,
+  );
+  try {
+    await controller.restartRuntime();
+  } on RuntimeRestartBusyException catch (busy) {
+    if (!context.mounted) {
+      return;
+    }
+    final force = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Force Restart Runtime?',
+        message: busy.confirmationMessage,
+        confirmLabel: 'Force Restart',
+        destructive: true,
+      ),
+    );
+    if (force != true) {
+      return;
+    }
+    try {
+      await controller.restartRuntime(force: true);
+    } on Object {
+      if (context.mounted) {
+        _showRestartFailure(context);
+      }
+      return;
+    }
+  } on Object {
+    if (context.mounted) {
+      _showRestartFailure(context);
+    }
+    return;
+  }
+  if (context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Runtime Restarting')));
+  }
+}
+
+void _showRestartFailure(BuildContext context) {
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Could Not Restart Runtime')));
 }
 
 class _ScopeBanner extends StatelessWidget {

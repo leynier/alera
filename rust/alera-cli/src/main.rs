@@ -26,6 +26,7 @@ mod project_management;
 mod runtime_archive;
 mod runtime_commands;
 mod runtime_host_client;
+mod runtime_host_command;
 mod ssh_bootstrap;
 mod tab_record_factory;
 mod tailscale;
@@ -57,7 +58,7 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs,
     SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs,
-    TabAction, TabCommand, TerminalHostArgs, WorkspaceAction, WorkspaceAddArgs, WorkspaceCommand,
+    TabAction, TabCommand, WorkspaceAction, WorkspaceAddArgs, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -72,8 +73,6 @@ use crate::ssh_bootstrap::{
     build_ssh_bootstrap_plan, new_bootstrap_job_id, run_ssh_bootstrap, SshTargetBootstrapRequest,
 };
 use crate::tab_record_factory::tab_from_args;
-use crate::terminal_host::protocol::TerminalHostConfig;
-use crate::terminal_host::server::run_terminal_host_server;
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
@@ -96,10 +95,10 @@ async fn run() -> i32 {
         }
     };
     match cli.command {
-        Command::RuntimeHost(args) => run_terminal_host(args).await,
+        Command::RuntimeHost(args) => runtime_host_command::run(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
-        Command::TerminalHost(args) => run_terminal_host(args).await,
+        Command::TerminalHost(args) => runtime_host_command::run(args).await,
         Command::Runtime(command) => runtime_commands::run_runtime_command(command).await,
         Command::Project(command) => run_project_command(command).await,
         Command::Workspace(command) => run_workspace_command(command).await,
@@ -222,54 +221,6 @@ async fn run_version_command(command: crate::cli::VersionCommand) -> i32 {
     });
     print_value(&payload, command.output.json, "Alera version information");
     0
-}
-
-async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
-    let runtime_dir = args.runtime_dir.trim().to_string();
-    let control_file = args.control_file.trim().to_string();
-    let token = args.token.trim().to_string();
-    if let Some(code) = required_option_error(&runtime_dir, "runtime-dir")
-        .or_else(|| required_option_error(&control_file, "control-file"))
-        .or_else(|| required_option_error(&token, "token"))
-    {
-        return code;
-    }
-
-    // Diagnostics come up before the server so a failure during startup is
-    // recorded rather than lost: the sidecar runs detached and its stderr goes
-    // nowhere. The Sentry guard must outlive the server for its flush on drop.
-    terminal_host::diagnostics::init(
-        terminal_host::diagnostics::DiagnosticsConfig::new(&runtime_dir)
-            .with_level(args.log_level.clone()),
-    );
-    let _crash_reporting = terminal_host::diagnostics::sentry_reporting::init(args.crash_reporting);
-    terminal_host::diagnostics::redaction::register_secret(&token);
-
-    let config = TerminalHostConfig {
-        empty_shutdown_delay_seconds: args.empty_shutdown_delay_seconds,
-        detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
-        scrollback_bytes: args.scrollback_bytes,
-        // Standalone host: the app overrides this in its `configure`.
-        restore_snapshot_bytes: args.scrollback_bytes,
-        persistent: args.persistent,
-        login_shell: terminal_host::protocol::default_login_shell(),
-    };
-
-    match run_terminal_host_server(
-        PathBuf::from(runtime_dir),
-        PathBuf::from(control_file),
-        token,
-        config,
-    )
-    .await
-    {
-        Ok(()) => 0,
-        Err(error) => {
-            tracing::error!(target: "alera.host", "runtime host exited with an error: {error}");
-            eprintln!("{error}");
-            1
-        }
-    }
 }
 
 fn required_option_error(value: &str, name: &str) -> Option<i32> {

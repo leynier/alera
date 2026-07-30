@@ -15,6 +15,7 @@ pub mod protocol;
 #[path = "../push_notifications/mod.rs"]
 pub(crate) mod push_notifications;
 pub mod resources;
+pub(crate) mod restart;
 pub mod server;
 pub mod session;
 pub mod sleep_detector;

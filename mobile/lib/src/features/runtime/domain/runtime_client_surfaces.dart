@@ -29,6 +29,7 @@ const String mobileBinaryFramesCapability = 'binaryFrames';
 /// capability is not mobile-scoped, same as [mobileBinaryFramesCapability].
 const String terminalDeferredInputCapability = 'terminalDeferredInputV1';
 const String terminalRestartCapability = 'terminalRestartV1';
+const String runtimeHostRestartCapability = 'runtimeHostRestartV1';
 const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';

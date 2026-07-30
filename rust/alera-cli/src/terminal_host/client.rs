@@ -29,6 +29,12 @@ pub enum ClientFrame {
         data: Vec<u8>,
     },
     UpgradeToBinary,
+    /// Re-enters the actor only after this connection has written every frame
+    /// queued before the marker. Restart uses it so disposing the actor cannot
+    /// drop the successful response the caller needs before reconnecting.
+    RestartRuntimeAfterWrite {
+        inbox: UnboundedSender<ServerCommand>,
+    },
     /// Control frames carry the last terminal sequence accepted before them.
     /// The writer uses it as a causal barrier between snapshot replies and
     /// output produced after that snapshot.
@@ -65,7 +71,7 @@ impl ClientFrame {
                     }),
                 ))
             }
-            ClientFrame::UpgradeToBinary => None,
+            ClientFrame::UpgradeToBinary | ClientFrame::RestartRuntimeAfterWrite { .. } => None,
             ClientFrame::OrderedControl { .. } | ClientFrame::SequencedTerminal { .. } => {
                 unreachable!("payload strips internal ordering envelopes")
             }
@@ -378,6 +384,10 @@ async fn write_frame(
             )
             .await?;
             *binary = true;
+            Ok(())
+        }
+        ClientFrame::RestartRuntimeAfterWrite { inbox } => {
+            let _ = inbox.send(ServerCommand::RequestedRestart);
             Ok(())
         }
         ClientFrame::Json(value) if *binary => {

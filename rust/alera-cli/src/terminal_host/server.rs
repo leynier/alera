@@ -160,6 +160,12 @@ struct SshBootstrapJobState {
     handle: JoinHandle<()>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum TerminalHostExit {
+    Shutdown,
+    Restart(TerminalHostConfig),
+}
+
 /// Run the persistent terminal host until it shuts down (idle timeout or the
 /// last session terminating). Binds a loopback socket, publishes the control
 /// file, and serves clients.
@@ -168,7 +174,7 @@ pub async fn run_terminal_host_server(
     control_file_path: PathBuf,
     token: String,
     config: TerminalHostConfig,
-) -> Result<()> {
+) -> Result<TerminalHostExit> {
     prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
@@ -259,6 +265,7 @@ pub async fn run_terminal_host_server(
     // Lives with the loop rather than the actor: it describes the machine the
     // host is running on, not any of the state the actor owns.
     let mut sleep_detector = SleepDetector::default();
+    let mut exit = TerminalHostExit::Shutdown;
     while let Some(command) = rx.recv().await {
         if let Some(slept) = sleep_detector.observe() {
             // The first thing to happen after a wake says so, which is what
@@ -269,12 +276,15 @@ pub async fn run_terminal_host_server(
             );
             actor.queue_emulator_park_all();
         }
+        if matches!(&command, ServerCommand::RequestedRestart) {
+            exit = TerminalHostExit::Restart(actor.config);
+        }
         actor.handle(command).await;
         if actor.disposed {
             break;
         }
     }
-    Ok(())
+    Ok(exit)
 }
 
 struct ServerActor {
@@ -516,6 +526,7 @@ impl ServerActor {
                 self.handle_shutdown_tick(generation).await
             }
             ServerCommand::RequestedShutdown => self.dispose().await,
+            ServerCommand::RequestedRestart => self.dispose().await,
             ServerCommand::AgentHookEvent { event } => self.handle_agent_hook_event(event).await,
             ServerCommand::SshBootstrapProgress { progress } => {
                 self.handle_ssh_bootstrap_progress(progress)

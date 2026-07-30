@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials
 import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
@@ -141,6 +142,8 @@ class MobileRuntimeClient
   @override
   bool get supportsTerminalRestart =>
       _runtimeCapabilities.contains(terminalRestartCapability);
+  bool get supportsRuntimeRestart =>
+      _runtimeCapabilities.contains(runtimeHostRestartCapability);
   bool get supportsPortableSettings =>
       _runtimeCapabilities.contains(mobilePortableSettingsCapability);
   bool get supportsAgentQuotas =>
@@ -195,6 +198,24 @@ class MobileRuntimeClient
   Future<MobileRuntimeStatus> mobileStatus() async {
     final payload = await requestMap('mobile.status.get');
     return MobileRuntimeStatus.fromJson(payload);
+  }
+
+  Future<RuntimeRestartResult> restartRuntime({bool force = false}) async {
+    if (!supportsRuntimeRestart) {
+      throw UnsupportedError('Update The Runtime To Restart It Remotely.');
+    }
+    try {
+      final payload = await requestMap('host.restart', <String, Object?>{
+        'force': force,
+      });
+      return RuntimeRestartResult.fromJson(payload);
+    } on StateError catch (error) {
+      final busy = RuntimeRestartBusyException.tryParse(error);
+      if (busy != null) {
+        throw busy;
+      }
+      rethrow;
+    }
   }
 
   @override

@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
@@ -12,6 +13,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'host_connection_controller.g.dart';
 
 const Duration _probeTimeout = Duration(seconds: 8);
+const Duration _runtimeRestartReconnectDelay = Duration(milliseconds: 300);
 const List<Duration> _retryDelays = <Duration>[
   Duration(seconds: 1),
   Duration(seconds: 2),
@@ -70,6 +72,47 @@ class HostConnectionController extends _$HostConnectionController {
     _retryTimer?.cancel();
     _retryTimer = null;
     return _runReconnect();
+  }
+
+  Future<RuntimeRestartResult> restartRuntime({bool force = false}) async {
+    final client = _client ?? state.value;
+    if (client == null) {
+      throw StateError('Host Is Not Connected.');
+    }
+    try {
+      final result = await client.restartRuntime(force: force);
+      await _closeSub?.cancel();
+      _closeSub = null;
+      _client = null;
+      state = const AsyncLoading<MobileRuntimeClient>();
+      unawaited(_recoverAfterRuntimeRestart(client));
+      return result;
+    } on RuntimeRestartBusyException {
+      rethrow;
+    } on Object catch (error, stackTrace) {
+      _logger.warning(
+        'could not restart runtime host $hostId',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> _recoverAfterRuntimeRestart(MobileRuntimeClient client) async {
+    try {
+      await client.dispose();
+    } on Object catch (error, stackTrace) {
+      _logger.warning(
+        'could not close the previous runtime connection for $hostId',
+        error,
+        stackTrace,
+      );
+    }
+    await Future<void>.delayed(_runtimeRestartReconnectDelay);
+    if (!_disposed) {
+      await reconnectNow();
+    }
   }
 
   Future<MobileRuntimeClient> _openClient() async {
