@@ -1,9 +1,13 @@
-import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/updater/application/mobile_update_providers.dart';
 import 'package:alera_mobile/src/features/updater/domain/mobile_release.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+enum _MobileUpdateAction { copyLink, download }
 
 /// Offers the newest Android build once per launch.
 ///
@@ -15,13 +19,17 @@ class MobileUpdatePrompt extends ConsumerStatefulWidget {
   const MobileUpdatePrompt({
     super.key,
     required this.child,
-    this.openUrl = _launchExternally,
+    this.copyLink = _copyToClipboard,
+    this.openUrl = launchUrl,
   });
 
   final Widget child;
 
+  /// Injected so tests do not reach the platform clipboard.
+  final Future<void> Function(String link) copyLink;
+
   /// Injected so tests do not reach the platform's URL launcher.
-  final Future<bool> Function(Uri url) openUrl;
+  final Future<bool> Function(Uri url, {LaunchMode mode}) openUrl;
 
   @override
   ConsumerState<MobileUpdatePrompt> createState() => _MobileUpdatePromptState();
@@ -64,31 +72,102 @@ class _MobileUpdatePromptState extends ConsumerState<MobileUpdatePrompt> {
   }
 
   Future<void> _ask(MobileRelease release) async {
-    final accepted = await showDialog<bool>(
+    final action = await showDialog<_MobileUpdateAction>(
       context: context,
-      builder: (context) => AleraConfirmDialog(
-        title: 'Update Available',
-        message:
-            'Alera ${release.version} is available. '
-            'Downloading opens the APK in your browser, and Android asks to '
-            'install it.',
-        confirmLabel: 'Download',
-        cancelLabel: 'Later',
-      ),
+      builder: (context) =>
+          _MobileUpdateDialog(version: release.version.toString()),
     );
-    if (accepted != true || !mounted) {
+    if (!mounted) {
       return;
     }
-    final opened = await widget.openUrl(release.apkUrl);
-    if (opened || !mounted) {
-      return;
+    switch (action) {
+      case _MobileUpdateAction.copyLink:
+        await widget.copyLink(release.apkUrl.toString());
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Download Link Copied.')));
+        return;
+      case _MobileUpdateAction.download:
+        final opened = await widget.openUrl(
+          release.apkUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (opened || !mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could Not Open The Download.')),
+        );
+        return;
+      case null:
+        return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the download.')),
+  }
+}
+
+class _MobileUpdateDialog extends StatelessWidget {
+  const _MobileUpdateDialog({required this.version});
+
+  final String version;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AleraDialog(
+      maxWidth: 420,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Update Available', style: theme.textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.space12),
+            Text(
+              'Alera $version is available. Downloading opens the APK in your '
+              'browser, and Android asks to install it.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space20),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_MobileUpdateAction.copyLink),
+                child: const Text('Copy Link'),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space8),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Later'),
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () =>
+                        Navigator.of(context).pop(_MobileUpdateAction.download),
+                    child: const Text('Download'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-Future<bool> _launchExternally(Uri url) {
-  return launchUrl(url, mode: LaunchMode.externalApplication);
+Future<void> _copyToClipboard(String link) {
+  return Clipboard.setData(ClipboardData(text: link));
 }
