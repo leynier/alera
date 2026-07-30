@@ -38,10 +38,10 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _sourceBranch;
   String? _parentWorkspaceId;
   bool _reuseExistingBranch = false;
+  bool _createAnother = false;
   bool _loadingBranches = false;
   bool _creating = false;
   String? _error;
-  WorkspaceCreationResult? _result;
 
   @override
   void initState() {
@@ -131,9 +131,12 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
             parentWorkspaceId: _parentWorkspaceId,
           );
       if (mounted) {
-        setState(() {
-          _result = result;
-        });
+        _showCreationMessage(result);
+        if (_createAnother) {
+          await _resetManualForm();
+        } else {
+          Navigator.of(context).pop(true);
+        }
       }
     } on Object catch (error) {
       if (mounted) {
@@ -150,53 +153,72 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     }
   }
 
+  Future<void> _resetManualForm() async {
+    final projectId = _projectId;
+    _branch.clear();
+    _name.clear();
+    setState(() {
+      _parentWorkspaceId = null;
+      _reuseExistingBranch = false;
+      _error = null;
+    });
+    if (projectId != null) {
+      await _selectProject(projectId);
+    }
+  }
+
+  void _showCreationMessage(WorkspaceCreationResult creation) {
+    final message = creation.setupLaunchError != null
+        ? 'Workspace Created, But Setup Could Not Start'
+        : creation.hasSetupWarnings
+        ? 'Workspace Created With Setup Warnings'
+        : 'Workspace Created';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final result = _result;
     return Scaffold(
       appBar: AppBar(title: const Text('New Workspace')),
       body: SafeArea(
-        child: result != null
-            ? _SetupReportView(
-                result: result,
-                onDone: () => Navigator.of(context).pop(true),
-              )
-            : Column(
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AleraTokens.spaceLg,
-                      AleraTokens.spaceMd,
-                      AleraTokens.spaceLg,
-                      0,
-                    ),
-                    child: SegmentedButton<bool>(
-                      showSelectedIcon: false,
-                      segments: const <ButtonSegment<bool>>[
-                        ButtonSegment<bool>(
-                          value: true,
-                          label: Text('From Prompt'),
-                          icon: Icon(Icons.smart_toy_outlined),
-                        ),
-                        ButtonSegment<bool>(
-                          value: false,
-                          label: Text('Manual'),
-                          icon: Icon(Icons.account_tree_outlined),
-                        ),
-                      ],
-                      selected: <bool>{_fromPrompt},
-                      onSelectionChanged: (selection) {
-                        setState(() => _fromPrompt = selection.first);
-                      },
-                    ),
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.spaceLg,
+                AleraTokens.spaceMd,
+                AleraTokens.spaceLg,
+                0,
+              ),
+              child: SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: const <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('From Prompt'),
+                    icon: Icon(Icons.smart_toy_outlined),
                   ),
-                  Expanded(
-                    child: _fromPrompt
-                        ? _buildPromptForm(context)
-                        : _buildForm(context),
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('Manual'),
+                    icon: Icon(Icons.account_tree_outlined),
                   ),
                 ],
+                selected: <bool>{_fromPrompt},
+                onSelectionChanged: (selection) {
+                  setState(() => _fromPrompt = selection.first);
+                },
               ),
+            ),
+            Expanded(
+              child: _fromPrompt
+                  ? _buildPromptForm(context)
+                  : _buildForm(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -296,6 +318,19 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
+        const SizedBox(height: AleraTokens.spaceMd),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _createAnother,
+          onChanged: promptState.loading || created != null
+              ? null
+              : (value) {
+                  setState(() => _createAnother = value ?? false);
+                },
+          title: const Text('Create Another'),
+          subtitle: const Text('Keep This Screen Open After Creation'),
+        ),
         const SizedBox(height: AleraTokens.spaceXl),
         if (promptState.loading)
           Row(
@@ -364,7 +399,13 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     final creation = state.creation;
     final tabId = state.agentTabId;
     if (creation != null && tabId != null) {
-      _openWorkspace(creation, tabId: tabId);
+      if (_createAnother) {
+        _showCreationMessage(creation);
+        _prompt.clear();
+        controller.resetForAnother();
+      } else {
+        _openWorkspace(creation, tabId: tabId);
+      }
     }
   }
 
@@ -377,7 +418,13 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     final creation = state.creation;
     final tabId = state.agentTabId;
     if (creation != null && tabId != null) {
-      _openWorkspace(creation, tabId: tabId);
+      if (_createAnother) {
+        _showCreationMessage(creation);
+        _prompt.clear();
+        controller.resetForAnother();
+      } else {
+        _openWorkspace(creation, tabId: tabId);
+      }
     }
   }
 

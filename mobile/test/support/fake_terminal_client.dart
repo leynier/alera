@@ -57,6 +57,7 @@ class FakeTerminalClient
         workspaceName: 'Generated Workspace',
         branchName: 'feat/generated-workspace',
       );
+  String? deferredSetupCommand;
   int _createdTabs = 0;
 
   void emitEvent(String name) {
@@ -355,6 +356,7 @@ class FakeTerminalClient
         path: '/tmp/created',
       ),
       steps: const <WorkspaceSetupStep>[],
+      deferredSetupCommand: deferredSetupCommand,
     );
   }
 
