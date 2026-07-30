@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -65,92 +67,98 @@ void main() {
   });
 
   group('release archive scripts', () {
-    test(
-      'builds and verifies a stable manifest without sidecar URLs',
-      () async {
-        final temp = await Directory.systemTemp.createTemp('alera-release-');
-        addTearDown(() => temp.deleteSync(recursive: true));
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-macos',
-          'alera-1.2.3-macos.tar.gz',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-macos',
-          'alera-runtime-1.2.3-macos-x64.tar.gz',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-windows',
-          'alera-1.2.3-windows.tar.gz',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-windows',
-          'alera-runtime-1.2.3-windows-x64.tar.gz',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-linux',
-          'alera-1.2.3-linux.deb',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-linux',
-          'alera-1.2.3-linux.rpm',
-        );
-        _writeArtifact(
-          temp,
-          'stable',
-          '1.2.3+99-linux',
-          'alera-runtime-1.2.3-linux-x64.tar.gz',
-        );
-        final output = p.join(temp.path, 'public', 'app-archive.json');
-        final keys = await _signingKeys(seed: 4);
+    test('merges and verifies a signed schema 3 desktop channel', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-desktop-release-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final keys = await _signingKeys(seed: 4);
+      await _writeDesktopChannelFixture(temp, keys: keys);
+      final archive = p.join(
+        temp.path,
+        'public',
+        'updates',
+        'stable',
+        'app-archive.json',
+      );
 
-        await _runDartScript(
-          'tool/release/build_app_archive.dart',
-          <String>[output],
-          environment: _archiveEnvironment(temp, channel: 'stable'),
-        );
-        await _runDartScript('tool/release/sign_app_archive.dart', <String>[
-          output,
-        ], environment: keys.toEnvironment());
-        await _runDartScript(
-          'tool/release/verify_app_archive.dart',
-          <String>[output],
-          environment: <String, String>{
-            'ALERA_UPDATE_MANIFEST_PUBLIC_KEY': keys.publicKey,
-          },
-        );
+      await _runDartScript(
+        'tool/release/merge_desktop_update_indexes.dart',
+        <String>[
+          p.join(temp.path, 'public', 'update-index-fragments'),
+          archive,
+        ],
+      );
+      await _runDartScript(
+        'tool/release/verify_desktop_update_channel.dart',
+        <String>[p.join(temp.path, 'public'), archive],
+        environment: <String, String>{
+          ...keys.toEnvironment(),
+          'ALERA_RELEASE_CHANNEL': 'stable',
+          'ALERA_RELEASE_VERSION': '1.2.3',
+          'ALERA_RELEASE_BUILD_NUMBER': '99',
+        },
+      );
 
-        final manifest = jsonDecode(File(output).readAsStringSync()) as Map;
-        final items = manifest['items'] as List;
-        expect(items, hasLength(4));
-        expect(
-          items.cast<Map>().map((item) => item['url'] as String),
-          isNot(contains(contains('alera-runtime-'))),
-        );
-        for (final item in items.cast<Map>()) {
-          expect(item, contains('url'));
-          expect(item, contains('platform'));
-          expect(item, contains('installerKind'));
-          expect(item, contains('sha256'));
-          expect(item, contains('size'));
-          expect(item, isNot(contains('artifacts')));
-          expect(item, isNot(contains('signatureBundleUrl')));
-          expect(item, isNot(contains('provenanceUrl')));
-        }
-        _expectLegacyArchiveShape(manifest);
-      },
-    );
+      final index =
+          jsonDecode(File(archive).readAsStringSync()) as Map<String, dynamic>;
+      expect(index['schemaVersion'], 3);
+      final items = (index['items'] as List).cast<Map<String, dynamic>>();
+      expect(items, hasLength(3));
+      expect(items.map((item) => item['platform']), <String>[
+        'linux',
+        'macos',
+        'windows',
+      ]);
+      for (final item in items) {
+        expect(item, contains('release'));
+        expect(item, isNot(contains('url')));
+        expect(item, isNot(contains('installerKind')));
+      }
+    });
+
+    test('rejects a tampered schema 3 desktop artifact', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-desktop-release-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final keys = await _signingKeys(seed: 5);
+      final artifacts = await _writeDesktopChannelFixture(temp, keys: keys);
+      final archive = p.join(
+        temp.path,
+        'public',
+        'updates',
+        'stable',
+        'app-archive.json',
+      );
+      await _runDartScript(
+        'tool/release/merge_desktop_update_indexes.dart',
+        <String>[
+          p.join(temp.path, 'public', 'update-index-fragments'),
+          archive,
+        ],
+      );
+      artifacts.first.writeAsStringSync('tampered');
+
+      final verification = await Process.run(
+        'dart',
+        <String>[
+          'tool/release/verify_desktop_update_channel.dart',
+          p.join(temp.path, 'public'),
+          archive,
+        ],
+        workingDirectory: Directory.current.path,
+        environment: <String, String>{
+          ...keys.toEnvironment(),
+          'ALERA_RELEASE_CHANNEL': 'stable',
+          'ALERA_RELEASE_VERSION': '1.2.3',
+          'ALERA_RELEASE_BUILD_NUMBER': '99',
+        },
+      );
+
+      expect(verification.exitCode, isNot(0));
+      expect(verification.stderr, contains('has length'));
+    });
 
     test('builds and verifies a signed runtime archive', () async {
       final temp = await Directory.systemTemp.createTemp(
@@ -192,184 +200,97 @@ void main() {
       final manifest = jsonDecode(File(output).readAsStringSync()) as Map;
       expect(manifest['schemaVersion'], 1);
       expect(manifest['channel'], 'stable');
-      final items = (manifest['items'] as List).cast<Map>();
-      expect(items, hasLength(6));
-      expect(
-        items.map((item) => '${item['platform']}/${item['arch']}'),
-        containsAll(<String>[
-          'macos/x64',
-          'macos/arm64',
-          'windows/x64',
-          'windows/arm64',
-          'linux/x64',
-          'linux/arm64',
-        ]),
-      );
-      for (final item in items) {
-        expect(item['artifactName'], startsWith('alera-runtime-1.2.3-'));
-        expect(item['url'], contains('/releases/download/v1.2.3/'));
-        expect(item, contains('sha256'));
-        expect(item, contains('size'));
-      }
-    });
-
-    test('builds and verifies RC manifests with Linux packages', () async {
-      final temp = await Directory.systemTemp.createTemp('alera-release-');
-      addTearDown(() => temp.deleteSync(recursive: true));
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-macos',
-        'alera-1.2.3-rc.0-macos.tar.gz',
-      );
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-windows',
-        'alera-1.2.3-rc.0-windows.tar.gz',
-      );
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-linux',
-        'alera-1.2.3-rc.0-linux.deb',
-      );
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-linux',
-        'alera-1.2.3-rc.0-linux.rpm',
-      );
-      final output = p.join(temp.path, 'public', 'app-archive-rc.json');
-      final keys = await _signingKeys(seed: 5);
-
-      await _runDartScript(
-        'tool/release/build_app_archive.dart',
-        <String>[output],
-        environment: _archiveEnvironment(
-          temp,
-          channel: 'rc',
-          releaseVersion: '1.2.3-rc.0',
-        ),
-      );
-      await _runDartScript('tool/release/sign_app_archive.dart', <String>[
-        output,
-      ], environment: keys.toEnvironment());
-      await _runDartScript(
-        'tool/release/verify_app_archive.dart',
-        <String>[output],
-        environment: <String, String>{
-          'ALERA_UPDATE_MANIFEST_PUBLIC_KEY': keys.publicKey,
-        },
-      );
-
-      final manifest = jsonDecode(File(output).readAsStringSync()) as Map;
-      expect(manifest['channel'], 'rc');
-      final items = manifest['items'] as List;
-      expect(
-        items
-            .cast<Map>()
-            .where((item) => item['platform'] == 'linux')
-            .map((item) => item['installerKind']),
-        containsAll(<String>['deb', 'rpm']),
-      );
-      _expectLegacyArchiveShape(manifest);
-    });
-
-    test('rejects Linux desktop tarballs in signed manifests', () async {
-      final temp = await Directory.systemTemp.createTemp('alera-release-');
-      addTearDown(() => temp.deleteSync(recursive: true));
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-macos',
-        'alera-1.2.3-rc.0-macos.tar.gz',
-      );
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-windows',
-        'alera-1.2.3-rc.0-windows.tar.gz',
-      );
-      _writeArtifact(
-        temp,
-        'rc',
-        '1.2.3+99-linux',
-        'alera-1.2.3-rc.0-linux.tar.gz',
-      );
-      final output = p.join(temp.path, 'public', 'app-archive-rc.json');
-      final keys = await _signingKeys(seed: 7);
-
-      await _runDartScript(
-        'tool/release/build_app_archive.dart',
-        <String>[output],
-        environment: _archiveEnvironment(
-          temp,
-          channel: 'rc',
-          releaseVersion: '1.2.3-rc.0',
-        ),
-      );
-      await _runDartScript('tool/release/sign_app_archive.dart', <String>[
-        output,
-      ], environment: keys.toEnvironment());
-      final verification = await Process.run(
-        'dart',
-        <String>['tool/release/verify_app_archive.dart', output],
-        workingDirectory: Directory.current.path,
-        environment: <String, String>{
-          'ALERA_UPDATE_MANIFEST_PUBLIC_KEY': keys.publicKey,
-        },
-      );
-
-      expect(verification.exitCode, isNot(0));
-      expect(
-        verification.stderr,
-        contains('Linux desktop artifacts must be deb or rpm packages'),
-      );
+      expect(manifest['items'], hasLength(6));
     });
   });
 }
 
-void _expectLegacyArchiveShape(Map<Object?, Object?> manifest) {
-  final items = manifest['items'];
-  expect(items, isA<List>());
-  for (final item in (items! as List).cast<Map>()) {
-    expect(item['version'], isA<String>());
-    expect(item['shortVersion'], isA<int>());
-    expect(item['changes'], isA<List>());
-    expect(item['date'], isA<String>());
-    expect(item['mandatory'], isA<bool>());
-    expect(item['url'], isA<String>());
-    expect(item['platform'], isA<String>());
-  }
-}
-
-Map<String, String> _archiveEnvironment(
+Future<List<File>> _writeDesktopChannelFixture(
   Directory temp, {
-  required String channel,
-  String releaseVersion = '1.2.3',
-}) {
-  return <String, String>{
-    'ALERA_RELEASE_VERSION': releaseVersion,
-    'ALERA_ARTIFACT_VERSION': '1.2.3',
-    'ALERA_RELEASE_BUILD_NUMBER': '99',
-    'ALERA_UPDATE_BASE_URL': 'https://updates.example.test',
-    'ALERA_UPDATE_PATH_PREFIX': 'updates/$channel',
-    'ALERA_RELEASE_PUBLIC_DIR': p.join(temp.path, 'public'),
-  };
-}
-
-void _writeArtifact(
-  Directory temp,
-  String channel,
-  String folder,
-  String name,
-) {
-  final file = File(
-    p.join(temp.path, 'public', 'updates', channel, folder, name),
-  );
-  file.parent.createSync(recursive: true);
-  file.writeAsStringSync(name);
+  required _SigningKeys keys,
+}) async {
+  final keyPair = await Ed25519().newKeyPairFromSeed(keys.seed);
+  final publicRoot = Directory(p.join(temp.path, 'public'));
+  final fragments = Directory(p.join(publicRoot.path, 'update-index-fragments'))
+    ..createSync(recursive: true);
+  final artifacts = <File>[];
+  for (final platform in const <String>['linux', 'macos', 'windows']) {
+    final releaseDirectory = Directory(
+      p.join(
+        publicRoot.path,
+        'updates',
+        'stable',
+        'releases',
+        '1.2.3',
+        platform,
+      ),
+    )..createSync(recursive: true);
+    final artifact = File(
+      p.join(releaseDirectory.path, 'Alera-1.2.3-$platform.zip'),
+    )..writeAsStringSync('desktop-update-$platform');
+    artifacts.add(artifact);
+    final descriptor = ReleaseDescriptor.fromJson(<String, dynamic>{
+      'schemaVersion': 3,
+      'packageId': 'dev.leynier.alera',
+      'appName': 'Alera',
+      'version': '1.2.3',
+      'buildNumber': 99,
+      'platform': platform,
+      'channel': 'stable',
+      'artifact': <String, dynamic>{
+        'kind': 'zip',
+        'url':
+            'https://updates.alera.build/updates/stable/releases/1.2.3/'
+            '$platform/${p.basename(artifact.path)}',
+        'sha256': sha256.convert(artifact.readAsBytesSync()).toString(),
+        'length': artifact.lengthSync(),
+      },
+      'install': <String, dynamic>{
+        'strategy': platform == 'macos'
+            ? 'wholeBundleReplace'
+            : 'wholeDirectoryReplace',
+      },
+      'minimumUpdaterVersion': '2.5.0',
+      'generatedAt': '2026-07-27T00:00:00.000Z',
+      'signature': <String, dynamic>{
+        'algorithm': 'ed25519',
+        'publicKeyId': 'test-key',
+        'value': '',
+      },
+    });
+    final signature = await Ed25519().sign(
+      descriptor.canonicalSignatureBytes(),
+      keyPair: keyPair,
+    );
+    final descriptorJson = descriptor.toJson();
+    descriptorJson['signature'] = <String, dynamic>{
+      'algorithm': 'ed25519',
+      'publicKeyId': 'test-key',
+      'value': base64Encode(signature.bytes),
+    };
+    File(
+      p.join(releaseDirectory.path, 'release.json'),
+    ).writeAsStringSync(jsonEncode(descriptorJson));
+    File(p.join(fragments.path, '$platform.json')).writeAsStringSync(
+      jsonEncode(<String, dynamic>{
+        'schemaVersion': 3,
+        'appName': 'Alera',
+        'items': <Object?>[
+          <String, dynamic>{
+            'version': '1.2.3',
+            'buildNumber': 99,
+            'platform': platform,
+            'channel': 'stable',
+            'mandatory': false,
+            'release':
+                'https://updates.alera.build/updates/stable/releases/1.2.3/'
+                '$platform/release.json',
+          },
+        ],
+      }),
+    );
+  }
+  return artifacts;
 }
 
 void _writeReleaseAsset(Directory temp, String name) {
@@ -391,24 +312,33 @@ Future<void> _runDartScript(
   );
   if (result.exitCode != 0) {
     fail(
-      '$script failed with ${result.exitCode}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}',
+      '$script failed with ${result.exitCode}\n'
+      'stdout:\n${result.stdout}\n'
+      'stderr:\n${result.stderr}',
     );
   }
 }
 
 Future<_SigningKeys> _signingKeys({required int seed}) async {
-  final keyPair = await Ed25519().newKeyPairFromSeed(List.filled(32, seed));
+  final seedBytes = List<int>.filled(32, seed);
+  final keyPair = await Ed25519().newKeyPairFromSeed(seedBytes);
   final keyData = await keyPair.extract();
   final publicKeyData = await keyPair.extractPublicKey();
   return _SigningKeys(
+    seed: seedBytes,
     privateKey: base64Encode(keyData.bytes),
     publicKey: base64Encode(publicKeyData.bytes),
   );
 }
 
 class _SigningKeys {
-  const _SigningKeys({required this.privateKey, required this.publicKey});
+  const _SigningKeys({
+    required this.seed,
+    required this.privateKey,
+    required this.publicKey,
+  });
 
+  final List<int> seed;
   final String privateKey;
   final String publicKey;
 

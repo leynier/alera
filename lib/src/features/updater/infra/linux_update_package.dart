@@ -1,25 +1,7 @@
 import 'dart:io';
 
-import 'package:alera/src/features/updater/domain/alera_update.dart';
-
-typedef DesktopUpdateArtifactPreferences =
-    Future<List<String>> Function(String platform, AleraUpdateChannel channel);
-
-Future<List<String>> loadDesktopUpdateArtifactPreferences(
-  String platform,
-  AleraUpdateChannel channel,
-) async {
-  if (platform != 'linux') {
-    return desktopUpdateArtifactPreferences(
-      platform: platform,
-      channel: channel,
-    );
-  }
-  return desktopUpdateArtifactPreferences(
-    platform: platform,
-    channel: channel,
-    linuxOsRelease: await _readLinuxOsRelease(),
-  );
+Future<String?> loadDesktopLinuxInstallerKind() async {
+  return linuxInstallerKindFromOsRelease(await _readLinuxOsRelease() ?? '');
 }
 
 Future<String?> _readLinuxOsRelease() async {
@@ -28,23 +10,6 @@ Future<String?> _readLinuxOsRelease() async {
     return null;
   }
   return osRelease.readAsString();
-}
-
-List<String> desktopUpdateArtifactPreferences({
-  required String platform,
-  required AleraUpdateChannel channel,
-  String? linuxOsRelease,
-}) {
-  return switch ((platform, channel)) {
-    ('macos' || 'windows', _) => const <String>['tar.gz'],
-    ('linux', _) => switch (linuxInstallerKindFromOsRelease(
-      linuxOsRelease ?? '',
-    )) {
-      final installerKind? => <String>[installerKind],
-      null => const <String>[],
-    },
-    _ => const <String>[],
-  };
 }
 
 String? linuxInstallerKindFromOsRelease(String source) {

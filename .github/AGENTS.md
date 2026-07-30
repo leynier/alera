@@ -32,9 +32,9 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Release notes must be product-scoped via `tool/release/generate_release_notes.dart` (desktop excludes `mobile/` and `landing/`; mobile includes only `mobile/`), and only desktop stable releases may carry the Latest badge.
 - Release workflows must not push release commits or tags until platform artifacts and update manifests have been generated and verified.
 - Update indexes must be deployed only after the corresponding GitHub Release is public.
-- Existing stable and release-candidate update indexes must be preserved when publishing the other channel; ignore only confirmed first-time 404 responses.
-- Stable release jobs must not enable automatic installation until signing and notarization or trust are configured for the relevant platform.
-- Release jobs must sign schema v2 update indexes before publication and verify the manifest signature before upload.
+- Stable and release-candidate update indexes live under separate channel paths. Publishing one channel must not overwrite or delete the other channel.
+- Stable release jobs must not enable automatic installation until the signed descriptor trust path is configured for the relevant platform.
+- Release jobs must use schema v3 indexes, sign every platform `release.json`, and verify descriptor signatures plus artifact hashes before upload.
 - Linux release jobs must publish signed APT and RPM repository metadata when Linux packages are included.
 - The desktop package managers (`publish_packages`, `publish_chocolatey`) run only on stable cuts and only after the GitHub Release is public, because every manifest they push points at that release's assets. A failure there must not roll the release back: the release is already correct and the manifest can be pushed by hand. Release candidates never reach them, for the same reason they never reach the stable Linux repositories. Both jobs must skip with a warning when their secret is absent rather than fail, mirroring how the Apple and Windows signing steps treat theirs. Each destination repository is written with its own SSH deploy key (`ALERA_HOMEBREW_TAP_DEPLOY_KEY`, `ALERA_SCOOP_BUCKET_DEPLOY_KEY`) rather than one account-wide token, so a key that leaks or needs rotating reaches nothing else, and the step pins GitHub's host keys from `api.github.com/meta` instead of accepting them on first use: a runner that trusted a forged host key would push the manifest elsewhere and still report success.
 - Signing secrets must be scoped only to release jobs that need them.

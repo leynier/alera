@@ -3,19 +3,18 @@ import 'dart:io';
 
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/domain/package_manager_upgrade_script.dart';
-import 'package:alera/src/features/updater/infra/desktop_update_handoff.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 typedef PackageManagerUpgradeDirectory = Future<Directory> Function();
+typedef AleraAppExit = FutureOr<void> Function();
 
 /// Runs the package manager's own upgrade and brings Alera back.
 ///
-/// The shape mirrors [DesktopUpdateHandoff]: start the helper, wait until it
-/// writes its handoff file, and only then close the app. Exiting before the
-/// helper is ready would leave nothing running to perform the upgrade, and the
-/// user would be left staring at a closed app that never came back.
+/// Starts the helper, waits until it writes its handoff file, and only then
+/// closes the app. Exiting before the helper is ready would leave nothing
+/// running to perform the upgrade.
 class PackageManagerUpdateLauncher {
   PackageManagerUpdateLauncher({
     required this.processRunner,

@@ -10,8 +10,6 @@ enum AleraUpdateChannel {
   stable,
   rc;
 
-  bool get includesPrereleases => this == AleraUpdateChannel.rc;
-
   static AleraUpdateChannel parse(String value) {
     return switch (value.trim().toLowerCase()) {
       'rc' || 'release-candidate' => AleraUpdateChannel.rc,
@@ -49,10 +47,11 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     required this.autoInstallEnabled,
     required this.signedRelease,
     this.manifestPublicKey = '',
+    this.manifestPublicKeyId = 'alera-release-v1',
   });
 
   static final Uri defaultArchiveUrl = Uri.parse(
-    'https://updates.alera.build/app-archive.json',
+    'https://updates.alera.build/updates/stable/app-archive.json',
   );
   static final Uri defaultReleasePageUrl = Uri.parse(
     'https://github.com/leynier/alera/releases',
@@ -67,6 +66,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   final bool autoInstallEnabled;
   final bool signedRelease;
   final String manifestPublicKey;
+  final String manifestPublicKeyId;
 
   static AleraUpdateConfig _resolvedEnvironmentConfig({
     required Uri? archiveUrl,
@@ -75,6 +75,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     required bool autoInstallEnabled,
     required bool signedRelease,
     required String manifestPublicKey,
+    required String manifestPublicKeyId,
   }) {
     return AleraUpdateConfig(
       archiveUrl: resolveUpdateConfigUriForTesting(
@@ -89,6 +90,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
       autoInstallEnabled: autoInstallEnabled,
       signedRelease: signedRelease,
       manifestPublicKey: manifestPublicKey,
+      manifestPublicKeyId: manifestPublicKeyId,
     );
   }
 
@@ -124,7 +126,8 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     final archiveUrl = Uri.tryParse(
       const String.fromEnvironment(
         'ALERA_UPDATE_ARCHIVE_URL',
-        defaultValue: 'https://updates.alera.build/app-archive.json',
+        defaultValue:
+            'https://updates.alera.build/updates/stable/app-archive.json',
       ),
     );
     final releasePageUrl = Uri.tryParse(
@@ -148,6 +151,10 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
       signedRelease: const bool.fromEnvironment('ALERA_SIGNED_RELEASE'),
       manifestPublicKey: const String.fromEnvironment(
         'ALERA_UPDATE_MANIFEST_PUBLIC_KEY',
+      ),
+      manifestPublicKeyId: const String.fromEnvironment(
+        'ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID',
+        defaultValue: 'alera-release-v1',
       ),
     );
   }

@@ -153,22 +153,37 @@ jobs:
           CHANNEL: ${{ needs.plan.outputs.channel }}
           BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
           RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.plan.outputs.desktop_tag }}
+          ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
           ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
           ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
+          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
+          APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
         run: |
           set -euo pipefail
-          archive_file="app-archive.json"
           runtime_archive_file="runtime-archive.json"
           if [[ "$CHANNEL" == "rc" ]]; then
-            archive_file="app-archive-rc.json"
             runtime_archive_file="runtime-archive-rc.json"
           fi
-          if [[ -z "${ALERA_UPDATE_MANIFEST_PUBLIC_KEY:-}" ]]; then
-            echo "::error::ALERA_UPDATE_MANIFEST_PUBLIC_KEY is required for signed release builds." >&2
-            exit 64
-          fi
-          archive_url="${BASE_URL}/${archive_file}"
+          for name in \
+            ALERA_UPDATE_MANIFEST_PRIVATE_KEY \
+            ALERA_UPDATE_MANIFEST_PUBLIC_KEY \
+            ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required for signed release builds." >&2
+              exit 64
+            fi
+          done
+          archive_url="${BASE_URL}/updates/${CHANNEL}/app-archive.json"
+          update_base_url="${BASE_URL}/updates/${CHANNEL}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
           # Auto-install is enabled on every platform whose artifacts a package
           # manager does not own. Linux is the exception, and not because of
@@ -186,48 +201,59 @@ jobs:
           if [[ "$PLATFORM" != "linux" ]]; then
             auto_install_enabled=true
           fi
-          dart run desktop_updater:release "$PLATFORM" \
-            --dart-define "ALERA_FLAVOR=release" \
-            --dart-define "ALERA_UPDATE_CHANNEL=$CHANNEL" \
-            --dart-define "ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
-            --dart-define "ALERA_RUNTIME_ARCHIVE_URL=$runtime_archive_url" \
-            --dart-define "ALERA_RUNTIME_VERSION=${{ needs.plan.outputs.desktop_release_version }}" \
-            --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
-            --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=$auto_install_enabled" \
-            --dart-define "ALERA_SIGNED_RELEASE=true" \
-            --dart-define "ALERA_UPDATE_MANIFEST_PUBLIC_KEY=$ALERA_UPDATE_MANIFEST_PUBLIC_KEY"
+          dart run desktop_updater:release publish \
+            --platform "$PLATFORM" \
+            --base-url "$update_base_url" \
+            --output "pages/updates/$CHANNEL" \
+            --channel "$CHANNEL" \
+            --version "${{ needs.plan.outputs.desktop_release_version }}" \
+            --build-number "${{ needs.plan.outputs.desktop_build_number }}" \
+            --package-id dev.leynier.alera \
+            --app-name Alera \
+            --dart-define="ALERA_FLAVOR=release" \
+            --dart-define="ALERA_UPDATE_CHANNEL=$CHANNEL" \
+            --dart-define="ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
+            --dart-define="ALERA_RUNTIME_ARCHIVE_URL=$runtime_archive_url" \
+            --dart-define="ALERA_RUNTIME_VERSION=${{ needs.plan.outputs.desktop_release_version }}" \
+            --dart-define="ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
+            --dart-define="ALERA_UPDATE_AUTO_INSTALL_ENABLED=$auto_install_enabled" \
+            --dart-define="ALERA_SIGNED_RELEASE=true" \
+            --dart-define="ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID=$ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID" \
+            --dart-define="ALERA_UPDATE_MANIFEST_PUBLIC_KEY=$ALERA_UPDATE_MANIFEST_PUBLIC_KEY"
 
       - name: Prepare release artifact directories
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
           CHANNEL: ${{ needs.plan.outputs.channel }}
-          ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
-          BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
         run: |
           set -euo pipefail
-          app_name="$(grep -E '^name:' pubspec.yaml | awk '{print $2}')"
-          bundle_dir="dist/${BUILD_NUMBER}/${app_name}-${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}"
+          case "$PLATFORM" in
+            macos)
+              bundle_dir="build/macos/Build/Products/Release"
+              ;;
+            windows)
+              bundle_dir="build/windows/x64/runner/Release"
+              ;;
+            linux)
+              bundle_dir="build/linux/x64/release/bundle"
+              ;;
+            *)
+              echo "::error::Unsupported desktop platform: $PLATFORM"
+              exit 64
+              ;;
+          esac
           if [[ ! -d "$bundle_dir" ]]; then
             echo "::error::Missing release bundle $bundle_dir"
-            find dist -maxdepth 3 -type d -print || true
+            find build -maxdepth 6 -type d -print || true
             exit 1
           fi
-          asset_dir="pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}"
-          mkdir -p "$asset_dir" release-assets
-          if [[ "$PLATFORM" == "macos" && -d "$bundle_dir/alera.app" ]]; then
-            # desktop_updater names the bundle after the lowercase pubspec
-            # package name; the release display name is Alera (see
-            # lib/src/core/build_flavor.dart). Runs after the updater archive
-            # step (which reads alera.app) and before the tarball is created.
-            # The runner filesystem is case-insensitive, so route through a
-            # distinct temp name; a direct case-only mv can be a no-op (BSD) or
-            # a "same file" error (GNU) that would abort the job under set -e.
-            mv "$bundle_dir/alera.app" "$bundle_dir/.Alera.app.tmp"
-            mv "$bundle_dir/.Alera.app.tmp" "$bundle_dir/Alera.app"
-          fi
+          index="pages/updates/$CHANNEL/app-archive.json"
+          test -s "$index" || { echo "::error::Missing updater index $index"; exit 1; }
+          mkdir -p pages/update-index-fragments release-assets
+          mv "$index" "pages/update-index-fragments/$PLATFORM.json"
+          rm -f "pages/updates/$CHANNEL/.desktop_updater_publish.json"
           echo "BUNDLE_DIR=$bundle_dir" >>"$GITHUB_ENV"
-          echo "ASSET_DIR=$asset_dir" >>"$GITHUB_ENV"
 
       - name: Verify bundled helper and video runtimes
         shell: bash
@@ -287,60 +313,26 @@ jobs:
           tar -czf "runtime-native-${PLATFORM}-${NATIVE_ARCH}.tar.gz" \
             -C runtime-native-input "$PLATFORM"
 
-      - name: Sign and package macOS release
+      - name: Package macOS release asset
         if: matrix.platform == 'macos'
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
-          APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           set -euo pipefail
-          # macOS Developer ID signing/notarization is optional: when the Apple
-          # credentials are absent the bundle ships unsigned (users must allow it
-          # through Gatekeeper). The Ed25519 update manifest is still signed, so
-          # update integrity is unaffected. See docs/release-trust.md.
-          if [[ -n "${APPLE_DEVELOPER_ID_APPLICATION:-}" \
-            && -n "${APPLE_DEVELOPER_ID_TEAM_ID:-}" \
-            && -n "${APPLE_CERTIFICATE_P12_BASE64:-}" \
-            && -n "${APPLE_CERTIFICATE_PASSWORD:-}" \
-            && -n "${APPLE_ID:-}" \
-            && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
-            bash tool/release/sign_macos.sh "$BUNDLE_DIR" "$BUNDLE_DIR/Alera.app"
-          else
-            echo "::warning::Apple Developer ID credentials are not configured; packaging an unsigned macOS release."
-          fi
           dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
             --platform macos \
             --bundle "$BUNDLE_DIR"
           tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
 
-      - name: Sign and package Windows release
+      - name: Package Windows release assets
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
         run: |
-          # Authenticode signing is optional: when the certificate is absent the
-          # bundle ships unsigned (SmartScreen shows an unknown publisher). The
-          # Ed25519 update manifest is still signed. See docs/release-trust.md.
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -and `
-              -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
-            pwsh -NoProfile -File tool/release/sign_windows.ps1 -BundleDir "$env:BUNDLE_DIR"
-          } else {
-            Write-Output "::warning::Windows code-signing certificate is not configured; packaging an unsigned Windows release."
-          }
           tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
-          # Chocolatey and Scoop both unpack a zip natively; a tar.gz costs them
-          # a two-step 7zip extraction. The tar.gz stays the updater artifact,
-          # so this zip is a GitHub release asset only.
+          # Chocolatey and Scoop both unpack a zip natively.
           Compress-Archive -Path "$env:BUNDLE_DIR\*" `
             -DestinationPath "release-assets/alera-$env:RELEASE_VERSION-windows.zip"
 
@@ -354,26 +346,6 @@ jobs:
         run: |
           set -euo pipefail
           bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
-
-      - name: Stage release assets for updater
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for asset in release-assets/*; do
-            name="$(basename "$asset")"
-            # Runtime sidecars are GitHub release assets, not desktop updater artifacts.
-            if [[ "$name" == alera-runtime-* ]]; then
-              continue
-            fi
-            # So is the Windows zip: it carries the same bytes as the tar.gz the
-            # updater already ships, and staging it would add a second Windows
-            # item to the signed manifest and a duplicate payload to R2.
-            if [[ "$name" == *-windows.zip ]]; then
-              continue
-            fi
-            cp "$asset" "$ASSET_DIR/"
-          done
 
       - name: Upload updater artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -807,51 +779,25 @@ jobs:
         if: needs.plan.outputs.desktop_should_release == 'true' && needs.plan.outputs.channel == 'stable'
         run: sudo apt-get update && sudo apt-get install -y apt-utils createrepo-c
 
-      - name: Preserve existing update indexes
-        if: needs.plan.outputs.desktop_should_release == 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p public
-          preserve_index() {
-            local file="$1"
-            local url="${ALERA_UPDATE_BASE_URL}/${file}"
-            local status
-            status="$(curl -sSLo "public/${file}" -w "%{http_code}" "$url" || true)"
-            if [[ "$status" == "200" ]]; then
-              return 0
-            fi
-            rm -f "public/${file}"
-            if [[ "$status" == "404" ]]; then
-              echo "No existing ${file} index found."
-              return 0
-            fi
-            echo "::error::Failed to preserve existing ${file} index from ${url}; HTTP status ${status}."
-            exit 1
-          }
-          preserve_index app-archive.json
-          preserve_index app-archive-rc.json
-
-      - name: Generate and verify app archive
+      - name: Merge and verify desktop update channel
         if: needs.plan.outputs.desktop_should_release == 'true'
         env:
-          CHANNEL: ${{ needs.plan.outputs.channel }}
+          ALERA_RELEASE_CHANNEL: ${{ needs.plan.outputs.channel }}
           ALERA_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-          ALERA_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
           ALERA_RELEASE_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
-          ALERA_UPDATE_BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
-          ALERA_UPDATE_PATH_PREFIX: updates/${{ needs.plan.outputs.channel }}
-          ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
         run: |
-          archive_file="app-archive.json"
-          if [[ "$CHANNEL" == "rc" ]]; then
-            archive_file="app-archive-rc.json"
-          fi
-          dart tool/release/build_app_archive.dart "public/$archive_file"
-          dart tool/release/sign_app_archive.dart "public/$archive_file"
-          dart tool/release/verify_app_archive.dart "public/$archive_file"
-          echo "ALERA_ARCHIVE_FILE=$archive_file" >>"$GITHUB_ENV"
+          set -euo pipefail
+          archive_file="public/updates/${ALERA_RELEASE_CHANNEL}/app-archive.json"
+          dart tool/release/merge_desktop_update_indexes.dart \
+            public/update-index-fragments \
+            "$archive_file"
+          dart tool/release/verify_desktop_update_channel.dart \
+            public \
+            "$archive_file"
+          rm -rf public/update-index-fragments
+          echo "ALERA_ARCHIVE_FILE=updates/${ALERA_RELEASE_CHANNEL}/app-archive.json" >>"$GITHUB_ENV"
 
       - name: Generate and verify runtime archive
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1124,102 +1070,78 @@ jobs:
           set -euo pipefail
           aws s3 sync public/updates "s3://${ALERA_R2_BUCKET}/updates" \
             --endpoint-url "$R2_ENDPOINT" \
+            --exclude "*/app-archive.json" \
             --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "public/updates/${CHANNEL}/app-archive.json" \
+            "s3://${ALERA_R2_BUCKET}/updates/${CHANNEL}/app-archive.json" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --cache-control "no-cache"
           if [[ "$CHANNEL" == "stable" ]]; then
             aws s3 sync public/linux "s3://${ALERA_R2_BUCKET}/linux" \
               --endpoint-url "$R2_ENDPOINT" \
               --cache-control "public, max-age=300"
           fi
-          for archive_file in app-archive.json app-archive-rc.json; do
-            if [[ -f "public/$archive_file" ]]; then
-              aws s3 cp "public/$archive_file" "s3://${ALERA_R2_BUCKET}/$archive_file" \
-                --endpoint-url "$R2_ENDPOINT" \
-                --cache-control "no-cache"
-            fi
+          for legacy_archive in app-archive.json app-archive-rc.json; do
+            aws s3 rm "s3://${ALERA_R2_BUCKET}/${legacy_archive}" \
+              --endpoint-url "$R2_ENDPOINT"
           done
 
-      - name: Cleanup old R2 update folders
+      - name: Cleanup old R2 desktop updates
         if: needs.plan.outputs.desktop_should_release == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          CURRENT_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
-
-          protected_file="$RUNNER_TEMP/alera-r2-protected-prefixes.txt"
-          node <<'NODE' >"$protected_file"
-          const fs = require('node:fs');
-          const protectedPrefixes = new Set();
-          for (const file of ['public/app-archive.json', 'public/app-archive-rc.json']) {
-            if (!fs.existsSync(file)) continue;
-            const archive = JSON.parse(fs.readFileSync(file, 'utf8'));
-            for (const item of archive.items ?? []) {
-              if (typeof item.url !== 'string') continue;
-              const pathname = new URL(item.url).pathname.replace(/^\/+/, '');
-              const parts = pathname.split('/');
-              if (parts.length >= 3 && parts[0] === 'updates') {
-                protectedPrefixes.add(parts.slice(0, 3).join('/'));
-              }
-            }
-          }
-          for (const prefix of [...protectedPrefixes].sort()) {
-            console.log(prefix);
-          }
-          NODE
 
           cleanup_channel() {
             local channel="$1"
             local keep_count="$2"
-            local prefixes_file="$RUNNER_TEMP/alera-r2-${channel}-prefixes.txt"
-            local raw_prefixes_file="$RUNNER_TEMP/alera-r2-${channel}-raw-prefixes.txt"
-            local delete_file="$RUNNER_TEMP/alera-r2-${channel}-delete.txt"
+            local channel_listing="$RUNNER_TEMP/alera-r2-${channel}-listing.txt"
+            local versions_file="$RUNNER_TEMP/alera-r2-${channel}-versions.txt"
+            local retained_file="$RUNNER_TEMP/alera-r2-${channel}-retained.txt"
 
             if aws s3 ls "s3://${ALERA_R2_BUCKET}/updates/${channel}/" \
-              --endpoint-url "$R2_ENDPOINT" >"$raw_prefixes_file"; then
-              awk '$1 == "PRE" { sub(/\/$/, "", $2); print $2 }' "$raw_prefixes_file" >"$prefixes_file"
+              --endpoint-url "$R2_ENDPOINT" >"$channel_listing"; then
+              while IFS= read -r legacy_prefix; do
+                [[ -n "$legacy_prefix" ]] || continue
+                [[ "$legacy_prefix" == "releases" ]] && continue
+                aws s3 rm \
+                  "s3://${ALERA_R2_BUCKET}/updates/${channel}/${legacy_prefix}" \
+                  --endpoint-url "$R2_ENDPOINT" \
+                  --recursive
+              done < <(awk '$1 == "PRE" { sub(/\/$/, "", $2); print $2 }' "$channel_listing")
             else
-              : >"$prefixes_file"
+              : >"$channel_listing"
             fi
 
-            node - "$channel" "$keep_count" "$prefixes_file" "$protected_file" <<'NODE' >"$delete_file"
-          const fs = require('node:fs');
-          const [channel, keepCountRaw, prefixesFile, protectedFile] = process.argv.slice(2);
-          const keepCount = Number.parseInt(keepCountRaw, 10);
-          const prefixes = fs.existsSync(prefixesFile)
-            ? fs.readFileSync(prefixesFile, 'utf8').split(/\r?\n/).filter(Boolean)
-            : [];
-          const protectedPrefixes = new Set(
-            fs.existsSync(protectedFile)
-              ? fs.readFileSync(protectedFile, 'utf8').split(/\r?\n/).filter(Boolean)
-              : [],
-          );
-          const platformSuffix = /-(macos|windows|linux)$/;
-          const groupFor = (prefix) => prefix.replace(platformSuffix, '');
-          const buildNumberFor = (group) => {
-            const match = group.match(/\+(\d+)$/);
-            return match ? Number.parseInt(match[1], 10) : 0;
-          };
-          const groups = [...new Set(prefixes.map(groupFor))].sort((left, right) => {
-            const buildDiff = buildNumberFor(left) - buildNumberFor(right);
-            return buildDiff === 0 ? left.localeCompare(right) : buildDiff;
-          });
-          const retainedGroups = new Set(groups.slice(Math.max(0, groups.length - keepCount)));
-          for (const prefix of prefixes) {
-            const fullPrefix = `updates/${channel}/${prefix}`;
-            if (!retainedGroups.has(groupFor(prefix)) && !protectedPrefixes.has(fullPrefix)) {
-              console.log(fullPrefix);
-            }
-          }
-          NODE
+            if aws s3 ls \
+              "s3://${ALERA_R2_BUCKET}/updates/${channel}/releases/" \
+              --endpoint-url "$R2_ENDPOINT" >"$channel_listing"; then
+              awk '$1 == "PRE" { sub(/\/$/, "", $2); print $2 }' \
+                "$channel_listing" \
+                | sort -V >"$versions_file"
+            else
+              : >"$versions_file"
+            fi
+            {
+              tail -n "$keep_count" "$versions_file"
+              echo "$CURRENT_VERSION"
+            } | sort -u >"$retained_file"
 
-            while IFS= read -r prefix; do
-              [[ -n "$prefix" ]] || continue
-              aws s3 rm "s3://${ALERA_R2_BUCKET}/${prefix}" \
+            while IFS= read -r version; do
+              [[ -n "$version" ]] || continue
+              if grep -Fxq "$version" "$retained_file"; then
+                continue
+              fi
+              aws s3 rm \
+                "s3://${ALERA_R2_BUCKET}/updates/${channel}/releases/${version}" \
                 --endpoint-url "$R2_ENDPOINT" \
                 --recursive
-            done <"$delete_file"
+            done <"$versions_file"
           }
 
           cleanup_channel stable "$ALERA_STABLE_RELEASES_TO_KEEP"
