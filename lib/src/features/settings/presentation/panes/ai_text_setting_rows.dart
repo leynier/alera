@@ -143,6 +143,121 @@ class AiTextThinkingRow extends StatelessWidget {
   }
 }
 
+class AiTextPromptAgentRow extends StatelessWidget {
+  const AiTextPromptAgentRow({
+    super.key,
+    required this.operation,
+    required this.globalAgent,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final AiTextGenerationOperation operation;
+  final AiTextGenerationAgent globalAgent;
+  final AiTextGenerationAgent? value;
+  final ValueChanged<AiTextGenerationAgent?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraSettingRow(
+      title: '${operation.label} Agent',
+      description: 'Override The Global Agent For This Prompt.',
+      child: AleraDropdownField<AiTextGenerationAgent?>(
+        key: ValueKey<String>(
+          'ai-text-${operation.key}-agent-${value?.key ?? 'global'}',
+        ),
+        value: value,
+        entries: <AleraDropdownFieldEntry<AiTextGenerationAgent?>>[
+          AleraDropdownFieldEntry<AiTextGenerationAgent?>(
+            value: null,
+            label: 'Global (${globalAgent.label})',
+          ),
+          for (final agent in AiTextGenerationAgent.values)
+            AleraDropdownFieldEntry<AiTextGenerationAgent?>(
+              value: agent,
+              label: agent.label,
+            ),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class AiTextPromptModelRow extends StatelessWidget {
+  const AiTextPromptModelRow({
+    super.key,
+    required this.operation,
+    required this.agent,
+    required this.models,
+    required this.inheritedModel,
+    required this.value,
+    required this.discovering,
+    required this.discoveryError,
+    required this.onRefreshModels,
+    required this.onChanged,
+  });
+
+  final AiTextGenerationOperation operation;
+  final AiTextGenerationAgent agent;
+  final List<AiTextModel> models;
+  final AiTextModel inheritedModel;
+  final String? value;
+  final bool discovering;
+  final String? discoveryError;
+  final VoidCallback? onRefreshModels;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value?.trim();
+    final entries = <AiTextModel>[
+      ...models,
+      if (selected != null &&
+          selected.isNotEmpty &&
+          !models.any((model) => model.id == selected))
+        modelForAgent(agent, selected),
+    ];
+    return AleraSettingRow(
+      title: '${operation.label} Model',
+      description:
+          discoveryError ?? 'Override The Global Model For This Prompt.',
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: AleraDropdownField<String?>(
+              key: ValueKey<String>(
+                'ai-text-${operation.key}-model-${selected ?? 'global'}',
+              ),
+              value: selected == null || selected.isEmpty ? null : selected,
+              entries: <AleraDropdownFieldEntry<String?>>[
+                AleraDropdownFieldEntry<String?>(
+                  value: null,
+                  label: 'Global (${inheritedModel.label})',
+                ),
+                for (final model in entries)
+                  AleraDropdownFieldEntry<String?>(
+                    value: model.id,
+                    label: model.label,
+                  ),
+              ],
+              onChanged: onChanged,
+            ),
+          ),
+          if (onRefreshModels != null) ...<Widget>[
+            const SizedBox(width: AleraTokens.space8),
+            AleraIconButton(
+              tooltip: 'Refresh Models',
+              icon: discovering ? AleraIcons.sync : AleraIcons.refresh,
+              onPressed: discovering ? null : onRefreshModels,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class InstructionSettingRow extends StatefulWidget {
   const InstructionSettingRow({
     super.key,

@@ -45,9 +45,13 @@ ProjectConfig parseProjectConfigToml(String contents) {
   }
   final root = Map<String, Object?>.from(decoded);
   final provider = _gitHostingProviderFrom(root['git_hosting_provider']);
+  final newWorkspace = _newWorkspaceConfigFrom(root['new_workspace']);
   final worktreeValue = root['worktree'];
   if (worktreeValue == null) {
-    return ProjectConfig(gitHostingProvider: provider);
+    return ProjectConfig(
+      newWorkspace: newWorkspace,
+      gitHostingProvider: provider,
+    );
   }
   if (worktreeValue is! Map) {
     throw ProjectConfigException('alera.toml [worktree] must be a table');
@@ -58,8 +62,29 @@ ProjectConfig parseProjectConfigToml(String contents) {
   final setup = _setupCommandsFrom(worktree['setup']);
   return ProjectConfig(
     worktree: WorktreeSetupConfig(copy: copyRules, setup: setup),
+    newWorkspace: newWorkspace,
     gitHostingProvider: provider,
   );
+}
+
+NewWorkspaceConfig _newWorkspaceConfigFrom(Object? value) {
+  if (value == null) {
+    return NewWorkspaceConfig.defaults;
+  }
+  if (value is! Map) {
+    throw ProjectConfigException('alera.toml [new_workspace] must be a table');
+  }
+  final table = Map<String, Object?>.from(value);
+  final promptAppend = table['prompt_append'];
+  if (promptAppend == null) {
+    return NewWorkspaceConfig.defaults;
+  }
+  if (promptAppend is! String) {
+    throw ProjectConfigException(
+      'new_workspace.prompt_append must be a string',
+    );
+  }
+  return NewWorkspaceConfig(promptAppend: promptAppend.trim());
 }
 
 GitHostingProvider? _gitHostingProviderFrom(Object? value) {

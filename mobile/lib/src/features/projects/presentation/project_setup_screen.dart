@@ -22,6 +22,7 @@ class ProjectSetupScreen extends ConsumerStatefulWidget {
 class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   final List<_CopyRuleDraft> _copyRules = <_CopyRuleDraft>[];
   final TextEditingController _commandsController = TextEditingController();
+  final TextEditingController _promptAppendController = TextEditingController();
   String? _provider;
   String _origin = 'none';
   String? _loadError;
@@ -40,6 +41,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
       rule.dispose();
     }
     _commandsController.dispose();
+    _promptAppendController.dispose();
     super.dispose();
   }
 
@@ -57,6 +59,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         ..clear()
         ..addAll(effective.config.copyRules.map(_CopyRuleDraft.fromRule));
       _commandsController.text = effective.config.setupCommands.join('\n');
+      _promptAppendController.text = effective.config.promptAppend;
       setState(() {
         _provider = effective.config.gitHostingProvider;
         _origin = effective.origin;
@@ -141,6 +144,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
           .map((value) => value.trim())
           .where((value) => value.isNotEmpty)
           .toList(growable: false),
+      promptAppend: _promptAppendController.text.trim(),
       gitHostingProvider: _provider,
     );
   }
@@ -208,6 +212,20 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                       DropdownMenuItem(value: 'gitlab', child: Text('GitLab')),
                     ],
                     onChanged: (value) => setState(() => _provider = value),
+                  ),
+                  const SizedBox(height: AleraTokens.spaceXl),
+                  Text(
+                    'New Workspace Prompt Append',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AleraTokens.spaceSm),
+                  TextField(
+                    controller: _promptAppendController,
+                    minLines: 3,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      hintText: 'Add Project-Specific Agent Instructions',
+                    ),
                   ),
                   const SizedBox(height: AleraTokens.spaceXl),
                   Row(

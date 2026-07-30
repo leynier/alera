@@ -97,7 +97,12 @@ class CliAiTextGenerationService implements AiTextGenerationService {
         throw const AiTextGenerationCanceledException();
       }
       final environment = await commandEnvironmentResolver.environment();
-      plan = await _planCommand(request.settings, prompt, environment);
+      plan = await _planCommand(
+        request.settings,
+        request.operation,
+        prompt,
+        environment,
+      );
       if (_canceled.contains(key)) {
         throw const AiTextGenerationCanceledException();
       }
@@ -298,23 +303,25 @@ class CliAiTextGenerationService implements AiTextGenerationService {
 
   Future<_AiTextCommandPlan> _planCommand(
     AiTextGenerationSettings settings,
+    AiTextGenerationOperation operation,
     String prompt,
     Map<String, String> environment,
   ) async {
-    if (settings.agent == AiTextGenerationAgent.custom) {
+    final agent = settings.agentFor(operation);
+    if (agent == AiTextGenerationAgent.custom) {
       return _planCustomCommand(settings.customCommand, prompt);
     }
-    final spec = aiTextAgentSpecs[settings.agent];
+    final spec = aiTextAgentSpecs[agent];
     if (spec == null) {
       throw AiTextGenerationException(
-        '${settings.agent.label} does not support AI text generation.',
+        '${agent.label} does not support AI text generation.',
       );
     }
     final model = modelForAgent(
-      settings.agent,
-      settings.modelFor(settings.agent) ??
-          defaultModelIdForAgent(settings.agent, settings),
-      extraModels: discoveredModelsForAgent(settings, settings.agent),
+      agent,
+      settings.modelForOperation(operation) ??
+          defaultModelIdForAgent(agent, settings),
+      extraModels: discoveredModelsForAgent(settings, agent),
     );
     final thinking =
         settings.thinkingForModel(model.id) ?? model.defaultThinkingLevel;
@@ -337,7 +344,7 @@ class CliAiTextGenerationService implements AiTextGenerationService {
         );
         await promptFile.writeAsString(prompt, flush: true);
         deliveredPrompt = promptFile.path;
-        if (settings.agent == AiTextGenerationAgent.grok) {
+        if (agent == AiTextGenerationAgent.grok) {
           final grokHome = Directory(p.join(promptDirectory.path, 'grok-home'));
           await grokHome.create();
           await _copyGrokRuntimeConfiguration(grokHome, environment);

@@ -46,6 +46,32 @@ setup = ["pnpm install", "make bootstrap"]
       expect(config.worktree.setup, <String>['pnpm install', 'make bootstrap']);
     });
 
+    test('parses New Workspace prompt append instructions', () {
+      final config = parseProjectConfigToml('''
+[new_workspace]
+prompt_append = """
+Run The Focused Tests.
+Preserve Existing APIs.
+"""
+''');
+
+      expect(
+        config.newWorkspace.promptAppend,
+        'Run The Focused Tests.\nPreserve Existing APIs.',
+      );
+      expect(config.isEmpty, isFalse);
+    });
+
+    test('rejects a non-string New Workspace prompt append', () {
+      expect(
+        () => parseProjectConfigToml('''
+[new_workspace]
+prompt_append = ["invalid"]
+'''),
+        throwsA(isA<ProjectConfigException>()),
+      );
+    });
+
     test('returns empty config when the worktree table is absent', () {
       final config = parseProjectConfigToml('title = "Alera"');
 

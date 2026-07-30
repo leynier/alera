@@ -253,7 +253,27 @@ fn validate_ai_text_generation_settings(
     if !AGENTS.contains(&settings.agent.trim()) {
         return Err(HostError::format("aiTextGeneration.agent is unsupported."));
     }
-    if settings.agent.trim() == "custom" && settings.custom_command.trim().is_empty() {
+    if settings
+        .prompt_settings_by_operation
+        .values()
+        .filter_map(|prompt| prompt.agent.as_deref())
+        .any(|agent| !AGENTS.contains(&agent.trim()))
+    {
+        return Err(HostError::format(
+            "aiTextGeneration prompt agent is unsupported.",
+        ));
+    }
+    let uses_custom_agent = settings.agent.trim() == "custom"
+        || settings
+            .prompt_settings_by_operation
+            .values()
+            .any(|prompt| {
+                prompt
+                    .agent
+                    .as_deref()
+                    .is_some_and(|agent| agent.trim() == "custom")
+            });
+    if uses_custom_agent && settings.custom_command.trim().is_empty() {
         return Err(HostError::format(
             "aiTextGeneration.customCommand is required for the custom agent.",
         ));

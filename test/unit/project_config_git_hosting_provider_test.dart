@@ -48,5 +48,21 @@ void main() {
         GitHostingProvider.gitlab,
       );
     });
+
+    test('round-trips New Workspace prompt append through JSON', () {
+      const config = ProjectConfig(
+        newWorkspace: NewWorkspaceConfig(
+          promptAppend: 'Follow The Project Conventions.',
+        ),
+      );
+
+      final restored = ProjectConfig.fromJson(config.toMap());
+
+      expect(
+        restored.newWorkspace.promptAppend,
+        'Follow The Project Conventions.',
+      );
+      expect(restored.isEmpty, isFalse);
+    });
   });
 }

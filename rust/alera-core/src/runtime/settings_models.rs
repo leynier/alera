@@ -75,8 +75,19 @@ pub struct RuntimeAiTextGenerationSettings {
     pub custom_command: String,
     #[serde(default)]
     pub instructions_by_operation: HashMap<String, String>,
+    #[serde(default)]
+    pub prompt_settings_by_operation: HashMap<String, RuntimeAiTextPromptSettings>,
     #[serde(default = "default_ai_text_timeout")]
     pub timeout_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeAiTextPromptSettings {
+    #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 impl Default for RuntimeAiTextGenerationSettings {
@@ -88,6 +99,7 @@ impl Default for RuntimeAiTextGenerationSettings {
             selected_thinking_by_model: HashMap::new(),
             custom_command: String::new(),
             instructions_by_operation: HashMap::new(),
+            prompt_settings_by_operation: HashMap::new(),
             timeout_seconds: default_ai_text_timeout(),
         }
     }
@@ -100,6 +112,23 @@ impl RuntimeAiTextGenerationSettings {
         self.selected_model_by_agent = normalized_string_map(self.selected_model_by_agent);
         self.selected_thinking_by_model = normalized_string_map(self.selected_thinking_by_model);
         self.instructions_by_operation = normalized_string_map(self.instructions_by_operation);
+        self.prompt_settings_by_operation = self
+            .prompt_settings_by_operation
+            .into_iter()
+            .filter_map(|(operation, settings)| {
+                let operation = operation.trim().to_string();
+                let agent = settings
+                    .agent
+                    .map(|value| value.trim().to_ascii_lowercase())
+                    .filter(|value| !value.is_empty());
+                let model = settings
+                    .model
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty());
+                (!operation.is_empty() && (agent.is_some() || model.is_some()))
+                    .then_some((operation, RuntimeAiTextPromptSettings { agent, model }))
+            })
+            .collect();
         self.timeout_seconds = self.timeout_seconds.clamp(10, 600);
         self
     }

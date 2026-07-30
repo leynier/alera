@@ -20,6 +20,12 @@ setup = [
   "pnpm install",
   "make bootstrap"
 ]
+
+[new_workspace]
+prompt_append = """
+Follow the project's contributor instructions.
+Run the focused tests before finishing.
+"""
 ```
 
 `copy` entries copy files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`, and `overwrite` defaults to `false`.
@@ -27,6 +33,12 @@ setup = [
 `setup` commands run sequentially from the new linked workspace root. When they run inline (see below) they stop on the first non-zero exit code.
 
 Paths are repo-relative literal paths. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of v1.
+
+## New Workspace Prompt Append
+
+`new_workspace.prompt_append` is optional project-specific text added to the initial prompt immediately before Alera starts the selected agent profile from the **New Workspace** flow. Alera separates the user prompt and the configured text with a blank line. It does not send this append text through AI Text and does not use it to generate the workspace name or branch.
+
+Like the worktree settings, this value can be stored in `alera.toml` or edited under **Settings > Projects**. A UI override replaces the complete repository config for that project, including this value.
 
 ## Where the setup runs
 

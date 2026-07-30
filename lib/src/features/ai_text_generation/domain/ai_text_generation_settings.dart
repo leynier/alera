@@ -90,6 +90,19 @@ class AiTextDiscoveredModel with AiTextDiscoveredModelMappable {
 }
 
 @MappableClass()
+class AiTextGenerationPromptSettings
+    with AiTextGenerationPromptSettingsMappable {
+  const AiTextGenerationPromptSettings({this.agent, this.model});
+
+  final AiTextGenerationAgent? agent;
+  final String? model;
+
+  bool get inheritsAgent => agent == null;
+
+  bool get inheritsModel => model == null || model!.trim().isEmpty;
+}
+
+@MappableClass()
 class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
   const AiTextGenerationSettings({
     this.enabled = true,
@@ -102,6 +115,8 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
         const <AiTextGenerationAgent, String>{},
     this.customCommand = '',
     this.instructionsByOperation = const <AiTextGenerationOperation, String>{},
+    this.promptSettingsByOperation =
+        const <AiTextGenerationOperation, AiTextGenerationPromptSettings>{},
     this.timeoutSeconds = 120,
   });
 
@@ -114,6 +129,8 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
   final Map<AiTextGenerationAgent, String> discoveredDefaultModelByAgent;
   final String customCommand;
   final Map<AiTextGenerationOperation, String> instructionsByOperation;
+  final Map<AiTextGenerationOperation, AiTextGenerationPromptSettings>
+  promptSettingsByOperation;
   final int timeoutSeconds;
 
   String? modelFor(AiTextGenerationAgent agent) {
@@ -131,6 +148,26 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
 
   String instructionsFor(AiTextGenerationOperation operation) {
     return instructionsByOperation[operation]?.trim() ?? '';
+  }
+
+  AiTextGenerationPromptSettings promptSettingsFor(
+    AiTextGenerationOperation operation,
+  ) {
+    return promptSettingsByOperation[operation] ??
+        const AiTextGenerationPromptSettings();
+  }
+
+  AiTextGenerationAgent agentFor(AiTextGenerationOperation operation) {
+    return promptSettingsFor(operation).agent ?? agent;
+  }
+
+  String? modelForOperation(AiTextGenerationOperation operation) {
+    final promptSettings = promptSettingsFor(operation);
+    final override = promptSettings.model?.trim();
+    if (override != null && override.isNotEmpty) {
+      return override;
+    }
+    return modelFor(agentFor(operation));
   }
 
   List<AiTextDiscoveredModel> discoveredModelsFor(AiTextGenerationAgent agent) {

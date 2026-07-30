@@ -24,6 +24,21 @@ impl ServerActor {
                 "Workspace is not active: {workspace_id}"
             )));
         }
+        let effective_config = crate::project_management::effective_project_config(
+            &self.runtime_store,
+            &workspace.project_id,
+        )
+        .await
+        .map_err(|error| HostError::state(error.to_string()))?;
+        if let Some(error) = effective_config.error {
+            return Err(HostError::state(format!(
+                "Could not load project configuration: {error}"
+            )));
+        }
+        let prompt = append_project_prompt(
+            &prompt,
+            &effective_config.config.new_workspace.prompt_append,
+        );
         let profile = self
             .runtime_store
             .find_agent_profile(&profile_id)
@@ -135,5 +150,34 @@ impl ServerActor {
             tracing::error!(tab_id = %tab_id, "failed to clear pending agent prompt: {error}");
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
+    }
+}
+
+fn append_project_prompt(prompt: &str, prompt_append: &str) -> String {
+    let prompt_append = prompt_append.trim();
+    if prompt_append.is_empty() {
+        return prompt.to_string();
+    }
+    format!("{}\n\n{prompt_append}", prompt.trim())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::append_project_prompt;
+
+    #[test]
+    fn appends_project_instructions_with_a_paragraph_boundary() {
+        assert_eq!(
+            append_project_prompt("Build The Feature", "Run Focused Tests"),
+            "Build The Feature\n\nRun Focused Tests"
+        );
+    }
+
+    #[test]
+    fn leaves_the_prompt_unchanged_without_project_instructions() {
+        assert_eq!(
+            append_project_prompt("Build The Feature", "  "),
+            "Build The Feature"
+        );
     }
 }

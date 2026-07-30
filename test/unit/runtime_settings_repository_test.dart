@@ -23,6 +23,7 @@ void main() {
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
       final aiText = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiText['agent'], 'codex');
+      expect(aiText['promptSettingsByOperation'], isA<Map<String, Object?>>());
       expect(aiText, isNot(contains('discoveredModelsByAgent')));
       expect(
         (payload['agentQuotas']! as Map<String, Object?>)['enabledProviders'],
@@ -108,6 +109,12 @@ void main() {
           'instructionsByOperation': <String, String>{
             'workspaceIdentity': 'Use feature branches.',
           },
+          'promptSettingsByOperation': <String, Object?>{
+            'workspaceIdentity': <String, Object?>{
+              'agent': 'claude',
+              'model': 'opus',
+            },
+          },
           'timeoutSeconds': 180,
         },
       };
@@ -124,6 +131,18 @@ void main() {
           AiTextGenerationOperation.workspaceIdentity,
         ),
         'Use feature branches.',
+      );
+      expect(
+        loaded.aiTextGeneration.agentFor(
+          AiTextGenerationOperation.workspaceIdentity,
+        ),
+        AiTextGenerationAgent.claude,
+      );
+      expect(
+        loaded.aiTextGeneration.modelForOperation(
+          AiTextGenerationOperation.workspaceIdentity,
+        ),
+        'opus',
       );
       expect(
         loaded.aiTextGeneration
