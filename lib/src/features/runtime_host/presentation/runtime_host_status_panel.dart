@@ -134,6 +134,16 @@ class RuntimeHostStatusPanel extends StatelessWidget {
                   label: 'Bundled Version',
                   value: runtimeHostVersionLabel(status?.bundledVersion),
                 ),
+                if (status?.hasBuildMismatch == true) ...<Widget>[
+                  _StatusRow(
+                    label: 'Host Build',
+                    value: _runtimeHostBuildLabel(status?.runtimeHostCommit),
+                  ),
+                  _StatusRow(
+                    label: 'Bundled Build',
+                    value: _runtimeHostBuildLabel(status?.bundledCommit),
+                  ),
+                ],
                 if (status?.persistent == true)
                   const _StatusRow(label: 'Lifecycle', value: 'Persistent'),
                 _StatusRow(
@@ -266,6 +276,14 @@ String runtimeHostVersionLabel(String? version) {
     return '-';
   }
   return value.startsWith('v') || value.startsWith('V') ? value : 'v$value';
+}
+
+String _runtimeHostBuildLabel(String? commit) {
+  final value = commit?.trim() ?? '';
+  if (value.isEmpty) {
+    return '-';
+  }
+  return value.length <= 7 ? value : value.substring(0, 7);
 }
 
 Color _chipColor(RuntimeHostStatusSnapshot? snapshot, {required bool loading}) {

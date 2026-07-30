@@ -38,7 +38,7 @@ void main() {
   });
 
   group('RuntimeHostStatusSnapshot.updateAvailable', () {
-    test('is true only when bundled is strictly newer than running', () {
+    test('uses version ordering before commit identity', () {
       expect(
         const RuntimeHostStatusSnapshot(
           running: true,
@@ -52,6 +52,8 @@ void main() {
           running: true,
           bundledVersion: '1.2.3',
           runtimeHostVersion: '1.2.3',
+          bundledCommit: 'same',
+          runtimeHostCommit: 'same',
         ).updateAvailable,
         isFalse,
       );
@@ -60,6 +62,8 @@ void main() {
           running: true,
           bundledVersion: '1.2.0',
           runtimeHostVersion: '1.2.3',
+          bundledCommit: 'bundled',
+          runtimeHostCommit: 'running',
         ).updateAvailable,
         isFalse,
       );
@@ -84,6 +88,62 @@ void main() {
           running: true,
           bundledVersion: '1.3.0',
         ).updateAvailable,
+        isFalse,
+      );
+    });
+
+    test('detects different known builds at the same version', () {
+      const mismatch = RuntimeHostStatusSnapshot(
+        running: true,
+        bundledVersion: '0.1.0',
+        bundledCommit: '9d848d7',
+        runtimeHostVersion: '0.1.0',
+        runtimeHostCommit: '1032e34',
+      );
+      expect(mismatch.hasBuildMismatch, isTrue);
+      expect(mismatch.updateAvailable, isTrue);
+
+      for (final bundledCommit in <String?>[null, '', 'unknown', ' UNKNOWN ']) {
+        final unknownBuild = RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '0.1.0',
+          bundledCommit: bundledCommit,
+          runtimeHostVersion: '0.1.0',
+          runtimeHostCommit: '1032e34',
+        );
+        expect(unknownBuild.hasBuildMismatch, isFalse);
+        expect(unknownBuild.updateAvailable, isFalse);
+      }
+    });
+
+    test('build mismatch requires a running host at the same version', () {
+      expect(
+        const RuntimeHostStatusSnapshot(
+          running: false,
+          bundledVersion: '0.1.0',
+          bundledCommit: 'bundled',
+          runtimeHostVersion: '0.1.0',
+          runtimeHostCommit: 'running',
+        ).hasBuildMismatch,
+        isFalse,
+      );
+      expect(
+        const RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '0.1.0',
+          bundledCommit: 'bundled',
+          runtimeHostCommit: 'running',
+        ).hasBuildMismatch,
+        isFalse,
+      );
+      expect(
+        const RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '0.2.0',
+          bundledCommit: 'bundled',
+          runtimeHostVersion: '0.1.0',
+          runtimeHostCommit: 'running',
+        ).hasBuildMismatch,
         isFalse,
       );
     });

@@ -225,7 +225,7 @@ void main() {
       expect(client.shutdownCalls, <bool>[false, true]);
     });
 
-    test('updateIfNewer stops and starts when bundled is newer', () async {
+    test('updateIfAvailable stops and starts when bundled is newer', () async {
       final client = _FakeRuntimeClient(
         status: <String, Object?>{'runtimeHostVersion': '1.2.0'},
       );
@@ -238,9 +238,91 @@ void main() {
         shutdownSettleTimeout: const Duration(milliseconds: 50),
       );
 
-      await service.updateIfNewer();
+      await service.updateIfAvailable();
 
       expect(client.shutdownCalls, <bool>[false]);
+      expect(client.ensureStartedCalls, 1);
+    });
+
+    test('updateIfAvailable replaces a different same-version build', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '0.1.0',
+          'runtimeHostCommit': '1032e34',
+        },
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '0.1.0', commit: '9d848d7'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+        shutdownSettleTimeout: const Duration(milliseconds: 50),
+      );
+
+      await service.updateIfAvailable();
+
+      expect(client.shutdownCalls, <bool>[false]);
+      expect(client.ensureStartedCalls, 1);
+    });
+
+    test('updateIfAvailable preserves a busy host when declined', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '0.1.0',
+          'runtimeHostCommit': 'old',
+        },
+        busyOnSoftStop: true,
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+      );
+
+      await service.updateIfAvailable(
+        confirmForce:
+            ({
+              required String title,
+              required String message,
+              required String confirmLabel,
+            }) async => false,
+      );
+
+      expect(client.shutdownCalls, <bool>[false]);
+      expect(client.ensureStartedCalls, 0);
+      expect(await client.probeRuntimeStatus(), isNotNull);
+    });
+
+    test('updateIfAvailable force replaces a confirmed busy host', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '0.1.0',
+          'runtimeHostCommit': 'old',
+        },
+        busyOnSoftStop: true,
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+        shutdownSettleTimeout: const Duration(milliseconds: 50),
+      );
+
+      await service.updateIfAvailable(
+        confirmForce:
+            ({
+              required String title,
+              required String message,
+              required String confirmLabel,
+            }) async => true,
+      );
+
+      expect(client.shutdownCalls, <bool>[false, true]);
       expect(client.ensureStartedCalls, 1);
     });
 
