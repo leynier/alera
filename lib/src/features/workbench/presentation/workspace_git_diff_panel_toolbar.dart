@@ -134,7 +134,7 @@ class _SourceControlToolbar extends StatelessWidget {
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
                 tooltip: 'Refresh',
-                icon: AleraIcons.refresh,
+                icon: AleraIcons.gitRefresh,
                 onPressed: busy ? null : onRefresh,
               ),
             ],
@@ -501,7 +501,7 @@ class _PrimaryActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = this.action;
     final label = action == null ? 'Fetch' : _actionLabel(action);
-    final icon = action == null ? AleraIcons.download : _actionIcon(action);
+    final icon = action == null ? AleraIcons.gitFetch : _actionIcon(action);
     final enabled = onPressed != null && !busy;
     final textStyle = Theme.of(
       context,
@@ -616,88 +616,88 @@ class _PrimaryActionButton extends StatelessWidget {
         value: _SourceControlMenuAction.commit,
         label: 'Commit',
         enabled: hasStaged && !hasConflicts,
-        leading: const Icon(AleraIcons.check, size: 16),
+        leading: const Icon(AleraIcons.gitCommit, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.commitPush,
         label: 'Commit & Push',
         enabled: hasStaged && !hasConflicts,
-        leading: const Icon(AleraIcons.arrowUp, size: 16),
+        leading: const Icon(AleraIcons.gitPush, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.commitSync,
         label: 'Commit & Sync',
         enabled: hasStaged && !hasConflicts && hasUpstream,
-        leading: const Icon(AleraIcons.sync, size: 16),
+        leading: const Icon(AleraIcons.gitSync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.amend,
         label: 'Commit Amend',
         enabled: hasStaged && !hasConflicts && hasHeadCommit,
-        leading: const Icon(AleraIcons.edit, size: 16),
+        leading: const Icon(AleraIcons.gitAmend, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stageAll,
         label: 'Stage All',
         enabled: state?.hasStageableChanges ?? false,
-        leading: const Icon(AleraIcons.add, size: 16),
+        leading: const Icon(AleraIcons.gitStage, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.unstageAll,
         label: 'Unstage All',
         enabled: hasStaged,
-        leading: const Icon(AleraIcons.remove, size: 16),
+        leading: const Icon(AleraIcons.gitUnstage, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.discardAll,
         label: 'Discard All',
         enabled: hasDiscardable,
-        leading: const Icon(AleraIcons.close, size: 16),
+        leading: const Icon(AleraIcons.gitDiscard, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.fetch,
         label: 'Fetch',
         enabled: hasData,
-        leading: const Icon(AleraIcons.download, size: 16),
+        leading: const Icon(AleraIcons.gitFetch, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.pull,
         label: 'Pull',
         enabled: hasData,
-        leading: const Icon(AleraIcons.arrowDown, size: 16),
+        leading: const Icon(AleraIcons.gitPull, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.push,
         label: 'Push',
         enabled: hasData && !hasConflicts,
-        leading: const Icon(AleraIcons.arrowUp, size: 16),
+        leading: const Icon(AleraIcons.gitPush, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.sync,
         label: 'Sync',
         enabled: hasData && !hasConflicts && hasUpstream,
-        leading: const Icon(AleraIcons.sync, size: 16),
+        leading: const Icon(AleraIcons.gitSync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.publishBranch,
         label: 'Publish Branch',
         enabled: canPublish,
-        leading: const Icon(AleraIcons.cloudUpload, size: 16),
+        leading: const Icon(AleraIcons.gitPublish, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stash,
         label: 'Stash',
         enabled: hasStashable,
-        leading: const Icon(AleraIcons.package, size: 16),
+        leading: const Icon(AleraIcons.gitStash, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stashPop,
         label: 'Stash Pop',
         enabled: hasStashes,
-        leading: const Icon(AleraIcons.unarchive, size: 16),
+        leading: const Icon(AleraIcons.gitStashPop, size: 16),
       ),
     ];
   }
@@ -724,21 +724,21 @@ class _PrimaryActionButton extends StatelessWidget {
 
   IconData _actionIcon(_SourceControlMenuAction action) {
     return switch (action) {
-      _SourceControlMenuAction.commit => AleraIcons.check,
-      _SourceControlMenuAction.amend => AleraIcons.edit,
+      _SourceControlMenuAction.commit => AleraIcons.gitCommit,
+      _SourceControlMenuAction.amend => AleraIcons.gitAmend,
       _SourceControlMenuAction.commitPush ||
-      _SourceControlMenuAction.push => AleraIcons.arrowUp,
+      _SourceControlMenuAction.push => AleraIcons.gitPush,
       _SourceControlMenuAction.commitSync ||
-      _SourceControlMenuAction.sync => AleraIcons.sync,
-      _SourceControlMenuAction.stageAll => AleraIcons.add,
-      _SourceControlMenuAction.unstageAll => AleraIcons.remove,
-      _SourceControlMenuAction.discardAll => AleraIcons.close,
-      _SourceControlMenuAction.fetch => AleraIcons.download,
-      _SourceControlMenuAction.pull => AleraIcons.arrowDown,
-      _SourceControlMenuAction.publishBranch => AleraIcons.cloudUpload,
-      _SourceControlMenuAction.stash => AleraIcons.package,
-      _SourceControlMenuAction.stashPop => AleraIcons.unarchive,
-      _SourceControlMenuAction.refresh => AleraIcons.refresh,
+      _SourceControlMenuAction.sync => AleraIcons.gitSync,
+      _SourceControlMenuAction.stageAll => AleraIcons.gitStage,
+      _SourceControlMenuAction.unstageAll => AleraIcons.gitUnstage,
+      _SourceControlMenuAction.discardAll => AleraIcons.gitDiscard,
+      _SourceControlMenuAction.fetch => AleraIcons.gitFetch,
+      _SourceControlMenuAction.pull => AleraIcons.gitPull,
+      _SourceControlMenuAction.publishBranch => AleraIcons.gitPublish,
+      _SourceControlMenuAction.stash => AleraIcons.gitStash,
+      _SourceControlMenuAction.stashPop => AleraIcons.gitStashPop,
+      _SourceControlMenuAction.refresh => AleraIcons.gitRefresh,
     };
   }
 }
