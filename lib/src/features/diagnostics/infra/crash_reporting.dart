@@ -68,7 +68,7 @@ abstract final class CrashReporting {
     options.beforeSend = (event, hint) async => filterEvent(event);
   }
 
-  /// Starts Sentry and runs [appRunner] inside it.
+  /// Starts Sentry and then runs [appRunner] in the caller's zone.
   ///
   /// Initialization happens regardless of the setting so the switch can be
   /// flipped later without a restart; nothing is transmitted while it is off.
@@ -78,15 +78,11 @@ abstract final class CrashReporting {
     required FutureOr<void> Function() appRunner,
   }) async {
     setEnabled(enabled);
-    if (_initialized) {
-      await appRunner();
-      return;
+    if (!_initialized) {
+      _initialized = true;
+      await Sentry.init((options) => _applyOptions(options, release));
     }
-    _initialized = true;
-    await Sentry.init(
-      (options) => _applyOptions(options, release),
-      appRunner: () async => appRunner(),
-    );
+    await appRunner();
   }
 
   /// Test seam so a suite can exercise the filter without a live client.

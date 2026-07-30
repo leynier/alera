@@ -5,6 +5,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -31,16 +32,16 @@ Level loggingLevelFor(DiagnosticsLogLevel level) {
 /// change so turning reporting off stops it immediately.
 @Riverpod(keepAlive: true)
 void diagnosticsSettingsApplier(Ref ref) {
-  DiagnosticsSettings diagnostics;
-  try {
-    diagnostics = ref.watch(
-      settingsControllerProvider.select((settings) => settings.diagnostics),
-    );
-  } on Object {
-    // Settings are unavailable, typically because the local database failed to
-    // open. Diagnostics must never be the reason the app cannot start: fall
-    // back to the safe defaults and let the shell show its own error.
-    diagnostics = DiagnosticsSettings.defaults;
+  var diagnostics = DiagnosticsSettings.defaults;
+  if (ref.watch(aleraDatabaseProvider).hasValue) {
+    try {
+      diagnostics = ref.watch(
+        settingsControllerProvider.select((settings) => settings.diagnostics),
+      );
+    } on Object {
+      // Diagnostics must never be the reason the app cannot start. Keep the safe
+      // defaults and let the shell surface the settings failure.
+    }
   }
   AppLogger.setLevel(loggingLevelFor(diagnostics.logLevel));
   CrashReporting.setEnabled(diagnostics.crashReportingEnabled);
