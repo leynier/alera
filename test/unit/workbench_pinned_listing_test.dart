@@ -102,6 +102,29 @@ void main() {
     expect(filteredRows.whereType<WorkbenchPinnedHeaderRow>(), isEmpty);
   });
 
+  test('can omit pinned workspaces from project sections below', () {
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(
+      showPinnedWorkspacesBelow: false,
+    );
+    final rows = buildSidebarRows(_state(prefs: prefs));
+    final featureRows = rows
+        .whereType<WorkbenchWorkspaceRow>()
+        .where((row) => row.workspace.id == 'feature')
+        .toList();
+
+    expect(featureRows, hasLength(1));
+    expect(featureRows.single.isPinnedCopy, isTrue);
+    expect(
+      rows
+          .whereType<WorkbenchProjectHeaderRow>()
+          .firstWhere((row) => row.project.id == 'alera')
+          .workspaceCount,
+      1,
+    );
+    expect(workspaceOrderOfRows(rows), <String>['main', 'review']);
+    expect(countVisibleWorkspaces(_state(prefs: prefs)), 3);
+  });
+
   test('builds a tree from pinned workspaces only', () {
     final project = _project('alera');
     final parent = _workspace(
@@ -181,6 +204,56 @@ void main() {
             .toList();
         expect(regular, hasLength(3));
         expect(regular.every((row) => !row.isPinnedCopy), isTrue);
+      },
+    );
+
+    test('flat list can exclude pinned workspaces from All', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        groupBy: WorkbenchGroupBy.none,
+        showPinnedWorkspacesBelow: false,
+      );
+      final rows = buildSidebarRows(_state(prefs: prefs));
+
+      expect(
+        rows.whereType<WorkbenchPinnedHeaderRow>().single.workspaceCount,
+        1,
+      );
+      expect(rows.whereType<WorkbenchAllHeaderRow>().single.workspaceCount, 2);
+      final entries = rows.whereType<WorkbenchWorkspaceRow>().toList();
+      expect(
+        entries.where((row) => row.workspace.id == 'feature'),
+        hasLength(1),
+      );
+      expect(workspaceOrderOfRows(rows), <String>['main', 'review']);
+    });
+
+    test(
+      'flat list omits an empty All section when every workspace is pinned',
+      () {
+        final prefs = WorkbenchViewPrefs.defaults.copyWith(
+          groupBy: WorkbenchGroupBy.none,
+          showPinnedWorkspacesBelow: false,
+        );
+        final project = _project('alera');
+        final pinned = _workspace(
+          'pinned',
+          project.id,
+          name: 'Pinned',
+          isPinned: true,
+        );
+        final rows = buildSidebarRows(
+          WorkbenchState(
+            projects: <Project>[project],
+            workspacesByProject: <String, List<Workspace>>{
+              project.id: <Workspace>[pinned],
+            },
+            viewPrefs: prefs,
+          ),
+        );
+
+        expect(rows.whereType<WorkbenchPinnedHeaderRow>(), hasLength(1));
+        expect(rows.whereType<WorkbenchAllHeaderRow>(), isEmpty);
+        expect(rows.whereType<WorkbenchWorkspaceRow>(), hasLength(1));
       },
     );
 

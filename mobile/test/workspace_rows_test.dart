@@ -189,6 +189,55 @@ void main() {
 
       expect(rows.whereType<MobileAllHeaderRow>(), hasLength(1));
     });
+
+    test('Can omit pinned workspaces from the list below', () {
+      final rows = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('a', project: 'p1'),
+          _workspace('b', project: 'p1', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(
+          groupBy: MobileWorkspaceGroupBy.none,
+          showPinnedWorkspacesBelow: false,
+        ),
+      );
+
+      expect((rows.first as MobilePinnedHeaderRow).count, 1);
+      expect(rows.whereType<MobileAllHeaderRow>().single.count, 1);
+      final entries = rows.whereType<MobileWorkspaceEntryRow>().toList();
+      expect(
+        entries.where((row) => row.entry.workspace.id == 'b'),
+        hasLength(1),
+      );
+      expect(
+        entries.firstWhere((row) => row.entry.workspace.id == 'b').isPinnedCopy,
+        isTrue,
+      );
+      expect(
+        entries
+            .where((row) => !row.isPinnedCopy)
+            .map((row) => row.entry.workspace.id),
+        <String>['a'],
+      );
+    });
+
+    test('Omits an empty All section when every workspace is pinned', () {
+      final rows = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('b', project: 'p1', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(
+          groupBy: MobileWorkspaceGroupBy.none,
+          showPinnedWorkspacesBelow: false,
+        ),
+      );
+
+      expect(rows.whereType<MobilePinnedHeaderRow>(), hasLength(1));
+      expect(rows.whereType<MobileAllHeaderRow>(), isEmpty);
+      expect(rows.whereType<MobileWorkspaceEntryRow>(), hasLength(1));
+    });
   });
 }
 

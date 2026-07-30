@@ -14,6 +14,7 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.expandedWorkspaceIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.selectedTagIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedParentWorkspaceIds, isEmpty);
+      expect(WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow, isTrue);
       expect(
         WorkbenchViewPrefs.defaults.sourceControlRootByWorkspaceId,
         isEmpty,
@@ -44,6 +45,7 @@ void main() {
         expandedWorkspaceIds: <String>{'w1'},
         selectedTagIds: <String>{'tag-1'},
         collapsedParentWorkspaceIds: <String>{'w-parent'},
+        showPinnedWorkspacesBelow: false,
         sourceControlRootByWorkspaceId: <String, String>{
           'w-folder': 'packages/app',
         },
@@ -64,6 +66,7 @@ void main() {
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
       expect(restored.selectedTagIds, <String>{'tag-1'});
       expect(restored.collapsedParentWorkspaceIds, <String>{'w-parent'});
+      expect(restored.showPinnedWorkspacesBelow, isFalse);
       expect(restored.sourceControlRootByWorkspaceId, <String, String>{
         'w-folder': 'packages/app',
       });
@@ -111,6 +114,7 @@ void main() {
       expect(restored.collapsedParentWorkspaceIds, isEmpty);
       expect(restored.workspaceSort, WorkbenchSortBy.recent);
       expect(restored.workspaceKindFilter, WorkspaceKindFilter.all);
+      expect(restored.showPinnedWorkspacesBelow, isTrue);
     });
 
     test('round-trips the workspace kind filter', () {

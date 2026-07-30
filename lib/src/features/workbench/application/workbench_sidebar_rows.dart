@@ -71,7 +71,7 @@ class WorkbenchPinnedHeaderRow extends WorkbenchSidebarRow {
 
 /// Header for the flat "All" section that follows the pinned section when the
 /// sidebar is not grouped by project. It marks where the pinned copies end
-/// and the full workspace list begins, and can collapse the whole list.
+/// and the regular workspace list begins, and can collapse the whole list.
 class WorkbenchAllHeaderRow extends WorkbenchSidebarRow {
   const WorkbenchAllHeaderRow({
     required this.workspaceCount,
@@ -118,8 +118,8 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   final bool isPinnedCopy;
   final int indent;
 
-  // A pinned workspace also appears in the list below, so the section has to
-  // be part of the key or the two copies would share one element.
+  // A pinned workspace may also appear in the list below, so the section has
+  // to be part of the key or the two copies would share one element.
   @override
   String get key =>
       'workspace:${isPinnedCopy ? 'pinned' : 'all'}:${workspace.id}';

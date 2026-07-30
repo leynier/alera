@@ -433,6 +433,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: false,
   );
+  static bool _$showPinnedWorkspacesBelow(WorkbenchViewPrefs v) =>
+      v.showPinnedWorkspacesBelow;
+  static const Field<WorkbenchViewPrefs, bool> _f$showPinnedWorkspacesBelow =
+      Field(
+        'showPinnedWorkspacesBelow',
+        _$showPinnedWorkspacesBelow,
+        opt: true,
+        def: true,
+      );
   static Map<String, String> _$sourceControlRootByWorkspaceId(
     WorkbenchViewPrefs v,
   ) => v.sourceControlRootByWorkspaceId;
@@ -526,6 +535,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #collapsedParentWorkspaceIds: _f$collapsedParentWorkspaceIds,
     #pinnedSectionCollapsed: _f$pinnedSectionCollapsed,
     #allSectionCollapsed: _f$allSectionCollapsed,
+    #showPinnedWorkspacesBelow: _f$showPinnedWorkspacesBelow,
     #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
@@ -549,6 +559,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       collapsedParentWorkspaceIds: data.dec(_f$collapsedParentWorkspaceIds),
       pinnedSectionCollapsed: data.dec(_f$pinnedSectionCollapsed),
       allSectionCollapsed: data.dec(_f$allSectionCollapsed),
+      showPinnedWorkspacesBelow: data.dec(_f$showPinnedWorkspacesBelow),
       sourceControlRootByWorkspaceId: data.dec(
         _f$sourceControlRootByWorkspaceId,
       ),
@@ -647,6 +658,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
     bool? allSectionCollapsed,
+    bool? showPinnedWorkspacesBelow,
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
@@ -689,6 +701,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? collapsedParentWorkspaceIds,
     bool? pinnedSectionCollapsed,
     bool? allSectionCollapsed,
+    bool? showPinnedWorkspacesBelow,
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
@@ -715,6 +728,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #pinnedSectionCollapsed: pinnedSectionCollapsed,
       if (allSectionCollapsed != null)
         #allSectionCollapsed: allSectionCollapsed,
+      if (showPinnedWorkspacesBelow != null)
+        #showPinnedWorkspacesBelow: showPinnedWorkspacesBelow,
       if (sourceControlRootByWorkspaceId != null)
         #sourceControlRootByWorkspaceId: sourceControlRootByWorkspaceId,
       if (rightSidebarVisible != null)
@@ -760,6 +775,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     allSectionCollapsed: data.get(
       #allSectionCollapsed,
       or: $value.allSectionCollapsed,
+    ),
+    showPinnedWorkspacesBelow: data.get(
+      #showPinnedWorkspacesBelow,
+      or: $value.showPinnedWorkspacesBelow,
     ),
     sourceControlRootByWorkspaceId: data.get(
       #sourceControlRootByWorkspaceId,

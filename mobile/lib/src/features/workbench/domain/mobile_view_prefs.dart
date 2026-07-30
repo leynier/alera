@@ -13,6 +13,7 @@ class MobileViewPrefs {
     this.groupBy = MobileWorkspaceGroupBy.project,
     this.pinnedSectionCollapsed = false,
     this.allSectionCollapsed = false,
+    this.showPinnedWorkspacesBelow = true,
     this.projectSort = MobileWorkbenchSortBy.name,
     this.workspaceSort = MobileWorkbenchSortBy.name,
     this.workspaceKindFilter = MobileWorkspaceKindFilter.all,
@@ -27,6 +28,7 @@ class MobileViewPrefs {
   final MobileWorkspaceGroupBy groupBy;
   final bool pinnedSectionCollapsed;
   final bool allSectionCollapsed;
+  final bool showPinnedWorkspacesBelow;
   final MobileWorkbenchSortBy projectSort;
   final MobileWorkbenchSortBy workspaceSort;
   final MobileWorkspaceKindFilter workspaceKindFilter;
@@ -41,6 +43,7 @@ class MobileViewPrefs {
     MobileWorkspaceGroupBy? groupBy,
     bool? pinnedSectionCollapsed,
     bool? allSectionCollapsed,
+    bool? showPinnedWorkspacesBelow,
     MobileWorkbenchSortBy? projectSort,
     MobileWorkbenchSortBy? workspaceSort,
     MobileWorkspaceKindFilter? workspaceKindFilter,
@@ -56,6 +59,8 @@ class MobileViewPrefs {
       pinnedSectionCollapsed:
           pinnedSectionCollapsed ?? this.pinnedSectionCollapsed,
       allSectionCollapsed: allSectionCollapsed ?? this.allSectionCollapsed,
+      showPinnedWorkspacesBelow:
+          showPinnedWorkspacesBelow ?? this.showPinnedWorkspacesBelow,
       projectSort: projectSort ?? this.projectSort,
       workspaceSort: workspaceSort ?? this.workspaceSort,
       workspaceKindFilter: workspaceKindFilter ?? this.workspaceKindFilter,
@@ -77,6 +82,8 @@ class MobileViewPrefs {
           : MobileWorkspaceGroupBy.project,
       pinnedSectionCollapsed: json['pinnedSectionCollapsed'] == true,
       allSectionCollapsed: json['allSectionCollapsed'] == true,
+      showPinnedWorkspacesBelow:
+          json['showPinnedWorkspacesBelow'] as bool? ?? true,
       projectSort: MobileWorkbenchSortBy.values.byName(
         json.optionalString('projectSort') ?? 'name',
       ),
@@ -107,6 +114,7 @@ class MobileViewPrefs {
       'groupBy': groupBy.name,
       'pinnedSectionCollapsed': pinnedSectionCollapsed,
       'allSectionCollapsed': allSectionCollapsed,
+      'showPinnedWorkspacesBelow': showPinnedWorkspacesBelow,
       'projectSort': projectSort.name,
       'workspaceSort': workspaceSort.name,
       'workspaceKindFilter': workspaceKindFilter.name,

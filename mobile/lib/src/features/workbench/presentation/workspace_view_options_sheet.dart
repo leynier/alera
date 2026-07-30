@@ -111,6 +111,12 @@ class _WorkspaceViewOptions extends ConsumerWidget {
                     ),
                   ],
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Repeat Pinned Workspaces'),
+              value: prefs.showPinnedWorkspacesBelow,
+              onChanged: controller.setShowPinnedWorkspacesBelow,
+            ),
             const SizedBox(height: AleraTokens.space16),
             const Divider(height: 1),
             const ListTile(

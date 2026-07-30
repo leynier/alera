@@ -96,6 +96,11 @@ List<WorkbenchSidebarRow> buildSidebarRows(
     return false;
   }
 
+  bool workspaceVisibleBelow(Project project, Workspace workspace) {
+    return workspaceVisible(project, workspace) &&
+        (prefs.showPinnedWorkspacesBelow || !workspace.isPinned);
+  }
+
   // The flat view mixes several projects, so pinning each project's main
   // worktree only applies to the name sort there; grouped mode pins it for
   // name and recent. Agent Activity never pins - urgency owns the order.
@@ -167,7 +172,8 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   final filtersHideEmptyProjects =
       query.isNotEmpty ||
       prefs.selectedTagIds.isNotEmpty ||
-      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
+      !prefs.showPinnedWorkspacesBelow;
 
   final pinnedRows = <WorkbenchSidebarRow>[];
   var pinnedWorkspaceCount = 0;
@@ -262,7 +268,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
         final workspaces = sortWorkspaces(
           state
               .workspacesFor(project.id)
-              .where((w) => workspaceVisible(project, w))
+              .where((w) => workspaceVisibleBelow(project, w))
               .toList(),
           pinMainOnRecent: true,
         );
@@ -293,7 +299,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       final workspaces = <Workspace>[];
       for (final project in visibleProjects) {
         for (final workspace in state.workspacesFor(project.id)) {
-          if (!workspaceVisible(project, workspace)) {
+          if (!workspaceVisibleBelow(project, workspace)) {
             continue;
           }
           projectByWorkspaceId[workspace.id] = project;
@@ -302,8 +308,8 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       }
       // The flat list only gets an "All" header when a pinned section sits
       // above it - without pins there is nothing to separate it from.
-      final hasPinnedSection = pinnedRows.isNotEmpty;
-      if (hasPinnedSection) {
+      final showAllSection = pinnedRows.isNotEmpty && workspaces.isNotEmpty;
+      if (showAllSection) {
         rows.add(
           WorkbenchAllHeaderRow(
             workspaceCount: workspaces.length,
@@ -311,7 +317,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           ),
         );
       }
-      if (!hasPinnedSection || !prefs.allSectionCollapsed) {
+      if (!showAllSection || !prefs.allSectionCollapsed) {
         appendWorkspaceTreeRows(
           rows,
           workspaces: sortWorkspaces(workspaces, pinMainOnRecent: false),
