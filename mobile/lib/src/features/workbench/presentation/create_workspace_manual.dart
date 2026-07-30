@@ -9,7 +9,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           initialValue: _projectId,
           decoration: const InputDecoration(labelText: 'Project'),
           items: <DropdownMenuItem<String>>[
-            for (final project in widget.projects)
+            for (final project in _orderedProjects)
               DropdownMenuItem<String>(
                 value: project.id,
                 child: Text(project.name, overflow: TextOverflow.ellipsis),
@@ -87,7 +87,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
               value: null,
               child: Text('No Parent'),
             ),
-            for (final workspace in widget.workspaces)
+            for (final workspace in _orderedParentWorkspaces)
               if (workspace.projectId == _projectId)
                 DropdownMenuItem<String?>(
                   value: workspace.id,

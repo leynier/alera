@@ -156,6 +156,7 @@ Future<void> showWorkspaceActionsSheet(
           context,
           child: workspace,
           workspaces: data.workspaces,
+          projects: data.projects,
         );
         if (parentId != null) {
           await controller.linkParent(

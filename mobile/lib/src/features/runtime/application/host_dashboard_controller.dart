@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -30,7 +31,7 @@ Future<HostDashboardData> hostDashboardData(Ref ref, String hostId) async {
     hostConnectionControllerProvider(hostId).future,
   );
   final status = await client.mobileStatus();
-  final projects = await client.listProjects();
+  final projects = sortProjectsForSelection(await client.listProjects());
   final workspaces = await client.listWorkspaces();
   final branchesByProject = <String, ProjectBranches>{};
   for (final project in projects.take(dashboardProjectBranchLimit)) {

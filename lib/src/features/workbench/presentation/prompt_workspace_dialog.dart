@@ -9,13 +9,16 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
+part 'prompt_workspace_dialog_selection_order.dart';
 
 enum NewWorkspaceMode { fromPrompt, manual }
 
@@ -126,13 +129,13 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   Project? _initialProject() {
     final preferred = widget.initialProject;
     if (preferred != null) {
-      for (final project in widget.projects) {
+      for (final project in _orderedProjects) {
         if (project.id == preferred.id) {
           return project;
         }
       }
     }
-    return widget.projects.firstOrNull;
+    return _orderedProjects.firstOrNull;
   }
 
   Future<void> _loadBranches(Project project) async {
@@ -176,13 +179,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     return branches.firstOrNull;
   }
 
-  List<Workspace> get _parentWorkspaces {
-    return <Workspace>[
-      for (final workspace in widget.parentWorkspaces)
-        if (workspace.isActive) workspace,
-    ];
-  }
-
   String? _defaultParentWorkspaceId(Project? project) {
     if (project == null) {
       return null;
@@ -202,7 +198,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
 
   String _parentWorkspaceLabel(Workspace workspace) {
     Project? project;
-    for (final candidate in widget.projects) {
+    for (final candidate in _orderedProjects) {
       if (candidate.id == workspace.projectId) {
         project = candidate;
         break;

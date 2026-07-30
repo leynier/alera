@@ -1,10 +1,12 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,13 +45,41 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   bool _creating = false;
   String? _error;
 
+  List<ProjectSummary> get _orderedProjects =>
+      sortProjectsForSelection(widget.projects);
+
+  List<WorkspaceSummary> get _orderedParentWorkspaces {
+    final projectNameById = <String, String>{
+      for (final project in widget.projects) project.id: project.name,
+    };
+    return <WorkspaceSummary>[...widget.workspaces]..sort(
+      (left, right) => compareWorkspaceParentSelectionKeys(
+        (
+          isDefault: left.isMain,
+          projectId: left.projectId,
+          projectName: projectNameById[left.projectId] ?? left.projectId,
+          workspaceId: left.id,
+          workspaceName: left.name,
+        ),
+        (
+          isDefault: right.isMain,
+          projectId: right.projectId,
+          projectName: projectNameById[right.projectId] ?? right.projectId,
+          workspaceId: right.id,
+          workspaceName: right.name,
+        ),
+        preferredProjectId: _projectId,
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    if (widget.projects.length == 1) {
-      _selectProject(widget.projects.single.id);
+    if (_orderedProjects.length == 1) {
+      _selectProject(_orderedProjects.single.id);
     }
-    final initialPromptProject = widget.projects.firstOrNull;
+    final initialPromptProject = _orderedProjects.firstOrNull;
     if (initialPromptProject != null) {
       Future<void>.microtask(
         () => ref
@@ -250,7 +280,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
           initialValue: promptState.projectId,
           decoration: const InputDecoration(labelText: 'Project'),
           items: <DropdownMenuItem<String>>[
-            for (final project in widget.projects)
+            for (final project in _orderedProjects)
               DropdownMenuItem<String>(
                 value: project.id,
                 child: Text(project.name, overflow: TextOverflow.ellipsis),

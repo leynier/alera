@@ -12,11 +12,14 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_selection_order.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
+part 'create_workspace_dialog_selection_order.dart';
 part 'create_workspace_dialog_submission.dart';
 
 class CreateWorkspaceDialog extends StatefulWidget {
@@ -127,16 +130,13 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Project? _pickInitialProject() {
     final initial = widget.initialProject;
     if (initial != null) {
-      for (final project in widget.projects) {
+      for (final project in _orderedProjects) {
         if (project.id == initial.id) {
           return project;
         }
       }
     }
-    if (widget.projects.isEmpty) {
-      return null;
-    }
-    return widget.projects.first;
+    return _orderedProjects.firstOrNull;
   }
 
   String? _pickDefaultSourceBranch(List<String> branches) {
@@ -186,13 +186,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   List<String> _branchesForMode(bool reuseExistingBranch) {
     return reuseExistingBranch ? _localBranches : _branches;
-  }
-
-  List<WorkspaceParentCandidate> get _parentCandidates {
-    return <WorkspaceParentCandidate>[
-      for (final candidate in widget.parentCandidates)
-        if (candidate.workspace.status == WorkspaceStatus.active) candidate,
-    ];
   }
 
   String _parentLabel(WorkspaceParentCandidate candidate) {
@@ -627,7 +620,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               _ProjectPicker(
-                                projects: widget.projects,
+                                projects: _orderedProjects,
                                 selectedProject: selectedProject,
                                 query: _projectQuery,
                                 controller: _projectSearchController,
