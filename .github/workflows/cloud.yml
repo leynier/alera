@@ -12,6 +12,7 @@ on:
       - 'edge/**'
       - 'infra/**'
       - 'tool/cloud/**'
+      - '.github/workflows/cloud-deploy.yml'
       - '.github/workflows/cloud.yml'
   workflow_dispatch:
 
