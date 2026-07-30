@@ -33,6 +33,8 @@ class AleraTextField extends StatelessWidget {
     this.fillColor,
     this.readOnly = false,
     this.enabled,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   final TextEditingController? controller;
@@ -57,6 +59,8 @@ class AleraTextField extends StatelessWidget {
   final Color? fillColor;
   final bool readOnly;
   final bool? enabled;
+  final int? minLines;
+  final int? maxLines;
 
   /// Default height of the dense variant: `space32 + space8`.
   static const double defaultDenseHeight =
@@ -79,6 +83,8 @@ class AleraTextField extends StatelessWidget {
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
+        minLines: minLines,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: labelText,
           hintText: hintText,
@@ -103,6 +109,8 @@ class AleraTextField extends StatelessWidget {
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
+        minLines: minLines,
+        maxLines: maxLines,
         textAlignVertical: textAlignVertical ?? TextAlignVertical.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foreground,

@@ -325,6 +325,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   final container = ProviderContainer(
     overrides: [
       workbenchControllerProvider.overrideWith(() => controller),
+      agentProfilesProvider.overrideWith(() => _DispatcherAgentProfiles()),
       terminalRuntimeProvider.overrideWith((ref) => runtime),
       browserAvailabilityProvider.overrideWith(
         (ref) => _stableBrowserCapabilities,

@@ -174,6 +174,21 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                   ),
                 ),
               ),
+              InstructionSettingRow(
+                title: AiTextGenerationOperation.workspaceIdentity.label,
+                value: settings.instructionsFor(
+                  AiTextGenerationOperation.workspaceIdentity,
+                ),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    instructionsByOperation:
+                        <AiTextGenerationOperation, String>{
+                          ...settings.instructionsByOperation,
+                          AiTextGenerationOperation.workspaceIdentity: value,
+                        },
+                  ),
+                ),
+              ),
             ],
           ),
         ),

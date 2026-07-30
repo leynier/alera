@@ -218,6 +218,7 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        await openManualWorkspaceDialog(tester);
 
         expect(find.text('No Git Projects Yet'), findsOneWidget);
         expect(
@@ -246,6 +247,7 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        await openManualWorkspaceDialog(tester);
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
         await tester.enterText(
@@ -296,6 +298,7 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+      await openManualWorkspaceDialog(tester);
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -334,6 +337,7 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+      await openManualWorkspaceDialog(tester);
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -370,6 +374,7 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+      await openManualWorkspaceDialog(tester);
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -383,4 +388,11 @@ void main() {
       expect(find.text('Exception: Workspace failed'), findsOneWidget);
     });
   });
+}
+
+Future<void> openManualWorkspaceDialog(WidgetTester tester) async {
+  await tester.tap(find.text('Manual'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Continue Manually'));
+  await tester.pumpAndSettle();
 }

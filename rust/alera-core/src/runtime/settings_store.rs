@@ -1,7 +1,8 @@
 use anyhow::Result;
 
 use super::{
-    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeSettings, RuntimeStore,
+    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeAiTextGenerationSettings,
+    RuntimeSettings, RuntimeStore,
 };
 
 impl RuntimeStore {
@@ -12,7 +13,42 @@ impl RuntimeStore {
             confirm_workspace_removal: self.confirm_workspace_removal().await?,
             agent_status_hooks: self.agent_status_hook_settings().await?,
             agent_quotas: self.agent_quota_settings().await?,
+            ai_text_generation: self.ai_text_generation_settings().await?,
         })
+    }
+
+    pub async fn ai_text_generation_settings(
+        &self,
+    ) -> Result<Option<RuntimeAiTextGenerationSettings>> {
+        let Some(encoded) = self.get_metadata("settings.aiTextGeneration").await? else {
+            return Ok(None);
+        };
+        Ok(
+            serde_json::from_str::<RuntimeAiTextGenerationSettings>(&encoded)
+                .ok()
+                .map(RuntimeAiTextGenerationSettings::normalized),
+        )
+    }
+
+    pub async fn effective_ai_text_generation_settings(
+        &self,
+    ) -> Result<RuntimeAiTextGenerationSettings> {
+        Ok(self
+            .ai_text_generation_settings()
+            .await?
+            .unwrap_or_default())
+    }
+
+    pub async fn set_ai_text_generation_settings(
+        &self,
+        settings: RuntimeAiTextGenerationSettings,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.aiTextGeneration",
+            &serde_json::to_string(&settings.normalized())?,
+        )
+        .await?;
+        self.runtime_settings().await
     }
 
     pub async fn agent_quota_settings(&self) -> Result<RuntimeAgentQuotaSettings> {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -130,6 +131,9 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   bool get supportsTabRename => true;
 
   @override
+  bool get supportsPromptWorkspaceCreation => true;
+
+  @override
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return WorkspaceSidebarSnapshot(
       projects: await listProjects(),
@@ -167,6 +171,40 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
       projectId: projectId,
       branches: const <String>['main'],
       localBranches: const <String>['main'],
+    );
+  }
+
+  @override
+  Future<List<AgentProfileSummary>> listAgentProfiles() async {
+    return const <AgentProfileSummary>[
+      AgentProfileSummary(id: 'profile-1', name: 'Codex', agentType: 'codex'),
+    ];
+  }
+
+  @override
+  Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
+    required String operationId,
+    required String projectId,
+    required String prompt,
+  }) async {
+    return const GeneratedWorkspaceIdentity(
+      workspaceName: 'Generated Workspace',
+      branchName: 'feat/generated-workspace',
+    );
+  }
+
+  @override
+  Future<void> cancelWorkspaceIdentity(String operationId) async {}
+
+  @override
+  Future<AgentProfileLaunchResult> launchAgentProfile({
+    required String workspaceId,
+    required String profileId,
+    required String prompt,
+  }) async {
+    return const AgentProfileLaunchResult(
+      tabId: 'agent-tab',
+      agentType: 'codex',
     );
   }
 

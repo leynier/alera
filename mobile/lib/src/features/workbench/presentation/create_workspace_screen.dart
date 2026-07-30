@@ -3,9 +3,13 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+part 'create_workspace_manual.dart';
 
 class CreateWorkspaceScreen extends ConsumerStatefulWidget {
   const CreateWorkspaceScreen({
@@ -27,6 +31,8 @@ class CreateWorkspaceScreen extends ConsumerStatefulWidget {
 class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   final TextEditingController _branch = TextEditingController();
   final TextEditingController _name = TextEditingController();
+  final TextEditingController _prompt = TextEditingController();
+  bool _fromPrompt = true;
   String? _projectId;
   List<String> _branches = const <String>[];
   String? _sourceBranch;
@@ -43,14 +49,25 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     if (widget.projects.length == 1) {
       _selectProject(widget.projects.single.id);
     }
+    final initialPromptProject = widget.projects.firstOrNull;
+    if (initialPromptProject != null) {
+      Future<void>.microtask(
+        () => ref
+            .read(promptWorkspaceControllerProvider(widget.hostId).notifier)
+            .selectProject(initialPromptProject.id),
+      );
+    }
   }
 
   @override
   void dispose() {
     _branch.dispose();
     _name.dispose();
+    _prompt.dispose();
     super.dispose();
   }
+
+  void _update(VoidCallback update) => setState(update);
 
   Future<void> _selectProject(String projectId) async {
     setState(() {
@@ -144,17 +161,71 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
                 result: result,
                 onDone: () => Navigator.of(context).pop(true),
               )
-            : _buildForm(context),
+            : Column(
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AleraTokens.spaceLg,
+                      AleraTokens.spaceMd,
+                      AleraTokens.spaceLg,
+                      0,
+                    ),
+                    child: SegmentedButton<bool>(
+                      showSelectedIcon: false,
+                      segments: const <ButtonSegment<bool>>[
+                        ButtonSegment<bool>(
+                          value: true,
+                          label: Text('From Prompt'),
+                          icon: Icon(Icons.smart_toy_outlined),
+                        ),
+                        ButtonSegment<bool>(
+                          value: false,
+                          label: Text('Manual'),
+                          icon: Icon(Icons.account_tree_outlined),
+                        ),
+                      ],
+                      selected: <bool>{_fromPrompt},
+                      onSelectionChanged: (selection) {
+                        setState(() => _fromPrompt = selection.first);
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _fromPrompt
+                        ? _buildPromptForm(context)
+                        : _buildForm(context),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildPromptForm(BuildContext context) {
+    final promptState = ref.watch(
+      promptWorkspaceControllerProvider(widget.hostId),
+    );
+    final controller = ref.read(
+      promptWorkspaceControllerProvider(widget.hostId).notifier,
+    );
+    final created = promptState.creation;
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
+        TextField(
+          controller: _prompt,
+          enabled: !promptState.loading && created == null,
+          minLines: 4,
+          maxLines: 8,
+          decoration: const InputDecoration(
+            labelText: 'Initial Prompt',
+            hintText: 'Describe What The Agent Should Build',
+            alignLabelWithHint: true,
+          ),
+        ),
+        const SizedBox(height: AleraTokens.spaceLg),
         DropdownButtonFormField<String>(
-          initialValue: _projectId,
+          initialValue: promptState.projectId,
           decoration: const InputDecoration(labelText: 'Project'),
           items: <DropdownMenuItem<String>>[
             for (final project in widget.projects)
@@ -163,160 +234,166 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
                 child: Text(project.name, overflow: TextOverflow.ellipsis),
               ),
           ],
-          onChanged: _creating
+          onChanged: promptState.loading || created != null
               ? null
               : (value) {
                   if (value != null) {
-                    _selectProject(value);
+                    controller.selectProject(value);
                   }
                 },
         ),
         const SizedBox(height: AleraTokens.spaceLg),
-        TextField(
-          controller: _branch,
-          enabled: !_creating,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Branch Name',
-            helperText: 'The Worktree Branch For This Workspace',
+        DropdownButtonFormField<String>(
+          key: ValueKey<String?>(
+            'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
           ),
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _reuseExistingBranch,
-          onChanged: _creating
-              ? null
-              : (value) {
-                  setState(() {
-                    _reuseExistingBranch = value;
-                  });
-                },
-          title: const Text('Reuse Existing Branch'),
-        ),
-        if (!_reuseExistingBranch) ...<Widget>[
-          const SizedBox(height: AleraTokens.spaceSm),
-          if (_loadingBranches)
-            const Center(child: CircularProgressIndicator())
-          else
-            DropdownButtonFormField<String>(
-              initialValue: _sourceBranch,
-              decoration: const InputDecoration(labelText: 'Source Branch'),
-              items: <DropdownMenuItem<String>>[
-                for (final branch in _branches)
-                  DropdownMenuItem<String>(
-                    value: branch,
-                    child: Text(branch, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: _creating
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _sourceBranch = value;
-                      });
-                    },
-            ),
-        ],
-        const SizedBox(height: AleraTokens.spaceLg),
-        TextField(
-          controller: _name,
-          enabled: !_creating,
-          decoration: const InputDecoration(
-            labelText: 'Display Name (Optional)',
-          ),
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        DropdownButtonFormField<String?>(
-          initialValue: _parentWorkspaceId,
-          decoration: const InputDecoration(labelText: 'Parent Workspace'),
-          items: <DropdownMenuItem<String?>>[
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('No Parent'),
-            ),
-            for (final workspace in widget.workspaces)
-              if (workspace.projectId == _projectId)
-                DropdownMenuItem<String?>(
-                  value: workspace.id,
-                  child: Text(workspace.name, overflow: TextOverflow.ellipsis),
-                ),
+          initialValue: promptState.sourceBranch,
+          decoration: const InputDecoration(labelText: 'Source Branch'),
+          items: <DropdownMenuItem<String>>[
+            for (final branch in promptState.branches)
+              DropdownMenuItem<String>(
+                value: branch,
+                child: Text(branch, overflow: TextOverflow.ellipsis),
+              ),
           ],
-          onChanged: _creating
+          onChanged: promptState.loading || created != null
               ? null
               : (value) {
-                  setState(() {
-                    _parentWorkspaceId = value;
-                  });
+                  if (value != null) {
+                    controller.selectSourceBranch(value);
+                  }
                 },
         ),
-        if (_error != null) ...<Widget>[
+        const SizedBox(height: AleraTokens.spaceLg),
+        DropdownButtonFormField<String>(
+          key: ValueKey<String?>('prompt-profile-${promptState.profileId}'),
+          initialValue: promptState.profileId,
+          decoration: InputDecoration(
+            labelText: 'Agent Profile',
+            helperText: promptState.profiles.isEmpty
+                ? 'Create An Agent Profile In Desktop Settings'
+                : null,
+          ),
+          items: <DropdownMenuItem<String>>[
+            for (final profile in promptState.profiles)
+              DropdownMenuItem<String>(
+                value: profile.id,
+                child: Text(profile.name, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: promptState.loading || created != null
+              ? null
+              : (value) {
+                  if (value != null) {
+                    controller.selectProfile(value);
+                  }
+                },
+        ),
+        if (promptState.error != null) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Text(
-            _error!,
+            promptState.error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
         const SizedBox(height: AleraTokens.spaceXl),
-        FilledButton.icon(
-          onPressed: _canSubmit ? _create : null,
-          icon: _creating
-              ? const SizedBox.square(
-                  dimension: AleraTokens.spaceLg,
-                  child: CircularProgressIndicator(
-                    strokeWidth: AleraTokens.strokeSm,
-                  ),
-                )
-              : const Icon(Icons.add),
-          label: Text(_creating ? 'Creating' : 'Create Workspace'),
-        ),
+        if (promptState.loading)
+          Row(
+            children: <Widget>[
+              const SizedBox.square(
+                dimension: AleraTokens.spaceLg,
+                child: CircularProgressIndicator(
+                  strokeWidth: AleraTokens.strokeSm,
+                ),
+              ),
+              const SizedBox(width: AleraTokens.spaceMd),
+              Expanded(child: Text(promptState.phase ?? 'Working')),
+              if (promptState.phase == 'Generating Workspace Identity')
+                TextButton(
+                  onPressed: controller.cancelGeneration,
+                  child: const Text('Cancel'),
+                ),
+            ],
+          )
+        else if (created != null)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _openWorkspace(created),
+                  child: const Text('Open Workspace'),
+                ),
+              ),
+              const SizedBox(width: AleraTokens.spaceMd),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _retryPromptAgent(controller),
+                  child: const Text('Retry Agent'),
+                ),
+              ),
+            ],
+          )
+        else
+          FilledButton.icon(
+            onPressed:
+                promptState.projectId == null ||
+                    promptState.sourceBranch == null ||
+                    promptState.profileId == null
+                ? null
+                : () => _createFromPrompt(controller),
+            icon: const Icon(Icons.smart_toy_outlined),
+            label: const Text('Create And Start Agent'),
+          ),
       ],
+    );
+  }
+
+  Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
+    final workspaceBranches = <String>{
+      for (final workspace in widget.workspaces)
+        if (workspace.branch != null) workspace.branch!,
+    };
+    await controller.create(
+      prompt: _prompt.text,
+      workspaceBranches: workspaceBranches,
+    );
+    if (!mounted) {
+      return;
+    }
+    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
+    final creation = state.creation;
+    final tabId = state.agentTabId;
+    if (creation != null && tabId != null) {
+      _openWorkspace(creation, tabId: tabId);
+    }
+  }
+
+  Future<void> _retryPromptAgent(PromptWorkspaceController controller) async {
+    await controller.retryAgent(_prompt.text);
+    if (!mounted) {
+      return;
+    }
+    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
+    final creation = state.creation;
+    final tabId = state.agentTabId;
+    if (creation != null && tabId != null) {
+      _openWorkspace(creation, tabId: tabId);
+    }
+  }
+
+  void _openWorkspace(WorkspaceCreationResult creation, {String? tabId}) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => WorkspaceTabsScreen(
+          hostId: widget.hostId,
+          workspace: creation.workspace,
+          initialTabId: tabId,
+        ),
+      ),
     );
   }
 }
 
-class _SetupReportView extends StatelessWidget {
-  const _SetupReportView({required this.result, required this.onDone});
-
-  final WorkspaceCreationResult result;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListView(
-      padding: AleraTokens.pagePadding,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Icon(Icons.check_circle_outline, color: AleraTokens.success),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Expanded(
-              child: Text(
-                result.workspace.name,
-                style: theme.textTheme.titleLarge,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        for (final step in result.steps)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(
-              step.succeeded ? Icons.check : Icons.close,
-              color: step.succeeded ? AleraTokens.success : AleraTokens.error,
-            ),
-            title: Text(step.label, overflow: TextOverflow.ellipsis),
-            subtitle: step.message == null
-                ? null
-                : Text(step.message!, overflow: TextOverflow.ellipsis),
-          ),
-        const SizedBox(height: AleraTokens.spaceXl),
-        FilledButton(onPressed: onDone, child: const Text('Done')),
-      ],
-    );
-  }
+extension<T> on List<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

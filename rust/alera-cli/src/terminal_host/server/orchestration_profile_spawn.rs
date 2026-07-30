@@ -161,7 +161,7 @@ impl ServerActor {
     }
 }
 
-fn launch_for_profile(
+pub(super) fn launch_for_profile(
     profile: &AgentProfile,
 ) -> Result<(Option<String>, Option<ManagedAgentLaunch>), String> {
     match profile.launch_mode {

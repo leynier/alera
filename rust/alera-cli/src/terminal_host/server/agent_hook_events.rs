@@ -11,13 +11,24 @@ impl ServerActor {
         let Ok(settings) = self.runtime_store.agent_status_hook_settings().await else {
             return;
         };
-        if !settings.is_enabled(&event.agent_type) {
-            return;
-        }
         let Some(session) = self.sessions.get(&event.terminal_session_id) else {
             return;
         };
         if session.workspace_id != event.workspace_id || session.tab_id != event.tab_id {
+            return;
+        }
+        let pending_prompt = self
+            .runtime_store
+            .find_workspace_tab(&session.tab_id)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|tab| tab.payload.get("pendingAgentPrompt").cloned())
+            .is_some_and(|pending| {
+                pending.get("agent").and_then(serde_json::Value::as_str)
+                    == Some(event.agent_type.as_str())
+            });
+        if !settings.is_enabled(&event.agent_type) && !pending_prompt {
             return;
         }
         if hook_event_resets_session(&event) || hook_event_closes_session(&event) {
@@ -57,6 +68,8 @@ impl ServerActor {
                     "interrupted": normalized.interrupted,
                 }],
             }))
+            .await;
+        self.deliver_pending_agent_prompt(&event.terminal_session_id)
             .await;
     }
 }

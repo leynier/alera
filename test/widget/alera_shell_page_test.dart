@@ -5,6 +5,8 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -70,6 +72,7 @@ Future<_ShellPumpHarness> _pumpShell(
       overrides: [
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => shellController),
+        agentProfilesProvider.overrideWith(() => _ShellAgentProfiles()),
         agentStatusControllerProvider.overrideWith(() => agentStatusController),
         agentQuotaStateProvider.overrideWith(
           (ref) async =>
@@ -99,6 +102,11 @@ Future<_ShellPumpHarness> _pumpShell(
     runtime: runtime,
     agentStatus: agentStatusController,
   );
+}
+
+class _ShellAgentProfiles extends AgentProfiles {
+  @override
+  Future<List<AgentProfile>> build() async => const <AgentProfile>[];
 }
 
 void main() {

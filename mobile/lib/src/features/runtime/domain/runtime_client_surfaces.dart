@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -34,6 +35,8 @@ const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
 const String mobileAgentQuotaClaudeTuiCapability = 'agentQuotaClaudeTuiV1';
 const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
+const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
+const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);
@@ -110,12 +113,25 @@ abstract interface class MobileWorkspaceClient {
   bool get supportsWorkspaceMutations;
   bool get supportsWorkspaceSidebarParity;
   bool get supportsTabRename;
+  bool get supportsPromptWorkspaceCreation;
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot();
   Future<MobileViewPrefs> loadWorkbenchViewPrefs();
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(MobileViewPrefs prefs);
   Future<List<AgentPresenceSummary>> listAgentPresence();
   Future<List<ProjectSummary>> listProjects();
   Future<ProjectBranches> listBranches(String projectId);
+  Future<List<AgentProfileSummary>> listAgentProfiles();
+  Future<GeneratedWorkspaceIdentity> generateWorkspaceIdentity({
+    required String operationId,
+    required String projectId,
+    required String prompt,
+  });
+  Future<void> cancelWorkspaceIdentity(String operationId);
+  Future<AgentProfileLaunchResult> launchAgentProfile({
+    required String workspaceId,
+    required String profileId,
+    required String prompt,
+  });
   Future<List<WorkspaceSummary>> listWorkspaces();
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned);
   Future<void> linkWorkspaces({

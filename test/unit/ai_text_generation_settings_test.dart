@@ -6,7 +6,12 @@ void main() {
   test('exposes every operation label and agent mapping', () {
     expect(
       AiTextGenerationOperation.values.map((operation) => operation.label),
-      <String>['Commit Messages', 'Pull Request Details', 'Branch Names'],
+      <String>[
+        'Commit Messages',
+        'Pull Request Details',
+        'Branch Names',
+        'Workspace Identity',
+      ],
     );
     expect(AiTextGenerationAgent.codex.agentType, AgentType.codex);
     expect(AiTextGenerationAgent.claude.agentType, AgentType.claude);
