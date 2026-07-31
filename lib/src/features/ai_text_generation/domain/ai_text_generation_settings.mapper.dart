@@ -509,6 +509,173 @@ class _AiTextDiscoveredModelCopyWithImpl<$R, $Out>
       _AiTextDiscoveredModelCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class AiTextGenerationPromptSettingsMapper
+    extends ClassMapperBase<AiTextGenerationPromptSettings> {
+  AiTextGenerationPromptSettingsMapper._();
+
+  static AiTextGenerationPromptSettingsMapper? _instance;
+  static AiTextGenerationPromptSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = AiTextGenerationPromptSettingsMapper._(),
+      );
+      AiTextGenerationAgentMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AiTextGenerationPromptSettings';
+
+  static AiTextGenerationAgent? _$agent(AiTextGenerationPromptSettings v) =>
+      v.agent;
+  static const Field<AiTextGenerationPromptSettings, AiTextGenerationAgent>
+  _f$agent = Field('agent', _$agent, opt: true);
+  static String? _$model(AiTextGenerationPromptSettings v) => v.model;
+  static const Field<AiTextGenerationPromptSettings, String> _f$model = Field(
+    'model',
+    _$model,
+    opt: true,
+  );
+
+  @override
+  final MappableFields<AiTextGenerationPromptSettings> fields = const {
+    #agent: _f$agent,
+    #model: _f$model,
+  };
+
+  static AiTextGenerationPromptSettings _instantiate(DecodingData data) {
+    return AiTextGenerationPromptSettings(
+      agent: data.dec(_f$agent),
+      model: data.dec(_f$model),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AiTextGenerationPromptSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AiTextGenerationPromptSettings>(map);
+  }
+
+  static AiTextGenerationPromptSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AiTextGenerationPromptSettings>(json);
+  }
+}
+
+mixin AiTextGenerationPromptSettingsMappable {
+  String toJson() {
+    return AiTextGenerationPromptSettingsMapper.ensureInitialized()
+        .encodeJson<AiTextGenerationPromptSettings>(
+          this as AiTextGenerationPromptSettings,
+        );
+  }
+
+  Map<String, dynamic> toMap() {
+    return AiTextGenerationPromptSettingsMapper.ensureInitialized()
+        .encodeMap<AiTextGenerationPromptSettings>(
+          this as AiTextGenerationPromptSettings,
+        );
+  }
+
+  AiTextGenerationPromptSettingsCopyWith<
+    AiTextGenerationPromptSettings,
+    AiTextGenerationPromptSettings,
+    AiTextGenerationPromptSettings
+  >
+  get copyWith =>
+      _AiTextGenerationPromptSettingsCopyWithImpl<
+        AiTextGenerationPromptSettings,
+        AiTextGenerationPromptSettings
+      >(this as AiTextGenerationPromptSettings, $identity, $identity);
+  @override
+  String toString() {
+    return AiTextGenerationPromptSettingsMapper.ensureInitialized()
+        .stringifyValue(this as AiTextGenerationPromptSettings);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AiTextGenerationPromptSettingsMapper.ensureInitialized().equalsValue(
+      this as AiTextGenerationPromptSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AiTextGenerationPromptSettingsMapper.ensureInitialized().hashValue(
+      this as AiTextGenerationPromptSettings,
+    );
+  }
+}
+
+extension AiTextGenerationPromptSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AiTextGenerationPromptSettings, $Out> {
+  AiTextGenerationPromptSettingsCopyWith<
+    $R,
+    AiTextGenerationPromptSettings,
+    $Out
+  >
+  get $asAiTextGenerationPromptSettings => $base.as(
+    (v, t, t2) =>
+        _AiTextGenerationPromptSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AiTextGenerationPromptSettingsCopyWith<
+  $R,
+  $In extends AiTextGenerationPromptSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({AiTextGenerationAgent? agent, String? model});
+  AiTextGenerationPromptSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AiTextGenerationPromptSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AiTextGenerationPromptSettings, $Out>
+    implements
+        AiTextGenerationPromptSettingsCopyWith<
+          $R,
+          AiTextGenerationPromptSettings,
+          $Out
+        > {
+  _AiTextGenerationPromptSettingsCopyWithImpl(
+    super.value,
+    super.then,
+    super.then2,
+  );
+
+  @override
+  late final ClassMapperBase<AiTextGenerationPromptSettings> $mapper =
+      AiTextGenerationPromptSettingsMapper.ensureInitialized();
+  @override
+  $R call({Object? agent = $none, Object? model = $none}) => $apply(
+    FieldCopyWithData({
+      if (agent != $none) #agent: agent,
+      if (model != $none) #model: model,
+    }),
+  );
+  @override
+  AiTextGenerationPromptSettings $make(CopyWithData data) =>
+      AiTextGenerationPromptSettings(
+        agent: data.get(#agent, or: $value.agent),
+        model: data.get(#model, or: $value.model),
+      );
+
+  @override
+  AiTextGenerationPromptSettingsCopyWith<
+    $R2,
+    AiTextGenerationPromptSettings,
+    $Out2
+  >
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _AiTextGenerationPromptSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class AiTextGenerationSettingsMapper
     extends ClassMapperBase<AiTextGenerationSettings> {
   AiTextGenerationSettingsMapper._();
@@ -522,6 +689,7 @@ class AiTextGenerationSettingsMapper
       AiTextGenerationAgentMapper.ensureInitialized();
       AiTextDiscoveredModelMapper.ensureInitialized();
       AiTextGenerationOperationMapper.ensureInitialized();
+      AiTextGenerationPromptSettingsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -608,6 +776,19 @@ class AiTextGenerationSettingsMapper
     opt: true,
     def: const <AiTextGenerationOperation, String>{},
   );
+  static Map<AiTextGenerationOperation, AiTextGenerationPromptSettings>
+  _$promptSettingsByOperation(AiTextGenerationSettings v) =>
+      v.promptSettingsByOperation;
+  static const Field<
+    AiTextGenerationSettings,
+    Map<AiTextGenerationOperation, AiTextGenerationPromptSettings>
+  >
+  _f$promptSettingsByOperation = Field(
+    'promptSettingsByOperation',
+    _$promptSettingsByOperation,
+    opt: true,
+    def: const <AiTextGenerationOperation, AiTextGenerationPromptSettings>{},
+  );
   static int _$timeoutSeconds(AiTextGenerationSettings v) => v.timeoutSeconds;
   static const Field<AiTextGenerationSettings, int> _f$timeoutSeconds = Field(
     'timeoutSeconds',
@@ -626,6 +807,7 @@ class AiTextGenerationSettingsMapper
     #discoveredDefaultModelByAgent: _f$discoveredDefaultModelByAgent,
     #customCommand: _f$customCommand,
     #instructionsByOperation: _f$instructionsByOperation,
+    #promptSettingsByOperation: _f$promptSettingsByOperation,
     #timeoutSeconds: _f$timeoutSeconds,
   };
 
@@ -639,6 +821,7 @@ class AiTextGenerationSettingsMapper
       discoveredDefaultModelByAgent: data.dec(_f$discoveredDefaultModelByAgent),
       customCommand: data.dec(_f$customCommand),
       instructionsByOperation: data.dec(_f$instructionsByOperation),
+      promptSettingsByOperation: data.dec(_f$promptSettingsByOperation),
       timeoutSeconds: data.dec(_f$timeoutSeconds),
     );
   }
@@ -743,6 +926,17 @@ abstract class AiTextGenerationSettingsCopyWith<
     ObjectCopyWith<$R, String, String>
   >
   get instructionsByOperation;
+  MapCopyWith<
+    $R,
+    AiTextGenerationOperation,
+    AiTextGenerationPromptSettings,
+    AiTextGenerationPromptSettingsCopyWith<
+      $R,
+      AiTextGenerationPromptSettings,
+      AiTextGenerationPromptSettings
+    >
+  >
+  get promptSettingsByOperation;
   $R call({
     bool? enabled,
     AiTextGenerationAgent? agent,
@@ -753,6 +947,8 @@ abstract class AiTextGenerationSettingsCopyWith<
     Map<AiTextGenerationAgent, String>? discoveredDefaultModelByAgent,
     String? customCommand,
     Map<AiTextGenerationOperation, String>? instructionsByOperation,
+    Map<AiTextGenerationOperation, AiTextGenerationPromptSettings>?
+    promptSettingsByOperation,
     int? timeoutSeconds,
   });
   AiTextGenerationSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -825,6 +1021,22 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     (v) => call(instructionsByOperation: v),
   );
   @override
+  MapCopyWith<
+    $R,
+    AiTextGenerationOperation,
+    AiTextGenerationPromptSettings,
+    AiTextGenerationPromptSettingsCopyWith<
+      $R,
+      AiTextGenerationPromptSettings,
+      AiTextGenerationPromptSettings
+    >
+  >
+  get promptSettingsByOperation => MapCopyWith(
+    $value.promptSettingsByOperation,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(promptSettingsByOperation: v),
+  );
+  @override
   $R call({
     bool? enabled,
     AiTextGenerationAgent? agent,
@@ -835,6 +1047,8 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     Map<AiTextGenerationAgent, String>? discoveredDefaultModelByAgent,
     String? customCommand,
     Map<AiTextGenerationOperation, String>? instructionsByOperation,
+    Map<AiTextGenerationOperation, AiTextGenerationPromptSettings>?
+    promptSettingsByOperation,
     int? timeoutSeconds,
   }) => $apply(
     FieldCopyWithData({
@@ -851,6 +1065,8 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
       if (customCommand != null) #customCommand: customCommand,
       if (instructionsByOperation != null)
         #instructionsByOperation: instructionsByOperation,
+      if (promptSettingsByOperation != null)
+        #promptSettingsByOperation: promptSettingsByOperation,
       if (timeoutSeconds != null) #timeoutSeconds: timeoutSeconds,
     }),
   );
@@ -878,6 +1094,10 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     instructionsByOperation: data.get(
       #instructionsByOperation,
       or: $value.instructionsByOperation,
+    ),
+    promptSettingsByOperation: data.get(
+      #promptSettingsByOperation,
+      or: $value.promptSettingsByOperation,
     ),
     timeoutSeconds: data.get(#timeoutSeconds, or: $value.timeoutSeconds),
   );

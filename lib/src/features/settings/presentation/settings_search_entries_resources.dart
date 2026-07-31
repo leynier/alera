@@ -6,7 +6,8 @@ import 'package:alera/src/features/settings/presentation/settings_sections.dart'
 const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Project Worktree Setup',
-    description: 'Copy Files And Run Setup Commands For Linked Workspaces.',
+    description:
+        'Configure Copy Rules, Setup Commands, And New Workspace Prompts.',
     keywords: <String>[
       'project',
       'repo',
@@ -14,6 +15,10 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
       'workspace',
       'copy',
       'setup',
+      'prompt',
+      'append',
+      'agent instructions',
+      'new workspace',
       'alera.toml',
     ],
   ),

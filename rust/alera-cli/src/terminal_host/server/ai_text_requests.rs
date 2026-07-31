@@ -139,7 +139,7 @@ async fn generate_workspace_identity(
             .map(String::as_str)
             .unwrap_or_default(),
     );
-    let plan = plan_command(&settings, &prompt)?;
+    let plan = plan_command(&settings, "workspaceIdentity", &prompt)?;
     let timeout_seconds = settings.timeout_seconds;
     let result = run_command(plan, working_directory, timeout_seconds, cancel_rx).await?;
     parse_workspace_identity(&result)
@@ -147,24 +147,34 @@ async fn generate_workspace_identity(
 
 fn plan_command(
     settings: &RuntimeAiTextGenerationSettings,
+    operation: &str,
     prompt: &str,
 ) -> HostResult<AiTextCommandPlan> {
-    if settings.agent == "custom" {
+    let prompt_settings = settings.prompt_settings_by_operation.get(operation);
+    let agent = prompt_settings
+        .and_then(|value| value.agent.as_deref())
+        .unwrap_or(&settings.agent);
+    if agent == "custom" {
         return plan_custom_command(&settings.custom_command, prompt);
     }
-    let model = settings
-        .selected_model_by_agent
-        .get(&settings.agent)
-        .map(String::as_str)
+    let model = prompt_settings
+        .and_then(|value| value.model.as_deref())
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| default_model(&settings.agent));
+        .or_else(|| {
+            settings
+                .selected_model_by_agent
+                .get(agent)
+                .map(String::as_str)
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or_else(|| default_model(agent));
     let thinking = settings
         .selected_thinking_by_model
         .get(model)
         .map(String::as_str)
         .filter(|value| !value.trim().is_empty());
     let timeout = settings.timeout_seconds;
-    let (binary, arguments, stdin_payload, label) = match settings.agent.as_str() {
+    let (binary, arguments, stdin_payload, label) = match agent {
         "claude" => (
             "claude",
             vec![

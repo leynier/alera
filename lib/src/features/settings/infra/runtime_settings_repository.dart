@@ -97,6 +97,14 @@ Map<String, Object?> _runtimeAiTextSettings(AiTextGenerationSettings settings) {
       for (final entry in settings.instructionsByOperation.entries)
         entry.key.key: entry.value,
     },
+    'promptSettingsByOperation': <String, Map<String, Object?>>{
+      for (final entry in settings.promptSettingsByOperation.entries)
+        entry.key.key: <String, Object?>{
+          if (entry.value.agent != null) 'agent': entry.value.agent!.key,
+          if (entry.value.model?.trim().isNotEmpty == true)
+            'model': entry.value.model!.trim(),
+        },
+    },
     'timeoutSeconds': settings.timeoutSeconds,
   };
 }

@@ -119,6 +119,10 @@ fn run_uses_the_requested_working_directory() {
 fn run_adds_the_requested_environment() {
     let mut environment = std::collections::HashMap::new();
     environment.insert("GIT_AUTHOR_NAME".to_string(), "Alera Test".to_string());
+    environment.insert(
+        "GIT_AUTHOR_EMAIL".to_string(),
+        "alera-test@example.com".to_string(),
+    );
 
     let result = process_run(
         "git".to_string(),
@@ -129,7 +133,9 @@ fn run_adds_the_requested_environment() {
     .expect("git var runs");
 
     assert!(
-        result.stdout.starts_with("Alera Test"),
+        result
+            .stdout
+            .starts_with("Alera Test <alera-test@example.com>"),
         "stdout: {}",
         result.stdout
     );

@@ -188,15 +188,18 @@ class MobileProjectConfig {
   const MobileProjectConfig({
     this.copyRules = const <ProjectConfigCopyRule>[],
     this.setupCommands = const <String>[],
+    this.promptAppend = '',
     this.gitHostingProvider,
   });
 
   final List<ProjectConfigCopyRule> copyRules;
   final List<String> setupCommands;
+  final String promptAppend;
   final String? gitHostingProvider;
 
   factory MobileProjectConfig.fromJson(Map<String, Object?> json) {
     final worktree = asJsonMap(json['worktree']);
+    final newWorkspace = asJsonMap(json['newWorkspace']);
     return MobileProjectConfig(
       copyRules: <ProjectConfigCopyRule>[
         for (final item
@@ -204,6 +207,7 @@ class MobileProjectConfig {
           ProjectConfigCopyRule.fromJson(asJsonMap(item)),
       ],
       setupCommands: worktree.stringList('setup'),
+      promptAppend: newWorkspace.optionalString('promptAppend') ?? '',
       gitHostingProvider: json.optionalString('gitHostingProvider'),
     );
   }
@@ -215,6 +219,7 @@ class MobileProjectConfig {
       ],
       'setup': setupCommands,
     },
+    'newWorkspace': <String, Object?>{'promptAppend': promptAppend.trim()},
     if (gitHostingProvider != null) 'gitHostingProvider': gitHostingProvider,
   };
 }

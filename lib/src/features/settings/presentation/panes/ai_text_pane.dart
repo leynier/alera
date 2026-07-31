@@ -28,6 +28,13 @@ class AiTextSettingsPane extends ConsumerStatefulWidget {
 }
 
 class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
+  static const List<AiTextGenerationOperation> _configuredOperations =
+      <AiTextGenerationOperation>[
+        AiTextGenerationOperation.commitMessage,
+        AiTextGenerationOperation.pullRequestDetails,
+        AiTextGenerationOperation.workspaceIdentity,
+      ];
+
   final Map<AiTextGenerationAgent, _AiTextModelDiscoveryState> _discovery =
       <AiTextGenerationAgent, _AiTextModelDiscoveryState>{};
   final Set<AiTextGenerationAgent> _autoDiscovered = <AiTextGenerationAgent>{};
@@ -36,7 +43,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoDiscoverActiveAgent();
+      _autoDiscoverConfiguredAgents();
     });
   }
 
@@ -44,9 +51,11 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
   void didUpdateWidget(covariant AiTextSettingsPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.settings.agent != widget.settings.agent ||
-        oldWidget.settings.enabled != widget.settings.enabled) {
+        oldWidget.settings.enabled != widget.settings.enabled ||
+        oldWidget.settings.promptSettingsByOperation !=
+            widget.settings.promptSettingsByOperation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoDiscoverActiveAgent();
+        _autoDiscoverConfiguredAgents();
       });
     }
   }
@@ -86,7 +95,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
               AiTextAgentRow(
                 value: agent,
                 onChanged: (value) =>
-                    widget.onChanged(settings.copyWith(agent: value)),
+                    widget.onChanged(_withGlobalAgent(settings, value)),
               ),
               if (agent == AiTextGenerationAgent.custom)
                 SettingsTextRow(
@@ -134,6 +143,34 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                     ),
                   ),
                 ),
+              if (agent != AiTextGenerationAgent.custom &&
+                  _configuredOperations.any(
+                    (operation) =>
+                        settings.agentFor(operation) ==
+                        AiTextGenerationAgent.custom,
+                  ))
+                SettingsTextRow(
+                  title: 'Custom Command',
+                  description:
+                      'Used By Prompts That Override The Global Agent With Custom Command.',
+                  value: settings.customCommand,
+                  hintText: 'llm --system commit-message',
+                  onChanged: (value) =>
+                      widget.onChanged(settings.copyWith(customCommand: value)),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: widget.groupKeys['promptOverrides'],
+          child: AleraSettingsGroup(
+            title: 'Prompt Overrides',
+            description:
+                'Choose A Different Agent Or Model Per Prompt, Or Inherit The Global Selection.',
+            children: <Widget>[
+              for (final operation in _configuredOperations)
+                ..._promptOverrideRows(settings, operation),
             ],
           ),
         ),
@@ -196,11 +233,105 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     );
   }
 
-  void _autoDiscoverActiveAgent() {
+  List<Widget> _promptOverrideRows(
+    AiTextGenerationSettings settings,
+    AiTextGenerationOperation operation,
+  ) {
+    final promptSettings = settings.promptSettingsFor(operation);
+    final agent = settings.agentFor(operation);
+    final inheritedModel = modelForAgent(
+      agent,
+      settings.modelFor(agent) ?? defaultModelIdForAgent(agent, settings),
+      extraModels: discoveredModelsForAgent(settings, agent),
+    );
+    final spec = aiTextAgentSpecs[agent];
+    final discovery = _discovery[agent] ?? const _AiTextModelDiscoveryState();
+    return <Widget>[
+      AiTextPromptAgentRow(
+        operation: operation,
+        globalAgent: settings.agent,
+        value: promptSettings.agent,
+        onChanged: (agent) {
+          final previousAgent = settings.agentFor(operation);
+          final nextAgent = agent ?? settings.agent;
+          _updatePromptSettings(
+            settings,
+            operation,
+            AiTextGenerationPromptSettings(
+              agent: agent,
+              model: previousAgent == nextAgent ? promptSettings.model : null,
+            ),
+          );
+        },
+      ),
+      if (agent != AiTextGenerationAgent.custom)
+        AiTextPromptModelRow(
+          operation: operation,
+          agent: agent,
+          models: modelsForAgent(agent, settings),
+          inheritedModel: inheritedModel,
+          value: promptSettings.model,
+          discovering: discovery.loading,
+          discoveryError: discovery.error,
+          onRefreshModels: spec?.modelsCommand == null
+              ? null
+              : () => unawaited(_discoverModels(agent)),
+          onChanged: (model) {
+            _updatePromptSettings(
+              settings,
+              operation,
+              AiTextGenerationPromptSettings(
+                agent: promptSettings.agent,
+                model: model,
+              ),
+            );
+          },
+        ),
+    ];
+  }
+
+  void _updatePromptSettings(
+    AiTextGenerationSettings settings,
+    AiTextGenerationOperation operation,
+    AiTextGenerationPromptSettings promptSettings,
+  ) {
+    final updated = <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
+      ...settings.promptSettingsByOperation,
+    };
+    if (promptSettings.inheritsAgent && promptSettings.inheritsModel) {
+      updated.remove(operation);
+    } else {
+      updated[operation] = promptSettings;
+    }
+    widget.onChanged(settings.copyWith(promptSettingsByOperation: updated));
+  }
+
+  AiTextGenerationSettings _withGlobalAgent(
+    AiTextGenerationSettings settings,
+    AiTextGenerationAgent agent,
+  ) {
+    final updated = <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
+      for (final entry in settings.promptSettingsByOperation.entries)
+        if (entry.value.agent != null) entry.key: entry.value,
+    };
+    return settings.copyWith(agent: agent, promptSettingsByOperation: updated);
+  }
+
+  void _autoDiscoverConfiguredAgents() {
     if (!mounted || !widget.settings.enabled) {
       return;
     }
-    final agent = widget.settings.agent;
+    final agents = <AiTextGenerationAgent>{
+      widget.settings.agent,
+      for (final operation in _configuredOperations)
+        widget.settings.agentFor(operation),
+    };
+    for (final agent in agents) {
+      _autoDiscoverAgent(agent);
+    }
+  }
+
+  void _autoDiscoverAgent(AiTextGenerationAgent agent) {
     final spec = aiTextAgentSpecs[agent];
     if (spec?.modelsCommand == null ||
         _autoDiscovered.contains(agent) ||

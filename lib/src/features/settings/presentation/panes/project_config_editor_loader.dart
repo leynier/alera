@@ -19,6 +19,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
     required this.updateSetupCommand,
     required this.removeSetupCommand,
     required this.addSetupCommand,
+    required this.onPromptAppendChanged,
     required this.saveOverride,
     required this.useRepoFile,
     required this.onGitHostingProviderChanged,
@@ -32,6 +33,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
   final ({
     List<EditableCopyRule> copyRules,
     List<String> setupCommands,
+    String promptAppend,
     GitHostingProvider? gitHostingProvider,
   })
   Function({required Project project, required ProjectConfig config})
@@ -43,6 +45,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
   final void Function(int index, String command) updateSetupCommand;
   final ValueChanged<int> removeSetupCommand;
   final VoidCallback addSetupCommand;
+  final ValueChanged<String> onPromptAppendChanged;
   final Future<void> Function(Project project) saveOverride;
   final Future<void> Function()? useRepoFile;
 
@@ -58,6 +61,8 @@ class ProjectConfigEditorLoader extends StatelessWidget {
         onGitHostingProviderChanged: onGitHostingProviderChanged,
         copyRules: editorState.copyRules,
         setupCommands: editorState.setupCommands,
+        promptAppend: editorState.promptAppend,
+        onPromptAppendChanged: onPromptAppendChanged,
         saveError: saveError,
         saving: saving,
         updateCopyRule: updateCopyRule,
@@ -91,6 +96,8 @@ class ProjectConfigEditorLoader extends StatelessWidget {
             onGitHostingProviderChanged: onGitHostingProviderChanged,
             copyRules: editorState.copyRules,
             setupCommands: editorState.setupCommands,
+            promptAppend: editorState.promptAppend,
+            onPromptAppendChanged: onPromptAppendChanged,
             saveError: saveError,
             saving: saving,
             updateCopyRule: updateCopyRule,
@@ -113,6 +120,8 @@ class ProjectConfigEditorLoader extends StatelessWidget {
           onGitHostingProviderChanged: onGitHostingProviderChanged,
           copyRules: editorState.copyRules,
           setupCommands: editorState.setupCommands,
+          promptAppend: editorState.promptAppend,
+          onPromptAppendChanged: onPromptAppendChanged,
           saveError: saveError,
           saving: saving,
           updateCopyRule: updateCopyRule,

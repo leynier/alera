@@ -15,11 +15,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_git_backend.dart';
 
 part 'ai_text_generation_grok_test_cases.dart';
+part 'ai_text_generation_prompt_override_test_cases.dart';
 part 'ai_text_generation_test_harness.dart';
 
 void main() {
   group('AI text generation', () {
     _registerGrokAiTextGenerationTests();
+    _registerAiTextPromptOverrideTests();
 
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(

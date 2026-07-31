@@ -47,8 +47,69 @@ void main() {
       selectedModelByAgent: <AiTextGenerationAgent, String>{
         AiTextGenerationAgent.codex: 'gpt-5',
       },
+      promptSettingsByOperation:
+          <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
+            AiTextGenerationOperation.commitMessage:
+                AiTextGenerationPromptSettings(
+                  agent: AiTextGenerationAgent.claude,
+                  model: 'opus',
+                ),
+          },
     );
 
     expect(AiTextGenerationSettings.fromJson(settings.toMap()), settings);
+  });
+
+  test('resolves prompt agent and model overrides independently', () {
+    const settings = AiTextGenerationSettings(
+      agent: AiTextGenerationAgent.codex,
+      selectedModelByAgent: <AiTextGenerationAgent, String>{
+        AiTextGenerationAgent.codex: 'gpt-global',
+        AiTextGenerationAgent.claude: 'sonnet',
+      },
+      promptSettingsByOperation:
+          <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
+            AiTextGenerationOperation.commitMessage:
+                AiTextGenerationPromptSettings(
+                  agent: AiTextGenerationAgent.claude,
+                ),
+            AiTextGenerationOperation.pullRequestDetails:
+                AiTextGenerationPromptSettings(model: 'gpt-pull-request'),
+          },
+    );
+
+    expect(
+      settings.agentFor(AiTextGenerationOperation.commitMessage),
+      AiTextGenerationAgent.claude,
+    );
+    expect(
+      settings.modelForOperation(AiTextGenerationOperation.commitMessage),
+      'sonnet',
+    );
+    expect(
+      settings.agentFor(AiTextGenerationOperation.pullRequestDetails),
+      AiTextGenerationAgent.codex,
+    );
+    expect(
+      settings.modelForOperation(AiTextGenerationOperation.pullRequestDetails),
+      'gpt-pull-request',
+    );
+    expect(
+      settings.modelForOperation(AiTextGenerationOperation.workspaceIdentity),
+      'gpt-global',
+    );
+  });
+
+  test('reports whether prompt settings inherit each global value', () {
+    const inherited = AiTextGenerationPromptSettings(model: '  ');
+    const overridden = AiTextGenerationPromptSettings(
+      agent: AiTextGenerationAgent.claude,
+      model: 'sonnet',
+    );
+
+    expect(inherited.inheritsAgent, isTrue);
+    expect(inherited.inheritsModel, isTrue);
+    expect(overridden.inheritsAgent, isFalse);
+    expect(overridden.inheritsModel, isFalse);
   });
 }

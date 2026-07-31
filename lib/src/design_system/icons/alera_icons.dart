@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_codicons.dart';
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -5,10 +6,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 ///
 /// Icons are referenced by their semantic role (e.g. [delete], [gitBranch]),
 /// never by raw glyph, so the whole app stays consistent and the underlying
-/// icon set can be swapped from a single place. The glyphs come from Lucide
-/// (`lucide_icons_flutter`), the same family Orca uses, which is the de-facto
-/// standard for modern developer tooling. This class is the only entry point
-/// to `lucide_icons_flutter`; nothing else in the app imports it directly.
+/// icon set can be swapped from a single place. Most glyphs come from Lucide
+/// (`lucide_icons_flutter`), while source-control actions use VS Code Codicons
+/// so Git controls follow the conventions developers already know. This class
+/// is the only entry point to either icon family.
 ///
 /// File-type icons in the explorer keep using `vscode_material_icon_theme`
 /// (the VSCode standard for file trees); see `AleraFileIcon`.
@@ -99,6 +100,21 @@ abstract final class AleraIcons {
   static const IconData gitPullRequestClosed = LucideIcons.gitPullRequestClosed;
   static const IconData checks = LucideIcons.listChecks;
   static const IconData diff = LucideIcons.gitCompare;
+
+  // Source control actions
+  static const IconData gitCommit = AleraCodicons.check;
+  static const IconData gitAmend = AleraCodicons.check;
+  static const IconData gitStage = AleraCodicons.add;
+  static const IconData gitUnstage = AleraCodicons.remove;
+  static const IconData gitDiscard = AleraCodicons.discard;
+  static const IconData gitFetch = AleraCodicons.gitFetch;
+  static const IconData gitPull = AleraCodicons.repoPull;
+  static const IconData gitPush = AleraCodicons.repoPush;
+  static const IconData gitSync = AleraCodicons.sync;
+  static const IconData gitPublish = AleraCodicons.cloudUpload;
+  static const IconData gitStash = AleraCodicons.gitStash;
+  static const IconData gitStashPop = AleraCodicons.gitStashPop;
+  static const IconData gitRefresh = AleraCodicons.refresh;
 
   // Download / upload
   static const IconData download = LucideIcons.download;

@@ -28,6 +28,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
   String? _seedSignature;
   List<EditableCopyRule> _copyRules = const <EditableCopyRule>[];
   List<String> _setupCommands = const <String>[];
+  String _promptAppend = '';
   GitHostingProvider? _gitHostingProvider;
   final Map<String, Future<ProjectConfig?>> _repoConfigFutures =
       <String, Future<ProjectConfig?>>{};
@@ -85,6 +86,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
                   updateSetupCommand: _updateSetupCommand,
                   removeSetupCommand: _removeSetupCommand,
                   addSetupCommand: _addSetupCommand,
+                  onPromptAppendChanged: _setPromptAppend,
                   saveOverride: _saveOverride,
                   useRepoFile: overrides.containsKey(selected.id)
                       ? () => _useRepoFile(selected)
@@ -120,6 +122,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
   ({
     List<EditableCopyRule> copyRules,
     List<String> setupCommands,
+    String promptAppend,
     GitHostingProvider? gitHostingProvider,
   })
   _seedEditor({required Project project, required ProjectConfig config}) {
@@ -128,6 +131,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
       return (
         copyRules: _copyRules,
         setupCommands: _setupCommands,
+        promptAppend: _promptAppend,
         gitHostingProvider: _gitHostingProvider,
       );
     }
@@ -142,17 +146,23 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         ),
     ];
     _setupCommands = <String>[...config.worktree.setup];
+    _promptAppend = config.newWorkspace.promptAppend;
     _gitHostingProvider = config.gitHostingProvider;
     _saveError = null;
     return (
       copyRules: _copyRules,
       setupCommands: _setupCommands,
+      promptAppend: _promptAppend,
       gitHostingProvider: _gitHostingProvider,
     );
   }
 
   void _setGitHostingProvider(GitHostingProvider? provider) {
     setState(() => _gitHostingProvider = provider);
+  }
+
+  void _setPromptAppend(String value) {
+    setState(() => _promptAppend = value);
   }
 
   void _updateCopyRule(int index, EditableCopyRule rule) {
@@ -250,6 +260,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         _seedSignature = null;
         _copyRules = const <EditableCopyRule>[];
         _setupCommands = const <String>[];
+        _promptAppend = '';
         _repoConfigFutures.remove(project.id);
       });
     } catch (error) {
@@ -300,6 +311,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
             if (command.trim().isNotEmpty) command.trim(),
         ],
       ),
+      newWorkspace: NewWorkspaceConfig(promptAppend: _promptAppend.trim()),
       gitHostingProvider: _gitHostingProvider,
     );
   }

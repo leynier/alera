@@ -401,19 +401,19 @@ class _GitFileActions extends StatelessWidget {
           if (entry.canUnstageFromParent)
             AleraIconButton(
               tooltip: 'Unstage',
-              icon: AleraIcons.remove,
+              icon: AleraIcons.gitUnstage,
               onPressed: busy ? null : () => onUnstage(entry),
             )
           else if (entry.canStageFromParent)
             AleraIconButton(
               tooltip: 'Stage',
-              icon: AleraIcons.add,
+              icon: AleraIcons.gitStage,
               onPressed: busy ? null : () => onStage(entry),
             ),
           if (entry.canDiscardFromParent)
             AleraIconButton(
               tooltip: 'Discard',
-              icon: AleraIcons.close,
+              icon: AleraIcons.gitDiscard,
               onPressed: busy ? null : () => onDiscard(entry),
             ),
         ],
@@ -451,19 +451,19 @@ class _AreaActions extends StatelessWidget {
           if (canUnstage)
             AleraIconButton(
               tooltip: 'Unstage',
-              icon: AleraIcons.remove,
+              icon: AleraIcons.gitUnstage,
               onPressed: busy ? null : onUnstage,
             )
           else if (canStage)
             AleraIconButton(
               tooltip: 'Stage',
-              icon: AleraIcons.add,
+              icon: AleraIcons.gitStage,
               onPressed: busy ? null : onStage,
             ),
           if (canDiscard)
             AleraIconButton(
               tooltip: 'Discard',
-              icon: AleraIcons.close,
+              icon: AleraIcons.gitDiscard,
               onPressed: busy ? null : onDiscard,
             ),
         ],
