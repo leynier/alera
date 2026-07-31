@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_closed_tabs_service.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -354,6 +355,13 @@ void terminalRuntimeExitCoordinator(Ref ref) {
   }
 
   final subscription = runtime.exits.listen((event) {
+    // A command terminal belongs to the dialog that opened it, not to the
+    // workbench. Closing its session here would wipe the output the moment the
+    // shell exited, which is exactly when the user wants to read it, and would
+    // report agent and activity events against a synthetic workspace id.
+    if (isCommandTerminalWorkspaceId(event.workspaceId)) {
+      return;
+    }
     if (disposed || !closingTabIds.add(event.tabId)) {
       return;
     }

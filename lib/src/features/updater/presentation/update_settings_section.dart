@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:flutter/material.dart';
@@ -148,51 +154,49 @@ class UpdateSettingsSection extends ConsumerWidget {
 /// Shows the package-manager command that performs the update, for every
 /// installation Alera detects but must not replace itself: Linux packages,
 /// Chocolatey, and as the fallback when running the upgrade fails.
-class _UpgradeCommand extends StatefulWidget {
+///
+/// `Run Update` runs it in a terminal dialog rather than leaving the user to
+/// paste it somewhere. These commands are the ones that need `sudo`, and a
+/// dialog with a real PTY is somewhere a password can actually be typed.
+class _UpgradeCommand extends ConsumerWidget {
   const _UpgradeCommand({required this.command});
 
   final String command;
 
-  @override
-  State<_UpgradeCommand> createState() => _UpgradeCommandState();
-}
-
-class _UpgradeCommandState extends State<_UpgradeCommand> {
-  bool _copied = false;
-
-  Future<void> _copy() async {
-    await Clipboard.setData(ClipboardData(text: widget.command));
-    if (mounted) {
-      setState(() => _copied = true);
+  Future<void> _run(BuildContext context, WidgetRef ref) async {
+    await showCommandTerminalDialog(
+      context,
+      ref,
+      CommandTerminalRequest(
+        title: 'Update Alera',
+        command: command,
+        description: 'The Update Runs Here. Answer Any Prompt In The Terminal.',
+      ),
+    );
+    if (!context.mounted) {
+      return;
     }
+    await ref.read(aleraUpdateControllerProvider.notifier).checkForUpdates();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AleraCommandLine(
+      command: command,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Expanded(
-            child: SelectableText(
-              widget.command,
-              style: AleraTokens.monoStyle.copyWith(
-                color: AleraTokens.foreground,
-                fontSize: 12,
-              ),
-            ),
+          AleraIconButton(
+            tooltip: 'Copy Command',
+            icon: AleraIcons.copy,
+            onPressed: () =>
+                unawaited(Clipboard.setData(ClipboardData(text: command))),
           ),
           const SizedBox(width: AleraTokens.space8),
-          OutlinedButton.icon(
-            onPressed: _copy,
-            icon: const Icon(AleraIcons.copy, size: 16),
-            label: Text(_copied ? 'Command Copied' : 'Copy Command'),
+          FilledButton.icon(
+            onPressed: () => unawaited(_run(context, ref)),
+            icon: const Icon(AleraIcons.terminal, size: 16),
+            label: const Text('Run Update'),
           ),
         ],
       ),

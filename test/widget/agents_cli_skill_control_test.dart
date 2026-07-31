@@ -21,31 +21,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'command_terminal_test_doubles.dart';
+
 void main() {
-  testWidgets('skill control copies and runs the selected runner', (
+  testWidgets('skill control runs the selected runner in a terminal', (
     tester,
   ) async {
-    String? clipboardText;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final arguments = call.arguments as Map<dynamic, dynamic>;
-            clipboardText = arguments['text'] as String?;
-            return null;
-          }
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': clipboardText};
-          }
-          return null;
-        });
-    addTearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null);
-    });
-    final service = _FakeAleraCliSkillService();
+    final runtime = FakeCommandTerminalRuntime(running: false);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
           home: const Scaffold(
@@ -74,13 +59,6 @@ void main() {
       SystemMouseCursors.click,
     );
 
-    await tester.tap(find.text('Copy'));
-    await tester.pump();
-    expect(
-      clipboardText,
-      'npx skills add https://github.com/leynier/alera --skill alera-cli --global || bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
-    );
-
     await tester.tap(find.byType(PopupMenuButton<AleraCliSkillRunner>));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
@@ -88,19 +66,20 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await tester.tap(find.text('Copy'));
-    await tester.pump();
+    await tester.tap(find.text('Install / Update'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Install Alera CLI Skill'), findsOneWidget);
     expect(
-      clipboardText,
+      runtime.lastTab?.initialCommand,
       'bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
     );
 
-    await tester.tap(find.text('Install / Update'));
-    await tester.pump();
-    await tester.pump();
+    // The dialog owns the session: closing it terminates the shell tree.
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
 
-    expect(service.runner, AleraCliSkillRunner.bunx);
-    expect(find.text('Install Complete (bunx)'), findsOneWidget);
+    expect(runtime.closedTabIds, <String>[runtime.lastTab!.id]);
   });
 
   testWidgets('registration control surfaces refresh failures', (tester) async {
@@ -132,8 +111,10 @@ void main() {
     expect(find.textContaining('missing'), findsOneWidget);
   });
 
-  testWidgets('orchestration install reapplies selected hooks', (tester) async {
-    final service = _FakeAleraCliSkillService();
+  testWidgets('orchestration reapplies selected hooks after the terminal', (
+    tester,
+  ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
     final reconciler = _FakeHookReconciler();
     final settings = AleraSettings.defaults.copyWith(
       agents: AleraSettings.defaults.agents.copyWith(
@@ -143,7 +124,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          aleraCliSkillServiceProvider.overrideWithValue(service),
+          terminalRuntimeProvider.overrideWithValue(runtime),
           agentHookReconciliationServiceProvider.overrideWithValue(reconciler),
           settingsControllerProvider.overrideWithValue(settings),
         ],
@@ -160,22 +141,27 @@ void main() {
     );
 
     await tester.tap(find.text('Install / Update'));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(service.skill, AleraAgentSkill.orchestration);
-    expect(reconciler.settings?.codex, isTrue);
     expect(
-      find.text('Install Complete (npx) · Selected Hooks Ready'),
-      findsOneWidget,
+      runtime.lastTab?.initialCommand,
+      contains('--skill alera-orchestration'),
     );
+    // The hooks are the half that stays in Dart, so nothing has run yet.
+    expect(reconciler.settings, isNull);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    expect(reconciler.settings?.codex, isTrue);
+    expect(find.text('Selected Hooks Ready'), findsOneWidget);
   });
 
   testWidgets('emulator control installs the emulator skill', (tester) async {
-    final service = _FakeAleraCliSkillService();
+    final runtime = FakeCommandTerminalRuntime(running: false);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
           home: const Scaffold(body: AleraEmulatorSkillControl()),
@@ -184,19 +170,18 @@ void main() {
     );
 
     await tester.tap(find.text('Install / Update'));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(service.skill, AleraAgentSkill.emulator);
+    expect(runtime.lastTab?.initialCommand, contains('--skill alera-emulator'));
   });
 
   testWidgets('computer use control installs the computer use skill', (
     tester,
   ) async {
-    final service = _FakeAleraCliSkillService();
+    final runtime = FakeCommandTerminalRuntime(running: false);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
           home: const Scaffold(body: AleraComputerUseSkillControl()),
@@ -205,10 +190,9 @@ void main() {
     );
 
     await tester.tap(find.text('Install / Update'));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(service.skill, AleraAgentSkill.computerUse);
+    expect(runtime.lastTab?.initialCommand, contains('--skill computer-use'));
   });
 
   testWidgets('all skills control installs every skill and reapplies hooks', (
@@ -272,15 +256,23 @@ void main() {
             '$missingModule',
       ),
     );
+    // The all-skills control is the one that still installs in process, because
+    // it is more than one command and also reconciles hooks in Dart.
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [aleraCliSkillServiceProvider.overrideWithValue(service)],
+        overrides: [
+          aleraCliSkillServiceProvider.overrideWithValue(service),
+          agentHookReconciliationServiceProvider.overrideWithValue(
+            _FakeHookReconciler(),
+          ),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+        ],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
           home: const Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: AleraCliSkillControl(),
+              child: AleraAllSkillsControl(),
             ),
           ),
         ),
@@ -289,12 +281,11 @@ void main() {
 
     expect(find.text('View Output'), findsNothing);
 
-    await tester.tap(find.text('Install / Update'));
-    await tester.pump();
-    await tester.pump();
+    await tester.tap(find.text('Install / Update All'));
+    await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Install Failed (npx)'),
+      find.textContaining('0 Of 4 Alera Skills Installed / Updated'),
       findsOneWidget,
       reason: 'the row shows a one-line summary',
     );

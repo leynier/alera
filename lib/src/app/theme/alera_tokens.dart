@@ -31,6 +31,10 @@ abstract final class AleraTokens {
   static const double dialogWidth = 440.0;
   static const double dialogWideWidth = 560.0;
   static const double dialogMaxHeight = 520.0;
+  // A dialog hosting a terminal is sized by how much output stays legible, not
+  // by its text: 720px fits roughly 95 columns at the mono size.
+  static const double dialogTerminalWidth = 720.0;
+  static const double dialogTerminalHeight = 460.0;
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double dividerExtent = 1.0;

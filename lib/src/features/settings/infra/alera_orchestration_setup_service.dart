@@ -61,6 +61,47 @@ class AleraOrchestrationSetupResult {
   }
 }
 
+/// Outcome of the hook half of orchestration setup on its own, for when the
+/// skill install already happened elsewhere.
+class AleraOrchestrationHookSetupResult {
+  const AleraOrchestrationHookSetupResult({
+    required this.hooksSelected,
+    this.hookStatuses = const <ManagedAgentHookInstallStatus>[],
+    this.hookError,
+  });
+
+  final bool hooksSelected;
+  final List<ManagedAgentHookInstallStatus> hookStatuses;
+  final Object? hookError;
+
+  List<ManagedAgentHookInstallStatus> get _unhealthy => hookStatuses
+      .where(
+        (status) =>
+            status.state == ManagedAgentHookInstallState.error ||
+            status.state == ManagedAgentHookInstallState.partial,
+      )
+      .toList(growable: false);
+
+  bool get needsAttention => hookError != null || _unhealthy.isNotEmpty;
+
+  String get summary {
+    if (hookError != null) {
+      return 'Hook Setup Failed: $hookError';
+    }
+    if (!hooksSelected) {
+      return 'No Status Hooks Selected';
+    }
+    final unhealthy = _unhealthy;
+    if (unhealthy.isNotEmpty) {
+      final labels = unhealthy
+          .map((status) => _agentTypeLabel(status.agentType))
+          .join(', ');
+      return 'Hooks Need Attention: $labels';
+    }
+    return 'Selected Hooks Ready';
+  }
+}
+
 class AleraOrchestrationSetupService {
   const AleraOrchestrationSetupService({
     required this.skillService,
@@ -102,6 +143,32 @@ class AleraOrchestrationSetupService {
       );
       return AleraOrchestrationSetupResult(
         skillResult: skillResult,
+        hooksSelected: hooks.anyEnabled,
+        hookError: error,
+      );
+    }
+  }
+
+  /// Reconciles the status hooks without installing the skill first.
+  ///
+  /// The terminal dialog runs the skill install as a shell command the user can
+  /// watch and answer; this is the half that stays in Dart and has to happen
+  /// once that command is done.
+  Future<AleraOrchestrationHookSetupResult> reconcileHooks(
+    AgentStatusHookSettings hooks,
+  ) async {
+    try {
+      final statuses = await hookReconciliationService.reconcile(hooks);
+      final enabled = enabledAgentStatusHookTypes(hooks).toSet();
+      return AleraOrchestrationHookSetupResult(
+        hooksSelected: hooks.anyEnabled,
+        hookStatuses: statuses
+            .where((status) => enabled.contains(status.agentType))
+            .toList(growable: false),
+      );
+    } catch (error, stackTrace) {
+      _log.warning('orchestration hook setup failed', error, stackTrace);
+      return AleraOrchestrationHookSetupResult(
         hooksSelected: hooks.anyEnabled,
         hookError: error,
       );
