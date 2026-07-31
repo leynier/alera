@@ -273,6 +273,11 @@
   opacity: 0;
 }
 
+@utility defer-offscreen-rendering {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 800px;
+}
+
 @utility hero-glow {
   /* Subtle breathing glow behind the hero. */
   background: radial-gradient(
