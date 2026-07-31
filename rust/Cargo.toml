@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 # `rust/` is both the flutter_rust_bridge library package (`alera_native`, built
 # by cargokit via `cargo build --manifest-path rust/Cargo.toml`, no `-p`) and the
@@ -12,7 +12,12 @@ crate-type = ["cdylib", "staticlib"]
 # native hooks via `cargo build --locked -p alera-cli`). One lock file, one
 # target dir; the FRB build only compiles the root package.
 [workspace]
-members = ["alera-cli", "alera-core"]
+members = [
+    "alera-cli",
+    "alera-core",
+    "alera-runtime-client",
+    "alera-runtime-protocol",
+]
 resolver = "2"
 
 [dependencies]

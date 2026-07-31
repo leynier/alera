@@ -1,0 +1,12 @@
+[package]
+name = "alera-runtime-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "Shared wire protocol primitives for Alera runtime clients."
+publish = false
+
+[dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+serde_json = "1"

@@ -4,11 +4,16 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Map, Value};
 
+pub use alera_runtime_protocol::{
+    BINARY_FRAMES_ENABLED_EVENT, DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS,
+    DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS, DEFAULT_SCROLLBACK_BYTES, MOBILE_EMULATOR_TAB_KIND,
+    PROTOCOL_VERSION, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
+};
+
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-/// Wire protocol version. Must stay in lockstep with the Flutter client
-/// (`aleraTerminalHostProtocolVersion`).
-pub const PROTOCOL_VERSION: i64 = 4;
 pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
 pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
 pub const ORCHESTRATION_SKILL_VERSION: i64 = 3;
@@ -17,10 +22,6 @@ pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
 /// with the CLI so `--timeout-ms` can refuse a budget the host would silently
 /// cut down to this.
 pub const ORCHESTRATION_MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
-pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
-pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
-pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
-pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.
@@ -77,13 +78,6 @@ pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresenc
 // Advertised once callers can explicitly replace a terminal process while
 // preserving its handle and scrollback. Older hosts remain attachable.
 pub const RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY: &str = "terminalRestartV1";
-/// The client may ask, in its `hello`, to switch this connection to
-/// length-prefixed binary frames. Negotiated per client, so an older app and
-/// the `alera` CLI keep getting newline-delimited JSON from the same host.
-pub const RUNTIME_HOST_BINARY_FRAMES_CAPABILITY: &str = "binaryFrames";
-/// Last line before the connection switches to frames. Everything after it is
-/// framed, so a reader can flip on seeing it without any out-of-band signal.
-pub const BINARY_FRAMES_ENABLED_EVENT: &str = "binaryFramesEnabled";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 /// The host can replace its own sidecar process through `host.restart`.
 ///
@@ -122,7 +116,6 @@ pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCert
 // Additive: older hosts remain usable, and clients feature-check before
 // sending emulator verbs.
 pub const RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY: &str = "mobileEmulatorV1";
-pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.
 pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;
@@ -135,10 +128,6 @@ pub const CLI_EXECUTABLE_NAME: &str = "alera";
 #[allow(dead_code)]
 pub const CLI_WINDOWS_EXECUTABLE_NAME: &str = "alera.exe";
 pub const TERMINAL_HOST_COMMAND: &str = "terminal-host";
-
-pub const DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS: u64 = 30;
-pub const DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS: u64 = 60 * 60;
-pub const DEFAULT_SCROLLBACK_BYTES: u64 = 10 * 1000 * 1000;
 
 /// Interactive shells start as login shells on macOS, where GUI apps inherit a
 /// minimal `launchd` PATH and `~/.zprofile` is the usual place PATH is set up.

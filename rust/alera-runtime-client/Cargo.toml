@@ -1,0 +1,28 @@
+[package]
+name = "alera-runtime-client"
+version = "0.1.0"
+edition = "2021"
+description = "Async client for the Alera runtime-host socket."
+publish = false
+
+[dependencies]
+alera-core = { path = "../alera-core", features = ["runtime"] }
+alera-runtime-protocol = { path = "../alera-runtime-protocol" }
+anyhow = "1"
+base64 = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = [
+    "fs",
+    "io-util",
+    "macros",
+    "net",
+    "process",
+    "rt",
+    "sync",
+    "time",
+] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"

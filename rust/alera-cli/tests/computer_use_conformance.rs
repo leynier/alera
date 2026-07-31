@@ -82,7 +82,8 @@ fn no_computer_verb_is_on_the_mobile_allowlist() {
 /// a live host as unusable, and computer use is purely additive.
 #[test]
 fn the_protocol_version_is_unchanged_by_computer_use() {
-    let protocol = read(&["rust", "alera-cli", "src", "terminal_host", "protocol.rs"]);
+    let shared_protocol = read(&["rust", "alera-runtime-protocol", "src", "lib.rs"]);
+    let host_protocol = read(&["rust", "alera-cli", "src", "terminal_host", "protocol.rs"]);
     let dart = read(&[
         "lib",
         "src",
@@ -93,7 +94,7 @@ fn the_protocol_version_is_unchanged_by_computer_use() {
         "terminal_host_protocol.dart",
     ]);
     assert!(
-        protocol.contains("pub const PROTOCOL_VERSION: i64 = 4;"),
+        shared_protocol.contains("pub const PROTOCOL_VERSION: i64 = 4;"),
         "computer use is additive and must not bump PROTOCOL_VERSION"
     );
     assert!(
@@ -101,7 +102,7 @@ fn the_protocol_version_is_unchanged_by_computer_use() {
         "the Dart mirror must stay in lockstep with the host"
     );
     assert!(
-        protocol.contains("computerUseV1"),
+        host_protocol.contains("computerUseV1"),
         "the capability is how clients feature-check computer use"
     );
 }

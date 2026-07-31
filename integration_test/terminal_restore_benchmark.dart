@@ -97,7 +97,23 @@ void main() {
     print(report.format(snapshot));
     expect(samples, hasLength(_measuredRuns));
     expect(samples.every((sample) => sample.frames.isNotEmpty), isTrue);
+    await _drainLiveOutput(tester, session);
   });
+}
+
+Future<void> _drainLiveOutput(
+  WidgetTester tester,
+  TerminalSessionHandle session,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  await tester.runAsync(() async {
+    while (pendingLiveTerminalOutputCharsForTesting(session) > 0 &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  });
+  expect(pendingLiveTerminalOutputCharsForTesting(session), 0);
+  await tester.pump();
 }
 
 Future<_RestoreSample> _measureRestore({

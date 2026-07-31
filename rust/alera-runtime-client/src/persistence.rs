@@ -41,7 +41,7 @@ mod tests {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
     use super::*;
-    use crate::terminal_host::protocol::{
+    use alera_runtime_protocol::{
         PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     };

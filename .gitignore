@@ -53,6 +53,7 @@ crash.*.log
 # Rust
 /rust/target/
 /rust/target-review-*/
+/experiments/*/target/
 
 # Alchemist golden failure diffs (transient)
 test/golden/failures/
