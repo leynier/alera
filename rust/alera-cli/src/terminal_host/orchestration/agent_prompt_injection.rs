@@ -97,11 +97,11 @@ mod tests {
 
     #[test]
     fn paste_wraps_sanitized_prompt() {
-        let paste = build_agent_prompt_paste_bytes("hello\nworld");
+        let paste = build_agent_prompt_paste_bytes("- Review memory\n- Implement it");
         assert!(paste.starts_with(BRACKETED_PASTE_START));
         assert!(paste.ends_with(BRACKETED_PASTE_END));
         let inner = &paste[BRACKETED_PASTE_START.len()..paste.len() - BRACKETED_PASTE_END.len()];
-        assert_eq!(inner, b"hello\nworld");
+        assert_eq!(inner, b"- Review memory\n- Implement it");
     }
 
     #[test]

@@ -98,4 +98,20 @@ mod tests {
             .iter()
             .all(|adapter| !adapter.default_command.is_empty()));
     }
+
+    #[test]
+    fn only_codex_receives_its_initial_prompt_as_an_argument() {
+        let initial_argument_agents: Vec<_> = AGENT_ADAPTERS
+            .iter()
+            .filter(|adapter| {
+                adapter.startup_delivery == AgentStartupDelivery::InitialPromptArgument
+            })
+            .map(|adapter| adapter.agent_type)
+            .collect();
+        assert_eq!(initial_argument_agents, ["codex"]);
+        assert!(AGENT_ADAPTERS
+            .iter()
+            .filter(|adapter| adapter.agent_type != "codex")
+            .all(|adapter| adapter.startup_delivery == AgentStartupDelivery::ReadinessInjection));
+    }
 }
