@@ -94,6 +94,9 @@ mod tests {
             &mut arguments,
             "- Review memory\n- Implement it".to_string(),
         );
-        assert_eq!(arguments, ["--search", "--", "- Review memory\n- Implement it"]);
+        assert_eq!(
+            arguments,
+            ["--search", "--", "- Review memory\n- Implement it"]
+        );
     }
 }

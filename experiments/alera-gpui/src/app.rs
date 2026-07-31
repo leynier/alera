@@ -28,6 +28,7 @@ mod app_init;
 mod app_lifecycle;
 mod app_menu_dialog;
 mod claude_profile_dialog;
+mod command_terminal;
 mod context_pull_request;
 mod context_pull_request_ai;
 mod context_pull_request_composer;
@@ -118,6 +119,7 @@ use crate::workspace_service::{
     EditorDocument, ExplorerGitStatusSnapshot, SearchResults, WorkspaceService,
 };
 use agent_profile_settings::AgentProfileSettingsState;
+use command_terminal::CommandTerminalState;
 use keyboard_settings::KeyboardSettingsUiState;
 use mobile_access::MobileAccessState;
 use project_config_settings::ProjectConfigSettingsState;
@@ -167,6 +169,7 @@ pub struct AleraApp {
     refresh_generation: u64,
     terminal_sessions: BTreeMap<String, TerminalSession>,
     terminal_frame_views: BTreeMap<String, Entity<TerminalFrameView>>,
+    command_terminal: Option<CommandTerminalState>,
     terminal_output_dirty_sessions: BTreeSet<String>,
     terminal_drivers: BTreeMap<String, mobile_driver::MobileTerminalDriver>,
     terminal_driver_collapsed: BTreeSet<String>,
