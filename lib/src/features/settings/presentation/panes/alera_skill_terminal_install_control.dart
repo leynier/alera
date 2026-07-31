@@ -1,83 +1,97 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_skill_install_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
-import 'package:alera/src/features/settings/presentation/panes/skill_install_output_dialog.dart';
 import 'package:flutter/material.dart';
 
-class AleraSkillInstallStatus {
-  const AleraSkillInstallStatus(
-    this.summary, {
-    this.detail = '',
-    this.needsAttention = false,
-  });
+typedef AleraSkillTerminalRunner =
+    Future<void> Function(BuildContext context, CommandTerminalRequest request);
 
-  final String summary;
+/// Work that still has to happen in Dart once the installer command is done,
+/// such as reconciling agent status hooks. Returning null leaves the status
+/// line empty.
+typedef AleraSkillTerminalFollowUp =
+    Future<AleraSkillInstallStatus?> Function();
 
-  /// Full installer output, shown on demand. The inline summary is one line.
-  final String detail;
-  final bool needsAttention;
-}
-
-typedef AleraSkillInstaller =
-    Future<AleraSkillInstallStatus> Function(AleraCliSkillRunner runner);
-typedef AleraSkillCommandBuilder = String Function(AleraCliSkillRunner runner);
-
-/// Installs in process and reports afterwards, for setup that is more than one
-/// shell command. Single-command skills use
-/// [AleraSkillTerminalInstallControl] instead, which runs them in front of the
-/// user.
-class AleraSkillInstallControl extends StatefulWidget {
-  const AleraSkillInstallControl({
+/// Installs a skill by running its command in a terminal dialog.
+///
+/// The installer resolves `npx` out of the user's interactive shell, which is
+/// where it actually is, and anything it asks for has somewhere to be answered.
+/// There is no `View Output` here because the output is no longer something
+/// that happens offscreen and gets shown afterwards.
+class AleraSkillTerminalInstallControl extends StatefulWidget {
+  const AleraSkillTerminalInstallControl({
     super.key,
-    required this.install,
+    required this.dialogTitle,
+    required this.commandFor,
+    required this.runCommand,
+    this.followUp,
     this.installLabel = 'Install / Update',
-    this.installingLabel = 'Installing',
+    this.runningLabel = 'Running',
   });
 
-  final AleraSkillInstaller install;
+  final String dialogTitle;
+  final AleraSkillCommandBuilder commandFor;
+  final AleraSkillTerminalRunner runCommand;
+  final AleraSkillTerminalFollowUp? followUp;
   final String installLabel;
-  final String installingLabel;
+  final String runningLabel;
 
   @override
-  State<AleraSkillInstallControl> createState() =>
-      _AleraSkillInstallControlState();
+  State<AleraSkillTerminalInstallControl> createState() =>
+      _AleraSkillTerminalInstallControlState();
 }
 
-class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
+class _AleraSkillTerminalInstallControlState
+    extends State<AleraSkillTerminalInstallControl> {
   final GlobalKey<PopupMenuButtonState<AleraCliSkillRunner>> _runnerMenuKey =
       GlobalKey<PopupMenuButtonState<AleraCliSkillRunner>>();
-  bool _installing = false;
+  bool _running = false;
   AleraSkillInstallStatus? _status;
   AleraCliSkillRunner _runner = AleraCliSkillRunner.auto;
 
-  Future<void> _install() async {
-    if (_installing) {
+  Future<void> _run() async {
+    if (_running) {
       return;
     }
     setState(() {
-      _installing = true;
+      _running = true;
       _status = null;
     });
     try {
-      final result = await widget.install(_runner);
+      await widget.runCommand(
+        context,
+        CommandTerminalRequest(
+          title: widget.dialogTitle,
+          command: widget.commandFor(_runner),
+          description:
+              'The Installer Runs Here. Answer Any Prompt In The Terminal.',
+        ),
+      );
+      // The follow-up reads providers through the wrapper's ref, which stops
+      // being valid once this control leaves the tree.
+      if (!mounted) {
+        return;
+      }
+      final followUp = await widget.followUp?.call();
       if (mounted) {
-        setState(() => _status = result);
+        setState(() => _status = followUp);
       }
     } catch (error) {
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
-            'Install Failed',
-            detail: '$error',
+            'Install Failed: $error',
             needsAttention: true,
           );
         });
       }
     } finally {
       if (mounted) {
-        setState(() => _installing = false);
+        setState(() => _running = false);
       }
     }
   }
@@ -98,7 +112,7 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
               height: kSupportControlHeight,
               child: PopupMenuButton<AleraCliSkillRunner>(
                 key: _runnerMenuKey,
-                enabled: !_installing,
+                enabled: !_running,
                 tooltip: 'Select Runner',
                 onSelected: (runner) {
                   setState(() {
@@ -115,7 +129,7 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
                     ),
                 ],
                 child: OutlinedButton.icon(
-                  onPressed: _installing
+                  onPressed: _running
                       ? null
                       : () => _runnerMenuKey.currentState?.showButtonMenu(),
                   style: ButtonStyle(
@@ -130,35 +144,13 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
                 ),
               ),
             ),
-            if (status != null && status.detail.isNotEmpty)
-              SizedBox(
-                height: kSupportControlHeight,
-                child: OutlinedButton.icon(
-                  onPressed: () => SkillInstallOutputDialog.show(
-                    context,
-                    title: 'Installer Output',
-                    output: status.detail,
-                  ),
-                  icon: const Icon(AleraIcons.terminal, size: 16),
-                  label: const Text('View Output'),
-                ),
-              ),
             SizedBox(
               height: kSupportControlHeight,
               child: FilledButton.tonalIcon(
-                onPressed: _installing ? null : _install,
-                icon: _installing
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AleraTokens.foreground,
-                        ),
-                      )
-                    : const Icon(AleraIcons.download, size: 16),
+                onPressed: _running ? null : _run,
+                icon: const Icon(AleraIcons.terminal, size: 16),
                 label: Text(
-                  _installing ? widget.installingLabel : widget.installLabel,
+                  _running ? widget.runningLabel : widget.installLabel,
                 ),
               ),
             ),

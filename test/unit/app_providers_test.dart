@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/workbench/application/terminal_host_settings_config.dart';
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
@@ -971,6 +972,34 @@ void main() {
         expect(runtime.closedTabIds, <String>['tab-1']);
       },
     );
+
+    test('exit coordinator leaves command terminal sessions alone', () async {
+      final runtime = _FakeTerminalRuntime();
+      final container = ProviderContainer(
+        overrides: [
+          terminalRuntimeProvider.overrideWith((ref) => runtime),
+          workbenchControllerProvider.overrideWithValue(const WorkbenchState()),
+        ],
+      );
+      addTearDown(() {
+        runtime.dispose();
+        container.dispose();
+      });
+
+      container.read(terminalRuntimeExitCoordinatorProvider);
+      runtime.emitExit(
+        const TerminalRuntimeExitEvent(
+          workspaceId: commandTerminalWorkspaceId,
+          tabId: 'command-tab',
+          exitCode: 0,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // The dialog owns that session, and closing it here would wipe the output
+      // the moment the shell exited.
+      expect(runtime.closedTabIds, isEmpty);
+    });
 
     test(
       'database and launcher providers create disposable concrete implementations',

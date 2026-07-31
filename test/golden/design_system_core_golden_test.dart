@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,6 +131,8 @@ class _FormsPanelScenario extends StatelessWidget {
             labelText: 'Workspace Name',
             hintText: 'feature/refactor-terminal',
           ),
+          SizedBox(height: AleraTokens.space16),
+          AleraCommandLine(command: 'sudo dnf upgrade alera'),
           SizedBox(height: AleraTokens.space16),
           AleraPanel(
             children: <Widget>[
