@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'command_terminal_test_doubles.dart';
+
 const String _debUpgradeCommand =
     'sudo apt-get update && sudo apt-get install --only-upgrade alera';
 
@@ -51,11 +53,39 @@ void main() {
         reason: 'a loose .deb is what the package repository replaces',
       );
 
-      await tester.tap(find.text('Copy Command'));
+      await tester.tap(find.byTooltip('Copy Command'));
       await tester.pump();
 
       expect(copied, <String>[_debUpgradeCommand]);
-      expect(find.text('Command Copied'), findsOneWidget);
+    });
+
+    testWidgets('runs the upgrade command in a terminal and rechecks after', (
+      tester,
+    ) async {
+      final runtime = FakeCommandTerminalRuntime(running: false);
+      final controller = _FakeUpdateController(
+        _state(
+          status: AleraUpdateStatus.manualDownloadRequired,
+          latest: _latest().copyWith(platform: 'linux', installerKind: 'deb'),
+        ),
+      );
+      await _pumpSection(tester, controller, runtime: runtime);
+
+      await tester.tap(find.text('Run Update'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update Alera'), findsOneWidget);
+      expect(runtime.lastTab?.initialCommand, _debUpgradeCommand);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      expect(runtime.closedTabIds, <String>[runtime.lastTab!.id]);
+      expect(
+        controller.checkForUpdatesCalls,
+        1,
+        reason: 'the section has to reflect whatever the upgrade left behind',
+      );
     });
 
     testWidgets(
@@ -210,11 +240,15 @@ void main() {
 
 Future<void> _pumpSection(
   WidgetTester tester,
-  _FakeUpdateController controller,
-) async {
+  _FakeUpdateController controller, {
+  FakeCommandTerminalRuntime? runtime,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [aleraUpdateControllerProvider.overrideWith(() => controller)],
+      overrides: [
+        aleraUpdateControllerProvider.overrideWith(() => controller),
+        if (runtime != null) terminalRuntimeProvider.overrideWithValue(runtime),
+      ],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
         home: const Scaffold(body: UpdateSettingsSection()),

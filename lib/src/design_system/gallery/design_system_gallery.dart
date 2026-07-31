@@ -15,6 +15,7 @@ import 'package:alera/src/design_system/forms/alera_color_picker.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:flutter/material.dart';
@@ -115,6 +116,8 @@ Widget gallerySurfaces() => Column(
         ),
       ],
     ),
+    const SizedBox(height: AleraTokens.space12),
+    const AleraCommandLine(command: 'sudo dnf upgrade alera'),
   ],
 );
 
