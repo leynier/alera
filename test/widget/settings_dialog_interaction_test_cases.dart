@@ -455,7 +455,7 @@ void _registerSettingsDialogAdvancedTests() {
     expect(runtimeClient.targets.single.host, 'new.example.com');
     expect(
       tester
-          .widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Save'))
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'))
           .onPressed,
       isNull,
     );
@@ -699,7 +699,7 @@ void _registerSettingsDialogAdvancedTests() {
     );
 
     await _enterRemoteHostText(tester, 'Host', 'second-edited.example.com');
-    final saveButton = find.widgetWithText(ElevatedButton, 'Save');
+    final saveButton = find.widgetWithText(FilledButton, 'Save');
     await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
@@ -781,7 +781,7 @@ void _registerSettingsDialogAdvancedTests() {
 
     expect(find.text('Password'), findsOneWidget);
 
-    final saveButton = find.widgetWithText(ElevatedButton, 'Save');
+    final saveButton = find.widgetWithText(FilledButton, 'Save');
     await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
@@ -812,7 +812,7 @@ void _registerSettingsDialogAdvancedTests() {
     await _selectRemoteHostsSection(tester);
 
     await _enterRemoteHostText(tester, 'Port', '2222a');
-    final saveButton = find.widgetWithText(ElevatedButton, 'Save');
+    final saveButton = find.widgetWithText(FilledButton, 'Save');
     await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
