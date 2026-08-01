@@ -13,11 +13,14 @@ import 'package:alera/src/features/projects/domain/project_selection_order.dart'
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
+import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
+part 'prompt_workspace_dialog_clipboard.dart';
 part 'prompt_workspace_dialog_selection_order.dart';
 
 enum NewWorkspaceMode { fromPrompt, manual }
@@ -47,6 +50,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required this.cancelGeneration,
     required this.createWorkspace,
     required this.launchAgent,
+    this.clipboard = const NativePromptWorkspaceClipboard(),
     this.initialProject,
     this.defaultAgentProfileId,
     this.onCreateAnother,
@@ -81,6 +85,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required String prompt,
   })
   launchAgent;
+  final PromptWorkspaceClipboard clipboard;
   final String? defaultAgentProfileId;
   final Future<void> Function({
     required WorkspaceCreationResult creation,
@@ -177,20 +182,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         });
       }
     }
-  }
-
-  String? _defaultBranch(List<String> branches) {
-    for (final preferred in const <String>[
-      'main',
-      'origin/main',
-      'master',
-      'origin/master',
-    ]) {
-      if (branches.contains(preferred)) {
-        return preferred;
-      }
-    }
-    return branches.firstOrNull;
   }
 
   String? _defaultParentWorkspaceId(Project? project) {
