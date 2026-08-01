@@ -17,6 +17,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onOpenFolder,
     required this.onCopyPath,
     required this.onOpenInBrowser,
+    required this.onOpenProjectSettings,
     required this.onSleep,
     required this.onToggleExpanded,
     required this.fileManagerLabel,
@@ -52,6 +53,7 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onOpenFolder;
   final VoidCallback onCopyPath;
   final VoidCallback onOpenInBrowser;
+  final VoidCallback onOpenProjectSettings;
   final VoidCallback onSleep;
   final VoidCallback onToggleExpanded;
   final String fileManagerLabel;
@@ -95,7 +97,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
       ),
     );
 
-    if (selected == _renameAction) {
+    if (selected == _openProjectSettingsAction) {
+      widget.onOpenProjectSettings();
+    } else if (selected == _renameAction) {
       widget.onRename();
     } else if (selected == _togglePinAction) {
       widget.onSetPinned();

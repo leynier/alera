@@ -15,7 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProjectSettingsPane extends ConsumerStatefulWidget {
-  const ProjectSettingsPane({super.key});
+  const ProjectSettingsPane({super.key, this.initialProjectId});
+
+  final String? initialProjectId;
 
   @override
   ConsumerState<ProjectSettingsPane> createState() =>
@@ -34,6 +36,12 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
       <String, Future<ProjectConfig?>>{};
   String? _saveError;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProjectId = widget.initialProjectId;
+  }
 
   @override
   Widget build(BuildContext context) {
