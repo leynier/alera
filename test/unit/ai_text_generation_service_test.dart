@@ -15,12 +15,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_git_backend.dart';
 
 part 'ai_text_generation_grok_test_cases.dart';
+part 'ai_text_generation_agy_test_cases.dart';
 part 'ai_text_generation_prompt_override_test_cases.dart';
 part 'ai_text_generation_test_harness.dart';
 
 void main() {
   group('AI text generation', () {
     _registerGrokAiTextGenerationTests();
+    _registerAgyAiTextGenerationTests();
     _registerAiTextPromptOverrideTests();
 
     test('builds commit prompts with staged context and instructions', () {
@@ -85,66 +87,6 @@ Body line.
 
       expect(message.split('\n').first.length, 72);
       expect(message, contains('Body line.'));
-    });
-
-    test('parses agy model output as verbatim model ids', () {
-      final models = parseLineModels('''
-Gemini 3.5 Flash (Medium)
-Claude Sonnet 4.6 (Thinking)
-''');
-
-      expect(models.map((model) => model.id), <String>[
-        'Gemini 3.5 Flash (Medium)',
-        'Claude Sonnet 4.6 (Thinking)',
-      ]);
-    });
-
-    test('generates commit message with agy using stdin print mode', () async {
-      final git = FakeGitBackend()
-        ..gitRepositoryStateResult = const GitRepositoryState(
-          branch: 'feature/ai-text',
-        )
-        ..gitStatusResult = const GitStatusResult(
-          entries: <GitChangeEntry>[
-            GitChangeEntry(
-              path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
-              added: 2,
-              removed: 1,
-            ),
-          ],
-        )
-        ..gitDiffResult = const GitDiffResult(
-          files: <GitDiffFile>[
-            GitDiffFile(
-              path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
-              lines: <GitDiffLine>[GitDiffLine.addition('+new line')],
-            ),
-          ],
-        );
-      final runner = _FakeProcessRunner(stdout: 'feat: add ai text\n');
-      final service = CliAiTextGenerationService(
-        gitBackend: git,
-        processRunner: runner,
-      );
-
-      final result = await service.generate(
-        const AiTextGenerationRequest(
-          operation: AiTextGenerationOperation.commitMessage,
-          workspacePath: '/repo',
-          settings: AiTextGenerationSettings(agent: AiTextGenerationAgent.agy),
-        ),
-      );
-
-      expect(result.text, 'feat: add ai text');
-      expect(runner.executable, 'agy');
-      expect(runner.arguments, containsAll(<String>['--print', '--sandbox']));
-      expect(runner.arguments, contains('Gemini 3.5 Flash (Medium)'));
-      expect(runner.stdinText, contains('feature/ai-text'));
-      expect(runner.stdinClosed, isTrue);
     });
 
     test('generates pull request details from base range context', () async {
@@ -346,46 +288,6 @@ Claude Sonnet 4.6 (Thinking)
       expect(runner.stdinText, contains('lib/large.dart'));
       expect(runner.stdinClosed, isTrue);
     });
-
-    test('discovers dynamic models through the agent CLI', () async {
-      final runner = _FakeProcessRunner(
-        stdout: '''
-Gemini 3.5 Flash (Medium)
-Claude Sonnet 4.6 (Thinking)
-''',
-      );
-      final service = CliAiTextModelDiscoveryService(processRunner: runner);
-
-      final result = await service.discover(AiTextGenerationAgent.agy);
-
-      expect(result.success, isTrue);
-      expect(result.defaultModelId, 'Gemini 3.5 Flash (Medium)');
-      expect(result.models.map((model) => model.id), <String>[
-        'Gemini 3.5 Flash (Medium)',
-        'Claude Sonnet 4.6 (Thinking)',
-      ]);
-      expect(runner.executable, 'agy');
-      expect(runner.arguments, <String>['models']);
-    });
-
-    test(
-      'discovers dynamic models with resolved command environment',
-      () async {
-        final runner = _FakeProcessRunner(
-          stdout: 'Gemini 3.5 Flash (Medium)\n',
-        );
-        final service = CliAiTextModelDiscoveryService(
-          processRunner: runner,
-          commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
-            value: <String, String>{'PATH': '/shell/bin:/usr/bin'},
-          ),
-        );
-
-        await service.discover(AiTextGenerationAgent.agy);
-
-        expect(runner.environment, containsPair('PATH', '/shell/bin:/usr/bin'));
-      },
-    );
 
     test('discovers pi models from stderr on successful exit', () async {
       final runner = _FakeProcessRunner(
