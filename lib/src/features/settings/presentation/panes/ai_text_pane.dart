@@ -161,75 +161,79 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
             ],
           ),
         ),
-        const SizedBox(height: AleraTokens.space16),
-        KeyedSubtree(
-          key: widget.groupKeys['promptOverrides'],
-          child: AleraSettingsGroup(
-            title: 'Prompt Overrides',
-            description:
-                'Choose A Different Agent Or Model Per Prompt, Or Inherit The Global Selection.',
-            children: <Widget>[
-              for (final operation in _configuredOperations)
+        for (final operation in _configuredOperations) ...<Widget>[
+          KeyedSubtree(
+            key: widget.groupKeys[operation.key],
+            child: AleraSettingsGroup(
+              title: operation.label,
+              description:
+                  'Configure The Agent, Model, Reasoning And Instructions For This Prompt.',
+              children: <Widget>[
                 ..._promptOverrideRows(settings, operation),
-            ],
+                ..._thinkingRows(settings, operation),
+                _instructionRow(settings, operation),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AleraTokens.space16),
-        KeyedSubtree(
-          key: widget.groupKeys['instructions'],
-          child: AleraSettingsGroup(
-            title: 'Instructions',
-            description: 'Extra guidance appended to generation prompts.',
-            children: <Widget>[
-              InstructionSettingRow(
-                title: AiTextGenerationOperation.commitMessage.label,
-                value: settings.instructionsFor(
-                  AiTextGenerationOperation.commitMessage,
-                ),
-                onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
-                    instructionsByOperation:
-                        <AiTextGenerationOperation, String>{
-                          ...settings.instructionsByOperation,
-                          AiTextGenerationOperation.commitMessage: value,
-                        },
-                  ),
-                ),
-              ),
-              InstructionSettingRow(
-                title: AiTextGenerationOperation.pullRequestDetails.label,
-                value: settings.instructionsFor(
-                  AiTextGenerationOperation.pullRequestDetails,
-                ),
-                onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
-                    instructionsByOperation:
-                        <AiTextGenerationOperation, String>{
-                          ...settings.instructionsByOperation,
-                          AiTextGenerationOperation.pullRequestDetails: value,
-                        },
-                  ),
-                ),
-              ),
-              InstructionSettingRow(
-                title: AiTextGenerationOperation.workspaceIdentity.label,
-                value: settings.instructionsFor(
-                  AiTextGenerationOperation.workspaceIdentity,
-                ),
-                onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
-                    instructionsByOperation:
-                        <AiTextGenerationOperation, String>{
-                          ...settings.instructionsByOperation,
-                          AiTextGenerationOperation.workspaceIdentity: value,
-                        },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+          if (operation != _configuredOperations.last)
+            const SizedBox(height: AleraTokens.space16),
+        ],
       ],
+    );
+  }
+
+  List<Widget> _thinkingRows(
+    AiTextGenerationSettings settings,
+    AiTextGenerationOperation operation,
+  ) {
+    final agent = settings.agentFor(operation);
+    if (agent == AiTextGenerationAgent.custom) {
+      return const <Widget>[];
+    }
+    final model = modelForAgent(
+      agent,
+      settings.modelForOperation(operation) ??
+          defaultModelIdForAgent(agent, settings),
+      extraModels: discoveredModelsForAgent(settings, agent),
+    );
+    if (model.thinkingLevels.isEmpty) {
+      return const <Widget>[];
+    }
+    return <Widget>[
+      AiTextThinkingRow(
+        controlKey: '${operation.key}-reasoning',
+        levels: model.thinkingLevels,
+        value:
+            settings.thinkingForModel(model.id) ??
+            model.defaultThinkingLevel ??
+            model.thinkingLevels.first.id,
+        onChanged: (value) => widget.onChanged(
+          settings.copyWith(
+            selectedThinkingByModel: <String, String>{
+              ...settings.selectedThinkingByModel,
+              model.id: value,
+            },
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _instructionRow(
+    AiTextGenerationSettings settings,
+    AiTextGenerationOperation operation,
+  ) {
+    return InstructionSettingRow(
+      title: 'Instructions',
+      value: settings.instructionsFor(operation),
+      onChanged: (value) => widget.onChanged(
+        settings.copyWith(
+          instructionsByOperation: <AiTextGenerationOperation, String>{
+            ...settings.instructionsByOperation,
+            operation: value,
+          },
+        ),
+      ),
     );
   }
 

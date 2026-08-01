@@ -296,8 +296,11 @@ void _registerSettingsDialogCoreTests() {
     await selectAiTextSectionLocal(tester);
 
     expect(find.text('AI Text'), findsWidgets);
-    expect(find.text('Agent'), findsOneWidget);
-    expect(find.text('Model'), findsOneWidget);
+    expect(find.text('Agent'), findsWidgets);
+    expect(find.text('Model'), findsWidgets);
+    expect(find.text('Commit Messages'), findsWidgets);
+    expect(find.text('Pull Request Details'), findsWidgets);
+    expect(find.text('Workspace Identity'), findsWidgets);
     expect(
       tester
           .widgetList<MouseRegion>(
@@ -378,8 +381,8 @@ void _registerSettingsDialogCoreTests() {
     );
     expect(find.text('Codex').last, findsOneWidget);
 
-    await tester.ensureVisible(find.text('Commit Messages'));
-    expect(find.text('Pull Request Details'), findsOneWidget);
+    await tester.ensureVisible(find.text('Commit Messages').last);
+    expect(find.text('Pull Request Details'), findsWidgets);
     expect(find.text('Branch Names'), findsNothing);
     await tester.pump();
     await tester.enterText(
