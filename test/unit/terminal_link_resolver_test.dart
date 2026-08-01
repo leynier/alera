@@ -56,6 +56,27 @@ void main() {
     expect(link.end.y, greaterThan(0));
   });
 
+  test('does not read beyond a short wrapped row after a resize', () {
+    final terminal = xterm.Terminal();
+    terminal.resize(516, 4);
+
+    final shortLine = xterm.BufferLine(128);
+    const url = 'https://example.com';
+    for (var index = 0; index < url.length; index += 1) {
+      shortLine.setCodePoint(index, url.codeUnitAt(index));
+    }
+    terminal.buffer.lines[0] = shortLine;
+    terminal.buffer.lines[1].isWrapped = true;
+
+    final link = resolveVisibleHttpLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(1, 0),
+    );
+
+    expect(link, isNotNull);
+    expect(link!.uri, Uri.parse(url));
+  });
+
   test('ignores offsets outside visible urls and trims ] and } suffixes', () {
     final terminal = xterm.Terminal();
     terminal.resize(80, 24);
