@@ -50,6 +50,28 @@ String aleraCliSkillInstallCommand({
   return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx, skill)}';
 }
 
+/// Builds the one-line command used by the settings action that installs every
+/// bundled skill in the user's interactive shell.
+///
+/// A semicolon keeps the commands independent so one failed skill does not
+/// prevent the remaining skills from running, and it is accepted by the
+/// supported interactive shells. The command remains one line because it is
+/// typed into a live PTY and is also offered for copying.
+String aleraAllSkillsInstallCommand({
+  AleraCliSkillRunner runner = AleraCliSkillRunner.npx,
+  String? operatingSystem,
+}) {
+  return AleraAgentSkill.values
+      .map(
+        (skill) => aleraCliSkillInstallCommand(
+          runner: runner,
+          skill: skill,
+          operatingSystem: operatingSystem,
+        ),
+      )
+      .join('; ');
+}
+
 /// Windows PowerShell 5.1 has no `||` separator, and pasting a multi-line block
 /// into its console runs each line as it arrives, so this stays one line.
 /// `Get-Command` beats a `$LASTEXITCODE` chain because a missing `npx` raises

@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_skill_install_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 typedef AleraSkillTerminalRunner =
     Future<void> Function(BuildContext context, CommandTerminalRequest request);
@@ -21,7 +22,8 @@ typedef AleraSkillTerminalFollowUp =
 /// The installer resolves `npx` out of the user's interactive shell, which is
 /// where it actually is, and anything it asks for has somewhere to be answered.
 /// There is no `View Output` here because the output is no longer something
-/// that happens offscreen and gets shown afterwards.
+/// that happens offscreen and gets shown afterwards. The external Copy action
+/// remains available for users who want to run the command themselves.
 class AleraSkillTerminalInstallControl extends StatefulWidget {
   const AleraSkillTerminalInstallControl({
     super.key,
@@ -52,6 +54,15 @@ class _AleraSkillTerminalInstallControlState
   bool _running = false;
   AleraSkillInstallStatus? _status;
   AleraCliSkillRunner _runner = AleraCliSkillRunner.auto;
+
+  Future<void> _copyCommand() async {
+    await Clipboard.setData(ClipboardData(text: widget.commandFor(_runner)));
+    if (mounted) {
+      setState(
+        () => _status = const AleraSkillInstallStatus('Install Command Copied'),
+      );
+    }
+  }
 
   Future<void> _run() async {
     if (_running) {
@@ -142,6 +153,14 @@ class _AleraSkillTerminalInstallControlState
                   icon: const Icon(AleraIcons.chevronDown, size: 16),
                   label: Text(_runner.label),
                 ),
+              ),
+            ),
+            SizedBox(
+              height: kSupportControlHeight,
+              child: OutlinedButton.icon(
+                onPressed: _running ? null : _copyCommand,
+                icon: const Icon(AleraIcons.copy, size: 16),
+                label: const Text('Copy'),
               ),
             ),
             SizedBox(
