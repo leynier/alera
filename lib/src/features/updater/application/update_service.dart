@@ -6,11 +6,15 @@ class AleraUpdateCheckResult {
     this.latest,
     this.autoInstallAllowed = false,
     this.message,
+    this.currentVersion,
+    this.currentBuildNumber,
   });
 
   final AleraUpdateInfo? latest;
   final bool autoInstallAllowed;
   final String? message;
+  final String? currentVersion;
+  final String? currentBuildNumber;
 }
 
 abstract class AleraUpdateService {

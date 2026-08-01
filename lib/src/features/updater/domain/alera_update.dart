@@ -256,6 +256,7 @@ enum AleraUpdateStatus {
   downloading,
   applying,
   downloaded,
+  restartRequired,
   error,
 }
 
@@ -306,6 +307,8 @@ class AleraUpdateState with AleraUpdateStateMappable {
     this.latest,
     this.message,
     this.progress = 0,
+    this.currentVersion,
+    this.currentBuildNumber,
   });
 
   factory AleraUpdateState.idle(AleraUpdateConfig config) {
@@ -320,6 +323,8 @@ class AleraUpdateState with AleraUpdateStateMappable {
   final AleraUpdateInfo? latest;
   final String? message;
   final double progress;
+  final String? currentVersion;
+  final String? currentBuildNumber;
 
   bool get isBusy {
     return status == AleraUpdateStatus.checking ||
