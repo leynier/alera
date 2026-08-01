@@ -17,8 +17,6 @@ class AleraAllSkillsControl extends ConsumerWidget {
       commandFor: (runner) => aleraAllSkillsInstallCommand(runner: runner),
       runCommand: (context, request) =>
           showCommandTerminalDialog(context, ref, request),
-      installLabel: 'Install / Update All',
-      runningLabel: 'Running All',
       followUp: () async {
         final result =
             await AleraOrchestrationSetupService(
