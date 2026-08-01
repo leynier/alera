@@ -234,10 +234,10 @@ class ProjectsScreen extends ConsumerWidget {
               title: const Text('Remove Project'),
               content: Text(
                 '${project.name}\n\n'
-                '${preview.workspaceCount} Workspaces, '
-                '${preview.tabCount} Tabs, '
-                '${preview.activeSessionCount} Active Sessions.\n\n'
-                'Files And Worktrees On The Host Will Not Be Deleted.',
+                '${preview.workspaceCount} workspaces, '
+                '${preview.tabCount} tabs, '
+                '${preview.activeSessionCount} active sessions.\n\n'
+                'Files and worktrees on the host will not be deleted.',
               ),
               actions: <Widget>[
                 TextButton(
@@ -370,7 +370,7 @@ class _CloneJobCard extends StatelessWidget {
                 const SizedBox(width: AleraTokens.spaceSm),
                 Expanded(
                   child: Text(
-                    job.message ?? 'Clone Job',
+                    job.message ?? 'Clone job',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
@@ -423,7 +423,7 @@ class _UnsupportedState extends StatelessWidget {
     child: Padding(
       padding: AleraTokens.contentPadding,
       child: Text(
-        'Update The Alera Runtime To Manage Projects From Mobile.',
+        'Update the Alera runtime to manage projects from mobile.',
         textAlign: TextAlign.center,
       ),
     ),
@@ -440,9 +440,9 @@ class _EmptyProjects extends StatelessWidget {
       children: <Widget>[
         Icon(Icons.create_new_folder_outlined, size: AleraTokens.emptyIcon),
         SizedBox(height: AleraTokens.spaceLg),
-        Text('No Projects'),
+        Text('No projects'),
         SizedBox(height: AleraTokens.spaceSm),
-        Text('Add A Folder Or Clone A Repository'),
+        Text('Add a folder or clone a repository'),
       ],
     ),
   );

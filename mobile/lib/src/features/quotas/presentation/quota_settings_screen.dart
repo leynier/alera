@@ -56,7 +56,7 @@ class _QuotaSettingsBody extends ConsumerWidget {
       children: <Widget>[
         _SectionTitle(
           title: 'Providers',
-          description: 'Choose Sources And Their Display Order.',
+          description: 'Choose sources and their display order.',
         ),
         Card(
           child: Column(
@@ -83,7 +83,7 @@ class _QuotaSettingsBody extends ConsumerWidget {
               for (final (index, provider) in settings.enabledProviders.indexed)
                 ListTile(
                   title: Text(quotaProviderLabels[provider] ?? provider),
-                  subtitle: const Text('Display Order'),
+                  subtitle: const Text('Display order'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -126,7 +126,7 @@ class _QuotaSettingsBody extends ConsumerWidget {
         const SizedBox(height: AleraTokens.spaceXl),
         _SectionTitle(
           title: 'Claude',
-          description: 'Default Account And Ordered CCS Profiles.',
+          description: 'Default account and ordered CCS profiles.',
         ),
         Card(
           child: Column(
@@ -202,7 +202,7 @@ class _QuotaSettingsBody extends ConsumerWidget {
         const SizedBox(height: AleraTokens.spaceXl),
         _SectionTitle(
           title: 'Credential Environment',
-          description: 'Only Variable Names And Availability Leave The Host.',
+          description: 'Only variable names and availability leave the host.',
         ),
         Card(
           child: Column(

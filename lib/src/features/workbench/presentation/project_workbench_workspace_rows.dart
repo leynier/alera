@@ -249,7 +249,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 )) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   const Tooltip(
-                                    message: 'Default Workspace',
+                                    message: 'Default workspace',
                                     child: Icon(
                                       AleraIcons.workspaceMain,
                                       size: 12,
@@ -261,7 +261,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                 if (widget.workspace.isPinned) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   const Tooltip(
-                                    message: 'Pinned Workspace',
+                                    message: 'Pinned workspace',
                                     child: Icon(
                                       AleraIcons.pin,
                                       size: 12,

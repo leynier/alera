@@ -19,7 +19,7 @@ class _OutputEndedBanner extends StatelessWidget {
             const Icon(Icons.link_off, size: AleraTokens.spaceLg),
             const SizedBox(width: AleraTokens.spaceSm),
             Text(
-              'Terminal Output Stopped',
+              'Terminal output stopped',
               style: Theme.of(context).textTheme.labelSmall,
             ),
             const Spacer(),
@@ -51,7 +51,7 @@ class _DirectModeBanner extends StatelessWidget {
             const Icon(Icons.bolt, size: AleraTokens.spaceLg),
             const SizedBox(width: AleraTokens.spaceSm),
             Text(
-              'Keys Go Directly To The Terminal',
+              'Keys go directly to the terminal',
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
@@ -110,9 +110,9 @@ class _SessionLoadingState extends State<_SessionLoading> {
   Widget build(BuildContext context) {
     final elapsed = DateTime.now().difference(_startedAt).inSeconds;
     final label = switch (widget.operation) {
-      _TerminalLoadingOperation.starting => 'Starting Terminal',
-      _TerminalLoadingOperation.reconnecting => 'Reconnecting Terminal',
-      _TerminalLoadingOperation.restarting => 'Restarting Terminal',
+      _TerminalLoadingOperation.starting => 'Starting terminal',
+      _TerminalLoadingOperation.reconnecting => 'Reconnecting terminal',
+      _TerminalLoadingOperation.restarting => 'Restarting terminal',
     };
     return Center(
       child: Column(
@@ -162,7 +162,7 @@ class _SessionError extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Text(
-              'Terminal Unavailable',
+              'Terminal unavailable',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AleraTokens.spaceSm),

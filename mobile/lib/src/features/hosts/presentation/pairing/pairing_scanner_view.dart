@@ -88,7 +88,7 @@ class _PairingScannerViewState extends State<PairingScannerView> {
                   borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
                 ),
                 child: Text(
-                  'Point The Camera At The Pairing QR',
+                  'Point the camera at the pairing QR',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -146,12 +146,12 @@ class _ScannerUnavailable extends StatelessWidget {
               ),
               const SizedBox(height: AleraTokens.spaceLg),
               Text(
-                'Camera Unavailable',
+                'Camera unavailable',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AleraTokens.spaceSm),
               Text(
-                'Allow Camera Access Or Paste The Pairing Offer Instead.',
+                'Allow camera access or paste the pairing offer instead.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

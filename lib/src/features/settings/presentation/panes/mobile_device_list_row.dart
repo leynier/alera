@@ -27,7 +27,7 @@ class MobileDeviceListRow extends StatelessWidget {
         ? 'Revoked ${formatMobileTimestamp(device.revokedAt!)}'
         : lastSeen == null
         ? 'Paired ${formatMobileTimestamp(device.pairedAt)}'
-        : 'Last Seen ${formatMobileTimestamp(lastSeen)}';
+        : 'Last seen ${formatMobileTimestamp(lastSeen)}';
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Row(

@@ -13,7 +13,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         review == null ||
         review.state != HostedReviewState.open ||
         !current.mergeMethods.contains(method)) {
-      _surfaceActionError('This Pull Request Cannot Be Merged.');
+      _surfaceActionError('This pull request cannot be merged.');
       return;
     }
     await _runReviewMutation(
@@ -36,7 +36,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         review == null ||
         !review.isOpen ||
         !current.canCloseReview) {
-      _surfaceActionError('This Pull Request Cannot Be Closed.');
+      _surfaceActionError('This pull request cannot be closed.');
       return;
     }
     await _runReviewMutation(
@@ -60,7 +60,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         !review.isOpen ||
         !current.canChangeDraftStatus ||
         alreadyDraft == draft) {
-      _surfaceActionError('This Pull Request Draft Status Cannot Be Changed.');
+      _surfaceActionError('This pull request draft status cannot be changed.');
       return;
     }
     await _runReviewMutation(
@@ -85,11 +85,11 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         review == null ||
         !review.isOpen ||
         !current.canComment) {
-      _surfaceActionError('Comments Are Not Available For This Pull Request.');
+      _surfaceActionError('Comments are not available for this pull request.');
       return false;
     }
     if (body.isEmpty) {
-      _surfaceActionError('Enter A Comment Before Posting.');
+      _surfaceActionError('Enter a comment before posting.');
       return false;
     }
     final identity = current.identity;
@@ -97,7 +97,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         ? null
         : controller._registry.forProvider(identity.provider);
     if (identity == null || forge == null) {
-      _surfaceActionError('No Hosting Provider Is Configured.');
+      _surfaceActionError('No hosting provider is configured.');
       return false;
     }
 
@@ -148,7 +148,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         ? null
         : controller._registry.forProvider(identity.provider);
     if (identity == null || review == null || forge == null) {
-      _surfaceActionError('No Linked Pull Request To Update.');
+      _surfaceActionError('No linked pull request to update.');
       return;
     }
     await controller._run(

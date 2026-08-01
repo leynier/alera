@@ -31,14 +31,14 @@ Future<AddProjectChoice?> showAddProjectSheet(BuildContext context) {
             ListTile(
               leading: const Icon(Icons.create_new_folder_outlined),
               title: const Text('Existing Folder'),
-              subtitle: const Text('Register A Folder From This Host'),
+              subtitle: const Text('Register a folder from this host'),
               onTap: () =>
                   Navigator.of(context).pop(AddProjectChoice.existingFolder),
             ),
             ListTile(
               leading: const Icon(Icons.cloud_download_outlined),
               title: const Text('Clone From URL'),
-              subtitle: const Text('Clone And Register A Git Repository'),
+              subtitle: const Text('Clone and register a Git repository'),
               onTap: () =>
                   Navigator.of(context).pop(AddProjectChoice.cloneRepository),
             ),
@@ -77,7 +77,7 @@ Future<String?> showOptionalProjectNameDialog(
             autofocus: true,
             decoration: const InputDecoration(
               labelText: 'Project Name Optional',
-              helperText: 'Leave Empty To Use The Folder Name',
+              helperText: 'Leave empty to use the folder name',
             ),
           ),
         ],

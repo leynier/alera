@@ -63,13 +63,13 @@ void _registerSettingsDialogQuotaTests() {
     await tester.pump();
 
     // Every provider row plus Claude Default starts pinned.
-    expect(find.byTooltip('Shown In Status Bar'), findsWidgets);
+    expect(find.byTooltip('Shown in status bar'), findsWidgets);
     expect(
-      find.byTooltip('Hidden From Status Bar - Available In The Quota Panel'),
+      find.byTooltip('Hidden from status bar - available in the quota panel'),
       findsNothing,
     );
 
-    await tester.tap(find.byTooltip('Shown In Status Bar').first);
+    await tester.tap(find.byTooltip('Shown in status bar').first);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -82,7 +82,7 @@ void _registerSettingsDialogQuotaTests() {
       hasLength(1),
     );
     expect(
-      find.byTooltip('Hidden From Status Bar - Available In The Quota Panel'),
+      find.byTooltip('Hidden from status bar - available in the quota panel'),
       findsOneWidget,
     );
   });

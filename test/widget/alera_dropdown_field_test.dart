@@ -302,7 +302,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'zzz');
     await tester.pump();
 
-    expect(find.text('No Matching Options'), findsOneWidget);
+    expect(find.text('No matching options'), findsOneWidget);
     expect(find.byType(AleraMenuItem), findsNothing);
   });
 

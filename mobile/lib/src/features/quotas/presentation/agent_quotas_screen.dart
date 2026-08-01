@@ -172,7 +172,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
           builder: (context) => AlertDialog(
             title: const Text('Use Codex Reset'),
             content: const Text(
-              'Use One Codex Rate-Limit Reset Credit? Alera Will Re-Check The Active Account And Offer Before Applying It.',
+              'Use one Codex rate-limit reset credit? Alera will re-check the active account and offer before applying it.',
             ),
             actions: <Widget>[
               TextButton(
@@ -201,7 +201,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Codex Reset Failed: $error')));
+      ).showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
     } finally {
       if (mounted) setState(() => _usingReset = false);
     }
@@ -324,7 +324,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                           }
                         },
                   child: Text(
-                    _tryingTui ? 'Trying With TUI...' : 'Try With TUI',
+                    _tryingTui ? 'Trying with TUI...' : 'Try With TUI',
                   ),
                 ),
               ),
@@ -339,29 +339,29 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
 String _codexResetMessage(CodexResetConsumeResult result) {
   if (result.status == 'rejected') {
     return result.reason == 'offerChanged'
-        ? 'Codex Reset Offer Changed. Review The Updated Credits.'
-        : 'No Codex Reset Credit Is Available.';
+        ? 'Codex reset offer changed. Review the updated credits.'
+        : 'No Codex reset credit is available.';
   }
   return switch (result.outcome) {
-    'reset' => 'Codex Rate Limit Reset Applied.',
-    'nothingToReset' => 'Codex Has No Active Rate Limit To Reset.',
-    'noCredit' => 'No Codex Reset Credit Is Available.',
-    'alreadyRedeemed' => 'This Codex Reset Was Already Applied.',
-    _ => 'Codex Reset Result Was Unavailable.',
+    'reset' => 'Codex rate limit reset applied.',
+    'nothingToReset' => 'Codex has no active rate limit to reset.',
+    'noCredit' => 'No Codex reset credit is available.',
+    'alreadyRedeemed' => 'This Codex reset was already applied.',
+    _ => 'Codex reset result was unavailable.',
   };
 }
 
 String? _codexResetExpiryText(DateTime? expiry) {
   if (expiry == null) return null;
   final remaining = expiry.difference(DateTime.now().toUtc());
-  if (remaining <= Duration.zero) return 'Next Reset Expired';
+  if (remaining <= Duration.zero) return 'Next reset expired';
   if (remaining.inDays > 0) {
-    return 'Next Reset Expires In ${remaining.inDays}d ${remaining.inHours % 24}h';
+    return 'Next reset expires in ${remaining.inDays}d ${remaining.inHours % 24}h';
   }
   if (remaining.inHours > 0) {
-    return 'Next Reset Expires In ${remaining.inHours}h ${remaining.inMinutes % 60}m';
+    return 'Next reset expires in ${remaining.inHours}h ${remaining.inMinutes % 60}m';
   }
-  return 'Next Reset Expires In ${remaining.inMinutes.clamp(1, 59)}m';
+  return 'Next reset expires in ${remaining.inMinutes.clamp(1, 59)}m';
 }
 
 class _QuotaMeterRow extends StatelessWidget {
@@ -422,7 +422,7 @@ class _EmptyQuotas extends StatelessWidget {
     return const Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
-        child: Text('No Quota Providers Are Enabled.'),
+        child: Text('No quota providers are enabled.'),
       ),
     );
   }
@@ -461,16 +461,16 @@ String? _resetLabel(QuotaMeter meter) {
   final reset = meter.resetsAt;
   if (reset == null) return meter.resetDescription;
   final remaining = reset.difference(DateTime.now().toUtc());
-  if (remaining.isNegative) return 'Reset Due';
+  if (remaining.isNegative) return 'Reset due';
   final days = remaining.inDays;
   final hours = remaining.inHours.remainder(24);
   final minutes = remaining.inMinutes.remainder(60);
-  return 'Resets In ${days > 0 ? '${days}d ' : ''}${hours}h ${minutes}m';
+  return 'Resets in ${days > 0 ? '${days}d ' : ''}${hours}h ${minutes}m';
 }
 
 String _relativeTime(DateTime value) {
   final difference = DateTime.now().toUtc().difference(value);
-  if (difference.inSeconds < 60) return 'Just Now';
+  if (difference.inSeconds < 60) return 'Just now';
   if (difference.inMinutes < 60) return '${difference.inMinutes}m Ago';
   return '${difference.inHours}h Ago';
 }

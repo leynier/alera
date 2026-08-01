@@ -25,7 +25,7 @@ final class BrowserTrustedCertificate {
         fingerprint.length != 64 ||
         createdAt == null ||
         lastUsedAt == null) {
-      throw const FormatException('Browser Trusted Certificate Is Invalid.');
+      throw const FormatException('Browser trusted certificate is invalid.');
     }
     return BrowserTrustedCertificate(
       profileId: profileId,

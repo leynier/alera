@@ -316,8 +316,8 @@ query($thread: ID!, $commentsAfter: String) {
       yield ReviewComment(
         id: 'thread:$threadId:${node['databaseId']}',
         author: authorData is Map<String, Object?>
-            ? authorData['login'] as String? ?? 'Unknown Author'
-            : 'Unknown Author',
+            ? authorData['login'] as String? ?? 'Unknown author'
+            : 'Unknown author',
         body: node['body'] as String? ?? '',
         createdAt:
             DateTime.tryParse(node['createdAt'] as String? ?? '') ??
@@ -343,7 +343,7 @@ query($thread: ID!, $commentsAfter: String) {
         : null;
     return ReviewComment(
       id: '$idPrefix:${entry['id']}',
-      author: author ?? 'Unknown Author',
+      author: author ?? 'Unknown author',
       body: entry['body'] as String? ?? '',
       createdAt:
           DateTime.tryParse(entry[createdAtField] as String? ?? '') ??

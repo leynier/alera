@@ -91,7 +91,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Project Setup Saved')));
+      ).showSnackBar(const SnackBar(content: Text('Project setup saved')));
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -126,7 +126,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
       final to = draft.to.text.trim();
       if (!_isRelativeProjectPath(from) ||
           (to.isNotEmpty && !_isRelativeProjectPath(to))) {
-        _showError('Copy Paths Must Stay Inside The Project');
+        _showError('Copy paths must stay inside the project');
         return null;
       }
       rules.add(
@@ -224,7 +224,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                     minLines: 3,
                     maxLines: 6,
                     decoration: const InputDecoration(
-                      hintText: 'Add Project-Specific Agent Instructions',
+                      hintText: 'Add project-specific agent instructions',
                     ),
                   ),
                   const SizedBox(height: AleraTokens.spaceXl),
@@ -247,7 +247,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                   ),
                   if (_copyRules.isEmpty)
                     const Text(
-                      'No Copy Rules',
+                      'No copy rules',
                       style: TextStyle(color: AleraTokens.foregroundMuted),
                     )
                   else
@@ -276,7 +276,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                       fontFamily: AleraTokens.monoFontFamily,
                     ),
                     decoration: const InputDecoration(
-                      hintText: 'One Command Per Line',
+                      hintText: 'One command per line',
                     ),
                   ),
                   const SizedBox(height: AleraTokens.spaceXl),
@@ -386,9 +386,9 @@ class _SourceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (origin) {
-      'uiOverride' => 'Runtime Override',
-      'repoFile' => 'Repo File',
-      _ => 'No Configuration',
+      'uiOverride' => 'Runtime override',
+      'repoFile' => 'Repo file',
+      _ => 'No configuration',
     };
     return Align(
       alignment: Alignment.centerLeft,

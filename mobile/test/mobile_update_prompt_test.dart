@@ -50,7 +50,7 @@ void main() {
     await _pump(tester, release: _release, copied: copied, opened: opened);
     await tester.pumpAndSettle();
 
-    expect(find.text('Update Available'), findsOneWidget);
+    expect(find.text('Update available'), findsOneWidget);
     expect(find.textContaining('0.10.0'), findsOneWidget);
     expect(find.text('Copy Link'), findsOneWidget);
 
@@ -74,7 +74,7 @@ void main() {
 
     expect(copied, <String>[_release.apkUrl.toString()]);
     expect(opened, isEmpty);
-    expect(find.text('Download Link Copied.'), findsOneWidget);
+    expect(find.text('Download link copied.'), findsOneWidget);
   });
 
   testWidgets('declining opens nothing and does not ask again', (tester) async {
@@ -88,12 +88,12 @@ void main() {
 
     expect(copied, isEmpty);
     expect(opened, isEmpty);
-    expect(find.text('Update Available'), findsNothing);
+    expect(find.text('Update available'), findsNothing);
 
     // A rebuild must not re-open the dialog the user just dismissed.
     await tester.pump();
     await tester.pumpAndSettle();
-    expect(find.text('Update Available'), findsNothing);
+    expect(find.text('Update available'), findsNothing);
   });
 
   testWidgets('stays silent when the app is current', (tester) async {
@@ -102,7 +102,7 @@ void main() {
     await _pump(tester, release: null, copied: copied, opened: opened);
     await tester.pumpAndSettle();
 
-    expect(find.text('Update Available'), findsNothing);
+    expect(find.text('Update available'), findsNothing);
     expect(copied, isEmpty);
     expect(opened, isEmpty);
   });

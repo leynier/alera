@@ -90,7 +90,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
           );
           return ProjectConfigEditor(
             project: project,
-            sourceLabel: 'Repo File Error',
+            sourceLabel: 'Repo file error',
             sourceError: snapshot.error.toString(),
             gitHostingProvider: editorState.gitHostingProvider,
             onGitHostingProviderChanged: onGitHostingProviderChanged,
@@ -115,7 +115,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
         final editorState = seedEditor(project: project, config: seed);
         return ProjectConfigEditor(
           project: project,
-          sourceLabel: repoConfig == null ? 'None' : 'Repo File',
+          sourceLabel: repoConfig == null ? 'None' : 'Repo file',
           gitHostingProvider: editorState.gitHostingProvider,
           onGitHostingProviderChanged: onGitHostingProviderChanged,
           copyRules: editorState.copyRules,

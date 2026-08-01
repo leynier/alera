@@ -112,7 +112,7 @@ void main() {
 
       final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
       expect(clipboard?.text, '1.2.3 (45)');
-      expect(toastMessages, <String>['Version Copied']);
+      expect(toastMessages, <String>['Version copied']);
     });
 
     testWidgets('about dialog runs the update check and closes', (

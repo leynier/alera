@@ -50,7 +50,7 @@ void main() {
         await tester.enterText(find.byType(TextField), '   ');
         await tester.tap(find.text('Rename'));
         await tester.pumpAndSettle();
-        expect(find.text('Project Name Is Required'), findsOneWidget);
+        expect(find.text('Project Name is required'), findsOneWidget);
 
         await tester.enterText(find.byType(TextField), '  Workspace tools  ');
         await tester.tap(find.text('Rename'));
@@ -126,7 +126,7 @@ void main() {
 
         expect(controller.addedLocalPath, '/projects/notes');
         expect(controller.addedLocalName, 'notes');
-        expect(find.text('Project Added'), findsOneWidget);
+        expect(find.text('Project added'), findsOneWidget);
       },
     );
 
@@ -158,7 +158,7 @@ void main() {
         await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
         await tester.pump();
 
-        expect(find.text('Cloning Repository…'), findsOneWidget);
+        expect(find.text('Cloning repository…'), findsOneWidget);
 
         controller.cloneCompleter!.complete(
           buildProject('project-clone', 'Alera'),
@@ -170,7 +170,7 @@ void main() {
           destinationPath: '/projects/alera',
           name: 'alera',
         ));
-        expect(find.text('Project Cloned'), findsOneWidget);
+        expect(find.text('Project cloned'), findsOneWidget);
       },
     );
 
@@ -220,7 +220,7 @@ void main() {
         await tester.pumpAndSettle();
         await openManualWorkspaceDialog(tester);
 
-        expect(find.text('No Git Projects Yet'), findsOneWidget);
+        expect(find.text('No Git projects yet'), findsOneWidget);
         expect(
           find.text(
             'Linked workspaces require a Git project. Add one to get started.',
@@ -266,7 +266,7 @@ void main() {
           name: 'feature/coverage',
           parentWorkspaceId: null,
         ));
-        expect(find.text('Workspace Created'), findsOneWidget);
+        expect(find.text('Workspace created'), findsOneWidget);
       },
     );
 
@@ -298,7 +298,7 @@ void main() {
         await tester.tap(find.text('Create Workspace'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Workspace Created'), findsOneWidget);
+        expect(find.text('Workspace created'), findsOneWidget);
         expect(find.text('New Workspace - Settings'), findsOneWidget);
         expect(
           tester
@@ -353,11 +353,11 @@ void main() {
 
       expect(
         find.text(
-          'Workspace Created With Setup Warnings: 1 Setup Action Failed',
+          'Workspace created with setup warnings: 1 setup action failed',
         ),
         findsOneWidget,
       );
-      expect(find.text('Workspace Created'), findsNothing);
+      expect(find.text('Workspace created'), findsNothing);
     });
 
     testWidgets('showCreateWorkspaceFlow warns when the parent link fails', (
@@ -391,10 +391,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Workspace Created, But Parent Link Failed'),
+        find.text('Workspace created, but parent link failed'),
         findsOneWidget,
       );
-      expect(find.text('Workspace Created'), findsNothing);
+      expect(find.text('Workspace created'), findsNothing);
     });
 
     testWidgets('showCreateWorkspaceFlow surfaces controller errors', (

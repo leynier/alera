@@ -126,7 +126,7 @@ class CloudEnrollmentResult {
         _optionalString(_map(json['runtime']), 'id') ??
         _stringList(json['runtimeIds']).firstOrNull;
     if (runtimeId == null) {
-      throw const FormatException('Enrollment Response Is Missing Runtime Id');
+      throw const FormatException('Enrollment response is missing runtime ID');
     }
     return CloudEnrollmentResult(
       session: session.withRuntime(runtimeId),

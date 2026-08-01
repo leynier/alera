@@ -24,7 +24,7 @@ class AccountsScreen extends ConsumerWidget {
       return;
     }
     if (hosts.isEmpty) {
-      _showMessage(context, 'Pair A Host Before Adding Its Account');
+      _showMessage(context, 'Pair a host before adding its account');
       return;
     }
     final host = hosts.length == 1
@@ -44,7 +44,7 @@ class AccountsScreen extends ConsumerWidget {
       await ref.read(pushCoordinatorProvider.notifier).reconcile();
       await client.refreshCloudSubscriptions();
       if (context.mounted) {
-        _showMessage(context, 'Account Added');
+        _showMessage(context, 'Account added');
       }
     } on Object catch (error) {
       if (context.mounted) {
@@ -90,7 +90,7 @@ class AccountsScreen extends ConsumerWidget {
       builder: (_) => AleraConfirmDialog(
         title: 'Remove Account',
         message:
-            'Remove ${session.account.email} And Its Push Subscriptions From This Phone?',
+            'Remove ${session.account.email} and its push subscriptions from this phone?',
         confirmLabel: 'Remove',
         destructive: true,
       ),
@@ -123,9 +123,9 @@ class AccountsScreen extends ConsumerWidget {
               const AleraSectionHeader(label: 'Alera Accounts'),
               if (sessions.isEmpty)
                 AleraEmptyState(
-                  title: 'No Accounts',
+                  title: 'No accounts',
                   message:
-                      'Add The Account From A Paired Runtime To Enable Cloud Notifications.',
+                      'Add the account from a paired runtime to enable cloud notifications.',
                   icon: Icons.person_add_alt_1_outlined,
                   action: FilledButton.icon(
                     onPressed: () => _addAccount(context, ref),
@@ -178,7 +178,7 @@ class AccountsScreen extends ConsumerWidget {
             ],
           ),
           AsyncError(:final error) => AleraEmptyState(
-            title: 'Accounts Unavailable',
+            title: 'Accounts unavailable',
             message: error.toString(),
             icon: Icons.cloud_off_outlined,
             action: FilledButton(
@@ -241,32 +241,32 @@ class _PushStateBanner extends StatelessWidget {
     final status = state?.status ?? PushCoordinationStatus.syncing;
     final (label, color, icon) = switch (status) {
       PushCoordinationStatus.ready => (
-        'Push Ready',
+        'Push ready',
         AleraTokens.success,
         Icons.notifications_active_outlined,
       ),
       PushCoordinationStatus.idle => (
-        'No Active Subscriptions',
+        'No active subscriptions',
         AleraTokens.foregroundMuted,
         Icons.notifications_none_outlined,
       ),
       PushCoordinationStatus.permissionDenied => (
-        'Notification Permission Is Off',
+        'Notification permission is off',
         AleraTokens.warning,
         Icons.notifications_off_outlined,
       ),
       PushCoordinationStatus.unavailable => (
-        'Firebase Configuration Is Missing',
+        'Firebase configuration is missing',
         AleraTokens.warning,
         Icons.cloud_off_outlined,
       ),
       PushCoordinationStatus.error => (
-        state?.detail ?? 'Push Is Unavailable',
+        state?.detail ?? 'Push is unavailable',
         AleraTokens.error,
         Icons.error_outline,
       ),
       PushCoordinationStatus.syncing => (
-        'Syncing Push Settings',
+        'Syncing push settings',
         AleraTokens.info,
         Icons.sync,
       ),

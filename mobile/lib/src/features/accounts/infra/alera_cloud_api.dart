@@ -208,7 +208,7 @@ class HttpAleraCloudApi implements AleraCloudApi {
       throw AleraCloudException(
         _optionalString(error, 'message') ??
             _optionalString(decoded, 'message') ??
-            'Cloud Request Failed',
+            'Cloud request failed',
         statusCode: response.statusCode,
         code:
             _optionalString(error, 'code') ?? _optionalString(decoded, 'code'),
@@ -222,7 +222,7 @@ Map<String, Object?> _decodeMap(String encoded) {
   try {
     return _map(jsonDecode(encoded));
   } on FormatException {
-    throw const AleraCloudException('Cloud Response Was Not Valid JSON');
+    throw const AleraCloudException('Cloud response was not valid JSON');
   }
 }
 

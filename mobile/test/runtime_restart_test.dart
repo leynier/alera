@@ -82,12 +82,12 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Restart Runtime').last);
     await _pumpUntil(tester, find.text('Force Restart Runtime?'));
     expect(find.text('Force Restart Runtime?'), findsOneWidget);
-    expect(find.textContaining('2 Open Agent(s)'), findsOneWidget);
+    expect(find.textContaining('2 open agent(s)'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Force Restart'));
     await _pumpUntil(
       tester,
-      find.text('Runtime Restarting'),
+      find.text('Runtime restarting'),
       timeout: const Duration(seconds: 5),
     );
 

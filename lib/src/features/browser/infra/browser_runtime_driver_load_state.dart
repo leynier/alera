@@ -13,7 +13,7 @@ BrowserLoadPhase? _browserExpectedLoadPhase(Object? value) {
   }
   throw const BrowserFailure(
     code: BrowserErrorCode.invalidPayload,
-    message: 'Browser Load State Must Be Started, Committed, Or Finished.',
+    message: 'Browser load state must be started, committed, or finished.',
     recoverable: true,
   );
 }

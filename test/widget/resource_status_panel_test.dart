@@ -218,7 +218,7 @@ void main() {
       tree: ResourceTree.empty,
     );
 
-    expect(find.text('Measuring Resource Usage'), findsOneWidget);
+    expect(find.text('Measuring resource usage'), findsOneWidget);
     expect(find.text('0.0%'), findsNothing);
   });
 
@@ -231,7 +231,7 @@ void main() {
     );
 
     expect(
-      find.textContaining('Runtime Host Is Not Responding'),
+      find.textContaining('runtime host is not responding'),
       findsOneWidget,
     );
     // The error itself is surfaced rather than a generic empty state.
@@ -255,7 +255,7 @@ void main() {
     );
 
     expect(find.text('Unattributed Terminals'), findsOneWidget);
-    expect(find.text('1 Orphan Terminal'), findsOneWidget);
+    expect(find.text('1 orphan terminal'), findsOneWidget);
 
     await tester.tap(find.text('Kill All'));
     await tester.pump();

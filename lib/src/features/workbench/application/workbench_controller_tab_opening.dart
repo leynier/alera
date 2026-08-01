@@ -132,7 +132,7 @@ mixin _WorkbenchControllerTabOpening
         return tab;
       }
       if (platform == null || deviceId == null || deviceId.trim().isEmpty) {
-        throw StateError('Select A Mobile Emulator Device.');
+        throw StateError('Select a mobile emulator device.');
       }
       final attachment = await _mobileEmulatorService.attach(
         workspaceId: workspace.id,

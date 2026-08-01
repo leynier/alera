@@ -416,7 +416,7 @@ void main() {
         .read(workspacePullRequestControllerProvider(_scope))
         .value!;
     expect(forge.mergeCalls, 0);
-    expect(state.errorMessage, 'This Pull Request Cannot Be Merged.');
+    expect(state.errorMessage, 'This pull request cannot be merged.');
     expect(state.review?.state, HostedReviewState.open);
   });
 

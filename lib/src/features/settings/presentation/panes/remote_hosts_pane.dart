@@ -97,8 +97,8 @@ class _RemoteHostSettingsPaneState
           master: targets.isEmpty
               ? const AleraEmptyState(
                   icon: AleraIcons.host,
-                  title: 'No Remote Hosts',
-                  message: 'Add An SSH Target To Bootstrap A Runtime.',
+                  title: 'No remote hosts',
+                  message: 'Add an SSH target to bootstrap a runtime.',
                 )
               : SingleChildScrollView(
                   child: AleraPanel(
@@ -243,7 +243,7 @@ class _RemoteHostSettingsPaneState
       return null;
     }
     if (alias.isEmpty || host.isEmpty || username.isEmpty) {
-      setState(() => _error = 'Alias, Host, And Username Are Required');
+      setState(() => _error = 'Alias, host, and username are required');
       return null;
     }
     if (showSaving) {
@@ -303,7 +303,7 @@ class _RemoteHostSettingsPaneState
     }
     final port = int.tryParse(value);
     if (port == null || port < 1 || port > 65535) {
-      setState(() => _error = 'Port Must Be Between 1 And 65535');
+      setState(() => _error = 'Port must be between 1 and 65535');
       return null;
     }
     return port;
@@ -314,7 +314,7 @@ class _RemoteHostSettingsPaneState
       return false;
     }
     setState(() {
-      _error = 'Cancel Or Wait For Bootstrap Before Changing This Host';
+      _error = 'Cancel or wait for bootstrap before changing this host';
     });
     return true;
   }
@@ -431,7 +431,7 @@ class _RemoteHostSettingsPaneState
           targetId: job.targetId,
           status: job.status,
           stage: 'installing',
-          message: 'Remote Runtime Install Started',
+          message: 'Remote runtime install started',
         );
       });
     } catch (error) {

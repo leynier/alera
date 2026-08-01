@@ -239,7 +239,7 @@ void _registerSettingsDialogCoreTests() {
 
     expect(configRepository.configs.containsKey(project.id), isFalse);
     expect(find.text('None'), findsWidgets);
-    expect(find.text('No Setup Commands'), findsOneWidget);
+    expect(find.text('No setup commands'), findsOneWidget);
     expect(find.text('pnpm install'), findsNothing);
   });
 

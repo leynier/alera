@@ -43,7 +43,7 @@ class EditorSettingsPane extends StatelessWidget {
           children: <Widget>[
             SettingsIntegerRow(
               title: 'Tab Size',
-              description: 'Spaces inserted when pressing Tab.',
+              description: 'Spaces inserted when pressing tab.',
               value: settings.tabSize,
               min: 1,
               max: 8,

@@ -84,7 +84,7 @@ void main() {
 
     await tester.tap(find.text('build'));
     await tester.pumpAndSettle();
-    expect(find.text('No Details Available'), findsOneWidget);
+    expect(find.text('No details available'), findsOneWidget);
   });
 
   testWidgets('renders the error message when loading fails', (tester) async {

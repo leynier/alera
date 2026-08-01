@@ -21,7 +21,7 @@ class DiagnosticsSettingsSection extends ConsumerWidget {
 
   static String logLevelLabel(DiagnosticsLogLevel level) {
     return switch (level) {
-      DiagnosticsLogLevel.error => 'Errors Only',
+      DiagnosticsLogLevel.error => 'Errors only',
       DiagnosticsLogLevel.warning => 'Warnings',
       DiagnosticsLogLevel.info => 'Normal',
       DiagnosticsLogLevel.debug => 'Verbose',

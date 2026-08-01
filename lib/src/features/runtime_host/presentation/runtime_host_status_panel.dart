@@ -254,19 +254,19 @@ String _chipLabel(
     return 'Runtime';
   }
   if (snapshot?.error != null && snapshot?.running != true) {
-    return 'Runtime Error';
+    return 'Runtime error';
   }
   if (snapshot?.updateAvailable == true) {
-    return 'Update Available';
+    return 'Update available';
   }
   if (snapshot?.running == true) {
     final version = snapshot?.runtimeHostVersion;
     if (version != null && version.trim().isNotEmpty) {
       return 'Runtime ${runtimeHostVersionLabel(version)}';
     }
-    return 'Runtime Running';
+    return 'Runtime running';
   }
-  return 'Runtime Stopped';
+  return 'Runtime stopped';
 }
 
 /// Renders a sidecar version as `v1.2.3`, keeping an existing `v` prefix.

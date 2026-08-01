@@ -97,7 +97,7 @@ void main() {
         final controller = _FakeUpdateController(_state());
         await _pumpSection(tester, controller);
 
-        expect(find.text('Update Status'), findsOneWidget);
+        expect(find.text('Update status'), findsOneWidget);
         expect(find.text('Check for Updates'), findsOneWidget);
 
         controller.setState(
@@ -107,7 +107,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Checking for Updates'), findsOneWidget);
+        expect(find.text('Checking for updates'), findsOneWidget);
         expect(find.text('Checking'), findsOneWidget);
 
         controller.setState(
@@ -119,8 +119,8 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('No Update Available'), findsOneWidget);
-        expect(find.text('Current Version 1.0.0 (Build 100)'), findsOneWidget);
+        expect(find.text('No update available'), findsOneWidget);
+        expect(find.text('Current version 1.0.0 (build 100)'), findsOneWidget);
         expect(find.text('Alera is up to date.'), findsOneWidget);
 
         controller.setState(
@@ -133,9 +133,9 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Manual Update Available'), findsOneWidget);
-        expect(find.text('Current Version 1.0.0 (Build 100)'), findsOneWidget);
-        expect(find.text('Update Version 1.2.3 (Build 123)'), findsOneWidget);
+        expect(find.text('Manual update available'), findsOneWidget);
+        expect(find.text('Current version 1.0.0 (build 100)'), findsOneWidget);
+        expect(find.text('Update version 1.2.3 (build 123)'), findsOneWidget);
         expect(find.text('Download Manually'), findsOneWidget);
 
         controller.setState(
@@ -146,7 +146,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Update Available'), findsOneWidget);
+        expect(find.text('Update available'), findsOneWidget);
         expect(find.text('Install Update'), findsOneWidget);
 
         controller.setState(
@@ -158,7 +158,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Downloading Update'), findsOneWidget);
+        expect(find.text('Downloading update'), findsOneWidget);
         expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
         controller.setState(
@@ -170,7 +170,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Installing Update'), findsOneWidget);
+        expect(find.text('Installing update'), findsOneWidget);
         expect(
           tester
               .widget<LinearProgressIndicator>(
@@ -200,7 +200,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Update Failed'), findsOneWidget);
+        expect(find.text('Update failed'), findsOneWidget);
         expect(find.text('Update installation failed: boom'), findsOneWidget);
         expect(find.text('Try Again'), findsOneWidget);
       },

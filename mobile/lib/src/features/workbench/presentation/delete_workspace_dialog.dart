@@ -62,9 +62,9 @@ class _DeleteWorkspaceDialog extends StatelessWidget {
             if (descendants > 0) ...<Widget>[
               const SizedBox(height: AleraTokens.spaceMd),
               Text(
-                'This Workspace Has $descendants Linked '
-                '${descendants == 1 ? 'Descendant' : 'Descendants'}. They Will '
-                'Be Unlinked, Not Deleted.',
+                'This workspace has $descendants linked '
+                '${descendants == 1 ? 'descendant' : 'descendants'}. They will '
+                'be unlinked, not deleted.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.warning,
                 ),
@@ -73,8 +73,8 @@ class _DeleteWorkspaceDialog extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceMd),
             Text(
               deleteBranch
-                  ? 'The Alera-Created Branch Will Also Be Deleted.'
-                  : 'The Existing Branch Will Be Preserved.',
+                  ? 'The Alera-created branch will also be deleted.'
+                  : 'The existing branch will be preserved.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),

@@ -27,18 +27,18 @@ class _SubmoduleChanges extends ConsumerWidget {
     return status.when(
       loading: () => _SubmoduleFeedbackRow(
         depth: depth,
-        message: 'Loading Submodule Changes…',
+        message: 'Loading submodule changes…',
       ),
       error: (error, _) => _SubmoduleFeedbackRow(
         depth: depth,
-        message: 'Could Not Load Submodule Changes',
+        message: 'Could not load submodule changes',
         tooltip: error.toString(),
       ),
       data: (result) {
         if (result.entries.isEmpty) {
           return _SubmoduleFeedbackRow(
             depth: depth,
-            message: 'No Changes In Submodule',
+            message: 'No changes in submodule',
           );
         }
         return Column(

@@ -15,7 +15,7 @@ class HostSettingsController extends _$HostSettingsController {
       hostConnectionControllerProvider(hostId).future,
     );
     if (!client.supportsPortableSettings) {
-      throw UnsupportedError('Update The Runtime To Manage Settings.');
+      throw UnsupportedError('Update the runtime to manage settings.');
     }
     final subscription = client.events.listen((event) {
       if (event.name == 'runtimeSettingsChanged') {

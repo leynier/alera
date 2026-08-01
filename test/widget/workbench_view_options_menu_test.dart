@@ -107,8 +107,8 @@ void main() {
 
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
-      expect(find.text('No Projects Yet'), findsOneWidget);
-      expect(find.text('No Tags Yet'), findsOneWidget);
+      expect(find.text('No projects yet'), findsOneWidget);
+      expect(find.text('No tags yet'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
@@ -124,7 +124,7 @@ void main() {
 
       await tester.enterText(_projectSearchField(), 'missing');
       await tester.pumpAndSettle();
-      expect(find.text('No Projects Match "missing"'), findsOneWidget);
+      expect(find.text('No projects match "missing"'), findsOneWidget);
     });
 
     testWidgets('updates the workspace kind filter and shows the active dot', (
@@ -250,7 +250,7 @@ Finder _projectSearchField() {
   return find.byWidgetPredicate(
     (widget) =>
         widget is TextField &&
-        widget.decoration?.hintText == 'Add Project\u2026',
+        widget.decoration?.hintText == 'Add project\u2026',
   );
 }
 

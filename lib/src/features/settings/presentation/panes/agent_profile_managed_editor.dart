@@ -46,16 +46,16 @@ class AgentProfileManagedEditor extends StatelessWidget {
         _textRow(
           title: 'CCS Profile',
           description:
-              'Leave Empty To Run Claude Directly. A Profile Launches ccs With '
-              'The Profile First And The Same Flags After It. CCS Points '
-              'CLAUDE_CONFIG_DIR At Its Own Directory, So Alera Agent Status '
-              'Hooks Reach That Session Only If The Profile Inherits Them.',
+              'Leave empty to run Claude directly. A profile launches ccs with '
+              'the profile first and the same flags after it. CCS points '
+              'CLAUDE_CONFIG_DIR at its own directory, so Alera agent status '
+              'hooks reach that session only if the profile inherits them.',
           keyName: 'ccsProfile',
         ),
       if (agentProfileSupportsModel(adapter)) ...<Widget>[
         _choiceRow(
           title: 'Model',
-          description: 'Leave As Default To Use The Agent Configuration.',
+          description: 'Leave as default to use the agent configuration.',
           keyName: 'model',
           options: models,
           filterable: true,
@@ -69,14 +69,14 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _textRow(
           title: 'Exact Model ID',
-          description: 'Use A Model ID That Is Not In The Discovered List.',
+          description: 'Use a model ID that is not in the discovered list.',
           keyName: 'model',
         ),
       ],
       if (agentProfileSupportsPersona(adapter)) ...<Widget>[
         _choiceRow(
           title: 'Persona',
-          description: 'Select A Known Agent Persona Or Enter An Exact Name.',
+          description: 'Select a known agent persona or enter an exact name.',
           keyName: 'agent',
           options: personas,
           filterable: true,
@@ -94,7 +94,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _textRow(
           title: 'Exact Persona',
-          description: 'Use A Persona Name That Is Not In The Discovered List.',
+          description: 'Use a persona name that is not in the discovered list.',
           keyName: 'agent',
         ),
       ],
@@ -103,7 +103,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
     return AleraSettingsGroup(
       title: 'Managed Options',
       description:
-          'Alera Builds The Interactive Command From These Agent-Specific Settings.',
+          'Alera builds the interactive command from these agent-specific settings.',
       children: <Widget>[
         ...controls,
         if (discoveryError != null)
@@ -131,8 +131,8 @@ class AgentProfileManagedEditor extends StatelessWidget {
         _choiceRow(
           title: 'Plan Mode Reasoning Effort',
           description:
-              'Applies Only While Codex Is In Plan Mode, Which Is Entered With '
-              'Shift+Tab Or /plan. Codex Has No Way To Start There.',
+              'Applies only while Codex is in plan mode, which is entered with '
+              'Shift+Tab or /plan. Codex has no way to start there.',
           keyName: 'planModeEffort',
           options: codexEffortOptions,
         ),
@@ -148,12 +148,12 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _boolRow(
           title: 'Web Search',
-          description: 'Allow Codex To Search The Web.',
+          description: 'Allow Codex to search the web.',
           keyName: 'webSearch',
         ),
         _boolRow(
           title: 'Bypass All Protections',
-          description: 'Bypass Both Approval Prompts And Sandbox Isolation.',
+          description: 'Bypass both approval prompts and sandbox isolation.',
           keyName: 'bypassApprovalsAndSandbox',
         ),
       ],
@@ -171,8 +171,8 @@ class AgentProfileManagedEditor extends StatelessWidget {
         _boolRow(
           title: 'Allow Skip Permissions',
           description:
-              'Make Bypass Available During The Session Without Starting In '
-              'It. Use The Bypass Permissions Mode Above To Start In It.',
+              'Make bypass available during the session without starting in '
+              'it. Use the Bypass Permissions mode above to start in it.',
           keyName: 'allowSkipPermissions',
         ),
       ],
@@ -190,7 +190,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _boolRow(
           title: 'Allow All',
-          description: 'Allow Tools And Paths Without Individual Prompts.',
+          description: 'Allow tools and paths without individual prompts.',
           keyName: 'allowAll',
         ),
         _numberRow(
@@ -204,7 +204,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _boolRow(
           title: 'Do Not Ask User',
-          description: 'Continue Without Asking The User For Input.',
+          description: 'Continue without asking the user for input.',
           keyName: 'noAskUser',
         ),
       ],
@@ -222,7 +222,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
         _boolRow(
           title: 'Trust Workspace',
-          description: 'Trust The Workspace Without An Interactive Prompt.',
+          description: 'Trust the workspace without an interactive prompt.',
           keyName: 'trustWorkspace',
         ),
       ],
@@ -235,19 +235,19 @@ class AgentProfileManagedEditor extends StatelessWidget {
         _choiceRow(title: 'Mode', keyName: 'mode', options: agyModeOptions),
         _boolRow(
           title: 'Skip Permissions',
-          description: 'Run Without Antigravity Permission Checks.',
+          description: 'Run without Antigravity permission checks.',
           keyName: 'skipPermissions',
         ),
         _boolRow(
           title: 'Sandbox',
-          description: 'Enable The Antigravity Sandbox.',
+          description: 'Enable the Antigravity sandbox.',
           keyName: 'sandbox',
         ),
       ],
       AgentType.opencode => <Widget>[
         _boolRow(
           title: 'Auto Approve',
-          description: 'Approve OpenCode Actions Automatically.',
+          description: 'Approve OpenCode actions automatically.',
           keyName: 'autoApprove',
         ),
       ],
@@ -267,13 +267,13 @@ class AgentProfileManagedEditor extends StatelessWidget {
         _choiceRow(
           title: 'Mode',
           description:
-              'Amp Permission Rules Continue To Come From The Global Amp Configuration.',
+              'Amp permission rules continue to come from the global Amp configuration.',
           keyName: 'mode',
           options: ampModeOptions,
         ),
         _boolRow(
           title: 'Fast Mode',
-          description: 'Prefer Lower Latency Responses.',
+          description: 'Prefer lower latency responses.',
           keyName: 'fast',
         ),
       ],
@@ -353,7 +353,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
   }) {
     return AleraSettingRow(
       title: title,
-      description: 'Leave Empty To Use The Agent Default.',
+      description: 'Leave empty to use the agent default.',
       child: _ManagedTextField(
         value: config[keyName]?.toString() ?? '',
         enabled: enabled,

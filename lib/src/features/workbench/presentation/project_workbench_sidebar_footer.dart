@@ -9,7 +9,7 @@ class _EmptyProjectsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraEmptyState(
       icon: AleraIcons.folder,
-      title: 'No Projects Yet',
+      title: 'No projects yet',
       message: 'Add a git repository to create workspaces with terminal tabs.',
       action: FilledButton.icon(
         onPressed: onAddProject,

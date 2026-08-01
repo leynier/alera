@@ -15,8 +15,8 @@ class _QuotaPinButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraIconButton(
       tooltip: pinned
-          ? 'Shown In Status Bar'
-          : 'Hidden From Status Bar - Available In The Quota Panel',
+          ? 'Shown in status bar'
+          : 'Hidden from status bar - available in the quota panel',
       icon: pinned ? AleraIcons.pin : AleraIcons.pinOff,
       iconSize: 13,
       iconColor: pinned
@@ -40,7 +40,7 @@ class _ProviderOrderControl extends StatelessWidget {
   Widget build(BuildContext context) {
     if (providers.isEmpty) {
       return Text(
-        'No Quota Providers Enabled',
+        'No quota providers enabled',
         textAlign: TextAlign.right,
         style: Theme.of(
           context,
@@ -123,7 +123,7 @@ class _ClaudeProfilesControl extends StatelessWidget {
       children: <Widget>[
         if (profiles.isEmpty)
           Text(
-            'No CCS Profiles Configured',
+            'No CCS profiles configured',
             textAlign: TextAlign.right,
             style: Theme.of(
               context,
@@ -289,11 +289,11 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
           (candidate.alias == alias || candidate.profile == profile),
     );
     if (alias.isEmpty || profile.isEmpty) {
-      setState(() => _error = 'Alias And Profile Are Required.');
+      setState(() => _error = 'Alias and profile are required.');
       return;
     }
     if (duplicate) {
-      setState(() => _error = 'Alias And Profile Must Be Unique.');
+      setState(() => _error = 'Alias and profile must be unique.');
       return;
     }
     Navigator.of(

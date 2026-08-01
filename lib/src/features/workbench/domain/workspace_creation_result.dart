@@ -33,13 +33,13 @@ class WorktreeSetupReport {
 
   String get summary {
     if (steps.isEmpty) {
-      return 'No Setup Actions Configured';
+      return 'No setup actions configured';
     }
     final failures = steps.where((step) => !step.succeeded).length;
     if (failures == 0) {
-      return 'Setup Completed';
+      return 'Setup completed';
     }
-    return '$failures Setup Action${failures == 1 ? '' : 's'} Failed';
+    return '$failures setup action${failures == 1 ? '' : 's'} failed';
   }
 
   static const empty = WorktreeSetupReport();

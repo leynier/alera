@@ -37,14 +37,14 @@ final class BrowserNavigationPolicy {
     if (normalized.length > maxBrowserAddressLength) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidUrl,
-        message: 'The Browser Address Is Too Long.',
+        message: 'The browser address is too long.',
         recoverable: true,
       );
     }
     if (_looksLikeFilePath(normalized)) {
       throw const BrowserFailure(
         code: BrowserErrorCode.navigationBlocked,
-        message: 'Local File Paths Cannot Be Opened In Browser Tabs.',
+        message: 'Local file paths cannot be opened in browser tabs.',
         recoverable: true,
       );
     }
@@ -71,7 +71,7 @@ final class BrowserNavigationPolicy {
           (scheme == 'about' && uri.toString() != 'about:blank')) {
         throw BrowserFailure(
           code: BrowserErrorCode.navigationBlocked,
-          message: 'The "$scheme" Browser Address Is Not Allowed.',
+          message: 'The "$scheme" browser address is not allowed.',
           recoverable: true,
         );
       }
@@ -214,6 +214,6 @@ bool _containsSensitiveFragment(String value) {
 
 BrowserFailure _invalidAddress() => const BrowserFailure(
   code: BrowserErrorCode.invalidUrl,
-  message: 'The Browser Address Is Invalid.',
+  message: 'The browser address is invalid.',
   recoverable: true,
 );

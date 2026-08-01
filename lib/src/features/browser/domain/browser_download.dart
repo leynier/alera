@@ -57,7 +57,7 @@ final class BrowserDownload {
         pageId is! String ||
         fileName is! String ||
         startedAt == null) {
-      throw const FormatException('Browser Download Payload Is Invalid.');
+      throw const FormatException('Browser download payload is invalid.');
     }
     return BrowserDownload(
       id: id,

@@ -71,7 +71,7 @@ class _MobileDevicesSettingsPaneState
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => AleraEmptyState(
         icon: AleraIcons.mobileDevice,
-        title: 'Mobile Access Unavailable',
+        title: 'Mobile access unavailable',
         message: error.toString(),
       ),
       data: (status) {
@@ -196,8 +196,8 @@ class _MobileDevicesSettingsPaneState
         if (status.activePairings.isEmpty)
           const AleraEmptyState(
             icon: AleraIcons.qrCode,
-            title: 'No Active Offers',
-            message: 'Generate A Pairing QR To Link A New Device.',
+            title: 'No active offers',
+            message: 'Generate a pairing QR to link a new device.',
           )
         else
           AleraPanel(
@@ -222,8 +222,8 @@ class _MobileDevicesSettingsPaneState
         if (status.devices.isEmpty)
           const AleraEmptyState(
             icon: AleraIcons.mobileDevice,
-            title: 'No Paired Devices',
-            message: 'Link A Device To See It Here.',
+            title: 'No paired devices',
+            message: 'Link a device to see it here.',
           )
         else
           AleraPanel(
@@ -309,8 +309,8 @@ class _MobileDevicesSettingsPaneState
     } else if (isWildcardBindHost(status.settings.bindHost)) {
       setState(() {
         _error =
-            'Wildcard Bind Hosts Require An Explicit wss:// Endpoint To '
-            'Create An Offer';
+            'Wildcard bind hosts require an explicit wss:// endpoint to '
+            'create an offer';
       });
       return;
     }

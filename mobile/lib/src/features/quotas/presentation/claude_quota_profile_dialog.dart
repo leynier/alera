@@ -45,9 +45,9 @@ class _ClaudeQuotaProfileDialogState extends State<ClaudeQuotaProfileDialog> {
           (candidate.alias == alias || candidate.profile == profile),
     );
     if (alias.isEmpty || profile.isEmpty) {
-      setState(() => _error = 'Alias And Profile Are Required.');
+      setState(() => _error = 'Alias and profile are required.');
     } else if (duplicate) {
-      setState(() => _error = 'Alias And Profile Must Be Unique.');
+      setState(() => _error = 'Alias and profile must be unique.');
     } else {
       Navigator.of(
         context,

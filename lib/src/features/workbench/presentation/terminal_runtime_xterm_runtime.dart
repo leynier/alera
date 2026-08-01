@@ -156,7 +156,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     }
     _osc52BlockedNoticeShown = true;
     _interactionNotice?.call(
-      'Terminal Clipboard Write Blocked. Enable OSC 52 Clipboard Writes In Terminal Settings.',
+      'Terminal clipboard write blocked. Enable OSC 52 clipboard writes in terminal settings.',
     );
   }
 

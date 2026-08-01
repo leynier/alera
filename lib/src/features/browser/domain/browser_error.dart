@@ -32,7 +32,7 @@ final class BrowserFailure implements Exception {
       ),
       message: json['message'] is String
           ? json['message']! as String
-          : 'Unknown Browser Error.',
+          : 'Unknown browser error.',
       recoverable: json['recoverable'] == true,
       details: _browserErrorMap(json['details']),
     );

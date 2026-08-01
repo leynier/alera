@@ -205,10 +205,10 @@ class AgentQuotaStatusBarView extends StatelessWidget {
                           ),
                           child: Text(
                             loading
-                                ? 'Refreshing Quotas'
+                                ? 'Refreshing quotas'
                                 : error == null
-                                ? 'No Quota Data'
-                                : 'Quota Refresh Failed',
+                                ? 'No quota data'
+                                : 'Quota refresh failed',
                             style: AleraTokens.monoStyle.copyWith(fontSize: 10),
                           ),
                         ),

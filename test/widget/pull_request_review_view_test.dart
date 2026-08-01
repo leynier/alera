@@ -200,7 +200,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Unlink Pull Request #42?'), findsOneWidget);
     expect(
-      find.textContaining('The Pull Request On GitHub Will Not Be Changed.'),
+      find.textContaining('The pull request on GitHub will not be changed.'),
       findsOneWidget,
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Unlink Pull Request'));
@@ -432,6 +432,6 @@ void main() {
     );
 
     expect(find.byTooltip('Start Conversation'), findsNothing);
-    expect(find.text('No Comments Yet'), findsOneWidget);
+    expect(find.text('No comments yet'), findsOneWidget);
   });
 }

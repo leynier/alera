@@ -20,9 +20,9 @@ class MobilePairingOfferRow extends StatelessWidget {
       return 'Expired';
     }
     if (remaining.inMinutes >= 1) {
-      return 'Expires In ${remaining.inMinutes}m';
+      return 'Expires in ${remaining.inMinutes}m';
     }
-    return 'Expires In ${remaining.inSeconds}s';
+    return 'Expires in ${remaining.inSeconds}s';
   }
 
   @override

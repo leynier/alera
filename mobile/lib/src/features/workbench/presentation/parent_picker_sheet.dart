@@ -59,7 +59,7 @@ Future<String?> showParentPickerSheet(
             Padding(
               padding: AleraTokens.contentPadding,
               child: Text(
-                'No Eligible Parents',
+                'No eligible parents',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             )

@@ -157,7 +157,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                 SettingsTextRow(
                   title: 'Custom Command',
                   description:
-                      'Used By Prompts That Override The Global Agent With Custom Command.',
+                      'Used by prompts that override the global agent with custom command.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
                   onChanged: (value) =>
@@ -172,7 +172,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
             child: AleraSettingsGroup(
               title: operation.label,
               description:
-                  'Configure The Agent, Model, Reasoning And Instructions For This Prompt.',
+                  'Configure the agent, model, reasoning and instructions for this prompt.',
               children: <Widget>[
                 ..._promptOverrideRows(settings, operation),
                 ..._thinkingRows(settings, operation),

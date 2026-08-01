@@ -20,7 +20,7 @@ final class BrowserPage {
         profileId is! String ||
         initialUrl == null ||
         createdAt == null) {
-      throw const FormatException('Browser Page Payload Is Invalid.');
+      throw const FormatException('Browser page payload is invalid.');
     }
     return BrowserPage(
       pageId: pageId,

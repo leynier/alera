@@ -197,7 +197,7 @@ class _AleraDropdownFilterPopoverState<T>
                             vertical: AleraTokens.space12,
                           ),
                           child: Text(
-                            'No Matching Options',
+                            'No matching options',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: AleraTokens.foregroundFaint,
                             ),

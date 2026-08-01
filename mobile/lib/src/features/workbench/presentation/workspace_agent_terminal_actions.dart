@@ -19,7 +19,7 @@ Future<void> closeWorkspaceAgentTerminal(
     context: context,
     builder: (dialogContext) => AleraConfirmDialog(
       title: 'Close Agent Terminal',
-      message: 'Close The ${agentDisplayName(status.agentType)} Terminal?',
+      message: 'Close the ${agentDisplayName(status.agentType)} terminal?',
       confirmLabel: 'Close',
     ),
   );
@@ -47,7 +47,7 @@ Future<void> closeWorkspaceAgentTerminal(
   } on Object catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could Not Close Agent Terminal: $error')),
+        SnackBar(content: Text('Could not close agent terminal: $error')),
       );
     }
   }

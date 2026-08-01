@@ -11,15 +11,15 @@ class _BrowserProfileSettingsRow extends StatelessWidget {
     return AleraSettingRow(
       title: profile.label,
       description: profile.isDefault
-          ? 'Default Shared Browser Profile.'
-          : 'Isolated Persistent Browser Profile.',
+          ? 'Default shared browser profile.'
+          : 'Isolated persistent browser profile.',
       child: Align(
         alignment: Alignment.centerRight,
         child: AleraIconButton(
           tooltip: profile.isDefault
               ? 'Default Profile'
               : onDelete == null
-              ? 'Browser Engine Unavailable'
+              ? 'Browser engine unavailable'
               : 'Delete Profile',
           icon: profile.isDefault ? AleraIcons.secure : AleraIcons.delete,
           onPressed: onDelete,
@@ -83,7 +83,7 @@ class _TrustedBrowserCertificateRow extends StatelessWidget {
     return AleraSettingRow(
       title: certificate.host,
       description:
-          '$profileLabel - ${certificate.subject ?? certificate.issuer ?? 'Local Certificate'}\n$fingerprint',
+          '$profileLabel - ${certificate.subject ?? certificate.issuer ?? 'Local certificate'}\n$fingerprint',
       child: Align(
         alignment: Alignment.centerRight,
         child: AleraIconButton(
@@ -132,7 +132,7 @@ class _BrowserProfileNameDialogState extends State<_BrowserProfileNameDialog> {
             AleraTextField(
               controller: _controller,
               autofocus: true,
-              hintText: 'Profile Name',
+              hintText: 'Profile name',
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _finish(valid),
             ),
@@ -212,13 +212,13 @@ class _BrowserCookieImportDialogState
             AleraTextField(
               controller: _nameController,
               autofocus: true,
-              hintText: 'New Profile Name',
+              hintText: 'New profile name',
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<_BrowserImportSourceOption>(
               value: _source,
-              hintText: 'Import Source',
+              hintText: 'Import source',
               entries: <AleraDropdownFieldEntry<_BrowserImportSourceOption>>[
                 for (final option in available)
                   AleraDropdownFieldEntry<_BrowserImportSourceOption>(

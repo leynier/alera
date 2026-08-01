@@ -67,7 +67,7 @@ class WorkspaceListController extends _$WorkspaceListController {
     final client = await ref.watch(workspaceClientProvider(hostId).future);
     if (!client.supportsWorkspaceSidebarParity) {
       throw UnsupportedError(
-        'Update Alera On This Host To Use Mobile Workspaces.',
+        'Update Alera on this host to use mobile workspaces.',
       );
     }
     final subscription = client.events.listen((event) {

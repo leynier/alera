@@ -122,7 +122,7 @@ void main() {
       expect(installed.state, AleraCliRegistrationState.conflict);
       expect(installed.ready, isFalse);
       expect(installed.detail, contains(shadowCommand.path));
-      expect(installed.detail, contains('Earlier On PATH'));
+      expect(installed.detail, contains('earlier on PATH'));
     });
 
     test('ignores non-executable POSIX commands when resolving PATH', () async {
@@ -226,7 +226,7 @@ void main() {
 
       expect(installed.state, AleraCliRegistrationState.stale);
       expect(installed.ready, isFalse);
-      expect(installed.detail, contains('Is Not Executable'));
+      expect(installed.detail, contains('is not executable'));
     });
 
     test('writes a Windows command wrapper under local app data', () async {

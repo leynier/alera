@@ -24,7 +24,7 @@ final class BrowserProfileSource {
   factory BrowserProfileSource.fromJson(Map<String, Object?> json) {
     final importedAt = DateTime.tryParse(json['importedAt'] as String? ?? '');
     if (importedAt == null) {
-      throw const FormatException('Browser Profile Source Date Is Invalid.');
+      throw const FormatException('Browser profile source date is invalid.');
     }
     return BrowserProfileSource(
       family: BrowserImportSourceFamily.values.firstWhere(
@@ -63,7 +63,7 @@ final class BrowserProfile {
     final label = _nonEmptyBrowserProfileString(json['label']);
     final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
     if (id == null || label == null || createdAt == null) {
-      throw const FormatException('Browser Profile Payload Is Invalid.');
+      throw const FormatException('Browser profile payload is invalid.');
     }
     final source = json['source'];
     return BrowserProfile(

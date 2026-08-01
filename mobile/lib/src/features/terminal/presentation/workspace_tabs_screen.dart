@@ -63,7 +63,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could Not Create Tab: $error')));
+        ).showSnackBar(SnackBar(content: Text('Could not create tab: $error')));
       }
     } finally {
       if (mounted) {
@@ -110,7 +110,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could Not Close Tab: $error')));
+        ).showSnackBar(SnackBar(content: Text('Could not close tab: $error')));
       }
     }
   }
@@ -135,7 +135,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could Not Rename Tab: $error')));
+        ).showSnackBar(SnackBar(content: Text('Could not rename tab: $error')));
       }
     }
   }
@@ -209,7 +209,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             :final error,
           ) when error is DesktopReclaimedTerminal) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Desktop Took Back The Terminal')),
+              const SnackBar(content: Text('Desktop took back the terminal')),
             );
             Navigator.of(context).pop();
           }
@@ -393,13 +393,13 @@ class _EmptyTabs extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Text(
-              targetUnavailable ? 'Terminal Unavailable' : 'No Tabs Yet',
+              targetUnavailable ? 'Terminal unavailable' : 'No tabs yet',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             if (targetUnavailable) ...<Widget>[
               const SizedBox(height: AleraTokens.space8),
               Text(
-                'Choose Another Terminal Above.',
+                'Choose another terminal above.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],

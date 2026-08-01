@@ -237,7 +237,7 @@ mixin _WorkbenchControllerProjects
   Future<WorkspaceTag> createWorkspaceTag(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
-      throw WorkspaceException('Tag Name Is Required');
+      throw WorkspaceException('Tag name is required.');
     }
     try {
       // Tag names are unique case-insensitively in the runtime store, so a
@@ -325,7 +325,7 @@ mixin _WorkbenchControllerProjects
         // The dialog disables descendant options, but its relations snapshot
         // can be stale; re-validate against fresh relations before linking.
         if (nextParentId == workspace.id) {
-          throw WorkspaceException('A Workspace Cannot Be Its Own Parent');
+          throw WorkspaceException('A workspace cannot be its own parent');
         }
         final relations = await _workspaceGraphRepository.listRelations();
         if (workspaceDescendantIds(
@@ -333,7 +333,7 @@ mixin _WorkbenchControllerProjects
           relations,
         ).contains(nextParentId)) {
           throw WorkspaceException(
-            'Cannot Set A Descendant Workspace As Parent',
+            'Cannot set a descendant workspace as parent',
           );
         }
       }
@@ -361,8 +361,8 @@ mixin _WorkbenchControllerProjects
               );
             } catch (restoreError) {
               throw WorkspaceException(
-                'Workspace Parent Update Failed: $error. '
-                'Previous Parent Restore Failed: $restoreError',
+                'Workspace parent update failed: $error. '
+                'Previous parent restore failed: $restoreError',
               );
             }
           }

@@ -97,7 +97,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
             BrowserEngineAvailability.available) {
       throw BrowserFailure(
         code: BrowserErrorCode.pageNotFound,
-        message: 'Browser Page ${call.pageId} Is Not Available.',
+        message: 'Browser page ${call.pageId} is not available.',
         recoverable: true,
       );
     }
@@ -230,7 +230,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
       default:
         throw BrowserFailure(
           code: BrowserErrorCode.unsupportedCapability,
-          message: 'Unsupported Browser Driver Method: $method.',
+          message: 'Unsupported browser driver method: $method.',
         );
     }
   }
@@ -289,7 +289,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
     if (call.cancelled) {
       throw const BrowserFailure(
         code: BrowserErrorCode.timeout,
-        message: 'The Browser Wait Was Cancelled.',
+        message: 'The browser wait was cancelled.',
         recoverable: true,
       );
     }
@@ -305,7 +305,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
         _locallyInvalidatedDocuments.containsKey(call.pageId)) {
       throw BrowserFailure(
         code: BrowserErrorCode.staleAutomationReference,
-        message: 'The Browser Page Changed Before The Request Could Run.',
+        message: 'The browser page changed before the request could run.',
         recoverable: true,
       );
     }
@@ -396,7 +396,7 @@ Map<String, Object?> _browserFailureOutcome(Object error) {
     BrowserFailure value => value,
     TimeoutException value => BrowserFailure(
       code: BrowserErrorCode.timeout,
-      message: value.message ?? 'The Browser Operation Timed Out.',
+      message: value.message ?? 'The browser operation timed out.',
       recoverable: true,
     ),
     FormatException value => BrowserFailure(

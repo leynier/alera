@@ -123,7 +123,7 @@ mixin _AzureDevOpsReviewComments {
           : null;
       yield ReviewComment(
         id: '$threadId:${rawComment['id']}',
-        author: author ?? 'Unknown Author',
+        author: author ?? 'Unknown author',
         body: rawComment['content'] as String? ?? '',
         createdAt:
             DateTime.tryParse(rawComment['publishedDate'] as String? ?? '') ??

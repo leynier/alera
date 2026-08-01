@@ -95,7 +95,7 @@ Motion:
 
 ## Copy And State
 
-- Visible UI copy must use title case (e.g., "New Workspace", "AI Text").
+- Actions, buttons, menus, dropdowns, labels, and other controls use title case. Descriptions, explanations, helper text, status messages, errors, notifications, and other prose use sentence case, preserving proper nouns, product names, acronyms, and technical identifiers.
 - UI copy must not overclaim. Do not imply an action succeeded, skipped, verified, deleted, or protected something unless code has the result state.
 - For long-running actions, reserve control width up front when labels/icons can change.
 - Prefer disabled state for short work and stage labels/progress for multi-step work.

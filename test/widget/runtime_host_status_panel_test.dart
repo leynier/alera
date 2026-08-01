@@ -95,7 +95,7 @@ void main() {
 
     await tester.pumpWidget(_wrapChip(snapshot));
 
-    expect(find.text('Update Available'), findsOneWidget);
+    expect(find.text('Update available'), findsOneWidget);
 
     await tester.pumpWidget(_wrapPanel(snapshot));
 

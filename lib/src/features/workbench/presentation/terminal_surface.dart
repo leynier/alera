@@ -203,7 +203,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         return AlertDialog(
           title: const Text('Restart Terminal?'),
           content: const Text(
-            'This Will Stop The Current Process Tree And Start A New Shell. Terminal History Will Be Preserved.',
+            'This will stop the current process tree and start a new shell. Terminal history will be preserved.',
           ),
           actions: <Widget>[
             TextButton(
@@ -272,9 +272,9 @@ class _TerminalOperationStateState extends State<_TerminalOperationState> {
   Widget build(BuildContext context) {
     final elapsed = DateTime.now().difference(_startedAt).inSeconds;
     final label = switch (widget.operation) {
-      TerminalSessionOperation.starting => 'Starting Terminal',
-      TerminalSessionOperation.reconnecting => 'Reconnecting Terminal',
-      TerminalSessionOperation.restarting => 'Restarting Terminal',
+      TerminalSessionOperation.starting => 'Starting terminal',
+      TerminalSessionOperation.reconnecting => 'Reconnecting terminal',
+      TerminalSessionOperation.restarting => 'Restarting terminal',
     };
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
@@ -315,7 +315,7 @@ class _TerminalRestoreState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              'Restoring Terminal',
+              'Restoring terminal',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AleraTokens.space12),
@@ -358,7 +358,7 @@ class _TerminalErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Terminal Unavailable', style: theme.textTheme.titleMedium),
+              Text('Terminal unavailable', style: theme.textTheme.titleMedium),
               const SizedBox(height: AleraTokens.space8),
               Text(
                 message,

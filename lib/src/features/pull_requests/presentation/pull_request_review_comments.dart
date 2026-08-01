@@ -95,7 +95,7 @@ class _PullRequestCommentsSectionState
             cursorColor: AleraTokens.foreground,
             decoration: pullRequestFieldDecoration(
               theme,
-              hint: 'Add A Comment',
+              hint: 'Add a comment',
             ),
           ),
           const SizedBox(height: AleraTokens.space8),
@@ -129,7 +129,7 @@ class _PullRequestCommentsSectionState
         ],
         if (widget.comments.isEmpty)
           Text(
-            'No Comments Yet',
+            'No comments yet',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundMuted,
             ),

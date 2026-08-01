@@ -11,8 +11,8 @@ Future<bool> showSleepWorkspaceDialog(
     builder: (context) => AleraConfirmDialog(
       title: 'Sleep Workspace?',
       message:
-          'This Closes All Tabs And Terminal Sessions For "${workspace.name}". '
-          'The Workspace, Branch, And Files Will Be Preserved.',
+          'This closes all tabs and terminal sessions for "${workspace.name}". '
+          'The workspace, branch, and files will be preserved.',
       confirmLabel: 'Sleep',
       destructive: true,
     ),

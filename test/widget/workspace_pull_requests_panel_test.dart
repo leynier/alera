@@ -202,7 +202,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Suggested Pull Request'), findsOneWidget);
+    expect(find.text('Suggested pull request'), findsOneWidget);
     expect(find.text('#123 · feat: 123'), findsOneWidget);
     expect(linkedReviews.store[workspace.id]?.dismissed, isTrue);
 
@@ -293,7 +293,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Not Authenticated'), findsOneWidget);
+      expect(find.text('Not authenticated'), findsOneWidget);
       expect(
         find.text('Run `${entry.$3}` to sign in, then refresh.'),
         findsOneWidget,

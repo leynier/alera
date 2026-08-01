@@ -49,8 +49,8 @@ class _CommandTerminalDialogState extends State<CommandTerminalDialog> {
         builder: (_) => const AleraConfirmDialog(
           title: 'Stop Running Command?',
           message:
-              'Closing Will End The Command And Every Process It Started. '
-              'Anything Halfway Through Will Stay Halfway Through.',
+              'Closing will end the command and every process it started. '
+              'Anything halfway through will stay halfway through.',
           confirmLabel: 'Stop And Close',
           destructive: true,
         ),

@@ -122,7 +122,7 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
-      expect(result.summary, 'Install Complete (npx)');
+      expect(result.summary, 'Install complete (npx)');
       expect(runner.runs.single.executable, 'npx');
       expect(runner.runs.single.arguments, const <String>[
         'skills',
@@ -262,7 +262,7 @@ void main() {
       expect(result.succeeded, isFalse);
       expect(
         result.summary,
-        'Install Failed (npx): node:internal/modules/cjs/loader:1424',
+        'Install failed (npx): node:internal/modules/cjs/loader:1424',
       );
       expect(result.summary, isNot(contains('\n')));
       expect(result.detail, contains('Cannot find module'));
@@ -316,7 +316,7 @@ void main() {
         runner: AleraCliSkillRunner.npx,
       );
 
-      expect(result.summary, 'Install Complete (npx)');
+      expect(result.summary, 'Install complete (npx)');
       expect(result.detail, isEmpty);
     });
   });

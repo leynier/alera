@@ -10,7 +10,7 @@ Future<BrowserSessionHandle> switchBrowserSessionProfile({
   required BrowserTabProfilePersistence persist,
 }) async {
   if (currentSession.pageId != currentTab.id) {
-    throw StateError('The Browser Session Does Not Match The Current Tab.');
+    throw StateError('The browser session does not match the current tab.');
   }
   final updatedTab = await persist();
   return registry.reconcilePersistentSession(updatedTab);

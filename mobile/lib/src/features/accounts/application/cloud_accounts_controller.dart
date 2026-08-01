@@ -18,7 +18,7 @@ class CloudAccountsController extends _$CloudAccountsController {
   }) async {
     final normalized = code.trim();
     if (normalized.isEmpty) {
-      throw const FormatException('Enrollment Code Is Required');
+      throw const FormatException('Enrollment code is required');
     }
     final repository = ref.read(cloudAccountRepositoryProvider);
     final installationId = await repository.getOrCreateInstallationId();
@@ -55,7 +55,7 @@ class CloudAccountsController extends _$CloudAccountsController {
         .where((item) => item.account.id == accountId)
         .firstOrNull;
     if (session == null) {
-      throw StateError('Account Session Is Missing');
+      throw StateError('Account session is missing');
     }
     final updated = session.copyWith(
       subscriptions: <String, RuntimePushPreferences>{

@@ -78,7 +78,7 @@ class RemoteHostEditor extends StatelessWidget {
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Connection',
-            description: 'SSH Target Used By The Runtime Host.',
+            description: 'SSH target used by the runtime host.',
             children: <Widget>[
               _InlineFieldRow(
                 first: AleraTextField(
@@ -141,7 +141,7 @@ class RemoteHostEditor extends StatelessWidget {
           const SizedBox(height: AleraTokens.space16),
           AleraSettingsGroup(
             title: 'Runtime Bootstrap',
-            description: 'Install The Alera Runtime Sidecar On This Host.',
+            description: 'Install the Alera runtime sidecar on this host.',
             children: <Widget>[
               _InlineFieldRow(
                 first: _RemoteHostDropdown<String>(
@@ -185,7 +185,7 @@ class RemoteHostEditor extends StatelessWidget {
                 child: AleraTextField(
                   controller: installDirController,
                   labelText: 'Install Directory',
-                  hintText: 'Default Per Platform',
+                  hintText: 'Default per platform',
                   prefixIcon: AleraIcons.folder,
                   enabled: !bootstrapping,
                 ),
@@ -249,7 +249,7 @@ class RemoteHostEditor extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        progress?.message ?? 'Remote Runtime Error',
+                        progress?.message ?? 'Remote runtime error',
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: AleraTokens.foreground,
                           fontWeight: FontWeight.w600,
@@ -257,7 +257,7 @@ class RemoteHostEditor extends StatelessWidget {
                       ),
                       const SizedBox(height: AleraTokens.space4),
                       Text(
-                        statusDetail ?? 'Remote Runtime Error',
+                        statusDetail ?? 'Remote runtime error',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: !statusIsError
                               ? AleraTokens.foregroundMuted
@@ -350,7 +350,7 @@ class _RemoteHostPlanPanel extends StatelessWidget {
     final theme = Theme.of(context);
     return AleraSettingsGroup(
       title: 'Bootstrap Plan',
-      description: '${plan.platform} ${plan.arch} To ${plan.installDir}',
+      description: '${plan.platform} ${plan.arch} to ${plan.installDir}',
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(AleraTokens.space12),
@@ -358,7 +358,7 @@ class _RemoteHostPlanPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                '${plan.trust} From ${plan.artifactSource}',
+                '${plan.trust} from ${plan.artifactSource}',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AleraTokens.foreground,
                   fontWeight: FontWeight.w600,
@@ -404,7 +404,7 @@ class RemoteHostError extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraEmptyState(
       icon: AleraIcons.error,
-      title: 'Remote Hosts Unavailable',
+      title: 'Remote hosts unavailable',
       message: message,
     );
   }
@@ -412,7 +412,7 @@ class RemoteHostError extends StatelessWidget {
 
 String statusLabel(SshBootstrapStatus status) {
   return switch (status) {
-    SshBootstrapStatus.notInstalled => 'Not Installed',
+    SshBootstrapStatus.notInstalled => 'Not installed',
     SshBootstrapStatus.planned => 'Planned',
     SshBootstrapStatus.installing => 'Installing',
     SshBootstrapStatus.installed => 'Installed',

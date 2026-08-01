@@ -51,9 +51,9 @@ _CheckGroup _groupOf(ReviewCheck check) {
 String _groupLabel(_CheckGroup group, int count) {
   final noun = count == 1 ? 'Check' : 'Checks';
   return switch (group) {
-    _CheckGroup.failing => '$count Failing $noun',
-    _CheckGroup.inProgress => '$count In Progress $noun',
-    _CheckGroup.successful => '$count Successful $noun',
+    _CheckGroup.failing => '$count failing $noun',
+    _CheckGroup.inProgress => '$count in progress $noun',
+    _CheckGroup.successful => '$count successful $noun',
   };
 }
 
@@ -329,7 +329,7 @@ class _CheckDetailsView extends StatelessWidget {
           ];
     if (lines.isEmpty) {
       return Text(
-        'No Details Available',
+        'No details available',
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),

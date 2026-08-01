@@ -144,7 +144,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       builder: (_) => AleraConfirmDialog(
         title: '${method.label} PR #${widget.review.number}?',
         message:
-            'This Will Update The Pull Request On '
+            'This will update the pull request on '
             '${widget.review.provider.label}.',
         confirmLabel: method.label,
       ),
@@ -159,7 +159,7 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       context: context,
       builder: (_) => AleraConfirmDialog(
         title: 'Close Pull Request #${widget.review.number}?',
-        message: 'This Will Close The Pull Request Without Merging It.',
+        message: 'This will close the pull request without merging it.',
         confirmLabel: 'Close Pull Request',
         destructive: true,
       ),
@@ -175,9 +175,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       builder: (_) => AleraConfirmDialog(
         title: 'Unlink Pull Request #${widget.review.number}?',
         message:
-            'This Will Remove The Pull Request Link From This Workspace. '
-            'The Pull Request On ${widget.review.provider.label} Will Not Be '
-            'Changed.',
+            'This will remove the pull request link from this workspace. '
+            'The pull request on ${widget.review.provider.label} will not be '
+            'changed.',
         confirmLabel: 'Unlink Pull Request',
       ),
     );
@@ -193,9 +193,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       builder: (_) => AleraConfirmDialog(
         title: '$label PR #${widget.review.number}?',
         message: draft
-            ? 'This Will Convert The Pull Request To Draft On '
+            ? 'This will convert the pull request to draft on '
                   '${widget.review.provider.label}.'
-            : 'This Will Mark The Pull Request As Ready For Review On '
+            : 'This will mark the pull request as ready for review on '
                   '${widget.review.provider.label}.',
         confirmLabel: label,
       ),

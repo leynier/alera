@@ -111,7 +111,7 @@ mixin _WorkbenchControllerWorkspaceCreation
         .where((candidate) => candidate.id == workspace.projectId)
         .firstOrNull;
     if (project == null) {
-      throw StateError('Workspace Project Not Found: ${workspace.projectId}');
+      throw StateError('Workspace project not found: ${workspace.projectId}');
     }
     final setupCommand = creation.deferredSetupCommand?.trim();
     final expectsPromptTab =

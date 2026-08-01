@@ -41,7 +41,7 @@ class RunPolicyStageList extends StatelessWidget {
         if (policy.blocksDispatch) ...<Widget>[
           const SizedBox(height: AleraTokens.space4),
           Text(
-            'Scheduling Is Held Until This Plan Is Resolved.',
+            'Scheduling is held until this plan is resolved.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundMuted,
             ),
@@ -79,7 +79,7 @@ class RunPolicyStageList extends StatelessWidget {
           ),
         const SizedBox(height: AleraTokens.space4),
         Text(
-          'On Stall: ${policy.stallPolicy}',
+          'On stall: ${policy.stallPolicy}',
           style: theme.textTheme.labelSmall?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),
@@ -91,8 +91,8 @@ class RunPolicyStageList extends StatelessWidget {
 
 String _statusLabel(RunPolicyStatus status) {
   return switch (status) {
-    RunPolicyStatus.none => 'No Plan',
-    RunPolicyStatus.draft => 'Awaiting Approval',
+    RunPolicyStatus.none => 'No plan',
+    RunPolicyStatus.draft => 'Awaiting approval',
     RunPolicyStatus.approved => 'Approved',
     RunPolicyStatus.rejected => 'Rejected',
   };

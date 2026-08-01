@@ -72,7 +72,7 @@ void main() {
     expect(client.calls, contains('create created Setup'));
     expect(client.calls, contains('detach session-created-1'));
     expect(find.text('New Workspace'), findsOneWidget);
-    expect(find.text('Workspace Created'), findsOneWidget);
+    expect(find.text('Workspace created'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, 500));
     await tester.pumpAndSettle();
     expect(
@@ -147,7 +147,7 @@ void main() {
       contains('launchAgentProfile created profile-1 Build offline support'),
     );
     expect(find.text('New Workspace'), findsOneWidget);
-    expect(find.text('Workspace Created'), findsOneWidget);
+    expect(find.text('Workspace created'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, 500));
     await tester.pumpAndSettle();
     expect(

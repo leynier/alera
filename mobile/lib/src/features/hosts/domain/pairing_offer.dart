@@ -30,7 +30,7 @@ class PairingOffer {
   static PairingOffer parse(String input) {
     final value = jsonDecode(input.trim());
     if (value is! Map<String, Object?>) {
-      throw const FormatException('Pairing Offer Must Be A JSON Object');
+      throw const FormatException('Pairing offer must be a JSON object');
     }
     return PairingOffer.fromJson(value);
   }
@@ -38,7 +38,7 @@ class PairingOffer {
   factory PairingOffer.fromJson(Map<String, Object?> json) {
     final version = json.requiredInt('v');
     if (version != aleraMobileProtocolVersion) {
-      throw FormatException('Unsupported Pairing Version $version');
+      throw FormatException('Unsupported pairing version $version');
     }
     final expiresAt = DateTime.parse(json.requiredString('expiresAt'));
     final endpoint = json.requiredString('endpoint');
@@ -54,7 +54,7 @@ class PairingOffer {
       expiresAt: expiresAt,
     );
     if (offer.isExpired) {
-      throw const FormatException('Pairing Offer Expired');
+      throw const FormatException('Pairing offer expired');
     }
     return offer;
   }

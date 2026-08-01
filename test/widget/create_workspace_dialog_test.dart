@@ -37,7 +37,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search Projects'),
+      find.widgetWithText(TextField, 'Search projects'),
       'orca',
     );
     await tester.pumpAndSettle();
@@ -45,7 +45,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search Source Branches'),
+      find.widgetWithText(TextField, 'Search source branches'),
       'feature',
     );
     await tester.pumpAndSettle();
@@ -284,7 +284,7 @@ void main() {
       // Try to continue without source branch
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text('Source Branch Is Required'), findsOneWidget);
+      expect(find.text('Source branch is required'), findsOneWidget);
 
       // Input source branch and continue
       await tester.enterText(
@@ -298,7 +298,7 @@ void main() {
       // Try to create workspace without new branch name
       await tester.tap(find.text('Create Workspace'));
       await tester.pumpAndSettle();
-      expect(find.text('New Branch Name Is Required'), findsOneWidget);
+      expect(find.text('New branch name is required'), findsOneWidget);
     },
   );
 
@@ -315,23 +315,23 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search Projects'),
+      find.widgetWithText(TextField, 'Search projects'),
       'missing',
     );
     await tester.pumpAndSettle();
-    expect(find.text('No Projects Match "missing"'), findsOneWidget);
+    expect(find.text('No projects match "missing"'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search Projects'),
+      find.widgetWithText(TextField, 'Search projects'),
       '',
     );
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search Source Branches'),
+      find.widgetWithText(TextField, 'Search source branches'),
       'missing',
     );
     await tester.pumpAndSettle();
-    expect(find.text('No Source Branches Match "missing"'), findsOneWidget);
+    expect(find.text('No source branches match "missing"'), findsOneWidget);
   });
 
   testWidgets('keeps branch picker scrollable on compact desktop heights', (
@@ -417,7 +417,7 @@ void main() {
       // Now we are in Step 2, test validation errors
       await tester.tap(find.text('Create Workspace'));
       await tester.pumpAndSettle();
-      expect(find.text('New Branch Name Is Required'), findsOneWidget);
+      expect(find.text('New branch name is required'), findsOneWidget);
 
       final newBranchField = find.widgetWithText(
         TextField,

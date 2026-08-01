@@ -66,7 +66,7 @@ class _RunPolicyReviewDialogState extends ConsumerState<RunPolicyReviewDialog> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => AleraEmptyState(
                   icon: AleraIcons.workspaceChildren,
-                  title: 'Plans Unavailable',
+                  title: 'Plans unavailable',
                   message: error.toString(),
                 ),
                 data: _buildPolicies,
@@ -99,8 +99,8 @@ class _RunPolicyReviewDialogState extends ConsumerState<RunPolicyReviewDialog> {
     if (policies.isEmpty) {
       return const AleraEmptyState(
         icon: AleraIcons.workspaceChildren,
-        title: 'No Execution Plans',
-        message: 'A Coordinator Proposes A Plan Before It Starts Dispatching.',
+        title: 'No execution plans',
+        message: 'A coordinator proposes a plan before it starts dispatching.',
       );
     }
     return SingleChildScrollView(

@@ -39,8 +39,8 @@ mixin _GitLabReviewComments {
             author: author is Map
                 ? author['username'] as String? ??
                       author['name'] as String? ??
-                      'Unknown Author'
-                : 'Unknown Author',
+                      'Unknown author'
+                : 'Unknown author',
             body: note['body'] as String? ?? '',
             createdAt:
                 DateTime.tryParse(note['created_at'] as String? ?? '') ??

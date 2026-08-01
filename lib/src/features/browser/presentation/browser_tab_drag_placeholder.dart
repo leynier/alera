@@ -13,8 +13,8 @@ class BrowserTabDragPlaceholder extends StatelessWidget {
       color: AleraTokens.bg,
       child: AleraEmptyState(
         icon: AleraIcons.public,
-        title: 'Browser Temporarily Hidden',
-        message: 'Release The Tab To Restore This Page.',
+        title: 'Browser temporarily hidden',
+        message: 'Release the tab to restore this page.',
       ),
     );
   }
