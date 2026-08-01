@@ -432,52 +432,6 @@ void _registerSettingsDialogCoreTests() {
     );
   });
 
-  testWidgets('keeps AI Text reasoning selections isolated per operation', (
-    tester,
-  ) async {
-    final container = await pumpSettingsDialogLocal(tester);
-    await selectAiTextSectionLocal(tester);
-
-    final commitReasoning = find.byKey(
-      const ValueKey<String>('ai-text-commitMessage-reasoning-low'),
-    );
-    await tester.ensureVisible(commitReasoning);
-    await tester.tap(commitReasoning);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('High').last);
-    await tester.pump(const Duration(milliseconds: 50));
-
-    final settings = container
-        .read(settingsControllerProvider)
-        .aiTextGeneration;
-    expect(
-      settings.selectedThinkingByOperation[AiTextGenerationOperation
-          .commitMessage]?['gpt-5.5'],
-      'high',
-    );
-    expect(
-      settings.thinkingForOperation(
-        AiTextGenerationOperation.commitMessage,
-        'gpt-5.5',
-      ),
-      'high',
-    );
-    expect(
-      settings.thinkingForOperation(
-        AiTextGenerationOperation.pullRequestDetails,
-        'gpt-5.5',
-      ),
-      isNull,
-    );
-    expect(settings.thinkingForModel('gpt-5.5'), isNull);
-    expect(
-      find.byKey(
-        const ValueKey<String>('ai-text-pullRequestDetails-reasoning-low'),
-      ),
-      findsOneWidget,
-    );
-  });
-
   testWidgets('edits and resets terminal settings', (tester) async {
     final container = await pumpSettingsDialogLocal(tester);
     await selectTerminalSectionLocal(tester);

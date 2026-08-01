@@ -46,6 +46,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import '../unit/fake_project_config.dart';
 
 part 'settings_dialog_core_test_cases.dart';
+part 'settings_dialog_ai_text_test_cases.dart';
 part 'settings_dialog_quota_test_cases.dart';
 part 'settings_dialog_terminal_test_cases.dart';
 part 'settings_dialog_interaction_test_cases.dart';
@@ -110,6 +111,7 @@ Future<void> _selectTerminalSection(WidgetTester tester) async {
 
 void main() {
   _registerSettingsDialogCoreTests();
+  _registerSettingsDialogAiTextTests();
   _registerSettingsDialogQuotaTests();
   _registerSettingsDialogTerminalTests();
   _registerSettingsDialogAdvancedTests();
