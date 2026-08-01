@@ -10,6 +10,12 @@ pub struct ManagedAgentLaunch {
     pub arguments: Vec<String>,
 }
 
+/// The profile switcher Claude Code profiles may launch through. It takes the
+/// profile as its first positional argument and forwards everything after it to
+/// `claude` unchanged, which is why only the executable and that one argument
+/// change.
+const CCS_EXECUTABLE: &str = "ccs";
+
 pub fn build_managed_agent_launch(
     agent_type: &str,
     config: &Value,
@@ -19,10 +25,15 @@ pub fn build_managed_agent_launch(
     let values = config
         .as_object()
         .ok_or_else(|| "managedConfig must be an object.".to_string())?;
+    let mut executable = adapter.default_command.to_string();
     let mut arguments = Vec::new();
     match agent_type {
         "codex" => build_codex(values, &mut arguments)?,
-        "claude" => build_claude(values, &mut arguments)?,
+        "claude" => {
+            if let Some(launcher) = build_claude(values, &mut arguments)? {
+                executable = launcher;
+            }
+        }
         "copilot" => build_copilot(values, &mut arguments)?,
         "cursor" => build_cursor(values, &mut arguments)?,
         "agy" => build_agy(values, &mut arguments)?,
@@ -32,7 +43,7 @@ pub fn build_managed_agent_launch(
         _ => return Err(format!("unsupported managed agent type: {agent_type}")),
     }
     Ok(ManagedAgentLaunch {
-        executable: adapter.default_command.to_string(),
+        executable,
         arguments,
     })
 }
@@ -106,8 +117,31 @@ fn build_codex(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Resu
     Ok(())
 }
 
-fn build_claude(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
-    require_known_keys(values, &["model", "effort", "agent", "permissionMode"])?;
+/// Returns the executable to launch instead of `claude`, if the profile routes
+/// through a CCS profile.
+fn build_claude(
+    values: &Map<String, Value>,
+    arguments: &mut Vec<String>,
+) -> Result<Option<String>, String> {
+    require_known_keys(
+        values,
+        &["model", "effort", "agent", "permissionMode", "ccsProfile"],
+    )?;
+    let launcher = match string_value(values, "ccsProfile")? {
+        None => None,
+        Some(profile) => {
+            // The profile is the first positional argument, so a dash-prefixed
+            // value would be read as an option of the switcher itself.
+            if profile.starts_with('-') {
+                return Err("ccsProfile must not start with a dash.".to_string());
+            }
+            if profile.split_whitespace().count() > 1 {
+                return Err("ccsProfile must be a single profile name.".to_string());
+            }
+            arguments.push(profile.to_string());
+            Some(CCS_EXECUTABLE.to_string())
+        }
+    };
     push_string(values, "model", "--model", arguments)?;
     push_enum(
         values,
@@ -130,7 +164,8 @@ fn build_claude(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Res
             "plan",
         ],
         arguments,
-    )
+    )?;
+    Ok(launcher)
 }
 
 fn build_copilot(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
