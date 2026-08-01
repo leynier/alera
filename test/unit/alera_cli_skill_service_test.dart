@@ -30,6 +30,33 @@ void main() {
       expect(command, isNot(contains('\n')));
     });
 
+    test('builds one independent command for every bundled skill', () {
+      final command = aleraAllSkillsInstallCommand(
+        runner: AleraCliSkillRunner.bunx,
+        operatingSystem: 'linux',
+      );
+
+      expect(command.split('; '), <String>[
+        for (final skill in AleraAgentSkill.values)
+          'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --global',
+      ]);
+      expect(command, isNot(contains('\n')));
+    });
+
+    test('keeps the all-skills auto command single-line on windows', () {
+      final command = aleraAllSkillsInstallCommand(
+        runner: AleraCliSkillRunner.auto,
+        operatingSystem: 'windows',
+      );
+
+      expect(command, isNot(contains('||')));
+      expect(command, isNot(contains('\n')));
+      expect(
+        RegExp(r'if \(Get-Command npx').allMatches(command),
+        hasLength(AleraAgentSkill.values.length),
+      );
+    });
+
     test('keeps explicit runners unwrapped on windows', () {
       expect(
         aleraCliSkillInstallCommand(
