@@ -133,9 +133,7 @@ void main() {
     expect(dialogResult?.agentTabId, 'tab-1');
   });
 
-  testWidgets('Create Another keeps the prompt dialog open and resets it', (
-    tester,
-  ) async {
+  testWidgets('Create Another preserves selections', (tester) async {
     final now = DateTime.utc(2026, 7, 30);
     final project = Project(
       id: 'project-1',
@@ -152,6 +150,30 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
+    final alternateProfile = AgentProfile(
+      id: 'profile-2',
+      name: 'Codex Reviewer',
+      agentType: 'codex',
+      command: 'codex',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final mainWorkspace = _workspace(
+      id: 'workspace-main',
+      projectId: project.id,
+      name: 'Alera',
+      branch: 'main',
+      kind: WorkspaceKind.main,
+      now: now,
+    );
+    final featureWorkspace = _workspace(
+      id: 'workspace-feature',
+      projectId: project.id,
+      name: 'Feature Workspace',
+      branch: 'feat/parent',
+      kind: WorkspaceKind.linked,
+      now: now,
+    );
     var createAnotherCallbacks = 0;
 
     await tester.pumpWidget(
@@ -164,11 +186,14 @@ void main() {
                   context: context,
                   builder: (_) => PromptWorkspaceDialog(
                     projects: <Project>[project],
-                    agentProfiles: <AgentProfile>[profile],
-                    loadBranches: (_) async => <String>['main'],
+                    agentProfiles: <AgentProfile>[profile, alternateProfile],
+                    loadBranches: (_) async => <String>['main', 'release'],
                     checkBranchExists: (_, _) async => false,
                     workspaceBranches: (_) => const <String>{},
-                    parentWorkspaces: const <Workspace>[],
+                    parentWorkspaces: <Workspace>[
+                      mainWorkspace,
+                      featureWorkspace,
+                    ],
                     generateIdentity:
                         ({
                           required operationId,
@@ -229,6 +254,55 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+
+    AleraDropdownField<Project> projectField() {
+      return tester.widget<AleraDropdownField<Project>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownField<Project> &&
+              widget.labelText == 'Project',
+        ),
+      );
+    }
+
+    AleraDropdownField<String> sourceBranchField() {
+      return tester.widget<AleraDropdownField<String>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownField<String> &&
+              widget.labelText == 'Source Branch',
+        ),
+      );
+    }
+
+    AleraDropdownField<String?> parentWorkspaceField() {
+      return tester.widget<AleraDropdownField<String?>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownField<String?> &&
+              widget.labelText == 'Parent Workspace',
+        ),
+      );
+    }
+
+    AleraDropdownField<AgentProfile> agentProfileField() {
+      return tester.widget<AleraDropdownField<AgentProfile>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownField<AgentProfile> &&
+              widget.labelText == 'Agent Profile',
+        ),
+      );
+    }
+
+    expect(projectField().value, project);
+    sourceBranchField().onChanged('release');
+    await tester.pump();
+    parentWorkspaceField().onChanged(featureWorkspace.id);
+    await tester.pump();
+    agentProfileField().onChanged(alternateProfile);
+    await tester.pump();
+
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build the first workspace',
@@ -254,6 +328,10 @@ void main() {
       isEmpty,
     );
     expect(find.text('Create Another'), findsOneWidget);
+    expect(projectField().value, project);
+    expect(sourceBranchField().value, 'release');
+    expect(parentWorkspaceField().value, featureWorkspace.id);
+    expect(agentProfileField().value, alternateProfile);
   });
 
   testWidgets(

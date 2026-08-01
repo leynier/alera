@@ -387,7 +387,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       _phase = null;
       _error = null;
       _created = null;
-      _selectedParentWorkspaceId = null;
     });
   }
 
