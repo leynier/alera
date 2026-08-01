@@ -15,6 +15,8 @@ class ProjectSummary {
   final String kind;
   final DateTime? updatedAt;
 
+  bool get supportsLinkedWorkspaces => kind == 'gitRepository';
+
   factory ProjectSummary.fromJson(Map<String, Object?> json) {
     return ProjectSummary(
       id: json.requiredString('id'),

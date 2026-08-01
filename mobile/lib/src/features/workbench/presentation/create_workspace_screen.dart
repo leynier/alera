@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'create_workspace_manual.dart';
+part 'create_workspace_prompt.dart';
 
 class CreateWorkspaceScreen extends ConsumerStatefulWidget {
   const CreateWorkspaceScreen({
@@ -19,11 +21,15 @@ class CreateWorkspaceScreen extends ConsumerStatefulWidget {
     required this.hostId,
     required this.projects,
     required this.workspaces,
+    this.defaultAgentProfileId,
+    this.supportsPromptWorkspaceCreation = true,
   });
 
   final String hostId;
   final List<ProjectSummary> projects;
   final List<WorkspaceSummary> workspaces;
+  final String? defaultAgentProfileId;
+  final bool supportsPromptWorkspaceCreation;
 
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -39,52 +45,99 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   List<String> _branches = const <String>[];
   String? _sourceBranch;
   String? _parentWorkspaceId;
+  String? _promptParentWorkspaceId;
   bool _reuseExistingBranch = false;
   bool _createAnother = false;
   bool _loadingBranches = false;
   bool _creating = false;
   String? _error;
 
-  List<ProjectSummary> get _orderedProjects =>
-      sortProjectsForSelection(widget.projects);
+  List<ProjectSummary> get _orderedProjects => sortProjectsForSelection(
+    widget.projects.where((project) => project.supportsLinkedWorkspaces),
+  );
 
-  List<WorkspaceSummary> get _orderedParentWorkspaces {
+  List<WorkspaceSummary> get _orderedParentWorkspaces =>
+      _parentWorkspacesFor(_projectId);
+
+  List<WorkspaceSummary> _parentWorkspacesFor(String? preferredProjectId) {
     final projectNameById = <String, String>{
       for (final project in widget.projects) project.id: project.name,
     };
-    return <WorkspaceSummary>[...widget.workspaces]..sort(
-      (left, right) => compareWorkspaceParentSelectionKeys(
-        (
-          isDefault: left.isMain,
-          projectId: left.projectId,
-          projectName: projectNameById[left.projectId] ?? left.projectId,
-          workspaceId: left.id,
-          workspaceName: left.name,
+    return <WorkspaceSummary>[...widget.workspaces]
+        .where((workspace) => workspace.status == 'active')
+        .toList(growable: false)
+      ..sort(
+        (left, right) => compareWorkspaceParentSelectionKeys(
+          (
+            isDefault: left.isMain,
+            projectId: left.projectId,
+            projectName: projectNameById[left.projectId] ?? left.projectId,
+            workspaceId: left.id,
+            workspaceName: left.name,
+          ),
+          (
+            isDefault: right.isMain,
+            projectId: right.projectId,
+            projectName: projectNameById[right.projectId] ?? right.projectId,
+            workspaceId: right.id,
+            workspaceName: right.name,
+          ),
+          preferredProjectId: preferredProjectId,
         ),
-        (
-          isDefault: right.isMain,
-          projectId: right.projectId,
-          projectName: projectNameById[right.projectId] ?? right.projectId,
-          workspaceId: right.id,
-          workspaceName: right.name,
-        ),
-        preferredProjectId: _projectId,
-      ),
-    );
+      );
+  }
+
+  String? _defaultParentWorkspaceId(String? projectId) {
+    if (projectId == null) {
+      return null;
+    }
+    final candidates = _parentWorkspacesFor(projectId);
+    for (final workspace in candidates) {
+      if (workspace.projectId == projectId && workspace.isMain) {
+        return workspace.id;
+      }
+    }
+    for (final workspace in candidates) {
+      if (workspace.projectId == projectId) {
+        return workspace.id;
+      }
+    }
+    return null;
+  }
+
+  String _parentWorkspaceLabel(WorkspaceSummary workspace) {
+    String? projectName;
+    for (final project in widget.projects) {
+      if (project.id == workspace.projectId) {
+        projectName = project.name;
+        break;
+      }
+    }
+    final branch = workspace.branch?.trim();
+    final suffix = branch == null || branch.isEmpty ? '' : ' - $branch';
+    return '${projectName ?? workspace.projectId} / ${workspace.name}$suffix';
   }
 
   @override
   void initState() {
     super.initState();
+    _fromPrompt = widget.supportsPromptWorkspaceCreation;
     if (_orderedProjects.length == 1) {
       _selectProject(_orderedProjects.single.id);
     }
     final initialPromptProject = _orderedProjects.firstOrNull;
-    if (initialPromptProject != null) {
+    if (widget.supportsPromptWorkspaceCreation &&
+        initialPromptProject != null) {
+      _promptParentWorkspaceId = _defaultParentWorkspaceId(
+        initialPromptProject.id,
+      );
       Future<void>.microtask(
         () => ref
             .read(promptWorkspaceControllerProvider(widget.hostId).notifier)
-            .selectProject(initialPromptProject.id),
+            .selectProject(
+              initialPromptProject.id,
+              defaultAgentProfileId: widget.defaultAgentProfileId,
+            ),
       );
     }
   }
@@ -98,6 +151,19 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   }
 
   void _update(VoidCallback update) => setState(update);
+
+  void _selectPromptProject(
+    String projectId,
+    PromptWorkspaceController controller,
+  ) {
+    setState(() {
+      _promptParentWorkspaceId = _defaultParentWorkspaceId(projectId);
+    });
+    controller.selectProject(
+      projectId,
+      defaultAgentProfileId: widget.defaultAgentProfileId,
+    );
+  }
 
   Future<void> _selectProject(String projectId) async {
     setState(() {
@@ -202,6 +268,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         ? 'Workspace Created, But Setup Could Not Start'
         : creation.hasSetupWarnings
         ? 'Workspace Created With Setup Warnings'
+        : creation.parentLinkError != null
+        ? 'Workspace Created, But Parent Link Failed'
         : 'Workspace Created';
     ScaffoldMessenger.of(
       context,
@@ -210,6 +278,30 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final promptState = widget.supportsPromptWorkspaceCreation
+        ? ref.watch(promptWorkspaceControllerProvider(widget.hostId))
+        : const PromptWorkspaceState();
+    final modeLocked = _creating || promptState.loading;
+    final segments = widget.supportsPromptWorkspaceCreation
+        ? const <ButtonSegment<bool>>[
+            ButtonSegment<bool>(
+              value: true,
+              label: Text('From Prompt'),
+              icon: Icon(Icons.smart_toy_outlined),
+            ),
+            ButtonSegment<bool>(
+              value: false,
+              label: Text('Manual'),
+              icon: Icon(Icons.account_tree_outlined),
+            ),
+          ]
+        : const <ButtonSegment<bool>>[
+            ButtonSegment<bool>(
+              value: false,
+              label: Text('Manual'),
+              icon: Icon(Icons.account_tree_outlined),
+            ),
+          ];
     return Scaffold(
       appBar: AppBar(title: const Text('New Workspace')),
       body: SafeArea(
@@ -224,22 +316,15 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
               ),
               child: SegmentedButton<bool>(
                 showSelectedIcon: false,
-                segments: const <ButtonSegment<bool>>[
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('From Prompt'),
-                    icon: Icon(Icons.smart_toy_outlined),
-                  ),
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('Manual'),
-                    icon: Icon(Icons.account_tree_outlined),
-                  ),
-                ],
+                segments: segments,
                 selected: <bool>{_fromPrompt},
-                onSelectionChanged: (selection) {
-                  setState(() => _fromPrompt = selection.first);
-                },
+                onSelectionChanged: modeLocked
+                    ? null
+                    : (selection) {
+                        if (selection.isNotEmpty) {
+                          setState(() => _fromPrompt = selection.first);
+                        }
+                      },
               ),
             ),
             Expanded(
@@ -251,211 +336,6 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildPromptForm(BuildContext context) {
-    final promptState = ref.watch(
-      promptWorkspaceControllerProvider(widget.hostId),
-    );
-    final controller = ref.read(
-      promptWorkspaceControllerProvider(widget.hostId).notifier,
-    );
-    final created = promptState.creation;
-    return ListView(
-      padding: AleraTokens.pagePadding,
-      children: <Widget>[
-        TextField(
-          controller: _prompt,
-          enabled: !promptState.loading && created == null,
-          minLines: 4,
-          maxLines: 8,
-          decoration: const InputDecoration(
-            labelText: 'Initial Prompt',
-            hintText: 'Describe What The Agent Should Build',
-            alignLabelWithHint: true,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        DropdownButtonFormField<String>(
-          initialValue: promptState.projectId,
-          decoration: const InputDecoration(labelText: 'Project'),
-          items: <DropdownMenuItem<String>>[
-            for (final project in _orderedProjects)
-              DropdownMenuItem<String>(
-                value: project.id,
-                child: Text(project.name, overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          onChanged: promptState.loading || created != null
-              ? null
-              : (value) {
-                  if (value != null) {
-                    controller.selectProject(value);
-                  }
-                },
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        DropdownButtonFormField<String>(
-          key: ValueKey<String?>(
-            'prompt-source-${promptState.projectId}-${promptState.sourceBranch}',
-          ),
-          initialValue: promptState.sourceBranch,
-          decoration: const InputDecoration(labelText: 'Source Branch'),
-          items: <DropdownMenuItem<String>>[
-            for (final branch in promptState.branches)
-              DropdownMenuItem<String>(
-                value: branch,
-                child: Text(branch, overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          onChanged: promptState.loading || created != null
-              ? null
-              : (value) {
-                  if (value != null) {
-                    controller.selectSourceBranch(value);
-                  }
-                },
-        ),
-        const SizedBox(height: AleraTokens.spaceLg),
-        DropdownButtonFormField<String>(
-          key: ValueKey<String?>('prompt-profile-${promptState.profileId}'),
-          initialValue: promptState.profileId,
-          decoration: InputDecoration(
-            labelText: 'Agent Profile',
-            helperText: promptState.profiles.isEmpty
-                ? 'Create An Agent Profile In Desktop Settings'
-                : null,
-          ),
-          items: <DropdownMenuItem<String>>[
-            for (final profile in promptState.profiles)
-              DropdownMenuItem<String>(
-                value: profile.id,
-                child: Text(profile.name, overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          onChanged: promptState.loading || created != null
-              ? null
-              : (value) {
-                  if (value != null) {
-                    controller.selectProfile(value);
-                  }
-                },
-        ),
-        if (promptState.error != null) ...<Widget>[
-          const SizedBox(height: AleraTokens.spaceMd),
-          Text(
-            promptState.error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
-        const SizedBox(height: AleraTokens.spaceMd),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          value: _createAnother,
-          onChanged: promptState.loading || created != null
-              ? null
-              : (value) {
-                  setState(() => _createAnother = value ?? false);
-                },
-          title: const Text('Create Another'),
-          subtitle: const Text('Keep This Screen Open After Creation'),
-        ),
-        const SizedBox(height: AleraTokens.spaceXl),
-        if (promptState.loading)
-          Row(
-            children: <Widget>[
-              const SizedBox.square(
-                dimension: AleraTokens.spaceLg,
-                child: CircularProgressIndicator(
-                  strokeWidth: AleraTokens.strokeSm,
-                ),
-              ),
-              const SizedBox(width: AleraTokens.spaceMd),
-              Expanded(child: Text(promptState.phase ?? 'Working')),
-              if (promptState.phase == 'Generating Workspace Identity')
-                TextButton(
-                  onPressed: controller.cancelGeneration,
-                  child: const Text('Cancel'),
-                ),
-            ],
-          )
-        else if (created != null)
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _openWorkspace(created),
-                  child: const Text('Open Workspace'),
-                ),
-              ),
-              const SizedBox(width: AleraTokens.spaceMd),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => _retryPromptAgent(controller),
-                  child: const Text('Retry Agent'),
-                ),
-              ),
-            ],
-          )
-        else
-          FilledButton.icon(
-            onPressed:
-                promptState.projectId == null ||
-                    promptState.sourceBranch == null ||
-                    promptState.profileId == null
-                ? null
-                : () => _createFromPrompt(controller),
-            icon: const Icon(Icons.smart_toy_outlined),
-            label: const Text('Create And Start Agent'),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
-    final workspaceBranches = <String>{
-      for (final workspace in widget.workspaces)
-        if (workspace.branch != null) workspace.branch!,
-    };
-    await controller.create(
-      prompt: _prompt.text,
-      workspaceBranches: workspaceBranches,
-    );
-    if (!mounted) {
-      return;
-    }
-    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
-    final creation = state.creation;
-    final tabId = state.agentTabId;
-    if (creation != null && tabId != null) {
-      if (_createAnother) {
-        _showCreationMessage(creation);
-        _prompt.clear();
-        controller.resetForAnother();
-      } else {
-        _openWorkspace(creation, tabId: tabId);
-      }
-    }
-  }
-
-  Future<void> _retryPromptAgent(PromptWorkspaceController controller) async {
-    await controller.retryAgent(_prompt.text);
-    if (!mounted) {
-      return;
-    }
-    final state = ref.read(promptWorkspaceControllerProvider(widget.hostId));
-    final creation = state.creation;
-    final tabId = state.agentTabId;
-    if (creation != null && tabId != null) {
-      if (_createAnother) {
-        _showCreationMessage(creation);
-        _prompt.clear();
-        controller.resetForAnother();
-      } else {
-        _openWorkspace(creation, tabId: tabId);
-      }
-    }
   }
 
   void _openWorkspace(WorkspaceCreationResult creation, {String? tabId}) {

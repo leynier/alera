@@ -27,10 +27,12 @@ class WorkspaceListData {
     required this.workspaces,
     required this.projects,
     required this.supportsMutations,
+    this.supportsPromptWorkspaceCreation = true,
     required this.tags,
     required this.activity,
     required this.confirmWorkspaceRemoval,
     required this.agentPresence,
+    this.defaultAgentProfileId,
     this.terminalTabCountByWorkspaceId = const <String, int>{},
   });
 
@@ -40,10 +42,12 @@ class WorkspaceListData {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
   final bool supportsMutations;
+  final bool supportsPromptWorkspaceCreation;
   final List<WorkspaceTagSummary> tags;
   final Map<String, DateTime> activity;
   final bool confirmWorkspaceRemoval;
   final List<AgentPresenceSummary> agentPresence;
+  final String? defaultAgentProfileId;
   final Map<String, int> terminalTabCountByWorkspaceId;
 
   WorkspaceSummary? workspaceById(String id) {
@@ -77,10 +81,12 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      supportsPromptWorkspaceCreation: client.supportsPromptWorkspaceCreation,
       tags: snapshot.tags,
       activity: snapshot.activity,
       confirmWorkspaceRemoval: snapshot.confirmWorkspaceRemoval,
       agentPresence: snapshot.agentPresence,
+      defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
     );
   }
@@ -133,7 +139,6 @@ class WorkspaceListController extends _$WorkspaceListController {
         sourceBranch: sourceBranch,
         reuseExistingBranch: reuseExistingBranch,
         name: name,
-        parentWorkspaceId: parentWorkspaceId,
       );
       var result = creation;
       if (creation.hasDeferredSetup) {
@@ -141,6 +146,17 @@ class WorkspaceListController extends _$WorkspaceListController {
           terminalClientProvider(hostId).future,
         );
         result = await launchDeferredWorkspaceSetup(terminalClient, creation);
+      }
+      final parentId = parentWorkspaceId?.trim();
+      if (parentId != null && parentId.isNotEmpty) {
+        try {
+          await client.linkWorkspaces(
+            parentWorkspaceId: parentId,
+            childWorkspaceId: creation.workspace.id,
+          );
+        } on Object catch (error) {
+          result = result.withParentLinkError(error);
+        }
       }
       ref.invalidateSelf();
       return result;

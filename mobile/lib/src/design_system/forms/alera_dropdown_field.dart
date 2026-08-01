@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_search_field.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,8 @@ class AleraDropdownField<T> extends StatelessWidget {
     this.hintText,
     this.labelText,
     this.enabled = true,
+    this.filterable = false,
+    this.filterHintText = 'Search',
   });
 
   final T? value;
@@ -38,10 +41,31 @@ class AleraDropdownField<T> extends StatelessWidget {
   final String? hintText;
   final String? labelText;
   final bool enabled;
+  final bool filterable;
+  final String filterHintText;
 
   static const double _height = 34;
 
   Future<void> _openMenu(BuildContext context) async {
+    if (filterable) {
+      final selectedIndex = await showDialog<int>(
+        context: context,
+        builder: (_) => _AleraDropdownSearchDialog<T>(
+          title: labelText,
+          hintText: filterHintText,
+          entries: entries,
+          selectedValue: value,
+        ),
+      );
+      if (selectedIndex == null) {
+        return;
+      }
+      final selected = entries[selectedIndex].value;
+      if (selected != value) {
+        onChanged(selected);
+      }
+      return;
+    }
     final box = context.findRenderObject()! as RenderBox;
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
@@ -184,6 +208,97 @@ class AleraDropdownField<T> extends StatelessWidget {
         const SizedBox(height: AleraTokens.space4),
         field,
       ],
+    );
+  }
+}
+
+class _AleraDropdownSearchDialog<T> extends StatefulWidget {
+  const _AleraDropdownSearchDialog({
+    required this.title,
+    required this.hintText,
+    required this.entries,
+    required this.selectedValue,
+  });
+
+  final String? title;
+  final String hintText;
+  final List<AleraDropdownFieldEntry<T>> entries;
+  final T? selectedValue;
+
+  @override
+  State<_AleraDropdownSearchDialog<T>> createState() =>
+      _AleraDropdownSearchDialogState<T>();
+}
+
+class _AleraDropdownSearchDialogState<T>
+    extends State<_AleraDropdownSearchDialog<T>> {
+  String _query = '';
+
+  List<int> get _visibleIndexes {
+    final query = _query.trim().toLowerCase();
+    return <int>[
+      for (final entry in widget.entries.asMap().entries)
+        if (query.isEmpty || entry.value.label.toLowerCase().contains(query))
+          entry.key,
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final indexes = _visibleIndexes;
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: 280,
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AleraTokens.space16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                widget.title ?? 'Select',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AleraTokens.space12),
+              AleraSearchField(
+                hintText: widget.hintText,
+                autofocus: true,
+                onChanged: (value) => setState(() => _query = value),
+              ),
+              const SizedBox(height: AleraTokens.space8),
+              Flexible(
+                child: indexes.isEmpty
+                    ? const Center(child: Text('No Results'))
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: indexes.length,
+                        itemBuilder: (context, visibleIndex) {
+                          final index = indexes[visibleIndex];
+                          final entry = widget.entries[index];
+                          return ListTile(
+                            dense: true,
+                            enabled: entry.enabled,
+                            selected: entry.value == widget.selectedValue,
+                            leading: entry.leading,
+                            title: Text(
+                              entry.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: entry.enabled
+                                ? () => Navigator.of(context).pop(index)
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
