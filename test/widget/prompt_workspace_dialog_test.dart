@@ -158,14 +158,6 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
-    final mainWorkspace = _workspace(
-      id: 'workspace-main',
-      projectId: project.id,
-      name: 'Alera',
-      branch: 'main',
-      kind: WorkspaceKind.main,
-      now: now,
-    );
     final featureWorkspace = _workspace(
       id: 'workspace-feature',
       projectId: project.id,
@@ -190,10 +182,7 @@ void main() {
                     loadBranches: (_) async => <String>['main', 'release'],
                     checkBranchExists: (_, _) async => false,
                     workspaceBranches: (_) => const <String>{},
-                    parentWorkspaces: <Workspace>[
-                      mainWorkspace,
-                      featureWorkspace,
-                    ],
+                    parentWorkspaces: <Workspace>[featureWorkspace],
                     generateIdentity:
                         ({
                           required operationId,
@@ -255,53 +244,20 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    AleraDropdownField<Project> projectField() {
-      return tester.widget<AleraDropdownField<Project>>(
+    AleraDropdownField<T> field<T>(String label) {
+      return tester.widget<AleraDropdownField<T>>(
         find.byWidgetPredicate(
           (widget) =>
-              widget is AleraDropdownField<Project> &&
-              widget.labelText == 'Project',
+              widget is AleraDropdownField<T> && widget.labelText == label,
         ),
       );
     }
 
-    AleraDropdownField<String> sourceBranchField() {
-      return tester.widget<AleraDropdownField<String>>(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is AleraDropdownField<String> &&
-              widget.labelText == 'Source Branch',
-        ),
-      );
-    }
-
-    AleraDropdownField<String?> parentWorkspaceField() {
-      return tester.widget<AleraDropdownField<String?>>(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is AleraDropdownField<String?> &&
-              widget.labelText == 'Parent Workspace',
-        ),
-      );
-    }
-
-    AleraDropdownField<AgentProfile> agentProfileField() {
-      return tester.widget<AleraDropdownField<AgentProfile>>(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is AleraDropdownField<AgentProfile> &&
-              widget.labelText == 'Agent Profile',
-        ),
-      );
-    }
-
-    expect(projectField().value, project);
-    sourceBranchField().onChanged('release');
+    field<Project>('Project').onChanged(project);
+    field<String>('Source Branch').onChanged('release');
     await tester.pump();
-    parentWorkspaceField().onChanged(featureWorkspace.id);
-    await tester.pump();
-    agentProfileField().onChanged(alternateProfile);
-    await tester.pump();
+    field<String?>('Parent Workspace').onChanged(featureWorkspace.id);
+    field<AgentProfile>('Agent Profile').onChanged(alternateProfile);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
@@ -328,10 +284,10 @@ void main() {
       isEmpty,
     );
     expect(find.text('Create Another'), findsOneWidget);
-    expect(projectField().value, project);
-    expect(sourceBranchField().value, 'release');
-    expect(parentWorkspaceField().value, featureWorkspace.id);
-    expect(agentProfileField().value, alternateProfile);
+    expect(field<Project>('Project').value, project);
+    expect(field<String>('Source Branch').value, 'release');
+    expect(field<String?>('Parent Workspace').value, featureWorkspace.id);
+    expect(field<AgentProfile>('Agent Profile').value, alternateProfile);
   });
 
   testWidgets(
