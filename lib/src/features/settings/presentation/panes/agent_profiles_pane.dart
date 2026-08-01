@@ -16,6 +16,8 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_list_row.dart';
@@ -168,6 +170,9 @@ class _AgentProfilesSettingsPaneState
             onRemove: selectedProfile == null
                 ? null
                 : () => _removeProfile(selectedProfile),
+            onTestCommand: _launchMode == AgentProfileLaunchMode.command
+                ? () => unawaited(_testCommand())
+                : null,
           ),
         );
       },
@@ -345,6 +350,24 @@ class _AgentProfilesSettingsPaneState
         _error = error.toString();
       });
     }
+  }
+
+  Future<void> _testCommand() async {
+    final command = _commandController.text.trim();
+    if (command.isEmpty) {
+      setState(() => _error = 'Command is required.');
+      return;
+    }
+    await showCommandTerminalDialog(
+      context,
+      ref,
+      CommandTerminalRequest(
+        title: 'Test Agent Profile',
+        command: command,
+        description:
+            'The Profile Command Runs Here. It Does Not Receive A Dispatched Task.',
+      ),
+    );
   }
 
   Future<void> _removeProfile(AgentProfile profile) async {
