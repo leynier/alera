@@ -36,12 +36,14 @@ mixin MobileRuntimeTerminalRequests {
     String? title,
     int cols = defaultTerminalCols,
     int rows = defaultTerminalRows,
+    bool autoCloseOnSuccess = false,
   }) async {
     final payload = await requestMap('terminal.create', <String, Object?>{
       'workspaceId': workspaceId,
       'title': title ?? 'Mobile Terminal',
       'cols': cols,
       'rows': rows,
+      if (autoCloseOnSuccess) 'autoCloseOnSuccess': true,
     });
     return MobileTerminalSession.fromJson(payload);
   }

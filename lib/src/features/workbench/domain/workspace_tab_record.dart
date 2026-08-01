@@ -38,6 +38,7 @@ const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
+const String workspaceTabAutoCloseOnSuccessPayloadKey = 'autoCloseOnSuccess';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
@@ -201,6 +202,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   /// appears, without waiting for the tab to become visible.
   bool get spawnOnCreate =>
       payload[workspaceTabSpawnOnCreatePayloadKey] == true;
+
+  /// Whether a terminal whose one-shot command exits successfully should be
+  /// removed automatically. Failed commands stay visible for inspection.
+  bool get autoCloseOnSuccess =>
+      payload[workspaceTabAutoCloseOnSuccessPayloadKey] == true;
 
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];

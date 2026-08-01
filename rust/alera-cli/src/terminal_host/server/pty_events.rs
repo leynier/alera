@@ -1,3 +1,4 @@
+use super::terminal_startup_commands::auto_closes_on_success;
 use super::*;
 use crate::terminal_host::session::PtyEvent;
 
@@ -218,11 +219,14 @@ impl ServerActor {
         self.queue_terminal_exit_push(&session_id, Some(exit_code))
             .await;
         let reason = format!("terminal exited with code {exit_code}");
+        let keep_failed_setup =
+            exit_code != 0 && self.should_keep_failed_setup_terminal(&session_id).await;
         let keep_failed_spawn = self.should_keep_failed_owned_spawn(&session_id).await;
         self.cleanup_orchestration_for_closed_session(&session_id, &reason)
             .await;
         let keep_failed_spawn =
             keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
+        let keep_terminal = keep_failed_setup || keep_failed_spawn;
         self.flush_all_output(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
@@ -231,7 +235,7 @@ impl ServerActor {
         });
         if let Some((frame, clients)) = broadcast {
             self.broadcast(&clients, frame);
-            if keep_failed_spawn {
+            if keep_terminal {
                 self.immediate_checkpoint(&session_id).await;
             } else {
                 match self.remove_terminal_session_tab(&session_id).await {
@@ -248,6 +252,24 @@ impl ServerActor {
             }
         }
         self.schedule_shutdown_if_idle();
+    }
+
+    async fn should_keep_failed_setup_terminal(&self, session_id: &str) -> bool {
+        let Some(tab_id) = self
+            .sessions
+            .get(session_id)
+            .map(|session| session.tab_id.as_str())
+        else {
+            return false;
+        };
+        match self.runtime_store.find_workspace_tab(tab_id).await {
+            Ok(Some(tab)) => auto_closes_on_success(&tab),
+            Ok(None) => false,
+            Err(error) => {
+                tracing::error!("failed to inspect setup terminal {tab_id} after exit: {error}");
+                true
+            }
+        }
     }
 
     pub(super) async fn remove_terminal_session_tab(

@@ -56,6 +56,7 @@ class WorkspaceTabService {
     String? initialCommand,
     bool spawnOnCreate = false,
     bool initialCommandOnce = false,
+    bool autoCloseOnSuccess = false,
   }) async {
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     final tabId = _uuid.v4();
@@ -79,6 +80,7 @@ class WorkspaceTabService {
             workspaceTabInitialCommandOncePayloadKey: true,
         },
         if (spawnOnCreate) workspaceTabSpawnOnCreatePayloadKey: true,
+        if (autoCloseOnSuccess) workspaceTabAutoCloseOnSuccessPayloadKey: true,
       },
     );
     await _repository.upsertWorkspaceTab(tab);

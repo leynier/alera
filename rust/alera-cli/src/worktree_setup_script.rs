@@ -111,12 +111,16 @@ fn posix_script(
     copies: bool,
 ) -> String {
     let mut script = String::from("#!/bin/sh\n");
+    script.push_str("alera_setup_status=0\n");
     if copies {
         script.push_str(&format!(
             "{} workspace setup --id {} --copies-only\n",
             posix_quote(&alera_executable.display().to_string()),
             posix_quote(workspace_id),
         ));
+        script.push_str("if [ \"$?\" -ne 0 ]; then\n");
+        script.push_str("  alera_setup_status=1\n");
+        script.push_str("fi\n");
     }
     script.push_str(&format!("cd {} || exit 1\n", posix_quote(workspace_path)));
     for command in commands {
@@ -124,9 +128,13 @@ fn posix_script(
         script.push_str(&format!("echo {}\n", posix_quote(&format!("> {command}"))));
         script.push_str(command);
         script.push('\n');
+        script.push_str("if [ \"$?\" -ne 0 ]; then\n");
+        script.push_str("  alera_setup_status=1\n");
+        script.push_str("fi\n");
     }
     // Last line on purpose: unlink is safe while the fd stays open.
     script.push_str("rm -f -- \"$0\"\n");
+    script.push_str("exit \"$alera_setup_status\"\n");
     script
 }
 
@@ -138,22 +146,27 @@ fn windows_script(
     copies: bool,
 ) -> String {
     let mut script = String::from("@echo off\r\n");
+    script.push_str("set \"ALERA_SETUP_STATUS=0\"\r\n");
     if copies {
         script.push_str(&format!(
             "\"{}\" workspace setup --id \"{}\" --copies-only\r\n",
             alera_executable.display(),
             workspace_id,
         ));
+        script.push_str("if errorlevel 1 set \"ALERA_SETUP_STATUS=1\"\r\n");
     }
     script.push_str(&format!("cd /d \"{workspace_path}\"\r\n"));
+    script.push_str("if errorlevel 1 exit /b 1\r\n");
     for command in commands {
         script.push_str(&format!("echo {}\r\n", cmd_echo_marker(command)));
         script.push_str(command);
         script.push_str("\r\n");
+        script.push_str("if errorlevel 1 set \"ALERA_SETUP_STATUS=1\"\r\n");
     }
     // Last line on purpose: cmd re-reads the file by offset, so deleting it
     // earlier would truncate the run.
     script.push_str("del /q \"%~f0\"\r\n");
+    script.push_str("exit /b %ALERA_SETUP_STATUS%\r\n");
     script
 }
 
@@ -243,9 +256,14 @@ mod tests {
             script.contains("echo '> pnpm build'\npnpm build\n"),
             "{script}"
         );
+        assert!(script.contains("alera_setup_status=0\n"), "{script}");
+        assert!(script.contains("if [ \"$?\" -ne 0 ]; then\n"), "{script}");
         assert!(!script.contains("&&"), "{script}");
         assert!(!script.contains("set -e"), "{script}");
-        assert!(script.ends_with("rm -f -- \"$0\"\n"), "{script}");
+        assert!(
+            script.ends_with("rm -f -- \"$0\"\nexit \"$alera_setup_status\"\n"),
+            "{script}"
+        );
     }
 
     #[test]
@@ -293,8 +311,20 @@ mod tests {
             script.contains("echo ^> pnpm install\r\npnpm install\r\n"),
             "{script}"
         );
+        assert!(
+            script.contains("set \"ALERA_SETUP_STATUS=0\"\r\n"),
+            "{script}"
+        );
+        assert!(
+            script.contains("if errorlevel 1 set \"ALERA_SETUP_STATUS=1\"\r\n"),
+            "{script}"
+        );
+        assert!(script.contains("if errorlevel 1 exit /b 1\r\n"), "{script}");
         assert!(!script.contains("&&"), "{script}");
-        assert!(script.ends_with("del /q \"%~f0\"\r\n"), "{script}");
+        assert!(
+            script.ends_with("del /q \"%~f0\"\r\nexit /b %ALERA_SETUP_STATUS%\r\n"),
+            "{script}"
+        );
     }
 
     #[test]

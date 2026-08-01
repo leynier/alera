@@ -117,6 +117,7 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
       expect(setup.initialCommand, _setupCommand);
       expect(setup.initialCommandOnce, isTrue);
       expect(setup.spawnOnCreate, isTrue);
+      expect(setup.autoCloseOnSuccess, isTrue);
       expect(_controller.state.activeWorkspaceTab?.title, 'Setup');
       expect(_controller.state.error, isNull);
     },
@@ -167,6 +168,7 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
       expect(tabs.where((tab) => tab.title.startsWith('Terminal ')), isEmpty);
       expect(tabs.last.initialCommand, _setupCommand);
       expect(tabs.last.initialCommandOnce, isTrue);
+      expect(tabs.last.autoCloseOnSuccess, isTrue);
       expect(_controller.state.activeWorkspaceTab?.id, 'agent-tab');
     },
   );

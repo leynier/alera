@@ -46,11 +46,14 @@ The desktop and mobile apps do not hold the New Workspace UI open while the setu
 
 The Setup terminal runs a script the host generates. That script exists because the terminal hosts whatever interactive shell the user configured, and chaining with `&&` is not portable: PowerShell 5.1 rejects it at parse time and nushell removed it. Writing one command per line up front does not work either, since the later lines would be delivered to the standard input of the process the earlier line started. So the terminal runs a single portable line (`/bin/sh "<script>"`, or `cmd /d /c "<script>"` on Windows) and the script does the sequencing.
 
+For the Setup tab, the runtime adds the shell-specific wrapper needed to replace or exit the interactive shell after that line finishes, so the PTY exit code reflects the script result.
+
 Inside the Setup terminal:
 
 - the copy rules run first, through `alera workspace setup --id <workspace> --copies-only`, so their symlink and path-escape validation stays in Rust;
 - every `setup` command then runs in order, each preceded by an echoed `> <command>` marker, and **a failing command does not stop the ones after it** - the output is right there to read;
-- the script deletes itself when it finishes. A run interrupted before that leaves the script behind, and the host sweeps any leftovers the next time it starts.
+- the script deletes itself when it finishes and preserves a non-zero result if any copy or setup action failed. A run interrupted before that leaves the script behind, and the host sweeps any leftovers the next time it starts;
+- the host closes the **Setup** terminal after a successful run. If the run fails, the terminal remains open with its output so the problem can be inspected and rerun.
 
 The command is delivered once. After it is on its way the host drops it from the tab record, so restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
 
