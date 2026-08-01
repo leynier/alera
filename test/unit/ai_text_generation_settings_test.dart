@@ -47,6 +47,12 @@ void main() {
       selectedModelByAgent: <AiTextGenerationAgent, String>{
         AiTextGenerationAgent.codex: 'gpt-5',
       },
+      selectedThinkingByOperation:
+          <AiTextGenerationOperation, Map<String, String>>{
+            AiTextGenerationOperation.commitMessage: <String, String>{
+              'gpt-5': 'high',
+            },
+          },
       promptSettingsByOperation:
           <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
             AiTextGenerationOperation.commitMessage:
@@ -97,6 +103,33 @@ void main() {
     expect(
       settings.modelForOperation(AiTextGenerationOperation.workspaceIdentity),
       'gpt-global',
+    );
+  });
+
+  test('keeps operation reasoning overrides isolated with global fallback', () {
+    const settings = AiTextGenerationSettings(
+      selectedThinkingByModel: <String, String>{'gpt-5.5': 'low'},
+      selectedThinkingByOperation:
+          <AiTextGenerationOperation, Map<String, String>>{
+            AiTextGenerationOperation.commitMessage: <String, String>{
+              'gpt-5.5': 'high',
+            },
+          },
+    );
+
+    expect(
+      settings.thinkingForOperation(
+        AiTextGenerationOperation.commitMessage,
+        'gpt-5.5',
+      ),
+      'high',
+    );
+    expect(
+      settings.thinkingForOperation(
+        AiTextGenerationOperation.pullRequestDetails,
+        'gpt-5.5',
+      ),
+      'low',
     );
   });
 
