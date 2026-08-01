@@ -51,7 +51,7 @@ class PairedHostProfile {
     // address); refuse to store credentials for it.
     if (credentials.runtimeId != offer.runtimeId) {
       throw const FormatException(
-        'Pairing Response Runtime Id Does Not Match The Offer',
+        'Pairing response runtime ID does not match the offer',
       );
     }
     return PairedHostProfile(

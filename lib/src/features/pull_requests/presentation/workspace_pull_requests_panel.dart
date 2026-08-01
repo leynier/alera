@@ -167,14 +167,14 @@ class _PullRequestBody extends StatelessWidget {
     if (state.authStatus == ForgeAuthStatus.cliMissing) {
       return _MessageBody(
         icon: AleraIcons.error,
-        title: 'CLI Not Found',
+        title: 'CLI not found',
         message: 'Install `${_providerCli()}` and ensure it is on your PATH.',
       );
     }
     if (state.authStatus == ForgeAuthStatus.notAuthenticated) {
       return _MessageBody(
         icon: AleraIcons.error,
-        title: 'Not Authenticated',
+        title: 'Not authenticated',
         message: 'Run `${_authCommand()}` to sign in, then refresh.',
         action: OutlinedButton(
           onPressed: controller.refresh,
@@ -240,18 +240,18 @@ class _PullRequestBody extends StatelessWidget {
     return switch (reason) {
       PullRequestUnavailableReason.noRemote => const _MessageBody(
         icon: AleraIcons.gitPullRequest,
-        title: 'No Remote',
+        title: 'No remote',
         message: 'This repository has no remote to detect a provider from.',
       ),
       PullRequestUnavailableReason.undetectable => const _MessageBody(
         icon: AleraIcons.gitPullRequest,
-        title: 'Provider Not Detected',
+        title: 'Provider not detected',
         message:
-            'Could not detect the git hosting provider. Set it in Project settings.',
+            'Could not detect the git hosting provider. Set it in project settings.',
       ),
       PullRequestUnavailableReason.unsupported => const _MessageBody(
         icon: AleraIcons.gitPullRequest,
-        title: 'Unsupported Provider',
+        title: 'Unsupported provider',
         message: 'This hosting provider is not supported yet.',
       ),
     };

@@ -54,7 +54,7 @@ Widget galleryInputs() => Column(
   mainAxisSize: MainAxisSize.min,
   crossAxisAlignment: CrossAxisAlignment.stretch,
   children: <Widget>[
-    const AleraTextField(hintText: 'Workspace Name'),
+    const AleraTextField(hintText: 'Workspace name'),
     const SizedBox(height: AleraTokens.space12),
     const AleraSearchField(hintText: 'Search'),
     const SizedBox(height: AleraTokens.space12),

@@ -60,14 +60,14 @@ class MobileEmulatorCapability {
     if (value is! Map) {
       return const MobileEmulatorCapability(
         available: false,
-        message: 'The Emulator Backend Is Unavailable.',
+        message: 'The emulator backend is unavailable.',
       );
     }
     return MobileEmulatorCapability(
       available: value['available'] == true,
       message: value['message'] is String
           ? value['message'] as String
-          : 'The Emulator Backend Is Unavailable.',
+          : 'The emulator backend is unavailable.',
     );
   }
 }

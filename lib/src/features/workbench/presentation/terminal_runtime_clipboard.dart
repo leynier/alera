@@ -17,7 +17,7 @@ void _handleTerminalPrivateOsc(
     unawaited(
       handle._clipboard.writeText(request.text).catchError((Object error) {
         handle._notifyInteraction(
-          'Could Not Copy Terminal Selection.',
+          'Could not copy terminal selection.',
           error: true,
         );
       }),
@@ -58,7 +58,7 @@ Future<void> _pasteTerminalClipboard(_XtermTerminalSessionHandle handle) async {
     // bracketed paste only when the foreground program enabled DECSET 2004.
     handle._terminal.paste(sanitizeTerminalImagePastePath(imagePath));
   } catch (error) {
-    handle._notifyInteraction('Could Not Paste Clipboard Image.', error: true);
+    handle._notifyInteraction('Could not paste clipboard image.', error: true);
   }
 }
 
@@ -87,7 +87,7 @@ void _handleTerminalSelectionChanged(_XtermTerminalSessionHandle handle) {
     unawaited(
       handle._clipboard.writeText(text).catchError((Object error) {
         handle._notifyInteraction(
-          'Could Not Copy Terminal Selection.',
+          'Could not copy terminal selection.',
           error: true,
         );
       }),

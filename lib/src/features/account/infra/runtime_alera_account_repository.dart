@@ -46,7 +46,7 @@ final class RuntimeAleraAccountRepository {
     return _client.runtimeEvents
         .where((event) => event.name == 'aleraAccountSignInFailed')
         .map(
-          (event) => event.payload['message'] as String? ?? 'Sign In Failed',
+          (event) => event.payload['message'] as String? ?? 'Sign in failed',
         );
   }
 

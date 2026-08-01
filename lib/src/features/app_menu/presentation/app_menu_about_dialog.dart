@@ -25,7 +25,7 @@ class AppMenuAboutDialog extends StatelessWidget {
   Future<void> _copyVersion(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: _versionLabel));
     if (context.mounted) {
-      AleraToast.show(context, message: 'Version Copied');
+      AleraToast.show(context, message: 'Version copied');
     }
   }
 

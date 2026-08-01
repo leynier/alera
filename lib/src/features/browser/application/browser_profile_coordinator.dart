@@ -122,7 +122,7 @@ final class BrowserProfileCoordinator {
         (manualJson == null || manualJson.trim().isEmpty)) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidPayload,
-        message: 'Manual Cookie Import Requires JSON.',
+        message: 'Manual cookie import requires JSON.',
         recoverable: true,
       );
     }
@@ -133,7 +133,7 @@ final class BrowserProfileCoordinator {
       if (byteLength > browserManualCookieImportMaximumBytes) {
         throw BrowserFailure(
           code: BrowserErrorCode.invalidPayload,
-          message: 'Manual Cookie Import Is Limited To 16 MiB.',
+          message: 'Manual cookie import is limited to 16 MiB.',
           recoverable: true,
           details: <String, Object?>{
             'maximumBytes': browserManualCookieImportMaximumBytes,
@@ -146,7 +146,7 @@ final class BrowserProfileCoordinator {
         (sourceProfileName == null || sourceProfileName.trim().isEmpty)) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidPayload,
-        message: 'A Source Browser Profile Is Required.',
+        message: 'A source browser profile is required.',
         recoverable: true,
       );
     }
@@ -162,7 +162,7 @@ final class BrowserProfileCoordinator {
       if (!result.completedAtomically) {
         throw BrowserFailure(
           code: BrowserErrorCode.unknown,
-          message: 'Cookie Import Failed: ${result.outcome.name}.',
+          message: 'Cookie import failed: ${result.outcome.name}.',
           recoverable: true,
           details: <String, Object?>{
             if (result.detailCode != null) 'detailCode': result.detailCode,

@@ -937,7 +937,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       }
       AleraToast.show(
         context,
-        message: '$label Copied',
+        message: '$label copied',
         tone: AleraToastTone.success,
       );
     } catch (_) {
@@ -946,7 +946,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       }
       AleraToast.show(
         context,
-        message: 'Could Not Copy $label',
+        message: 'Could not copy $label',
         tone: AleraToastTone.error,
       );
     }

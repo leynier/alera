@@ -54,9 +54,9 @@ class BrowserDownloadsDialog extends StatelessWidget {
               child: downloads.isEmpty
                   ? const AleraEmptyState(
                       icon: AleraIcons.download,
-                      title: 'No Downloads Yet',
+                      title: 'No downloads yet',
                       message:
-                          'Files Downloaded From This Tab Will Appear Here.',
+                          'Files downloaded from this tab will appear here.',
                     )
                   : ListView.separated(
                       itemCount: downloads.length,
@@ -199,15 +199,15 @@ Color _statusColor(BrowserDownloadStatus status) {
 
 String _statusLabel(BrowserDownload download) {
   return switch (download.status) {
-    BrowserDownloadStatus.pending => 'Preparing Download',
+    BrowserDownloadStatus.pending => 'Preparing download',
     BrowserDownloadStatus.downloading =>
-      '${_formatBytes(download.receivedBytes)}${download.totalBytes == null ? '' : ' Of ${_formatBytes(download.totalBytes!)}'}',
-    BrowserDownloadStatus.completed => 'Download Complete',
-    BrowserDownloadStatus.cancelled => 'Download Cancelled',
+      '${_formatBytes(download.receivedBytes)}${download.totalBytes == null ? '' : ' of ${_formatBytes(download.totalBytes!)}'}',
+    BrowserDownloadStatus.completed => 'Download complete',
+    BrowserDownloadStatus.cancelled => 'Download cancelled',
     BrowserDownloadStatus.failed =>
       download.error?.trim().isNotEmpty == true
           ? download.error!
-          : 'Download Failed',
+          : 'Download failed',
   };
 }
 

@@ -191,7 +191,7 @@ BrowserPopupCoordinator browserPopupCoordinator(Ref ref) {
           final state = ref.read(workbenchControllerProvider);
           final workspace = findWorkspaceById(state, workspaceId);
           if (workspace == null) {
-            throw StateError('Workspace Not Found: $workspaceId');
+            throw StateError('Workspace not found: $workspaceId');
           }
           return ref
               .read(workbenchControllerProvider.notifier)

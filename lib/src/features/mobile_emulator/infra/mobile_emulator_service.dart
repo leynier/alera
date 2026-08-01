@@ -75,7 +75,7 @@ class MobileEmulatorService {
     if (tab is! Map || session == null) {
       throw const MobileEmulatorException(
         code: 'invalid_response',
-        message: 'The Runtime Host Returned An Invalid Emulator Attachment.',
+        message: 'The runtime host returned an invalid emulator attachment.',
       );
     }
     return MobileEmulatorAttachment(
@@ -150,7 +150,7 @@ class MobileEmulatorService {
     if (response is! Map) {
       throw const MobileEmulatorException(
         code: 'invalid_response',
-        message: 'The Runtime Host Returned An Invalid Emulator Response.',
+        message: 'The runtime host returned an invalid emulator response.',
       );
     }
     final value = Map<String, Object?>.from(response.cast<String, Object?>());
@@ -181,7 +181,7 @@ class MobileEmulatorService {
     }
     throw const MobileEmulatorException(
       code: 'runtime_update_required',
-      message: 'Runtime Update Required For Mobile Emulator Support.',
+      message: 'Runtime update required for mobile emulator support.',
     );
   }
 
@@ -190,7 +190,7 @@ class MobileEmulatorService {
     if (session == null) {
       throw const MobileEmulatorException(
         code: 'invalid_response',
-        message: 'The Runtime Host Returned An Invalid Emulator Session.',
+        message: 'The runtime host returned an invalid emulator session.',
       );
     }
     return session;
@@ -200,7 +200,7 @@ class MobileEmulatorService {
     if (raw is! Map) {
       return const MobileEmulatorException(
         code: 'emulator_error',
-        message: 'The Mobile Emulator Operation Failed.',
+        message: 'The mobile emulator operation failed.',
       );
     }
     final steps = raw['nextSteps'];
@@ -208,7 +208,7 @@ class MobileEmulatorService {
       code: raw['code'] is String ? raw['code'] as String : 'emulator_error',
       message: raw['message'] is String
           ? raw['message'] as String
-          : 'The Mobile Emulator Operation Failed.',
+          : 'The mobile emulator operation failed.',
       nextSteps: steps is List
           ? steps.whereType<String>().toList(growable: false)
           : const <String>[],

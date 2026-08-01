@@ -69,11 +69,11 @@ class MobileGatewayGroup extends StatelessWidget {
           title: 'Connection Mode',
           description: switch (mode) {
             MobileEndpointMode.loopback =>
-              'Only This Machine Can Reach The Gateway.',
+              'Only this machine can reach the gateway.',
             MobileEndpointMode.tailscale =>
-              'Devices On Your Tailnet Reach The Gateway Over Tailscale.',
+              'Devices on your Tailnet reach the gateway over Tailscale.',
             MobileEndpointMode.manual =>
-              'Configure The Bind Host And Endpoint Yourself.',
+              'Configure the bind host and endpoint yourself.',
           },
           controlWidth: 320,
           child: Align(
@@ -105,8 +105,8 @@ class MobileGatewayGroup extends StatelessWidget {
             const AleraSettingRow(
               title: 'Windows Firewall',
               description:
-                  'If The Phone Cannot Connect, Allow Alera Through Windows '
-                  'Firewall For Incoming Connections On The Gateway Port.',
+                  'If the phone cannot connect, allow Alera through Windows '
+                  'Firewall for incoming connections on the gateway port.',
               child: SizedBox.shrink(),
             ),
         ],
@@ -164,27 +164,27 @@ class MobileGatewayGroup extends StatelessWidget {
       null => (
         false,
         'Unknown',
-        'The Runtime Does Not Report Tailscale - Update The Alera CLI.',
+        'The runtime does not report Tailscale - update the Alera CLI.',
       ),
       MobileTailscaleStatus(detected: false) => (
         false,
-        'Not Detected',
-        'Install Tailscale On This Machine To Use This Mode.',
+        'Not detected',
+        'Install Tailscale on this machine to use this mode.',
       ),
       MobileTailscaleStatus(running: false) => (
         false,
-        'Not Running',
-        tailscale.error ?? 'Run "tailscale up" And Sign In To Your Tailnet.',
+        'Not running',
+        tailscale.error ?? 'Run "tailscale up" and sign in to your Tailnet.',
       ),
       MobileTailscaleStatus(tailnetIp: final String ip) => (
         true,
         'Running · $ip',
-        'Devices Signed In To The Same Tailnet Can Pair And Connect.',
+        'Devices signed in to the same Tailnet can pair and connect.',
       ),
       _ => (
         false,
         'No Tailnet IP',
-        'Tailscale Is Running But Reported No Tailnet IPv4 Address.',
+        'Tailscale is running but reported no Tailnet IPv4 address.',
       ),
     };
     return AleraSettingRow(

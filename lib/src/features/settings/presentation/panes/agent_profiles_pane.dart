@@ -81,7 +81,7 @@ class _AgentProfilesSettingsPaneState
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => AleraEmptyState(
         icon: AleraIcons.agent,
-        title: 'Agent Profiles Unavailable',
+        title: 'Agent profiles unavailable',
         message: error.toString(),
       ),
       data: (profiles) {
@@ -108,9 +108,9 @@ class _AgentProfilesSettingsPaneState
           master: profiles.isEmpty
               ? const AleraEmptyState(
                   icon: AleraIcons.agent,
-                  title: 'No Agent Profiles',
+                  title: 'No agent profiles',
                   message:
-                      'Declare A Profile To Let A Run Dispatch Work To It.',
+                      'Declare a profile to let a run dispatch work to it.',
                 )
               : SingleChildScrollView(
                   child: AleraPanel(

@@ -50,7 +50,7 @@ class AgentProfilePersonaDiscovery {
     } catch (_) {
       return AgentProfilePersonaDiscoveryResult(
         personas: const <String>[],
-        error: '${command.executable} Persona Discovery Could Not Be Started.',
+        error: '${command.executable} persona discovery could not be started.',
       );
     }
 
@@ -59,13 +59,13 @@ class AgentProfilePersonaDiscovery {
         _timeout,
         onTimeout: () {
           process.kill();
-          throw TimeoutException('Persona Discovery Timed Out.');
+          throw TimeoutException('Persona discovery timed out.');
         },
       );
       if (output.exitCode != 0) {
         return AgentProfilePersonaDiscoveryResult(
           personas: const <String>[],
-          error: 'Persona Discovery Failed For ${adapter.key}.',
+          error: 'Persona discovery failed for ${adapter.key}.',
         );
       }
       final personas = switch (adapter) {
@@ -83,7 +83,7 @@ class AgentProfilePersonaDiscovery {
       process.kill();
       return const AgentProfilePersonaDiscoveryResult(
         personas: <String>[],
-        error: 'Persona Discovery Returned Too Much Data.',
+        error: 'Persona discovery returned too much data.',
       );
     }
   }

@@ -56,7 +56,7 @@ final class BrowserPermissionRequest {
         json['pageId'] is! String ||
         json['origin'] is! String ||
         requestedAt == null) {
-      throw const FormatException('Browser Permission Request Is Invalid.');
+      throw const FormatException('Browser permission request is invalid.');
     }
     return BrowserPermissionRequest(
       requestId: json['requestId']! as String,

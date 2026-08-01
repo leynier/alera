@@ -35,7 +35,7 @@ class HostAgentToolsSection extends ConsumerWidget {
                             cli.value?.detail ??
                                 (cli.hasError
                                     ? cli.error.toString()
-                                    : 'Checking Registration'),
+                                    : 'Checking registration'),
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AleraTokens.foregroundMuted),
                           ),

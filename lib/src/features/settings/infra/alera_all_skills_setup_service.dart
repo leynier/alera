@@ -36,10 +36,10 @@ class AleraAllSkillsSetupResult {
 
   String get summary {
     if (succeeded) {
-      final attention = needsAttention ? ' · Setup Needs Attention' : '';
-      return 'All ${outcomes.length} Alera Skills Installed / Updated$attention';
+      final attention = needsAttention ? ' · setup needs attention' : '';
+      return 'All ${outcomes.length} Alera skills installed / updated$attention';
     }
-    return '$succeededCount Of ${outcomes.length} Alera Skills Installed / Updated';
+    return '$succeededCount of ${outcomes.length} Alera skills installed / updated';
   }
 
   String get detail {
@@ -85,7 +85,7 @@ class AleraAllSkillsSetupService {
           AleraSkillSetupOutcome(
             skill: skill,
             succeeded: false,
-            summary: 'Install Failed: $error',
+            summary: 'Install failed: $error',
             detail: '$error',
             needsAttention: true,
           ),

@@ -101,7 +101,7 @@ void main() {
     expect(find.text('Live'), findsOneWidget);
     expect(find.text('Gemini Models - Weekly'), findsOneWidget);
     expect(find.text('85% Left'), findsOneWidget);
-    expect(find.text('Resets In 4d 5h 35m'), findsOneWidget);
+    expect(find.text('Resets in 4d 5h 35m'), findsOneWidget);
     expect(
       tester
           .widgetList<LinearProgressIndicator>(

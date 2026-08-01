@@ -69,7 +69,7 @@ class _SettingsBody extends ConsumerWidget {
                 leading: const Icon(Icons.folder_outlined),
                 title: const Text('Workspace Directory'),
                 subtitle: Text(
-                  settings.workspaceDirectory ?? 'Host Default',
+                  settings.workspaceDirectory ?? 'Host default',
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: AleraTokens.monoFontFamily,
@@ -109,14 +109,14 @@ class _SettingsBody extends ConsumerWidget {
                 value: settings.confirmProjectRemoval,
                 onChanged: controller.setConfirmProjectRemoval,
                 title: const Text('Confirm Project Removal'),
-                subtitle: const Text('Ask Before Removing Project Metadata.'),
+                subtitle: const Text('Ask before removing project metadata.'),
               ),
               SwitchListTile(
                 value: settings.confirmWorkspaceRemoval,
                 onChanged: controller.setConfirmWorkspaceRemoval,
                 title: const Text('Confirm Workspace Removal'),
                 subtitle: const Text(
-                  'Ask Before Removing A Managed Workspace.',
+                  'Ask before removing a managed workspace.',
                 ),
               ),
             ],
@@ -131,7 +131,7 @@ class _SettingsBody extends ConsumerWidget {
               leading: const Icon(Icons.restart_alt),
               title: const Text('Restart Runtime'),
               subtitle: const Text(
-                'Restart The Runtime Host And Reconnect This App.',
+                'Restart the runtime host and reconnect this app.',
               ),
               onTap: () => _restartRuntime(context, ref, host.id),
             ),
@@ -146,7 +146,7 @@ class _SettingsBody extends ConsumerWidget {
               _NavigationTile(
                 icon: Icons.account_tree_outlined,
                 title: 'Projects',
-                scope: 'On This Host',
+                scope: 'On this host',
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => ProjectsScreen(host: host),
@@ -156,7 +156,7 @@ class _SettingsBody extends ConsumerWidget {
               _NavigationTile(
                 icon: Icons.speed_outlined,
                 title: 'Quotas',
-                scope: 'On This Host',
+                scope: 'On this host',
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => AgentQuotasScreen(host: host),
@@ -179,7 +179,7 @@ class _SettingsBody extends ConsumerWidget {
                   value: settings.agentStatusHooks[agent] == true,
                   onChanged: (value) => controller.setAgentHook(agent, value),
                   title: Text('${agentHookLabels[agent]} Hooks'),
-                  subtitle: const Text('Report Direct Terminal Agent Status.'),
+                  subtitle: const Text('Report direct terminal agent status.'),
                 ),
             ],
           ),
@@ -199,7 +199,7 @@ Future<void> _restartRuntime(
     builder: (_) => const AleraConfirmDialog(
       title: 'Restart Runtime?',
       message:
-          'Restarting Disconnects Every Client. Active Terminals, Agents, Emulators, And Background Jobs Must Stop First.',
+          'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
       confirmLabel: 'Restart Runtime',
     ),
   );
@@ -245,14 +245,14 @@ Future<void> _restartRuntime(
   if (context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Runtime Restarting')));
+    ).showSnackBar(const SnackBar(content: Text('Runtime restarting')));
   }
 }
 
 void _showRestartFailure(BuildContext context) {
   ScaffoldMessenger.of(
     context,
-  ).showSnackBar(const SnackBar(content: Text('Could Not Restart Runtime')));
+  ).showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
 }
 
 class _ScopeBanner extends StatelessWidget {
@@ -274,7 +274,7 @@ class _ScopeBanner extends StatelessWidget {
             SizedBox(width: AleraTokens.spaceMd),
             Expanded(
               child: Text(
-                'Host Settings Sync Live With Every Connected Alera Client.',
+                'Host settings sync live with every connected Alera client.',
               ),
             ),
           ],

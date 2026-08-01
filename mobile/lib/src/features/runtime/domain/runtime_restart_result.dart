@@ -61,13 +61,13 @@ final class RuntimeRestartBusyException implements Exception {
 
   String get confirmationMessage {
     final parts = <String>[
-      if (activeAgents > 0) '$activeAgents Open Agent(s)',
-      if (activeSessions > 0) '$activeSessions Active Terminal Session(s)',
-      if (activeJobs > 0) '$activeJobs Active Background Job(s)',
+      if (activeAgents > 0) '$activeAgents open agent(s)',
+      if (activeSessions > 0) '$activeSessions active terminal session(s)',
+      if (activeJobs > 0) '$activeJobs active background job(s)',
       if (activePushSubscriptions > 0)
-        '$activePushSubscriptions Active Push Subscription(s)',
+        '$activePushSubscriptions active push subscription(s)',
     ];
-    return 'Runtime Has ${parts.join(', ')}. Force Restart Terminates Them.';
+    return 'Runtime has ${parts.join(', ')}. Force restart terminates them.';
   }
 
   @override

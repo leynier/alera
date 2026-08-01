@@ -251,8 +251,8 @@ class _AvailableProjectsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (projects.isEmpty) {
       final emptyMessage = query.isNotEmpty
-          ? 'No Projects Match "$query"'
-          : (hasSelection ? 'All Projects Selected' : 'No Projects Yet');
+          ? 'No projects match "$query"'
+          : (hasSelection ? 'All projects selected' : 'No projects yet');
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
         child: Center(

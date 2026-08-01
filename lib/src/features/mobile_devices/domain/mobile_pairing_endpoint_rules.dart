@@ -145,18 +145,18 @@ String? validateMobilePairingEndpoint({
 }) {
   final parts = parseMobilePairingEndpoint(endpoint);
   if (parts == null) {
-    return 'Endpoint Must Be A ws:// Or wss:// URL With An Explicit Port';
+    return 'Endpoint must be a ws:// or wss:// URL with an explicit port';
   }
   if (parts.port < 1 || parts.port > 65535) {
-    return 'Endpoint Port Must Be Between 1 And 65535';
+    return 'Endpoint port must be between 1 and 65535';
   }
   if (parts.scheme == 'ws' &&
       !isLoopbackEndpointHost(parts.host) &&
       !isTailscaleEndpointHost(parts.host)) {
-    return 'Endpoints Outside Loopback Or A Tailscale Tailnet Must Use wss://';
+    return 'Endpoints outside loopback or a Tailscale Tailnet must use wss://';
   }
   if (parts.scheme == 'ws' && gatewayEnabled && parts.port != gatewayPort) {
-    return 'ws:// Endpoint Port Must Match The Enabled Gateway Port '
+    return 'ws:// endpoint port must match the enabled gateway port '
         '$gatewayPort';
   }
   return null;
@@ -169,16 +169,16 @@ String? mobileGatewayBindHostHint({
   required int port,
 }) {
   if (isWildcardBindHost(bindHost)) {
-    return 'Wildcard Bind Hosts Require An Explicit wss:// Endpoint When '
-        'Linking (For Example wss://<host-or-vpn-name>:$port)';
+    return 'Wildcard bind hosts require an explicit wss:// endpoint when '
+        'linking (for example wss://<host-or-vpn-name>:$port)';
   }
   if (isTailscaleEndpointHost(bindHost)) {
-    return 'Devices Connect Over Your Tailnet - Both Devices Must Be Signed '
-        'In To Tailscale';
+    return 'Devices connect over your Tailnet - both devices must be signed '
+        'in to Tailscale';
   }
   if (!isLoopbackEndpointHost(bindHost)) {
-    return 'Devices Outside This Machine Must Connect Through wss:// - Use A '
-        'TLS Proxy Or A VPN Address And Provide A Custom Endpoint';
+    return 'Devices outside this machine must connect through wss:// - use a '
+        'TLS proxy or a VPN address and provide a custom endpoint';
   }
   return null;
 }

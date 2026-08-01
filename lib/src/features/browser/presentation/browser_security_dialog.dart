@@ -51,7 +51,7 @@ class BrowserSecurityDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space12),
             Text(
-              security.origin ?? 'No Origin Is Available',
+              security.origin ?? 'No origin is available',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foreground,
                 fontFamily: 'JetBrains Mono',
@@ -132,25 +132,25 @@ class _SecurityDetail extends StatelessWidget {
 
 String _title(BrowserSecurityLevel level) {
   return switch (level) {
-    BrowserSecurityLevel.secure => 'Secure Connection',
-    BrowserSecurityLevel.local => 'Local Connection',
-    BrowserSecurityLevel.insecure => 'Insecure Connection',
-    BrowserSecurityLevel.certificateFailure => 'Certificate Failure',
-    BrowserSecurityLevel.unknown => 'Connection Details',
+    BrowserSecurityLevel.secure => 'Secure connection',
+    BrowserSecurityLevel.local => 'Local connection',
+    BrowserSecurityLevel.insecure => 'Insecure connection',
+    BrowserSecurityLevel.certificateFailure => 'Certificate failure',
+    BrowserSecurityLevel.unknown => 'Connection details',
   };
 }
 
 String _description(BrowserSecurityLevel level) {
   return switch (level) {
     BrowserSecurityLevel.secure =>
-      'The Page Is Using An Encrypted HTTPS Connection.',
+      'The page is using an encrypted HTTPS connection.',
     BrowserSecurityLevel.local =>
-      'The Page Is Served From A Local Host. Certificate Trust Is Scoped To The Active Browser Profile.',
+      'The page is served from a local host. Certificate trust is scoped to the active browser profile.',
     BrowserSecurityLevel.insecure =>
-      'The Page Is Not Using An Encrypted Connection. Do Not Enter Sensitive Information.',
+      'The page is not using an encrypted connection. Do not enter sensitive information.',
     BrowserSecurityLevel.certificateFailure =>
-      'Alera Rejected The Certificate. Public Hosts Cannot Bypass Certificate Failures.',
+      'Alera rejected the certificate. Public hosts cannot bypass certificate failures.',
     BrowserSecurityLevel.unknown =>
-      'Connection Security Has Not Been Established Yet.',
+      'Connection security has not been established yet.',
   };
 }

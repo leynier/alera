@@ -35,7 +35,7 @@ void main() {
 
     expect(find.text('Sleep Workspace?'), findsOneWidget);
     expect(
-      find.textContaining('All Tabs And Terminal Sessions'),
+      find.textContaining('all tabs and terminal sessions'),
       findsOneWidget,
     );
 

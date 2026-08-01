@@ -24,7 +24,7 @@ class AppSettingsScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.person_outline),
                 title: const Text('Alera Accounts'),
-                subtitle: const Text('Cloud Identity And Notifications'),
+                subtitle: const Text('Cloud identity and notifications'),
                 trailing: const Icon(AleraIcons.chevronRight, size: 16),
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
@@ -40,7 +40,7 @@ class AppSettingsScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.keyboard_outlined),
                 title: const Text('Terminal Quick Keys'),
-                subtitle: const Text('On This Phone'),
+                subtitle: const Text('On this phone'),
                 trailing: const Icon(AleraIcons.chevronRight, size: 16),
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
@@ -56,7 +56,7 @@ class AppSettingsScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.bug_report_outlined),
                 title: const Text('Logs And Crash Reports'),
-                subtitle: const Text('On This Phone'),
+                subtitle: const Text('On this phone'),
                 trailing: const Icon(AleraIcons.chevronRight, size: 16),
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
@@ -87,7 +87,7 @@ class AppSettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
                     Text(
-                      'Pair With Desktop Hosts To Manage Workspaces, Terminals, And Agent Quotas From This Phone.',
+                      'Pair with desktop hosts to manage workspaces, terminals, and agent quotas from this phone.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

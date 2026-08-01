@@ -169,7 +169,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: const WorkbenchState(bootstrapped: true));
 
-    expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
+    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
     expect(
       find.widgetWithText(FilledButton, 'Add Your First Project'),
       findsOneWidget,
@@ -393,7 +393,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Sleep Workspace?'), findsOneWidget);
     expect(
       find.textContaining(
-        'One Editor Has Unsaved Changes That Will Be Discarded.',
+        'One editor has unsaved changes that will be discarded.',
       ),
       findsOneWidget,
     );

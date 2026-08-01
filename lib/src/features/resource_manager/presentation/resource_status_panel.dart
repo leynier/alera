@@ -111,8 +111,8 @@ class _PanelBody extends StatelessWidget {
           icon: AleraIcons.resources,
           message: switch (snapshot) {
             ResourceSnapshot(error: final String error) => error,
-            ResourceSnapshot(warming: true) => 'Measuring Resource Usage',
-            _ => 'No Terminal Sessions Are Running',
+            ResourceSnapshot(warming: true) => 'Measuring resource usage',
+            _ => 'No terminal sessions are running',
           },
         ),
       );

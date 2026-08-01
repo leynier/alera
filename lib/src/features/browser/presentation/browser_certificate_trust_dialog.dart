@@ -48,7 +48,7 @@ class BrowserCertificateTrustDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space12),
             Text(
-              'This Certificate Uses A Private Or Self-Signed Issuer. Trust Applies To ${request.host} On Every Port And Tab In $profileLabel.',
+              'This certificate uses a private or self-signed issuer. Trust applies to ${request.host} on every port and tab in $profileLabel.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),

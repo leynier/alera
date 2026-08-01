@@ -19,7 +19,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           maxLines: 8,
           decoration: const InputDecoration(
             labelText: 'Initial Prompt',
-            hintText: 'Describe What The Agent Should Build',
+            hintText: 'Describe what the agent should build',
             alignLabelWithHint: true,
           ),
         ),
@@ -47,7 +47,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
           value: promptState.sourceBranch,
           labelText: 'Source Branch',
-          hintText: promptState.loading ? 'Loading Branches' : 'Select Branch',
+          hintText: promptState.loading ? 'Loading branches' : 'Select Branch',
           entries: <AleraDropdownFieldEntry<String>>[
             for (final branch in promptState.branches)
               AleraDropdownFieldEntry<String>(value: branch, label: branch),
@@ -89,7 +89,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           value: promptState.profileId,
           labelText: 'Agent Profile',
           hintText: promptState.profiles.isEmpty
-              ? 'Create An Agent Profile In Desktop Settings'
+              ? 'Create an agent profile in desktop settings'
               : 'Select Agent Profile',
           entries: <AleraDropdownFieldEntry<String>>[
             for (final profile in promptState.profiles)
@@ -121,7 +121,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
                   _update(() => _createAnother = value ?? false);
                 },
           title: const Text('Create Another'),
-          subtitle: const Text('Keep This Screen Open After Creation'),
+          subtitle: const Text('Keep this screen open after creation'),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
         if (promptState.loading)
@@ -135,7 +135,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
               ),
               const SizedBox(width: AleraTokens.spaceMd),
               Expanded(child: Text(promptState.phase ?? 'Working')),
-              if (promptState.phase == 'Generating Workspace Identity')
+              if (promptState.phase == 'Generating workspace identity')
                 TextButton(
                   onPressed: controller.cancelGeneration,
                   child: const Text('Cancel'),

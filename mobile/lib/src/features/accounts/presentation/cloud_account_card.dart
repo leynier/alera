@@ -92,7 +92,7 @@ class CloudAccountCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(AleraTokens.space16),
               child: Text(
-                'No Enrolled Runtimes',
+                'No enrolled runtimes',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             )
@@ -231,7 +231,7 @@ class _RuntimeNotificationRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        host?.effectiveName ?? 'Unpaired Runtime',
+                        host?.effectiveName ?? 'Unpaired runtime',
                         style: Theme.of(context).textTheme.titleSmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

@@ -122,11 +122,11 @@ void main() {
       browserCapabilityLimitationMessage(
         'tab_scoped_tls_exception_unavailable',
       ),
-      'Tab-Scoped TLS Exceptions Are Unavailable.',
+      'Tab-scoped TLS exceptions are unavailable.',
     );
     expect(
       browserCapabilityLimitationMessage('future_capability_unavailable'),
-      'A Required Browser Capability Is Unavailable.',
+      'A required browser capability is unavailable.',
     );
     expect(browserEngineLabel('webKitGtk'), 'WebKitGTK');
   });

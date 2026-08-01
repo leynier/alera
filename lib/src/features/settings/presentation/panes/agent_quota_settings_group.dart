@@ -48,12 +48,12 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
           child: AleraSettingsGroup(
             title: 'Provider Quotas',
             description:
-                'Choose Which Usage Sources Appear For The Active Workspace Host.',
+                'Choose which usage sources appear for the active workspace host.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'Active Quota Host',
                 description:
-                    'Run Quota Commands Locally Or Through The Installed Alera Runtime For This Workspace.',
+                    'Run quota commands locally or through the installed Alera runtime for this workspace.',
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -97,7 +97,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               AleraSettingRow(
                 title: 'Quota Display Order',
                 description:
-                    'Set The Left-To-Right Order Of Enabled Providers In The Status Bar.',
+                    'Set the left-to-right order of enabled providers in the status bar.',
                 controlWidth: 420,
                 child: _ProviderOrderControl(
                   providers: hostSettings.enabledProviders,
@@ -120,7 +120,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
           child: AleraSettingsGroup(
             title: 'Claude',
             description:
-                'Configure The Default Claude Account And Every CCS Profile Together.',
+                'Configure the default Claude account and every CCS profile together.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Claude Code Quotas',
@@ -141,7 +141,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               SettingsSwitchRow(
                 title: 'Claude Default Quotas',
                 description:
-                    'Query The Default Claude Account Separately From Configured CCS Profiles.',
+                    'Query the default Claude account separately from configured CCS profiles.',
                 value: hostSettings.claudeDefaultEnabled,
                 secondary: _QuotaPinButton(
                   pinned: hostSettings.isQuotaPinned(
@@ -176,7 +176,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               AleraSettingRow(
                 title: 'Claude CCS Profiles',
                 description:
-                    'Add CCS Alias And Profile Pairs. These Remain Available When Default Claude Is Disabled.',
+                    'Add CCS alias and profile pairs. These remain available when default Claude is disabled.',
                 controlWidth: 420,
                 child: _ClaudeProfilesControl(
                   profiles: hostSettings.claudeProfiles,
@@ -215,13 +215,13 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
           child: AleraSettingsGroup(
             title: 'Credential Environment',
             description:
-                'Configure Environment Variable Names For The Active Workspace Host.',
+                'Configure environment variable names for the active workspace host.',
             children: <Widget>[
               SettingsTextRow(
                 key: const ValueKey<String>('kimi-api-key-variable'),
                 title: 'Kimi API Key Variable',
                 description:
-                    'Environment Variable Read On The Active Host. The Secret Value Is Never Stored By Alera.',
+                    'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.kimiApiKey,
                 hintText: 'KIMI_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -233,7 +233,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               SettingsTextRow(
                 title: 'Z.ai API Key Variable',
                 description:
-                    'Environment Variable Read On The Active Host. The Secret Value Is Never Stored By Alera.',
+                    'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.zaiApiKey,
                 hintText: 'ZAI_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -245,7 +245,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               SettingsTextRow(
                 title: 'Z.ai Base URL Variable',
                 description:
-                    'Optional Environment Variable For The Coding Plan API Base URL.',
+                    'Optional environment variable for the coding plan API base URL.',
                 value: hostSettings.environment.zaiBaseUrl,
                 hintText: 'ZAI_BASE_URL',
                 onChanged: (value) => _saveEnvironment(
@@ -257,7 +257,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               SettingsTextRow(
                 title: 'MiniMax API Key Variable',
                 description:
-                    'Environment Variable Read On The Active Host. The Secret Value Is Never Stored By Alera.',
+                    'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.minimaxApiKey,
                 hintText: 'MINIMAX_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -269,7 +269,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               SettingsTextRow(
                 title: 'MiniMax API Host Variable',
                 description:
-                    'Optional Environment Variable Selecting The Global Or China Token Plan Endpoint.',
+                    'Optional environment variable selecting the global or china token plan endpoint.',
                 value: hostSettings.environment.minimaxApiHost,
                 hintText: 'MINIMAX_API_HOST',
                 onChanged: (value) => _saveEnvironment(
@@ -281,7 +281,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               AleraSettingRow(
                 title: 'Credential Availability',
                 description:
-                    'Check Whether Each Configured Variable Exists Without Reading Its Secret Value.',
+                    'Check whether each configured variable exists without reading its secret value.',
                 controlWidth: 420,
                 child: _EnvironmentPresence(
                   names: <String>[
@@ -325,21 +325,21 @@ void _saveEnvironment(
 String _providerDescription(AgentQuotaProviderId provider) {
   return switch (provider) {
     AgentQuotaProviderId.claude =>
-      'Read Default Claude Code Usage And Any Configured CCS Profiles.',
+      'Read default Claude Code usage and any configured CCS profiles.',
     AgentQuotaProviderId.codex =>
-      'Read Codex Rate Limits Through The Official App Server.',
+      'Read Codex rate limits through the official app server.',
     AgentQuotaProviderId.kimi =>
-      'Read Kimi Coding Plan Usage With An API Key From The Host Environment.',
+      'Read Kimi Coding Plan usage with an API key from the host environment.',
     AgentQuotaProviderId.grok =>
-      'Read Grok Build Usage Through Its Official Interactive CLI.',
+      'Read Grok Build usage through its official interactive CLI.',
     AgentQuotaProviderId.cursor =>
-      'Read Cursor Plan Usage From The Local Cursor CLI Session.',
+      'Read Cursor plan usage from the local Cursor CLI session.',
     AgentQuotaProviderId.antigravity =>
-      'Read Antigravity Usage Through The Official Agy CLI.',
+      'Read Antigravity usage through the official agy CLI.',
     AgentQuotaProviderId.minimax =>
-      'Read MiniMax Token Plan Usage With An API Key From The Host Environment.',
+      'Read MiniMax Token Plan usage with an API key from the host environment.',
     AgentQuotaProviderId.zai =>
-      'Read Z.ai Limits With An API Key From The Host Environment.',
+      'Read Z.ai limits with an API key from the host environment.',
   };
 }
 

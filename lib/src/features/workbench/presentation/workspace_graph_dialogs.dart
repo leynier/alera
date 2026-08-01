@@ -140,7 +140,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: AleraTokens.space12),
                 child: Text(
-                  'No Tags Created',
+                  'No tags created',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),
@@ -235,11 +235,11 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
   Future<void> _createTag() async {
     final name = _tagController.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Tag Name Is Required');
+      setState(() => _error = 'Tag name is required');
       return;
     }
     if (_tags.any((tag) => tag.name.toLowerCase() == name.toLowerCase())) {
-      setState(() => _error = 'Tag Already Exists');
+      setState(() => _error = 'Tag already exists');
       return;
     }
     setState(() {

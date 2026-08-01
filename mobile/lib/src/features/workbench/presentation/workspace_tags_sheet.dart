@@ -87,7 +87,7 @@ Future<bool> _confirmTagDeletion(BuildContext context, String name) async {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Delete Tag'),
-          content: Text('Delete "$name" From All Workspaces?'),
+          content: Text('Delete "$name" from all workspaces?'),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),

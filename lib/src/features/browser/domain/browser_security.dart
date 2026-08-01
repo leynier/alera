@@ -28,7 +28,7 @@ final class BrowserCertificateChallenge {
         port is! num ||
         errorCode is! String ||
         expiresAt == null) {
-      throw const FormatException('Browser Certificate Challenge Is Invalid.');
+      throw const FormatException('Browser certificate challenge is invalid.');
     }
     return BrowserCertificateChallenge(
       id: id,

@@ -28,7 +28,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           onChanged: (_) => _update(() {}),
           decoration: const InputDecoration(
             labelText: 'Branch Name',
-            helperText: 'The Worktree Branch For This Workspace',
+            helperText: 'The worktree branch for this workspace',
           ),
         ),
         const SizedBox(height: AleraTokens.spaceLg),
@@ -52,7 +52,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
             AleraDropdownField<String>(
               value: _sourceBranch,
               labelText: 'Source Branch',
-              hintText: _loadingBranches ? 'Loading Branches' : 'Select Branch',
+              hintText: _loadingBranches ? 'Loading branches' : 'Select Branch',
               entries: <AleraDropdownFieldEntry<String>>[
                 for (final branch in _branches)
                   AleraDropdownFieldEntry<String>(value: branch, label: branch),
@@ -120,7 +120,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
                   });
                 },
           title: const Text('Create Another'),
-          subtitle: const Text('Keep This Screen Open After Creation'),
+          subtitle: const Text('Keep this screen open after creation'),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
         FilledButton.icon(

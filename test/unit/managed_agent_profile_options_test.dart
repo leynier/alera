@@ -211,11 +211,11 @@ void main() {
         managedAgentRiskWarning(AgentType.codex, const {
           'bypassApprovalsAndSandbox': true,
         }),
-        contains('Bypass Codex'),
+        contains('bypass Codex'),
       );
       expect(
         managedAgentRiskWarning(AgentType.codex, const {}),
-        contains('Reduces Codex'),
+        contains('reduces Codex'),
       );
       expect(
         <AgentType, String>{
@@ -225,16 +225,16 @@ void main() {
         },
         <AgentType, String>{
           AgentType.claude:
-              'This Profile Lets Claude Continue With Reduced Permission Prompts.',
+              'This profile lets Claude continue with reduced permission prompts.',
           AgentType.copilot:
-              'This Profile Lets Copilot Take Broader Actions With Less Supervision.',
+              'This profile lets Copilot take broader actions with less supervision.',
           AgentType.cursor:
-              'This Profile Reduces Cursor Review, Sandbox, Or Trust Protections.',
+              'This profile reduces Cursor review, sandbox, or trust protections.',
           AgentType.agy:
-              'This Profile Lets Antigravity Skip Permission Checks.',
+              'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
-              'This Profile Lets OpenCode Approve Actions Automatically.',
-          AgentType.pi: 'This Profile Pre-Approves Project Trust For Pi.',
+              'This profile lets OpenCode approve actions automatically.',
+          AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
           AgentType.grok: '',
         },

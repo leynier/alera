@@ -96,7 +96,7 @@ applicationSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'All Alera Skills',
-    description: 'Install Or Update Every Alera Agent Skill.',
+    description: 'Install or update every Alera agent skill.',
     keywords: <String>[
       'all',
       'install',
@@ -116,7 +116,7 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Alera Orchestration Skill',
-    description: 'Install Agent Instructions For Alera Orchestration.',
+    description: 'Install agent instructions for Alera orchestration.',
     keywords: <String>[
       'orchestration',
       'skill',
@@ -129,7 +129,7 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Alera Computer Use Skill',
-    description: 'Install Agent Instructions For Desktop Computer Use.',
+    description: 'Install agent instructions for desktop computer use.',
     keywords: <String>[
       'computer use',
       'desktop',
@@ -161,7 +161,7 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Cursor Hooks',
-    description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
+    description: 'Use an Alera-managed Cursor agent plugin wrapper.',
     keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
     groupId: 'hooks',
   ),
@@ -247,7 +247,7 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Provider Quotas',
-    description: 'Choose Quota Providers And Their Display Order.',
+    description: 'Choose quota providers and their display order.',
     keywords: <String>[
       'quota',
       'usage',
@@ -266,19 +266,19 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Claude Code Quotas',
-    description: 'Enable Claude Quotas For Default And CCS Accounts.',
+    description: 'Enable Claude quotas for default and CCS accounts.',
     keywords: <String>['claude', 'quota', 'usage'],
     groupId: 'claude',
   ),
   SettingsSearchEntry(
     title: 'Claude Default Quotas',
-    description: 'Configure The Default Claude Account Independently.',
+    description: 'Configure the default Claude account independently.',
     keywords: <String>['claude', 'default', 'account', 'quota'],
     groupId: 'claude',
   ),
   SettingsSearchEntry(
     title: 'Claude CCS Profiles',
-    description: 'Configure CCS Alias And Profile Pairs For Claude Quotas.',
+    description: 'Configure CCS alias and profile pairs for Claude quotas.',
     keywords: <String>[
       'claude',
       'ccs',
@@ -293,14 +293,14 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Kimi API Key Variable',
-    description: 'Configure The Kimi API Key Environment Variable Name.',
+    description: 'Configure the Kimi API key environment variable name.',
     keywords: <String>['kimi', 'environment', 'api key', 'KIMI_API_KEY'],
     groupId: 'credentials',
   ),
   SettingsSearchEntry(
     title: 'Quota Credential Environment',
     description:
-        'Configure Environment Variable Names For Kimi, Z.ai And MiniMax.',
+        'Configure environment variable names for Kimi, Z.ai and MiniMax.',
     keywords: <String>[
       'environment',
       'api key',
@@ -332,25 +332,25 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> browserSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'System Browser Engine',
-    description: 'Check The Stable Browser Capability Gate.',
+    description: 'Check the stable browser capability gate.',
     keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
     groupId: 'general',
   ),
   SettingsSearchEntry(
     title: 'Browser Search Engine',
-    description: 'Choose The Default Address Bar Search Provider.',
+    description: 'Choose the default address bar search provider.',
     keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
     groupId: 'general',
   ),
   SettingsSearchEntry(
     title: 'Browser Profiles',
-    description: 'Manage Isolated Cookies, Storage And Permissions.',
+    description: 'Manage isolated cookies, storage and permissions.',
     keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
     groupId: 'profiles',
   ),
   SettingsSearchEntry(
     title: 'Trusted Local Certificates',
-    description: 'Review Or Remove Certificate Trust For Browser Profiles.',
+    description: 'Review or remove certificate trust for browser profiles.',
     keywords: <String>[
       'browser',
       'certificate',
@@ -363,7 +363,7 @@ const List<SettingsSearchEntry> browserSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Browser History',
-    description: 'Clear History And Reopen Recently Closed Tabs.',
+    description: 'Clear history and reopen recently closed tabs.',
     keywords: <String>['browser', 'history', 'closed', 'tabs'],
     groupId: 'data',
   ),
@@ -377,7 +377,7 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Tab Size',
-    description: 'Spaces inserted when pressing Tab in editor tabs.',
+    description: 'Spaces inserted when pressing tab in editor tabs.',
     keywords: <String>['indent', 'indentation', 'spaces', 'code'],
   ),
 ];
@@ -409,7 +409,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Text Commit Messages',
     description:
-        'Choose The Agent, Model, Reasoning And Instructions For Commit Messages.',
+        'Choose the agent, model, reasoning and instructions for commit messages.',
     keywords: <String>[
       'prompt',
       'instructions',
@@ -425,7 +425,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Text Pull Request Details',
     description:
-        'Choose The Agent, Model, Reasoning And Instructions For Pull Request Details.',
+        'Choose the agent, model, reasoning and instructions for pull request details.',
     keywords: <String>[
       'prompt',
       'instructions',
@@ -442,7 +442,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Text Workspace Identity',
     description:
-        'Choose The Agent, Model, Reasoning And Instructions For Workspace Identity.',
+        'Choose the agent, model, reasoning and instructions for workspace identity.',
     keywords: <String>[
       'prompt',
       'instructions',

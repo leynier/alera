@@ -59,7 +59,7 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
           cursorColor: AleraTokens.foreground,
           decoration: pullRequestFieldDecoration(
             theme,
-            hint: '#123 Or Pull Request URL',
+            hint: '#123 or pull request URL',
           ),
           onChanged: (_) => widget.onChanged(),
           onSubmitted: (_) {
@@ -71,7 +71,7 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
         if (suggestion != null) ...<Widget>[
           const SizedBox(height: AleraTokens.space12),
           Text(
-            'Suggested Pull Request',
+            'Suggested pull request',
             style: theme.textTheme.labelSmall?.copyWith(
               color: AleraTokens.foregroundMuted,
             ),

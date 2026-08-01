@@ -28,7 +28,7 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
   void _submit() {
     final message = _controller.text.trim();
     if (message.isEmpty) {
-      setState(() => _errorText = 'Message Is Required');
+      setState(() => _errorText = 'Message is required');
       return;
     }
     Navigator.of(context).pop(message);

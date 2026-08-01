@@ -349,7 +349,7 @@ class _GitDiffFileRow extends StatelessWidget {
           ),
           if (entry.isSubmoduleWorktreeOnly)
             Tooltip(
-              message: 'Manage Inside Submodule',
+              message: 'Manage inside submodule',
               child: Text(
                 'Inside',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(

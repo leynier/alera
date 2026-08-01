@@ -151,14 +151,14 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
     final state = widget.state;
     final result = state.result;
     if (state.status == _GitHistoryPanelStatus.error && result == null) {
-      return _HistoryMessage(message: state.error ?? 'Could Not Load Commits');
+      return _HistoryMessage(message: state.error ?? 'Could not load commits');
     }
     if (result == null) {
       return const _HistoryLoadingMessage();
     }
     final viewModels = buildGitHistoryViewModels(result);
     if (viewModels.isEmpty) {
-      return const _HistoryMessage(message: 'No Commits Yet');
+      return const _HistoryMessage(message: 'No commits yet');
     }
     return Stack(
       children: <Widget>[

@@ -74,7 +74,7 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
                         ],
                       )
                     : data.listing!.entries.isEmpty
-                    ? const Center(child: Text('No Subfolders'))
+                    ? const Center(child: Text('No subfolders'))
                     : ListView.builder(
                         itemCount: data.listing!.entries.length,
                         itemBuilder: (context, index) {

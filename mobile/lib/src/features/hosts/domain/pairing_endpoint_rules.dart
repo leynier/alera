@@ -6,17 +6,17 @@ void validatePairingEndpoint(String endpoint) {
       uri.scheme.isEmpty ||
       uri.host.isEmpty ||
       (uri.scheme != 'ws' && uri.scheme != 'wss')) {
-    throw const FormatException('Pairing Endpoint Must Use ws:// Or wss://');
+    throw const FormatException('Pairing endpoint must use ws:// or wss://');
   }
   if (!uri.hasPort || uri.port == 0) {
-    throw const FormatException('Pairing Endpoint Must Include A Valid Port');
+    throw const FormatException('Pairing endpoint must include a valid port');
   }
   if (uri.scheme == 'ws' &&
       !_isLocalPairingHost(uri.host) &&
       !_isTailscalePairingHost(uri.host)) {
     throw const FormatException(
-      'Plaintext Pairing Endpoint Must Use Localhost, Loopback, Or A '
-      'Tailscale Tailnet Address',
+      'Plaintext pairing endpoint must use localhost, loopback, or a '
+      'Tailscale Tailnet address',
     );
   }
 }

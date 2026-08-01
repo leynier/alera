@@ -63,7 +63,7 @@ class ProjectConfigEditor extends StatelessWidget {
       children: <Widget>[
         AleraSettingsGroup(
           title: project.name,
-          description: 'UI Overrides Take Precedence Over Repo Files.',
+          description: 'UI overrides take precedence over repo files.',
           children: <Widget>[
             AleraSettingRow(
               title: 'Config Source',
@@ -90,14 +90,14 @@ class ProjectConfigEditor extends StatelessWidget {
         AleraSettingsGroup(
           title: 'New Workspace',
           description:
-              'Project Instructions Appended To Prompts That Start An Agent.',
+              'Project instructions appended to prompts that start an agent.',
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.all(AleraTokens.space16),
               child: _ProjectConfigTextField(
                 value: promptAppend,
                 labelText: 'Prompt Append',
-                hintText: 'Add Project-Specific Agent Instructions',
+                hintText: 'Add project-specific agent instructions',
                 minLines: 3,
                 maxLines: 6,
                 onChanged: onPromptAppendChanged,
@@ -109,12 +109,12 @@ class ProjectConfigEditor extends StatelessWidget {
         AleraSettingsGroup(
           title: 'Pull Requests',
           description:
-              'Git Hosting Provider Used For Pull Requests And Checks.',
+              'Git hosting provider used for pull requests and checks.',
           children: <Widget>[
             AleraSettingRow(
               title: 'Hosting Provider',
               description:
-                  'Auto-Detect Uses Public Hosts. Select GitHub For GitHub Enterprise Server.',
+                  'Auto-detect uses public hosts. Select GitHub for GitHub Enterprise Server.',
               child: AleraDropdownField<GitHostingProvider?>(
                 value: gitHostingProvider,
                 onChanged: onGitHostingProviderChanged,
@@ -136,10 +136,10 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Copy Rules',
-          description: 'Files And Directories Copied From The Main Worktree.',
+          description: 'Files and directories copied from the main worktree.',
           children: <Widget>[
             if (copyRules.isEmpty)
-              const _ProjectConfigEmptyRow(message: 'No Copy Rules')
+              const _ProjectConfigEmptyRow(message: 'No copy rules')
             else
               for (var i = 0; i < copyRules.length; i += 1)
                 _CopyRuleEditorRow(
@@ -164,10 +164,10 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Setup Commands',
-          description: 'Commands Run From The New Linked Workspace.',
+          description: 'Commands run from the new linked workspace.',
           children: <Widget>[
             if (setupCommands.isEmpty)
-              const _ProjectConfigEmptyRow(message: 'No Setup Commands')
+              const _ProjectConfigEmptyRow(message: 'No setup commands')
             else
               for (var i = 0; i < setupCommands.length; i += 1)
                 _SetupCommandEditorRow(
@@ -262,13 +262,13 @@ class _CopyRuleEditorRow extends StatelessWidget {
               key: const ValueKey<String>('copy-rule-to-field'),
               value: rule.to,
               labelText: 'To',
-              hintText: 'Defaults To From',
+              hintText: 'Defaults to from',
               onChanged: (value) => onChanged(rule.copyWith(to: value)),
             ),
           ),
           const SizedBox(width: AleraTokens.space8),
           Tooltip(
-            message: 'Overwrite Existing Destination',
+            message: 'Overwrite existing destination',
             child: AleraCheckbox(
               value: rule.overwrite,
               onChanged: (value) => onChanged(rule.copyWith(overwrite: value)),

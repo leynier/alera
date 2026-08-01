@@ -19,7 +19,7 @@ class DesktopReclaimedTerminal implements Exception {
   const DesktopReclaimedTerminal();
 
   @override
-  String toString() => 'Desktop Took Back The Terminal';
+  String toString() => 'Desktop took back the terminal';
 }
 
 /// A live attachment to one terminal tab: the session handle, the scrollback
@@ -234,7 +234,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     if (!client.supportsTerminalRestart) {
       state = AsyncError(
-        UnsupportedError('The Host Does Not Support Terminal Restart.'),
+        UnsupportedError('The host does not support terminal restart.'),
         StackTrace.current,
       );
       return;

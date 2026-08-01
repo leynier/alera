@@ -106,11 +106,11 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       ).resolveSymbolicLinksSync();
       final sourcePath = _joinConfigPath(
         projectRoot,
-        normalizeProjectConfigPath(rule.from, 'Copy Source'),
+        normalizeProjectConfigPath(rule.from, 'copy source'),
       );
       final targetPath = _joinConfigPath(
         workspaceRoot,
-        normalizeProjectConfigPath(rule.destination, 'Copy Destination'),
+        normalizeProjectConfigPath(rule.destination, 'copy destination'),
       );
 
       if (_isSymlink(sourcePath)) {

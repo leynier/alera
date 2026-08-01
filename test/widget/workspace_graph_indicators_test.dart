@@ -46,7 +46,7 @@ void main() {
         WorkspaceRoleBadge(workspace: workspace(kind: WorkspaceKind.main)),
       );
       expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
-      expect(find.byTooltip('Default Workspace'), findsOneWidget);
+      expect(find.byTooltip('Default workspace'), findsOneWidget);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);

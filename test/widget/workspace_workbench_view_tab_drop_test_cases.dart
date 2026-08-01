@@ -91,7 +91,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
 
       const placeholderKey = ValueKey<String>('browser-tab-drag-placeholder');
       expect(find.byKey(placeholderKey), findsNothing);
-      expect(find.text('Search Or Enter Address'), findsNWidgets(2));
+      expect(find.text('Search or enter address'), findsNWidgets(2));
 
       final terminalDraggable = find.ancestor(
         of: find.text('Terminal'),
@@ -105,8 +105,8 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byKey(placeholderKey), findsNWidgets(2));
-      expect(find.text('Browser Temporarily Hidden'), findsNWidgets(2));
-      expect(find.text('Search Or Enter Address'), findsNWidgets(2));
+      expect(find.text('Browser temporarily hidden'), findsNWidgets(2));
+      expect(find.text('Search or enter address'), findsNWidgets(2));
       expect(
         browserEngine.calls
             .where(

@@ -272,7 +272,7 @@ class _AleraDropdownSearchDialogState<T>
               const SizedBox(height: AleraTokens.space8),
               Flexible(
                 child: indexes.isEmpty
-                    ? const Center(child: Text('No Results'))
+                    ? const Center(child: Text('No results'))
                     : ListView.builder(
                         shrinkWrap: true,
                         itemCount: indexes.length,

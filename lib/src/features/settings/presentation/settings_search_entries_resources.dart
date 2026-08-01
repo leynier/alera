@@ -7,7 +7,7 @@ const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Project Worktree Setup',
     description:
-        'Configure Copy Rules, Setup Commands, And New Workspace Prompts.',
+        'Configure copy rules, setup commands, and new workspace prompts.',
     keywords: <String>[
       'project',
       'repo',
@@ -57,7 +57,7 @@ const List<SettingsSearchEntry> mobileDeviceSearchEntries =
     <SettingsSearchEntry>[
       SettingsSearchEntry(
         title: 'Mobile Gateway',
-        description: 'Enable And Configure The Mobile Companion Gateway.',
+        description: 'Enable and configure the mobile companion gateway.',
         keywords: <String>[
           'mobile',
           'gateway',
@@ -75,7 +75,7 @@ const List<SettingsSearchEntry> mobileDeviceSearchEntries =
       ),
       SettingsSearchEntry(
         title: 'Link Mobile Device',
-        description: 'Generate A Pairing QR For The Mobile Companion App.',
+        description: 'Generate a pairing QR for the mobile companion app.',
         keywords: <String>[
           'qr',
           'pair',
@@ -89,7 +89,7 @@ const List<SettingsSearchEntry> mobileDeviceSearchEntries =
       ),
       SettingsSearchEntry(
         title: 'Paired Devices',
-        description: 'Rename, Revoke, Or Delete Paired Mobile Devices.',
+        description: 'Rename, revoke, or delete paired mobile devices.',
         keywords: <String>['revoke', 'rename', 'delete', 'device', 'token'],
         groupId: 'devices',
       ),

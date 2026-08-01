@@ -152,7 +152,7 @@ void main() {
       client.requestsOfType('mobile.device.delete').single['id'],
       'device-1',
     );
-    expect(find.text('No Paired Devices'), findsOneWidget);
+    expect(find.text('No paired devices'), findsOneWidget);
   });
 
   testWidgets('rename dialog submits the trimmed name', (tester) async {
@@ -191,7 +191,7 @@ void main() {
 
     expect(
       find.text(
-        'Endpoints Outside Loopback Or A Tailscale Tailnet Must Use wss://',
+        'Endpoints outside loopback or a Tailscale Tailnet must use wss://',
       ),
       findsOneWidget,
     );
@@ -227,7 +227,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(client.requestsOfType('mobile.pairing.cancel'), hasLength(1));
-    expect(find.text('No Active Offers'), findsOneWidget);
+    expect(find.text('No active offers'), findsOneWidget);
   });
 }
 

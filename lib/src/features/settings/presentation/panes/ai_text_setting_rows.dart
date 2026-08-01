@@ -163,7 +163,7 @@ class AiTextPromptAgentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraSettingRow(
       title: 'Agent',
-      description: 'Override The Global Agent For This Prompt.',
+      description: 'Override the global agent for this prompt.',
       child: AleraDropdownField<AiTextGenerationAgent?>(
         key: ValueKey<String>(
           'ai-text-${operation.key}-agent-${value?.key ?? 'global'}',
@@ -223,7 +223,7 @@ class AiTextPromptModelRow extends StatelessWidget {
     return AleraSettingRow(
       title: 'Model',
       description:
-          discoveryError ?? 'Override The Global Model For This Prompt.',
+          discoveryError ?? 'Override the global model for this prompt.',
       child: Row(
         children: <Widget>[
           Expanded(

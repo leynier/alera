@@ -55,8 +55,8 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         if (projects.isEmpty) {
           return const AleraEmptyState(
             icon: AleraIcons.folderOff,
-            title: 'No Projects',
-            message: 'Add A Project Before Configuring Workspace Setup.',
+            title: 'No projects',
+            message: 'Add a project before configuring workspace setup.',
           );
         }
         final orderedProjects = sortProjectsForSelection(projects);
@@ -292,16 +292,16 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         continue;
       }
       if (from.isEmpty) {
-        setState(() => _saveError = 'Copy Source Is Required');
+        setState(() => _saveError = 'Copy source is required');
         return null;
       }
       try {
         copyRules.add(
           WorktreeCopyRule(
-            from: normalizeProjectConfigPath(from, 'Copy Source'),
+            from: normalizeProjectConfigPath(from, 'copy source'),
             to: to.isEmpty
                 ? null
-                : normalizeProjectConfigPath(to, 'Copy Destination'),
+                : normalizeProjectConfigPath(to, 'copy destination'),
             overwrite: rule.overwrite,
           ),
         );

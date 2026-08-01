@@ -178,13 +178,13 @@ Future<void> showWorkspaceActionsSheet(
         final remote = await controller.repositoryRemoteUrl(workspace.id);
         final uri = remote == null ? null : _repositoryUri(remote);
         if (uri == null || !await launchUrl(uri)) {
-          throw StateError('Repository URL Is Not Available.');
+          throw StateError('Repository URL is not available.');
         }
       case _WorkspaceAction.copyPath:
         await Clipboard.setData(ClipboardData(text: workspace.path));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Workspace Path Copied')),
+            const SnackBar(content: Text('Workspace path copied')),
           );
         }
       case _WorkspaceAction.sleep:
@@ -201,7 +201,7 @@ Future<void> showWorkspaceActionsSheet(
   } on Object catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Workspace Action Failed: $error')),
+        SnackBar(content: Text('Workspace action failed: $error')),
       );
     }
   }

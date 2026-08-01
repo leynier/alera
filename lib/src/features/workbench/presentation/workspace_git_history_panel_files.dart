@@ -63,7 +63,7 @@ class _CommitFiles extends StatelessWidget {
           if (state.loading)
             const Padding(
               padding: EdgeInsets.fromLTRB(40, 4, 8, 6),
-              child: Text('Loading Files...'),
+              child: Text('Loading files...'),
             )
           else if (state.error != null)
             Padding(
@@ -78,7 +78,7 @@ class _CommitFiles extends StatelessWidget {
           else if (state.entries.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(40, 4, 8, 6),
-              child: Text('No File Changes'),
+              child: Text('No file changes'),
             )
           else ...<Widget>[
             for (final entry in state.entries)

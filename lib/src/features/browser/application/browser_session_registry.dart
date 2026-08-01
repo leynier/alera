@@ -116,7 +116,7 @@ final class BrowserSessionRegistry {
     if (entry == null || !entry.transient) {
       throw BrowserFailure(
         code: BrowserErrorCode.pageNotFound,
-        message: 'Transient Browser Page $pageId Was Not Found.',
+        message: 'Transient browser page $pageId was not found.',
       );
     }
     await entry.ready.future;
@@ -298,7 +298,7 @@ final class BrowserSessionRegistry {
         code: BrowserErrorCode.engineUnavailable,
         message:
             entry.state.value.capabilityReason ??
-            'The Browser Engine Is Unavailable.',
+            'The browser engine is unavailable.',
         recoverable: true,
       );
     }
@@ -340,7 +340,7 @@ final class BrowserSessionRegistry {
     if (entry.closing || entry.closed) {
       throw BrowserFailure(
         code: BrowserErrorCode.pageNotFound,
-        message: 'Browser Page ${entry.pageId} Is Closing.',
+        message: 'Browser page ${entry.pageId} is closing.',
         recoverable: true,
       );
     }
@@ -391,14 +391,14 @@ String _capabilityReason(BrowserEngineCapabilities capabilities) {
   final reasons = <String>[
     ...capabilities.limitations.map(browserCapabilityLimitationMessage),
     if (!capabilities.meetsBrowserTabGate)
-      'The Browser Engine Does Not Meet The Stable Tab Capability Gate.',
+      'The browser engine does not meet the stable tab capability gate.',
     if (!capabilities.meetsCookieImportGate)
-      'The Browser Engine Does Not Meet The Cookie Import Gate.',
+      'The browser engine does not meet the cookie import gate.',
     if (missingSources.isNotEmpty)
-      'Missing Cookie Import Sources: ${missingSources.join(', ')}.',
+      'Missing cookie import sources: ${missingSources.join(', ')}.',
   ];
   return reasons.isEmpty
-      ? 'The Browser Engine Does Not Meet The Stable Capability Gate.'
+      ? 'The browser engine does not meet the stable capability gate.'
       : reasons.join(' ');
 }
 
@@ -418,7 +418,7 @@ void _validateIdentity(BrowserPage existing, BrowserPage requested) {
       existing.profileId != requested.profileId) {
     throw BrowserFailure(
       code: BrowserErrorCode.invalidPayload,
-      message: 'Browser Page ${requested.pageId} Changed Identity.',
+      message: 'Browser page ${requested.pageId} changed identity.',
     );
   }
 }

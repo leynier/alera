@@ -30,11 +30,11 @@ class PushMessage {
       title:
           message.notification?.title ??
           _string(data['title']) ??
-          'Alera Needs Attention',
+          'Alera needs attention',
       body:
           message.notification?.body ??
           _string(data['body']) ??
-          'Open Alera To Review The Latest Activity.',
+          'Open Alera to review the latest activity.',
       data: data,
       messageId: message.messageId,
     );

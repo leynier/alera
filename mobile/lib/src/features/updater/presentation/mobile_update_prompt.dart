@@ -88,7 +88,7 @@ class _MobileUpdatePromptState extends ConsumerState<MobileUpdatePrompt> {
         }
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Download Link Copied.')));
+        ).showSnackBar(const SnackBar(content: Text('Download link copied.')));
         return;
       case _MobileUpdateAction.download:
         final opened = await widget.openUrl(
@@ -99,7 +99,7 @@ class _MobileUpdatePromptState extends ConsumerState<MobileUpdatePrompt> {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could Not Open The Download.')),
+          const SnackBar(content: Text('Could not open the download.')),
         );
         return;
       case null:
@@ -124,7 +124,7 @@ class _MobileUpdateDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Update Available', style: theme.textTheme.titleMedium),
+            Text('Update available', style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),
             Text(
               'Alera $version is available. Downloading opens the APK in your '

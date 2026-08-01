@@ -35,7 +35,7 @@ class PushNavigationIntent {
   factory PushNavigationIntent.fromData(Map<String, Object?> data) {
     final runtimeId = _nonEmpty(data['runtimeId']);
     if (runtimeId == null) {
-      throw const FormatException('Push Payload Is Missing Runtime Id');
+      throw const FormatException('Push payload is missing runtime ID');
     }
     return PushNavigationIntent(
       accountId: _nonEmpty(data['accountId']),

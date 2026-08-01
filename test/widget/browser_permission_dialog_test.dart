@@ -47,7 +47,7 @@ void main() {
 
     expect(find.text('Allow'), findsNothing);
     expect(find.text('Deny'), findsOneWidget);
-    expect(find.textContaining('Alera Does Not Allow'), findsOneWidget);
+    expect(find.textContaining('Alera does not allow'), findsOneWidget);
   });
 }
 

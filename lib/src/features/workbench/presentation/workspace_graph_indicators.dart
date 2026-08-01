@@ -21,7 +21,7 @@ class WorkspaceRoleBadge extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return const Tooltip(
-      message: 'Default Workspace',
+      message: 'Default workspace',
       child: Icon(
         AleraIcons.workspaceMain,
         size: 12,

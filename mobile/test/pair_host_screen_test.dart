@@ -108,7 +108,7 @@ void main() {
     await tester.tap(find.text('Use This Offer'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Invalid Offer'), findsOneWidget);
+    expect(find.text('Invalid offer'), findsOneWidget);
     expect(find.text('Try Again'), findsOneWidget);
   });
 }

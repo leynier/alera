@@ -79,7 +79,7 @@ class AgentProfileEditor extends StatelessWidget {
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Profile',
-            description: 'How This Agent Is Launched For A Dispatched Task.',
+            description: 'How this agent is launched for a dispatched task.',
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space12),
@@ -142,7 +142,7 @@ class AgentProfileEditor extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Text(
-                    'Command Mode Is For Advanced Or Unsupported CLI Options. Use An Interactive Command That Can Accept A Dispatch And Report Completion.',
+                    'Command mode is for advanced or unsupported CLI options. Use an interactive command that can accept a dispatch and report completion.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),
@@ -159,7 +159,7 @@ class AgentProfileEditor extends StatelessWidget {
                     AleraSettingRow(
                       title: 'Command Preview',
                       description:
-                          'The Host Quotes These Arguments For The Actual Platform Shell.',
+                          'The host quotes these arguments for the actual platform shell.',
                       controlWidth: 320,
                       child: SelectableText(
                         managedCommandPreview,
@@ -232,7 +232,7 @@ class AgentProfileEditor extends StatelessWidget {
           ],
           AleraSettingsGroup(
             title: 'Routing',
-            description: 'Signals The Orchestrator Reads When Planning A Run.',
+            description: 'Signals the orchestrator reads when planning a run.',
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space12),
@@ -257,9 +257,9 @@ class AgentProfileEditor extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space12),
                 child: Text(
-                  'Profiles Sharing A Quota Group Drain The Same Usage Bucket. '
-                  'Alera Never Measures This; It Only Avoids Falling Back '
-                  'Inside The Same Group. Leave Empty If Unsure.',
+                  'Profiles sharing a quota group drain the same usage bucket. '
+                  'Alera never measures this; it only avoids falling back '
+                  'inside the same group. Leave empty if unsure.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),

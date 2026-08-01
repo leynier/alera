@@ -19,7 +19,7 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
   if (intent.accountId != null) {
     final accounts = await ref.read(cloudAccountsControllerProvider.future);
     if (!accounts.any((item) => item.account.id == intent.accountId)) {
-      _showMessage('This Account Is Not On This Phone');
+      _showMessage('This account is not on this phone');
       return;
     }
   }
@@ -28,7 +28,7 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
       .where((item) => item.runtimeId == intent.runtimeId)
       .firstOrNull;
   if (host == null) {
-    _showMessage('This Host Is Not Paired');
+    _showMessage('This host is not paired');
     return;
   }
   unawaited(
@@ -51,7 +51,7 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
         .where((item) => item.id == intent.workspaceId)
         .firstOrNull;
     if (workspace == null) {
-      _showMessage('The Workspace Is No Longer Available');
+      _showMessage('The workspace is no longer available');
       return;
     }
     var terminalExists = false;
@@ -74,10 +74,10 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
       ),
     );
     if (intent.shouldOpenTerminal && !terminalExists) {
-      _showMessage('The Terminal Is No Longer Available');
+      _showMessage('The terminal is no longer available');
     }
   } on Object {
-    _showMessage('Open The Host To Refresh This Notification');
+    _showMessage('Open the host to refresh this notification');
   }
 }
 

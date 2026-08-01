@@ -18,13 +18,13 @@ Widget aleraHoverCardPreview() => AleraHoverCard(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Weekly Quota'),
+        Text('Weekly quota'),
         SizedBox(height: AleraTokens.space8),
         LinearProgressIndicator(value: 0.72),
         SizedBox(height: AleraTokens.space6),
-        Text('72% Left - Resets In 1d 3h'),
+        Text('72% left - resets in 1d 3h'),
       ],
     ),
   ),
-  child: const Text('Hover Or Click For Details'),
+  child: const Text('Hover or click for details'),
 );

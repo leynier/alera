@@ -27,10 +27,10 @@ class BrowserPageBody extends StatelessWidget {
         color: AleraTokens.bg,
         child: AleraEmptyState(
           icon: AleraIcons.insecure,
-          title: 'Browser Engine Unavailable',
+          title: 'Browser engine unavailable',
           message:
               state.capabilityReason ??
-              'This Platform Does Not Meet The Browser Capability Gate.',
+              'This platform does not meet the browser capability gate.',
           action: onOpenExternally == null
               ? null
               : OutlinedButton.icon(
@@ -47,10 +47,10 @@ class BrowserPageBody extends StatelessWidget {
         color: AleraTokens.bg,
         child: AleraEmptyState(
           icon: AleraIcons.error,
-          title: 'Page Could Not Be Loaded',
+          title: 'Page could not be loaded',
           message:
               state.error?.message ??
-              'Check The Address And Your Connection, Then Try Again.',
+              'Check the address and your connection, then try again.',
           action: Wrap(
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
@@ -78,7 +78,7 @@ class BrowserPageBody extends StatelessWidget {
         child: AleraEmptyState(
           icon: AleraIcons.public,
           title: 'Start Browsing',
-          message: 'Search Or Enter An Address In The Bar Above.',
+          message: 'Search or enter an address in the bar above.',
         ),
       );
     }

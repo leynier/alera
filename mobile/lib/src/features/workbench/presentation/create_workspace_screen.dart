@@ -190,7 +190,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     } on Object catch (error) {
       if (mounted && _projectId == projectId) {
         setState(() {
-          _error = 'Could Not Load Branches: $error';
+          _error = 'Could not load branches: $error';
         });
       }
     } finally {
@@ -265,12 +265,12 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
 
   void _showCreationMessage(WorkspaceCreationResult creation) {
     final message = creation.setupLaunchError != null
-        ? 'Workspace Created, But Setup Could Not Start'
+        ? 'Workspace created, but setup could not start'
         : creation.hasSetupWarnings
-        ? 'Workspace Created With Setup Warnings'
+        ? 'Workspace created with setup warnings'
         : creation.parentLinkError != null
-        ? 'Workspace Created, But Parent Link Failed'
-        : 'Workspace Created';
+        ? 'Workspace created, but parent link failed'
+        : 'Workspace created';
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

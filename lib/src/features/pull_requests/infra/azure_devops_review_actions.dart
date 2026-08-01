@@ -20,7 +20,7 @@ mixin _AzureDevOpsReviewActions {
     if (method == ReviewMergeMethod.rebase ||
         method == ReviewMergeMethod.providerDefault) {
       throw const ForgeRequestFailed(
-        'Azure DevOps Does Not Support Rebase and Merge Through Its CLI.',
+        'Azure DevOps does not support rebase and merge through its CLI.',
       );
     }
     final provider = this as AzureDevOpsForgeProvider;

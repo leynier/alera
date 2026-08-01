@@ -169,7 +169,7 @@ class _ProjectsCard extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceMd),
             _KeyValue(label: 'Total', value: projects.length.toString()),
             if (projects.isEmpty)
-              const _MutedText('No Projects')
+              const _MutedText('No projects')
             else
               for (final project in projects.take(AleraTokens.previewRowLimit))
                 _ProjectRow(
@@ -241,7 +241,7 @@ class _WorkspacesCard extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceMd),
             _KeyValue(label: 'Total', value: workspaces.length.toString()),
             if (workspaces.isEmpty)
-              const _MutedText('No Workspaces')
+              const _MutedText('No workspaces')
             else
               for (final workspace in workspaces.take(
                 AleraTokens.previewRowLimit,
@@ -284,7 +284,7 @@ class _ErrorState extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Text(
-              'Connection Failed',
+              'Connection failed',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AleraTokens.spaceSm),

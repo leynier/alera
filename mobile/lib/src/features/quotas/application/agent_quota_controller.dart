@@ -16,7 +16,7 @@ class AgentQuotaController extends _$AgentQuotaController {
       hostConnectionControllerProvider(hostId).future,
     );
     if (!client.supportsAgentQuotas) {
-      throw UnsupportedError('Update The Runtime To View Quotas.');
+      throw UnsupportedError('Update the runtime to view quotas.');
     }
     final timer = Timer(mobileQuotaRefreshInterval, ref.invalidateSelf);
     ref.onDispose(timer.cancel);
@@ -38,7 +38,7 @@ class AgentQuotaController extends _$AgentQuotaController {
       hostConnectionControllerProvider(hostId).future,
     );
     if (!client.supportsAgentQuotaClaudeTui) {
-      throw UnsupportedError('Update The Runtime To Try Claude With TUI.');
+      throw UnsupportedError('Update the runtime to try Claude with TUI.');
     }
     final updated = await client.fetchClaudeQuotaViaTui(
       accountId: snapshot.accountId,
@@ -78,13 +78,13 @@ class AgentQuotaController extends _$AgentQuotaController {
   ) async {
     final credits = snapshot.rateLimitResetCredits;
     if (credits == null || !credits.canConsume) {
-      throw StateError('No Codex Reset Credit Is Available.');
+      throw StateError('No Codex reset credit is available.');
     }
     final client = await ref.read(
       hostConnectionControllerProvider(hostId).future,
     );
     if (!client.supportsCodexResetCredits) {
-      throw UnsupportedError('Update The Runtime To Use Codex Resets.');
+      throw UnsupportedError('Update the runtime to use Codex resets.');
     }
     final result = await client.consumeCodexResetCredit(credits.offerRevision);
     final previous = state.value;

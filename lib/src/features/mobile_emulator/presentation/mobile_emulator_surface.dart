@@ -185,7 +185,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
           _session = session;
           _loading = session.state == 'starting';
           _error = session.state == 'failed'
-              ? 'The Mobile Emulator Failed To Start.'
+              ? 'The mobile emulator failed to start.'
               : null;
         });
       }
@@ -285,9 +285,9 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
             _loading = false;
             _error = const MobileEmulatorException(
               code: 'playback_unstable',
-              message: 'The Mobile Emulator Stream Became Unstable.',
+              message: 'The mobile emulator stream became unstable.',
               nextSteps: <String>[
-                'The Android Device Was Left Running. Select Retry To Reconnect.',
+                'The Android device was left running. Select Retry to reconnect.',
               ],
             );
           });
@@ -339,7 +339,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
             _session = null;
             _error = const MobileEmulatorException(
               code: 'emulator_stopped',
-              message: 'The Mobile Emulator Was Stopped.',
+              message: 'The mobile emulator was stopped.',
             );
           });
         }

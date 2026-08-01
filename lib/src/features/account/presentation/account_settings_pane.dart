@@ -38,7 +38,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
   @override
   Widget build(BuildContext context) {
     ref.listen(aleraAccountSignInFailureProvider, (_, next) {
-      next.whenData((message) => _showError('Sign In Failed: $message'));
+      next.whenData((message) => _showError('Sign in failed: $message'));
     });
     ref.listen(aleraAccountActionsProvider, (_, next) {
       if (next case AsyncError(:final error)) {
@@ -52,7 +52,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => AleraEmptyState(
         icon: AleraIcons.account,
-        title: 'Account Unavailable',
+        title: 'Account unavailable',
         message: _cleanError(error),
       ),
       data: (value) => SingleChildScrollView(

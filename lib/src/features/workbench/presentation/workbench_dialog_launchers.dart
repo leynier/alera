@@ -77,13 +77,13 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         }
         AleraToast.show(
           context,
-          message: 'Project Added',
+          message: 'Project added',
           tone: AleraToastTone.success,
         );
       case CloneProjectResult():
         await _runWithProgress(
           context,
-          message: 'Cloning Repository…',
+          message: 'Cloning repository…',
           action: () => controller.cloneProject(
             gitUrl: result.gitUrl,
             destinationPath: result.destinationPath,
@@ -95,7 +95,7 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         }
         AleraToast.show(
           context,
-          message: 'Project Cloned',
+          message: 'Project cloned',
           tone: AleraToastTone.success,
         );
     }
@@ -151,7 +151,7 @@ class _RenameDialogState extends State<_RenameDialog> {
   void _submit() {
     final value = _controller.text.trim();
     if (value.isEmpty) {
-      setState(() => _errorText = '${widget.labelText} Is Required');
+      setState(() => _errorText = '${widget.labelText} is required');
       return;
     }
     Navigator.of(context).pop(value);
@@ -392,7 +392,7 @@ void _showWorkspaceCreationToast(
     AleraToast.show(
       context,
       message:
-          'Workspace Created With Setup Warnings: ${result.setupReport.summary}',
+          'Workspace created with setup warnings: ${result.setupReport.summary}',
       tone: AleraToastTone.error,
       duration: const Duration(seconds: 6),
     );
@@ -401,7 +401,7 @@ void _showWorkspaceCreationToast(
   if (result.hasParentLinkError) {
     AleraToast.show(
       context,
-      message: 'Workspace Created, But Parent Link Failed',
+      message: 'Workspace created, but parent link failed',
       tone: AleraToastTone.error,
       duration: const Duration(seconds: 6),
     );
@@ -409,7 +409,7 @@ void _showWorkspaceCreationToast(
   }
   AleraToast.show(
     context,
-    message: 'Workspace Created',
+    message: 'Workspace created',
     tone: AleraToastTone.success,
   );
 }
