@@ -30,3 +30,21 @@ fn prompt_settings_override_the_global_agent_and_model() {
         .windows(2)
         .any(|values| values == ["--mode", "rush"]));
 }
+
+#[test]
+fn operation_reasoning_overrides_global_reasoning() {
+    let settings = RuntimeAiTextGenerationSettings {
+        selected_thinking_by_model: HashMap::from([("gpt-5.5".to_string(), "low".to_string())]),
+        selected_thinking_by_operation: HashMap::from([(
+            "workspaceIdentity".to_string(),
+            HashMap::from([("gpt-5.5".to_string(), "high".to_string())]),
+        )]),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let workspace_plan = plan_command(&settings, "workspaceIdentity", "hello").unwrap();
+    assert!(workspace_plan
+        .arguments
+        .windows(2)
+        .any(|values| values == ["-c", "model_reasoning_effort=high"]));
+}

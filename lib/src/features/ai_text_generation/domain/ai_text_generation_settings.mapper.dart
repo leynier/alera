@@ -687,8 +687,8 @@ class AiTextGenerationSettingsMapper
         _instance = AiTextGenerationSettingsMapper._(),
       );
       AiTextGenerationAgentMapper.ensureInitialized();
-      AiTextDiscoveredModelMapper.ensureInitialized();
       AiTextGenerationOperationMapper.ensureInitialized();
+      AiTextDiscoveredModelMapper.ensureInitialized();
       AiTextGenerationPromptSettingsMapper.ensureInitialized();
     }
     return _instance!;
@@ -729,6 +729,19 @@ class AiTextGenerationSettingsMapper
     _$selectedThinkingByModel,
     opt: true,
     def: const <String, String>{},
+  );
+  static Map<AiTextGenerationOperation, Map<String, String>>
+  _$selectedThinkingByOperation(AiTextGenerationSettings v) =>
+      v.selectedThinkingByOperation;
+  static const Field<
+    AiTextGenerationSettings,
+    Map<AiTextGenerationOperation, Map<String, String>>
+  >
+  _f$selectedThinkingByOperation = Field(
+    'selectedThinkingByOperation',
+    _$selectedThinkingByOperation,
+    opt: true,
+    def: const <AiTextGenerationOperation, Map<String, String>>{},
   );
   static Map<AiTextGenerationAgent, List<AiTextDiscoveredModel>>
   _$discoveredModelsByAgent(AiTextGenerationSettings v) =>
@@ -803,6 +816,7 @@ class AiTextGenerationSettingsMapper
     #agent: _f$agent,
     #selectedModelByAgent: _f$selectedModelByAgent,
     #selectedThinkingByModel: _f$selectedThinkingByModel,
+    #selectedThinkingByOperation: _f$selectedThinkingByOperation,
     #discoveredModelsByAgent: _f$discoveredModelsByAgent,
     #discoveredDefaultModelByAgent: _f$discoveredDefaultModelByAgent,
     #customCommand: _f$customCommand,
@@ -817,6 +831,7 @@ class AiTextGenerationSettingsMapper
       agent: data.dec(_f$agent),
       selectedModelByAgent: data.dec(_f$selectedModelByAgent),
       selectedThinkingByModel: data.dec(_f$selectedThinkingByModel),
+      selectedThinkingByOperation: data.dec(_f$selectedThinkingByOperation),
       discoveredModelsByAgent: data.dec(_f$discoveredModelsByAgent),
       discoveredDefaultModelByAgent: data.dec(_f$discoveredDefaultModelByAgent),
       customCommand: data.dec(_f$customCommand),
@@ -907,6 +922,13 @@ abstract class AiTextGenerationSettingsCopyWith<
   get selectedThinkingByModel;
   MapCopyWith<
     $R,
+    AiTextGenerationOperation,
+    Map<String, String>,
+    ObjectCopyWith<$R, Map<String, String>, Map<String, String>>
+  >
+  get selectedThinkingByOperation;
+  MapCopyWith<
+    $R,
     AiTextGenerationAgent,
     List<AiTextDiscoveredModel>,
     ObjectCopyWith<$R, List<AiTextDiscoveredModel>, List<AiTextDiscoveredModel>>
@@ -942,6 +964,8 @@ abstract class AiTextGenerationSettingsCopyWith<
     AiTextGenerationAgent? agent,
     Map<AiTextGenerationAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
+    Map<AiTextGenerationOperation, Map<String, String>>?
+    selectedThinkingByOperation,
     Map<AiTextGenerationAgent, List<AiTextDiscoveredModel>>?
     discoveredModelsByAgent,
     Map<AiTextGenerationAgent, String>? discoveredDefaultModelByAgent,
@@ -983,6 +1007,18 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     $value.selectedThinkingByModel,
     (v, t) => ObjectCopyWith(v, $identity, t),
     (v) => call(selectedThinkingByModel: v),
+  );
+  @override
+  MapCopyWith<
+    $R,
+    AiTextGenerationOperation,
+    Map<String, String>,
+    ObjectCopyWith<$R, Map<String, String>, Map<String, String>>
+  >
+  get selectedThinkingByOperation => MapCopyWith(
+    $value.selectedThinkingByOperation,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(selectedThinkingByOperation: v),
   );
   @override
   MapCopyWith<
@@ -1042,6 +1078,8 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     AiTextGenerationAgent? agent,
     Map<AiTextGenerationAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
+    Map<AiTextGenerationOperation, Map<String, String>>?
+    selectedThinkingByOperation,
     Map<AiTextGenerationAgent, List<AiTextDiscoveredModel>>?
     discoveredModelsByAgent,
     Map<AiTextGenerationAgent, String>? discoveredDefaultModelByAgent,
@@ -1058,6 +1096,8 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
         #selectedModelByAgent: selectedModelByAgent,
       if (selectedThinkingByModel != null)
         #selectedThinkingByModel: selectedThinkingByModel,
+      if (selectedThinkingByOperation != null)
+        #selectedThinkingByOperation: selectedThinkingByOperation,
       if (discoveredModelsByAgent != null)
         #discoveredModelsByAgent: discoveredModelsByAgent,
       if (discoveredDefaultModelByAgent != null)
@@ -1081,6 +1121,10 @@ class _AiTextGenerationSettingsCopyWithImpl<$R, $Out>
     selectedThinkingByModel: data.get(
       #selectedThinkingByModel,
       or: $value.selectedThinkingByModel,
+    ),
+    selectedThinkingByOperation: data.get(
+      #selectedThinkingByOperation,
+      or: $value.selectedThinkingByOperation,
     ),
     discoveredModelsByAgent: data.get(
       #discoveredModelsByAgent,

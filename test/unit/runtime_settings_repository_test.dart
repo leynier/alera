@@ -15,7 +15,18 @@ void main() {
         legacyRepository: _MemorySettingsRepository(),
       );
 
-      await repository.save(AleraSettings.defaults);
+      await repository.save(
+        AleraSettings.defaults.copyWith(
+          aiTextGeneration: const AiTextGenerationSettings(
+            selectedThinkingByOperation:
+                <AiTextGenerationOperation, Map<String, String>>{
+                  AiTextGenerationOperation.commitMessage: <String, String>{
+                    'gpt-5.5': 'high',
+                  },
+                },
+          ),
+        ),
+      );
 
       final payload = client.payloads['runtimeSettings.update']!.single;
       expect(payload['agentStatusHooks'], isA<Map<String, Object?>>());
@@ -25,6 +36,9 @@ void main() {
       final aiText = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiText['agent'], 'codex');
       expect(aiText['promptSettingsByOperation'], isA<Map<String, Object?>>());
+      expect(aiText['selectedThinkingByOperation'], <String, Object?>{
+        'commitMessage': <String, String>{'gpt-5.5': 'high'},
+      });
       expect(aiText, isNot(contains('discoveredModelsByAgent')));
       expect(
         (payload['agentQuotas']! as Map<String, Object?>)['enabledProviders'],
@@ -131,6 +145,9 @@ void main() {
           'enabled': true,
           'agent': 'claude',
           'selectedModelByAgent': <String, String>{'claude': 'opus'},
+          'selectedThinkingByOperation': <String, Object?>{
+            'workspaceIdentity': <String, String>{'opus': 'high'},
+          },
           'instructionsByOperation': <String, String>{
             'workspaceIdentity': 'Use feature branches.',
           },
@@ -168,6 +185,13 @@ void main() {
           AiTextGenerationOperation.workspaceIdentity,
         ),
         'opus',
+      );
+      expect(
+        loaded.aiTextGeneration.thinkingForOperation(
+          AiTextGenerationOperation.workspaceIdentity,
+          'opus',
+        ),
+        'high',
       );
       expect(
         loaded.aiTextGeneration
