@@ -60,6 +60,7 @@ class FakeTerminalClient
         branchName: 'feat/generated-workspace',
       );
   String? deferredSetupCommand;
+  Object? linkError;
   int _createdTabs = 0;
 
   void emitEvent(String name) {
@@ -332,6 +333,10 @@ class FakeTerminalClient
     required String childWorkspaceId,
   }) async {
     calls.add('link $parentWorkspaceId $childWorkspaceId');
+    final error = linkError;
+    if (error != null) {
+      throw error;
+    }
   }
 
   @override

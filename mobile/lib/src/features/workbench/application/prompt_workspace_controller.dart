@@ -70,13 +70,18 @@ class PromptWorkspaceState {
 @riverpod
 class PromptWorkspaceController extends _$PromptWorkspaceController {
   String? _activeOperationId;
+  String? _defaultAgentProfileId;
 
   @override
   PromptWorkspaceState build(String hostId) {
     return const PromptWorkspaceState();
   }
 
-  Future<void> selectProject(String projectId) async {
+  Future<void> selectProject(
+    String projectId, {
+    String? defaultAgentProfileId,
+  }) async {
+    _defaultAgentProfileId = defaultAgentProfileId;
     state = state.copyWith(
       projectId: projectId,
       branches: const <String>[],
@@ -104,7 +109,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         branches: branches,
         sourceBranch: _defaultBranch(branches),
         profiles: profiles,
-        profileId: state.profileId ?? profiles.firstOrNull?.id,
+        profileId: state.profileId ?? _preferredProfileId(profiles),
         loading: false,
       );
     } on Object catch (error) {
@@ -128,6 +133,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   Future<void> create({
     required String prompt,
     required Set<String> workspaceBranches,
+    String? parentWorkspaceId,
   }) async {
     final projectId = state.projectId;
     final sourceBranch = state.sourceBranch;
@@ -187,14 +193,16 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
             name: identity.workspaceName,
           );
           creation = created;
-          if (created.hasDeferredSetup) {
-            final terminalClient = await ref.read(
-              terminalClientProvider(hostId).future,
-            );
-            creation = await launchDeferredWorkspaceSetup(
-              terminalClient,
-              created,
-            );
+          final parentId = parentWorkspaceId?.trim();
+          if (parentId != null && parentId.isNotEmpty) {
+            try {
+              await client.linkWorkspaces(
+                parentWorkspaceId: parentId,
+                childWorkspaceId: created.workspace.id,
+              );
+            } on Object catch (error) {
+              creation = created.withParentLinkError(error);
+            }
           }
           break;
         } on Object catch (error) {
@@ -217,7 +225,19 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         profileId: profileId,
         prompt: prompt.trim(),
       );
+      var completedCreation = creation;
+      if (creation.hasDeferredSetup) {
+        state = state.copyWith(phase: 'Starting Setup');
+        final terminalClient = await ref.read(
+          terminalClientProvider(hostId).future,
+        );
+        completedCreation = await launchDeferredWorkspaceSetup(
+          terminalClient,
+          creation,
+        );
+      }
       state = state.copyWith(
+        creation: completedCreation,
         loading: false,
         agentTabId: launch.tabId,
         clearPhase: true,
@@ -249,7 +269,19 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         profileId: profileId,
         prompt: prompt.trim(),
       );
+      var completedCreation = creation;
+      if (creation.hasDeferredSetup) {
+        state = state.copyWith(phase: 'Starting Setup');
+        final terminalClient = await ref.read(
+          terminalClientProvider(hostId).future,
+        );
+        completedCreation = await launchDeferredWorkspaceSetup(
+          terminalClient,
+          creation,
+        );
+      }
       state = state.copyWith(
+        creation: completedCreation,
         loading: false,
         agentTabId: launch.tabId,
         clearPhase: true,
@@ -294,6 +326,18 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       }
     }
     return branches.firstOrNull;
+  }
+
+  String? _preferredProfileId(List<AgentProfileSummary> profiles) {
+    final defaultId = _defaultAgentProfileId;
+    if (defaultId != null) {
+      for (final profile in profiles) {
+        if (profile.id == defaultId) {
+          return profile.id;
+        }
+      }
+    }
+    return profiles.firstOrNull?.id;
   }
 
   bool _looksLikeCollision(Object error) {

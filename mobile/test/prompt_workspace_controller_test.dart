@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,6 +50,69 @@ void main() {
           'launchAgentProfile created profile-1 Add offline support',
         ]),
       );
+    },
+  );
+
+  test(
+    'Uses the configured profile, links the parent, and starts Setup after Agent',
+    () async {
+      final client = FakeTerminalClient()
+        ..projectBranches = const <String>['main']
+        ..agentProfiles = const <AgentProfileSummary>[
+          AgentProfileSummary(
+            id: 'profile-1',
+            name: 'Codex',
+            agentType: 'codex',
+          ),
+          AgentProfileSummary(
+            id: 'profile-2',
+            name: 'Claude Code',
+            agentType: 'claude',
+          ),
+        ]
+        ..deferredSetupCommand = '/bin/sh "/runtime/setup.sh"'
+        ..linkError = StateError('Parent link rejected');
+      final container = ProviderContainer(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        promptWorkspaceControllerProvider('host-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      final controller = container.read(
+        promptWorkspaceControllerProvider('host-1').notifier,
+      );
+
+      await controller.selectProject(
+        'project-1',
+        defaultAgentProfileId: 'profile-2',
+      );
+      expect(
+        container.read(promptWorkspaceControllerProvider('host-1')).profileId,
+        'profile-2',
+      );
+
+      await controller.create(
+        prompt: 'Add offline support',
+        workspaceBranches: const <String>{},
+        parentWorkspaceId: 'parent-1',
+      );
+      final state = container.read(promptWorkspaceControllerProvider('host-1'));
+
+      expect(state.creation?.parentLinkError, contains('Parent link rejected'));
+      final agentIndex = client.calls.indexOf(
+        'launchAgentProfile created profile-2 Add offline support',
+      );
+      final setupIndex = client.calls.indexOf('create created Setup');
+      expect(agentIndex, greaterThanOrEqualTo(0));
+      expect(setupIndex, greaterThan(agentIndex));
+      expect(client.calls, contains('link parent-1 created'));
     },
   );
 }

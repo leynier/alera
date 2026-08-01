@@ -33,12 +33,14 @@ class WorkspaceCreationResult {
     required this.steps,
     this.deferredSetupCommand,
     this.setupLaunchError,
+    this.parentLinkError,
   });
 
   final WorkspaceSummary workspace;
   final List<WorkspaceSetupStep> steps;
   final String? deferredSetupCommand;
   final String? setupLaunchError;
+  final String? parentLinkError;
 
   bool get hasDeferredSetup =>
       deferredSetupCommand != null && deferredSetupCommand!.trim().isNotEmpty;
@@ -52,6 +54,17 @@ class WorkspaceCreationResult {
       steps: steps,
       deferredSetupCommand: deferredSetupCommand,
       setupLaunchError: error.toString(),
+      parentLinkError: parentLinkError,
+    );
+  }
+
+  WorkspaceCreationResult withParentLinkError(Object error) {
+    return WorkspaceCreationResult(
+      workspace: workspace,
+      steps: steps,
+      deferredSetupCommand: deferredSetupCommand,
+      setupLaunchError: setupLaunchError,
+      parentLinkError: error.toString(),
     );
   }
 
@@ -63,6 +76,7 @@ class WorkspaceCreationResult {
           if (item is Map) WorkspaceSetupStep.fromJson(asJsonMap(item)),
       ],
       deferredSetupCommand: json.optionalString('deferredSetupCommand'),
+      parentLinkError: json.optionalString('parentLinkError'),
     );
   }
 }

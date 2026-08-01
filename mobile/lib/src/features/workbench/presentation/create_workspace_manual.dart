@@ -5,23 +5,21 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
-        DropdownButtonFormField<String>(
-          initialValue: _projectId,
-          decoration: const InputDecoration(labelText: 'Project'),
-          items: <DropdownMenuItem<String>>[
+        AleraDropdownField<String>(
+          value: _projectId,
+          labelText: 'Project',
+          hintText: 'Select Project',
+          entries: <AleraDropdownFieldEntry<String>>[
             for (final project in _orderedProjects)
-              DropdownMenuItem<String>(
+              AleraDropdownFieldEntry<String>(
                 value: project.id,
-                child: Text(project.name, overflow: TextOverflow.ellipsis),
+                label: project.name,
               ),
           ],
-          onChanged: _creating
-              ? null
-              : (value) {
-                  if (value != null) {
-                    _selectProject(value);
-                  }
-                },
+          enabled: !_creating,
+          filterable: true,
+          filterHintText: 'Search Projects',
+          onChanged: _selectProject,
         ),
         const SizedBox(height: AleraTokens.spaceLg),
         TextField(
@@ -51,23 +49,22 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           if (_loadingBranches)
             const Center(child: CircularProgressIndicator())
           else
-            DropdownButtonFormField<String>(
-              initialValue: _sourceBranch,
-              decoration: const InputDecoration(labelText: 'Source Branch'),
-              items: <DropdownMenuItem<String>>[
+            AleraDropdownField<String>(
+              value: _sourceBranch,
+              labelText: 'Source Branch',
+              hintText: _loadingBranches ? 'Loading Branches' : 'Select Branch',
+              entries: <AleraDropdownFieldEntry<String>>[
                 for (final branch in _branches)
-                  DropdownMenuItem<String>(
-                    value: branch,
-                    child: Text(branch, overflow: TextOverflow.ellipsis),
-                  ),
+                  AleraDropdownFieldEntry<String>(value: branch, label: branch),
               ],
-              onChanged: _creating
-                  ? null
-                  : (value) {
-                      _update(() {
-                        _sourceBranch = value;
-                      });
-                    },
+              enabled: !_creating && !_loadingBranches,
+              filterable: true,
+              filterHintText: 'Search Branches',
+              onChanged: (value) {
+                _update(() {
+                  _sourceBranch = value;
+                });
+              },
             ),
         ],
         const SizedBox(height: AleraTokens.spaceLg),
@@ -79,28 +76,29 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
           ),
         ),
         const SizedBox(height: AleraTokens.spaceLg),
-        DropdownButtonFormField<String?>(
-          initialValue: _parentWorkspaceId,
-          decoration: const InputDecoration(labelText: 'Parent Workspace'),
-          items: <DropdownMenuItem<String?>>[
-            const DropdownMenuItem<String?>(
+        AleraDropdownField<String?>(
+          value: _parentWorkspaceId,
+          labelText: 'Parent Workspace',
+          hintText: 'Select Parent Workspace',
+          entries: <AleraDropdownFieldEntry<String?>>[
+            const AleraDropdownFieldEntry<String?>(
               value: null,
-              child: Text('No Parent'),
+              label: 'No Parent',
             ),
             for (final workspace in _orderedParentWorkspaces)
-              if (workspace.projectId == _projectId)
-                DropdownMenuItem<String?>(
-                  value: workspace.id,
-                  child: Text(workspace.name, overflow: TextOverflow.ellipsis),
-                ),
+              AleraDropdownFieldEntry<String?>(
+                value: workspace.id,
+                label: _parentWorkspaceLabel(workspace),
+              ),
           ],
-          onChanged: _creating
-              ? null
-              : (value) {
-                  _update(() {
-                    _parentWorkspaceId = value;
-                  });
-                },
+          enabled: !_creating,
+          filterable: true,
+          filterHintText: 'Search Workspaces',
+          onChanged: (value) {
+            _update(() {
+              _parentWorkspaceId = value;
+            });
+          },
         ),
         if (_error != null) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
