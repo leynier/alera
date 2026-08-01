@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart' as xterm;
@@ -262,9 +264,13 @@ final class _LogicalTerminalLine {
     final spans = <_CharacterCellSpan>[];
     for (var currentRow = startRow; currentRow <= endRow; currentRow += 1) {
       final line = buffer.lines[currentRow];
-      final segmentEnd = currentRow < endRow
-          ? buffer.viewWidth
-          : line.getTrimmedLength(buffer.viewWidth);
+      // A resize can leave a wrapped row shorter than the current viewport.
+      final segmentEnd = min(
+        line.length,
+        currentRow < endRow
+            ? buffer.viewWidth
+            : line.getTrimmedLength(buffer.viewWidth),
+      );
       for (var column = 0; column < segmentEnd; column += 1) {
         final codePoint = line.getCodePoint(column);
         final width = line.getWidth(column);
