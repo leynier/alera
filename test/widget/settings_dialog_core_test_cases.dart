@@ -8,8 +8,6 @@ void _registerSettingsDialogCoreTests() {
     Size surfaceSize = const Size(1200, 900),
     SystemFontService? fontService,
     AiTextModelDiscoveryService? modelDiscoveryService,
-    String initialSectionId = 'application',
-    String? initialProjectId,
     List<dynamic> extraOverrides = const <dynamic>[],
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
@@ -46,10 +44,7 @@ void _registerSettingsDialogCoreTests() {
         container: container,
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
-          home: SettingsDialog(
-            initialSectionId: initialSectionId,
-            initialProjectId: initialProjectId,
-          ),
+          home: const SettingsDialog(),
         ),
       ),
     );
@@ -185,51 +180,6 @@ void _registerSettingsDialogCoreTests() {
     expect(saved.worktree.copy.single.to, '.env.local');
     expect(saved.worktree.copy.single.overwrite, isTrue);
     expect(saved.worktree.setup, <String>['pnpm install']);
-  });
-
-  testWidgets('opens project settings with the requested project selected', (
-    tester,
-  ) async {
-    final projects = <Project>[
-      Project(
-        id: 'project-1',
-        name: 'First Project',
-        repoPath: '/repo/first',
-        createdAt: DateTime.utc(2026, 6, 27),
-        updatedAt: DateTime.utc(2026, 6, 27),
-      ),
-      Project(
-        id: 'project-2',
-        name: 'Second Project',
-        repoPath: '/repo/second',
-        createdAt: DateTime.utc(2026, 6, 27),
-        updatedAt: DateTime.utc(2026, 6, 27),
-      ),
-    ];
-    final configRepository = FakeProjectConfigRepository();
-    addTearDown(configRepository.dispose);
-    final configService = ProjectConfigService(
-      repository: configRepository,
-      fileStore: FakeProjectConfigFileStore(),
-      now: () => DateTime.utc(2026, 6, 27),
-    );
-
-    await pumpSettingsDialogLocal(
-      tester,
-      initialSectionId: 'projects',
-      initialProjectId: 'project-2',
-      extraOverrides: <dynamic>[
-        projectRepositoryProvider.overrideWithValue(
-          _FakeProjectRepository(projects),
-        ),
-        projectConfigServiceProvider.overrideWithValue(configService),
-      ],
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Projects'), findsWidgets);
-    expect(find.text('/repo/second'), findsOneWidget);
-    expect(find.text('/repo/first'), findsNothing);
   });
 
   testWidgets('clears dirty project setup edits when using repo file', (
