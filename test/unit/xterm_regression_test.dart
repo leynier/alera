@@ -39,6 +39,26 @@ void main() {
     terminal.resize(2, 4);
   });
 
+  test('xterm keeps reflowed scrollback aligned after a circular trim', () {
+    final terminal = Terminal(maxLines: 100);
+
+    terminal.resize(10, 3);
+    for (var i = 0; i < 20; i++) {
+      terminal.write('line $i\r\n');
+    }
+    terminal
+      ..write('\x1b[?25l')
+      ..resize(10, 8)
+      ..write('\x1b[?25h')
+      ..resize(808, 8);
+
+    for (var i = 0; i < terminal.buffer.lines.length; i++) {
+      expect(terminal.buffer.lines[i].length, 808);
+    }
+    terminal.setCursor(807, terminal.buffer.lines.length - 1);
+    expect(() => terminal.write('x'), returnsNormally);
+  });
+
   test(
     'xterm handles line feeds at the bottom of a scroll region after resize',
     () {

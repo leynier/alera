@@ -28,6 +28,19 @@ void main() {
     tester,
   ) async {
     final runtime = FakeCommandTerminalRuntime(running: false);
+    String? clipboardText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final arguments = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = arguments['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
     await tester.pumpWidget(
       ProviderScope(
         overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
@@ -42,6 +55,11 @@ void main() {
         ),
       ),
     );
+
+    await tester.tap(find.text('Copy'));
+    await tester.pump();
+    expect(clipboardText, contains('--skill alera-cli --global'));
+    expect(runtime.lastTab, isNull);
 
     final mouse = await tester.createGesture(
       kind: PointerDeviceKind.mouse,
@@ -65,6 +83,14 @@ void main() {
     await tester.tap(find.text('bunx').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.tap(find.text('Copy'));
+    await tester.pump();
+    expect(
+      clipboardText,
+      'bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
+    );
+    expect(runtime.lastTab, isNull);
 
     await tester.tap(find.text('Install / Update'));
     await tester.pumpAndSettle();
@@ -195,9 +221,10 @@ void main() {
     expect(runtime.lastTab?.initialCommand, contains('--skill computer-use'));
   });
 
-  testWidgets('all skills control installs every skill and reapplies hooks', (
+  testWidgets('all skills control runs every skill in the embedded terminal', (
     tester,
   ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
     final service = _FakeAleraCliSkillService();
     final reconciler = _FakeHookReconciler();
     final settings = AleraSettings.defaults.copyWith(
@@ -208,6 +235,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          terminalRuntimeProvider.overrideWithValue(runtime),
           aleraCliSkillServiceProvider.overrideWithValue(service),
           agentHookReconciliationServiceProvider.overrideWithValue(reconciler),
           settingsControllerProvider.overrideWithValue(settings),
@@ -222,13 +250,24 @@ void main() {
     await tester.tap(find.text('Install / Update All'));
     await tester.pumpAndSettle();
 
-    expect(service.skills, AleraAgentSkill.values);
+    expect(find.text('Install All Alera Skills'), findsOneWidget);
+    final command = runtime.lastTab?.initialCommand;
+    expect(command, isNotNull);
+    for (final skill in AleraAgentSkill.values) {
+      expect(command, contains('--skill ${skill.name} --global'));
+    }
+    expect(command, isNot(contains('\n')));
+    expect(service.skills, isEmpty);
+    expect(reconciler.settings, isNull);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
     expect(reconciler.settings?.codex, isTrue);
-    expect(find.text('All 4 Alera Skills Installed / Updated'), findsOneWidget);
-    expect(find.text('View Output'), findsOneWidget);
+    expect(find.text('Selected Hooks Ready'), findsOneWidget);
   });
 
-  testWidgets('a failed install exposes the untruncated output', (
+  testWidgets('all skills control copies without opening the terminal', (
     tester,
   ) async {
     String? clipboardText;
@@ -244,68 +283,25 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null);
     });
-    const missingModule = "Error: Cannot find module 'C:\\shim\\npx-cli.js'";
-    final service = _FakeAleraCliSkillService(
-      failure: const AleraCliSkillInstallAttempt(
-        runner: AleraCliSkillRunner.npx,
-        exitCode: 1,
-        stdout: 'npm warn exec downloading skills',
-        stderr:
-            'node:internal/modules/cjs/loader:1424\n'
-            '        throw err;\n'
-            '$missingModule',
-      ),
-    );
-    // The all-skills control is the one that still installs in process, because
-    // it is more than one command and also reconciles hooks in Dart.
+    final runtime = FakeCommandTerminalRuntime(running: false);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          aleraCliSkillServiceProvider.overrideWithValue(service),
-          agentHookReconciliationServiceProvider.overrideWithValue(
-            _FakeHookReconciler(),
-          ),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
-        ],
+        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
         child: MaterialApp(
           theme: buildAleraDarkTheme(),
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: AleraAllSkillsControl(),
-            ),
-          ),
+          home: const Scaffold(body: AleraAllSkillsControl()),
         ),
       ),
     );
 
-    expect(find.text('View Output'), findsNothing);
-
-    await tester.tap(find.text('Install / Update All'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('0 Of 4 Alera Skills Installed / Updated'),
-      findsOneWidget,
-      reason: 'the row shows a one-line summary',
-    );
-
-    await tester.tap(find.text('View Output'));
-    await tester.pumpAndSettle();
-
-    // The line that names the failure is the third one, and the settings row
-    // can never show it.
-    expect(find.textContaining(missingModule), findsOneWidget);
-    expect(
-      find.textContaining('npm warn exec downloading skills'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.text('Copy Output'));
+    await tester.tap(find.text('Copy'));
     await tester.pump();
 
-    expect(clipboardText, contains(missingModule));
-    expect(clipboardText, contains('npm warn exec downloading skills'));
+    expect(clipboardText, isNotNull);
+    for (final skill in AleraAgentSkill.values) {
+      expect(clipboardText, contains('--skill ${skill.name} --global'));
+    }
+    expect(runtime.lastTab, isNull);
   });
 
   testWidgets('registration control surfaces install failures', (tester) async {
@@ -342,15 +338,12 @@ void main() {
 }
 
 class _FakeAleraCliSkillService extends AleraCliSkillService {
-  _FakeAleraCliSkillService({this.failure})
+  _FakeAleraCliSkillService()
     : super(
         processRunner: _NoopProcessRunner(),
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
       );
 
-  final AleraCliSkillInstallAttempt? failure;
-  AleraCliSkillRunner? runner;
-  AleraAgentSkill? skill;
   final List<AleraAgentSkill> skills = <AleraAgentSkill>[];
 
   @override
@@ -358,8 +351,6 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,
     AleraAgentSkill skill = AleraAgentSkill.cli,
   }) async {
-    this.runner = runner;
-    this.skill = skill;
     skills.add(skill);
     final attemptRunner = runner == AleraCliSkillRunner.auto
         ? AleraCliSkillRunner.npx
@@ -368,13 +359,12 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
       runner: runner,
       skill: skill,
       attempts: <AleraCliSkillInstallAttempt>[
-        failure ??
-            AleraCliSkillInstallAttempt(
-              runner: attemptRunner,
-              exitCode: 0,
-              stdout: 'ok',
-              stderr: '',
-            ),
+        AleraCliSkillInstallAttempt(
+          runner: attemptRunner,
+          exitCode: 0,
+          stdout: 'ok',
+          stderr: '',
+        ),
       ],
     );
   }
