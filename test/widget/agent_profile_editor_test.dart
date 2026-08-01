@@ -88,6 +88,40 @@ void main() {
     expect(testCommandCalls, 1);
   });
 
+  testWidgets('managed mode offers to test the current command preview', (
+    tester,
+  ) async {
+    var testCommandCalls = 0;
+    await tester.pumpWidget(
+      _EditorHarness(
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
+        onTestCommand: () => testCommandCalls++,
+      ),
+    );
+
+    await tester.tap(find.text('Test Command'));
+    await tester.pump();
+
+    expect(testCommandCalls, 1);
+  });
+
+  testWidgets('managed mode disables testing while saving', (tester) async {
+    var testCommandCalls = 0;
+    await tester.pumpWidget(
+      _EditorHarness(
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
+        saving: true,
+        onTestCommand: () => testCommandCalls++,
+      ),
+    );
+
+    final testButton = find.widgetWithText(OutlinedButton, 'Test Command');
+    expect(tester.widget<OutlinedButton>(testButton).onPressed, isNull);
+    expect(testCommandCalls, 0);
+  });
+
   testWidgets('a Claude managed profile can route through a CCS profile', (
     tester,
   ) async {
@@ -163,12 +197,14 @@ class _EditorHarness extends StatefulWidget {
     required this.launchMode,
     this.adapter = AgentType.codex,
     this.managedConfig = const <String, Object?>{},
+    this.saving = false,
     this.onTestCommand,
   });
 
   final AgentProfileLaunchMode launchMode;
   final AgentType adapter;
   final Map<String, Object?> managedConfig;
+  final bool saving;
   final VoidCallback? onTestCommand;
 
   @override
@@ -219,7 +255,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
             ],
             personas: const <ManagedAgentOption>[],
             hasSelection: true,
-            saving: false,
+            saving: widget.saving,
             onAdapterChanged: (_) {},
             onLaunchModeChanged: (_) {},
             onManagedConfigChanged: (_) {},

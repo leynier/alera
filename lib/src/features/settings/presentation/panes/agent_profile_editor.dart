@@ -69,6 +69,10 @@ class AgentProfileEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final managedCommandPreview = managedAgentCommandPreview(
+      adapter,
+      managedConfig,
+    );
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -149,17 +153,40 @@ class AgentProfileEditor extends StatelessWidget {
                   commandController: commandController,
                 ),
               ] else
-                AleraSettingRow(
-                  title: 'Command Preview',
-                  description:
-                      'The Host Quotes These Arguments For The Actual Platform Shell.',
-                  controlWidth: 320,
-                  child: SelectableText(
-                    managedAgentCommandPreview(adapter, managedConfig),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    AleraSettingRow(
+                      title: 'Command Preview',
+                      description:
+                          'The Host Quotes These Arguments For The Actual Platform Shell.',
+                      controlWidth: 320,
+                      child: SelectableText(
+                        managedCommandPreview,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: AleraTokens.space12,
+                        right: AleraTokens.space12,
+                        top: AleraTokens.space8,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed:
+                              saving || managedCommandPreview.trim().isEmpty
+                              ? null
+                              : onTestCommand,
+                          icon: const Icon(AleraIcons.terminal, size: 16),
+                          label: const Text('Test Command'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
