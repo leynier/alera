@@ -13,28 +13,14 @@ void main() {
     tester,
   ) async {
     final now = DateTime.utc(2026, 7, 29);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final profile = AgentProfile(
-      id: 'profile-1',
-      name: 'Codex Builder',
-      agentType: 'codex',
-      command: 'codex',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final preferredProfile = AgentProfile(
+    final project = _project(id: 'project-1', name: 'Alera', now: now);
+    final profile = _profile(id: 'profile-1', name: 'Codex Builder', now: now);
+    final preferredProfile = _profile(
       id: 'profile-2',
       name: 'Claude Reviewer',
       agentType: 'claude',
       command: 'claude',
-      createdAt: now,
-      updatedAt: now,
+      now: now,
     );
     PromptWorkspaceDialogResult? dialogResult;
     String? generatedPrompt;
@@ -145,24 +131,22 @@ void main() {
     expect(dialogResult?.agentTabId, 'tab-1');
   });
 
-  testWidgets('Create Another keeps the prompt dialog open and resets it', (
-    tester,
-  ) async {
+  testWidgets('Create Another preserves selections', (tester) async {
     final now = DateTime.utc(2026, 7, 30);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
+    final project = _project(id: 'project-1', name: 'Alera', now: now);
+    final profile = _profile(id: 'profile-1', name: 'Codex Builder', now: now);
+    final alternateProfile = _profile(
+      id: 'profile-2',
+      name: 'Codex Reviewer',
+      now: now,
     );
-    final profile = AgentProfile(
-      id: 'profile-1',
-      name: 'Codex Builder',
-      agentType: 'codex',
-      command: 'codex',
-      createdAt: now,
-      updatedAt: now,
+    final featureWorkspace = _workspace(
+      id: 'workspace-feature',
+      projectId: project.id,
+      name: 'Feature Workspace',
+      branch: 'feat/parent',
+      kind: WorkspaceKind.linked,
+      now: now,
     );
     var createAnotherCallbacks = 0;
 
@@ -176,11 +160,11 @@ void main() {
                   context: context,
                   builder: (_) => PromptWorkspaceDialog(
                     projects: <Project>[project],
-                    agentProfiles: <AgentProfile>[profile],
-                    loadBranches: (_) async => <String>['main'],
+                    agentProfiles: <AgentProfile>[profile, alternateProfile],
+                    loadBranches: (_) async => <String>['main', 'release'],
                     checkBranchExists: (_, _) async => false,
                     workspaceBranches: (_) => const <String>{},
-                    parentWorkspaces: const <Workspace>[],
+                    parentWorkspaces: <Workspace>[featureWorkspace],
                     generateIdentity:
                         ({
                           required operationId,
@@ -241,6 +225,21 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+
+    AleraDropdownField<T> field<T>(String label) {
+      return tester.widget<AleraDropdownField<T>>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is AleraDropdownField<T> && widget.labelText == label,
+        ),
+      );
+    }
+
+    field<String>('Source Branch').onChanged('release');
+    field<String?>('Parent Workspace').onChanged(featureWorkspace.id);
+    field<AgentProfile>('Agent Profile').onChanged(alternateProfile);
+    await tester.pump();
+
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build the first workspace',
@@ -266,33 +265,22 @@ void main() {
       isEmpty,
     );
     expect(find.text('Create Another'), findsOneWidget);
+    expect(field<Project>('Project').value, project);
+    expect(field<String>('Source Branch').value, 'release');
+    expect(field<String?>('Parent Workspace').value, featureWorkspace.id);
+    expect(field<AgentProfile>('Agent Profile').value, alternateProfile);
   });
 
   testWidgets(
     'defaults the parent to the selected project main workspace and allows changing it',
     (tester) async {
       final now = DateTime.utc(2026, 7, 30);
-      final alera = Project(
-        id: 'project-alera',
-        name: 'Alera',
-        repoPath: '/repo/alera',
-        createdAt: now,
-        updatedAt: now,
-      );
-      final orca = Project(
-        id: 'project-orca',
-        name: 'Orca',
-        repoPath: '/repo/orca',
-        createdAt: now,
-        updatedAt: now,
-      );
-      final profile = AgentProfile(
+      final alera = _project(id: 'project-alera', name: 'Alera', now: now);
+      final orca = _project(id: 'project-orca', name: 'Orca', now: now);
+      final profile = _profile(
         id: 'profile-1',
         name: 'Codex Builder',
-        agentType: 'codex',
-        command: 'codex',
-        createdAt: now,
-        updatedAt: now,
+        now: now,
       );
       final aleraMain = _workspace(
         id: 'alera-main',
@@ -447,6 +435,37 @@ void main() {
 
       expect(createdParentWorkspaceId, orcaFeature.id);
     },
+  );
+}
+
+Project _project({
+  required String id,
+  required String name,
+  required DateTime now,
+}) {
+  return Project(
+    id: id,
+    name: name,
+    repoPath: '/repo/${name.toLowerCase()}',
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+AgentProfile _profile({
+  required String id,
+  required String name,
+  String agentType = 'codex',
+  String command = 'codex',
+  required DateTime now,
+}) {
+  return AgentProfile(
+    id: id,
+    name: name,
+    agentType: agentType,
+    command: command,
+    createdAt: now,
+    updatedAt: now,
   );
 }
 
