@@ -80,8 +80,7 @@ class WorkspaceTabService {
             workspaceTabInitialCommandOncePayloadKey: true,
         },
         if (spawnOnCreate) workspaceTabSpawnOnCreatePayloadKey: true,
-        if (autoCloseOnSuccess)
-          workspaceTabAutoCloseOnSuccessPayloadKey: true,
+        if (autoCloseOnSuccess) workspaceTabAutoCloseOnSuccessPayloadKey: true,
       },
     );
     await _repository.upsertWorkspaceTab(tab);
