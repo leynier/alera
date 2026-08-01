@@ -71,6 +71,31 @@ void main() {
     expect(find.text('ccs work --model opus'), findsOneWidget);
   });
 
+  testWidgets(
+    'a Claude managed profile can allow bypass without starting in it',
+    (tester) async {
+      await tester.pumpWidget(
+        _EditorHarness(
+          adapter: AgentType.claude,
+          launchMode: AgentProfileLaunchMode.managed,
+          managedConfig: const <String, Object?>{
+            'permissionMode': 'plan',
+            'allowSkipPermissions': true,
+          },
+        ),
+      );
+
+      expect(find.text('Allow Skip Permissions'), findsOneWidget);
+      expect(
+        find.text(
+          'claude --permission-mode plan '
+          '--allow-dangerously-skip-permissions',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('only the Claude adapter offers a CCS profile', (tester) async {
     await tester.pumpWidget(
       const _EditorHarness(launchMode: AgentProfileLaunchMode.managed),

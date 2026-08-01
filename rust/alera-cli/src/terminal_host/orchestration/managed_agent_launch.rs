@@ -125,7 +125,14 @@ fn build_claude(
 ) -> Result<Option<String>, String> {
     require_known_keys(
         values,
-        &["model", "effort", "agent", "permissionMode", "ccsProfile"],
+        &[
+            "model",
+            "effort",
+            "agent",
+            "permissionMode",
+            "allowSkipPermissions",
+            "ccsProfile",
+        ],
     )?;
     let launcher = match string_value(values, "ccsProfile")? {
         None => None,
@@ -163,6 +170,14 @@ fn build_claude(
             "dontAsk",
             "plan",
         ],
+        arguments,
+    )?;
+    // Only makes bypass reachable in the session; `permissionMode` is what
+    // decides whether it starts there.
+    push_flag(
+        values,
+        "allowSkipPermissions",
+        "--allow-dangerously-skip-permissions",
         arguments,
     )?;
     Ok(launcher)
