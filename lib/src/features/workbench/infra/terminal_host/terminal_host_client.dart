@@ -27,6 +27,15 @@ part 'terminal_host_client_session_events.dart';
 part 'terminal_host_client_socket_reader.dart';
 part 'terminal_host_control_file.dart';
 
+StateError _terminalHostConnectionClosedError(Object? error) {
+  final reason = error?.toString();
+  return StateError(
+    reason == null || reason.isEmpty
+        ? 'Terminal host connection closed.'
+        : 'Terminal host connection closed: $reason',
+  );
+}
+
 final class SocketTerminalHostClient
     with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
     implements TerminalHostClient, RuntimeHostClient {
@@ -675,10 +684,9 @@ final class SocketTerminalHostClient
     if (connection.isClosed) {
       return;
     }
+    final closedError = _terminalHostConnectionClosedError(error);
     _stopHeartbeatFor(connection);
-    connection.completeAuthenticationError(
-      StateError('Terminal host connection closed: $error'),
-    );
+    connection.completeAuthenticationError(closedError);
     final wasTerminalConnection = identical(_terminalConnection, connection);
     if (wasTerminalConnection) {
       _terminalConnection = null;
@@ -687,9 +695,7 @@ final class SocketTerminalHostClient
       _terminalLineSub = null;
     }
     if (wasTerminalConnection && !_disposed) {
-      _emitConnectionError(
-        StateError('Terminal host connection closed: $error'),
-      );
+      _emitConnectionError(closedError);
     }
     if (identical(_runtimeConnection, connection)) {
       _runtimeConnection = null;
@@ -705,15 +711,13 @@ final class SocketTerminalHostClient
     for (final id in pendingIds) {
       final completer = _pending.remove(id)?.completer;
       if (completer != null && !completer.isCompleted) {
-        final closedError = StateError(
-          _disposed
-              ? 'Terminal host client is disposed.'
-              : 'Terminal host connection closed: $error',
+        final pendingError = StateError(
+          _disposed ? 'Terminal host client is disposed.' : closedError.message,
         );
         // Attach a sink before completeError so orphaned RPCs do not become
         // unhandled async errors during ProviderScope / test teardown.
         unawaited(completer.future.catchError((Object _) => null));
-        completer.completeError(closedError);
+        completer.completeError(pendingError);
       }
     }
   }
