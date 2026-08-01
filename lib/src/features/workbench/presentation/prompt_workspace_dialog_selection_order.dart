@@ -1,6 +1,20 @@
 part of 'prompt_workspace_dialog.dart';
 
 extension _PromptWorkspaceDialogSelectionOrder on _PromptWorkspaceDialogState {
+  String? _defaultBranch(List<String> branches) {
+    for (final preferred in const <String>[
+      'main',
+      'origin/main',
+      'master',
+      'origin/master',
+    ]) {
+      if (branches.contains(preferred)) {
+        return preferred;
+      }
+    }
+    return branches.firstOrNull;
+  }
+
   List<Project> get _orderedProjects =>
       sortProjectsForSelection(widget.projects);
 

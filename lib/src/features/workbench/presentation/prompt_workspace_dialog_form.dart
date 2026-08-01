@@ -12,11 +12,13 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
             AleraTextField(
               controller: _promptController,
               labelText: 'Initial Prompt',
-              hintText: 'Describe What The Agent Should Build',
+              hintText:
+                  'Describe What The Agent Should Build Or Paste An Image',
               minLines: 4,
               maxLines: 8,
               autofocus: true,
               enabled: !_working && created == null,
+              onPaste: _pastePromptClipboard,
             ),
             const SizedBox(height: AleraTokens.space16),
             AleraDropdownField<Project>(
