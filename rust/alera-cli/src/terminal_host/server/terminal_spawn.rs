@@ -132,7 +132,7 @@ impl ServerActor {
             )
         } else {
             initial_command(tab).map(|command| {
-                initial_prompt(tab)
+                let command = initial_prompt(tab)
                     .map(|prompt| {
                         crate::terminal_host::orchestration::agent_startup_command::codex_command_with_initial_prompt(
                             &command,
@@ -140,7 +140,12 @@ impl ServerActor {
                             &default_launch.interactive_shell,
                         )
                     })
-                    .unwrap_or(command)
+                    .unwrap_or(command);
+                if auto_closes_on_success(tab) {
+                    auto_close_setup_command(&command, &default_launch.interactive_shell)
+                } else {
+                    command
+                }
             })
         };
         if let Some(command) = command {
@@ -418,6 +423,28 @@ fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
         .map(str::to_string)
 }
 
+pub(super) fn auto_closes_on_success(tab: &WorkspaceTabRecord) -> bool {
+    tab.payload
+        .get("autoCloseOnSuccess")
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+pub(super) fn auto_close_setup_command(command: &str, interactive_shell: &str) -> String {
+    let executable = interactive_shell
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(interactive_shell)
+        .to_ascii_lowercase();
+    match executable.as_str() {
+        "cmd" | "cmd.exe" => format!("{command} & exit /b"),
+        "powershell" | "powershell.exe" | "pwsh" | "pwsh.exe" => {
+            format!("& {{ {command} }}; exit $LASTEXITCODE")
+        }
+        _ => format!("exec {command}"),
+    }
+}
+
 fn initial_managed_agent_launch(
     tab: &WorkspaceTabRecord,
 ) -> HostResult<Option<crate::terminal_host::orchestration::managed_agent_launch::ManagedAgentLaunch>>
@@ -458,4 +485,33 @@ fn pending_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
         .pointer("/pendingAgentPrompt/agent")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn setup_command_replaces_posix_shell() {
+        assert_eq!(
+            auto_close_setup_command("/bin/sh \"/tmp/setup.sh\"", "/bin/zsh"),
+            "exec /bin/sh \"/tmp/setup.sh\""
+        );
+    }
+
+    #[test]
+    fn setup_command_preserves_cmd_exit_status() {
+        assert_eq!(
+            auto_close_setup_command("cmd /d /c \"C:\\\\setup.cmd\"", "cmd.exe"),
+            "cmd /d /c \"C:\\\\setup.cmd\" & exit /b"
+        );
+    }
+
+    #[test]
+    fn setup_command_preserves_powershell_exit_status() {
+        assert_eq!(
+            auto_close_setup_command("cmd /d /c \"C:\\\\setup.cmd\"", "pwsh.exe"),
+            "& { cmd /d /c \"C:\\\\setup.cmd\" }; exit $LASTEXITCODE"
+        );
+    }
 }

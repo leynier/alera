@@ -973,6 +973,63 @@ void main() {
       },
     );
 
+    test('exit coordinator keeps a failed auto-close setup tab visible', () async {
+      final runtime = _FakeTerminalRuntime();
+      final now = DateTime.utc(2026, 8, 1);
+      final workspace = Workspace(
+        id: 'workspace-1',
+        projectId: 'project-1',
+        name: 'Workspace',
+        path: '/tmp/workspace',
+        createdAt: now,
+        updatedAt: now,
+        kind: WorkspaceKind.linked,
+        status: WorkspaceStatus.active,
+      );
+      final setupTab = WorkspaceTabRecord(
+        id: 'setup-tab',
+        workspaceId: workspace.id,
+        title: 'Setup',
+        createdAt: now,
+        updatedAt: now,
+        payload: const <String, Object?>{
+          workspaceTabAutoCloseOnSuccessPayloadKey: true,
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          terminalRuntimeProvider.overrideWith((ref) => runtime),
+          workbenchControllerProvider.overrideWithValue(
+            WorkbenchState(
+              workspacesByProject: <String, List<Workspace>>{
+                workspace.projectId: <Workspace>[workspace],
+              },
+              tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+                workspace.id: <WorkspaceTabRecord>[setupTab],
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(() {
+        runtime.dispose();
+        container.dispose();
+      });
+
+      container.read(terminalRuntimeExitCoordinatorProvider);
+      runtime.emitExit(
+        const TerminalRuntimeExitEvent(
+          workspaceId: 'workspace-1',
+          tabId: 'setup-tab',
+          exitCode: 1,
+          autoCloseOnSuccess: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(runtime.closedTabIds, isEmpty);
+    });
+
     test('exit coordinator leaves command terminal sessions alone', () async {
       final runtime = _FakeTerminalRuntime();
       final container = ProviderContainer(

@@ -21,11 +21,13 @@ Future<WorkspaceCreationResult> launchDeferredWorkspaceSetup(
     session = await client.createTerminal(
       creation.workspace.id,
       title: 'Setup',
+      autoCloseOnSuccess: true,
     );
     final supportsDeferredInput = client.supportsDeferredTerminalInput;
+    final startupCommand = _autoCloseSetupCommand(command);
     await client.writeTerminal(
       session.attachment.sessionId,
-      utf8.encode(supportsDeferredInput ? command : '$command\r'),
+      utf8.encode(supportsDeferredInput ? startupCommand : '$startupCommand\r'),
       deferredEnter: supportsDeferredInput,
     );
     return creation;
@@ -50,4 +52,14 @@ Future<WorkspaceCreationResult> launchDeferredWorkspaceSetup(
       }
     }
   }
+}
+
+String _autoCloseSetupCommand(String command) {
+  if (command.startsWith('/bin/sh ')) {
+    return 'exec $command';
+  }
+  if (command.startsWith('cmd ')) {
+    return '$command & exit /b';
+  }
+  return command;
 }

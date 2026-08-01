@@ -13,6 +13,7 @@ mixin _WorkbenchControllerTabOpening
     String? initialCommand,
     bool spawnOnCreate = false,
     bool initialCommandOnce = false,
+    bool autoCloseOnSuccess = false,
   }) async {
     try {
       final previousTabs = state.tabsFor(workspace.id);
@@ -23,6 +24,7 @@ mixin _WorkbenchControllerTabOpening
         initialCommand: initialCommand,
         spawnOnCreate: spawnOnCreate,
         initialCommandOnce: initialCommandOnce,
+        autoCloseOnSuccess: autoCloseOnSuccess,
       );
       final tabs = <WorkspaceTabRecord>[...previousTabs, tab];
       _setTabsForWorkspace(workspace.id, tabs);
@@ -59,6 +61,7 @@ mixin _WorkbenchControllerTabOpening
         initialCommand: command,
         spawnOnCreate: true,
         initialCommandOnce: true,
+        autoCloseOnSuccess: true,
       );
     } catch (error) {
       state = state.copyWith(error: error.toString());

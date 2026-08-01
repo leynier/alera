@@ -515,6 +515,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           workspaceId: workspaceId,
           tabId: tabId,
           exitCode: exitCode,
+          autoCloseOnSuccess: _tab.autoCloseOnSuccess,
         ),
       );
     }

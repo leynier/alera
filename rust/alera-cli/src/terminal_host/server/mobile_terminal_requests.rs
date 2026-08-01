@@ -101,6 +101,15 @@ impl ServerActor {
         let title =
             optional_string_key(payload, "title").unwrap_or_else(|| "Mobile Terminal".into());
         let now = Utc::now();
+        let auto_close_on_success =
+            payload.get("autoCloseOnSuccess").and_then(Value::as_bool) == Some(true);
+        let mut tab_payload = json!({
+            "terminalSessionId": session_id,
+            "source": "mobile",
+        });
+        if auto_close_on_success {
+            tab_payload["autoCloseOnSuccess"] = Value::Bool(true);
+        }
         let tab = WorkspaceTabRecord {
             id: tab_id.clone(),
             workspace_id: workspace.id.clone(),
@@ -108,10 +117,7 @@ impl ServerActor {
             title,
             created_at: now,
             updated_at: now,
-            payload: json!({
-                "terminalSessionId": session_id,
-                "source": "mobile",
-            }),
+            payload: tab_payload,
         };
         let tab = self
             .runtime_store

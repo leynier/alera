@@ -27,10 +27,14 @@ void main() {
     expect(result.setupLaunchError, isNull);
     expect(client.calls, <String>[
       'create workspace-1 Setup',
-      'write session-created-1 27 paste=false enter=true',
+      'write session-created-1 32 paste=false enter=true',
       'detach session-created-1',
     ]);
-    expect(utf8.decode(client.writes.single), '/bin/sh "/runtime/setup.sh"');
+    expect(
+      utf8.decode(client.writes.single),
+      'exec /bin/sh "/runtime/setup.sh"',
+    );
+    expect(client.tabs.single.payload['autoCloseOnSuccess'], isTrue);
   });
 
   test('Falls back to an inline carriage return for an older host', () async {
@@ -51,7 +55,7 @@ void main() {
 
     expect(
       utf8.decode(client.writes.single),
-      'cmd /d /c "C:\\runtime\\setup.cmd"\r',
+      'cmd /d /c "C:\\runtime\\setup.cmd" & exit /b\r',
     );
     expect(client.calls, contains('detach session-created-1'));
   });
