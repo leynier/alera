@@ -160,6 +160,13 @@ class AgentProfileManagedEditor extends StatelessWidget {
           keyName: 'permissionMode',
           options: claudePermissionOptions,
         ),
+        _boolRow(
+          title: 'Allow Skip Permissions',
+          description:
+              'Make Bypass Available During The Session Without Starting In '
+              'It. Use The Bypass Permissions Mode Above To Start In It.',
+          keyName: 'allowSkipPermissions',
+        ),
       ],
       AgentType.copilot => <Widget>[
         _choiceRow(

@@ -117,6 +117,33 @@ fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
 }
 
 #[test]
+fn claude_can_allow_bypass_without_starting_in_it() {
+    let launch = build_managed_agent_launch(
+        "claude",
+        &json!({"permissionMode": "plan", "allowSkipPermissions": true}),
+    )
+    .unwrap();
+    assert_eq!(
+        launch.arguments,
+        [
+            "--permission-mode",
+            "plan",
+            "--allow-dangerously-skip-permissions"
+        ]
+    );
+    assert!(
+        build_managed_agent_launch("claude", &json!({"allowSkipPermissions": "yes"})).is_err(),
+        "a non-boolean was accepted"
+    );
+    assert_eq!(
+        build_managed_agent_launch("claude", &json!({"allowSkipPermissions": false}))
+            .unwrap()
+            .arguments,
+        Vec::<String>::new()
+    );
+}
+
+#[test]
 fn a_claude_ccs_profile_must_be_a_single_name_that_is_not_an_option() {
     for rejected in [json!("--work"), json!("work extra"), json!("  "), json!(3)] {
         assert!(
