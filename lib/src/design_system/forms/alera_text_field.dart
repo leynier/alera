@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +29,7 @@ class AleraTextField extends StatelessWidget {
     this.onSubmitted,
     this.onEditingComplete,
     this.onTap,
+    this.onPaste,
     this.autofocus = false,
     this.dense = false,
     this.denseHeight = defaultDenseHeight,
@@ -51,6 +54,12 @@ class AleraTextField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final VoidCallback? onEditingComplete;
   final VoidCallback? onTap;
+
+  /// Handles a paste before the default text action runs.
+  ///
+  /// Return `true` when the callback consumed the clipboard. Returning
+  /// `false` preserves Flutter's normal text-paste behavior.
+  final Future<bool> Function()? onPaste;
   final bool autofocus;
   final bool dense;
   final double denseHeight;
@@ -70,7 +79,7 @@ class AleraTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (!dense) {
-      return TextField(
+      final field = TextField(
         controller: controller,
         focusNode: focusNode,
         autofocus: autofocus,
@@ -81,6 +90,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
+        contextMenuBuilder: onPaste == null ? null : _buildContextMenu,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
@@ -93,9 +103,10 @@ class AleraTextField extends StatelessWidget {
           suffixIcon: suffix,
         ),
       );
+      return _withPasteAction(field);
     }
 
-    return SizedBox(
+    final field = SizedBox(
       height: denseHeight,
       child: TextField(
         controller: controller,
@@ -107,6 +118,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
+        contextMenuBuilder: onPaste == null ? null : _buildContextMenu,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
@@ -158,10 +170,93 @@ class AleraTextField extends StatelessWidget {
         ),
       ),
     );
+    return _withPasteAction(field);
+  }
+
+  Widget _withPasteAction(Widget field) {
+    final paste = onPaste;
+    if (paste == null) {
+      return field;
+    }
+    return Actions(
+      actions: <Type, Action<Intent>>{
+        PasteTextIntent: _ClipboardAwarePasteAction(paste),
+      },
+      child: field,
+    );
+  }
+
+  Widget _buildContextMenu(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
+    final items = List<ContextMenuButtonItem>.from(
+      editableTextState.contextMenuButtonItems,
+    );
+    final pasteItem = ContextMenuButtonItem(
+      onPressed: () {
+        unawaited(_pasteFromContextMenu(editableTextState));
+      },
+      type: ContextMenuButtonType.paste,
+    );
+    final pasteIndex = items.indexWhere(
+      (item) => item.type == ContextMenuButtonType.paste,
+    );
+    if (pasteIndex >= 0) {
+      items[pasteIndex] = pasteItem;
+    } else {
+      final selectAllIndex = items.indexWhere(
+        (item) => item.type == ContextMenuButtonType.selectAll,
+      );
+      items.insert(
+        selectAllIndex >= 0 ? selectAllIndex : items.length,
+        pasteItem,
+      );
+    }
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editableTextState.contextMenuAnchors,
+      buttonItems: items,
+    );
+  }
+
+  Future<void> _pasteFromContextMenu(
+    EditableTextState editableTextState,
+  ) async {
+    final paste = onPaste;
+    if (paste == null || await paste()) {
+      return;
+    }
+    await editableTextState.pasteText(SelectionChangedCause.toolbar);
   }
 
   OutlineInputBorder _denseBorder(Color color) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
     borderSide: BorderSide(color: color),
   );
+}
+
+final class _ClipboardAwarePasteAction extends Action<PasteTextIntent> {
+  _ClipboardAwarePasteAction(this._onPaste);
+
+  final Future<bool> Function() _onPaste;
+
+  @override
+  bool get isActionEnabled => callingAction?.isActionEnabled ?? true;
+
+  @override
+  Object? invoke(PasteTextIntent intent) {
+    final defaultAction = callingAction;
+    unawaited(_invokePaste(intent, defaultAction));
+    return null;
+  }
+
+  Future<void> _invokePaste(
+    PasteTextIntent intent,
+    Action<PasteTextIntent>? defaultAction,
+  ) async {
+    if (await _onPaste()) {
+      return;
+    }
+    defaultAction?.invoke(intent);
+  }
 }
