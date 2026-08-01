@@ -275,6 +275,7 @@ class AgentSettings with AgentSettingsMappable {
     this.agentStatusNotificationsEnabled = false,
     this.agentStatusFinishedNotificationsEnabled = false,
     this.keepComputerAwakeWhileAgentsWork = false,
+    this.defaultAgentProfileId,
     this.quotas = AgentQuotaSettings.defaults,
   });
 
@@ -293,6 +294,9 @@ class AgentSettings with AgentSettingsMappable {
 
   /// Keep the local computer awake while local hook-reported agents are working.
   final bool keepComputerAwakeWhileAgentsWork;
+
+  /// Runtime profile selected for flows that need an initial agent choice.
+  final String? defaultAgentProfileId;
 
   /// Per-host quota providers, Claude CCS profiles, and environment names.
   final AgentQuotaSettings quotas;

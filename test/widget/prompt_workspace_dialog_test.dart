@@ -28,12 +28,21 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
+    final preferredProfile = AgentProfile(
+      id: 'profile-2',
+      name: 'Claude Reviewer',
+      agentType: 'claude',
+      command: 'claude',
+      createdAt: now,
+      updatedAt: now,
+    );
     PromptWorkspaceDialogResult? dialogResult;
     String? generatedPrompt;
     String? createdBranch;
     String? createdName;
     String? createdParentWorkspaceId;
     String? launchedPrompt;
+    String? launchedProfileId;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -45,7 +54,8 @@ void main() {
                   context: context,
                   builder: (_) => PromptWorkspaceDialog(
                     projects: <Project>[project],
-                    agentProfiles: <AgentProfile>[profile],
+                    agentProfiles: <AgentProfile>[profile, preferredProfile],
+                    defaultAgentProfileId: preferredProfile.id,
                     loadBranches: (_) async => <String>['main'],
                     checkBranchExists: (_, _) async => false,
                     workspaceBranches: (_) => const <String>{},
@@ -97,10 +107,11 @@ void main() {
                           required prompt,
                         }) async {
                           launchedPrompt = prompt;
-                          return const AgentProfileLaunchResult(
+                          launchedProfileId = profileId;
+                          return AgentProfileLaunchResult(
                             tabId: 'tab-1',
-                            agentType: 'codex',
-                            profileId: 'profile-1',
+                            agentType: preferredProfile.agentType,
+                            profileId: profileId,
                           );
                         },
                   ),
@@ -129,6 +140,7 @@ void main() {
     expect(createdName, 'Prompt Workspace');
     expect(createdParentWorkspaceId, isNull);
     expect(launchedPrompt, 'Build workspace creation');
+    expect(launchedProfileId, preferredProfile.id);
     expect(dialogResult?.creation?.workspace.id, 'workspace-1');
     expect(dialogResult?.agentTabId, 'tab-1');
   });
