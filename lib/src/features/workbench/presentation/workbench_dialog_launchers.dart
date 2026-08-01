@@ -237,6 +237,10 @@ Future<void> showCreateWorkspaceFlow(
     builder: (_) => PromptWorkspaceDialog(
       projects: projects,
       agentProfiles: profiles,
+      defaultAgentProfileId: ref
+          .read(settingsControllerProvider)
+          .agents
+          .defaultAgentProfileId,
       initialProject: resolvedInitialProject,
       loadBranches: controller.listSourceBranches,
       checkBranchExists: (project, branchName) {

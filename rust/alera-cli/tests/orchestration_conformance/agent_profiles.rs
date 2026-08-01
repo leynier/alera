@@ -185,6 +185,54 @@ fn agent_profile_upsert_rejects_a_duplicate_name() {
 }
 
 #[test]
+fn default_agent_profile_is_stored_and_cleared_with_the_profile() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let created = request(
+        &mut writer,
+        &mut reader,
+        222,
+        "agentProfile.upsert",
+        json!({"name": "Codex Sol", "agentType": "codex", "command": "codex"}),
+    );
+    assert_eq!(created["ok"], json!(true));
+    let profile_id = payload(&created)["id"].as_str().unwrap().to_string();
+
+    let updated = request(
+        &mut writer,
+        &mut reader,
+        223,
+        "runtimeSettings.update",
+        json!({"defaultAgentProfileId": profile_id}),
+    );
+    assert_eq!(updated["ok"], json!(true), "update rejected: {updated}");
+    assert_eq!(
+        payload(&updated)["defaultAgentProfileId"],
+        json!(profile_id)
+    );
+
+    let removed = request(
+        &mut writer,
+        &mut reader,
+        224,
+        "agentProfile.remove",
+        json!({"id": profile_id}),
+    );
+    assert_eq!(removed["ok"], json!(true));
+
+    let settings = request(
+        &mut writer,
+        &mut reader,
+        225,
+        "runtimeSettings.get",
+        json!({}),
+    );
+    assert_eq!(payload(&settings)["defaultAgentProfileId"], Value::Null);
+}
+
+#[test]
 fn command_agent_profile_upsert_requires_a_name_and_command() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);

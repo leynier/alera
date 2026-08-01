@@ -182,6 +182,19 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setDefaultAgentProfile(String? profileId) async {
+    final normalized = profileId?.trim();
+    final next = normalized == null || normalized.isEmpty ? null : normalized;
+    if (state.agents.defaultAgentProfileId == next) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        agents: state.agents.copyWith(defaultAgentProfileId: next),
+      ),
+    );
+  }
+
   Future<void> setAgentQuotaProviderEnabled({
     required String hostId,
     required AgentQuotaProviderId provider,

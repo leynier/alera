@@ -202,6 +202,50 @@ void main() {
       expect(payload['quotaGroup'], 'codex-personal');
     });
 
+    test('controller clone reuses all profile fields without its id', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['agentProfile.upsert'] = <String, Object?>{
+        ..._profilePayload('prof_2', 'Codex Sol Copy'),
+        'description': 'Backend implementation',
+        'quotaGroup': 'codex-personal',
+      };
+      final repository = RuntimeAgentProfileRepository(client);
+      final container = ProviderContainer(
+        overrides: [
+          agentProfileRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+        client.close();
+      });
+      client.responses['agentProfile.list'] = <String, Object?>{
+        'items': <Object?>[],
+      };
+      await container.read(agentProfilesProvider.future);
+
+      final source = AgentProfile(
+        id: 'prof_1',
+        name: 'Codex Sol',
+        agentType: 'codex',
+        command: 'codex --model sol',
+        description: 'Backend implementation',
+        quotaGroup: 'codex-personal',
+        createdAt: DateTime.utc(2026, 7),
+        updatedAt: DateTime.utc(2026, 7),
+      );
+      await container
+          .read(agentProfilesProvider.notifier)
+          .clone(source, name: 'Codex Sol Copy');
+
+      final payload = client.payloads['agentProfile.upsert']!.single;
+      expect(payload.containsKey('id'), isFalse);
+      expect(payload['name'], 'Codex Sol Copy');
+      expect(payload['command'], 'codex --model sol');
+      expect(payload['description'], 'Backend implementation');
+      expect(payload['quotaGroup'], 'codex-personal');
+    });
+
     test('managed upsert sends structured config and no raw command', () async {
       final client = _FakeRuntimeHostClient();
       client.responses['status.get'] = <String, Object?>{

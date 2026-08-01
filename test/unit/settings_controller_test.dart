@@ -276,6 +276,32 @@ void main() {
       },
     );
 
+    test('persists the default agent profile', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
+      await controller.load();
+
+      await controller.setDefaultAgentProfile(' profile-1 ');
+
+      expect(
+        container.read(settingsControllerProvider).agents.defaultAgentProfileId,
+        'profile-1',
+      );
+      expect(
+        (await repository.load()).agents.defaultAgentProfileId,
+        'profile-1',
+      );
+
+      await controller.setDefaultAgentProfile('   ');
+      expect((await repository.load()).agents.defaultAgentProfileId, isNull);
+    });
+
     test('applyBindingChanges reassigns a chord atomically', () async {
       final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);

@@ -57,6 +57,7 @@ void main() {
       expect(agents.agentStatusHooks.anyEnabled, isFalse);
       expect(agents.agentStatusNotificationsEnabled, isFalse);
       expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
+      expect(agents.defaultAgentProfileId, isNull);
     });
 
     test('editor defaults match current editor behavior', () {
@@ -112,6 +113,7 @@ void main() {
         },
         'agentStatusNotificationsEnabled': true,
         'keepComputerAwakeWhileAgentsWork': true,
+        'defaultAgentProfileId': 'prof_1',
       });
 
       expect(overrides.foreground, '#ffffff');
@@ -128,6 +130,7 @@ void main() {
       expect(agents.agentStatusHooks.amp, isTrue);
       expect(agents.agentStatusNotificationsEnabled, isTrue);
       expect(agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(agents.defaultAgentProfileId, 'prof_1');
 
       final hooks = AgentStatusHookSettings.fromJson(<String, Object?>{
         'claude': true,
@@ -157,6 +160,7 @@ void main() {
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
+          defaultAgentProfileId: 'prof_1',
         ),
         editor: EditorSettings(
           tabSize: 2,
@@ -220,6 +224,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.grok, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(restored.agents.defaultAgentProfileId, 'prof_1');
       expect(restored.editor.tabSize, 2);
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
       expect(restored.aiTextGeneration.agent, AiTextGenerationAgent.agy);

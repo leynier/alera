@@ -34,6 +34,9 @@ class RuntimeSettingsRepository implements SettingsRepository {
               discoveredDefaultModelByAgent:
                   legacy.aiTextGeneration.discoveredDefaultModelByAgent,
             );
+      final defaultAgentProfileId = runtime.containsKey('defaultAgentProfileId')
+          ? _optionalRuntimeString(runtime['defaultAgentProfileId'])
+          : legacy.agents.defaultAgentProfileId;
       return legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
@@ -45,6 +48,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
               legacy.general.confirmWorkspaceRemoval,
         ),
         agents: legacy.agents.copyWith(
+          defaultAgentProfileId: defaultAgentProfileId,
           agentStatusHooks: AgentStatusHookSettings.fromJson(
             _asMap(runtime['agentStatusHooks']),
           ),
@@ -76,6 +80,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'workspaceDirectory': settings.general.workspaceDirectory,
       'confirmProjectRemoval': settings.general.confirmProjectRemoval,
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
+      'defaultAgentProfileId': settings.agents.defaultAgentProfileId,
       'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
       'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
@@ -117,4 +122,14 @@ Map<String, Object?> _asMap(Object? value) {
     return Map<String, Object?>.from(value);
   }
   return const <String, Object?>{};
+}
+
+String? _optionalRuntimeString(Object? value) {
+  if (value is String) {
+    final trimmed = value.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+  }
+  return null;
 }
