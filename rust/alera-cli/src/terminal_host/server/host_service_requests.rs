@@ -51,6 +51,22 @@ impl ServerActor {
                     .await,
             )?;
         }
+        if let Some(value) = payload.get("defaultAgentProfileId") {
+            let profile_id = match value {
+                Value::String(value) => Some(value.as_str()),
+                Value::Null => None,
+                _ => {
+                    return Err(HostError::format(
+                        "defaultAgentProfileId must be a string or null.",
+                    ))
+                }
+            };
+            runtime_value(
+                self.runtime_store
+                    .set_default_agent_profile_id(profile_id)
+                    .await,
+            )?;
+        }
         if let Some(value) = payload.get("agentStatusHooks") {
             let settings = serde_json::from_value(value.clone()).map_err(|_| {
                 HostError::format("agentStatusHooks must contain boolean agent switches.")

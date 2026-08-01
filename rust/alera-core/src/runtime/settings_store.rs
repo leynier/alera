@@ -11,6 +11,7 @@ impl RuntimeStore {
             workspace_directory: self.get_workspace_directory().await?,
             confirm_project_removal: self.confirm_project_removal().await?,
             confirm_workspace_removal: self.confirm_workspace_removal().await?,
+            default_agent_profile_id: self.default_agent_profile_id().await?,
             agent_status_hooks: self.agent_status_hook_settings().await?,
             agent_quotas: self.agent_quota_settings().await?,
             mobile_push_notifications: self.mobile_push_settings().await?,
@@ -123,6 +124,33 @@ impl RuntimeStore {
             .await?
             .and_then(|value| value.parse::<bool>().ok())
             .unwrap_or(true))
+    }
+
+    pub async fn default_agent_profile_id(&self) -> Result<Option<String>> {
+        Ok(self
+            .get_metadata("settings.agents.defaultAgentProfileId")
+            .await?
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()))
+    }
+
+    pub async fn set_default_agent_profile_id(
+        &self,
+        profile_id: Option<&str>,
+    ) -> Result<RuntimeSettings> {
+        match profile_id.map(str::trim).filter(|value| !value.is_empty()) {
+            Some(value) => {
+                self.set_metadata("settings.agents.defaultAgentProfileId", value)
+                    .await?;
+            }
+            None => {
+                sqlx::query("DELETE FROM runtimeMetadata WHERE key = ?")
+                    .bind("settings.agents.defaultAgentProfileId")
+                    .execute(self.pool())
+                    .await?;
+            }
+        }
+        self.runtime_settings().await
     }
 
     pub async fn confirm_project_removal(&self) -> Result<bool> {

@@ -15,12 +15,20 @@ void main() {
     final now = DateTime.utc(2026, 7, 29);
     final project = _project(id: 'project-1', name: 'Alera', now: now);
     final profile = _profile(id: 'profile-1', name: 'Codex Builder', now: now);
+    final preferredProfile = _profile(
+      id: 'profile-2',
+      name: 'Claude Reviewer',
+      agentType: 'claude',
+      command: 'claude',
+      now: now,
+    );
     PromptWorkspaceDialogResult? dialogResult;
     String? generatedPrompt;
     String? createdBranch;
     String? createdName;
     String? createdParentWorkspaceId;
     String? launchedPrompt;
+    String? launchedProfileId;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -32,7 +40,8 @@ void main() {
                   context: context,
                   builder: (_) => PromptWorkspaceDialog(
                     projects: <Project>[project],
-                    agentProfiles: <AgentProfile>[profile],
+                    agentProfiles: <AgentProfile>[profile, preferredProfile],
+                    defaultAgentProfileId: preferredProfile.id,
                     loadBranches: (_) async => <String>['main'],
                     checkBranchExists: (_, _) async => false,
                     workspaceBranches: (_) => const <String>{},
@@ -84,10 +93,11 @@ void main() {
                           required prompt,
                         }) async {
                           launchedPrompt = prompt;
-                          return const AgentProfileLaunchResult(
+                          launchedProfileId = profileId;
+                          return AgentProfileLaunchResult(
                             tabId: 'tab-1',
-                            agentType: 'codex',
-                            profileId: 'profile-1',
+                            agentType: preferredProfile.agentType,
+                            profileId: profileId,
                           );
                         },
                   ),
@@ -116,6 +126,7 @@ void main() {
     expect(createdName, 'Prompt Workspace');
     expect(createdParentWorkspaceId, isNull);
     expect(launchedPrompt, 'Build workspace creation');
+    expect(launchedProfileId, preferredProfile.id);
     expect(dialogResult?.creation?.workspace.id, 'workspace-1');
     expect(dialogResult?.agentTabId, 'tab-1');
   });
@@ -444,13 +455,15 @@ Project _project({
 AgentProfile _profile({
   required String id,
   required String name,
+  String agentType = 'codex',
+  String command = 'codex',
   required DateTime now,
 }) {
   return AgentProfile(
     id: id,
     name: name,
-    agentType: 'codex',
-    command: 'codex',
+    agentType: agentType,
+    command: command,
     createdAt: now,
     updatedAt: now,
   );

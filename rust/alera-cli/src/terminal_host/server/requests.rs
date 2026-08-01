@@ -699,10 +699,11 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 6] = [
+                const ALLOWED: [&str; 7] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
+                    "defaultAgentProfileId",
                     "agentStatusHooks",
                     "agentQuotas",
                     "mobilePushNotifications",

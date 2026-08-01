@@ -101,7 +101,11 @@ impl RuntimeStore {
             .bind(profile_id)
             .execute(self.pool())
             .await?;
-        Ok(result.rows_affected() > 0)
+        let removed = result.rows_affected() > 0;
+        if removed && self.default_agent_profile_id().await?.as_deref() == Some(profile_id) {
+            self.set_default_agent_profile_id(None).await?;
+        }
+        Ok(removed)
     }
 }
 

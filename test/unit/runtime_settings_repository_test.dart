@@ -20,6 +20,7 @@ void main() {
       final payload = client.payloads['runtimeSettings.update']!.single;
       expect(payload['agentStatusHooks'], isA<Map<String, Object?>>());
       expect(payload['agentQuotas'], isA<Map<String, Object?>>());
+      expect(payload['defaultAgentProfileId'], isNull);
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
       final aiText = payload['aiTextGeneration']! as Map<String, Object?>;
       expect(aiText['agent'], 'codex');
@@ -59,6 +60,7 @@ void main() {
       final client = _RecordingRuntimeHostClient();
       client.responses['runtimeSettings.get'] = <String, Object?>{
         'workspaceDirectory': '/tmp/workspaces',
+        'defaultAgentProfileId': 'prof_2',
         'agentQuotas': <String, Object?>{
           'enabledProviders': <String>['claude', 'codex'],
           'claudeDefaultEnabled': false,
@@ -72,6 +74,7 @@ void main() {
       final loaded = await repository.load();
       final local = loaded.agents.quotas.forHost('local');
 
+      expect(loaded.agents.defaultAgentProfileId, 'prof_2');
       expect(local.enabledProviders, <AgentQuotaProviderId>[
         AgentQuotaProviderId.claude,
         AgentQuotaProviderId.codex,
@@ -81,6 +84,28 @@ void main() {
       expect(local.unpinnedQuotaKeys, <String>['codex', 'claude:leynierdev']);
     },
   );
+
+  test('save sends the selected default agent profile', () async {
+    final client = _RecordingRuntimeHostClient();
+    final repository = RuntimeSettingsRepository(
+      client: client,
+      legacyRepository: _MemorySettingsRepository(),
+    );
+    final settings = AleraSettings.defaults.copyWith(
+      agents: AleraSettings.defaults.agents.copyWith(
+        defaultAgentProfileId: 'prof_2',
+      ),
+    );
+
+    await repository.save(settings);
+
+    expect(
+      client
+          .payloads['runtimeSettings.update']!
+          .single['defaultAgentProfileId'],
+      'prof_2',
+    );
+  });
 
   test(
     'load combines shared AI Text execution settings with local discovery',

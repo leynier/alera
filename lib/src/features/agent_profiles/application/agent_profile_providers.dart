@@ -92,6 +92,18 @@ class AgentProfiles extends _$AgentProfiles {
     return saved;
   }
 
+  Future<AgentProfile> clone(AgentProfile source, {required String name}) {
+    return upsert(
+      name: name,
+      agentType: source.agentType,
+      launchMode: source.launchMode,
+      command: source.command,
+      managedConfig: <String, Object?>{...source.managedConfig},
+      description: source.description,
+      quotaGroup: source.quotaGroup,
+    );
+  }
+
   Future<void> remove(String profileId) async {
     await _repository.remove(profileId);
     _pendingUpserts.remove(profileId);
