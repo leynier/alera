@@ -209,15 +209,20 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
         controlKey: '${operation.key}-reasoning',
         levels: model.thinkingLevels,
         value:
-            settings.thinkingForModel(model.id) ??
+            settings.thinkingForOperation(operation, model.id) ??
             model.defaultThinkingLevel ??
             model.thinkingLevels.first.id,
         onChanged: (value) => widget.onChanged(
           settings.copyWith(
-            selectedThinkingByModel: <String, String>{
-              ...settings.selectedThinkingByModel,
-              model.id: value,
-            },
+            selectedThinkingByOperation:
+                <AiTextGenerationOperation, Map<String, String>>{
+                  ...settings.selectedThinkingByOperation,
+                  operation: <String, String>{
+                    ...settings.selectedThinkingByOperation[operation] ??
+                        const <String, String>{},
+                    model.id: value,
+                  },
+                },
           ),
         ),
       ),

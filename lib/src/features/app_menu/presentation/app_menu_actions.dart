@@ -83,7 +83,8 @@ AleraToastTone _toastToneForUpdateStatus(AleraUpdateStatus status) {
     AleraUpdateStatus.error => AleraToastTone.error,
     AleraUpdateStatus.available ||
     AleraUpdateStatus.manualDownloadRequired ||
-    AleraUpdateStatus.downloaded => AleraToastTone.success,
+    AleraUpdateStatus.downloaded ||
+    AleraUpdateStatus.restartRequired => AleraToastTone.success,
     AleraUpdateStatus.idle ||
     AleraUpdateStatus.checking ||
     AleraUpdateStatus.notAvailable ||

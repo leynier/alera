@@ -68,6 +68,8 @@ void main() {
         result: AleraUpdateCheckResult(
           latest: _update,
           autoInstallAllowed: true,
+          currentVersion: '0.1.0',
+          currentBuildNumber: '1',
         ),
       );
       final container = ProviderContainer(
@@ -81,6 +83,14 @@ void main() {
       expect(
         container.read(aleraUpdateControllerProvider).status,
         AleraUpdateStatus.available,
+      );
+      expect(
+        container.read(aleraUpdateControllerProvider).currentVersion,
+        '0.1.0',
+      );
+      expect(
+        container.read(aleraUpdateControllerProvider).currentBuildNumber,
+        '1',
       );
     });
 
@@ -341,6 +351,42 @@ void main() {
       await controller.restartApp();
 
       expect(service.restartCalls, 1);
+    });
+
+    test('manual command completion exposes the restart state', () async {
+      final service = _FakeUpdateService(
+        result: AleraUpdateCheckResult(latest: _update),
+      );
+      final container = ProviderContainer(
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
+
+      await controller.checkForUpdates();
+      controller.requireRestartAfterManualUpdate();
+
+      final state = container.read(aleraUpdateControllerProvider);
+      expect(state.status, AleraUpdateStatus.restartRequired);
+      expect(state.message, contains('Restart Alera'));
+      expect(state.latest, _update);
+    });
+
+    test('restartApp reports a relaunch failure', () async {
+      final service = _FakeUpdateService(
+        restartError: StateError('relaunch unavailable'),
+      );
+      final container = ProviderContainer(
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
+
+      await controller.restartApp();
+
+      final state = container.read(aleraUpdateControllerProvider);
+      expect(state.status, AleraUpdateStatus.error);
+      expect(state.message, contains('relaunch unavailable'));
     });
   });
 }

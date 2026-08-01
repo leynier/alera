@@ -89,6 +89,8 @@ class AleraUpdateStatusMapper extends EnumMapper<AleraUpdateStatus> {
         return AleraUpdateStatus.applying;
       case r'downloaded':
         return AleraUpdateStatus.downloaded;
+      case r'restartRequired':
+        return AleraUpdateStatus.restartRequired;
       case r'error':
         return AleraUpdateStatus.error;
       default:
@@ -115,6 +117,8 @@ class AleraUpdateStatusMapper extends EnumMapper<AleraUpdateStatus> {
         return r'applying';
       case AleraUpdateStatus.downloaded:
         return r'downloaded';
+      case AleraUpdateStatus.restartRequired:
+        return r'restartRequired';
       case AleraUpdateStatus.error:
         return r'error';
     }
@@ -661,6 +665,19 @@ class AleraUpdateStateMapper extends ClassMapperBase<AleraUpdateState> {
     opt: true,
     def: 0,
   );
+  static String? _$currentVersion(AleraUpdateState v) => v.currentVersion;
+  static const Field<AleraUpdateState, String> _f$currentVersion = Field(
+    'currentVersion',
+    _$currentVersion,
+    opt: true,
+  );
+  static String? _$currentBuildNumber(AleraUpdateState v) =>
+      v.currentBuildNumber;
+  static const Field<AleraUpdateState, String> _f$currentBuildNumber = Field(
+    'currentBuildNumber',
+    _$currentBuildNumber,
+    opt: true,
+  );
 
   @override
   final MappableFields<AleraUpdateState> fields = const {
@@ -669,6 +686,8 @@ class AleraUpdateStateMapper extends ClassMapperBase<AleraUpdateState> {
     #latest: _f$latest,
     #message: _f$message,
     #progress: _f$progress,
+    #currentVersion: _f$currentVersion,
+    #currentBuildNumber: _f$currentBuildNumber,
   };
 
   static AleraUpdateState _instantiate(DecodingData data) {
@@ -678,6 +697,8 @@ class AleraUpdateStateMapper extends ClassMapperBase<AleraUpdateState> {
       latest: data.dec(_f$latest),
       message: data.dec(_f$message),
       progress: data.dec(_f$progress),
+      currentVersion: data.dec(_f$currentVersion),
+      currentBuildNumber: data.dec(_f$currentBuildNumber),
     );
   }
 
@@ -752,6 +773,8 @@ abstract class AleraUpdateStateCopyWith<$R, $In extends AleraUpdateState, $Out>
     AleraUpdateInfo? latest,
     String? message,
     double? progress,
+    String? currentVersion,
+    String? currentBuildNumber,
   });
   AleraUpdateStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -779,6 +802,8 @@ class _AleraUpdateStateCopyWithImpl<$R, $Out>
     Object? latest = $none,
     Object? message = $none,
     double? progress,
+    Object? currentVersion = $none,
+    Object? currentBuildNumber = $none,
   }) => $apply(
     FieldCopyWithData({
       if (status != null) #status: status,
@@ -786,6 +811,8 @@ class _AleraUpdateStateCopyWithImpl<$R, $Out>
       if (latest != $none) #latest: latest,
       if (message != $none) #message: message,
       if (progress != null) #progress: progress,
+      if (currentVersion != $none) #currentVersion: currentVersion,
+      if (currentBuildNumber != $none) #currentBuildNumber: currentBuildNumber,
     }),
   );
   @override
@@ -795,6 +822,11 @@ class _AleraUpdateStateCopyWithImpl<$R, $Out>
     latest: data.get(#latest, or: $value.latest),
     message: data.get(#message, or: $value.message),
     progress: data.get(#progress, or: $value.progress),
+    currentVersion: data.get(#currentVersion, or: $value.currentVersion),
+    currentBuildNumber: data.get(
+      #currentBuildNumber,
+      or: $value.currentBuildNumber,
+    ),
   );
 
   @override

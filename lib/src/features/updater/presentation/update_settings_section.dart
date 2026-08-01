@@ -25,6 +25,7 @@ class UpdateSettingsSection extends ConsumerWidget {
     final packageInstall = ref.watch(packageManagerInstallProvider);
     final needsManualPath =
         state.status == AleraUpdateStatus.manualDownloadRequired ||
+        state.status == AleraUpdateStatus.restartRequired ||
         (state.status == AleraUpdateStatus.error && state.latest != null);
     final upgradeCommand = needsManualPath
         ? packageManagerUpgradeCommand(
@@ -35,7 +36,10 @@ class UpdateSettingsSection extends ConsumerWidget {
         : null;
     final managerLabel = packageManagerLabel(packageInstall.method);
     final canRunUpgrade =
-        needsManualPath && packageInstall.canRunUpgrade && !state.isBusy;
+        needsManualPath &&
+        state.status != AleraUpdateStatus.restartRequired &&
+        packageInstall.canRunUpgrade &&
+        !state.isBusy;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -103,7 +107,11 @@ class UpdateSettingsSection extends ConsumerWidget {
                 runSpacing: AleraTokens.space8,
                 children: <Widget>[
                   OutlinedButton.icon(
-                    onPressed: state.isBusy ? null : controller.checkForUpdates,
+                    onPressed:
+                        state.isBusy ||
+                            state.status == AleraUpdateStatus.restartRequired
+                        ? null
+                        : controller.checkForUpdates,
                     icon: const Icon(AleraIcons.refresh, size: 16),
                     label: Text(
                       state.status == AleraUpdateStatus.checking
@@ -132,6 +140,12 @@ class UpdateSettingsSection extends ConsumerWidget {
                       onPressed: controller.installLatest,
                       icon: const Icon(AleraIcons.download, size: 16),
                       label: const Text('Install Update'),
+                    ),
+                  if (state.status == AleraUpdateStatus.restartRequired)
+                    FilledButton.icon(
+                      onPressed: controller.restartApp,
+                      icon: const Icon(AleraIcons.restart, size: 16),
+                      label: const Text('Restart Alera'),
                     ),
                   if (state.status == AleraUpdateStatus.error &&
                       state.latest != null &&
@@ -176,7 +190,9 @@ class _UpgradeCommand extends ConsumerWidget {
     if (!context.mounted) {
       return;
     }
-    await ref.read(aleraUpdateControllerProvider.notifier).checkForUpdates();
+    ref
+        .read(aleraUpdateControllerProvider.notifier)
+        .requireRestartAfterManualUpdate();
   }
 
   @override
@@ -213,6 +229,8 @@ class _UpdateStatusCopy extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final latest = state.latest;
+    final currentVersion = state.currentVersion?.trim();
+    final currentBuildNumber = state.currentBuildNumber?.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -223,10 +241,29 @@ class _UpdateStatusCopy extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
+        if (currentVersion != null && currentVersion.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            _versionLabel(
+              prefix: 'Current Version',
+              version: currentVersion,
+              buildNumber: currentBuildNumber,
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+        ],
         if (latest != null) ...<Widget>[
           const SizedBox(height: AleraTokens.space4),
           Text(
-            'Version ${latest.version} - Build ${latest.shortVersion}',
+            _versionLabel(
+              prefix: 'Update Version',
+              version: latest.version,
+              buildNumber: latest.shortVersion > 0
+                  ? '${latest.shortVersion}'
+                  : null,
+            ),
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundMuted,
             ),
@@ -255,15 +292,28 @@ class _UpdateStatusCopy extends StatelessWidget {
       AleraUpdateStatus.downloading => 'Downloading Update',
       AleraUpdateStatus.applying => 'Installing Update',
       AleraUpdateStatus.downloaded => 'Restarting Alera',
+      AleraUpdateStatus.restartRequired => 'Restart Alera',
       AleraUpdateStatus.error => 'Update Failed',
     };
   }
+}
+
+String _versionLabel({
+  required String prefix,
+  required String version,
+  String? buildNumber,
+}) {
+  final build = buildNumber?.trim();
+  return build == null || build.isEmpty
+      ? '$prefix $version'
+      : '$prefix $version (Build $build)';
 }
 
 Color _colorForStatus(AleraUpdateStatus status) {
   return switch (status) {
     AleraUpdateStatus.error => AleraTokens.error,
     AleraUpdateStatus.downloaded => AleraTokens.success,
+    AleraUpdateStatus.restartRequired => AleraTokens.info,
     AleraUpdateStatus.available ||
     AleraUpdateStatus.manualDownloadRequired ||
     AleraUpdateStatus.downloading ||
@@ -281,6 +331,7 @@ IconData _iconForStatus(AleraUpdateStatus status) {
     AleraUpdateStatus.downloading => AleraIcons.downloading,
     AleraUpdateStatus.applying => AleraIcons.sync,
     AleraUpdateStatus.downloaded => AleraIcons.check,
+    AleraUpdateStatus.restartRequired => AleraIcons.restart,
     AleraUpdateStatus.error => AleraIcons.error,
     AleraUpdateStatus.idle => AleraIcons.info,
   };

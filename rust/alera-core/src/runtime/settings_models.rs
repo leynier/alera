@@ -75,6 +75,8 @@ pub struct RuntimeAiTextGenerationSettings {
     #[serde(default)]
     pub selected_thinking_by_model: HashMap<String, String>,
     #[serde(default)]
+    pub selected_thinking_by_operation: HashMap<String, HashMap<String, String>>,
+    #[serde(default)]
     pub custom_command: String,
     #[serde(default)]
     pub instructions_by_operation: HashMap<String, String>,
@@ -100,6 +102,7 @@ impl Default for RuntimeAiTextGenerationSettings {
             agent: default_ai_text_agent(),
             selected_model_by_agent: HashMap::new(),
             selected_thinking_by_model: HashMap::new(),
+            selected_thinking_by_operation: HashMap::new(),
             custom_command: String::new(),
             instructions_by_operation: HashMap::new(),
             prompt_settings_by_operation: HashMap::new(),
@@ -114,6 +117,15 @@ impl RuntimeAiTextGenerationSettings {
         self.custom_command = self.custom_command.trim().to_string();
         self.selected_model_by_agent = normalized_string_map(self.selected_model_by_agent);
         self.selected_thinking_by_model = normalized_string_map(self.selected_thinking_by_model);
+        self.selected_thinking_by_operation = self
+            .selected_thinking_by_operation
+            .into_iter()
+            .filter_map(|(operation, values)| {
+                let operation = operation.trim().to_string();
+                let values = normalized_string_map(values);
+                (!operation.is_empty() && !values.is_empty()).then_some((operation, values))
+            })
+            .collect();
         self.instructions_by_operation = normalized_string_map(self.instructions_by_operation);
         self.prompt_settings_by_operation = self
             .prompt_settings_by_operation

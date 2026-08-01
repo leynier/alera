@@ -48,6 +48,8 @@ class AleraUpdateController extends _$AleraUpdateController {
           message: result.message ?? 'Alera is up to date.',
           latest: null,
           progress: 0,
+          currentVersion: result.currentVersion,
+          currentBuildNumber: result.currentBuildNumber,
         );
         return;
       }
@@ -63,6 +65,8 @@ class AleraUpdateController extends _$AleraUpdateController {
                 ? 'Update ${latest.version} is ready to install.'
                 : 'Update ${latest.version} is available for manual download.'),
         progress: 0,
+        currentVersion: result.currentVersion,
+        currentBuildNumber: result.currentBuildNumber,
       );
     } catch (error, stackTrace) {
       _log.warning('update check failed', error, stackTrace);
@@ -175,7 +179,38 @@ class AleraUpdateController extends _$AleraUpdateController {
     return _service.openDownloadPage(state.latest);
   }
 
-  Future<void> restartApp() {
-    return _service.restartApp();
+  void requireRestartAfterManualUpdate() {
+    if (state.latest == null || state.isBusy) {
+      return;
+    }
+    state = state.copyWith(
+      status: AleraUpdateStatus.restartRequired,
+      message: 'Restart Alera to load any update installed by the command.',
+      progress: 0,
+    );
+  }
+
+  Future<void> restartApp() async {
+    if (state.isBusy) {
+      return;
+    }
+    state = state.copyWith(
+      status: AleraUpdateStatus.applying,
+      message: 'Restarting Alera.',
+      progress: 0,
+    );
+    try {
+      await _service.restartApp();
+    } catch (error, stackTrace) {
+      _log.warning('app restart failed', error, stackTrace);
+      if (_disposed) {
+        return;
+      }
+      state = state.copyWith(
+        status: AleraUpdateStatus.error,
+        message: 'Alera could not restart: $error',
+        progress: 0,
+      );
+    }
   }
 }

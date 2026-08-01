@@ -169,8 +169,10 @@ fn plan_command(
         });
     let model = selected_model.unwrap_or_else(|| default_model(agent));
     let thinking = settings
-        .selected_thinking_by_model
-        .get(model)
+        .selected_thinking_by_operation
+        .get(operation)
+        .and_then(|values| values.get(model))
+        .or_else(|| settings.selected_thinking_by_model.get(model))
         .map(String::as_str)
         .filter(|value| !value.trim().is_empty());
     let timeout = settings.timeout_seconds;

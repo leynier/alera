@@ -16,6 +16,8 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
+import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_list_row.dart';
@@ -23,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'agent_profiles_pane_discovery.dart';
+part 'agent_profiles_pane_profile_actions.dart';
 
 class AgentProfilesSettingsPane extends ConsumerStatefulWidget {
   const AgentProfilesSettingsPane({super.key});
@@ -168,6 +171,9 @@ class _AgentProfilesSettingsPaneState
             onRemove: selectedProfile == null
                 ? null
                 : () => _removeProfile(selectedProfile),
+            onTestCommand: _launchMode == AgentProfileLaunchMode.command
+                ? () => unawaited(_testCommand())
+                : null,
           ),
         );
       },
@@ -270,219 +276,11 @@ class _AgentProfilesSettingsPaneState
     }
   }
 
-  Future<void> _saveProfile() async {
-    final name = _nameController.text.trim();
-    final command = _commandController.text.trim();
-    if (name.isEmpty) {
-      setState(() => _error = 'Name is required.');
-      return;
-    }
-    if (_launchMode == AgentProfileLaunchMode.command && command.isEmpty) {
-      setState(() => _error = 'Command is required.');
-      return;
-    }
-    final nextRisks = managedAgentRiskMarkers(_adapter, _managedConfig);
-    final originalRisks =
-        _originalLaunchMode == AgentProfileLaunchMode.managed &&
-            _originalAdapter == _adapter
-        ? managedAgentRiskMarkers(_originalAdapter, _originalManagedConfig)
-        : const <String>{};
-    if (_launchMode == AgentProfileLaunchMode.managed &&
-        nextRisks.difference(originalRisks).isNotEmpty) {
-      final confirmed =
-          await showDialog<bool>(
-            context: context,
-            builder: (_) => AleraConfirmDialog(
-              title: 'Confirm Reduced Protections',
-              message: managedAgentRiskWarning(_adapter, _managedConfig),
-              confirmLabel: 'Save Anyway',
-              destructive: true,
-            ),
-          ) ??
-          false;
-      if (!confirmed || !mounted) {
-        return;
-      }
-    }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final quotaGroup = _quotaGroupController.text.trim();
-      final saved = await ref
-          .read(agentProfilesProvider.notifier)
-          .upsert(
-            id: _selectedProfileId,
-            name: name,
-            agentType: _adapter.key,
-            launchMode: _launchMode,
-            command: command,
-            managedConfig: _managedConfig,
-            description: _descriptionController.text.trim(),
-            quotaGroup: quotaGroup.isEmpty ? null : quotaGroup,
-          );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _creatingNew = false;
-        _selectedProfileId = saved.id;
-        _seededSignature = null;
-      });
-      AleraToast.show(
-        context,
-        message: 'Agent Profile Saved',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _error = error.toString();
-      });
-    }
-  }
-
-  Future<void> _removeProfile(AgentProfile profile) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(agentProfilesProvider.notifier).remove(profile.id);
-      if (ref.read(settingsControllerProvider).agents.defaultAgentProfileId ==
-          profile.id) {
-        await ref
-            .read(settingsControllerProvider.notifier)
-            .setDefaultAgentProfile(null);
-      }
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _creatingNew = false;
-        _clearEditor();
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _error = error.toString();
-      });
-    }
-  }
-
-  Future<void> _setDefaultProfile(AgentProfile profile) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref
-          .read(settingsControllerProvider.notifier)
-          .setDefaultAgentProfile(profile.id);
-      if (!mounted) {
-        return;
-      }
-      setState(() => _saving = false);
-      AleraToast.show(
-        context,
-        message: 'Default Agent Profile Updated',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-          _error = error.toString();
-        });
-      }
-    }
-  }
-
-  Future<void> _cloneProfile(
-    AgentProfile source,
-    List<AgentProfile> profiles,
-  ) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final cloned = await ref
-          .read(agentProfilesProvider.notifier)
-          .clone(source, name: _cloneName(source, profiles));
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _creatingNew = false;
-        _selectedProfileId = cloned.id;
-        _seededSignature = null;
-      });
-      AleraToast.show(
-        context,
-        message: 'Agent Profile Cloned',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _saving = false;
-        _error = error.toString();
-      });
-    }
-  }
-
-  String _cloneName(AgentProfile source, List<AgentProfile> profiles) {
-    final base = '${source.name.trim()} Copy';
-    final names = <String>{
-      for (final profile in profiles) profile.name.trim().toLowerCase(),
-    };
-    if (!names.contains(base.toLowerCase())) {
-      return base;
-    }
-    for (var suffix = 2; ; suffix++) {
-      final candidate = '$base $suffix';
-      if (!names.contains(candidate.toLowerCase())) {
-        return candidate;
-      }
-    }
-  }
-
-  void _updateManagedConfig(Map<String, Object?> next) {
-    final sanitized = <String, Object?>{...next};
-    if (_adapter == AgentType.codex) {
-      final bypassWasEnabled =
-          _managedConfig['bypassApprovalsAndSandbox'] == true;
-      final sandboxChanged =
-          sanitized['sandbox'] != _managedConfig['sandbox'] ||
-          sanitized['approvalPolicy'] != _managedConfig['approvalPolicy'];
-      if (sanitized['bypassApprovalsAndSandbox'] == true && !bypassWasEnabled) {
-        sanitized
-          ..remove('sandbox')
-          ..remove('approvalPolicy');
-      } else if (bypassWasEnabled && sandboxChanged) {
-        sanitized.remove('bypassApprovalsAndSandbox');
-      }
-    }
-    setState(() {
-      _managedConfig = sanitized;
-      _error = null;
-    });
-  }
-
   void _setDiscoveryState(VoidCallback update) {
+    setState(update);
+  }
+
+  void _setPaneState(VoidCallback update) {
     setState(update);
   }
 }
