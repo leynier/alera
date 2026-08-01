@@ -59,7 +59,7 @@ void main() {
       expect(copied, <String>[_debUpgradeCommand]);
     });
 
-    testWidgets('runs the upgrade command in a terminal and rechecks after', (
+    testWidgets('runs the upgrade command and offers to restart after', (
       tester,
     ) async {
       final runtime = FakeCommandTerminalRuntime(running: false);
@@ -81,11 +81,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(runtime.closedTabIds, <String>[runtime.lastTab!.id]);
-      expect(
-        controller.checkForUpdatesCalls,
-        1,
-        reason: 'the section has to reflect whatever the upgrade left behind',
-      );
+      expect(controller.checkForUpdatesCalls, 0);
+      expect(controller.requireRestartCalls, 1);
+      expect(find.text('Restart Alera'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Restart Alera'));
+      await tester.pump();
+
+      expect(controller.restartAppCalls, 1);
     });
 
     testWidgets(
@@ -110,13 +113,14 @@ void main() {
         controller.setState(
           _state(
             status: AleraUpdateStatus.notAvailable,
-            latest: _latest(),
             message: 'Alera is up to date.',
+            currentVersion: '1.0.0',
+            currentBuildNumber: '100',
           ),
         );
         await tester.pump();
         expect(find.text('No Update Available'), findsOneWidget);
-        expect(find.text('Version 1.2.3 - Build 123'), findsOneWidget);
+        expect(find.text('Current Version 1.0.0 (Build 100)'), findsOneWidget);
         expect(find.text('Alera is up to date.'), findsOneWidget);
 
         controller.setState(
@@ -124,10 +128,14 @@ void main() {
             status: AleraUpdateStatus.manualDownloadRequired,
             latest: _latest(),
             message: 'Manual download required.',
+            currentVersion: '1.0.0',
+            currentBuildNumber: '100',
           ),
         );
         await tester.pump();
         expect(find.text('Manual Update Available'), findsOneWidget);
+        expect(find.text('Current Version 1.0.0 (Build 100)'), findsOneWidget);
+        expect(find.text('Update Version 1.2.3 (Build 123)'), findsOneWidget);
         expect(find.text('Download Manually'), findsOneWidget);
 
         controller.setState(
@@ -263,6 +271,8 @@ AleraUpdateState _state({
   AleraUpdateInfo? latest,
   String? message,
   double progress = 0,
+  String? currentVersion,
+  String? currentBuildNumber,
 }) {
   return AleraUpdateState(
     status: status,
@@ -270,6 +280,8 @@ AleraUpdateState _state({
     latest: latest,
     message: message,
     progress: progress,
+    currentVersion: currentVersion,
+    currentBuildNumber: currentBuildNumber,
   );
 }
 
@@ -304,6 +316,7 @@ class _FakeUpdateController extends AleraUpdateController {
   int installLatestCalls = 0;
   int openDownloadPageCalls = 0;
   int restartAppCalls = 0;
+  int requireRestartCalls = 0;
 
   @override
   AleraUpdateState build() => _seed;
@@ -325,6 +338,12 @@ class _FakeUpdateController extends AleraUpdateController {
   @override
   Future<void> openDownloadPage() async {
     openDownloadPageCalls += 1;
+  }
+
+  @override
+  void requireRestartAfterManualUpdate() {
+    requireRestartCalls += 1;
+    state = state.copyWith(status: AleraUpdateStatus.restartRequired);
   }
 
   @override

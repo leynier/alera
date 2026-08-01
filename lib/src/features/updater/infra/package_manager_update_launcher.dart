@@ -3,12 +3,12 @@ import 'dart:io';
 
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/domain/package_manager_upgrade_script.dart';
+import 'package:alera/src/features/updater/infra/app_restart_launcher.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 typedef PackageManagerUpgradeDirectory = Future<Directory> Function();
-typedef AleraAppExit = FutureOr<void> Function();
 
 /// Runs the package manager's own upgrade and brings Alera back.
 ///

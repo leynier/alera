@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
+import 'package:alera/src/features/updater/infra/app_restart_launcher.dart';
 import 'package:alera/src/features/updater/infra/desktop_updater_backend.dart';
 import 'package:alera/src/features/updater/infra/linux_update_package.dart';
 import 'package:alera/src/features/updater/infra/package_manager_update_launcher.dart';
@@ -29,6 +30,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     AleraAppExit? exitApp,
     PackageManagerInstall? packageInstall,
     PackageManagerUpdateLauncher? packageManagerLauncher,
+    AleraAppRestarter? appRestarter,
   }) : config = config ?? AleraUpdateConfig.fromEnvironment(),
        _loadPackageInfo = loadPackageInfo ?? PackageInfo.fromPlatform,
        _launchUrl = launchUrl ?? _launchExternalUrl,
@@ -36,16 +38,27 @@ class DesktopAleraUpdateService implements AleraUpdateService {
        _loadLinuxInstallerKind =
            loadLinuxInstallerKind ?? loadDesktopLinuxInstallerKind,
        _backend = backend ?? DesktopUpdaterBackend() {
+    final runner = processRunner ?? const RustProcessRunner();
+    final executable = resolvedExecutable ?? Platform.resolvedExecutable;
     _packageInstall =
         packageInstall ??
         packageManagerInstallFromExecutablePath(
           platform: _platform,
-          executablePath: resolvedExecutable ?? Platform.resolvedExecutable,
+          executablePath: executable,
         );
     _packageManagerLauncher =
         packageManagerLauncher ??
         PackageManagerUpdateLauncher(
-          processRunner: processRunner ?? const RustProcessRunner(),
+          processRunner: runner,
+          processId: processId,
+          exitApp: exitApp,
+        );
+    _appRestarter =
+        appRestarter ??
+        AppRestartLauncher(
+          processRunner: runner,
+          platform: _platform,
+          resolvedExecutable: executable,
           processId: processId,
           exitApp: exitApp,
         );
@@ -73,6 +86,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   final AleraDesktopUpdaterBackend _backend;
   late final PackageManagerInstall _packageInstall;
   late final PackageManagerUpdateLauncher _packageManagerLauncher;
+  late final AleraAppRestarter _appRestarter;
   DesktopUpdaterReleaseCandidate? _activeCandidate;
   AleraUpdateInfo? _activeUpdate;
   String? _stagingPath;
@@ -110,13 +124,19 @@ class DesktopAleraUpdateService implements AleraUpdateService {
       );
     } on DesktopUpdateIndexNotFound {
       _clearSelection();
-      return const AleraUpdateCheckResult(
+      return AleraUpdateCheckResult(
         message: 'No update index is published yet.',
+        currentVersion: packageInfo.version,
+        currentBuildNumber: packageInfo.buildNumber,
       );
     }
     if (candidate == null) {
       _clearSelection();
-      return const AleraUpdateCheckResult(message: 'Alera is up to date.');
+      return AleraUpdateCheckResult(
+        message: 'Alera is up to date.',
+        currentVersion: packageInfo.version,
+        currentBuildNumber: packageInfo.buildNumber,
+      );
     }
 
     final update = await _toAleraUpdate(candidate);
@@ -134,6 +154,8 @@ class DesktopAleraUpdateService implements AleraUpdateService {
         latest: update,
         autoInstallAllowed: true,
         message: 'Update ${update.version} is ready to install.',
+        currentVersion: packageInfo.version,
+        currentBuildNumber: packageInfo.buildNumber,
       );
     }
 
@@ -144,6 +166,8 @@ class DesktopAleraUpdateService implements AleraUpdateService {
         update: update,
         packageInstall: _packageInstall,
       ),
+      currentVersion: packageInfo.version,
+      currentBuildNumber: packageInfo.buildNumber,
     );
   }
 
@@ -205,7 +229,8 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   Future<void> restartApp() async {
     final stagingPath = _stagingPath;
     if (stagingPath == null || stagingPath.isEmpty) {
-      throw StateError('No verified update is ready to install.');
+      await _appRestarter.restart();
+      return;
     }
     await _backend.install(
       stagingPath: stagingPath,

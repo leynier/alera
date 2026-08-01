@@ -227,6 +227,7 @@ void main() {
         AleraUpdateStatus.downloading,
         AleraUpdateStatus.applying,
         AleraUpdateStatus.downloaded,
+        AleraUpdateStatus.restartRequired,
         AleraUpdateStatus.error,
       ]);
     });
@@ -256,6 +257,8 @@ void main() {
         latest: _update,
         message: 'Update is ready.',
         progress: 0.4,
+        currentVersion: '0.1.1',
+        currentBuildNumber: '2',
       );
 
       final updated = state.copyWith(
@@ -263,6 +266,8 @@ void main() {
         latest: null,
         message: null,
         progress: 0,
+        currentVersion: null,
+        currentBuildNumber: null,
       );
 
       expect(updated.status, AleraUpdateStatus.checking);
@@ -270,6 +275,8 @@ void main() {
       expect(updated.latest, isNull);
       expect(updated.message, isNull);
       expect(updated.progress, 0);
+      expect(updated.currentVersion, isNull);
+      expect(updated.currentBuildNumber, isNull);
     });
 
     test('idle state starts non-busy and keeps the provided config', () {
@@ -290,6 +297,8 @@ void main() {
         latest: _update,
         message: 'Download the latest release manually.',
         progress: 0,
+        currentVersion: '0.1.1',
+        currentBuildNumber: '2',
       );
 
       final restored = AleraUpdateState.fromJson(
@@ -298,6 +307,8 @@ void main() {
 
       expect(restored, state);
       expect(restored.latest, _update);
+      expect(restored.currentVersion, '0.1.1');
+      expect(restored.currentBuildNumber, '2');
     });
 
     test('isBusy is true while checking or downloading', () {

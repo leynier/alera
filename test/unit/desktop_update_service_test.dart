@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
+import 'package:alera/src/features/updater/infra/app_restart_launcher.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
 import 'package:alera/src/features/updater/infra/desktop_updater_backend.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,6 +48,8 @@ void main() {
         expect(result.latest?.installerKind, 'zip');
         expect(result.autoInstallAllowed, isTrue);
         expect(result.message, 'Update 1.2.3 is ready to install.');
+        expect(result.currentVersion, '1.0.0');
+        expect(result.currentBuildNumber, '1');
         expect(backend.lastCheck?.archiveUrl, _config().archiveUrl);
         expect(backend.lastCheck?.channel, 'stable');
         expect(backend.lastCheck?.currentVersion, '1.0.0');
@@ -90,6 +93,7 @@ void main() {
         'No update index is published yet.',
       );
       expect((await current.checkForUpdates()).message, 'Alera is up to date.');
+      expect((await current.checkForUpdates()).currentVersion, '1.0.0');
     });
 
     test('propagates update metadata failures', () async {
@@ -231,11 +235,13 @@ void main() {
         platform: 'macos',
         backend: _FakeDesktopUpdaterBackend(candidate: _candidate()),
       );
+      final appRestarter = _FakeAppRestarter();
       final enabled = DesktopAleraUpdateService(
         config: _config(autoInstallEnabled: true),
         loadPackageInfo: () async => _packageInfo('1'),
         platform: 'macos',
         backend: _FakeDesktopUpdaterBackend(candidate: _candidate()),
+        appRestarter: appRestarter,
       );
 
       await expectLater(disabled.installUpdate(_update()), throwsStateError);
@@ -244,7 +250,8 @@ void main() {
         enabled.installUpdate(_update(version: '9.0.0')),
         throwsStateError,
       );
-      await expectLater(enabled.restartApp(), throwsStateError);
+      await enabled.restartApp();
+      expect(appRestarter.restartCalls, 1);
     });
 
     test('opens release pages and reports launcher refusal', () async {
@@ -365,6 +372,15 @@ class _FakeDesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
   @override
   void dispose() {
     disposed = true;
+  }
+}
+
+class _FakeAppRestarter implements AleraAppRestarter {
+  int restartCalls = 0;
+
+  @override
+  Future<void> restart() async {
+    restartCalls += 1;
   }
 }
 
