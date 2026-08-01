@@ -196,7 +196,10 @@ class RemoteHostEditor extends StatelessWidget {
                   spacing: AleraTokens.space8,
                   runSpacing: AleraTokens.space8,
                   children: <Widget>[
-                    ElevatedButton.icon(
+                    // The app theme styles FilledButton and gives enabled
+                    // buttons the click cursor; ElevatedButton falls back to
+                    // Material defaults here.
+                    FilledButton.icon(
                       onPressed: saving || bootstrapping ? null : onSave,
                       icon: Icon(saving ? AleraIcons.loading : AleraIcons.save),
                       label: const Text('Save'),
