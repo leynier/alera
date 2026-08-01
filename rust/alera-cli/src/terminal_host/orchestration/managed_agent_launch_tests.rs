@@ -146,6 +146,35 @@ fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
 }
 
 #[test]
+fn codex_carries_a_separate_plan_mode_effort() {
+    let launch = build_managed_agent_launch(
+        "codex",
+        &json!({"effort": "medium", "planModeEffort": "xhigh"}),
+    )
+    .unwrap();
+    assert_eq!(
+        launch.arguments,
+        [
+            "--config",
+            "model_reasoning_effort=medium",
+            "--config",
+            "plan_mode_reasoning_effort=xhigh"
+        ]
+    );
+    assert_eq!(
+        build_managed_agent_launch("codex", &json!({"planModeEffort": "high"}))
+            .unwrap()
+            .arguments,
+        ["--config", "plan_mode_reasoning_effort=high"]
+    );
+    assert!(
+        build_managed_agent_launch("codex", &json!({"planModeEffort": "plan"})).is_err(),
+        "an unsupported effort was accepted"
+    );
+    assert!(build_managed_agent_launch("claude", &json!({"planModeEffort": "high"})).is_err());
+}
+
+#[test]
 fn claude_can_allow_bypass_without_starting_in_it() {
     let launch = build_managed_agent_launch(
         "claude",
@@ -182,7 +211,6 @@ fn a_claude_ccs_profile_must_be_a_single_name_that_is_not_an_option() {
     }
     assert!(build_managed_agent_launch("codex", &json!({"ccsProfile": "work"})).is_err());
 }
-
 #[test]
 fn claude_can_allow_dangerous_skip_permissions_independently_of_start_mode() {
     let launch = build_managed_agent_launch(
