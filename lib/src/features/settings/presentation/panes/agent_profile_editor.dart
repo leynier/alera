@@ -4,8 +4,10 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
+import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_prompt_delivery.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
@@ -120,6 +122,10 @@ class AgentProfileEditor extends StatelessWidget {
                     ),
                   ),
                 ),
+                _PromptDeliveryNote(
+                  adapter: adapter,
+                  commandController: commandController,
+                ),
               ] else
                 AleraSettingRow(
                   title: 'Command Preview',
@@ -227,17 +233,86 @@ class AgentProfileEditor extends StatelessWidget {
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
             children: <Widget>[
-              ElevatedButton.icon(
+              // FilledButton, not ElevatedButton: the app theme styles the
+              // filled, outlined and text variants, and an unthemed
+              // ElevatedButton falls back to Material defaults, including a
+              // cursor that resolves to `basic` on desktop.
+              FilledButton.icon(
                 onPressed: saving ? null : onSave,
-                icon: Icon(saving ? AleraIcons.loading : AleraIcons.save),
-                label: const Text('Save'),
+                icon: Icon(
+                  saving ? AleraIcons.loading : AleraIcons.save,
+                  size: 16,
+                ),
+                label: Text(saving ? 'Saving' : 'Save'),
               ),
               OutlinedButton.icon(
                 onPressed: hasSelection && !saving ? onRemove : null,
-                icon: const Icon(AleraIcons.delete),
+                icon: const Icon(AleraIcons.delete, size: 16),
                 label: const Text('Remove'),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How the dispatched prompt reaches the agent in Command mode, where the user
+/// writes the launch line and nothing else says where the prompt goes.
+class _PromptDeliveryNote extends StatelessWidget {
+  const _PromptDeliveryNote({
+    required this.adapter,
+    required this.commandController,
+  });
+
+  final AgentType adapter;
+  final TextEditingController commandController;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(AleraTokens.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(
+                AleraIcons.info,
+                size: 16,
+                color: AleraTokens.foregroundMuted,
+              ),
+              const SizedBox(width: AleraTokens.space8),
+              Text(
+                'Prompt Delivery',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            agentPromptDeliveryDescription(adapter),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: commandController,
+            builder: (context, value, _) {
+              final preview = agentPromptDeliveryPreview(adapter, value.text);
+              if (preview.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: AleraTokens.space12),
+                child: AleraCommandLine(command: preview),
+              );
+            },
           ),
         ],
       ),

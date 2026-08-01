@@ -42,6 +42,16 @@ class AgentProfileManagedEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = <Widget>[
+      if (agentProfileSupportsCcsProfile(adapter))
+        _textRow(
+          title: 'CCS Profile',
+          description:
+              'Leave Empty To Run Claude Directly. A Profile Launches ccs With '
+              'The Profile First And The Same Flags After It. CCS Points '
+              'CLAUDE_CONFIG_DIR At Its Own Directory, So Alera Agent Status '
+              'Hooks Reach That Session Only If The Profile Inherits Them.',
+          keyName: 'ccsProfile',
+        ),
       if (agentProfileSupportsModel(adapter)) ...<Widget>[
         _choiceRow(
           title: 'Model',

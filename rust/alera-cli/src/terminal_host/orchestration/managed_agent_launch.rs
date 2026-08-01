@@ -13,6 +13,8 @@ pub struct ManagedAgentLaunch {
 /// The profile switcher Claude Code profiles may launch through. It takes the
 /// profile as its first positional argument and forwards everything after it to
 /// `claude` unchanged.
+/// `claude` unchanged, which is why only the executable and that one argument
+/// change.
 const CCS_EXECUTABLE: &str = "ccs";
 
 pub fn build_managed_agent_launch(
@@ -116,6 +118,8 @@ fn build_codex(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Resu
     Ok(())
 }
 
+/// Returns the executable to launch instead of `claude`, if the profile routes
+/// through a CCS profile.
 fn build_claude(
     values: &Map<String, Value>,
     arguments: &mut Vec<String>,
@@ -134,6 +138,8 @@ fn build_claude(
     let launcher = match string_value(values, "ccsProfile")? {
         None => None,
         Some(profile) => {
+            // The profile is the first positional argument, so a dash-prefixed
+            // value would be read as an option of the switcher itself.
             if profile.starts_with('-') {
                 return Err("ccsProfile must not start with a dash.".to_string());
             }

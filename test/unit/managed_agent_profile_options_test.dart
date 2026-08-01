@@ -280,6 +280,41 @@ void main() {
       );
     });
 
+    test('routes Claude through a CCS profile when one is configured', () {
+      expect(
+        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+          'ccsProfile': 'work',
+          'model': 'opus',
+          'permissionMode': 'acceptEdits',
+        }),
+        'ccs work --model opus --permission-mode acceptEdits',
+      );
+      expect(
+        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+          'ccsProfile': '   ',
+          'model': 'opus',
+        }),
+        'claude --model opus',
+      );
+      expect(
+        <AgentType, bool>{
+          for (final adapter in AgentType.values)
+            adapter: agentProfileSupportsCcsProfile(adapter),
+        },
+        <AgentType, bool>{
+          AgentType.codex: false,
+          AgentType.claude: true,
+          AgentType.copilot: false,
+          AgentType.cursor: false,
+          AgentType.agy: false,
+          AgentType.opencode: false,
+          AgentType.pi: false,
+          AgentType.amp: false,
+          AgentType.grok: false,
+        },
+      );
+    });
+
     test('renders every Cursor permission branch', () {
       expect(
         managedAgentCommandPreview(AgentType.cursor, const <String, Object?>{

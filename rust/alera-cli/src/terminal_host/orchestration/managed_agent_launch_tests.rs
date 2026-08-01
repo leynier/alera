@@ -140,7 +140,6 @@ fn claude_can_allow_dangerous_skip_permissions_independently_of_start_mode() {
     );
 }
 
-#[test]
 fn rendering_quotes_each_token_for_supported_shell_families() {
     let launch = ManagedAgentLaunch {
         executable: "agy".to_string(),
