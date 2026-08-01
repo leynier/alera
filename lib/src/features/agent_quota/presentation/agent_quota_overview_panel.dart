@@ -30,7 +30,7 @@ class _QuotaOverviewButton extends StatelessWidget {
           snapshots: snapshots,
           settings: settings,
           hostId: hostId,
-          emptyMessage: error ?? 'No Quota Data',
+          emptyMessage: error ?? 'No quota data',
           onTogglePinned: onTogglePinned,
           profileLabels: <String, String>{
             for (final snapshot in snapshots)
@@ -58,7 +58,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
     required this.hostId,
     required this.onTogglePinned,
     this.profileLabels = const <String, String>{},
-    this.emptyMessage = 'No Quota Data',
+    this.emptyMessage = 'No quota data',
   });
 
   final List<AgentQuotaSnapshot> snapshots;

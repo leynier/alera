@@ -53,7 +53,7 @@ class BrowserProfilePickerDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space8),
             Text(
-              'Profiles Keep Cookies, Storage And Site Permissions Separate.',
+              'Profiles keep cookies, storage and site permissions separate.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),
@@ -62,8 +62,8 @@ class BrowserProfilePickerDialog extends StatelessWidget {
             Expanded(
               child: profiles.isEmpty
                   ? const AleraEmptyState(
-                      title: 'No Browser Profiles',
-                      message: 'Create A Profile To Open This Page.',
+                      title: 'No browser profiles',
+                      message: 'Create a profile to open this page.',
                     )
                   : ListView.builder(
                       itemCount: profiles.length,
@@ -161,8 +161,8 @@ String _profileDescription(BrowserProfile profile) {
       BrowserImportSourceFamily.manual => 'JSON',
     };
     return source.profileName == null
-        ? 'Imported From $sourceLabel'
-        : 'Imported From $sourceLabel - ${source.profileName}';
+        ? 'Imported from $sourceLabel'
+        : 'Imported from $sourceLabel - ${source.profileName}';
   }
-  return profile.isDefault ? 'Shared Default Profile' : 'Isolated Profile';
+  return profile.isDefault ? 'Shared default profile' : 'Isolated profile';
 }

@@ -30,7 +30,7 @@ class RuntimeConnectionLost implements Exception {
   const RuntimeConnectionLost();
 
   @override
-  String toString() => 'Lost The Connection To The Host';
+  String toString() => 'Lost the connection to the host';
 }
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
@@ -77,7 +77,7 @@ class HostConnectionController extends _$HostConnectionController {
   Future<RuntimeRestartResult> restartRuntime({bool force = false}) async {
     final client = _client ?? state.value;
     if (client == null) {
-      throw StateError('Host Is Not Connected.');
+      throw StateError('Host is not connected.');
     }
     try {
       final result = await client.restartRuntime(force: force);
@@ -119,13 +119,13 @@ class HostConnectionController extends _$HostConnectionController {
     final hosts = await ref.read(pairedHostsControllerProvider.future);
     final host = hosts.where((host) => host.id == hostId).firstOrNull;
     if (host == null) {
-      throw StateError('Host Is Not Paired.');
+      throw StateError('Host is not paired.');
     }
     final deviceToken = await ref
         .read(hostRepositoryProvider)
         .readDeviceToken(hostId);
     if (deviceToken == null || deviceToken.trim().isEmpty) {
-      throw StateError('Device Token Is Missing.');
+      throw StateError('Device token is missing.');
     }
     final cloudDeviceId = await ref
         .read(cloudAccountRepositoryProvider)

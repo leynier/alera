@@ -41,10 +41,10 @@ class AleraOrchestrationSetupResult {
       return skillResult.summary;
     }
     if (hookError != null) {
-      return 'Skill Installed · Hook Setup Failed: $hookError';
+      return 'Skill installed · hook setup failed: $hookError';
     }
     if (!hooksSelected) {
-      return '${skillResult.summary} · No Status Hooks Selected';
+      return '${skillResult.summary} · no status hooks selected';
     }
     final needsAttention = hookStatuses.where(
       (status) =>
@@ -55,9 +55,9 @@ class AleraOrchestrationSetupResult {
       final labels = needsAttention
           .map((status) => _agentTypeLabel(status.agentType))
           .join(', ');
-      return 'Skill Installed · Hooks Need Attention: $labels';
+      return 'Skill installed · hooks need attention: $labels';
     }
-    return '${skillResult.summary} · Selected Hooks Ready';
+    return '${skillResult.summary} · selected hooks ready';
   }
 }
 
@@ -86,19 +86,19 @@ class AleraOrchestrationHookSetupResult {
 
   String get summary {
     if (hookError != null) {
-      return 'Hook Setup Failed: $hookError';
+      return 'Hook setup failed: $hookError';
     }
     if (!hooksSelected) {
-      return 'No Status Hooks Selected';
+      return 'No status hooks selected';
     }
     final unhealthy = _unhealthy;
     if (unhealthy.isNotEmpty) {
       final labels = unhealthy
           .map((status) => _agentTypeLabel(status.agentType))
           .join(', ');
-      return 'Hooks Need Attention: $labels';
+      return 'Hooks need attention: $labels';
     }
-    return 'Selected Hooks Ready';
+    return 'Selected hooks ready';
   }
 }
 

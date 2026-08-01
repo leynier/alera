@@ -107,7 +107,7 @@ class _KeyList extends StatelessWidget {
                 )
               : isPinned
               ? const Tooltip(
-                  message: 'Pinned Quick Key',
+                  message: 'Pinned quick key',
                   child: Icon(Icons.push_pin_outlined),
                 )
               : ReorderableDragStartListener(

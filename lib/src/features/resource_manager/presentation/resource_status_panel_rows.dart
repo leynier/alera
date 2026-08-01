@@ -335,7 +335,7 @@ class _OrphanFooter extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              '$count Orphan Terminal${count == 1 ? '' : 's'}',
+              '$count orphan terminal${count == 1 ? '' : 's'}',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),

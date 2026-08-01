@@ -7,6 +7,6 @@ Widget aleraRenameDialogPreview() => const AleraRenameDialog(
   title: 'Rename Host',
   labelText: 'Host Name',
   initialValue: 'Alera Workstation',
-  helperText: 'Leave Empty To Use The Advertised Host Name',
+  helperText: 'Leave empty to use the advertised host name',
   allowEmpty: true,
 );

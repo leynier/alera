@@ -191,16 +191,16 @@ class WorkspaceService {
   }) async {
     if (!project.supportsLinkedWorkspaces) {
       throw WorkspaceException(
-        'Linked Workspaces Require a Git Repository Project',
+        'Linked workspaces require a Git repository project',
       );
     }
     final normalizedSource = sourceBranch.trim();
     final normalizedBranch = newBranchName.trim();
     if (!reuseExistingBranch && normalizedSource.isEmpty) {
-      throw WorkspaceException('Source Branch Is Required');
+      throw WorkspaceException('Source branch is required');
     }
     if (normalizedBranch.isEmpty) {
-      throw WorkspaceException('New Branch Name Is Required');
+      throw WorkspaceException('New branch name is required');
     }
 
     final managedRuntime = _managedRuntime;

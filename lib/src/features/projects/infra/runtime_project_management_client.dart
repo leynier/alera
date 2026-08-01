@@ -58,7 +58,7 @@ class RuntimeProjectManagementClient {
       final jobs = _asList(await _client.runtimeRequest('project.clone.list'));
       final job = jobs.where((item) => item['id'] == jobId).firstOrNull;
       if (job == null) {
-        throw StateError('Clone Job Disappeared: $jobId');
+        throw StateError('Clone job disappeared: $jobId');
       }
       switch (job['status']) {
         case 'completed':
@@ -71,15 +71,15 @@ class RuntimeProjectManagementClient {
           );
         case 'failed':
           throw StateError(
-            (job['error'] as String?) ?? 'Project Clone Failed.',
+            (job['error'] as String?) ?? 'Project clone failed.',
           );
         case 'cancelled':
-          throw StateError('Project Clone Was Cancelled.');
+          throw StateError('Project clone was cancelled.');
       }
       await Future<void>.delayed(const Duration(milliseconds: 300));
     }
     throw TimeoutException(
-      'Project Clone Timed Out.',
+      'Project clone timed out.',
       const Duration(minutes: 30),
     );
   }

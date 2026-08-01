@@ -38,7 +38,7 @@ void _registerTerminalSurfaceRuntimeTests() {
     await tester.tap(find.byTooltip('Refresh Terminal'));
     await tester.pump();
 
-    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(find.text('Terminal unavailable'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

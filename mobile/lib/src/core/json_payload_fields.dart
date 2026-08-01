@@ -9,7 +9,7 @@ extension JsonPayloadFields on Map<String, Object?> {
     if (value is String && value.trim().isNotEmpty) {
       return value;
     }
-    throw FormatException('$key Is Required');
+    throw FormatException('$key is required');
   }
 
   String? optionalString(String key) {
@@ -25,7 +25,7 @@ extension JsonPayloadFields on Map<String, Object?> {
     if (value is int) {
       return value;
     }
-    throw FormatException('$key Is Required');
+    throw FormatException('$key is required');
   }
 
   DateTime? optionalDateTime(String key) {

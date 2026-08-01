@@ -539,7 +539,7 @@ void _registerSettingsDialogAdvancedTests() {
     final cancelButton = find.widgetWithText(OutlinedButton, 'Cancel');
     await tester.ensureVisible(cancelButton);
     expect(tester.widget<OutlinedButton>(cancelButton).onPressed, isNull);
-    expect(find.text('Remote Runtime Install Started'), findsNothing);
+    expect(find.text('Remote runtime install started'), findsNothing);
   });
 
   testWidgets('remote host plan completion ignores stale selection', (
@@ -656,7 +656,7 @@ void _registerSettingsDialogAdvancedTests() {
     );
     await tester.ensureVisible(cancelButton);
     expect(tester.widget<OutlinedButton>(cancelButton).onPressed, isNotNull);
-    expect(find.text('Remote Runtime Error'), findsNothing);
+    expect(find.text('Remote runtime error'), findsNothing);
   });
 
   testWidgets('remote host external delete selects remaining target', (
@@ -817,7 +817,7 @@ void _registerSettingsDialogAdvancedTests() {
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Port Must Be Between 1 And 65535'), findsOneWidget);
+    expect(find.text('Port must be between 1 and 65535'), findsOneWidget);
     expect(
       runtimeClient.requests.where(
         (request) => request.type == 'sshTarget.upsert',
@@ -829,7 +829,7 @@ void _registerSettingsDialogAdvancedTests() {
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Port Must Be Between 1 And 65535'), findsOneWidget);
+    expect(find.text('Port must be between 1 and 65535'), findsOneWidget);
     expect(
       runtimeClient.requests.where(
         (request) => request.type == 'sshTarget.upsert',

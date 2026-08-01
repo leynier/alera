@@ -71,7 +71,7 @@ class _AleraCliRegistrationControlState
       }
       setState(() {
         _status = null;
-        _error = 'Registration Check Failed: $error';
+        _error = 'Registration check failed: $error';
       });
     } finally {
       if (mounted) {
@@ -106,7 +106,7 @@ class _AleraCliRegistrationControlState
         return;
       }
       setState(() {
-        _error = 'Registration Failed: $error';
+        _error = 'Registration failed: $error';
       });
     } finally {
       if (mounted) {

@@ -215,7 +215,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     id: KeyboardActionId.newBrowserTab,
     label: 'New Browser Tab',
     group: KeyboardActionGroup.tabs,
-    description: 'Open A Local Browser Tab In The Active Workspace.',
+    description: 'Open a local browser tab in the active workspace.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+B']),
     searchKeywords: <String>['browser', 'web', 'page'],
     allowInTerminal: true,

@@ -73,7 +73,8 @@ class RuntimeAgentProfileRepository {
         capabilities.contains(aleraRuntimeHostManagedAgentProfilesCapability);
     if (!supported) {
       throw StateError(
-        'Managed Agent Profiles Require A Newer Runtime Host. Restart Alera To Replace The Running Host, Or Use Command Mode.',
+        'Managed agent profiles require a newer runtime host. Restart Alera to '
+        'replace the running host, or use Command mode.',
       );
     }
   }

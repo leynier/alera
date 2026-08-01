@@ -173,7 +173,7 @@ final class BrowserArtifactResult {
         mimeType is! String ||
         sizeBytes is! num ||
         expiresAt == null) {
-      throw const FormatException('Browser Artifact Metadata Is Invalid.');
+      throw const FormatException('Browser artifact metadata is invalid.');
     }
     return BrowserArtifactResult(
       path: path,
@@ -202,26 +202,26 @@ final class BrowserArtifactResult {
 String browserCapabilityLimitationMessage(String code) {
   return switch (code.trim()) {
     'cross_origin_frames_unavailable' =>
-      'Cross-Origin Frame Automation Is Unavailable.',
-    'native_file_upload_unavailable' => 'Native File Upload Is Unavailable.',
+      'Cross-origin frame automation is unavailable.',
+    'native_file_upload_unavailable' => 'Native file upload is unavailable.',
     'trusted_input_events_unavailable' =>
-      'Trusted Input Events Are Unavailable.',
+      'Trusted input events are unavailable.',
     'popup_opener_requirement_unavailable' =>
-      'Popup Opener Preservation Is Unavailable.',
+      'Popup opener preservation is unavailable.',
     'screenshot_scale_unavailable' =>
-      'Exact Screenshot Scaling Is Unavailable.',
+      'Exact screenshot scaling is unavailable.',
     'chromium_app_bound_cookie_import_unavailable' =>
-      'Chromium App-Bound Cookie Import Is Unavailable.',
+      'Chromium app-bound cookie import is unavailable.',
     'tab_scoped_tls_exception_unavailable' =>
-      'Tab-Scoped TLS Exceptions Are Unavailable.',
+      'Tab-scoped TLS exceptions are unavailable.',
     'certificate_trust_sidecar_unavailable' =>
-      'Restart Alera To Enable Local Certificate Trust.',
+      'Restart Alera to enable local certificate trust.',
     'webview2_evergreen_unavailable' =>
-      'The WebView2 Evergreen Runtime Is Unavailable.',
+      'The WebView2 Evergreen runtime is unavailable.',
     'macos_14_or_wkwebview_required' =>
-      'macOS 14 Or A Newer WKWebView Is Required.',
-    'flutter_host_view_unavailable' => 'The Flutter Host View Is Unavailable.',
-    _ => 'A Required Browser Capability Is Unavailable.',
+      'macOS 14 or a newer WKWebView is required.',
+    'flutter_host_view_unavailable' => 'The Flutter host view is unavailable.',
+    _ => 'A required browser capability is unavailable.',
   };
 }
 

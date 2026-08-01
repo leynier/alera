@@ -298,7 +298,7 @@ final class PluginBrowserEngine implements BrowserEngine {
       if (target == null) {
         throw const BrowserFailure(
           code: BrowserErrorCode.invalidPayload,
-          message: 'The Browser Action Requires A Target.',
+          message: 'The browser action requires a target.',
           recoverable: true,
         );
       }
@@ -315,7 +315,7 @@ final class PluginBrowserEngine implements BrowserEngine {
           secondaryTarget == null) {
         throw const BrowserFailure(
           code: BrowserErrorCode.invalidPayload,
-          message: 'The Browser Drag Action Requires A Second Target.',
+          message: 'The browser drag action requires a second target.',
           recoverable: true,
         );
       }
@@ -372,7 +372,7 @@ final class PluginBrowserEngine implements BrowserEngine {
     BrowserPermissionDecision decision,
   ) => throw const BrowserFailure(
     code: BrowserErrorCode.unsupportedCapability,
-    message: 'Permission Decisions Must Be Answered In The Engine Callback.',
+    message: 'Permission decisions must be answered in the engine callback.',
   );
 
   @override
@@ -381,14 +381,14 @@ final class PluginBrowserEngine implements BrowserEngine {
     required bool proceed,
   }) => throw const BrowserFailure(
     code: BrowserErrorCode.unsupportedCapability,
-    message: 'TLS Decisions Must Be Answered In The Engine Callback.',
+    message: 'TLS decisions must be answered in the engine callback.',
   );
 
   @override
   Future<void> answerPopup(String requestId, {required bool allow}) =>
       throw const BrowserFailure(
         code: BrowserErrorCode.unsupportedCapability,
-        message: 'Popup Decisions Must Be Answered In The Engine Callback.',
+        message: 'Popup decisions must be answered in the engine callback.',
       );
 
   BrowserPage _requiredPage(String pageId) {
@@ -396,7 +396,7 @@ final class PluginBrowserEngine implements BrowserEngine {
     if (page == null) {
       throw BrowserFailure(
         code: BrowserErrorCode.pageNotFound,
-        message: 'Browser Page $pageId Was Not Found.',
+        message: 'Browser page $pageId was not found.',
         recoverable: true,
       );
     }

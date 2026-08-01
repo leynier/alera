@@ -99,8 +99,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         SnackBar(
           content: Text(
             count > 0
-                ? 'Shell Environment Reloaded ($count PATH Entries)'
-                : 'Shell Environment Reloaded',
+                ? 'Shell environment reloaded ($count PATH entries)'
+                : 'Shell environment reloaded',
           ),
         ),
       );
@@ -109,7 +109,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return;
       }
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could Not Reload Shell Environment')),
+        const SnackBar(content: Text('Could not reload shell environment')),
       );
     }
   }
@@ -223,7 +223,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'agents',
         title: 'Agents',
-        description: 'Agent Hooks, Notifications And Alera Skills.',
+        description: 'Agent hooks, notifications and Alera skills.',
         icon: AleraIcons.agent,
         entries: agentsSearchEntries,
         groups: agentsGroups,
@@ -236,7 +236,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'quotas',
         title: 'Quotas',
         description:
-            'Provider Usage, Claude Profiles And Credential Environment.',
+            'Provider usage, Claude profiles and credential environment.',
         icon: AleraIcons.quota,
         entries: quotaSearchEntries,
         groups: quotaGroups,
@@ -290,7 +290,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'browser',
         title: 'Browser',
-        description: 'System Engine, Profiles And Browsing Data.',
+        description: 'System engine, profiles and browsing data.',
         icon: AleraIcons.public,
         entries: browserSearchEntries,
         groups: browserGroups,
@@ -309,7 +309,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'projects',
         title: 'Projects',
-        description: 'Per-Project Workspace Setup.',
+        description: 'Per-project workspace setup.',
         icon: AleraIcons.folderSpecial,
         entries: projectSearchEntries,
         navGroup: SettingsNavGroup.resources,

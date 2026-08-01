@@ -16,14 +16,14 @@ String normalizeProjectConfigPath(String value, String label) {
       p.posix.isAbsolute(normalizedInput) ||
       p.windows.isAbsolute(trimmedInput) ||
       p.windows.isAbsolute(normalizedInput)) {
-    throw ProjectConfigPathException('$label Must Be a Relative Path');
+    throw ProjectConfigPathException('$label must be a relative path');
   }
   final normalized = p.posix.normalize(normalizedInput);
   if (normalized == '.' ||
       normalized == '..' ||
       normalized.startsWith('../') ||
       p.posix.split(normalized).contains('..')) {
-    throw ProjectConfigPathException('$label Must Stay Inside the Project');
+    throw ProjectConfigPathException('$label must stay inside the project');
   }
   return normalized;
 }

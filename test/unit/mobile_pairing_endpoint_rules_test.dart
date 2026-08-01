@@ -162,7 +162,7 @@ void main() {
           gatewayEnabled: true,
           gatewayPort: 6768,
         ),
-        contains('Match The Enabled Gateway Port 6768'),
+        contains('match the enabled gateway port 6768'),
       );
     });
 
@@ -184,7 +184,7 @@ void main() {
           gatewayEnabled: false,
           gatewayPort: 6768,
         ),
-        contains('Between 1 And 65535'),
+        contains('between 1 and 65535'),
       );
     });
 
@@ -195,7 +195,7 @@ void main() {
           gatewayEnabled: true,
           gatewayPort: 6123,
         ),
-        contains('Match The Enabled Gateway Port 6123'),
+        contains('match the enabled gateway port 6123'),
       );
     });
 

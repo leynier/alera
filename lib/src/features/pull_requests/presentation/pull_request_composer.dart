@@ -152,11 +152,11 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     final title = _titleController.text.trim();
     final base = _baseBranch.trim();
     if (title.isEmpty) {
-      setState(() => _errorText = 'Title Is Required');
+      setState(() => _errorText = 'Title is required');
       return;
     }
     if (base.isEmpty) {
-      setState(() => _errorText = 'Base Branch Is Required');
+      setState(() => _errorText = 'Base branch is required');
       return;
     }
     final body = _bodyController.text.trim();
@@ -174,7 +174,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   void _submitLink() {
     final value = _linkController.text.trim();
     if (value.isEmpty) {
-      setState(() => _errorText = 'Enter A PR Number Or URL');
+      setState(() => _errorText = 'Enter a PR number or URL');
       return;
     }
     setState(() => _errorText = null);

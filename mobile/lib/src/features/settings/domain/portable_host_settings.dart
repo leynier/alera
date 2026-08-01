@@ -89,7 +89,7 @@ class CliRegistrationStatus {
       state: json['state'] as String? ?? 'unsupported',
       ready: json['ready'] == true,
       pathConfigured: json['pathConfigured'] == true,
-      detail: json['detail'] as String? ?? 'CLI Status Unavailable.',
+      detail: json['detail'] as String? ?? 'CLI status unavailable.',
       commandPath: json['commandPath'] as String?,
     );
   }
@@ -107,7 +107,7 @@ class SkillInstallResult {
   factory SkillInstallResult.fromJson(Map<String, Object?> json) {
     return SkillInstallResult(
       succeeded: json['succeeded'] == true,
-      summary: json['summary'] as String? ?? 'Skill Install Failed.',
+      summary: json['summary'] as String? ?? 'Skill install failed.',
     );
   }
 

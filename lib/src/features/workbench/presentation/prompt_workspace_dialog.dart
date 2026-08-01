@@ -233,14 +233,14 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         prompt.isEmpty) {
       setState(
         () =>
-            _error = 'Complete The Prompt, Project, Branch, And Agent Profile.',
+            _error = 'Complete the prompt, project, branch, and agent profile.',
       );
       return;
     }
     setState(() {
       _working = true;
       _error = null;
-      _phase = 'Generating Workspace Identity';
+      _phase = 'Generating workspace identity';
     });
     try {
       WorkspaceCreationResult? creation;
@@ -266,17 +266,17 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         if (!mounted) {
           return;
         }
-        setState(() => _phase = 'Checking Generated Branch');
+        setState(() => _phase = 'Checking generated branch');
         final collision =
             widget.workspaceBranches(project).contains(identity.branchName) ||
             await widget.checkBranchExists(project, identity.branchName);
         if (collision) {
           collisionError = StateError(
-            'The Generated Branch "${identity.branchName}" Already Exists.',
+            'The generated branch "${identity.branchName}" already exists.',
           );
           continue;
         }
-        setState(() => _phase = 'Creating Workspace');
+        setState(() => _phase = 'Creating workspace');
         try {
           creation = await widget.createWorkspace(
             project: project,
@@ -297,14 +297,14 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       if (creation == null) {
         throw collisionError ??
             StateError(
-              'AI Text Could Not Generate An Available Workspace Identity.',
+              'AI Text could not generate an available workspace identity.',
             );
       }
       _created = creation;
       if (!mounted) {
         return;
       }
-      setState(() => _phase = 'Starting Agent');
+      setState(() => _phase = 'Starting agent');
       final launch = await widget.launchAgent(
         workspaceId: creation.workspace.id,
         profileId: profile.id,
@@ -346,7 +346,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     }
     setState(() {
       _working = true;
-      _phase = 'Starting Agent';
+      _phase = 'Starting agent';
       _error = null;
     });
     try {
@@ -465,7 +465,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Choose Every Workspace Setting Yourself, Including The Branch Name And Optional Parent Workspace.',
+          'Choose every workspace setting yourself, including the branch name and optional parent workspace.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),

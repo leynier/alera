@@ -133,7 +133,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Registration Check Failed'), findsOneWidget);
+    expect(find.textContaining('Registration check failed'), findsOneWidget);
     expect(find.textContaining('missing'), findsOneWidget);
   });
 
@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(reconciler.settings?.codex, isTrue);
-    expect(find.text('Selected Hooks Ready'), findsOneWidget);
+    expect(find.text('Selected hooks ready'), findsOneWidget);
   });
 
   testWidgets('emulator control installs the emulator skill', (tester) async {
@@ -264,7 +264,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(reconciler.settings?.codex, isTrue);
-    expect(find.text('Selected Hooks Ready'), findsOneWidget);
+    expect(find.text('Selected hooks ready'), findsOneWidget);
   });
 
   testWidgets('all skills control copies without opening the terminal', (
@@ -332,7 +332,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Registration Failed'), findsOneWidget);
+    expect(find.textContaining('Registration failed'), findsOneWidget);
     expect(find.textContaining('permission denied'), findsOneWidget);
   });
 }
@@ -445,7 +445,7 @@ const _notRegisteredStatus = AleraCliRegistrationStatus(
   launcherPath: '/Applications/Alera.app/alera',
   installMethod: AleraCliRegistrationInstallMethod.wrapper,
   state: AleraCliRegistrationState.notInstalled,
-  detail: 'Register The Alera Command To Use It From Terminals And Agents.',
+  detail: 'Register the Alera command to use it from terminals and agents.',
 );
 
 class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {

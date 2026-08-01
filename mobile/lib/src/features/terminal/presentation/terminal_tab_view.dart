@@ -125,7 +125,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       if (text == null || text.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Clipboard Has No Text')),
+            const SnackBar(content: Text('Clipboard has no text')),
           );
         }
         return;
@@ -137,7 +137,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       ).warning('terminal clipboard paste failed', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could Not Paste Clipboard')),
+          const SnackBar(content: Text('Could not paste clipboard')),
         );
       }
     }
@@ -167,7 +167,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         return AlertDialog(
           title: const Text('Restart Terminal?'),
           content: const Text(
-            'This Will Stop The Current Process Tree And Start A New Shell. Terminal History Will Be Preserved.',
+            'This will stop the current process tree and start a new shell. Terminal history will be preserved.',
           ),
           actions: <Widget>[
             TextButton(

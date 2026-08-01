@@ -18,7 +18,7 @@ final class BrowserTabPayloadCodec {
     if (record.kind != WorkspaceTabKind.browser) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidPayload,
-        message: 'The Workspace Tab Is Not A Browser Tab.',
+        message: 'The workspace tab is not a browser tab.',
       );
     }
     final rawUrl = record.browserUrl;
@@ -50,7 +50,7 @@ final class BrowserTabPayloadCodec {
     if (normalizedProfileId.isEmpty) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidPayload,
-        message: 'The Browser Profile Id Is Empty.',
+        message: 'The browser profile id is empty.',
       );
     }
     final payload = <String, Object?>{
@@ -85,7 +85,7 @@ final class BrowserTabPayloadCodec {
     if (!isBlank && !isSafeWebUrl) {
       throw const BrowserFailure(
         code: BrowserErrorCode.invalidPayload,
-        message: 'The Saved Browser Address Is Invalid Or Sensitive.',
+        message: 'The saved browser address is invalid or sensitive.',
         recoverable: true,
       );
     }

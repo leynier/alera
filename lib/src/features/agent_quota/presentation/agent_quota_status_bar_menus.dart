@@ -107,7 +107,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semanticsLabel = snapshots.isEmpty
-        ? error ?? 'No Quota Data'
+        ? error ?? 'No quota data'
         : snapshots
               .map(
                 (snapshot) => _quotaTooltip(
@@ -128,7 +128,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
               card: _AgentQuotaOverviewPanel(
                 snapshots: snapshots,
                 settings: settings,
-                emptyMessage: error ?? 'No Quota Data',
+                emptyMessage: error ?? 'No quota data',
                 hostId: hostId,
                 onTogglePinned: onTogglePinned,
                 profileLabels: <String, String>{
@@ -152,8 +152,8 @@ class _CollapsedQuotaBar extends StatelessWidget {
                     Expanded(
                       child: Text(
                         loading
-                            ? 'Refreshing Quotas'
-                            : '${snapshots.length} Agent Quotas - '
+                            ? 'Refreshing quotas'
+                            : '${snapshots.length} agent quotas - '
                                   '${hostId == 'local' ? 'Local' : hostId}',
                         overflow: TextOverflow.ellipsis,
                         style: AleraTokens.monoStyle.copyWith(fontSize: 10),
@@ -284,7 +284,7 @@ String _quotaTooltip(
   if (snapshot.error case final error?) {
     lines.add('Error: ${_normalizeQuotaText(error)}');
   } else if (!snapshot.hasUsage) {
-    lines.add('Quota Data Unavailable');
+    lines.add('Quota data unavailable');
   }
   return lines.join('\n');
 }
@@ -296,7 +296,7 @@ String _quotaTooltipLine({
   required String? resetDescription,
 }) {
   final reset =
-      _resetText(resetsAt, resetDescription) ?? 'Reset Time Unavailable';
+      _resetText(resetsAt, resetDescription) ?? 'Reset time unavailable';
   return '${_normalizeQuotaText(label)}: '
       '${remainingPercent.round()}% Left - $reset';
 }
@@ -310,12 +310,12 @@ String _normalizeQuotaText(String value) {
 
 String? _resetText(DateTime? resetsAt, String? description) {
   if (resetsAt != null) {
-    return 'Resets In ${_compactResetDuration(resetsAt.difference(DateTime.now()))}';
+    return 'Resets in ${_compactResetDuration(resetsAt.difference(DateTime.now()))}';
   }
   if (description != null && description.trim().isNotEmpty) {
     final duration = _durationFromResetDescription(description);
     if (duration != null) {
-      return 'Resets In ${_compactResetDuration(duration)}';
+      return 'Resets in ${_compactResetDuration(duration)}';
     }
     return _normalizeQuotaText(description.trim());
   }

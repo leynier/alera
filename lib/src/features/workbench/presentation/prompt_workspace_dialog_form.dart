@@ -13,7 +13,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
               controller: _promptController,
               labelText: 'Initial Prompt',
               hintText:
-                  'Describe What The Agent Should Build Or Paste An Image',
+                  'Describe what the agent should build or paste an image',
               minLines: 4,
               maxLines: 8,
               autofocus: true,
@@ -38,7 +38,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
             const SizedBox(height: AleraTokens.space12),
             AleraDropdownField<String>(
               labelText: 'Source Branch',
-              hintText: _loadingBranches ? 'Loading Branches' : 'Select Branch',
+              hintText: _loadingBranches ? 'Loading branches' : 'Select Branch',
               value: _sourceBranch,
               entries: <AleraDropdownFieldEntry<String>>[
                 for (final branch in _branches)
@@ -73,7 +73,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
             AleraDropdownField<AgentProfile>(
               labelText: 'Agent Profile',
               hintText: widget.agentProfiles.isEmpty
-                  ? 'Create An Agent Profile In Settings'
+                  ? 'Create an agent profile in settings'
                   : 'Select Agent Profile',
               value: _profile,
               entries: <AleraDropdownFieldEntry<AgentProfile>>[

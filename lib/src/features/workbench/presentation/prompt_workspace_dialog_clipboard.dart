@@ -26,7 +26,7 @@ extension _PromptWorkspaceDialogClipboard on _PromptWorkspaceDialogState {
       return true;
     } catch (_) {
       if (mounted) {
-        _update(() => _error = 'Could Not Paste Clipboard Image.');
+        _update(() => _error = 'Could not paste clipboard image.');
       }
       return true;
     }

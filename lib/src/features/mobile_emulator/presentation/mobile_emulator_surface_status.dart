@@ -39,8 +39,8 @@ class MobileEmulatorLoading extends StatelessWidget {
           const SizedBox(height: AleraTokens.space12),
           Text(
             state == 'starting'
-                ? 'Starting Mobile Emulator'
-                : 'Connecting To Mobile Emulator',
+                ? 'Starting mobile emulator'
+                : 'Connecting to mobile emulator',
           ),
         ],
       ),
@@ -69,7 +69,7 @@ class MobileEmulatorFailure extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            'Mobile Emulator Unavailable',
+            'Mobile emulator unavailable',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AleraTokens.space6),

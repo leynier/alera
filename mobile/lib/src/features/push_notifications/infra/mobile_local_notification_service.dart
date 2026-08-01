@@ -24,14 +24,14 @@ class FlutterMobileLocalNotificationService
   static const AndroidNotificationChannel attentionChannel =
       AndroidNotificationChannel(
         'alera_attention',
-        'Agent Attention',
+        'Agent attention',
         description: 'Agent waits, blocks, and decision gates.',
         importance: Importance.high,
       );
   static const AndroidNotificationChannel activityChannel =
       AndroidNotificationChannel(
         'alera_activity',
-        'Agent Activity',
+        'Agent activity',
         description: 'Agent completion and terminal activity.',
         importance: Importance.defaultImportance,
       );

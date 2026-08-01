@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 
 @AleraPreview(name: 'Standard', group: 'Text Field', size: Size(280, 80))
 Widget aleraTextFieldStandardPreview() =>
-    const AleraTextField(hintText: 'Workspace Name');
+    const AleraTextField(hintText: 'Workspace name');
 
 @AleraPreview(name: 'Dense + prefix', group: 'Text Field', size: Size(280, 80))
 Widget aleraTextFieldDensePreview() => const AleraTextField(
   dense: true,
   prefixIcon: AleraIcons.add,
-  hintText: 'Add Project…',
+  hintText: 'Add project…',
 );

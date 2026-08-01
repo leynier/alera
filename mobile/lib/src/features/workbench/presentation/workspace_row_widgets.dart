@@ -75,7 +75,7 @@ class MobileWorkspaceListRow extends StatelessWidget {
       if (workspace.isMain) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
         const Tooltip(
-          message: 'Default Workspace',
+          message: 'Default workspace',
           child: Icon(
             AleraIcons.workspaceMain,
             size: _trayIconSize,
@@ -86,7 +86,7 @@ class MobileWorkspaceListRow extends StatelessWidget {
       if (workspace.isPinned && !row.isPinnedCopy) ...<Widget>[
         const SizedBox(width: AleraTokens.space6),
         const Tooltip(
-          message: 'Pinned Workspace',
+          message: 'Pinned workspace',
           child: Icon(
             AleraIcons.pin,
             size: _trayIconSize,

@@ -67,7 +67,7 @@ void main() {
 
     expect(find.text('Review Certificate Trust'), findsNothing);
     expect(
-      find.textContaining('Public Hosts Cannot Bypass Certificate Failures.'),
+      find.textContaining('Public hosts cannot bypass certificate failures.'),
       findsOneWidget,
     );
   });

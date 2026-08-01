@@ -11,7 +11,7 @@ final class BrowserAutomationRef {
     if (json['pageId'] is! String ||
         json['snapshotId'] is! String ||
         json['ref'] is! String) {
-      throw const FormatException('Browser Automation Ref Is Invalid.');
+      throw const FormatException('Browser automation ref is invalid.');
     }
     return BrowserAutomationRef(
       pageId: json['pageId']! as String,
@@ -28,7 +28,7 @@ final class BrowserAutomationRef {
     if (this.pageId != pageId || this.snapshotId != snapshotId) {
       throw const BrowserFailure(
         code: BrowserErrorCode.staleAutomationReference,
-        message: 'The Browser Element Reference Is Stale.',
+        message: 'The browser element reference is stale.',
         recoverable: true,
       );
     }

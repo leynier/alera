@@ -40,7 +40,7 @@ extension WorkspaceServiceRemoval on WorkspaceService {
     if (shouldDeleteBranch) {
       final branch = workspace.branch;
       if (branch == null || branch.isEmpty) {
-        throw WorkspaceException('Workspace Branch Is Required');
+        throw WorkspaceException('Workspace branch is required');
       }
       try {
         await _gitBackend.deleteBranch(
@@ -66,7 +66,7 @@ extension WorkspaceServiceRemoval on WorkspaceService {
           FileSystemEntityType.notFound;
     } on FileSystemException catch (error) {
       throw WorkspaceException(
-        'Could Not Inspect Workspace Path',
+        'Could not inspect workspace path',
         stderr: error.message,
       );
     }

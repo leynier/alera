@@ -116,7 +116,7 @@ void main() {
       expect(forge.draftStatusCalls, 0);
       expect(
         state.errorMessage,
-        'This Pull Request Draft Status Cannot Be Changed.',
+        'This pull request draft status cannot be changed.',
       );
       expect(state.review?.state, HostedReviewState.open);
     },

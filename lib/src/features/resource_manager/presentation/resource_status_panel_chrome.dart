@@ -58,8 +58,8 @@ class _HostUnreachableNotice extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Text(
-              'The Runtime Host Is Not Responding. Use The Host Chip To '
-              'Restart It.',
+              'The runtime host is not responding. Use the host chip to '
+              'restart it.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),

@@ -59,7 +59,7 @@ class PairingController extends _$PairingController {
     if (offer.isExpired) {
       state = const PairingFailure(
         PairingFailureReason.offerExpired,
-        'Pairing Offer Expired',
+        'Pairing offer expired',
       );
       return;
     }
@@ -77,7 +77,7 @@ class PairingController extends _$PairingController {
       state = PairingSuccess(host);
     } on FormatException catch (error) {
       state = PairingFailure(
-        error.message.contains('Runtime Id')
+        error.message.toLowerCase().contains('runtime id')
             ? PairingFailureReason.runtimeMismatch
             : PairingFailureReason.invalidOffer,
         error.message,
@@ -95,7 +95,7 @@ class PairingController extends _$PairingController {
   }
 
   PairingFailureReason _parseFailureReason(FormatException error) {
-    if (error.message.contains('Expired')) {
+    if (error.message.toLowerCase().contains('expired')) {
       return PairingFailureReason.offerExpired;
     }
     return PairingFailureReason.invalidOffer;

@@ -17,7 +17,7 @@ final class BrowserOperationGuard {
     if (isCancelled()) {
       throw const BrowserFailure(
         code: BrowserErrorCode.staleAutomationReference,
-        message: 'The Browser Operation Was Cancelled.',
+        message: 'The browser operation was cancelled.',
         recoverable: true,
       );
     }
@@ -35,7 +35,7 @@ final class BrowserOperationGuard {
         cancellation.then<T>(
           (_) => throw const BrowserFailure(
             code: BrowserErrorCode.staleAutomationReference,
-            message: 'The Browser Operation Was Cancelled.',
+            message: 'The browser operation was cancelled.',
             recoverable: true,
           ),
         ),
@@ -65,7 +65,7 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
     if (serialized && entry.commandInFlight) {
       throw const BrowserFailure(
         code: BrowserErrorCode.operationInProgress,
-        message: 'A Previous Native Browser Operation Is Still Draining.',
+        message: 'A previous native browser operation is still draining.',
         recoverable: true,
       );
     }

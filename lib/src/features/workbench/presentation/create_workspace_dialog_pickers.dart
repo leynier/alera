@@ -43,14 +43,14 @@ class _ProjectPicker extends StatelessWidget {
         const SizedBox(height: AleraTokens.space8),
         AleraSearchField(
           controller: controller,
-          hintText: 'Search Projects',
+          hintText: 'Search projects',
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
           maxHeight: 200,
           isEmpty: filtered.isEmpty,
-          emptyMessage: 'No Projects Match "$query"',
+          emptyMessage: 'No projects match "$query"',
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final project = filtered[index];
@@ -223,7 +223,7 @@ class _LoadingBranches extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space8),
               Text(
-                'Loading Source Branches',
+                'Loading source branches',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                 ),

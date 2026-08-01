@@ -116,7 +116,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: 'Shortcut Already in Use',
+        title: 'Shortcut already in use',
         message:
             '${chord.format(isMacOS: _isMacOS)} is assigned to '
             '"$conflictLabel". Reassign it to "$targetLabel"?',
@@ -291,7 +291,7 @@ class _ShortcutBindingRow extends StatelessWidget {
     final theme = Theme.of(context);
     if (recording) {
       return Text(
-        'Press Keys… (Esc to Cancel)',
+        'Press keys… (Esc to cancel)',
         textAlign: TextAlign.right,
         style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.accent),
       );

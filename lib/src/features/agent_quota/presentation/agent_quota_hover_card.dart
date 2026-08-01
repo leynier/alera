@@ -42,7 +42,7 @@ class _AgentQuotaHoverCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Text(
-                    _normalizeQuotaText('Quota Data Unavailable'),
+                    _normalizeQuotaText('Quota data unavailable'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),
@@ -207,7 +207,7 @@ class _ClaudeTryWithTuiButtonState
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: Text(
-          _loading ? 'Trying With TUI...' : 'Try With TUI',
+          _loading ? 'Trying with TUI...' : 'Try With TUI',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: _loading ? AleraTokens.foregroundFaint : AleraTokens.accent,
             fontWeight: FontWeight.w600,
@@ -230,7 +230,7 @@ class _QuotaHoverReading extends StatelessWidget {
     final label = _quotaHoverLabel(entry.provider, entry.label);
     final reset =
         _resetText(entry.resetsAt, entry.resetDescription) ??
-        'Reset Time Unavailable';
+        'Reset time unavailable';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -289,7 +289,7 @@ class _QuotaHoverEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       snapshot.error == null
-          ? 'Quota Data Unavailable'
+          ? 'Quota data unavailable'
           : _normalizeQuotaText(snapshot.error!),
       style: Theme.of(
         context,

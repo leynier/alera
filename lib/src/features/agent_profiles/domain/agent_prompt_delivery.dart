@@ -29,13 +29,13 @@ AgentPromptDelivery agentPromptDeliveryFor(AgentType adapter) {
 String agentPromptDeliveryDescription(AgentType adapter) {
   return switch (agentPromptDeliveryFor(adapter)) {
     AgentPromptDelivery.initialPromptArgument =>
-      'Alera Appends The Dispatched Prompt To This Command As One Quoted '
-          'Argument, After $agentPromptOptionTerminator So A Prompt Starting '
-          'With A Dash Is Not Read As An Option. Write Only The Flags Here.',
+      'Alera appends the dispatched prompt to this command as one quoted '
+          'argument after $agentPromptOptionTerminator, so a prompt starting '
+          'with a dash is not read as an option. Write only the flags here.',
     AgentPromptDelivery.readinessInjection =>
-      'This Command Launches Without A Prompt. Alera Types The Dispatched '
-          'Prompt Into The Agent Once It Reports That It Is Ready. Write Only '
-          'The Flags Here.',
+      'This command launches without a prompt. Alera types the dispatched '
+          'prompt into the agent once it reports that it is ready. Write only '
+          'the flags here.',
   };
 }
 

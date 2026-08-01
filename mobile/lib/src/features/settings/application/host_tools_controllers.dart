@@ -24,7 +24,7 @@ class CliRegistrationController extends _$CliRegistrationController {
       hostConnectionControllerProvider(hostId).future,
     );
     if (!client.supportsHostTools) {
-      throw UnsupportedError('Update The Runtime To Manage Host Tools.');
+      throw UnsupportedError('Update the runtime to manage host tools.');
     }
     return client.cliRegistrationStatus();
   }
@@ -67,7 +67,7 @@ class SkillInstallController extends _$SkillInstallController {
     if (!client.supportsHostTools) {
       state = const SkillInstallState(
         phase: 'failed',
-        message: 'Update The Runtime To Install Skills.',
+        message: 'Update the runtime to install skills.',
       );
       return;
     }
@@ -85,7 +85,7 @@ class SkillInstallController extends _$SkillInstallController {
     });
     state = const SkillInstallState(
       phase: 'installing',
-      message: 'Installing Skill',
+      message: 'Installing skill',
     );
     try {
       final result = await client.installSkill(

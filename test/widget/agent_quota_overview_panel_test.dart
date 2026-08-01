@@ -46,7 +46,7 @@ void main() {
     expect(find.text('Default'), findsOneWidget);
     expect(find.text('ccdev'), findsNothing);
     expect(find.text('G·W'), findsNothing);
-    expect(find.text('No Quota Data'), findsNothing);
+    expect(find.text('No quota data'), findsNothing);
   });
 
   testWidgets('opens the overview panel listing pinned and unpinned quotas', (
@@ -310,10 +310,10 @@ void main() {
       ),
     );
 
-    expect(find.text('2 Agent Quotas - Local'), findsOneWidget);
+    expect(find.text('2 agent quotas - Local'), findsOneWidget);
 
     await tester.tap(
-      find.text('2 Agent Quotas - Local'),
+      find.text('2 agent quotas - Local'),
       kind: PointerDeviceKind.mouse,
     );
     await tester.pumpAndSettle();

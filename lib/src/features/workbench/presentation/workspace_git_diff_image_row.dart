@@ -149,14 +149,14 @@ class _WorkspaceGitDiffImageRowState
   String get _oldPlaceholder {
     return switch (widget.file.status) {
       GitChangeStatus.added || GitChangeStatus.untracked => 'Added',
-      _ => 'Preview Unavailable',
+      _ => 'Preview unavailable',
     };
   }
 
   String get _newPlaceholder {
     return widget.file.status == GitChangeStatus.deleted
         ? 'Deleted'
-        : 'Preview Unavailable';
+        : 'Preview unavailable';
   }
 }
 
@@ -211,7 +211,7 @@ class _WorkspaceGitDiffImageCell extends StatelessWidget {
                   gaplessPlayback: true,
                   errorBuilder: (context, error, stackTrace) => Center(
                     child: Text(
-                      'Preview Unavailable',
+                      'Preview unavailable',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundFaint,
                       ),

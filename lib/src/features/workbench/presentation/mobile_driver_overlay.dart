@@ -79,7 +79,7 @@ class _MobileDriverOverlayState extends State<MobileDriverOverlay> {
               ),
               const SizedBox(width: AleraTokens.space8),
               Text(
-                '${widget.deviceName} Is Driving This Terminal',
+                '${widget.deviceName} is driving this terminal',
                 style: const TextStyle(
                   color: AleraTokens.foreground,
                   fontWeight: FontWeight.w600,
@@ -100,7 +100,7 @@ class _MobileDriverOverlayState extends State<MobileDriverOverlay> {
           ),
           const SizedBox(height: AleraTokens.space4),
           const Text(
-            'Desktop Keyboard Is Paused',
+            'Desktop keyboard is paused',
             style: TextStyle(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(height: AleraTokens.space12),
@@ -146,7 +146,7 @@ class _MobileDriverOverlayState extends State<MobileDriverOverlay> {
           ),
           const SizedBox(width: AleraTokens.space6),
           const Text(
-            'Phone Driving',
+            'Phone driving',
             style: TextStyle(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(width: AleraTokens.space8),

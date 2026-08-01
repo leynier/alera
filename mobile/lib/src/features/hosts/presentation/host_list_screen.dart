@@ -212,7 +212,7 @@ class _EmptyHosts extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Text(
-              'No Paired Hosts',
+              'No paired hosts',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AleraTokens.spaceMd),

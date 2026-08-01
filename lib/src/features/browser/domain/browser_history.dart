@@ -21,7 +21,7 @@ final class BrowserHistoryEntry {
         profileId is! String ||
         url == null ||
         lastVisitedAt == null) {
-      throw const FormatException('Browser History Entry Is Invalid.');
+      throw const FormatException('Browser history entry is invalid.');
     }
     return BrowserHistoryEntry(
       id: id,
@@ -75,7 +75,7 @@ final class BrowserClosedTab {
         json['profileId'] is! String ||
         url == null ||
         closedAt == null) {
-      throw const FormatException('Closed Browser Tab Is Invalid.');
+      throw const FormatException('Closed browser tab is invalid.');
     }
     return BrowserClosedTab(
       id: (json['id'] ?? json['pageId'])! as String,

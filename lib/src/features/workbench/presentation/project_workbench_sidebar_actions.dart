@@ -50,7 +50,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Project Renamed',
+        message: 'Project renamed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -85,7 +85,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Workspace Renamed',
+        message: 'Workspace renamed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -108,7 +108,7 @@ mixin _ProjectWorkbenchSidebarActions
       if (!mounted) return;
       AleraToast.show(
         context,
-        message: isPinned ? 'Workspace Pinned' : 'Workspace Unpinned',
+        message: isPinned ? 'Workspace pinned' : 'Workspace unpinned',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -167,7 +167,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Workspace Removed',
+        message: 'Workspace removed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -208,7 +208,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Workspace Tags Updated',
+        message: 'Workspace tags updated',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -248,7 +248,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Workspace Parent Updated',
+        message: 'Workspace parent updated',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -273,7 +273,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Workspace Parent Cleared',
+        message: 'Workspace parent cleared',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -340,7 +340,7 @@ mixin _ProjectWorkbenchSidebarActions
       }
       AleraToast.show(
         context,
-        message: 'Project Removed',
+        message: 'Project removed',
         tone: AleraToastTone.success,
       );
     } catch (error) {

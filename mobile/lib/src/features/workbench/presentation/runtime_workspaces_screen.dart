@@ -109,8 +109,8 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                 _WorkspaceToolbar(hostId: host.id, data: listData),
                 const Expanded(
                   child: AleraEmptyState(
-                    title: 'No Workspaces',
-                    message: 'Create A Workspace To Get Started.',
+                    title: 'No workspaces',
+                    message: 'Create a workspace to get started.',
                     icon: AleraIcons.workspaces,
                   ),
                 ),
@@ -422,7 +422,7 @@ class _WorkspaceToolbar extends ConsumerWidget {
             Expanded(
               child: AleraSearchField(
                 dense: true,
-                hintText: 'Search Workspaces',
+                hintText: 'Search workspaces',
                 onChanged: controller.setQuery,
               ),
             ),
@@ -458,7 +458,7 @@ class _ConnectionError extends StatelessWidget {
   Widget build(BuildContext context) {
     final updateRequired = error is UnsupportedError;
     return AleraEmptyState(
-      title: updateRequired ? 'Update Required' : 'Connection Failed',
+      title: updateRequired ? 'Update required' : 'Connection failed',
       message: error.toString(),
       icon: updateRequired ? AleraIcons.systemUpdate : AleraIcons.cloudOff,
       action: FilledButton.icon(

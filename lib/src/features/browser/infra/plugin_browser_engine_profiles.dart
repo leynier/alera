@@ -100,7 +100,7 @@ final class _PluginBrowserProfiles {
           (sourceProfileName == null || sourceProfileName.trim().isEmpty)) {
         throw const BrowserFailure(
           code: BrowserErrorCode.invalidPayload,
-          message: 'A Source Browser Profile Is Required.',
+          message: 'A source browser profile is required.',
           recoverable: true,
         );
       }
@@ -135,7 +135,7 @@ final class _PluginBrowserProfiles {
     if (token == null) {
       throw const BrowserFailure(
         code: BrowserErrorCode.permissionDenied,
-        message: 'Cookie Import Requires A Fresh User Gesture.',
+        message: 'Cookie import requires a fresh user gesture.',
       );
     }
     return token;

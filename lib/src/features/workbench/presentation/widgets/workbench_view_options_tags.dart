@@ -71,7 +71,7 @@ class _TagsFilterSection extends StatelessWidget {
         AleraTextField(
           dense: true,
           prefixIcon: AleraIcons.add,
-          hintText: 'Add Tag…',
+          hintText: 'Add tag…',
           controller: searchController,
           onSubmitted: (_) {
             if (availableTags.isNotEmpty) {
@@ -111,8 +111,8 @@ class _AvailableTagsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tags.isEmpty) {
       final emptyMessage = query.isNotEmpty
-          ? 'No Tags Match "$query"'
-          : (hasSelection ? 'All Tags Selected' : 'No Tags Yet');
+          ? 'No tags match "$query"'
+          : (hasSelection ? 'All tags selected' : 'No tags yet');
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
         child: Center(

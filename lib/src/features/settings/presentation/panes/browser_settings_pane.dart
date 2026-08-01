@@ -99,19 +99,19 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
           child: AleraSettingsGroup(
             title: 'Browser',
             description:
-                'System Browser Engine Status And Address Bar Defaults.',
+                'System browser engine status and address bar defaults.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'System Engine',
                 description: availability.when(
                   data: (capabilities) => capabilities.meetsStableGate
-                      ? '${browserEngineLabel(capabilities.engine)} Is Ready.'
+                      ? '${browserEngineLabel(capabilities.engine)} is ready.'
                       : capabilities.limitations.isEmpty
-                      ? 'Required Browser Capabilities Are Missing.'
+                      ? 'Required browser capabilities are missing.'
                       : capabilities.limitations
                             .map(browserCapabilityLimitationMessage)
                             .join(' '),
-                  loading: () => 'Checking The Stable Capability Gate.',
+                  loading: () => 'Checking the stable capability gate.',
                   error: (error, _) => error.toString(),
                 ),
                 child: Align(
@@ -126,7 +126,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
               AleraSettingRow(
                 title: 'Search Engine',
                 description:
-                    'Used When Address Bar Input Is Not A Web Address.',
+                    'Used when address bar input is not a web address.',
                 child: AleraDropdownField<BrowserSearchEngine>(
                   value: _settings.searchEngine,
                   entries: <AleraDropdownFieldEntry<BrowserSearchEngine>>[
@@ -148,13 +148,13 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
           child: AleraSettingsGroup(
             title: 'Trusted Local Certificates',
             description:
-                'Exact Certificates Allowed For Local Hosts In Each Profile.',
+                'Exact certificates allowed for local hosts in each profile.',
             children: <Widget>[
               if (_certificates.isEmpty)
                 const AleraEmptyState(
                   icon: AleraIcons.secure,
-                  title: 'No Trusted Certificates',
-                  message: 'Certificates Trusted Permanently Will Appear Here.',
+                  title: 'No trusted certificates',
+                  message: 'Certificates trusted permanently will appear here.',
                 )
               else
                 for (final certificate in _certificates)
@@ -174,7 +174,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
           child: AleraSettingsGroup(
             title: 'Profiles',
             description:
-                'Isolated Cookies, Storage And Site Permission Catalogs.',
+                'Isolated cookies, storage and site permission catalogs.',
             children: <Widget>[
               for (final profile in _profiles)
                 _BrowserProfileSettingsRow(
@@ -185,7 +185,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
                 ),
               AleraSettingRow(
                 title: 'Create Profile',
-                description: 'Creates A New Isolated Persistent Profile.',
+                description: 'Creates a new isolated persistent profile.',
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -197,7 +197,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
               ),
               AleraSettingRow(
                 title: 'Import Cookies',
-                description: 'Imports Atomically Into A New Isolated Profile.',
+                description: 'Imports atomically into a new isolated profile.',
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -215,12 +215,12 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
           key: widget.groupKeys['data'],
           child: AleraSettingsGroup(
             title: 'Browsing Data',
-            description: 'History And Recently Closed Browser Tabs.',
+            description: 'History and recently closed browser tabs.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'History',
                 description:
-                    'Removes Saved Browser History From Every Profile.',
+                    'Removes saved browser history from every profile.',
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton(
@@ -232,8 +232,8 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
               if (_closedTabs.isEmpty)
                 const AleraEmptyState(
                   icon: AleraIcons.restore,
-                  title: 'No Recently Closed Tabs',
-                  message: 'Closed Browser Tabs Will Appear Here.',
+                  title: 'No recently closed tabs',
+                  message: 'Closed browser tabs will appear here.',
                 )
               else
                 for (final tab in _closedTabs)
@@ -298,8 +298,8 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
       builder: (_) => AleraConfirmDialog(
         title: 'Delete Browser Profile?',
         message:
-            '${profile.label} And Its Cookies, Storage And Permissions Will '
-            'Be Removed.',
+            '${profile.label} and its cookies, storage and permissions will '
+            'be removed.',
         confirmLabel: 'Delete',
         destructive: true,
       ),
@@ -343,7 +343,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
         if (byteLength > browserManualCookieImportMaximumBytes) {
           throw BrowserFailure(
             code: BrowserErrorCode.invalidPayload,
-            message: 'Manual Cookie Import Is Limited To 16 MiB.',
+            message: 'Manual cookie import is limited to 16 MiB.',
             recoverable: true,
             details: <String, Object?>{
               'maximumBytes': browserManualCookieImportMaximumBytes,
@@ -370,7 +370,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
       context: context,
       builder: (_) => const AleraConfirmDialog(
         title: 'Clear Browser History?',
-        message: 'Saved Browser History Will Be Removed From Every Profile.',
+        message: 'Saved browser history will be removed from every profile.',
         confirmLabel: 'Clear History',
         destructive: true,
       ),
@@ -398,7 +398,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
       builder: (_) => AleraConfirmDialog(
         title: 'Remove Trusted Certificate?',
         message:
-            'Alera Will Ask Again For ${certificate.host} After The App Restarts.',
+            'Alera will ask again for ${certificate.host} after the app restarts.',
         confirmLabel: 'Remove Trust',
         destructive: true,
       ),
@@ -418,7 +418,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
         AleraToast.show(
           context,
           message:
-              'Certificate Trust Removed. Restart Alera To Apply The Change.',
+              'Certificate trust removed. Restart Alera to apply the change.',
         );
       }
     });

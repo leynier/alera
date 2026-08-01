@@ -91,7 +91,7 @@ AgentQuotaSnapshot _claudeSnapshot() {
         usedPercent: 31,
         windowMinutes: 10080,
         resetsAt: null,
-        resetDescription: 'Resets In 3 Days',
+        resetDescription: 'Resets in 3 days',
       ),
     ],
   );
@@ -182,6 +182,6 @@ AgentQuotaWindow _window(String label, double usedPercent) {
     usedPercent: usedPercent,
     windowMinutes: label == '5 Hour' ? 300 : 10080,
     resetsAt: null,
-    resetDescription: 'Resets In 3 Days',
+    resetDescription: 'Resets in 3 days',
   );
 }

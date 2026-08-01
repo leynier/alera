@@ -59,7 +59,7 @@ class _AleraSkillTerminalInstallControlState
     await Clipboard.setData(ClipboardData(text: widget.commandFor(_runner)));
     if (mounted) {
       setState(
-        () => _status = const AleraSkillInstallStatus('Install Command Copied'),
+        () => _status = const AleraSkillInstallStatus('Install command copied'),
       );
     }
   }
@@ -79,7 +79,7 @@ class _AleraSkillTerminalInstallControlState
           title: widget.dialogTitle,
           command: widget.commandFor(_runner),
           description:
-              'The Installer Runs Here. Answer Any Prompt In The Terminal.',
+              'The installer runs here. Answer any prompt in the terminal.',
         ),
       );
       // The follow-up reads providers through the wrapper's ref, which stops
@@ -95,7 +95,7 @@ class _AleraSkillTerminalInstallControlState
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
-            'Install Failed: $error',
+            'Install failed: $error',
             needsAttention: true,
           );
         });

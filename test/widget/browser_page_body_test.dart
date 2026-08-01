@@ -14,7 +14,7 @@ void main() {
         home: BrowserPageBody(
           state: _state().copyWith(
             engineAvailability: BrowserEngineAvailability.unavailable,
-            capabilityReason: 'WebKitGTK 4.1 Is Not Installed.',
+            capabilityReason: 'WebKitGTK 4.1 is not installed.',
           ),
           surface: const Text('Native Surface'),
           onRetry: () {},
@@ -23,8 +23,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Browser Engine Unavailable'), findsOneWidget);
-    expect(find.text('WebKitGTK 4.1 Is Not Installed.'), findsOneWidget);
+    expect(find.text('Browser engine unavailable'), findsOneWidget);
+    expect(find.text('WebKitGTK 4.1 is not installed.'), findsOneWidget);
     expect(find.text('Native Surface'), findsNothing);
   });
 

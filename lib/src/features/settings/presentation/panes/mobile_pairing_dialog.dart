@@ -83,7 +83,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
   String get _countdownLabel {
     final minutes = _remaining.inMinutes;
     final seconds = _remaining.inSeconds % 60;
-    return 'Expires In ${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    return 'Expires in ${minutes}m ${seconds.toString().padLeft(2, '0')}s';
   }
 
   @override
@@ -117,7 +117,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
                           ),
                           const SizedBox(height: AleraTokens.space12),
                           Text(
-                            'Offer Expired - Generate A New One',
+                            'Offer expired - generate a new one',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: AleraTokens.foregroundMuted,
@@ -130,7 +130,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
             ),
             const SizedBox(height: AleraTokens.space16),
             Text(
-              'Scan With The Alera Mobile App',
+              'Scan with the Alera mobile app',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foreground,
@@ -149,7 +149,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
             ),
             const SizedBox(height: AleraTokens.space4),
             Text(
-              _expired ? 'Offer Expired' : _countdownLabel,
+              _expired ? 'Offer expired' : _countdownLabel,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: _expired ? AleraTokens.error : AleraTokens.warning,

@@ -19,7 +19,7 @@ void main() {
 
     expect(find.text('Trust Local Certificate?'), findsOneWidget);
     expect(
-      find.textContaining('Every Port And Tab In Development'),
+      find.textContaining('every port and tab in Development'),
       findsOneWidget,
     );
     expect(find.text('Trust For This Session'), findsOneWidget);

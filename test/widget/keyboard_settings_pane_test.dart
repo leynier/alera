@@ -120,7 +120,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
 
-    expect(find.text('Shortcut Already in Use'), findsOneWidget);
+    expect(find.text('Shortcut already in use'), findsOneWidget);
 
     await tester.tap(find.text('Reassign'));
     await tester.pumpAndSettle();
@@ -157,7 +157,7 @@ void main() {
       }
 
       await startRecording();
-      expect(find.text('Press Keys… (Esc to Cancel)'), findsOneWidget);
+      expect(find.text('Press keys… (Esc to cancel)'), findsOneWidget);
 
       await tester.tap(
         find.descendant(
@@ -166,13 +166,13 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Press Keys… (Esc to Cancel)'), findsNothing);
+      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
       await startRecording();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
       await tester.pump();
-      expect(find.text('Press Keys… (Esc to Cancel)'), findsNothing);
+      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
       await startRecording();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);

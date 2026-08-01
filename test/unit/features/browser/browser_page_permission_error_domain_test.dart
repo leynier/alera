@@ -288,7 +288,7 @@ void main() {
       expect(generic.code, BrowserErrorCode.invalidPayload);
       expect(generic.details, <String, Object?>{'field': 'url'});
       expect(fallback.code, BrowserErrorCode.unknown);
-      expect(fallback.message, 'Unknown Browser Error.');
+      expect(fallback.message, 'Unknown browser error.');
       expect(fallback.recoverable, isFalse);
       expect(fallback.details, isEmpty);
       expect(fallback.toJson(), isNot(contains('details')));

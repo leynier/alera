@@ -37,7 +37,7 @@ void main() {
     );
 
     expect(find.text('Plan Mode Reasoning Effort'), findsOneWidget);
-    expect(find.textContaining('Shift+Tab Or /plan'), findsOneWidget);
+    expect(find.textContaining('Shift+Tab or /plan'), findsOneWidget);
     expect(
       find.text('codex --config plan_mode_reasoning_effort=xhigh'),
       findsOneWidget,
@@ -53,7 +53,7 @@ void main() {
 
     expect(find.text('Command'), findsWidgets);
     expect(find.text('Managed Options'), findsNothing);
-    expect(find.textContaining('Command Mode Is For Advanced'), findsOneWidget);
+    expect(find.textContaining('Command mode is for advanced'), findsOneWidget);
   });
 
   testWidgets('command mode explains where the dispatched prompt goes', (
@@ -65,7 +65,7 @@ void main() {
 
     expect(find.text('Prompt Delivery'), findsOneWidget);
     expect(
-      find.textContaining('Appends The Dispatched Prompt'),
+      find.textContaining('appends the dispatched prompt'),
       findsOneWidget,
     );
     expect(find.text("codex -- 'Dispatched Prompt'"), findsOneWidget);
@@ -186,7 +186,7 @@ void main() {
     );
 
     expect(
-      find.textContaining('Bypass Codex Approvals And Sandbox Protections'),
+      find.textContaining('bypass Codex approvals and sandbox protections'),
       findsOneWidget,
     );
   });

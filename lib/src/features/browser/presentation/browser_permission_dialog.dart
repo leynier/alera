@@ -67,8 +67,8 @@ class _BrowserPermissionDialogState extends State<BrowserPermissionDialog> {
             const SizedBox(height: AleraTokens.space12),
             Text(
               denyOnly
-                  ? '${request.origin} Requested ${_permissionLabel(request.permission)}, Which Alera Does Not Allow.'
-                  : '${request.origin} Wants To Use ${_permissionLabel(request.permission)}.',
+                  ? '${request.origin} requested ${_permissionLabel(request.permission)}, which Alera does not allow.'
+                  : '${request.origin} wants to use ${_permissionLabel(request.permission)}.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),
@@ -120,17 +120,17 @@ class _BrowserPermissionDialogState extends State<BrowserPermissionDialog> {
 
 String _permissionLabel(BrowserPermissionType permission) {
   return switch (permission) {
-    BrowserPermissionType.geolocation => 'Your Location',
-    BrowserPermissionType.camera => 'Your Camera',
-    BrowserPermissionType.microphone => 'Your Microphone',
+    BrowserPermissionType.geolocation => 'your location',
+    BrowserPermissionType.camera => 'your camera',
+    BrowserPermissionType.microphone => 'your microphone',
     BrowserPermissionType.notifications => 'Notifications',
-    BrowserPermissionType.clipboardRead => 'Clipboard Reading',
-    BrowserPermissionType.clipboardWrite => 'Clipboard Writing',
-    BrowserPermissionType.fullscreen => 'Full Screen',
-    BrowserPermissionType.persistentStorage => 'Persistent Storage',
-    BrowserPermissionType.pointerLock => 'Pointer Lock',
-    BrowserPermissionType.webAuthn => 'A Security Key',
-    BrowserPermissionType.displayCapture => 'Screen Capture',
-    BrowserPermissionType.unknown => 'An Unsupported Permission',
+    BrowserPermissionType.clipboardRead => 'clipboard reading',
+    BrowserPermissionType.clipboardWrite => 'clipboard writing',
+    BrowserPermissionType.fullscreen => 'full screen',
+    BrowserPermissionType.persistentStorage => 'persistent storage',
+    BrowserPermissionType.pointerLock => 'pointer lock',
+    BrowserPermissionType.webAuthn => 'a security key',
+    BrowserPermissionType.displayCapture => 'screen capture',
+    BrowserPermissionType.unknown => 'an unsupported permission',
   };
 }

@@ -34,7 +34,7 @@ void main() {
       expect(result.hookStatuses.map((status) => status.agentType), <AgentType>[
         AgentType.codex,
       ]);
-      expect(result.summary, 'Install Complete (bunx) · Selected Hooks Ready');
+      expect(result.summary, 'Install complete (bunx) · selected hooks ready');
     },
   );
 
@@ -77,7 +77,7 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
-      expect(result.summary, 'Skill Installed · Hooks Need Attention: Codex');
+      expect(result.summary, 'Skill installed · hooks need attention: Codex');
     },
   );
 
@@ -93,7 +93,7 @@ void main() {
       hooks: const AgentStatusHookSettings(),
     );
 
-    expect(result.summary, 'Install Complete (npx) · No Status Hooks Selected');
+    expect(result.summary, 'Install complete (npx) · no status hooks selected');
   });
 }
 

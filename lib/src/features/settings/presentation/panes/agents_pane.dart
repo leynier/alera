@@ -36,47 +36,47 @@ class AgentsSettingsPane extends ConsumerWidget {
           child: const AleraSettingsGroup(
             title: 'Alera CLI And Skills',
             description:
-                'Register The CLI Command And Install Agent Instructions.',
+                'Register the CLI command and install agent instructions.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'Alera CLI Command',
                 description:
-                    'Register The Alera Command On PATH For Terminals And Agents.',
+                    'Register the Alera command on PATH for terminals and agents.',
                 controlWidth: 360,
                 child: AleraCliRegistrationControl(),
               ),
               AleraSettingRow(
                 title: 'All Alera Skills',
                 description:
-                    'Install Or Update CLI, Orchestration, Computer Use, And Emulator Skills. Reapplies Selected Status Hooks.',
+                    'Install or update CLI, orchestration, computer use, and emulator skills. Reapplies selected status hooks.',
                 controlWidth: 360,
                 child: AleraAllSkillsControl(),
               ),
               AleraSettingRow(
                 title: 'Alera CLI Skill',
                 description:
-                    'Install The Codex Skill That Teaches Agents To Use The Alera CLI.',
+                    'Install the Codex skill that teaches agents to use the Alera CLI.',
                 controlWidth: 360,
                 child: AleraCliSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Orchestration Skill',
                 description:
-                    'Install Or Update Orchestration And Reapply Selected Status Hooks.',
+                    'Install or update orchestration and reapply selected status hooks.',
                 controlWidth: 360,
                 child: AleraOrchestrationSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Computer Use Skill',
                 description:
-                    'Install The Skill For Reading And Operating Desktop Applications.',
+                    'Install the skill for reading and operating desktop applications.',
                 controlWidth: 360,
                 child: AleraComputerUseSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Emulator Skill',
                 description:
-                    'Install The Skill For Android And iOS Emulator Automation.',
+                    'Install the skill for Android and iOS emulator automation.',
                 controlWidth: 360,
                 child: AleraEmulatorSkillControl(),
               ),
@@ -123,7 +123,7 @@ class AgentsSettingsPane extends ConsumerWidget {
               SettingsSwitchRow(
                 title: 'Cursor Hooks',
                 description:
-                    'Use an Alera-managed Cursor Agent plugin wrapper.',
+                    'Use an Alera-managed Cursor agent plugin wrapper.',
                 value: agents.agentStatusHooks.cursor,
                 onChanged: (value) => controller.setAgentStatusHookEnabled(
                   AgentType.cursor,
@@ -166,7 +166,7 @@ class AgentsSettingsPane extends ConsumerWidget {
               SettingsSwitchRow(
                 title: 'Grok Build Hooks',
                 description:
-                    'Install Alera-managed Grok Build hooks in a dedicated global file.',
+                    'Install Alera-managed Grok build hooks in a dedicated global file.',
                 value: agents.agentStatusHooks.grok,
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(AgentType.grok, value),

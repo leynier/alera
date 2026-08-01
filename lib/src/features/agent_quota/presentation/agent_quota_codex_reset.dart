@@ -67,7 +67,7 @@ class _CodexResetCreditsPanelState
           builder: (context) => const AleraConfirmDialog(
             title: 'Use Codex Reset',
             message:
-                'Use One Codex Rate-Limit Reset Credit? Alera Will Re-Check The Active Account And Offer Before Applying It.',
+                'Use one Codex rate-limit reset credit? Alera will re-check the active account and offer before applying it.',
             confirmLabel: 'Use Reset',
           ),
         ) ??
@@ -94,7 +94,7 @@ class _CodexResetCreditsPanelState
       if (!mounted) return;
       AleraToast.show(
         context,
-        message: 'Codex Reset Failed: $error',
+        message: 'Codex reset failed: $error',
         tone: AleraToastTone.error,
       );
     } finally {
@@ -163,42 +163,42 @@ class _CodexResetCreditsPanelState
   if (result.status == CodexResetConsumeStatus.rejected) {
     return switch (result.reason) {
       'offerChanged' => (
-        'Codex Reset Offer Changed. Review The Updated Credits.',
+        'Codex reset offer changed. Review the updated credits.',
         AleraToastTone.info,
       ),
-      _ => ('No Codex Reset Credit Is Available.', AleraToastTone.info),
+      _ => ('No Codex reset credit is available.', AleraToastTone.info),
     };
   }
   return switch (result.outcome) {
     CodexResetConsumeOutcome.reset => (
-      'Codex Rate Limit Reset Applied.',
+      'Codex rate limit reset applied.',
       AleraToastTone.success,
     ),
     CodexResetConsumeOutcome.nothingToReset => (
-      'Codex Has No Active Rate Limit To Reset.',
+      'Codex has no active rate limit to reset.',
       AleraToastTone.info,
     ),
     CodexResetConsumeOutcome.noCredit => (
-      'No Codex Reset Credit Is Available.',
+      'No Codex reset credit is available.',
       AleraToastTone.info,
     ),
     CodexResetConsumeOutcome.alreadyRedeemed => (
-      'This Codex Reset Was Already Applied.',
+      'This Codex reset was already applied.',
       AleraToastTone.info,
     ),
-    null => ('Codex Reset Result Was Unavailable.', AleraToastTone.info),
+    null => ('Codex reset result was unavailable.', AleraToastTone.info),
   };
 }
 
 String? _codexResetExpiryText(DateTime? expiry) {
   if (expiry == null) return null;
   final remaining = expiry.difference(DateTime.now().toUtc());
-  if (remaining <= Duration.zero) return 'Next Reset Expired';
+  if (remaining <= Duration.zero) return 'Next reset expired';
   if (remaining.inDays > 0) {
-    return 'Next Reset Expires In ${remaining.inDays}d ${remaining.inHours % 24}h';
+    return 'Next reset expires in ${remaining.inDays}d ${remaining.inHours % 24}h';
   }
   if (remaining.inHours > 0) {
-    return 'Next Reset Expires In ${remaining.inHours}h ${remaining.inMinutes % 60}m';
+    return 'Next reset expires in ${remaining.inHours}h ${remaining.inMinutes % 60}m';
   }
-  return 'Next Reset Expires In ${remaining.inMinutes.clamp(1, 59)}m';
+  return 'Next reset expires in ${remaining.inMinutes.clamp(1, 59)}m';
 }

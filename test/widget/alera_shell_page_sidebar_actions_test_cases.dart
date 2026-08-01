@@ -495,7 +495,7 @@ void _registerAleraShellSidebarActionTests() {
       containsAll(<String>['workspace-1', 'workspace-2']),
     );
     expect(harness.controller.state.projects, isEmpty);
-    expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
+    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
   });
 
   testWidgets(

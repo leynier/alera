@@ -14,7 +14,7 @@ final class BrowserCookie {
     if (json['name'] is! String ||
         json['value'] is! String ||
         json['domain'] is! String) {
-      throw const FormatException('Browser Cookie Payload Is Invalid.');
+      throw const FormatException('Browser cookie payload is invalid.');
     }
     return BrowserCookie(
       name: json['name']! as String,

@@ -184,7 +184,7 @@ class _UpgradeCommand extends ConsumerWidget {
       CommandTerminalRequest(
         title: 'Update Alera',
         command: command,
-        description: 'The Update Runs Here. Answer Any Prompt In The Terminal.',
+        description: 'The update runs here. Answer any prompt in the terminal.',
       ),
     );
     if (!context.mounted) {
@@ -245,7 +245,7 @@ class _UpdateStatusCopy extends StatelessWidget {
           const SizedBox(height: AleraTokens.space4),
           Text(
             _versionLabel(
-              prefix: 'Current Version',
+              prefix: 'Current version',
               version: currentVersion,
               buildNumber: currentBuildNumber,
             ),
@@ -258,7 +258,7 @@ class _UpdateStatusCopy extends StatelessWidget {
           const SizedBox(height: AleraTokens.space4),
           Text(
             _versionLabel(
-              prefix: 'Update Version',
+              prefix: 'Update version',
               version: latest.version,
               buildNumber: latest.shortVersion > 0
                   ? '${latest.shortVersion}'
@@ -284,16 +284,16 @@ class _UpdateStatusCopy extends StatelessWidget {
 
   String _titleForStatus(AleraUpdateStatus status) {
     return switch (status) {
-      AleraUpdateStatus.idle => 'Update Status',
-      AleraUpdateStatus.checking => 'Checking for Updates',
-      AleraUpdateStatus.notAvailable => 'No Update Available',
-      AleraUpdateStatus.manualDownloadRequired => 'Manual Update Available',
-      AleraUpdateStatus.available => 'Update Available',
-      AleraUpdateStatus.downloading => 'Downloading Update',
-      AleraUpdateStatus.applying => 'Installing Update',
+      AleraUpdateStatus.idle => 'Update status',
+      AleraUpdateStatus.checking => 'Checking for updates',
+      AleraUpdateStatus.notAvailable => 'No update available',
+      AleraUpdateStatus.manualDownloadRequired => 'Manual update available',
+      AleraUpdateStatus.available => 'Update available',
+      AleraUpdateStatus.downloading => 'Downloading update',
+      AleraUpdateStatus.applying => 'Installing update',
       AleraUpdateStatus.downloaded => 'Restarting Alera',
       AleraUpdateStatus.restartRequired => 'Restart Alera',
-      AleraUpdateStatus.error => 'Update Failed',
+      AleraUpdateStatus.error => 'Update failed',
     };
   }
 }
@@ -306,7 +306,7 @@ String _versionLabel({
   final build = buildNumber?.trim();
   return build == null || build.isEmpty
       ? '$prefix $version'
-      : '$prefix $version (Build $build)';
+      : '$prefix $version (build $build)';
 }
 
 Color _colorForStatus(AleraUpdateStatus status) {

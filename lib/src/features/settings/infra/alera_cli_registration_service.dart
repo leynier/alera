@@ -52,14 +52,14 @@ class AleraCliRegistrationStatus {
 
   String get summary {
     if (ready) {
-      return 'Registered On PATH';
+      return 'Registered on PATH';
     }
     return switch (state) {
-      AleraCliRegistrationState.installed => 'Registered, Add To PATH',
-      AleraCliRegistrationState.notInstalled => 'Not Registered',
-      AleraCliRegistrationState.stale => 'Registration Needs Update',
-      AleraCliRegistrationState.conflict => 'Registration Conflict',
-      AleraCliRegistrationState.unsupported => 'Registration Unsupported',
+      AleraCliRegistrationState.installed => 'Registered, add to PATH',
+      AleraCliRegistrationState.notInstalled => 'Not registered',
+      AleraCliRegistrationState.stale => 'Registration needs update',
+      AleraCliRegistrationState.conflict => 'Registration conflict',
+      AleraCliRegistrationState.unsupported => 'Registration unsupported',
     };
   }
 }
@@ -111,7 +111,7 @@ class AleraCliRegistrationService {
         launcherPath: null,
         installMethod: null,
         state: AleraCliRegistrationState.unsupported,
-        detail: 'CLI Registration Is Not Supported On This Platform.',
+        detail: 'CLI registration is not supported on this platform.',
       );
     }
 
@@ -125,7 +125,7 @@ class AleraCliRegistrationService {
         pathConfigured: pathConfigured,
         state: AleraCliRegistrationState.notInstalled,
         detail:
-            'Register The Alera Command To Use It From Terminals And Agents.',
+            'Register the Alera command to use it from terminals and agents.',
       );
     }
     final String content;
@@ -144,7 +144,7 @@ class AleraCliRegistrationService {
         spec,
         pathConfigured: pathConfigured,
         state: AleraCliRegistrationState.conflict,
-        detail: '${spec.commandPath} Exists But Is Not Readable As Text.',
+        detail: '${spec.commandPath} exists but is not readable as text.',
       );
     }
     if (content == expected) {
@@ -154,7 +154,7 @@ class AleraCliRegistrationService {
           pathConfigured: false,
           state: AleraCliRegistrationState.stale,
           detail:
-              '${spec.commandPath} Is Registered But Is Not Executable. Update Registration To Repair Permissions.',
+              '${spec.commandPath} is registered but is not executable. Update registration to repair permissions.',
         );
       }
       final shadowingCommandPath = pathResolution.shadowingCommandPath;
@@ -164,7 +164,7 @@ class AleraCliRegistrationService {
           pathConfigured: false,
           state: AleraCliRegistrationState.conflict,
           detail:
-              '$shadowingCommandPath Is Earlier On PATH Than ${spec.commandPath}.',
+              '$shadowingCommandPath is earlier on PATH than ${spec.commandPath}.',
         );
       }
       return _statusFor(
@@ -172,8 +172,8 @@ class AleraCliRegistrationService {
         pathConfigured: pathConfigured,
         state: AleraCliRegistrationState.installed,
         detail: pathConfigured
-            ? 'Registered At ${spec.commandPath}.'
-            : 'Registered At ${spec.commandPath}. Add ${p.dirname(spec.commandPath)} To PATH.',
+            ? 'Registered at ${spec.commandPath}.'
+            : 'Registered at ${spec.commandPath}. Add ${p.dirname(spec.commandPath)} to PATH.',
       );
     }
     if (content.contains(_wrapperMarker)) {
@@ -181,14 +181,14 @@ class AleraCliRegistrationService {
         spec,
         pathConfigured: pathConfigured,
         state: AleraCliRegistrationState.stale,
-        detail: '${spec.commandPath} Points To An Older Alera Launcher.',
+        detail: '${spec.commandPath} points to an older Alera launcher.',
       );
     }
     return _statusFor(
       spec,
       pathConfigured: pathConfigured,
       state: AleraCliRegistrationState.conflict,
-      detail: '${spec.commandPath} Exists But Is Not Managed By Alera.',
+      detail: '${spec.commandPath} exists but is not managed by Alera.',
     );
   }
 
@@ -215,8 +215,8 @@ class AleraCliRegistrationService {
           pathConfigured: (await _resolvePath(spec.commandPath)).pathConfigured,
           state: AleraCliRegistrationState.stale,
           detail: chmod.stderr.trim().isEmpty
-              ? 'Registered File Was Written, But Permissions Update Failed.'
-              : 'Registered File Was Written, But Permissions Update Failed: ${chmod.stderr.trim()}',
+              ? 'Registered file was written, but permissions update failed.'
+              : 'Registered file was written, but permissions update failed: ${chmod.stderr.trim()}',
         );
       }
     }

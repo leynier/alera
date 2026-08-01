@@ -77,7 +77,7 @@ class PushCoordinator extends _$PushCoordinator {
     if (!messaging.isAvailable) {
       return const PushCoordinationState(
         PushCoordinationStatus.unavailable,
-        detail: 'Firebase Configuration Is Missing',
+        detail: 'Firebase configuration is missing',
       );
     }
     final sessions = await ref.read(cloudAccountsControllerProvider.future);
@@ -135,7 +135,7 @@ class PushCoordinator extends _$PushCoordinator {
     if (!messaging.isAvailable) {
       return const PushCoordinationState(
         PushCoordinationStatus.unavailable,
-        detail: 'Firebase Configuration Is Missing',
+        detail: 'Firebase configuration is missing',
       );
     }
     final currentSessions = <CloudAccountSession>[];
@@ -179,7 +179,7 @@ class PushCoordinator extends _$PushCoordinator {
     if (permission != PushPermissionState.authorized) {
       return const PushCoordinationState(
         PushCoordinationStatus.permissionDenied,
-        detail: 'Notification Permission Is Off',
+        detail: 'Notification permission is off',
       );
     }
     final token = await messaging.token();
@@ -189,7 +189,7 @@ class PushCoordinator extends _$PushCoordinator {
     if (token == null || token.trim().isEmpty) {
       return const PushCoordinationState(
         PushCoordinationStatus.error,
-        detail: 'Firebase Did Not Return A Device Token',
+        detail: 'Firebase did not return a device token',
       );
     }
     for (final session in active) {

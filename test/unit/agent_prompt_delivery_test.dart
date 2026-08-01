@@ -27,11 +27,11 @@ void main() {
     test('describes both delivery paths in the user\'s terms', () {
       expect(
         agentPromptDeliveryDescription(AgentType.codex),
-        contains('Appends The Dispatched Prompt'),
+        contains('appends the dispatched prompt'),
       );
       expect(
         agentPromptDeliveryDescription(AgentType.claude),
-        contains('Types The Dispatched Prompt'),
+        contains('types the dispatched prompt'),
       );
     });
 

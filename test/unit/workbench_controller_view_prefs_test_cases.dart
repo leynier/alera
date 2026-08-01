@@ -608,7 +608,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       ),
       throwsA(isA<WorkspaceException>()),
     );
-    expect(_controller.state.error, contains('Source Branch Is Required'));
+    expect(_controller.state.error, contains('Source branch is required'));
 
     await expectLater(
       _controller.renameWorkspace(workspaceId: 'missing', name: 'Renamed'),

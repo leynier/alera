@@ -101,7 +101,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
         ? registry.reconcilePersistentSession(tab)
         : registry.sessionFor(tab));
     if (!identical(_sessionIdentity, identity)) {
-      throw StateError('The Browser Session Was Replaced.');
+      throw StateError('The browser session was replaced.');
     }
     return handle;
   }
@@ -154,7 +154,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Browser Session Unavailable: ${snapshot.error}',
+                'Browser session unavailable: ${snapshot.error}',
                 textAlign: TextAlign.center,
               ),
             );

@@ -102,7 +102,7 @@ void main() {
     expect(find.byTooltip('Browser Profile: Research'), findsOneWidget);
     expect(find.byTooltip('Open DevTools'), findsNothing);
     final field = tester.widget<TextField>(find.byType(TextField));
-    expect(field.decoration?.hintText, 'Search Or Enter Address');
+    expect(field.decoration?.hintText, 'Search or enter address');
     expect(field.decoration?.fillColor, AleraTokens.surfaceVariant);
   });
 
@@ -142,7 +142,7 @@ void main() {
 
     final toolbarRect = tester.getRect(find.byType(BrowserToolbar));
     final fieldRect = tester.getRect(find.byType(TextField));
-    final hintRect = tester.getRect(find.text('Search Or Enter Address'));
+    final hintRect = tester.getRect(find.text('Search or enter address'));
     expect(toolbarRect.height, AleraTokens.sidebarHeaderHeight);
     expect(fieldRect.height, AleraTokens.space32);
     expect(fieldRect.center.dy, toolbarRect.center.dy);

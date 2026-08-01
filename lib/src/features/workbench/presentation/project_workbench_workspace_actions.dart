@@ -196,15 +196,15 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
     final dirtyWarning = dirtyEditorCount == 0
         ? ''
         : dirtyEditorCount == 1
-        ? ' One Editor Has Unsaved Changes That Will Be Discarded.'
-        : ' $dirtyEditorCount Editors Have Unsaved Changes That Will Be Discarded.';
+        ? ' One editor has unsaved changes that will be discarded.'
+        : ' $dirtyEditorCount editors have unsaved changes that will be discarded.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AleraConfirmDialog(
         title: 'Sleep Workspace?',
         message:
-            'This Closes All Tabs And Terminal Sessions For "${workspace.name}". '
-            'The Workspace, Branch, And Files Will Be Preserved.$dirtyWarning',
+            'This closes all tabs and terminal sessions for "${workspace.name}". '
+            'The workspace, branch, and files will be preserved.$dirtyWarning',
         confirmLabel: 'Sleep',
         destructive: true,
       ),
@@ -229,7 +229,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       }
       AleraToast.show(
         context,
-        message: 'Workspace Slept',
+        message: 'Workspace slept',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -238,7 +238,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       }
       AleraToast.show(
         context,
-        message: 'Could Not Sleep Workspace: $error',
+        message: 'Could not sleep workspace: $error',
         tone: AleraToastTone.error,
       );
     }

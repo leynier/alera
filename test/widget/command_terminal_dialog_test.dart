@@ -11,7 +11,7 @@ import 'command_terminal_test_doubles.dart';
 const _request = CommandTerminalRequest(
   title: 'Update Alera',
   command: 'sudo apt-get install --only-upgrade alera',
-  description: 'The Update Runs Here. Answer Any Prompt In The Terminal.',
+  description: 'The update runs here. Answer any prompt in the terminal.',
 );
 
 Future<void> _pumpDialog(

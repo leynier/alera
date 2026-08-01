@@ -96,7 +96,7 @@ class _ManualFirstEntry extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
-              'Paste The Offer From alera mobile --json pairing create.',
+              'Paste the offer from the Alera mobile --json pairing create command.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -161,25 +161,25 @@ class _PairingFailureView extends StatelessWidget {
 
   String get _title {
     return switch (reason) {
-      PairingFailureReason.invalidOffer => 'Invalid Offer',
-      PairingFailureReason.offerExpired => 'Offer Expired',
-      PairingFailureReason.runtimeMismatch => 'Runtime Mismatch',
-      PairingFailureReason.unreachable => 'Could Not Reach Runtime',
+      PairingFailureReason.invalidOffer => 'Invalid offer',
+      PairingFailureReason.offerExpired => 'Offer expired',
+      PairingFailureReason.runtimeMismatch => 'Runtime mismatch',
+      PairingFailureReason.unreachable => 'Could not reach runtime',
     };
   }
 
   String get _hint {
     return switch (reason) {
       PairingFailureReason.invalidOffer =>
-        'The Scanned Code Is Not A Valid Alera Pairing Offer.',
+        'The scanned code is not a valid Alera pairing offer.',
       PairingFailureReason.offerExpired =>
-        'Generate A Fresh Pairing Offer On The Runtime Host And Try Again.',
+        'Generate a fresh pairing offer on the runtime host and try again.',
       PairingFailureReason.runtimeMismatch =>
-        'The Endpoint Answered For A Different Runtime Than The Offer '
-            'Promised. Check The Network And Generate A New Offer.',
+        'The endpoint answered for a different runtime than the offer '
+            'promised. Check the network and generate a new offer.',
       PairingFailureReason.unreachable =>
-        'Check That The Runtime Host Is Running And Reachable From This '
-            'Phone, Then Try Again.',
+        'Check that the runtime host is running and reachable from this '
+            'phone, then try again.',
     };
   }
 

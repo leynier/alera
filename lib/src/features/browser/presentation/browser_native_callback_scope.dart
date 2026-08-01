@@ -228,7 +228,7 @@ class _BrowserNativeCallbackScopeState
         AleraToast.show(
           context,
           message:
-              'The Certificate Could Not Be Saved. Navigation Was Blocked.',
+              'The certificate could not be saved. Navigation was blocked.',
           tone: AleraToastTone.error,
         );
       }

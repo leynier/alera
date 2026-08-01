@@ -87,7 +87,7 @@ class _MobileEmulatorDevicePickerState
                   }
                   if (snapshot.hasError) {
                     return _PickerMessage(
-                      message: 'Device Discovery Failed',
+                      message: 'Device discovery failed',
                       detail: snapshot.error.toString(),
                       onRetry: () => setState(_reload),
                     );
@@ -136,13 +136,13 @@ class _MobileEmulatorDevicePickerState
       final capability = data.capabilities[_platform];
       return _PickerMessage(
         message: capability?.available == false
-            ? 'Platform Unavailable'
-            : 'No Virtual Devices Found',
+            ? 'Platform unavailable'
+            : 'No virtual devices found',
         detail: capability?.available == false
             ? capability!.message
             : _platform == MobileEmulatorPlatform.android
-            ? 'Create An Android Virtual Device And Retry.'
-            : 'Install An iOS Simulator Runtime And Retry.',
+            ? 'Create an Android virtual device and retry.'
+            : 'Install an iOS simulator runtime and retry.',
         onRetry: () => setState(_reload),
       );
     }

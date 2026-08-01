@@ -93,7 +93,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       final client = await ref.read(workspaceClientProvider(hostId).future);
       if (!client.supportsPromptWorkspaceCreation) {
         throw UnsupportedError(
-          'Update Alera On This Host To Create A Workspace From A Prompt.',
+          'Update Alera on this host to create a workspace from a prompt.',
         );
       }
       final results = await Future.wait<Object>([
@@ -116,7 +116,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       if (state.projectId == projectId) {
         state = state.copyWith(
           loading: false,
-          error: 'Could Not Load Prompt Workspace Options: $error',
+          error: 'Could not load prompt workspace options: $error',
         );
       }
     }
@@ -143,13 +143,13 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
         profileId == null ||
         prompt.trim().isEmpty) {
       state = state.copyWith(
-        error: 'Complete The Prompt, Project, Branch, And Agent Profile.',
+        error: 'Complete the prompt, project, branch, and agent profile.',
       );
       return;
     }
     state = state.copyWith(
       loading: true,
-      phase: 'Generating Workspace Identity',
+      phase: 'Generating workspace identity',
       clearError: true,
     );
     try {
@@ -175,16 +175,16 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
             _activeOperationId = null;
           }
         }
-        state = state.copyWith(phase: 'Checking Generated Branch');
+        state = state.copyWith(phase: 'Checking generated branch');
         final branches = await client.listBranches(projectId);
         if (workspaceBranches.contains(identity.branchName) ||
             branches.branches.contains(identity.branchName)) {
           collisionError = StateError(
-            'The Generated Branch "${identity.branchName}" Already Exists.',
+            'The generated branch "${identity.branchName}" already exists.',
           );
           continue;
         }
-        state = state.copyWith(phase: 'Creating Workspace');
+        state = state.copyWith(phase: 'Creating workspace');
         try {
           final created = await client.createManagedWorkspace(
             projectId: projectId,
@@ -216,10 +216,10 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       if (creation == null) {
         throw collisionError ??
             StateError(
-              'AI Text Could Not Generate An Available Workspace Identity.',
+              'AI Text could not generate an available workspace identity.',
             );
       }
-      state = state.copyWith(creation: creation, phase: 'Starting Agent');
+      state = state.copyWith(creation: creation, phase: 'Starting agent');
       final launch = await client.launchAgentProfile(
         workspaceId: creation.workspace.id,
         profileId: profileId,
@@ -227,7 +227,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       );
       var completedCreation = creation;
       if (creation.hasDeferredSetup) {
-        state = state.copyWith(phase: 'Starting Setup');
+        state = state.copyWith(phase: 'Starting setup');
         final terminalClient = await ref.read(
           terminalClientProvider(hostId).future,
         );
@@ -259,7 +259,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     }
     state = state.copyWith(
       loading: true,
-      phase: 'Starting Agent',
+      phase: 'Starting agent',
       clearError: true,
     );
     try {
@@ -271,7 +271,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       );
       var completedCreation = creation;
       if (creation.hasDeferredSetup) {
-        state = state.copyWith(phase: 'Starting Setup');
+        state = state.copyWith(phase: 'Starting setup');
         final terminalClient = await ref.read(
           terminalClientProvider(hostId).future,
         );

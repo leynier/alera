@@ -48,11 +48,11 @@ class _PairingConfirmCardState extends State<PairingConfirmCard> {
       DateTime.now().toUtc(),
     );
     if (remaining.isNegative) {
-      return 'Offer Expired';
+      return 'Offer expired';
     }
     final minutes = remaining.inMinutes;
     final seconds = remaining.inSeconds.remainder(60);
-    return 'Expires In $minutes:${seconds.toString().padLeft(2, '0')}';
+    return 'Expires in $minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -138,7 +138,7 @@ class _PairingConfirmCardState extends State<PairingConfirmCard> {
           enabled: !widget.pairing,
           decoration: const InputDecoration(
             labelText: 'Device Name (Optional)',
-            helperText: 'How This Phone Appears On The Runtime Host',
+            helperText: 'How this phone appears on the runtime host',
           ),
         ),
         const SizedBox(height: AleraTokens.spaceLg),

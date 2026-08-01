@@ -86,7 +86,7 @@ void main() {
     await tester.tap(find.byTooltip('Refresh Terminal'));
     await tester.pump();
 
-    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(find.text('Terminal unavailable'), findsOneWidget);
     expect(client.calls, callsBefore);
     expect(tester.takeException(), isNull);
   });
@@ -160,12 +160,12 @@ void main() {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
     await _pumpTab(tester, client);
-    expect(find.text('Terminal Output Stopped'), findsNothing);
+    expect(find.text('Terminal output stopped'), findsNothing);
 
     await client.dispose();
     await tester.pumpAndSettle();
 
-    expect(find.text('Terminal Unavailable'), findsOneWidget);
+    expect(find.text('Terminal unavailable'), findsOneWidget);
     expect(find.text('Reconnect'), findsOneWidget);
     expect(find.text('Restart Terminal'), findsOneWidget);
   });

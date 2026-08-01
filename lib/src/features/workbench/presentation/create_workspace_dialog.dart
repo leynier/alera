@@ -393,9 +393,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         if (!mounted || _newBranchController.text.trim() != trimmed) return;
         setState(() {
           if (_reuseExistingBranch && !exists) {
-            _branchValidationError = 'Branch "$trimmed" Does Not Exist';
+            _branchValidationError = 'Branch "$trimmed" does not exist';
           } else if (!_reuseExistingBranch && exists) {
-            _branchValidationError = 'Branch "$trimmed" Already Exists';
+            _branchValidationError = 'Branch "$trimmed" already exists';
           }
           _isValidatingBranch = false;
         });
@@ -415,14 +415,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   String _sourceBranchRequiredError() {
     return _reuseExistingBranch
-        ? 'Existing Branch Is Required'
-        : 'Source Branch Is Required';
+        ? 'Existing branch is required'
+        : 'Source branch is required';
   }
 
   String _targetBranchRequiredError() {
     return _reuseExistingBranch
-        ? 'Existing Branch Is Required'
-        : 'New Branch Name Is Required';
+        ? 'Existing branch is required'
+        : 'New branch name is required';
   }
 
   String _branchPickerLabel() {
@@ -431,14 +431,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   String _branchSearchHint() {
     return _reuseExistingBranch
-        ? 'Search Existing Branches'
-        : 'Search Source Branches';
+        ? 'Search existing branches'
+        : 'Search source branches';
   }
 
   String _emptyBranchesMessage() {
     return _reuseExistingBranch
-        ? 'No Existing Branches Match "$_branchQuery"'
-        : 'No Source Branches Match "$_branchQuery"';
+        ? 'No existing branches match "$_branchQuery"'
+        : 'No source branches match "$_branchQuery"';
   }
 
   String _slugify(String input) {
@@ -482,7 +482,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             children: [
               AleraEmptyState(
                 icon: AleraIcons.folderOff,
-                title: 'No Git Projects Yet',
+                title: 'No Git projects yet',
                 message:
                     'Linked workspaces require a Git project. Add one to get started.',
                 action: widget.onAddProject != null
@@ -1040,7 +1040,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                         ),
                                         Expanded(
                                           child: Text(
-                                            'Initial Terminal Tab Will Be Opened',
+                                            'Initial terminal tab will be opened',
                                             style: theme.textTheme.labelSmall
                                                 ?.copyWith(
                                                   color: AleraTokens

@@ -149,7 +149,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                 const SizedBox(height: AleraTokens.space8),
                 if (widget.checks.isEmpty)
                   Text(
-                    'No Checks Reported',
+                    'No checks reported',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),

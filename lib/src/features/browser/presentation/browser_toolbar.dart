@@ -100,7 +100,7 @@ class BrowserToolbar extends StatelessWidget {
                           // Toolbar chrome is surface; dense defaults to a
                           // surface fill meant for surface-variant sidebars.
                           fillColor: AleraTokens.surfaceVariant,
-                          hintText: 'Search Or Enter Address',
+                          hintText: 'Search or enter address',
                           onSubmitted: onSubmitAddress,
                         ),
                       ),

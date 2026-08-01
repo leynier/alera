@@ -64,7 +64,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       });
       AleraToast.show(
         context,
-        message: 'Agent Profile Saved',
+        message: 'Agent profile saved',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -95,7 +95,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         title: 'Test Agent Profile',
         command: command,
         description:
-            'The Profile Command Runs Here. It Does Not Receive A Dispatched Task.',
+            'The profile command runs here. It does not receive a dispatched task.',
       ),
     );
   }
@@ -147,7 +147,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       _setPaneState(() => _saving = false);
       AleraToast.show(
         context,
-        message: 'Default Agent Profile Updated',
+        message: 'Default agent profile updated',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -183,7 +183,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       });
       AleraToast.show(
         context,
-        message: 'Agent Profile Cloned',
+        message: 'Agent profile cloned',
         tone: AleraToastTone.success,
       );
     } catch (error) {

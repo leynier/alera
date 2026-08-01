@@ -143,7 +143,7 @@ class _ExplorerRow extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.only(left: AleraTokens.space8),
                     child: Tooltip(
-                      message: 'Source Control Root',
+                      message: 'Source control root',
                       child: Icon(
                         AleraIcons.gitBranch,
                         size: 14,

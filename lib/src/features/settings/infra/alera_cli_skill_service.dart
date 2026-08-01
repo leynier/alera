@@ -150,13 +150,13 @@ class AleraCliSkillInstallResult {
   /// output belongs in [detail].
   String get summary {
     if (succeeded) {
-      return 'Install Complete (${lastAttempt.runner.label})';
+      return 'Install complete (${lastAttempt.runner.label})';
     }
     final headline = _firstLine(lastAttempt.output);
     if (headline.isEmpty) {
-      return 'Install Failed (${lastAttempt.runner.label})';
+      return 'Install failed (${lastAttempt.runner.label})';
     }
-    return 'Install Failed (${lastAttempt.runner.label}): $headline';
+    return 'Install failed (${lastAttempt.runner.label}): $headline';
   }
 
   /// Every attempt's full output, labelled per runner. An `auto` run that fell

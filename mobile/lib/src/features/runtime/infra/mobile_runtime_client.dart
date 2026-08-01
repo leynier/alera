@@ -181,7 +181,7 @@ class MobileRuntimeClient
 
   Future<String> createCloudEnrollment() async {
     if (!supportsCloudEnrollment) {
-      throw StateError('This Host Does Not Support Account Enrollment');
+      throw StateError('This host does not support account enrollment');
     }
     final payload = await requestMap('mobile.cloudEnrollment.create');
     return payload.requiredString('code');
@@ -189,7 +189,7 @@ class MobileRuntimeClient
 
   Future<int> refreshCloudSubscriptions() async {
     if (!supportsCloudEnrollment) {
-      throw StateError('This Host Does Not Support Cloud Subscriptions');
+      throw StateError('This host does not support cloud subscriptions');
     }
     final payload = await requestMap('mobile.cloudSubscriptions.refresh');
     return payload.requiredInt('activeSubscriptions');
@@ -202,7 +202,7 @@ class MobileRuntimeClient
 
   Future<RuntimeRestartResult> restartRuntime({bool force = false}) async {
     if (!supportsRuntimeRestart) {
-      throw UnsupportedError('Update The Runtime To Restart It Remotely.');
+      throw UnsupportedError('Update the runtime to restart it remotely.');
     }
     try {
       final payload = await requestMap('host.restart', <String, Object?>{
@@ -234,7 +234,7 @@ class MobileRuntimeClient
     Duration? timeout,
   ]) {
     if (_disposed) {
-      throw StateError('Mobile Runtime Client Is Disposed.');
+      throw StateError('Mobile runtime client is disposed.');
     }
     final closedError = _closedError;
     if (closedError != null) {
@@ -262,7 +262,7 @@ class MobileRuntimeClient
       onTimeout: () {
         _pending.remove(id);
         throw TimeoutException(
-          'Mobile Runtime Request Timed Out.',
+          'Mobile runtime request timed out.',
           effectiveTimeout,
         );
       },
@@ -301,7 +301,7 @@ class MobileRuntimeClient
     _disposed = true;
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
-        completer.completeError(StateError('Mobile Runtime Client Closed.'));
+        completer.completeError(StateError('Mobile runtime client closed.'));
       }
     }
     _pending.clear();
@@ -358,7 +358,7 @@ class MobileRuntimeClient
       completer.complete(message['payload']);
     } else {
       completer.completeError(
-        StateError((message['error'] as String?) ?? 'Mobile Runtime Error.'),
+        StateError((message['error'] as String?) ?? 'Mobile runtime error.'),
       );
     }
   }
@@ -388,6 +388,6 @@ class MobileRuntimeClient
   }
 
   void _handleSocketClosed() {
-    _handleSocketError(StateError('Mobile Runtime Connection Closed.'));
+    _handleSocketError(StateError('Mobile runtime connection closed.'));
   }
 }

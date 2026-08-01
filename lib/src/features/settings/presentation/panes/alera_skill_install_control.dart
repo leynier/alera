@@ -69,7 +69,7 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
       if (mounted) {
         setState(() {
           _status = AleraSkillInstallStatus(
-            'Install Failed',
+            'Install failed',
             detail: '$error',
             needsAttention: true,
           );
