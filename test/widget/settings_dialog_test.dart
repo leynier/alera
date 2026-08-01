@@ -46,6 +46,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import '../unit/fake_project_config.dart';
 
 part 'settings_dialog_core_test_cases.dart';
+part 'settings_dialog_project_test_cases.dart';
 part 'settings_dialog_ai_text_test_cases.dart';
 part 'settings_dialog_quota_test_cases.dart';
 part 'settings_dialog_terminal_test_cases.dart';
@@ -59,6 +60,8 @@ Future<ProviderContainer> _pumpSettingsDialog(
   Size surfaceSize = const Size(1200, 900),
   SystemFontService? fontService,
   AiTextModelDiscoveryService? modelDiscoveryService,
+  String initialSectionId = 'application',
+  String? initialProjectId,
   List<dynamic> extraOverrides = const <dynamic>[],
 }) async {
   await tester.binding.setSurfaceSize(surfaceSize);
@@ -95,7 +98,10 @@ Future<ProviderContainer> _pumpSettingsDialog(
       container: container,
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
-        home: const SettingsDialog(),
+        home: SettingsDialog(
+          initialSectionId: initialSectionId,
+          initialProjectId: initialProjectId,
+        ),
       ),
     ),
   );
@@ -111,6 +117,7 @@ Future<void> _selectTerminalSection(WidgetTester tester) async {
 
 void main() {
   _registerSettingsDialogCoreTests();
+  _registerSettingsDialogProjectTests();
   _registerSettingsDialogAiTextTests();
   _registerSettingsDialogQuotaTests();
   _registerSettingsDialogTerminalTests();

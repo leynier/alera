@@ -6,6 +6,7 @@ part of 'project_workbench_sidebar.dart';
 /// library-private and consumed only by the sidebar parts.
 
 const String _renameAction = 'rename';
+const String _openProjectSettingsAction = 'open-project-settings';
 const String _openFolderAction = 'open-folder';
 const String _copyPathAction = 'copy-path';
 const String _openInBrowserAction = 'open-in-browser';
@@ -26,6 +27,11 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool isPinned,
 }) {
   return <PopupMenuEntry<String>>[
+    const AleraDropdownEntry<String>(
+      value: _openProjectSettingsAction,
+      leading: Icon(AleraIcons.settings, size: 16),
+      label: 'Open Project Settings',
+    ),
     const AleraDropdownEntry<String>(
       value: _renameAction,
       leading: Icon(AleraIcons.edit, size: 16),
