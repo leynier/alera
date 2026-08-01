@@ -157,7 +157,7 @@ fn plan_command(
     if agent == "custom" {
         return plan_custom_command(&settings.custom_command, prompt);
     }
-    let model = prompt_settings
+    let selected_model = prompt_settings
         .and_then(|value| value.model.as_deref())
         .filter(|value| !value.trim().is_empty())
         .or_else(|| {
@@ -166,8 +166,8 @@ fn plan_command(
                 .get(agent)
                 .map(String::as_str)
                 .filter(|value| !value.trim().is_empty())
-        })
-        .unwrap_or_else(|| default_model(agent));
+        });
+    let model = selected_model.unwrap_or_else(|| default_model(agent));
     let thinking = settings
         .selected_thinking_by_operation
         .get(operation)
@@ -262,19 +262,18 @@ fn plan_command(
             None,
             "Cursor",
         ),
-        "agy" => (
-            "agy",
-            vec![
+        "agy" => {
+            let mut arguments = vec![
                 "--print".to_string(),
                 "--sandbox".to_string(),
                 "--print-timeout".to_string(),
                 format!("{timeout}s"),
-                "--model".to_string(),
-                model.to_string(),
-            ],
-            Some(prompt.to_string()),
-            "Antigravity",
-        ),
+            ];
+            if selected_model.is_some() {
+                arguments.extend(["--model".to_string(), model.to_string()]);
+            }
+            ("agy", arguments, Some(prompt.to_string()), "Antigravity")
+        }
         "opencode" => (
             "opencode",
             vec![
@@ -485,7 +484,8 @@ fn default_model(agent: &str) -> &'static str {
         "codex" => "gpt-5.5",
         "copilot" => "gpt-5.4",
         "cursor" => "auto",
-        "agy" => "Gemini 3.5 Flash (Medium)",
+        // An empty model lets AGY use its own configured/default model.
+        "agy" => "",
         "opencode" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
