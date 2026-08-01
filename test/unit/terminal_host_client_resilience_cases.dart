@@ -102,6 +102,49 @@ void _registerTerminalHostClientResilienceTests() {
     );
   });
 
+  test(
+    'clean socket closure reports a stable error without a null reason',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-clean-close-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: server.port,
+        token: 'existing-token',
+      );
+      final client = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+      final sessionError = client
+          .eventsForSession('session-1')
+          .where((event) => event is TerminalHostErrorEvent)
+          .cast<TerminalHostErrorEvent>()
+          .first;
+
+      await client.write(sessionId: 'session-1', bytes: const <int>[1]);
+      server.closeClient();
+
+      expect(
+        (await sessionError).error,
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'Terminal host connection closed.',
+        ),
+      );
+    },
+  );
+
   test('waits for authenticated hello before sending requests', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-host-client-authentication-',
