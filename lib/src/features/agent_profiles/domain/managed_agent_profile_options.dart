@@ -280,6 +280,13 @@ String managedAgentCommandPreview(
           'model_reasoning_effort=$effort',
         ]);
       }
+      final planModeEffort = config['planModeEffort'];
+      if (planModeEffort is String && planModeEffort.isNotEmpty) {
+        arguments.addAll(<String>[
+          '--config',
+          'plan_mode_reasoning_effort=$planModeEffort',
+        ]);
+      }
       if (config['bypassApprovalsAndSandbox'] == true) {
         arguments.add('--dangerously-bypass-approvals-and-sandbox');
       } else {

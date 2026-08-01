@@ -129,6 +129,14 @@ class AgentProfileManagedEditor extends StatelessWidget {
           options: codexEffortOptions,
         ),
         _choiceRow(
+          title: 'Plan Mode Reasoning Effort',
+          description:
+              'Applies Only While Codex Is In Plan Mode, Which Is Entered With '
+              'Shift+Tab Or /plan. Codex Has No Way To Start There.',
+          keyName: 'planModeEffort',
+          options: codexEffortOptions,
+        ),
+        _choiceRow(
           title: 'Sandbox',
           keyName: 'sandbox',
           options: codexSandboxOptions,
