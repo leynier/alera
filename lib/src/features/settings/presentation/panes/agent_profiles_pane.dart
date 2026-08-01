@@ -16,6 +16,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_list_row.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +70,10 @@ class _AgentProfilesSettingsPaneState
   @override
   Widget build(BuildContext context) {
     final profilesAsync = ref.watch(agentProfilesProvider);
+    final defaultAgentProfileId = ref
+        .watch(settingsControllerProvider)
+        .agents
+        .defaultAgentProfileId;
     return profilesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => AleraEmptyState(
@@ -112,7 +117,16 @@ class _AgentProfilesSettingsPaneState
                         AgentProfileListRow(
                           profile: profile,
                           selected: profile.id == _selectedProfileId,
+                          isDefault: profile.id == defaultAgentProfileId,
                           onTap: () => _selectProfile(profile),
+                          onSetDefault:
+                              _saving || profile.id == defaultAgentProfileId
+                              ? null
+                              : () => unawaited(_setDefaultProfile(profile)),
+                          onClone: _saving
+                              ? null
+                              : () =>
+                                    unawaited(_cloneProfile(profile, profiles)),
                         ),
                     ],
                   ),
@@ -340,6 +354,12 @@ class _AgentProfilesSettingsPaneState
     });
     try {
       await ref.read(agentProfilesProvider.notifier).remove(profile.id);
+      if (ref.read(settingsControllerProvider).agents.defaultAgentProfileId ==
+          profile.id) {
+        await ref
+            .read(settingsControllerProvider.notifier)
+            .setDefaultAgentProfile(null);
+      }
       if (!mounted) {
         return;
       }
@@ -356,6 +376,87 @@ class _AgentProfilesSettingsPaneState
         _saving = false;
         _error = error.toString();
       });
+    }
+  }
+
+  Future<void> _setDefaultProfile(AgentProfile profile) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .setDefaultAgentProfile(profile.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _saving = false);
+      AleraToast.show(
+        context,
+        message: 'Default Agent Profile Updated',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = error.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _cloneProfile(
+    AgentProfile source,
+    List<AgentProfile> profiles,
+  ) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final cloned = await ref
+          .read(agentProfilesProvider.notifier)
+          .clone(source, name: _cloneName(source, profiles));
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _saving = false;
+        _creatingNew = false;
+        _selectedProfileId = cloned.id;
+        _seededSignature = null;
+      });
+      AleraToast.show(
+        context,
+        message: 'Agent Profile Cloned',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _saving = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  String _cloneName(AgentProfile source, List<AgentProfile> profiles) {
+    final base = '${source.name.trim()} Copy';
+    final names = <String>{
+      for (final profile in profiles) profile.name.trim().toLowerCase(),
+    };
+    if (!names.contains(base.toLowerCase())) {
+      return base;
+    }
+    for (var suffix = 2; ; suffix++) {
+      final candidate = '$base $suffix';
+      if (!names.contains(candidate.toLowerCase())) {
+        return candidate;
+      }
     }
   }
 

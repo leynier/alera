@@ -161,6 +161,36 @@ async fn default_agent_profile_setting_round_trips_and_clears() {
 }
 
 #[tokio::test]
+async fn default_agent_profile_setting_round_trips_and_clears() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+
+    store
+        .set_default_agent_profile_id(Some("  prof_codex  "))
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .runtime_settings()
+            .await
+            .unwrap()
+            .default_agent_profile_id
+            .as_deref(),
+        Some("prof_codex")
+    );
+
+    store.set_default_agent_profile_id(None).await.unwrap();
+    assert_eq!(
+        store
+            .runtime_settings()
+            .await
+            .unwrap()
+            .default_agent_profile_id,
+        None
+    );
+}
+
+#[tokio::test]
 async fn tab_rename_preserves_payload_and_marks_manual_title() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();

@@ -1,4 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
@@ -12,11 +14,17 @@ class AgentProfileListRow extends StatelessWidget {
     required this.profile,
     required this.selected,
     required this.onTap,
+    this.isDefault = false,
+    this.onSetDefault,
+    this.onClone,
   });
 
   final AgentProfile profile;
   final bool selected;
   final VoidCallback onTap;
+  final bool isDefault;
+  final VoidCallback? onSetDefault;
+  final VoidCallback? onClone;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +85,19 @@ class AgentProfileListRow extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              AleraIconButton(
+                tooltip: isDefault ? 'Default Agent Profile' : 'Set As Default',
+                icon: AleraIcons.star,
+                iconColor: isDefault
+                    ? AleraTokens.accent
+                    : AleraTokens.foregroundFaint,
+                onPressed: onSetDefault,
+              ),
+              AleraIconButton(
+                tooltip: 'Clone Profile',
+                icon: AleraIcons.duplicate,
+                onPressed: onClone,
               ),
             ],
           ),

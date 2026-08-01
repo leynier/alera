@@ -48,6 +48,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required this.createWorkspace,
     required this.launchAgent,
     this.initialProject,
+    this.defaultAgentProfileId,
     this.onCreateAnother,
   });
 
@@ -80,6 +81,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required String prompt,
   })
   launchAgent;
+  final String? defaultAgentProfileId;
   final Future<void> Function({
     required WorkspaceCreationResult creation,
     required String agentTabId,
@@ -111,7 +113,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     super.initState();
     _project = _initialProject();
     _selectedParentWorkspaceId = _defaultParentWorkspaceId(_project);
-    _profile = widget.agentProfiles.firstOrNull;
+    _profile = _defaultAgentProfile();
     final project = _project;
     if (project != null) {
       unawaited(_loadBranches(project));
@@ -125,6 +127,18 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   }
 
   void _update(VoidCallback update) => setState(update);
+
+  AgentProfile? _defaultAgentProfile() {
+    final defaultId = widget.defaultAgentProfileId;
+    if (defaultId != null) {
+      for (final profile in widget.agentProfiles) {
+        if (profile.id == defaultId) {
+          return profile;
+        }
+      }
+    }
+    return widget.agentProfiles.firstOrNull;
+  }
 
   Project? _initialProject() {
     final preferred = widget.initialProject;
