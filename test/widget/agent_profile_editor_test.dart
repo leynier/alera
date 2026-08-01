@@ -26,6 +26,24 @@ void main() {
     expect(find.text('Command'), findsNothing);
   });
 
+  testWidgets('Codex exposes a plan mode effort it cannot start in', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _EditorHarness(
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{'planModeEffort': 'xhigh'},
+      ),
+    );
+
+    expect(find.text('Plan Mode Reasoning Effort'), findsOneWidget);
+    expect(find.textContaining('Shift+Tab Or /plan'), findsOneWidget);
+    expect(
+      find.text('codex --config plan_mode_reasoning_effort=xhigh'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('command mode keeps the advanced raw command field', (
     tester,
   ) async {

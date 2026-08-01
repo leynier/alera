@@ -9,9 +9,8 @@ use uuid::Uuid;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_registry::{adapter_for, AGENT_ADAPTERS};
-use crate::terminal_host::orchestration::managed_agent_launch::{
-    build_managed_agent_launch, managed_launch_preview,
-};
+use crate::terminal_host::orchestration::managed_agent_launch::build_managed_agent_launch;
+use crate::terminal_host::orchestration::managed_launch_shell_rendering::managed_launch_preview;
 use crate::terminal_host::protocol::event;
 
 use super::requests::require_string_key;

@@ -125,7 +125,7 @@ impl ServerActor {
                 );
             }
             Some(
-                crate::terminal_host::orchestration::managed_agent_launch::render_managed_launch(
+                crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
                     &launch,
                     &default_launch.interactive_shell,
                 ),

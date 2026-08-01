@@ -261,6 +261,14 @@ void main() {
         }),
         'codex --dangerously-bypass-approvals-and-sandbox',
       );
+      expect(
+        managedAgentCommandPreview(AgentType.codex, const <String, Object?>{
+          'effort': 'medium',
+          'planModeEffort': 'xhigh',
+        }),
+        'codex --config model_reasoning_effort=medium '
+        '--config plan_mode_reasoning_effort=xhigh',
+      );
     });
 
     test('renders Claude and Copilot options', () {
