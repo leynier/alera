@@ -171,9 +171,7 @@ class _AgentProfilesSettingsPaneState
             onRemove: selectedProfile == null
                 ? null
                 : () => _removeProfile(selectedProfile),
-            onTestCommand: _launchMode == AgentProfileLaunchMode.command
-                ? () => unawaited(_testCommand())
-                : null,
+            onTestCommand: () => unawaited(_testCommand()),
           ),
         );
       },
