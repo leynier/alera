@@ -20,7 +20,7 @@
 [submodule "third_party/dart_terminal"]
 	path = third_party/dart_terminal
 	url = https://github.com/leynier/dart_terminal.git
-	branch = master
+	branch = next
 [submodule "reference_projects/code_forge"]
 	path = reference_projects/code_forge
 	url = https://github.com/heckmon/code_forge.git
