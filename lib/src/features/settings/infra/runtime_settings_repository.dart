@@ -97,6 +97,10 @@ Map<String, Object?> _runtimeAiTextSettings(AiTextGenerationSettings settings) {
         entry.key.key: entry.value,
     },
     'selectedThinkingByModel': settings.selectedThinkingByModel,
+    'selectedThinkingByOperation': <String, Map<String, String>>{
+      for (final entry in settings.selectedThinkingByOperation.entries)
+        entry.key.key: entry.value,
+    },
     'customCommand': settings.customCommand,
     'instructionsByOperation': <String, String>{
       for (final entry in settings.instructionsByOperation.entries)

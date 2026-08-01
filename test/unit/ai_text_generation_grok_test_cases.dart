@@ -114,6 +114,33 @@ Available models:
     expect(runner.arguments, containsAllInOrder(<String>['--effort', 'high']));
   });
 
+  test('passes the reasoning effort configured for the operation', () async {
+    final git = _grokGitBackend();
+    final runner = _FakeProcessRunner(stdout: 'fix: use operation effort\n');
+    final service = CliAiTextGenerationService(
+      gitBackend: git,
+      processRunner: runner,
+    );
+
+    await service.generate(
+      const AiTextGenerationRequest(
+        operation: AiTextGenerationOperation.commitMessage,
+        workspacePath: '/repo',
+        settings: AiTextGenerationSettings(
+          agent: AiTextGenerationAgent.grok,
+          selectedThinkingByOperation:
+              <AiTextGenerationOperation, Map<String, String>>{
+                AiTextGenerationOperation.commitMessage: <String, String>{
+                  'grok-4.5': 'high',
+                },
+              },
+        ),
+      ),
+    );
+
+    expect(runner.arguments, containsAllInOrder(<String>['--effort', 'high']));
+  });
+
   test('removes the Grok Build prompt file after CLI failure', () async {
     final runner = _FakeProcessRunner(
       stdout: '',

@@ -324,7 +324,8 @@ class CliAiTextGenerationService implements AiTextGenerationService {
       extraModels: discoveredModelsForAgent(settings, agent),
     );
     final thinking =
-        settings.thinkingForModel(model.id) ?? model.defaultThinkingLevel;
+        settings.thinkingForOperation(operation, model.id) ??
+        model.defaultThinkingLevel;
     if (spec.promptDelivery == AiPromptDelivery.argv &&
         utf8.encode(prompt).length > maxArgvPromptBytes) {
       throw AiTextGenerationException(

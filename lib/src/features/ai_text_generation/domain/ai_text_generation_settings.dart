@@ -109,6 +109,8 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
     this.agent = AiTextGenerationAgent.codex,
     this.selectedModelByAgent = const <AiTextGenerationAgent, String>{},
     this.selectedThinkingByModel = const <String, String>{},
+    this.selectedThinkingByOperation =
+        const <AiTextGenerationOperation, Map<String, String>>{},
     this.discoveredModelsByAgent =
         const <AiTextGenerationAgent, List<AiTextDiscoveredModel>>{},
     this.discoveredDefaultModelByAgent =
@@ -124,6 +126,8 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
   final AiTextGenerationAgent agent;
   final Map<AiTextGenerationAgent, String> selectedModelByAgent;
   final Map<String, String> selectedThinkingByModel;
+  final Map<AiTextGenerationOperation, Map<String, String>>
+  selectedThinkingByOperation;
   final Map<AiTextGenerationAgent, List<AiTextDiscoveredModel>>
   discoveredModelsByAgent;
   final Map<AiTextGenerationAgent, String> discoveredDefaultModelByAgent;
@@ -144,6 +148,21 @@ class AiTextGenerationSettings with AiTextGenerationSettingsMappable {
     }
     final value = selectedThinkingByModel[model]?.trim();
     return value == null || value.isEmpty ? null : value;
+  }
+
+  String? thinkingForOperation(
+    AiTextGenerationOperation operation,
+    String? model,
+  ) {
+    if (model == null || model.trim().isEmpty) {
+      return null;
+    }
+    final operationValue = selectedThinkingByOperation[operation]?[model]
+        ?.trim();
+    if (operationValue != null && operationValue.isNotEmpty) {
+      return operationValue;
+    }
+    return thinkingForModel(model);
   }
 
   String instructionsFor(AiTextGenerationOperation operation) {
