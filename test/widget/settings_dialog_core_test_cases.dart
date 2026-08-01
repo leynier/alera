@@ -381,7 +381,7 @@ void _registerSettingsDialogCoreTests() {
     );
     expect(find.text('Codex').last, findsOneWidget);
 
-    await tester.ensureVisible(find.text('Commit Messages'));
+    await tester.ensureVisible(find.text('Commit Messages').last);
     expect(find.text('Pull Request Details'), findsWidgets);
     expect(find.text('Branch Names'), findsNothing);
     await tester.pump();
