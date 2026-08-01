@@ -176,6 +176,10 @@ final class _TerminalHostTestServer {
     });
   }
 
+  void closeClient() {
+    _client?.destroy();
+  }
+
   Future<void> dispose() async {
     await _sub?.cancel();
     _client?.destroy();

@@ -176,4 +176,13 @@ void main() {
       expect(terminal.buffer.lines[7].toString(), isEmpty);
     },
   );
+
+  test('xterm repairs a stale row before writing past its capacity', () {
+    final terminal = Terminal()..resize(680, 24);
+    terminal.mainBuffer.lines[0] = BufferLine(80);
+
+    terminal.write('\x1b[1;171Hx');
+
+    expect(terminal.mainBuffer.lines[0].length, terminal.viewWidth);
+  });
 }
