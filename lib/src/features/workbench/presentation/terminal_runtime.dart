@@ -200,11 +200,13 @@ final class TerminalRuntimeExitEvent {
     required this.workspaceId,
     required this.tabId,
     required this.exitCode,
+    this.autoCloseOnSuccess = false,
   });
 
   final String workspaceId;
   final String tabId;
   final int exitCode;
+  final bool autoCloseOnSuccess;
 }
 
 abstract interface class TerminalPtySessionFactory {

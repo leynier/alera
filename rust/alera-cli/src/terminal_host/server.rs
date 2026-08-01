@@ -123,6 +123,7 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod workspace_file_requests;
 mod workspace_git_requests;
+mod terminal_startup_commands;
 mod workspace_pinning;
 mod workspace_preview_requests;
 mod workspace_search_requests;

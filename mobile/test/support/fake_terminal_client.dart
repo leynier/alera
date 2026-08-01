@@ -17,6 +17,7 @@ WorkspaceTabSummary fakeTab({
   String workspaceId = 'workspace-1',
   String? runtimeTitle,
   bool manualTitle = false,
+  bool autoCloseOnSuccess = false,
 }) {
   return WorkspaceTabSummary(
     id: id,
@@ -26,6 +27,7 @@ WorkspaceTabSummary fakeTab({
     payload: <String, Object?>{
       'terminalSessionId': 'session-$id',
       if (manualTitle) 'manualTitle': true,
+      if (autoCloseOnSuccess) 'autoCloseOnSuccess': true,
     },
     runtimeTitle: runtimeTitle,
   );
@@ -175,6 +177,7 @@ class FakeTerminalClient
     String? title,
     int cols = defaultTerminalCols,
     int rows = defaultTerminalRows,
+    bool autoCloseOnSuccess = false,
   }) async {
     calls.add('create $workspaceId $title');
     _createdTabs += 1;
@@ -182,6 +185,7 @@ class FakeTerminalClient
       id: 'created-$_createdTabs',
       title: title ?? 'Terminal',
       workspaceId: workspaceId,
+      autoCloseOnSuccess: autoCloseOnSuccess,
     );
     tabs = <WorkspaceTabSummary>[...tabs, tab];
     return MobileTerminalSession(

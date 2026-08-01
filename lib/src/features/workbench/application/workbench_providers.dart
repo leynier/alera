@@ -342,6 +342,9 @@ void terminalRuntimeExitCoordinator(Ref ref) {
         runtime.closeTab(event.tabId);
         return;
       }
+      if (event.autoCloseOnSuccess && event.exitCode != 0) {
+        return;
+      }
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: event.tabId);

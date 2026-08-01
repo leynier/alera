@@ -86,6 +86,7 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
     String? initialCommand,
     bool spawnOnCreate = false,
     bool initialCommandOnce = false,
+    bool autoCloseOnSuccess = false,
   }) async {
     createdTerminalWorkspaceIds.add(workspace.id);
     final tab = createdTab ?? _tab(id: 'tab-new');

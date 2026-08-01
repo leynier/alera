@@ -8,6 +8,11 @@ use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
 use super::pty_event_forwarder::forward_pty_event;
 use super::terminal_launch_defaults::default_terminal_launch;
+use super::terminal_startup_commands::{
+    auto_close_setup_command, auto_closes_on_success, delivers_initial_command_once,
+    delivers_initial_prompt_once, initial_command, initial_managed_agent_launch, initial_prompt,
+    pending_agent_type, terminal_session_id,
+};
 use super::{ServerActor, ServerCommand};
 
 const DEFAULT_TERMINAL_COLS: u16 = 80;
@@ -132,7 +137,7 @@ impl ServerActor {
             )
         } else {
             initial_command(tab).map(|command| {
-                initial_prompt(tab)
+                let command = initial_prompt(tab)
                     .map(|prompt| {
                         crate::terminal_host::orchestration::agent_startup_command::codex_command_with_initial_prompt(
                             &command,
@@ -140,7 +145,12 @@ impl ServerActor {
                             &default_launch.interactive_shell,
                         )
                     })
-                    .unwrap_or(command)
+                    .unwrap_or(command);
+                if auto_closes_on_success(tab) {
+                    auto_close_setup_command(&command, &default_launch.interactive_shell)
+                } else {
+                    command
+                }
             })
         };
         if let Some(command) = command {
@@ -399,63 +409,4 @@ impl ServerActor {
 fn spawns_on_create(tab: &WorkspaceTabRecord) -> bool {
     tab.kind == "terminal"
         && tab.payload.get("spawnOnCreate").and_then(Value::as_bool) == Some(true)
-}
-
-fn terminal_session_id(tab: &WorkspaceTabRecord) -> String {
-    tab.payload
-        .get("terminalSessionId")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(&tab.id)
-        .to_string()
-}
-
-fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
-    tab.payload
-        .get("initialCommand")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn initial_managed_agent_launch(
-    tab: &WorkspaceTabRecord,
-) -> HostResult<Option<crate::terminal_host::orchestration::managed_agent_launch::ManagedAgentLaunch>>
-{
-    tab.payload
-        .get("initialManagedAgentLaunch")
-        .filter(|value| !value.is_null())
-        .cloned()
-        .map(serde_json::from_value)
-        .transpose()
-        .map_err(|error| HostError::format(format!("invalid managed agent launch: {error}")))
-}
-
-fn delivers_initial_command_once(tab: &WorkspaceTabRecord) -> bool {
-    tab.payload
-        .get("initialCommandOnce")
-        .and_then(Value::as_bool)
-        == Some(true)
-}
-
-fn delivers_initial_prompt_once(tab: &WorkspaceTabRecord) -> bool {
-    tab.payload
-        .get("initialPromptOnce")
-        .and_then(Value::as_bool)
-        == Some(true)
-}
-
-fn initial_prompt(tab: &WorkspaceTabRecord) -> Option<String> {
-    tab.payload
-        .get("initialPrompt")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn pending_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
-    tab.payload
-        .pointer("/pendingAgentPrompt/agent")
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
 }

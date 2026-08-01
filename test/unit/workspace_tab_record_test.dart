@@ -68,7 +68,7 @@ void main() {
     expect(bound.terminalSessionId, 'session-2');
   });
 
-  test('spawnOnCreate reflects the terminal payload flag', () {
+  test('terminal lifecycle flags reflect their payload values', () {
     final now = DateTime.utc(2026, 5, 25);
     final regular = WorkspaceTabRecord(
       id: 'tab-1',
@@ -85,11 +85,14 @@ void main() {
       updatedAt: now,
       payload: const <String, Object?>{
         workspaceTabSpawnOnCreatePayloadKey: true,
+        workspaceTabAutoCloseOnSuccessPayloadKey: true,
       },
     );
 
     expect(regular.spawnOnCreate, isFalse);
+    expect(regular.autoCloseOnSuccess, isFalse);
     expect(eager.spawnOnCreate, isTrue);
+    expect(eager.autoCloseOnSuccess, isTrue);
   });
 
   test(

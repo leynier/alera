@@ -79,6 +79,7 @@ abstract interface class MobileTerminalClient {
     String? title,
     int cols,
     int rows,
+    bool autoCloseOnSuccess = false,
   });
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {

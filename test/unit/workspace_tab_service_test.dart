@@ -73,6 +73,7 @@ void main() {
         initialCommand: '  /bin/sh "/run/alera/worktree-setup-ws.sh"  ',
         spawnOnCreate: true,
         initialCommandOnce: true,
+        autoCloseOnSuccess: true,
       );
 
       expect(tab.title, 'Setup');
@@ -81,6 +82,7 @@ void main() {
       expect(tab.initialCommand, '/bin/sh "/run/alera/worktree-setup-ws.sh"');
       expect(tab.initialCommandOnce, isTrue);
       expect(tab.spawnOnCreate, isTrue);
+      expect(tab.autoCloseOnSuccess, isTrue);
       expect(repository.tabs.single.title, 'Setup');
     });
 
@@ -100,6 +102,7 @@ void main() {
         expect(tab.initialCommand, isNull);
         expect(tab.initialCommandOnce, isFalse);
         expect(tab.spawnOnCreate, isFalse);
+        expect(tab.autoCloseOnSuccess, isFalse);
       },
     );
 

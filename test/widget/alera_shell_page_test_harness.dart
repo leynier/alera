@@ -155,6 +155,7 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     String? initialCommand,
     bool spawnOnCreate = false,
     bool initialCommandOnce = false,
+    bool autoCloseOnSuccess = false,
   }) async {
     final tabs = state.tabsFor(workspace.id);
     final tab = _newTerminalTab(workspace.id, tabs.length + 1);

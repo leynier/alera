@@ -101,7 +101,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   String get terminalSessionId => _tab.terminalSessionId;
 
   @override
-  @override
   ValueListenable<String> get titleListenable => _titleNotifier;
 
   @override
@@ -515,6 +514,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           workspaceId: workspaceId,
           tabId: tabId,
           exitCode: exitCode,
+          autoCloseOnSuccess: _tab.autoCloseOnSuccess,
         ),
       );
     }
