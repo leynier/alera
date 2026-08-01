@@ -35,6 +35,7 @@ class AgentProfileEditor extends StatelessWidget {
     required this.onRefreshPersonas,
     required this.onSave,
     required this.onRemove,
+    this.onTestCommand,
     this.modelsLoading = false,
     this.personasLoading = false,
     this.discoveryError,
@@ -61,6 +62,7 @@ class AgentProfileEditor extends StatelessWidget {
   final VoidCallback? onRefreshPersonas;
   final VoidCallback onSave;
   final VoidCallback? onRemove;
+  final VoidCallback? onTestCommand;
   final String? discoveryError;
   final String? error;
 
@@ -111,6 +113,26 @@ class AgentProfileEditor extends StatelessWidget {
                     labelText: 'Command',
                     prefixIcon: AleraIcons.terminal,
                     enabled: !saving,
+                  ),
+                ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: commandController,
+                  builder: (context, value, _) => Padding(
+                    padding: const EdgeInsets.only(
+                      left: AleraTokens.space12,
+                      right: AleraTokens.space12,
+                      top: AleraTokens.space8,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        onPressed: saving || value.text.trim().isEmpty
+                            ? null
+                            : onTestCommand,
+                        icon: const Icon(AleraIcons.terminal, size: 16),
+                        label: const Text('Test Command'),
+                      ),
+                    ),
                   ),
                 ),
                 Padding(

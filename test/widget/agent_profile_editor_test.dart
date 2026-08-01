@@ -71,6 +71,23 @@ void main() {
     expect(find.text("codex -- 'Dispatched Prompt'"), findsOneWidget);
   });
 
+  testWidgets('command mode offers to test the current command', (
+    tester,
+  ) async {
+    var testCommandCalls = 0;
+    await tester.pumpWidget(
+      _EditorHarness(
+        launchMode: AgentProfileLaunchMode.command,
+        onTestCommand: () => testCommandCalls++,
+      ),
+    );
+
+    await tester.tap(find.text('Test Command'));
+    await tester.pump();
+
+    expect(testCommandCalls, 1);
+  });
+
   testWidgets('a Claude managed profile can route through a CCS profile', (
     tester,
   ) async {
@@ -146,11 +163,13 @@ class _EditorHarness extends StatefulWidget {
     required this.launchMode,
     this.adapter = AgentType.codex,
     this.managedConfig = const <String, Object?>{},
+    this.onTestCommand,
   });
 
   final AgentProfileLaunchMode launchMode;
   final AgentType adapter;
   final Map<String, Object?> managedConfig;
+  final VoidCallback? onTestCommand;
 
   @override
   State<_EditorHarness> createState() => _EditorHarnessState();
@@ -208,6 +227,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
             onRefreshPersonas: null,
             onSave: () {},
             onRemove: () {},
+            onTestCommand: widget.onTestCommand,
           ),
         ),
       ),
