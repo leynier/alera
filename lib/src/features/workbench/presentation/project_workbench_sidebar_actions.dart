@@ -17,6 +17,12 @@ mixin _ProjectWorkbenchSidebarActions
 
   Future<void> _openSettings() => openSettingsDialog(context);
 
+  Future<void> _openProjectSettings(Project project) => openSettingsDialog(
+    context,
+    initialSectionId: 'projects',
+    initialProjectId: project.id,
+  );
+
   Future<void> _createWorkspace(Project? initialProject) {
     return showCreateWorkspaceFlow(
       context,

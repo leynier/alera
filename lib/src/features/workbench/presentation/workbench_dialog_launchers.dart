@@ -26,10 +26,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Extracted so both the sidebar controls and the keyboard command dispatcher
 /// trigger the exact same behavior (dialogs, clone progress, toasts).
 
-Future<void> openSettingsDialog(BuildContext context) {
+Future<void> openSettingsDialog(
+  BuildContext context, {
+  String initialSectionId = 'application',
+  String? initialProjectId,
+}) {
   return showDialog<void>(
     context: context,
-    builder: (_) => const SettingsDialog(),
+    builder: (_) => SettingsDialog(
+      initialSectionId: initialSectionId,
+      initialProjectId: initialProjectId,
+    ),
   );
 }
 

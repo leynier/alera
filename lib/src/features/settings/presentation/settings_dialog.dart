@@ -37,7 +37,14 @@ const double _kDialogMinHeight = 560;
 const double _kDialogMaxHeight = 1280;
 
 class SettingsDialog extends ConsumerStatefulWidget {
-  const SettingsDialog({super.key});
+  const SettingsDialog({
+    super.key,
+    this.initialSectionId = 'application',
+    this.initialProjectId,
+  });
+
+  final String initialSectionId;
+  final String? initialProjectId;
 
   @override
   ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
@@ -54,6 +61,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   @override
   void initState() {
     super.initState();
+    _activeSectionId = widget.initialSectionId;
     _searchController.addListener(() {
       final next = _searchController.text.trim().toLowerCase();
       if (next != _query) {
@@ -313,7 +321,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: AleraIcons.folderSpecial,
         entries: projectSearchEntries,
         navGroup: SettingsNavGroup.resources,
-        builder: (_) => const ProjectSettingsPane(),
+        builder: (_) =>
+            ProjectSettingsPane(initialProjectId: widget.initialProjectId),
       ),
       SettingsSectionData(
         id: 'mobileDevices',

@@ -11,6 +11,7 @@ class _SidebarBody extends StatelessWidget {
     required this.onOpenWorkspaceInBrowser,
     required this.onSleepWorkspace,
     required this.onCreateWorkspace,
+    required this.onOpenProjectSettings,
     required this.onDeleteWorkspace,
     required this.onRenameProject,
     required this.onRemoveProject,
@@ -34,6 +35,7 @@ class _SidebarBody extends StatelessWidget {
   final Future<void> Function(Workspace workspace) onOpenWorkspaceInBrowser;
   final Future<void> Function(Workspace workspace) onSleepWorkspace;
   final Future<void> Function(Project project) onCreateWorkspace;
+  final Future<void> Function(Project project) onOpenProjectSettings;
   final Future<void> Function(Project project, Workspace workspace)
   onDeleteWorkspace;
   final Future<void> Function(Project project) onRenameProject;
@@ -104,6 +106,8 @@ class _SidebarBody extends StatelessWidget {
           onCreateWorkspace: row.project.supportsLinkedWorkspaces
               ? () => onCreateWorkspace(row.project)
               : null,
+          onOpenProjectSettings: () =>
+              unawaited(onOpenProjectSettings(row.project)),
           onRenameProject: () => onRenameProject(row.project),
           onRemoveProject: () => onRemoveProject(row.project),
         ),
@@ -136,6 +140,8 @@ class _SidebarBody extends StatelessWidget {
           onCopyPath: () => unawaited(onCopyWorkspacePath(row.workspace)),
           onOpenInBrowser: () =>
               unawaited(onOpenWorkspaceInBrowser(row.workspace)),
+          onOpenProjectSettings: () =>
+              unawaited(onOpenProjectSettings(row.project)),
           onSleep: () => onSleepWorkspace(row.workspace),
           onToggleExpanded: () =>
               controller.toggleWorkspaceExpanded(row.workspace.id),
@@ -299,6 +305,7 @@ class _ProjectHeaderTile extends StatefulWidget {
     required this.workspaceCount,
     required this.onToggle,
     required this.onCreateWorkspace,
+    required this.onOpenProjectSettings,
     required this.onRenameProject,
     required this.onRemoveProject,
   });
@@ -308,6 +315,7 @@ class _ProjectHeaderTile extends StatefulWidget {
   final int workspaceCount;
   final VoidCallback onToggle;
   final VoidCallback? onCreateWorkspace;
+  final VoidCallback onOpenProjectSettings;
   final VoidCallback onRenameProject;
   final VoidCallback onRemoveProject;
 
@@ -331,6 +339,11 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<String>>[
+        const AleraDropdownEntry<String>(
+          value: _openProjectSettingsAction,
+          leading: Icon(AleraIcons.settings, size: 16),
+          label: 'Open Project Settings',
+        ),
         const AleraDropdownEntry<String>(
           value: 'rename',
           leading: Icon(AleraIcons.edit, size: 16),
@@ -356,7 +369,9 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         ),
       ],
     );
-    if (selected == 'rename') {
+    if (selected == _openProjectSettingsAction) {
+      widget.onOpenProjectSettings();
+    } else if (selected == 'rename') {
       widget.onRenameProject();
     } else if (selected == 'new-workspace') {
       widget.onCreateWorkspace?.call();
