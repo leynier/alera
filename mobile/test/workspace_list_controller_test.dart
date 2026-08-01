@@ -64,7 +64,8 @@ void main() {
       parentWorkspaceId: 'b',
     );
     expect(result.workspace.id, 'created');
-    expect(client.calls, contains('create p1 feature/x main b'));
+    expect(client.calls, contains('create p1 feature/x main null'));
+    expect(client.calls, contains('link b created'));
   });
 
   test('Cascade preview returns the subtree ids', () async {
@@ -109,6 +110,7 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final List<String> calls = <String>[];
+  Object? linkError;
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[_workspace('a')];
   List<String> cascadeIds = <String>['a'];
 
@@ -224,6 +226,10 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
     required String childWorkspaceId,
   }) async {
     calls.add('link $parentWorkspaceId $childWorkspaceId');
+    final error = linkError;
+    if (error != null) {
+      throw error;
+    }
   }
 
   @override

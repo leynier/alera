@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
@@ -118,9 +119,21 @@ void main() {
     );
     await tester.ensureVisible(find.text('Create Another'));
     await tester.tap(find.text('Create Another'));
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Create And Start Agent'));
+    final scrollState = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
+    scrollState.position.jumpTo(scrollState.position.maxScrollExtent);
+    await tester.pump();
+    final targetElement = tester.element(find.text('Create And Start Agent'));
+    final targetScrollState = targetElement
+        .findAncestorStateOfType<ScrollableState>();
+    if (targetScrollState != null) {
+      targetScrollState.position.jumpTo(
+        targetScrollState.position.maxScrollExtent,
+      );
+    }
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
     for (var attempt = 0; attempt < 100; attempt += 1) {
       if (client.calls.any((call) => call.startsWith('launchAgentProfile'))) {
         break;
@@ -144,5 +157,70 @@ void main() {
           ?.text,
       isEmpty,
     );
+  });
+
+  testWidgets('Prompt exposes a configurable cross-project Parent', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main'];
+    addTearDown(client.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: MaterialApp(
+          home: CreateWorkspaceScreen(
+            hostId: 'host-1',
+            projects: const <ProjectSummary>[
+              ProjectSummary(
+                id: 'project-1',
+                name: 'Alera',
+                repoPath: '/repo/alera',
+              ),
+              ProjectSummary(
+                id: 'folder-1',
+                name: 'Notes',
+                repoPath: '/notes',
+                kind: 'folder',
+              ),
+            ],
+            workspaces: const <WorkspaceSummary>[
+              WorkspaceSummary(
+                id: 'main-1',
+                projectId: 'project-1',
+                name: 'Main',
+                path: '/workspaces/alera',
+                branch: 'main',
+                kind: 'main',
+              ),
+              WorkspaceSummary(
+                id: 'notes-1',
+                projectId: 'folder-1',
+                name: 'Shared',
+                path: '/workspaces/notes',
+                branch: 'feature/shared',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alera / Main - main'), findsOneWidget);
+    await tester.tap(find.text('Alera / Main - main'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notes / Shared - feature/shared'), findsOneWidget);
+    await tester.tap(find.text('Notes / Shared - feature/shared'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notes / Shared - feature/shared'), findsOneWidget);
+
+    await tester.tap(find.text('Alera'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notes'), findsNothing);
   });
 }

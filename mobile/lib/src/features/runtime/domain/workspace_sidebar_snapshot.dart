@@ -78,6 +78,7 @@ class WorkspaceSidebarSnapshot {
     required this.activity,
     required this.viewPrefs,
     required this.confirmWorkspaceRemoval,
+    this.defaultAgentProfileId,
     this.agentPresence = const <AgentPresenceSummary>[],
     this.terminalTabCountByWorkspaceId = const <String, int>{},
   });
@@ -88,6 +89,7 @@ class WorkspaceSidebarSnapshot {
   final Map<String, DateTime> activity;
   final MobileViewPrefs viewPrefs;
   final bool confirmWorkspaceRemoval;
+  final String? defaultAgentProfileId;
   final List<AgentPresenceSummary> agentPresence;
   final Map<String, int> terminalTabCountByWorkspaceId;
 
@@ -119,6 +121,9 @@ class WorkspaceSidebarSnapshot {
       viewPrefs: MobileViewPrefs.fromRecordJson(json.mapValue('viewPrefs')),
       confirmWorkspaceRemoval:
           json.mapValue('runtimeSettings')['confirmWorkspaceRemoval'] != false,
+      defaultAgentProfileId: json
+          .mapValue('runtimeSettings')
+          .optionalString('defaultAgentProfileId'),
       agentPresence: <AgentPresenceSummary>[
         for (final item in json.objectList('agentPresence'))
           AgentPresenceSummary.fromJson(asJsonMap(item)),

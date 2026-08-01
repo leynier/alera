@@ -162,6 +162,9 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                       hostId: host.id,
                       projects: data.value!.projects,
                       workspaces: data.value!.workspaces,
+                      defaultAgentProfileId: data.value!.defaultAgentProfileId,
+                      supportsPromptWorkspaceCreation:
+                          data.value!.supportsPromptWorkspaceCreation,
                     ),
                   ),
                 );
