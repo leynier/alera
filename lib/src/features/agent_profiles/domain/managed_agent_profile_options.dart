@@ -116,6 +116,15 @@ const List<ManagedAgentOption> ampModeOptions = <ManagedAgentOption>[
   ManagedAgentOption('ultra', 'Ultra'),
 ];
 
+/// The profile switcher a Claude Code profile may launch through. It takes the
+/// profile as its first positional argument and forwards the rest to `claude`
+/// unchanged. Mirrors `CCS_EXECUTABLE` in the Rust launch builder.
+const String ccsExecutable = 'ccs';
+
+bool agentProfileSupportsCcsProfile(AgentType adapter) {
+  return adapter == AgentType.claude;
+}
+
 bool agentProfileSupportsModel(AgentType adapter) {
   return adapter != AgentType.amp;
 }
@@ -237,6 +246,7 @@ String managedAgentCommandPreview(
   AgentType adapter,
   Map<String, Object?> config,
 ) {
+  var executable = agentProfileDefaultCommands[adapter] ?? adapter.key;
   final arguments = <String>[];
   void stringOption(String key, String flag) {
     final value = config[key];
@@ -276,6 +286,11 @@ String managedAgentCommandPreview(
       }
       flag('webSearch', '--search');
     case AgentType.claude:
+      final ccsProfile = config['ccsProfile'];
+      if (ccsProfile is String && ccsProfile.trim().isNotEmpty) {
+        executable = ccsExecutable;
+        arguments.add(ccsProfile.trim());
+      }
       stringOption('model', '--model');
       stringOption('effort', '--effort');
       stringOption('agent', '--agent');
@@ -326,7 +341,7 @@ String managedAgentCommandPreview(
       break;
   }
   return <String>[
-    agentProfileDefaultCommands[adapter] ?? adapter.key,
+    executable,
     ...arguments.map(_quotePreviewArgument),
   ].join(' ');
 }

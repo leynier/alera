@@ -38,6 +38,47 @@ void main() {
     expect(find.textContaining('Command Mode Is For Advanced'), findsOneWidget);
   });
 
+  testWidgets('command mode explains where the dispatched prompt goes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _EditorHarness(launchMode: AgentProfileLaunchMode.command),
+    );
+
+    expect(find.text('Prompt Delivery'), findsOneWidget);
+    expect(
+      find.textContaining('Appends The Dispatched Prompt'),
+      findsOneWidget,
+    );
+    expect(find.text("codex -- 'Dispatched Prompt'"), findsOneWidget);
+  });
+
+  testWidgets('a Claude managed profile can route through a CCS profile', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _EditorHarness(
+        adapter: AgentType.claude,
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{
+          'ccsProfile': 'work',
+          'model': 'opus',
+        },
+      ),
+    );
+
+    expect(find.text('CCS Profile'), findsOneWidget);
+    expect(find.text('ccs work --model opus'), findsOneWidget);
+  });
+
+  testWidgets('only the Claude adapter offers a CCS profile', (tester) async {
+    await tester.pumpWidget(
+      const _EditorHarness(launchMode: AgentProfileLaunchMode.managed),
+    );
+
+    expect(find.text('CCS Profile'), findsNothing);
+  });
+
   testWidgets('managed mode surfaces reduced protection warnings', (
     tester,
   ) async {
@@ -60,10 +101,12 @@ void main() {
 class _EditorHarness extends StatefulWidget {
   const _EditorHarness({
     required this.launchMode,
+    this.adapter = AgentType.codex,
     this.managedConfig = const <String, Object?>{},
   });
 
   final AgentProfileLaunchMode launchMode;
+  final AgentType adapter;
   final Map<String, Object?> managedConfig;
 
   @override
@@ -106,7 +149,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
             commandController: _commandController,
             descriptionController: _descriptionController,
             quotaGroupController: _quotaGroupController,
-            adapter: AgentType.codex,
+            adapter: widget.adapter,
             launchMode: widget.launchMode,
             managedConfig: widget.managedConfig,
             models: const <ManagedAgentOption>[

@@ -89,6 +89,45 @@ fn every_adapter_builds_its_native_session_flags() {
 }
 
 #[test]
+fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
+    let launch = build_managed_agent_launch(
+        "claude",
+        &json!({
+            "ccsProfile": "work",
+            "model": "opus",
+            "permissionMode": "acceptEdits"
+        }),
+    )
+    .unwrap();
+    assert_eq!(launch.executable, "ccs");
+    assert_eq!(
+        launch.arguments,
+        [
+            "work",
+            "--model",
+            "opus",
+            "--permission-mode",
+            "acceptEdits"
+        ]
+    );
+
+    let direct = build_managed_agent_launch("claude", &json!({"model": "opus"})).unwrap();
+    assert_eq!(direct.executable, "claude");
+    assert_eq!(direct.arguments, ["--model", "opus"]);
+}
+
+#[test]
+fn a_claude_ccs_profile_must_be_a_single_name_that_is_not_an_option() {
+    for rejected in [json!("--work"), json!("work extra"), json!("  "), json!(3)] {
+        assert!(
+            build_managed_agent_launch("claude", &json!({"ccsProfile": rejected})).is_err(),
+            "accepted {rejected}"
+        );
+    }
+    assert!(build_managed_agent_launch("codex", &json!({"ccsProfile": "work"})).is_err());
+}
+
+#[test]
 fn rendering_quotes_each_token_for_supported_shell_families() {
     let launch = ManagedAgentLaunch {
         executable: "agy".to_string(),
