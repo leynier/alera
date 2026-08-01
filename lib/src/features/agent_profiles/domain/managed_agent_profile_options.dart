@@ -155,6 +155,7 @@ int managedAgentRiskScore(AgentType adapter, Map<String, Object?> config) {
     case AgentType.claude:
       addWhen(config['permissionMode'] == 'bypassPermissions', 100);
       addWhen(config['permissionMode'] == 'dontAsk', 40);
+      addWhen(config['allowSkipPermissions'] == true, 30);
     case AgentType.copilot:
       addWhen(config['allowAll'] == true, 70);
       addWhen(config['mode'] == 'autopilot', 40);
@@ -201,6 +202,7 @@ Set<String> managedAgentRiskMarkers(
         'bypassPermissions',
       );
       markWhen(config['permissionMode'] == 'dontAsk', 'dontAsk');
+      markWhen(config['allowSkipPermissions'] == true, 'allowSkipPermissions');
     case AgentType.copilot:
       markWhen(config['allowAll'] == true, 'allowAll');
       markWhen(config['mode'] == 'autopilot', 'autopilot');
@@ -295,6 +297,7 @@ String managedAgentCommandPreview(
       stringOption('effort', '--effort');
       stringOption('agent', '--agent');
       stringOption('permissionMode', '--permission-mode');
+      flag('allowSkipPermissions', '--allow-dangerously-skip-permissions');
     case AgentType.copilot:
       stringOption('model', '--model');
       stringOption('effort', '--effort');

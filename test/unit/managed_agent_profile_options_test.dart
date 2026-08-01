@@ -96,6 +96,12 @@ void main() {
         40,
       );
       expect(
+        managedAgentRiskScore(AgentType.claude, const <String, Object?>{
+          'allowSkipPermissions': true,
+        }),
+        30,
+      );
+      expect(
         managedAgentRiskScore(AgentType.copilot, const <String, Object?>{
           'allowAll': true,
           'mode': 'autopilot',
@@ -154,6 +160,12 @@ void main() {
           'permissionMode': 'dontAsk',
         }),
         <String>{'dontAsk'},
+      );
+      expect(
+        managedAgentRiskMarkers(AgentType.claude, const <String, Object?>{
+          'allowSkipPermissions': true,
+        }),
+        <String>{'allowSkipPermissions'},
       );
       expect(
         managedAgentRiskMarkers(AgentType.copilot, const <String, Object?>{
@@ -261,6 +273,14 @@ void main() {
         }),
         "claude --model sonnet --effort high --agent "
         "'reviewer'\"'\"'s agent' --permission-mode acceptEdits",
+      );
+      expect(
+        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+          'permissionMode': 'plan',
+          'allowSkipPermissions': true,
+        }),
+        'claude --permission-mode plan '
+        '--allow-dangerously-skip-permissions',
       );
       expect(
         managedAgentCommandPreview(AgentType.copilot, const <String, Object?>{
