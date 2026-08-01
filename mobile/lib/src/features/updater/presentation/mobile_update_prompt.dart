@@ -20,7 +20,7 @@ class MobileUpdatePrompt extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.copyLink = _copyToClipboard,
-    this.openUrl = launchUrl,
+    this.openUrl = _launchExternalBrowser,
   });
 
   final Widget child;
@@ -29,7 +29,7 @@ class MobileUpdatePrompt extends ConsumerStatefulWidget {
   final Future<void> Function(String link) copyLink;
 
   /// Injected so tests do not reach the platform's URL launcher.
-  final Future<bool> Function(Uri url, {LaunchMode mode}) openUrl;
+  final Future<bool> Function(Uri url) openUrl;
 
   @override
   ConsumerState<MobileUpdatePrompt> createState() => _MobileUpdatePromptState();
@@ -91,10 +91,7 @@ class _MobileUpdatePromptState extends ConsumerState<MobileUpdatePrompt> {
         ).showSnackBar(const SnackBar(content: Text('Download link copied.')));
         return;
       case _MobileUpdateAction.download:
-        final opened = await widget.openUrl(
-          release.apkUrl,
-          mode: LaunchMode.externalApplication,
-        );
+        final opened = await widget.openUrl(release.apkUrl);
         if (opened || !mounted) {
           return;
         }
@@ -170,4 +167,8 @@ class _MobileUpdateDialog extends StatelessWidget {
 
 Future<void> _copyToClipboard(String link) {
   return Clipboard.setData(ClipboardData(text: link));
+}
+
+Future<bool> _launchExternalBrowser(Uri url) {
+  return launchUrl(url, mode: LaunchMode.externalApplication);
 }
