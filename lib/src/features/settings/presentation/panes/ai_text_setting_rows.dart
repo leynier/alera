@@ -110,11 +110,13 @@ class AiTextModelRow extends StatelessWidget {
 class AiTextThinkingRow extends StatelessWidget {
   const AiTextThinkingRow({
     super.key,
+    this.controlKey = 'thinking',
     required this.levels,
     required this.value,
     required this.onChanged,
   });
 
+  final String controlKey;
   final List<AiThinkingLevel> levels;
   final String value;
   final ValueChanged<String> onChanged;
@@ -125,10 +127,10 @@ class AiTextThinkingRow extends StatelessWidget {
         ? value
         : levels.first.id;
     return AleraSettingRow(
-      title: 'Thinking',
+      title: 'Reasoning',
       description: 'Reasoning effort for models that support it.',
       child: AleraDropdownField<String>(
-        key: ValueKey<String>('ai-text-thinking-$value'),
+        key: ValueKey<String>('ai-text-$controlKey-$value'),
         value: selected,
         entries: <AleraDropdownFieldEntry<String>>[
           for (final level in levels)
@@ -160,7 +162,7 @@ class AiTextPromptAgentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
-      title: '${operation.label} Agent',
+      title: 'Agent',
       description: 'Override The Global Agent For This Prompt.',
       child: AleraDropdownField<AiTextGenerationAgent?>(
         key: ValueKey<String>(
@@ -219,7 +221,7 @@ class AiTextPromptModelRow extends StatelessWidget {
         modelForAgent(agent, selected),
     ];
     return AleraSettingRow(
-      title: '${operation.label} Model',
+      title: 'Model',
       description:
           discoveryError ?? 'Override The Global Model For This Prompt.',
       child: Row(

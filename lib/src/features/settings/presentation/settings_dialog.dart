@@ -168,8 +168,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
     const aiTextGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'generation', title: 'Generation'),
-      SettingsGroupSpec(id: 'promptOverrides', title: 'Prompt Overrides'),
-      SettingsGroupSpec(id: 'instructions', title: 'Instructions'),
+      SettingsGroupSpec(id: 'commitMessage', title: 'Commit Messages'),
+      SettingsGroupSpec(
+        id: 'pullRequestDetails',
+        title: 'Pull Request Details',
+      ),
+      SettingsGroupSpec(id: 'workspaceIdentity', title: 'Workspace Identity'),
     ];
     const terminalGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'typography', title: 'Typography'),
