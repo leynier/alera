@@ -21,7 +21,7 @@ class AiTextModelDiscoveryResult {
   final bool success;
   final AiTextGenerationAgent agent;
   final List<AiTextModel> models;
-  final String defaultModelId;
+  final String? defaultModelId;
   final String? error;
 }
 
@@ -149,8 +149,11 @@ class CliAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
       );
     }
     final defaultModelId =
-        models.any((model) => model.id == spec.defaultModelId)
+        spec.defaultModelId != null &&
+            models.any((model) => model.id == spec.defaultModelId)
         ? spec.defaultModelId
+        : spec.modelCanInherit
+        ? null
         : models.first.id;
     return AiTextModelDiscoveryResult(
       success: true,

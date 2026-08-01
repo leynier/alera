@@ -118,14 +118,19 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                   onRefreshModels: canDiscoverModels
                       ? () => unawaited(_discoverModels(agent))
                       : null,
-                  onChanged: (value) => widget.onChanged(
-                    settings.copyWith(
-                      selectedModelByAgent: <AiTextGenerationAgent, String>{
-                        ...settings.selectedModelByAgent,
-                        agent: value,
-                      },
-                    ),
-                  ),
+                  onChanged: (value) {
+                    final selectedModels = <AiTextGenerationAgent, String>{
+                      ...settings.selectedModelByAgent,
+                    };
+                    if (value.trim().isEmpty) {
+                      selectedModels.remove(agent);
+                    } else {
+                      selectedModels[agent] = value;
+                    }
+                    widget.onChanged(
+                      settings.copyWith(selectedModelByAgent: selectedModels),
+                    );
+                  },
                 ),
               if (thinkingLevels.isNotEmpty)
                 AiTextThinkingRow(
@@ -383,6 +388,14 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
       return;
     }
     final latest = widget.settings;
+    final discoveredDefaults = <AiTextGenerationAgent, String>{
+      ...latest.discoveredDefaultModelByAgent,
+    };
+    if (result.defaultModelId == null) {
+      discoveredDefaults.remove(agent);
+    } else {
+      discoveredDefaults[agent] = result.defaultModelId!;
+    }
     widget.onChanged(
       latest.copyWith(
         discoveredModelsByAgent:
@@ -392,10 +405,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                 for (final model in result.models) model.toDiscovered(),
               ],
             },
-        discoveredDefaultModelByAgent: <AiTextGenerationAgent, String>{
-          ...latest.discoveredDefaultModelByAgent,
-          agent: result.defaultModelId,
-        },
+        discoveredDefaultModelByAgent: discoveredDefaults,
       ),
     );
     setState(() {

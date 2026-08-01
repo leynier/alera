@@ -64,6 +64,7 @@ class AiTextAgentSpec {
     required this.models,
     required this.defaultModelId,
     required this.buildArgs,
+    this.modelCanInherit = false,
   });
 
   final AiTextGenerationAgent agent;
@@ -72,7 +73,8 @@ class AiTextAgentSpec {
   final List<String>? modelsCommand;
   final List<AiTextModel> Function(String stdout) parseModels;
   final List<AiTextModel> models;
-  final String defaultModelId;
+  final String? defaultModelId;
+  final bool modelCanInherit;
   final List<String> Function({
     required String prompt,
     required String model,
@@ -267,22 +269,10 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
     binary: 'agy',
     promptDelivery: AiPromptDelivery.stdin,
     modelsCommand: const <String>['models'],
-    parseModels: parseLineModels,
-    models: const <AiTextModel>[
-      AiTextModel(
-        id: 'Gemini 3.5 Flash (Medium)',
-        label: 'Gemini 3.5 Flash (Medium)',
-      ),
-      AiTextModel(
-        id: 'Gemini 3.5 Flash (High)',
-        label: 'Gemini 3.5 Flash (High)',
-      ),
-      AiTextModel(
-        id: 'Gemini 3.5 Flash (Low)',
-        label: 'Gemini 3.5 Flash (Low)',
-      ),
-    ],
-    defaultModelId: 'Gemini 3.5 Flash (Medium)',
+    parseModels: parseAgyModels,
+    models: const <AiTextModel>[],
+    defaultModelId: null,
+    modelCanInherit: true,
     buildArgs:
         ({
           required model,
@@ -294,8 +284,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
           '--sandbox',
           '--print-timeout',
           '${timeoutSeconds}s',
-          '--model',
-          model,
+          if (model.trim().isNotEmpty) ...<String>['--model', model],
         ],
   ),
   AiTextGenerationAgent.opencode: AiTextAgentSpec(
@@ -424,6 +413,7 @@ List<AiTextModel> modelsForAgent(
     return const <AiTextModel>[];
   }
   return _uniqueModels(<AiTextModel>[
+    if (spec.modelCanInherit) const AiTextModel(id: '', label: 'Agent Default'),
     ...discoveredModelsForAgent(settings, agent),
     ...spec.models,
   ]);
@@ -437,11 +427,13 @@ String defaultModelIdForAgent(
   if (spec == null) {
     return 'custom';
   }
-  final discoveredDefault = settings.discoveredDefaultModelFor(agent);
-  if (discoveredDefault != null) {
-    return discoveredDefault;
+  if (!spec.modelCanInherit) {
+    final discoveredDefault = settings.discoveredDefaultModelFor(agent);
+    if (discoveredDefault != null) {
+      return discoveredDefault;
+    }
   }
-  return spec.defaultModelId;
+  return spec.defaultModelId ?? '';
 }
 
 AiTextModel modelForAgent(
@@ -455,7 +447,10 @@ AiTextModel modelForAgent(
   }
   final id = modelId?.trim().isNotEmpty == true
       ? modelId!.trim()
-      : spec.defaultModelId;
+      : spec.defaultModelId ?? '';
+  if (id.isEmpty && spec.modelCanInherit) {
+    return const AiTextModel(id: '', label: 'Agent Default');
+  }
   return <AiTextModel>[...extraModels, ...spec.models].firstWhere(
     (model) => model.id == id,
     orElse: () => AiTextModel(id: id, label: labelFromModelId(id)),
@@ -469,6 +464,22 @@ List<AiTextModel> parseLineModels(String stdout) {
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .map((line) => AiTextModel(id: line, label: labelFromModelId(line)))
+        .toList(growable: false),
+  );
+}
+
+List<AiTextModel> parseAgyModels(String stdout) {
+  return _uniqueModels(
+    stdout
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .map((line) => line.replaceFirst(RegExp(r'^[*-]\s+'), ''))
+        .where(
+          (line) =>
+              line.isNotEmpty &&
+              !line.toLowerCase().startsWith('available model'),
+        )
+        .map((line) => AiTextModel(id: line, label: labelFromAgyModelId(line)))
         .toList(growable: false),
   );
 }

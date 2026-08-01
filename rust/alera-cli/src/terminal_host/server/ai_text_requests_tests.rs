@@ -32,6 +32,45 @@ fn prompt_settings_override_the_global_agent_and_model() {
 }
 
 #[test]
+fn agy_inherits_its_configured_model_without_forcing_a_stale_default() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "agy".to_string(),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "workspaceIdentity", "hello").unwrap();
+
+    assert_eq!(plan.binary, "agy");
+    assert!(!plan.arguments.iter().any(|argument| argument == "--model"));
+}
+
+#[test]
+fn agy_passes_an_explicit_discovered_model_unchanged() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "agy".to_string(),
+        selected_model_by_agent: HashMap::from([(
+            "agy".to_string(),
+            "gemini-3.1-pro-low".to_string(),
+        )]),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "workspaceIdentity", "hello").unwrap();
+
+    assert_eq!(
+        plan.arguments,
+        [
+            "--print",
+            "--sandbox",
+            "--print-timeout",
+            "120s",
+            "--model",
+            "gemini-3.1-pro-low",
+        ]
+    );
+}
+
+#[test]
 fn operation_reasoning_overrides_global_reasoning() {
     let settings = RuntimeAiTextGenerationSettings {
         selected_thinking_by_model: HashMap::from([("gpt-5.5".to_string(), "low".to_string())]),
