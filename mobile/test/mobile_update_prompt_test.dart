@@ -4,7 +4,9 @@ import 'package:alera_mobile/src/features/updater/presentation/mobile_update_pro
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 final MobileRelease _release = MobileRelease(
   version: const MobileVersion(0, 10, 0),
@@ -19,24 +21,24 @@ Future<void> _pump(
   WidgetTester tester, {
   required MobileRelease? release,
   required List<String> copied,
-  required List<(Uri, LaunchMode)> opened,
-  bool openResult = true,
+  Future<bool> Function(Uri url)? openUrl,
 }) {
+  final prompt = openUrl == null
+      ? MobileUpdatePrompt(
+          copyLink: (link) async => copied.add(link),
+          child: const Scaffold(body: Text('Home')),
+        )
+      : MobileUpdatePrompt(
+          copyLink: (link) async => copied.add(link),
+          openUrl: openUrl,
+          child: const Scaffold(body: Text('Home')),
+        );
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
         availableMobileUpdateProvider.overrideWith((ref) async => release),
       ],
-      child: MaterialApp(
-        home: MobileUpdatePrompt(
-          copyLink: (link) async => copied.add(link),
-          openUrl: (url, {mode = LaunchMode.platformDefault}) async {
-            opened.add((url, mode));
-            return openResult;
-          },
-          child: const Scaffold(body: Text('Home')),
-        ),
-      ),
+      child: MaterialApp(home: prompt),
     ),
   );
 }
@@ -46,8 +48,16 @@ void main() {
     tester,
   ) async {
     final copied = <String>[];
-    final opened = <(Uri, LaunchMode)>[];
-    await _pump(tester, release: _release, copied: copied, opened: opened);
+    final opened = <Uri>[];
+    await _pump(
+      tester,
+      release: _release,
+      copied: copied,
+      openUrl: (url) async {
+        opened.add(url);
+        return true;
+      },
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Update available'), findsOneWidget);
@@ -58,15 +68,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(copied, isEmpty);
-    expect(opened, <(Uri, LaunchMode)>[
-      (_release.apkUrl, LaunchMode.externalApplication),
+    expect(opened, <Uri>[_release.apkUrl]);
+  });
+
+  testWidgets('default download launcher requests an external application', (
+    tester,
+  ) async {
+    final previousPlatform = UrlLauncherPlatform.instance;
+    final fakePlatform = _RecordingUrlLauncherPlatform();
+    UrlLauncherPlatform.instance = fakePlatform;
+    addTearDown(() => UrlLauncherPlatform.instance = previousPlatform);
+
+    final copied = <String>[];
+    await _pump(tester, release: _release, copied: copied);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Download'));
+    await tester.pumpAndSettle();
+
+    expect(fakePlatform.launchedUrls, <String>[_release.apkUrl.toString()]);
+    expect(fakePlatform.modes, <PreferredLaunchMode>[
+      PreferredLaunchMode.externalApplication,
     ]);
   });
 
   testWidgets('copies the apk link without opening it', (tester) async {
     final copied = <String>[];
-    final opened = <(Uri, LaunchMode)>[];
-    await _pump(tester, release: _release, copied: copied, opened: opened);
+    final opened = <Uri>[];
+    await _pump(tester, release: _release, copied: copied);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Copy Link'));
@@ -79,8 +108,8 @@ void main() {
 
   testWidgets('declining opens nothing and does not ask again', (tester) async {
     final copied = <String>[];
-    final opened = <(Uri, LaunchMode)>[];
-    await _pump(tester, release: _release, copied: copied, opened: opened);
+    final opened = <Uri>[];
+    await _pump(tester, release: _release, copied: copied);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Later'));
@@ -98,12 +127,28 @@ void main() {
 
   testWidgets('stays silent when the app is current', (tester) async {
     final copied = <String>[];
-    final opened = <(Uri, LaunchMode)>[];
-    await _pump(tester, release: null, copied: copied, opened: opened);
+    final opened = <Uri>[];
+    await _pump(tester, release: null, copied: copied);
     await tester.pumpAndSettle();
 
     expect(find.text('Update available'), findsNothing);
     expect(copied, isEmpty);
     expect(opened, isEmpty);
   });
+}
+
+class _RecordingUrlLauncherPlatform extends UrlLauncherPlatform
+    with MockPlatformInterfaceMixin {
+  final List<String> launchedUrls = <String>[];
+  final List<PreferredLaunchMode> modes = <PreferredLaunchMode>[];
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launchedUrls.add(url);
+    modes.add(options.mode);
+    return true;
+  }
 }
