@@ -13,21 +13,8 @@ void main() {
     tester,
   ) async {
     final now = DateTime.utc(2026, 7, 29);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final profile = AgentProfile(
-      id: 'profile-1',
-      name: 'Codex Builder',
-      agentType: 'codex',
-      command: 'codex',
-      createdAt: now,
-      updatedAt: now,
-    );
+    final project = _project(id: 'project-1', name: 'Alera', now: now);
+    final profile = _profile(id: 'profile-1', name: 'Codex Builder', now: now);
     PromptWorkspaceDialogResult? dialogResult;
     String? generatedPrompt;
     String? createdBranch;
@@ -135,28 +122,12 @@ void main() {
 
   testWidgets('Create Another preserves selections', (tester) async {
     final now = DateTime.utc(2026, 7, 30);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final profile = AgentProfile(
-      id: 'profile-1',
-      name: 'Codex Builder',
-      agentType: 'codex',
-      command: 'codex',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final alternateProfile = AgentProfile(
+    final project = _project(id: 'project-1', name: 'Alera', now: now);
+    final profile = _profile(id: 'profile-1', name: 'Codex Builder', now: now);
+    final alternateProfile = _profile(
       id: 'profile-2',
       name: 'Codex Reviewer',
-      agentType: 'codex',
-      command: 'codex',
-      createdAt: now,
-      updatedAt: now,
+      now: now,
     );
     final featureWorkspace = _workspace(
       id: 'workspace-feature',
@@ -293,27 +264,12 @@ void main() {
     'defaults the parent to the selected project main workspace and allows changing it',
     (tester) async {
       final now = DateTime.utc(2026, 7, 30);
-      final alera = Project(
-        id: 'project-alera',
-        name: 'Alera',
-        repoPath: '/repo/alera',
-        createdAt: now,
-        updatedAt: now,
-      );
-      final orca = Project(
-        id: 'project-orca',
-        name: 'Orca',
-        repoPath: '/repo/orca',
-        createdAt: now,
-        updatedAt: now,
-      );
-      final profile = AgentProfile(
+      final alera = _project(id: 'project-alera', name: 'Alera', now: now);
+      final orca = _project(id: 'project-orca', name: 'Orca', now: now);
+      final profile = _profile(
         id: 'profile-1',
         name: 'Codex Builder',
-        agentType: 'codex',
-        command: 'codex',
-        createdAt: now,
-        updatedAt: now,
+        now: now,
       );
       final aleraMain = _workspace(
         id: 'alera-main',
@@ -468,6 +424,35 @@ void main() {
 
       expect(createdParentWorkspaceId, orcaFeature.id);
     },
+  );
+}
+
+Project _project({
+  required String id,
+  required String name,
+  required DateTime now,
+}) {
+  return Project(
+    id: id,
+    name: name,
+    repoPath: '/repo/${name.toLowerCase()}',
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+AgentProfile _profile({
+  required String id,
+  required String name,
+  required DateTime now,
+}) {
+  return AgentProfile(
+    id: id,
+    name: name,
+    agentType: 'codex',
+    command: 'codex',
+    createdAt: now,
+    updatedAt: now,
   );
 }
 
