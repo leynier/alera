@@ -1,4 +1,4 @@
-use super::terminal_spawn::auto_closes_on_success;
+use super::terminal_startup_commands::auto_closes_on_success;
 use super::*;
 use crate::terminal_host::session::PtyEvent;
 
