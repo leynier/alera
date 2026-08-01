@@ -79,7 +79,11 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
   }
 
   Future<void> _testCommand() async {
-    final command = _commandController.text.trim();
+    final command =
+        (_launchMode == AgentProfileLaunchMode.managed
+                ? managedAgentCommandPreview(_adapter, _managedConfig)
+                : _commandController.text)
+            .trim();
     if (command.isEmpty) {
       _setPaneState(() => _error = 'Command is required.');
       return;
