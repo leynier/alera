@@ -253,11 +253,10 @@ void main() {
       );
     }
 
-    field<Project>('Project').onChanged(project);
     field<String>('Source Branch').onChanged('release');
-    await tester.pump();
     field<String?>('Parent Workspace').onChanged(featureWorkspace.id);
     field<AgentProfile>('Agent Profile').onChanged(alternateProfile);
+    await tester.pump();
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
