@@ -28,11 +28,6 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
-      value: _openProjectSettingsAction,
-      leading: Icon(AleraIcons.settings, size: 16),
-      label: 'Open Project Settings',
-    ),
-    const AleraDropdownEntry<String>(
       value: _renameAction,
       leading: Icon(AleraIcons.edit, size: 16),
       label: 'Rename',
@@ -76,6 +71,11 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         color: AleraTokens.foreground,
       ),
       label: 'Open in $fileManagerLabel',
+    ),
+    const AleraDropdownEntry<String>(
+      value: _openProjectSettingsAction,
+      leading: Icon(AleraIcons.settings, size: 16),
+      label: 'Open in Project Settings',
     ),
     const AleraDropdownEntry<String>(
       value: _copyPathAction,
