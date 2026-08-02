@@ -40,8 +40,40 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Set<String> _workspaceIdsWithClearedLayout = <String>{};
 
   final WorkspaceTabFocusHistory _tabFocusHistory = WorkspaceTabFocusHistory();
+  final WorktreeNavigationHistory _worktreeNavigationHistory =
+      WorktreeNavigationHistory();
 
   bool _bootstrapStarted = false;
+
+  bool get canGoBack {
+    _pruneWorktreeNavigationHistory();
+    return _worktreeNavigationHistory.canGoBack;
+  }
+
+  bool get canGoForward {
+    _pruneWorktreeNavigationHistory();
+    return _worktreeNavigationHistory.canGoForward;
+  }
+
+  bool _isLiveWorktreeNavigationTarget(WorktreeNavigationTarget target) {
+    final project = _projectById(state.projects, target.projectId);
+    if (project == null) {
+      return false;
+    }
+    return state
+        .workspacesFor(project.id)
+        .any((workspace) => workspace.id == target.workspaceId);
+  }
+
+  void _pruneWorktreeNavigationHistory() {
+    _worktreeNavigationHistory.prune(_isLiveWorktreeNavigationTarget);
+  }
+
+  void _notifyNavigationHistoryChanged() {
+    if (!_disposed) {
+      state = state.copyWith();
+    }
+  }
 
   Future<void> _persistViewPrefs() async {
     final repo = _viewPrefsRepository;

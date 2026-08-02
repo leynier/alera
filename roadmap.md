@@ -119,7 +119,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
 | Quick Open / Command Palette | 3 | 5 | Planned | Fuzzy file search (Cmd+P) and command execution (Cmd+Shift+P) |
-| Worktree navigation history | 2 | 4 | Planned | Back/forward navigation stack between worktrees |
+| Worktree navigation history | 2 | 4 | Shipped | Back/forward navigation stack between worktrees |
 | Worktree sleep/wake | 3 | 3 | Shipped | Sleep removes tabs/layout and terminates terminals while keeping branch/files; desktop and mobile |
 | Worktree comments & metadata | 2 | 3 | Partial | Rename, pins, tags, and parent/child relations ship; freeform comments and issue links do not |
 | Worktree multi-selection | 2 | 3 | Planned | Select multiple worktrees for batch operations |
@@ -265,7 +265,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Open in with other softwares | 2 | 4 | Partial |
 | Tab cycling & reopen closed tab | 2 | 4 | Partial |
 | Autosave | 2 | 4 | Shipped |
-| Worktree navigation history | 2 | 4 | Planned |
+| Worktree navigation history | 2 | 4 | Shipped |
 | Status bar | 2 | 4 | Partial |
 
 ### Recently reconciled from code audit (2026-08-01)

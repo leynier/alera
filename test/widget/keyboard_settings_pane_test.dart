@@ -74,12 +74,13 @@ void main() {
       of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
-    await tester.tap(
-      find.descendant(
-        of: row.first,
-        matching: find.byTooltip('Change Shortcut'),
-      ),
+    final changeShortcut = find.descendant(
+      of: row.first,
+      matching: find.byTooltip('Change Shortcut'),
     );
+    await tester.ensureVisible(changeShortcut);
+    await tester.pump();
+    await tester.tap(changeShortcut);
     await tester.pump();
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -106,12 +107,13 @@ void main() {
       of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
-    await tester.tap(
-      find.descendant(
-        of: row.first,
-        matching: find.byTooltip('Change Shortcut'),
-      ),
+    final changeShortcut = find.descendant(
+      of: row.first,
+      matching: find.byTooltip('Change Shortcut'),
     );
+    await tester.ensureVisible(changeShortcut);
+    await tester.pump();
+    await tester.tap(changeShortcut);
     await tester.pump();
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -147,12 +149,13 @@ void main() {
       );
 
       Future<void> startRecording() async {
-        await tester.tap(
-          find.descendant(
-            of: row.first,
-            matching: find.byTooltip('Change Shortcut'),
-          ),
+        final changeShortcut = find.descendant(
+          of: row.first,
+          matching: find.byTooltip('Change Shortcut'),
         );
+        await tester.ensureVisible(changeShortcut);
+        await tester.pump();
+        await tester.tap(changeShortcut);
         await tester.pump();
       }
 
@@ -201,12 +204,13 @@ void main() {
       of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
-    await tester.tap(
-      find.descendant(
-        of: newTabRow.first,
-        matching: find.byTooltip('Reset to Default'),
-      ),
+    final resetNewTab = find.descendant(
+      of: newTabRow.first,
+      matching: find.byTooltip('Reset to Default'),
     );
+    await tester.ensureVisible(resetNewTab);
+    await tester.pump();
+    await tester.tap(resetNewTab);
     await tester.pump();
 
     expect(
