@@ -222,24 +222,18 @@ final class WorkbenchSidebarRowsProvider
 String _$workbenchSidebarRowsHash() =>
     r'9f8ecfca092c1ba351c67de8e473579701ca983e';
 
-/// Keeps the terminal runtime's pinned workspace in sync with the active one,
-/// so the memory budget never evicts a terminal in the workspace being worked
-/// in.
+/// Rechecks the terminal memory budget when the active workspace changes.
 
 @ProviderFor(terminalRuntimeActiveWorkspaceCoordinator)
 final terminalRuntimeActiveWorkspaceCoordinatorProvider =
     TerminalRuntimeActiveWorkspaceCoordinatorProvider._();
 
-/// Keeps the terminal runtime's pinned workspace in sync with the active one,
-/// so the memory budget never evicts a terminal in the workspace being worked
-/// in.
+/// Rechecks the terminal memory budget when the active workspace changes.
 
 final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
     extends $FunctionalProvider<void, void, void>
     with $Provider<void> {
-  /// Keeps the terminal runtime's pinned workspace in sync with the active one,
-  /// so the memory budget never evicts a terminal in the workspace being worked
-  /// in.
+  /// Rechecks the terminal memory budget when the active workspace changes.
   TerminalRuntimeActiveWorkspaceCoordinatorProvider._()
     : super(
         from: null,
@@ -941,7 +935,7 @@ final class TerminalRuntimeProvider
   }
 }
 
-String _$terminalRuntimeHash() => r'93c7ddbf29f91e97f961f87bdad0460395e619aa';
+String _$terminalRuntimeHash() => r'3c912b3e72332dbde6e0d3b4812c93fd77ca25e0';
 
 @ProviderFor(terminalShellStartupPreparer)
 final terminalShellStartupPreparerProvider =
@@ -1033,4 +1027,4 @@ final class TerminalRuntimeExitCoordinatorProvider
 }
 
 String _$terminalRuntimeExitCoordinatorHash() =>
-    r'c06ba37819e3b0da9764d184a2ead782fb10e48e';
+    r'c569d9d2038983f89934aeb9c7ac44dbec538e41';

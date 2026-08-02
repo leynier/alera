@@ -675,7 +675,7 @@ final class BrowserPopupCoordinatorProvider
 }
 
 String _$browserPopupCoordinatorHash() =>
-    r'a2a3b7c9be507a3ed34c7451516d453bd098beaa';
+    r'ca5068f18a3b57c4c2dfa938598a1ba2132cbf8c';
 
 @ProviderFor(browserRuntimeDriver)
 final browserRuntimeDriverProvider = BrowserRuntimeDriverProvider._();

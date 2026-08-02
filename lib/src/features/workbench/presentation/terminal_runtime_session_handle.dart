@@ -95,6 +95,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   String? _errorMessage;
   @override
   bool _visible = false;
+  bool _appForeground = true;
   DateTime? _lastVisibleAt;
   @override
   final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
@@ -123,6 +124,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
 
   @override
   bool get isVisible => _visible;
+
+  bool get _outputVisible => _visible && _appForeground;
 
   @override
   ValueListenable<TerminalRestoreProgress?> get restoreProgress =>
@@ -209,20 +212,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   void _notifySessionListeners() => notifyListeners();
 
   @override
-  TerminalVisibilityLease acquireVisibility() {
-    if (_disposed) {
-      return const NoopTerminalVisibilityLease();
-    }
-    final token = Object();
-    _visibilityLeases.add(token);
-    _syncVisibilityFromLeases();
-    return _TerminalVisibilityLease(() {
-      if (_disposed || !_visibilityLeases.remove(token)) {
-        return;
-      }
-      _syncVisibilityFromLeases();
-    });
-  }
+  TerminalVisibilityLease acquireVisibility() => _acquireVisibilityLease();
 
   @override
   Widget buildView({
@@ -439,7 +429,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         }
         _ptySession = session;
         _ptySessionSub = sub;
-        if (!_visible) {
+        if (!_outputVisible) {
           _syncPtyOutputVisibility();
         }
         _flushPendingPtyResize();
@@ -492,7 +482,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         _handleTerminalOutput(text);
       case TerminalPtySnapshotEvent(:final data, :final resetInteractionModes):
         _pendingInteractionModeReset |= resetInteractionModes;
-        if (_visible) {
+        if (_outputVisible) {
           final shouldResetInteractionModes = _pendingInteractionModeReset;
           _preparePointerInputForSnapshot();
           _replaceTerminalWithSnapshot(
@@ -577,8 +567,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   void _scheduleTerminalOutputFlush() =>
       _scheduleSessionTerminalOutputFlush(this);
 
-  void _flushPendingTerminalOutputFrame() =>
-      _flushSessionTerminalOutputFrame(this);
+  void _flushPendingTerminalOutputFrame({bool force = false}) =>
+      _flushSessionTerminalOutputFrame(this, force: force);
 
   void _flushPendingTerminalOutputNow() => _flushSessionTerminalOutputNow(this);
 

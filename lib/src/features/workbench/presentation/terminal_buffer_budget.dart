@@ -1,3 +1,5 @@
+import 'package:xterm/xterm.dart' as xterm;
+
 /// Bytes an xterm buffer holds for a given size.
 ///
 /// xterm stores 4 `Uint32` per cell (16 bytes), so a fully scrolled 10000-line
@@ -14,6 +16,20 @@ int estimateTerminalBufferBytes({required int lines, required int columns}) {
 }
 
 const int _bytesPerCell = 16;
+
+/// Actual typed-data storage retained by the terminal's cell buffers.
+///
+/// `BufferLine` rounds its capacity above the visible width and keeps that
+/// allocation after a shrink. Reading the allocated lists makes the budget
+/// account for both behaviors instead of systematically undercounting them.
+int measureTerminalCellBufferBytes(xterm.Terminal terminal) {
+  var bytes = 0;
+  final lines = terminal.buffer.lines;
+  for (var index = 0; index < lines.length; index += 1) {
+    bytes += lines[index].data.lengthInBytes;
+  }
+  return bytes;
+}
 
 /// What one live terminal costs and when it was last on screen.
 class TerminalBufferUsage {

@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xterm/xterm.dart' as xterm;
 
 const int _mb = 1024 * 1024;
 
@@ -34,6 +35,24 @@ void main() {
       expect(estimateTerminalBufferBytes(lines: 0, columns: 120), 0);
       expect(estimateTerminalBufferBytes(lines: 100, columns: 0), 0);
       expect(estimateTerminalBufferBytes(lines: -1, columns: -1), 0);
+    });
+
+    test('measures allocated line capacity after a viewport shrink', () {
+      final terminal = xterm.Terminal(maxLines: 100);
+      terminal.resize(120, 24);
+      terminal.write(List<String>.filled(150, 'line\r\n').join());
+
+      final lineCount = terminal.buffer.lines.length;
+      final wideBytes = measureTerminalCellBufferBytes(terminal);
+      // BufferLine rounds 120 columns to 128 cells, with 16 bytes per cell.
+      expect(wideBytes, lineCount * 128 * 16);
+
+      terminal.resize(80, 24);
+      expect(
+        measureTerminalCellBufferBytes(terminal),
+        wideBytes,
+        reason: 'shrinking the viewport retains each line allocation',
+      );
     });
   });
 
