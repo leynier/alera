@@ -380,6 +380,16 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
     description: 'Spaces inserted when pressing tab in editor tabs.',
     keywords: <String>['indent', 'indentation', 'spaces', 'code'],
   ),
+  SettingsSearchEntry(
+    title: 'Autosave',
+    description: 'Automatically save dirty editor tabs after a pause.',
+    keywords: <String>['save', 'automatic', 'idle', 'file', 'changes'],
+  ),
+  SettingsSearchEntry(
+    title: 'Autosave Delay',
+    description: 'Idle time before saving editor changes.',
+    keywords: <String>['save', 'automatic', 'debounce', 'seconds'],
+  ),
 ];
 
 const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
