@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
@@ -88,6 +89,21 @@ void main() {
     expect(testCommandCalls, 1);
   });
 
+  testWidgets('command mode gives the test button room inside its card', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _EditorHarness(launchMode: AgentProfileLaunchMode.command),
+    );
+
+    final actionPadding = _testCommandActionPadding(tester);
+
+    expect(
+      actionPadding.resolve(TextDirection.ltr).bottom,
+      AleraTokens.space12,
+    );
+  });
+
   testWidgets('managed mode offers to test the current command preview', (
     tester,
   ) async {
@@ -104,6 +120,24 @@ void main() {
     await tester.pump();
 
     expect(testCommandCalls, 1);
+  });
+
+  testWidgets('managed mode gives the test button room inside its card', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _EditorHarness(
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
+      ),
+    );
+
+    final actionPadding = _testCommandActionPadding(tester);
+
+    expect(
+      actionPadding.resolve(TextDirection.ltr).bottom,
+      AleraTokens.space12,
+    );
   });
 
   testWidgets('managed mode disables testing while saving', (tester) async {
@@ -190,6 +224,12 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+EdgeInsetsGeometry _testCommandActionPadding(WidgetTester tester) {
+  final button = find.widgetWithText(OutlinedButton, 'Test Command');
+  final buttonElement = tester.element(button);
+  return buttonElement.findAncestorWidgetOfExactType<Padding>()!.padding;
 }
 
 class _EditorHarness extends StatefulWidget {
