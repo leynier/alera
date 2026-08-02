@@ -1,6 +1,7 @@
 part of 'terminal_runtime.dart';
 
-class _XtermTerminalSessionHandle extends TerminalSessionHandle {
+class _XtermTerminalSessionHandle extends TerminalSessionHandle
+    with _TerminalSearchSessionSupport {
   _XtermTerminalSessionHandle(
     this._workspace,
     this._tab,
@@ -43,20 +44,28 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   /// visible, which is the only moment a new eviction candidate appears.
   final void Function(_XtermTerminalSessionHandle handle) _onVisibilityChanged;
   TerminalSettings _settings;
+  @override
   late xterm.Terminal _terminal;
+  @override
   late Osc8TerminalLinkTracker _osc8LinkTracker;
+  @override
   final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
       GlobalKey<xterm.TerminalViewState>();
+  @override
   final xterm.TerminalController _terminalController = xterm.TerminalController(
     pointerInputs: const xterm.PointerInputs.all(),
   );
 
   /// Survives TerminalSurface dispose/rebuild so scroll position is preserved
   /// when switching tabs and coming back.
+  @override
   final ScrollController _scrollController = ScrollController();
+  @override
   final FocusNode _focusNode = FocusNode(debugLabel: 'TerminalSession');
+  @override
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
+  @override
   late final StreamSubscription<String> _decodedOutputSub;
 
   final _TerminalOutputPipeline _output = _TerminalOutputPipeline();
@@ -66,10 +75,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   Timer? _selectionCopyTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
+  @override
   int _startAttempt = 0;
   int? _activePtyGeneration;
   final Set<int> _exitedPtyGenerations = <int>{};
   final Set<int> _suppressedExitPtyGenerations = <int>{};
+  @override
   final Set<Object> _visibilityLeases = <Object>{};
 
   bool _starting = false;
@@ -77,19 +88,26 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   bool _started = false;
   bool _running = false;
   String _title = '';
+  @override
   late final ValueNotifier<String> _titleNotifier = ValueNotifier<String>(
     displayTitle,
   );
   String? _errorMessage;
+  @override
   bool _visible = false;
   DateTime? _lastVisibleAt;
+  @override
   final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
       ValueNotifier<TerminalRestoreProgress?>(null);
   int _restoreGeneration = 0, _restoreTotalChars = 0, _restoreWrittenChars = 0;
   bool _pendingInteractionModeReset = false;
+  @override
   int _pointerInputCatchUpChars = 0;
+  @override
   bool _pointerInputResumePending = false;
+  @override
   int _outputVisibilityGeneration = 0;
+  @override
   bool _disposed = false;
 
   @override
@@ -527,6 +545,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   Future<void> _pasteFromClipboard() => _pasteTerminalClipboard(this);
 
+  @override
   void _handleSelectionChanged() {
     _handleTerminalSelectionChanged(this);
   }
@@ -541,6 +560,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _attachSessionTerminal(this, terminal);
   }
 
+  @override
   void _detachTerminal(xterm.Terminal terminal) {
     _detachSessionTerminal(terminal);
   }
@@ -573,6 +593,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     notifyListeners();
   }
 
+  @override
   void _clearPendingTerminalOutput() {
     _output.cancelDeferredFlush();
     _output.clear();
@@ -594,6 +615,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     await _stopPtySessionWithMode(suppressExit: suppressExit, terminate: true);
   }
 
+  @override
   Future<void> _stopPtySessionWithMode({
     required bool suppressExit,
     required bool terminate,
@@ -640,32 +662,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   void pasteText(String text) => _pasteTerminalText(this, text);
-
-  @override
-  void dispose({bool terminatePty = true}) {
-    _disposed = true;
-    _startAttempt += 1;
-    _outputVisibilityGeneration += 1;
-    _visibilityLeases.clear();
-    _visible = false;
-    _pointerInputResumePending = false;
-    _pointerInputCatchUpChars = 0;
-    _osc8LinkTracker.dispose();
-    _terminalController.removeListener(_handleSelectionChanged);
-    _terminalController.dispose();
-    _detachTerminal(_terminal);
-    _clearPendingTerminalOutput();
-    unawaited(
-      _stopPtySessionWithMode(suppressExit: true, terminate: terminatePty),
-    );
-    unawaited(_decodedOutputSub.cancel());
-    unawaited(_ptyOutputController.close());
-    _scrollController.dispose();
-    _focusNode.dispose();
-    _titleNotifier.dispose();
-    _restoreProgress.dispose();
-    super.dispose();
-  }
 
   void _requestFocusNow() {
     if (_disposed || !_focusNode.canRequestFocus) {

@@ -267,6 +267,7 @@ class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
   final String tabId;
 
   FocusOnKeyEventCallback? onKeyEvent;
+  int openSearchCallCount = 0;
 
   @override
   String get workspaceId => 'workspace-1';
@@ -310,6 +311,11 @@ class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
 
   @override
   void requestFocus() {}
+
+  @override
+  void openSearch() {
+    openSearchCallCount += 1;
+  }
 }
 
 class _FakeWorkbenchController extends WorkbenchController {

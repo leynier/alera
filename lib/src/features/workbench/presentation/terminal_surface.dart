@@ -10,6 +10,7 @@ import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -103,7 +104,11 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         !resolved.allowInTerminal) {
       return KeyEventResult.ignored;
     }
-    KeyboardCommandDispatcher(ref: ref, context: context).dispatch(resolved.id);
+    KeyboardCommandDispatcher(
+      ref: ref,
+      context: context,
+      terminalSession: widget.session,
+    ).dispatch(resolved.id);
     return KeyEventResult.handled;
   }
 
@@ -117,6 +122,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           _ => null,
         };
         final operation = error == null ? widget.session.operation : null;
+        final searchController = widget.session.searchController;
+        final searchOpen = searchController?.isOpen == true;
         return DropTarget(
           enable: error == null,
           onDragDone: (details) {
@@ -175,7 +182,9 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                   ),
                 Positioned(
                   top: AleraTokens.space4,
-                  right: AleraTokens.space4,
+                  right: searchOpen
+                      ? AleraTokens.space48 + AleraTokens.space4
+                      : AleraTokens.space4,
                   child: AleraIconButton(
                     tooltip: _refreshing
                         ? 'Refreshing Terminal'
@@ -188,6 +197,27 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                         : () => unawaited(_refreshTerminal()),
                   ),
                 ),
+                if (searchController != null && searchOpen)
+                  Positioned(
+                    top: AleraTokens.space4,
+                    left: AleraTokens.space16,
+                    right: AleraTokens.space48 + AleraTokens.space4,
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: AleraTokens.dialogWideWidth,
+                        ),
+                        child: TerminalSearchOverlay(
+                          controller: searchController,
+                          onClose: () {
+                            widget.session.closeSearch();
+                            widget.session.requestFocus();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
