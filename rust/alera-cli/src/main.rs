@@ -2,6 +2,7 @@ mod agent_quota;
 mod agent_status;
 mod browser_commands;
 mod cli;
+mod cli_async_runtime;
 mod cli_orchestration;
 mod cli_orchestration_runs;
 mod cli_orchestration_terminal;
@@ -76,24 +77,30 @@ use crate::tab_record_factory::tab_from_args;
 
 /// Usage-error exit code, matching the Dart CLI (`_usageExitCode`).
 const USAGE_EXIT_CODE: i32 = 64;
-#[tokio::main]
-async fn main() {
-    std::process::exit(run().await);
-}
 
-async fn run() -> i32 {
+fn main() {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
             let _ = error.print();
-            // Help/version requests exit cleanly; real usage errors use code 64.
-            return if error.use_stderr() {
+            std::process::exit(if error.use_stderr() {
                 USAGE_EXIT_CODE
             } else {
                 0
-            };
+            });
         }
     };
+    let runtime = match cli_async_runtime::build(&cli.command) {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("Failed to initialize the Alera async runtime: {error}");
+            std::process::exit(1);
+        }
+    };
+    std::process::exit(runtime.block_on(run(cli)));
+}
+
+async fn run(cli: Cli) -> i32 {
     match cli.command {
         Command::RuntimeHost(args) => runtime_host_command::run(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
