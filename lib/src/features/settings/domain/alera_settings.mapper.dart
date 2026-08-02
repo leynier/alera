@@ -484,6 +484,14 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: false,
   );
+  static bool _$showComposerByDefault(TerminalSettings v) =>
+      v.showComposerByDefault;
+  static const Field<TerminalSettings, bool> _f$showComposerByDefault = Field(
+    'showComposerByDefault',
+    _$showComposerByDefault,
+    opt: true,
+    def: false,
+  );
   static int _$hostEmptyShutdownDelaySeconds(TerminalSettings v) =>
       v.hostEmptyShutdownDelaySeconds;
   static const Field<TerminalSettings, int> _f$hostEmptyShutdownDelaySeconds =
@@ -552,6 +560,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #tuiScrollSensitivity: _f$tuiScrollSensitivity,
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
+    #showComposerByDefault: _f$showComposerByDefault,
     #hostEmptyShutdownDelaySeconds: _f$hostEmptyShutdownDelaySeconds,
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -582,6 +591,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       tuiScrollSensitivity: data.dec(_f$tuiScrollSensitivity),
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
+      showComposerByDefault: data.dec(_f$showComposerByDefault),
       hostEmptyShutdownDelaySeconds: data.dec(_f$hostEmptyShutdownDelaySeconds),
       hostDetachedSessionShutdownDelaySeconds: data.dec(
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -679,6 +689,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     int? tuiScrollSensitivity,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
+    bool? showComposerByDefault,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -726,6 +737,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     int? tuiScrollSensitivity,
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
+    bool? showComposerByDefault,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -753,6 +765,8 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (clipboardOnSelect != null) #clipboardOnSelect: clipboardOnSelect,
       if (allowOsc52Clipboard != null)
         #allowOsc52Clipboard: allowOsc52Clipboard,
+      if (showComposerByDefault != null)
+        #showComposerByDefault: showComposerByDefault,
       if (hostEmptyShutdownDelaySeconds != null)
         #hostEmptyShutdownDelaySeconds: hostEmptyShutdownDelaySeconds,
       if (hostDetachedSessionShutdownDelaySeconds != null)
@@ -797,6 +811,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     allowOsc52Clipboard: data.get(
       #allowOsc52Clipboard,
       or: $value.allowOsc52Clipboard,
+    ),
+    showComposerByDefault: data.get(
+      #showComposerByDefault,
+      or: $value.showComposerByDefault,
     ),
     hostEmptyShutdownDelaySeconds: data.get(
       #hostEmptyShutdownDelaySeconds,

@@ -1,7 +1,7 @@
 part of 'terminal_surface_test.dart';
 
 void _registerTerminalSurfaceComposerTests() {
-  testWidgets('composer control sits below refresh and submits a prompt', (
+  testWidgets('composer control sits left of refresh and submits a prompt', (
     tester,
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
@@ -12,8 +12,8 @@ void _registerTerminalSurfaceComposerTests() {
     final composerRect = tester.getRect(
       find.byTooltip('Show Terminal Composer'),
     );
-    expect(composerRect.top, greaterThan(refreshRect.bottom));
-    expect(composerRect.right, refreshRect.right);
+    expect(composerRect.right, lessThan(refreshRect.left));
+    expect(composerRect.top, refreshRect.top);
 
     await tester.tap(find.byTooltip('Show Terminal Composer'));
     await tester.pump();

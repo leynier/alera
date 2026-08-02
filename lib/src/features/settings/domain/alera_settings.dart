@@ -71,6 +71,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.tuiScrollSensitivity = 1,
     this.clipboardOnSelect = false,
     this.allowOsc52Clipboard = false,
+    this.showComposerByDefault = false,
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
@@ -96,6 +97,9 @@ class TerminalSettings with TerminalSettingsMappable {
   final int tuiScrollSensitivity;
   final bool clipboardOnSelect;
   final bool allowOsc52Clipboard;
+
+  /// Whether new terminal sessions open the prompt composer immediately.
+  final bool showComposerByDefault;
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
@@ -137,6 +141,7 @@ class TerminalSettings with TerminalSettingsMappable {
     tuiScrollSensitivity: 1,
     clipboardOnSelect: false,
     allowOsc52Clipboard: false,
+    showComposerByDefault: false,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,

@@ -96,6 +96,12 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
     groupId: 'interaction',
   ),
   SettingsSearchEntry(
+    title: 'Show Terminal Composer By Default',
+    description: 'Open the prompt composer when a new terminal session starts.',
+    keywords: <String>['composer', 'prompt', 'input', 'default'],
+    groupId: 'interaction',
+  ),
+  SettingsSearchEntry(
     title: 'Scrollback Lines',
     description: 'Maximum terminal history retained per session.',
     keywords: <String>['history', 'buffer'],

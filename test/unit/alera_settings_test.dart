@@ -30,6 +30,7 @@ void main() {
       expect(terminal.tuiScrollSensitivity, 1);
       expect(terminal.clipboardOnSelect, isFalse);
       expect(terminal.allowOsc52Clipboard, isFalse);
+      expect(terminal.showComposerByDefault, isFalse);
       expect(terminal.hostEmptyShutdownDelaySeconds, 30);
       expect(terminal.hostDetachedSessionShutdownDelaySeconds, 60 * 60);
       expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
@@ -329,6 +330,7 @@ void main() {
         'tuiScrollSensitivity': 4,
         'clipboardOnSelect': true,
         'allowOsc52Clipboard': true,
+        'showComposerByDefault': true,
         'hostEmptyShutdownDelaySeconds': 45,
         'hostDetachedSessionShutdownDelaySeconds': 600,
         'hostScrollbackBytes': 16 * 1000 * 1000,
@@ -346,6 +348,7 @@ void main() {
       expect(restored.tuiScrollSensitivity, 4);
       expect(restored.clipboardOnSelect, isTrue);
       expect(restored.allowOsc52Clipboard, isTrue);
+      expect(restored.showComposerByDefault, isTrue);
       expect(restored.hostEmptyShutdownDelaySeconds, 45);
       expect(restored.hostDetachedSessionShutdownDelaySeconds, 600);
       expect(restored.hostScrollbackBytes, 16 * 1000 * 1000);
