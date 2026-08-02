@@ -103,6 +103,7 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
     _focusNode.dispose();
     _titleNotifier.dispose();
     _restoreProgress.dispose();
+    composerController.dispose();
     super.dispose();
   }
 

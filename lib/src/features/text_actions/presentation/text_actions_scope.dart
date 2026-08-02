@@ -43,8 +43,15 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
         settings.textActions.enabledActions.isNotEmpty;
     return AleraTextActionsScope(
       enabled: enabled,
+      actions: <AleraTextActionMenuItem>[
+        for (final action in settings.textActions.enabledActions)
+          AleraTextActionMenuItem(id: action.id, label: action.name),
+      ],
       onOpen: (context, editableTextState) =>
           _openMenu(context, editableTextState, activeWorkspacePath),
+      onRun: (editableTextState, actionId) => unawaited(
+        _runAction(editableTextState, actionId, activeWorkspacePath),
+      ),
       child: widget.child,
     );
   }
@@ -96,13 +103,13 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
       return;
     }
     unawaited(
-      _runAction(editableTextState, selectedAction, activeWorkspacePath),
+      _runAction(editableTextState, selectedAction.id, activeWorkspacePath),
     );
   }
 
   Future<void> _runAction(
     EditableTextState editableTextState,
-    TextAction action,
+    String actionId,
     String? activeWorkspacePath,
   ) async {
     if (!editableTextState.mounted ||
@@ -124,28 +131,39 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     if (selectedText.isEmpty) {
       return;
     }
+    final settings = ref.read(settingsControllerProvider);
+    final action = settings.textActions.actions
+        .where((candidate) => candidate.id == actionId && candidate.enabled)
+        .firstOrNull;
+    if (action == null) {
+      return;
+    }
     _runningFields.add(editableTextState);
     final runId = 'text-action-${++_runSequence}';
     AleraToast.publish(message: 'Running ${action.name}.');
     try {
-      final settings = ref.read(settingsControllerProvider);
-      final currentAction = settings.textActions.actions
+      final currentSettings = ref.read(settingsControllerProvider);
+      final currentAction = currentSettings.textActions.actions
           .where((candidate) => candidate.id == action.id)
           .firstOrNull;
       if (currentAction == null || !currentAction.enabled) {
         return;
       }
-      final agent = currentAction.effectiveAgent(settings.aiTextGeneration);
-      final model = currentAction.effectiveModel(settings.aiTextGeneration);
+      final agent = currentAction.effectiveAgent(
+        currentSettings.aiTextGeneration,
+      );
+      final model = currentAction.effectiveModel(
+        currentSettings.aiTextGeneration,
+      );
       final reasoning = currentAction.reasoningFor(
-        settings.aiTextGeneration,
+        currentSettings.aiTextGeneration,
         model: model,
       );
       final result = await ref
           .read(aiTextAgentRunnerProvider)
           .run(
             AiTextAgentRunRequest(
-              settings: settings.aiTextGeneration,
+              settings: currentSettings.aiTextGeneration,
               prompt: buildTextActionPrompt(
                 instruction: currentAction.prompt,
                 selectedText: selectedText,

@@ -9,7 +9,9 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
+import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/forms/alera_color_picker.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -68,6 +70,42 @@ Widget galleryInputs() => Column(
     ),
   ],
 );
+
+@AleraPreview(name: 'Composer', group: 'Gallery', size: Size(560, 180))
+Widget galleryComposer() => const _GalleryComposer();
+
+class _GalleryComposer extends StatefulWidget {
+  const _GalleryComposer();
+
+  @override
+  State<_GalleryComposer> createState() => _GalleryComposerState();
+}
+
+class _GalleryComposerState extends State<_GalleryComposer> {
+  final _controller = TextEditingController(text: 'Explain the failing test');
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraComposer(
+      controller: _controller,
+      focusNode: _focusNode,
+      onSend: _controller.clear,
+      onClose: () {},
+      textActions: const <AleraTextActionMenuItem>[
+        AleraTextActionMenuItem(id: 'concise', label: 'Make Concise'),
+      ],
+      onTextActionSelected: (_) {},
+    );
+  }
+}
 
 @AleraPreview(name: 'Feedback', group: 'Gallery', size: Size(420, 240))
 Widget galleryFeedback() => Column(
