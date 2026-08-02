@@ -5,17 +5,37 @@ import 'package:flutter/material.dart';
 typedef AleraTextActionsContextMenuHandler =
     void Function(BuildContext context, EditableTextState editableTextState);
 
+typedef AleraTextActionHandler =
+    void Function(EditableTextState editableTextState, String actionId);
+
+class AleraTextActionMenuItem {
+  const AleraTextActionMenuItem({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
 /// Adds the optional Text Actions entry without taking ownership of editing.
 class AleraTextActionsScope extends InheritedWidget {
   const AleraTextActionsScope({
     super.key,
     required this.enabled,
     required this.onOpen,
+    this.actions = const <AleraTextActionMenuItem>[],
+    this.onRun,
     required super.child,
   });
 
   final bool enabled;
   final AleraTextActionsContextMenuHandler onOpen;
+  final List<AleraTextActionMenuItem> actions;
+  final AleraTextActionHandler? onRun;
+
+  void run(EditableTextState editableTextState, String actionId) {
+    if (enabled) {
+      onRun?.call(editableTextState, actionId);
+    }
+  }
 
   static AleraTextActionsScope? maybeOf(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<AleraTextActionsScope>();
@@ -100,6 +120,9 @@ class AleraTextActionsScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AleraTextActionsScope oldWidget) {
-    return enabled != oldWidget.enabled || onOpen != oldWidget.onOpen;
+    return enabled != oldWidget.enabled ||
+        onOpen != oldWidget.onOpen ||
+        actions != oldWidget.actions ||
+        onRun != oldWidget.onRun;
   }
 }

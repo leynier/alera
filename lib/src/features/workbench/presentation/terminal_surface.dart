@@ -8,6 +8,7 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
@@ -34,11 +35,13 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   TerminalVisibilityLease? _visibilityLease;
   bool _refreshing = false;
   int _refreshGeneration = 0;
+  late bool _composerVisible;
 
   @override
   void initState() {
     super.initState();
     _visibilityLease = widget.session.acquireVisibility();
+    _attachComposer(widget.session);
     _scheduleStart(widget.session);
   }
 
@@ -50,6 +53,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       _refreshing = false;
       _visibilityLease?.dispose();
       _visibilityLease = widget.session.acquireVisibility();
+      _detachComposer(oldWidget.session);
+      _attachComposer(widget.session);
       _scheduleStart(widget.session);
     }
   }
@@ -58,7 +63,35 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   void dispose() {
     _visibilityLease?.dispose();
     _visibilityLease = null;
+    _detachComposer(widget.session);
     super.dispose();
+  }
+
+  void _attachComposer(TerminalSessionHandle session) {
+    _composerVisible = session.composerController.visible;
+    session.composerController.addListener(_handleComposerChanged);
+  }
+
+  void _detachComposer(TerminalSessionHandle session) {
+    session.composerController.removeListener(_handleComposerChanged);
+  }
+
+  void _handleComposerChanged() {
+    final visible = widget.session.composerController.visible;
+    if (visible == _composerVisible) {
+      return;
+    }
+    _composerVisible = visible;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.session.composerController.visible != visible) {
+        return;
+      }
+      if (visible) {
+        widget.session.composerController.focusNode.requestFocus();
+      } else {
+        widget.session.requestFocus();
+      }
+    });
   }
 
   void _scheduleStart(TerminalSessionHandle session) {
@@ -115,7 +148,10 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.session,
+      animation: Listenable.merge(<Listenable>[
+        widget.session,
+        widget.session.composerController,
+      ]),
       builder: (context, _) {
         final error = switch (widget.session.errorMessage) {
           final String message when message.trim().isNotEmpty => message,
@@ -140,84 +176,121 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                 paths: details.data.paths,
               );
             },
-            builder: (context, _, _) => Stack(
+            builder: (context, _, _) => Column(
               children: <Widget>[
-                Positioned.fill(
-                  child: error == null
-                      ? DecoratedBox(
-                          decoration: const BoxDecoration(
-                            color: AleraTokens.bg,
-                          ),
-                          child: widget.session.buildView(
-                            autofocus: widget.autofocus,
-                            onKeyEvent: _handleTerminalKey,
-                          ),
-                        )
-                      : _TerminalErrorState(
-                          message: error,
-                          onReconnect: widget.session.reconnect,
-                          onRestart: widget.session.canRestart
-                              ? () => _confirmRestart(context)
-                              : null,
+                Expanded(
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned.fill(
+                        child: error == null
+                            ? DecoratedBox(
+                                decoration: const BoxDecoration(
+                                  color: AleraTokens.bg,
+                                ),
+                                child: widget.session.buildView(
+                                  autofocus: widget.autofocus,
+                                  onKeyEvent: _handleTerminalKey,
+                                ),
+                              )
+                            : _TerminalErrorState(
+                                message: error,
+                                onReconnect: widget.session.reconnect,
+                                onRestart: widget.session.canRestart
+                                    ? () => _confirmRestart(context)
+                                    : null,
+                              ),
+                      ),
+                      if (operation != null)
+                        Positioned.fill(
+                          child: _TerminalOperationState(operation: operation),
                         ),
-                ),
-                if (operation != null)
-                  Positioned.fill(
-                    child: _TerminalOperationState(operation: operation),
-                  ),
-                // Restoring an evicted terminal replays its whole scrollback over
-                // several frames. The corner spinner does not read as a wait that
-                // long, so cover the area until the history is back.
-                if (error == null)
-                  Positioned.fill(
-                    child: ValueListenableBuilder<TerminalRestoreProgress?>(
-                      valueListenable: widget.session.restoreProgress,
-                      builder: (context, progress, _) {
-                        if (progress == null) {
-                          return const SizedBox.shrink();
-                        }
-                        return _TerminalRestoreState(progress: progress);
-                      },
-                    ),
-                  ),
-                Positioned(
-                  top: AleraTokens.space4,
-                  right: searchOpen
-                      ? AleraTokens.space48 + AleraTokens.space4
-                      : AleraTokens.space4,
-                  child: AleraIconButton(
-                    tooltip: _refreshing
-                        ? 'Refreshing Terminal'
-                        : 'Refresh Terminal',
-                    icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
-                    backgroundColor: AleraTokens.surfaceElevated,
-                    borderColor: AleraTokens.borderSubtle,
-                    onPressed: _refreshing
-                        ? null
-                        : () => unawaited(_refreshTerminal()),
-                  ),
-                ),
-                if (searchController != null && searchOpen)
-                  Positioned(
-                    top: AleraTokens.space4,
-                    left: AleraTokens.space16,
-                    right: AleraTokens.space48 + AleraTokens.space4,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: AleraTokens.dialogWideWidth,
+                      // Restoring an evicted terminal replays its whole scrollback over
+                      // several frames. The corner spinner does not read as a wait that
+                      // long, so cover the area until the history is back.
+                      if (error == null)
+                        Positioned.fill(
+                          child:
+                              ValueListenableBuilder<TerminalRestoreProgress?>(
+                                valueListenable: widget.session.restoreProgress,
+                                builder: (context, progress, _) {
+                                  if (progress == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return _TerminalRestoreState(
+                                    progress: progress,
+                                  );
+                                },
+                              ),
                         ),
-                        child: TerminalSearchOverlay(
-                          controller: searchController,
-                          onClose: () {
-                            widget.session.closeSearch();
-                            widget.session.requestFocus();
-                          },
+                      Positioned(
+                        top: AleraTokens.space4,
+                        right: searchOpen
+                            ? AleraTokens.space48 + AleraTokens.space4
+                            : AleraTokens.space4,
+                        child: AleraIconButton(
+                          tooltip: _refreshing
+                              ? 'Refreshing Terminal'
+                              : 'Refresh Terminal',
+                          icon: _refreshing
+                              ? AleraIcons.loading
+                              : AleraIcons.refresh,
+                          backgroundColor: AleraTokens.surfaceElevated,
+                          borderColor: AleraTokens.borderSubtle,
+                          onPressed: _refreshing
+                              ? null
+                              : () => unawaited(_refreshTerminal()),
                         ),
                       ),
-                    ),
+                      Positioned(
+                        top:
+                            AleraTokens.space4 +
+                            AleraTokens.space32 +
+                            AleraTokens.space4,
+                        right: searchOpen
+                            ? AleraTokens.space48 + AleraTokens.space4
+                            : AleraTokens.space4,
+                        child: AleraIconButton(
+                          tooltip: widget.session.composerController.visible
+                              ? 'Hide Terminal Composer'
+                              : 'Show Terminal Composer',
+                          icon: AleraIcons.ai,
+                          iconColor: widget.session.composerController.visible
+                              ? AleraTokens.foreground
+                              : AleraTokens.foregroundMuted,
+                          backgroundColor:
+                              widget.session.composerController.visible
+                              ? AleraTokens.accentSubtle
+                              : AleraTokens.surfaceElevated,
+                          borderColor: AleraTokens.borderSubtle,
+                          onPressed: widget.session.composerController.toggle,
+                        ),
+                      ),
+                      if (searchController != null && searchOpen)
+                        Positioned(
+                          top: AleraTokens.space4,
+                          left: AleraTokens.space16,
+                          right: AleraTokens.space48 + AleraTokens.space4,
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: AleraTokens.dialogWideWidth,
+                              ),
+                              child: TerminalSearchOverlay(
+                                controller: searchController,
+                                onClose: () {
+                                  widget.session.closeSearch();
+                                  widget.session.requestFocus();
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
+                if (widget.session.composerController.visible)
+                  TerminalComposer(session: widget.session),
               ],
             ),
           ),

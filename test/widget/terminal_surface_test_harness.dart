@@ -205,6 +205,7 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
 
   int ensureStartedCallCount = 0;
   int refreshRenderingCallCount = 0;
+  final List<String> submittedTexts = <String>[];
   bool _started = false;
 
   @override
@@ -254,6 +255,12 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   Future<void> refreshRendering() async {
     refreshRenderingCallCount += 1;
     await refreshCompleter?.future;
+  }
+
+  @override
+  Future<bool> submitText(String text) async {
+    submittedTexts.add(text);
+    return true;
   }
 
   @override

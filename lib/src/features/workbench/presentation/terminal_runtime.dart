@@ -7,6 +7,7 @@ import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -49,6 +50,9 @@ part 'terminal_runtime_restore_progress.dart';
 part 'terminal_runtime_testing.dart';
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
+  final TerminalComposerController composerController =
+      TerminalComposerController();
+
   String get tabId;
 
   String get workspaceId;
@@ -120,6 +124,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   ///
   /// Default is a no-op so test doubles stay source-compatible.
   void pasteText(String text) {}
+
+  /// Pastes [text] into the foreground terminal process and presses Enter.
+  ///
+  /// Returns false when the PTY could not accept the prompt.
+  Future<bool> submitText(String text) async => false;
 
   /// The per-session terminal scrollback search model, when supported.
   TerminalSearchController? get searchController => null;

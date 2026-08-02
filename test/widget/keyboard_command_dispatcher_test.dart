@@ -139,6 +139,13 @@ void main() {
       ref: harness.ref,
       context: harness.context,
     );
+    final activeSession = runtime.sessionFor(
+      workspace: workspace,
+      tab: firstTab,
+    );
+
+    dispatcher.dispatch(KeyboardActionId.toggleTerminalComposer);
+    expect(activeSession.composerController.visible, isTrue);
 
     dispatcher.dispatch(KeyboardActionId.newTerminalTab);
     await tester.pump();

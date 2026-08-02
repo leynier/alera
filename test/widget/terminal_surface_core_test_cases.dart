@@ -57,7 +57,11 @@ void _registerTerminalSurfaceRuntimeTests() {
 
     expect(find.byTooltip('Refreshing Terminal'), findsOneWidget);
     expect(
-      tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, AleraIcons.loading),
+          )
+          .onPressed,
       isNull,
     );
     expect(session.refreshRenderingCallCount, 1);
