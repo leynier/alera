@@ -16,6 +16,17 @@ fn sample(session_id: &str) -> TerminalHostCheckpoint {
 }
 
 #[tokio::test]
+async fn connection_pool_is_bounded_for_sqlite_worker_threads() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+
+    assert_eq!(
+        store.pool.options().get_max_connections(),
+        HISTORY_STORE_MAX_CONNECTIONS
+    );
+}
+
+#[tokio::test]
 async fn upsert_append_then_read_round_trips_incremental_chunks() {
     let dir = tempfile::tempdir().unwrap();
     let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
