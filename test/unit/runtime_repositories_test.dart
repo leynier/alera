@@ -273,10 +273,10 @@ void main() {
     expect(runtimeWorkbench.workspaces[workspace.id], workspace);
     expect(runtimeWorkbench.tabs['tab-1']?.workspaceId, workspace.id);
     expect(runtimeWorkbench.layouts[workspace.id], isNotNull);
-    expect(client.requests, hasLength(14));
+    expect(client.requests, hasLength(18));
     expect(
       client.requests.where((request) => request == 'runtimeSettings.update'),
-      hasLength(3),
+      hasLength(4),
     );
   });
 }

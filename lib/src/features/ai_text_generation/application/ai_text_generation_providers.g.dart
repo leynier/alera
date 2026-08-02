@@ -9,6 +9,53 @@ part of 'ai_text_generation_providers.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
+@ProviderFor(aiTextAgentRunner)
+final aiTextAgentRunnerProvider = AiTextAgentRunnerProvider._();
+
+final class AiTextAgentRunnerProvider
+    extends
+        $FunctionalProvider<
+          AiTextAgentRunner,
+          AiTextAgentRunner,
+          AiTextAgentRunner
+        >
+    with $Provider<AiTextAgentRunner> {
+  AiTextAgentRunnerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aiTextAgentRunnerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$aiTextAgentRunnerHash();
+
+  @$internal
+  @override
+  $ProviderElement<AiTextAgentRunner> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AiTextAgentRunner create(Ref ref) {
+    return aiTextAgentRunner(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AiTextAgentRunner value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AiTextAgentRunner>(value),
+    );
+  }
+}
+
+String _$aiTextAgentRunnerHash() => r'cb60dfdf9b0154ea6f9ae1e212419febc6ab82f3';
+
 @ProviderFor(aiTextGenerationService)
 final aiTextGenerationServiceProvider = AiTextGenerationServiceProvider._();
 
@@ -55,7 +102,7 @@ final class AiTextGenerationServiceProvider
 }
 
 String _$aiTextGenerationServiceHash() =>
-    r'da126de429e0e97a2bed76e1600e800b41054a48';
+    r'36bd4cadef164d8f53bba7558462e6663d6c1d26';
 
 @ProviderFor(aiTextModelDiscoveryService)
 final aiTextModelDiscoveryServiceProvider =

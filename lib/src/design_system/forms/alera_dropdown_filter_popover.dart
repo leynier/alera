@@ -182,6 +182,7 @@ class _AleraDropdownFilterPopoverState<T>
                   dense: true,
                   hintText: widget.filterHintText,
                   prefixIcon: AleraIcons.search,
+                  textActionsEnabled: false,
                   onChanged: _handleQueryChanged,
                 ),
               ),

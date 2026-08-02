@@ -2646,6 +2646,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       GeneralSettingsMapper.ensureInitialized();
       AgentSettingsMapper.ensureInitialized();
       AiTextGenerationSettingsMapper.ensureInitialized();
+      TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       DiagnosticsSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
@@ -2678,6 +2679,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: AiTextGenerationSettings.defaults,
   );
+  static TextActionsSettings _$textActions(AleraSettings v) => v.textActions;
+  static const Field<AleraSettings, TextActionsSettings> _f$textActions = Field(
+    'textActions',
+    _$textActions,
+    opt: true,
+    def: TextActionsSettings.defaults,
+  );
   static EditorSettings _$editor(AleraSettings v) => v.editor;
   static const Field<AleraSettings, EditorSettings> _f$editor = Field(
     'editor',
@@ -2706,6 +2714,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     #general: _f$general,
     #agents: _f$agents,
     #aiTextGeneration: _f$aiTextGeneration,
+    #textActions: _f$textActions,
     #editor: _f$editor,
     #diagnostics: _f$diagnostics,
     #terminal: _f$terminal,
@@ -2719,6 +2728,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       general: data.dec(_f$general),
       agents: data.dec(_f$agents),
       aiTextGeneration: data.dec(_f$aiTextGeneration),
+      textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
       diagnostics: data.dec(_f$diagnostics),
       terminal: data.dec(_f$terminal),
@@ -2796,6 +2806,8 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     AiTextGenerationSettings
   >
   get aiTextGeneration;
+  TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
+  get textActions;
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
   DiagnosticsSettingsCopyWith<$R, DiagnosticsSettings, DiagnosticsSettings>
   get diagnostics;
@@ -2810,6 +2822,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     GeneralSettings? general,
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
+    TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
     TerminalSettings? terminal,
@@ -2841,6 +2854,10 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   get aiTextGeneration =>
       $value.aiTextGeneration.copyWith.$chain((v) => call(aiTextGeneration: v));
   @override
+  TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
+  get textActions =>
+      $value.textActions.copyWith.$chain((v) => call(textActions: v));
+  @override
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor =>
       $value.editor.copyWith.$chain((v) => call(editor: v));
   @override
@@ -2862,6 +2879,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     GeneralSettings? general,
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
+    TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
     TerminalSettings? terminal,
@@ -2871,6 +2889,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
       if (general != null) #general: general,
       if (agents != null) #agents: agents,
       if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
+      if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
       if (diagnostics != null) #diagnostics: diagnostics,
       if (terminal != null) #terminal: terminal,
@@ -2882,6 +2901,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     general: data.get(#general, or: $value.general),
     agents: data.get(#agents, or: $value.agents),
     aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
+    textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),
     diagnostics: data.get(#diagnostics, or: $value.diagnostics),
     terminal: data.get(#terminal, or: $value.terminal),

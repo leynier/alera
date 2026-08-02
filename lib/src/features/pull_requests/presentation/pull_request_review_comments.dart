@@ -85,6 +85,7 @@ class _PullRequestCommentsSectionState
           TextField(
             controller: _controller,
             focusNode: _focusNode,
+            contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
             enabled: !_busy,
             minLines: 3,
             maxLines: 8,

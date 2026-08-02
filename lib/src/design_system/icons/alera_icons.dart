@@ -59,6 +59,7 @@ abstract final class AleraIcons {
   static const IconData back = LucideIcons.arrowLeft;
   static const IconData forward = LucideIcons.arrowRight;
   static const IconData more = LucideIcons.ellipsis;
+  static const IconData dragHandle = LucideIcons.gripVertical;
 
   // Files and folders
   static const IconData folder = LucideIcons.folder;

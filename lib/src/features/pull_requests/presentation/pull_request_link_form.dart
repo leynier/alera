@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
@@ -51,6 +52,7 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
         TextField(
           controller: widget.controller,
           focusNode: _focusNode,
+          contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
           enabled: !widget.busy,
           autofocus: true,
           style: theme.textTheme.bodySmall?.copyWith(

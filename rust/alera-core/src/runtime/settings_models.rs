@@ -20,6 +20,8 @@ pub struct RuntimeSettings {
     pub mobile_push_notifications: RuntimeMobilePushSettings,
     #[serde(default)]
     pub ai_text_generation: Option<RuntimeAiTextGenerationSettings>,
+    #[serde(default)]
+    pub text_actions: Option<RuntimeTextActionsSettings>,
 }
 
 impl Default for RuntimeSettings {
@@ -33,6 +35,7 @@ impl Default for RuntimeSettings {
             agent_quotas: RuntimeAgentQuotaSettings::default(),
             mobile_push_notifications: RuntimeMobilePushSettings::default(),
             ai_text_generation: None,
+            text_actions: None,
         }
     }
 }
@@ -93,6 +96,58 @@ pub struct RuntimeAiTextPromptSettings {
     pub agent: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeTextActionsSettings {
+    #[serde(default)]
+    pub actions: Vec<RuntimeTextAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeTextAction {
+    pub id: String,
+    pub name: String,
+    pub prompt: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub agent_override: Option<String>,
+    #[serde(default)]
+    pub model_override: Option<String>,
+    #[serde(default)]
+    pub reasoning_by_model: HashMap<String, String>,
+}
+
+impl RuntimeTextActionsSettings {
+    pub fn normalized(mut self) -> Self {
+        self.actions = self
+            .actions
+            .into_iter()
+            .map(RuntimeTextAction::normalized)
+            .collect();
+        self
+    }
+}
+
+impl RuntimeTextAction {
+    fn normalized(mut self) -> Self {
+        self.id = self.id.trim().to_string();
+        self.name = self.name.trim().to_string();
+        self.prompt = self.prompt.trim().to_string();
+        self.agent_override = self
+            .agent_override
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty());
+        self.model_override = self
+            .model_override
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        self.reasoning_by_model = normalized_string_map(self.reasoning_by_model);
+        self
+    }
 }
 
 impl Default for RuntimeAiTextGenerationSettings {

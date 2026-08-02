@@ -7,6 +7,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -59,6 +60,14 @@ class SettingsController extends _$SettingsController {
 
   Future<void> updateAiTextGeneration(AiTextGenerationSettings settings) async {
     await _save(state.copyWith(aiTextGeneration: settings));
+  }
+
+  Future<void> updateTextActions(TextActionsSettings settings) async {
+    await _save(state.copyWith(textActions: settings));
+  }
+
+  Future<void> resetTextActions() async {
+    await _save(state.copyWith(textActions: TextActionsSettings.defaults));
   }
 
   Future<void> resetAiTextGenerationSettings() async {

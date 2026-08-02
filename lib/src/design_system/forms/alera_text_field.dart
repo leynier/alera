@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -36,6 +37,7 @@ class AleraTextField extends StatelessWidget {
     this.fillColor,
     this.readOnly = false,
     this.enabled,
+    this.textActionsEnabled = true,
     this.minLines,
     this.maxLines = 1,
   });
@@ -68,6 +70,10 @@ class AleraTextField extends StatelessWidget {
   final Color? fillColor;
   final bool readOnly;
   final bool? enabled;
+
+  /// Keeps this field's native editing menu without the Text Actions entry.
+  final bool textActionsEnabled;
+
   final int? minLines;
   final int? maxLines;
 
@@ -78,6 +84,12 @@ class AleraTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textActionsAvailable =
+        textActionsEnabled &&
+        AleraTextActionsScope.maybeOf(context)?.enabled == true;
+    final contextMenuBuilder = onPaste != null || textActionsAvailable
+        ? _buildContextMenu
+        : null;
     if (!dense) {
       final field = TextField(
         controller: controller,
@@ -90,7 +102,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
-        contextMenuBuilder: onPaste == null ? null : _buildContextMenu,
+        contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
@@ -118,7 +130,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
-        contextMenuBuilder: onPaste == null ? null : _buildContextMenu,
+        contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
@@ -190,43 +202,12 @@ class AleraTextField extends StatelessWidget {
     BuildContext context,
     EditableTextState editableTextState,
   ) {
-    final items = List<ContextMenuButtonItem>.from(
-      editableTextState.contextMenuButtonItems,
+    return AleraTextActionsScope.buildContextMenu(
+      context,
+      editableTextState,
+      onPaste: onPaste,
+      textActionsEnabled: textActionsEnabled,
     );
-    final pasteItem = ContextMenuButtonItem(
-      onPressed: () {
-        unawaited(_pasteFromContextMenu(editableTextState));
-      },
-      type: ContextMenuButtonType.paste,
-    );
-    final pasteIndex = items.indexWhere(
-      (item) => item.type == ContextMenuButtonType.paste,
-    );
-    if (pasteIndex >= 0) {
-      items[pasteIndex] = pasteItem;
-    } else {
-      final selectAllIndex = items.indexWhere(
-        (item) => item.type == ContextMenuButtonType.selectAll,
-      );
-      items.insert(
-        selectAllIndex >= 0 ? selectAllIndex : items.length,
-        pasteItem,
-      );
-    }
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editableTextState.contextMenuAnchors,
-      buttonItems: items,
-    );
-  }
-
-  Future<void> _pasteFromContextMenu(
-    EditableTextState editableTextState,
-  ) async {
-    final paste = onPaste;
-    if (paste == null || await paste()) {
-      return;
-    }
-    await editableTextState.pasteText(SelectionChangedCause.toolbar);
   }
 
   OutlineInputBorder _denseBorder(Color color) => OutlineInputBorder(
