@@ -126,6 +126,7 @@ class AgentProfileEditor extends StatelessWidget {
                       left: AleraTokens.space12,
                       right: AleraTokens.space12,
                       top: AleraTokens.space8,
+                      bottom: AleraTokens.space12,
                     ),
                     child: Align(
                       alignment: Alignment.centerRight,
@@ -173,6 +174,7 @@ class AgentProfileEditor extends StatelessWidget {
                         left: AleraTokens.space12,
                         right: AleraTokens.space12,
                         top: AleraTokens.space8,
+                        bottom: AleraTokens.space12,
                       ),
                       child: Align(
                         alignment: Alignment.centerRight,
