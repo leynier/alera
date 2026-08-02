@@ -18,9 +18,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     this._onExit,
     this._onVisibilityChanged,
   ) {
-    if (_settings.showComposerByDefault) {
-      composerController.show();
-    }
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
     _attachTerminal(_terminal);
