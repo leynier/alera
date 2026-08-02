@@ -169,7 +169,7 @@ String cleanGeneratedText(String raw) {
   if (fenced != null) {
     text = fenced.group(1)!.trim();
   }
-  return text.replaceFirst(RegExp(r'^\s*(?:[-*]\s+|\d+[.)]\s+)'), '').trim();
+  return text;
 }
 
 String cleanGeneratedCommitMessage(String raw) {

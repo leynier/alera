@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -326,6 +327,7 @@ class _InstructionSettingRowState extends State<InstructionSettingRow> {
       child: TextField(
         controller: _controller,
         focusNode: _focusNode,
+        contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
         minLines: 2,
         maxLines: 4,
         onEditingComplete: _commit,

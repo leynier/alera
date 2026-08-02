@@ -1,5 +1,6 @@
 use alera_core::runtime::{
     RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeMobilePushSettings,
+    RuntimeTextActionsSettings,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -130,6 +131,12 @@ impl ServerActor {
                     .set_ai_text_generation_settings(settings)
                     .await,
             )?;
+        }
+        if let Some(value) = payload.get("textActions") {
+            let settings: RuntimeTextActionsSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("textActions is invalid."))?;
+            validate_text_actions_settings(&settings)?;
+            runtime_value(self.runtime_store.set_text_actions_settings(settings).await)?;
         }
         let value = runtime_value(self.runtime_store.runtime_settings().await)?;
         self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
@@ -303,6 +310,42 @@ fn validate_ai_text_generation_settings(
     Ok(())
 }
 
+fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> HostResult<()> {
+    const AGENTS: [&str; 10] = [
+        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+    ];
+    let mut ids = std::collections::HashSet::new();
+    let mut names = std::collections::HashSet::new();
+    for action in &settings.actions {
+        if action.id.trim().is_empty()
+            || action.name.trim().is_empty()
+            || action.prompt.trim().is_empty()
+        {
+            return Err(HostError::format(
+                "textActions actions require an id, name, and prompt.",
+            ));
+        }
+        if !ids.insert(action.id.trim()) {
+            return Err(HostError::format("textActions action ids must be unique."));
+        }
+        if !names.insert(action.name.trim().to_ascii_lowercase()) {
+            return Err(HostError::format(
+                "textActions action names must be unique.",
+            ));
+        }
+        if action
+            .agent_override
+            .as_deref()
+            .is_some_and(|agent| !AGENTS.contains(&agent.trim()))
+        {
+            return Err(HostError::format(
+                "textActions contains an unsupported agent.",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_agent_quota_settings(
     settings: &RuntimeAgentQuotaSettings,
 ) -> HostResult<()> {
@@ -363,4 +406,50 @@ pub(super) fn required_non_blank(payload: &Value, key: &str) -> HostResult<Strin
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .ok_or_else(|| HostError::format(format!("{key} must be a non-empty string.")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_text_actions_settings;
+    use alera_core::runtime::{RuntimeTextAction, RuntimeTextActionsSettings};
+    use std::collections::HashMap;
+
+    #[test]
+    fn text_action_names_are_case_insensitively_unique() {
+        let action = |id: &str, name: &str, prompt: &str| RuntimeTextAction {
+            id: id.to_string(),
+            name: name.to_string(),
+            prompt: prompt.to_string(),
+            enabled: true,
+            agent_override: None,
+            model_override: None,
+            reasoning_by_model: HashMap::new(),
+        };
+        let settings = RuntimeTextActionsSettings {
+            actions: vec![
+                action("one", "Polish", "Improve"),
+                action("two", "polish", "Summarize"),
+            ],
+        };
+
+        assert!(validate_text_actions_settings(&settings).is_err());
+    }
+
+    #[test]
+    fn text_action_ids_are_unique() {
+        let action = |name: &str| RuntimeTextAction {
+            id: "same-id".to_string(),
+            name: name.to_string(),
+            prompt: "Improve".to_string(),
+            enabled: true,
+            agent_override: None,
+            model_override: None,
+            reasoning_by_model: HashMap::new(),
+        };
+        let settings = RuntimeTextActionsSettings {
+            actions: vec![action("Polish"), action("Summarize")],
+        };
+
+        assert!(validate_text_actions_settings(&settings).is_err());
+    }
 }

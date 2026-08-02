@@ -43,6 +43,8 @@ mod runtime_schema;
 mod schema_migrations;
 mod settings_models;
 mod settings_store;
+#[cfg(test)]
+mod settings_store_tests;
 mod store;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;

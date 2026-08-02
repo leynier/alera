@@ -26,6 +26,8 @@ const _legacyDriftPortableSettingsMigrationKey =
     'legacy_drift_portable_settings_migrated_v2';
 const _legacyDriftAiTextSettingsMigrationKey =
     'legacy_drift_ai_text_settings_migrated_v1';
+const _legacyDriftTextActionsSettingsMigrationKey =
+    'legacy_drift_text_actions_settings_migrated_v1';
 
 @Riverpod(keepAlive: true)
 RuntimeStateMigration runtimeStateMigration(Ref ref) {
@@ -120,6 +122,14 @@ final class RuntimeStateMigration {
       await _migrateAiTextSettings(legacy);
       await _setMetadataValue(_legacyDriftAiTextSettingsMigrationKey, 'true');
     }
+    if (await _metadataValue(_legacyDriftTextActionsSettingsMigrationKey) !=
+        'true') {
+      await _migrateTextActionsSettings(legacy);
+      await _setMetadataValue(
+        _legacyDriftTextActionsSettingsMigrationKey,
+        'true',
+      );
+    }
   }
 
   Future<void> _migratePortableSettings(
@@ -151,6 +161,19 @@ final class RuntimeStateMigration {
       <String, Object?>{
         'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
       },
+    );
+  }
+
+  Future<void> _migrateTextActionsSettings(
+    RuntimeStateLegacyRepositories legacy,
+  ) async {
+    if (await _metadataValue('settings.textActions') != null) {
+      return;
+    }
+    final settings = await legacy.settingsRepository.load();
+    await _runtimeClient.runtimeRequest(
+      'runtimeSettings.update',
+      <String, Object?>{'textActions': settings.textActions.toMap()},
     );
   }
 

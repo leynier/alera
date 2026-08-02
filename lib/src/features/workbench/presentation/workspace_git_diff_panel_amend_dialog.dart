@@ -49,6 +49,7 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
             const SizedBox(height: AleraTokens.space16),
             TextField(
               controller: _controller,
+              contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
               autofocus: true,
               minLines: 4,
               maxLines: 8,

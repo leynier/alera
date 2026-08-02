@@ -106,6 +106,8 @@ Terminal clipboard integration is explicit at the runtime boundary. Text takes p
 
 AI Text generation delegates source-control copy to a user-installed agent CLI. Settings define a global agent and model, while each supported prompt can independently override either value or inherit it. The runtime stores the portable execution settings so desktop and mobile workspace-identity generation resolve the same effective configuration.
 
+Desktop Text Actions are reusable, ordered instructions that run the shared agent runner against a captured selection in an editable field. Each action persists under the additive runtime `textActions` setting with a stable id, optional agent/model overrides, and per-model reasoning; older hosts omit that field and the local settings repository remains the fallback. The menu is available only when AI Text is enabled and at least one action is enabled, and a replacement is applied only when the complete editing value is unchanged after the run.
+
 Grok Build participates in the existing commit-message flow through `grok models` discovery and headless `--prompt-file` execution. Alera writes the generated prompt into a private temporary directory, disables Grok tools, subagents, memory, and web access for that invocation, and uses a disposable `GROK_HOME` containing temporary copies of the current authentication and configuration policy files. The directory, including Grok's automatically persisted session, is removed on success, failure, timeout, or cancellation. The default reasoning option leaves Grok's model-specific effort unchanged; explicit levels are forwarded with `--effort`.
 
 ## Agent Hook Status
