@@ -24,6 +24,57 @@ void main() {
     expect(matches.first.definition.id, KeyboardActionId.openCommandPalette);
   });
 
+  test(
+    'keyword prefixes, contains matches, and fuzzy labels are searchable',
+    () {
+      expect(
+        filterKeyboardCommandPalette('act').first.definition.id,
+        KeyboardActionId.openCommandPalette,
+      );
+      expect(
+        filterKeyboardCommandPalette('tions').first.definition.id,
+        KeyboardActionId.openCommandPalette,
+      );
+      expect(
+        filterKeyboardCommandPalette('dialog').first.definition.id,
+        KeyboardActionId.openSettings,
+      );
+      expect(
+        filterKeyboardCommandPalette('cmdp').first.definition.id,
+        KeyboardActionId.openCommandPalette,
+      );
+    },
+  );
+
+  test('identical labels use the stable action id as a tie breaker', () {
+    final definitions = <KeybindingDefinition>[
+      const KeybindingDefinition(
+        id: KeyboardActionId.openSettings,
+        label: 'Same Action',
+        group: KeyboardActionGroup.global,
+        description: 'First.',
+        defaultBindings: PlatformBindings.uniform(<String>['Mod+1']),
+      ),
+      const KeybindingDefinition(
+        id: KeyboardActionId.addProject,
+        label: 'Same Action',
+        group: KeyboardActionGroup.global,
+        description: 'Second.',
+        defaultBindings: PlatformBindings.uniform(<String>['Mod+2']),
+      ),
+    ];
+
+    final matches = filterKeyboardCommandPalette(
+      'same action',
+      definitions: definitions,
+    );
+
+    expect(matches.map((match) => match.definition.id), <KeyboardActionId>[
+      KeyboardActionId.addProject,
+      KeyboardActionId.openSettings,
+    ]);
+  });
+
   test('command results are bounded with stable label ordering', () {
     final definitions = <KeybindingDefinition>[
       const KeybindingDefinition(

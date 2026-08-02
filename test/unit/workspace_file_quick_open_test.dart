@@ -56,6 +56,16 @@ void main() {
     );
   });
 
+  test('contains matches are ranked before fuzzy matches', () {
+    final matches = rankWorkspaceFileQuickOpenMatches(<String>[
+      'lib/terminal.dart',
+      'lib/microtasks.dart',
+    ], 'minal');
+
+    expect(matches.first.relativePath, 'lib/terminal.dart');
+    expect(matches.first.score, greaterThan(1000));
+  });
+
   test('result count is bounded and ties have stable ordering', () {
     final matches = rankWorkspaceFileQuickOpenMatches(
       <String>['src/b.dart', 'src/a.dart', 'src/c.dart'],
