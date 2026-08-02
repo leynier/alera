@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
@@ -104,6 +105,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_terminalOf(tester), same(before));
+  });
+
+  testWidgets('Raw restore bytes are released after reaching the emulator', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = Uint8List.fromList(utf8.encode('restored'));
+
+    await _pumpTab(tester, client);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TerminalTabView)),
+    );
+    final session = container
+        .read(terminalSessionControllerProvider('host-1', 'tab-1'))
+        .requireValue;
+    expect(session.retainedSnapshotBytes, 0);
   });
 
   testWidgets('Paste quick action writes clipboard text without Enter', (
