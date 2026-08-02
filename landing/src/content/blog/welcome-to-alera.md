@@ -31,4 +31,4 @@ curl -fsSL https://alera.build/install.sh | sh
 
 Then open Alera and start an agent the same way you would in any terminal. If something feels off, we want to hear about it: issues and feedback live on [GitHub](https://github.com/leynier/alera), and we read them.
 
-This is an early preview and it is moving fast. We will use this blog to write honestly about what we are building, what broke along the way, and what we changed our minds about. Thanks for being here at the start.
+This is a public beta and it is moving fast. We will use this blog to write honestly about what we are building, what broke along the way, and what we changed our minds about. Thanks for being here at the start.
