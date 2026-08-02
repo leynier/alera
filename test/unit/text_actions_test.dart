@@ -75,6 +75,31 @@ void main() {
     expect(decoded.toMap(), settings.toMap());
   });
 
+  test('reports inheritance and decodes an individual action', () {
+    const inherited = TextAction(
+      id: 'inherited',
+      name: 'Inherited',
+      prompt: 'Improve.',
+    );
+    const overridden = TextAction(
+      id: 'overridden',
+      name: 'Overridden',
+      prompt: 'Improve.',
+      agentOverride: AiTextGenerationAgent.claude,
+      modelOverride: 'claude-sonnet-4-6',
+    );
+
+    expect(inherited.inheritsAgent, isTrue);
+    expect(inherited.inheritsModel, isTrue);
+    expect(overridden.inheritsAgent, isFalse);
+    expect(overridden.inheritsModel, isFalse);
+    expect(
+      overridden.effectiveModel(AiTextGenerationSettings.defaults),
+      'claude-sonnet-4-6',
+    );
+    expect(TextAction.fromJson(overridden.toMap()).toMap(), overridden.toMap());
+  });
+
   test('duplicates with a new id and stable copy name', () {
     final settings = TextActionsSettings(actions: <TextAction>[first, second]);
     final duplicate = TextActionsMutations.duplicate(settings, first);
@@ -86,16 +111,28 @@ void main() {
 
     final copiedAgain = TextActionsMutations.duplicate(duplicate, first);
     expect(copiedAgain.actions[1].name, 'Polish Copy 2');
+
+    final copiedThird = TextActionsMutations.duplicate(copiedAgain, first);
+    expect(copiedThird.actions[1].name, 'Polish Copy 3');
   });
 
   test('updates and deletes actions without disturbing saved order', () {
     final settings = TextActionsSettings(actions: <TextAction>[first, second]);
+    final appended = TextActionsMutations.append(
+      settings,
+      first.copyWith(id: 'third', name: 'Third'),
+    );
     final updated = TextActionsMutations.update(
       settings,
       first.copyWith(prompt: 'Updated.'),
     );
     final deleted = TextActionsMutations.delete(updated, second.id);
 
+    expect(appended.actions.map((action) => action.id), <String>[
+      'first',
+      'second',
+      'third',
+    ]);
     expect(updated.actions.map((action) => action.id), <String>[
       'first',
       'second',
@@ -130,6 +167,13 @@ void main() {
     final reordered = TextActionsMutations.reorder(settings, 0, 3);
 
     expect(reordered.actions.map((action) => action.id), <String>[
+      'second',
+      'third',
+      'first',
+    ]);
+
+    final clamped = TextActionsMutations.reorder(settings, 0, 99);
+    expect(clamped.actions.map((action) => action.id), <String>[
       'second',
       'third',
       'first',
