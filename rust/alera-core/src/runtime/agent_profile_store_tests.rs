@@ -19,6 +19,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
         command: "codex".to_string(),
         launch_mode: AgentProfileLaunchMode::Command,
         managed_config: None,
+        custom_prompt: String::new(),
         description: String::new(),
         quota_group: None,
         created_at: now,
@@ -98,12 +99,14 @@ async fn trims_fields_and_drops_a_blank_quota_group() {
     let (_dir, store) = store().await;
     let mut raw = profile("prof_a", "  Codex Sol  ");
     raw.command = "  codex  ".to_string();
+    raw.custom_prompt = "  Always Explain The Tradeoffs  ".to_string();
     raw.description = "  Backend work  ".to_string();
     raw.quota_group = Some("   ".to_string());
 
     let stored = store.upsert_agent_profile(raw).await.unwrap();
     assert_eq!(stored.name, "Codex Sol");
     assert_eq!(stored.command, "codex");
+    assert_eq!(stored.custom_prompt, "Always Explain The Tradeoffs");
     assert_eq!(stored.description, "Backend work");
     assert_eq!(stored.quota_group, None);
 }
@@ -194,6 +197,7 @@ async fn migrates_existing_profiles_to_command_mode() {
     assert_eq!(profile.launch_mode, AgentProfileLaunchMode::Command);
     assert_eq!(profile.command, "codex --search");
     assert_eq!(profile.managed_config, None);
+    assert_eq!(profile.custom_prompt, "");
 }
 
 #[tokio::test]

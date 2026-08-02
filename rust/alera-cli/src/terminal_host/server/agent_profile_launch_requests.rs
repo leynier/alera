@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupDelivery};
 
+use super::agent_prompt_composition::compose_agent_prompt;
 use super::host_service_requests::required_non_blank;
 use super::orchestration_profile_spawn::launch_for_profile;
 use super::ServerActor;
@@ -35,16 +36,17 @@ impl ServerActor {
                 "Could not load project configuration: {error}"
             )));
         }
-        let prompt = append_project_prompt(
-            &prompt,
-            &effective_config.config.new_workspace.prompt_append,
-        );
         let profile = self
             .runtime_store
             .find_agent_profile(&profile_id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Agent profile not found: {profile_id}")))?;
+        let prompt = compose_agent_prompt(
+            &prompt,
+            &profile.custom_prompt,
+            &effective_config.config.new_workspace.prompt_append,
+        );
         let adapter = adapter_for(&profile.agent_type).ok_or_else(|| {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
         })?;
@@ -150,34 +152,5 @@ impl ServerActor {
             tracing::error!(tab_id = %tab_id, "failed to clear pending agent prompt: {error}");
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
-    }
-}
-
-fn append_project_prompt(prompt: &str, prompt_append: &str) -> String {
-    let prompt_append = prompt_append.trim();
-    if prompt_append.is_empty() {
-        return prompt.to_string();
-    }
-    format!("{}\n\n{prompt_append}", prompt.trim())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::append_project_prompt;
-
-    #[test]
-    fn appends_project_instructions_with_a_paragraph_boundary() {
-        assert_eq!(
-            append_project_prompt("Build The Feature", "Run Focused Tests"),
-            "Build The Feature\n\nRun Focused Tests"
-        );
-    }
-
-    #[test]
-    fn leaves_the_prompt_unchanged_without_project_instructions() {
-        assert_eq!(
-            append_project_prompt("Build The Feature", "  "),
-            "Build The Feature"
-        );
     }
 }

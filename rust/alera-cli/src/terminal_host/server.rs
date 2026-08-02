@@ -54,6 +54,7 @@ mod account_requests_tests;
 mod actor_test_harness;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
+mod agent_prompt_composition;
 mod ai_text_grok_plan;
 mod ai_text_requests;
 mod ai_text_workspace_identity;

@@ -118,6 +118,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         command TEXT NOT NULL,
         launchMode TEXT NOT NULL DEFAULT 'command',
         managedConfig TEXT,
+        customPrompt TEXT NOT NULL DEFAULT '',
         description TEXT NOT NULL DEFAULT '',
         quotaGroup TEXT,
         createdAt TEXT NOT NULL,

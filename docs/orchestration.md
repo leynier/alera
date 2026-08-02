@@ -35,7 +35,7 @@ alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped b
 
 ## Agent Profile Catalog
 
-An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, a launch mode, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
+An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, a launch mode, a custom prompt, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
 
 ```bash
 alera orchestration agent-profiles --json
@@ -54,6 +54,8 @@ A managed Claude profile can also pass `--allow-dangerously-skip-permissions` th
 A managed Claude profile may also carry an optional `ccsProfile`. When it is set, the launch replaces the executable with `ccs` and passes the profile as its first positional argument, followed by the same Claude flags, because that is the switcher's own contract (`ccs <profile> [claude-args...]`). The value must be a single name that does not start with a dash: it is positional, so a dash-prefixed value would be read as an option of the switcher itself. Only the Claude adapter accepts the key; the host rejects it anywhere else. Note that `ccs` points `CLAUDE_CONFIG_DIR` at its own profile directory, which is where Alera installs the Claude agent-status hooks, so a session launched through a CCS profile reports status only if that profile inherits those hooks.
 
 Command mode also has to say where the dispatched prompt goes, because the user writes the whole launch line there. That follows the adapter's `startup_delivery`: Codex receives the prompt as one quoted argument after the option terminator, and every other adapter launches bare and has the prompt typed in once it reports readiness. The editor states which of the two applies and, for the argument form, previews the resulting line.
+
+The profile's Custom Prompt is added after the prompt supplied by New Workspace or `orchestration agent-spawn`, when it is non-empty. The project's `new_workspace.prompt_append` is added last, so every delivered prompt has the order user prompt, profile instructions, then project instructions, with blank lines between non-empty sections.
 
 The quota group declares which profiles drain the same usage bucket. Alera never measures, predicts, or verifies quota here; the grouping is an assertion the user makes, and its only purpose is to let a later fallback prefer a candidate from a different bucket.
 

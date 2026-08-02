@@ -16,6 +16,7 @@ void main() {
         'name': 'Codex Sol',
         'agentType': 'codex',
         'command': 'codex --model gpt-5.6-sol',
+        'customPrompt': 'Prefer Small, Reviewable Changes',
         'description': 'Backend implementation',
         'quotaGroup': 'codex-personal',
         'createdAt': '2026-07-01T00:00:00.000Z',
@@ -25,10 +26,15 @@ void main() {
       expect(profile.name, 'Codex Sol');
       expect(profile.agentType, 'codex');
       expect(profile.command, 'codex --model gpt-5.6-sol');
+      expect(profile.customPrompt, 'Prefer Small, Reviewable Changes');
       expect(profile.launchMode, AgentProfileLaunchMode.command);
       expect(profile.quotaGroup, 'codex-personal');
       expect(profile.createdAt, DateTime.utc(2026, 7));
       expect(profile.toJson()['quotaGroup'], 'codex-personal');
+      expect(
+        profile.toJson()['customPrompt'],
+        'Prefer Small, Reviewable Changes',
+      );
     });
 
     test('parses managed configuration from a host payload', () {
@@ -171,6 +177,7 @@ void main() {
         agentType: 'codex',
         launchMode: AgentProfileLaunchMode.command,
         command: 'codex',
+        customPrompt: 'Prefer Small, Reviewable Changes',
       );
 
       final payload = client.payloads['agentProfile.upsert']!.single;
@@ -178,6 +185,7 @@ void main() {
       expect(payload['name'], 'Codex Sol');
       expect(payload['launchMode'], 'command');
       expect(payload['quotaGroup'], isNull);
+      expect(payload['customPrompt'], 'Prefer Small, Reviewable Changes');
     });
 
     test('upsert sends the id when updating a profile', () async {
@@ -194,12 +202,14 @@ void main() {
         agentType: 'codex',
         launchMode: AgentProfileLaunchMode.command,
         command: 'codex',
+        customPrompt: 'Use The Team Conventions',
         quotaGroup: 'codex-personal',
       );
 
       final payload = client.payloads['agentProfile.upsert']!.single;
       expect(payload['id'], 'prof_1');
       expect(payload['quotaGroup'], 'codex-personal');
+      expect(payload['customPrompt'], 'Use The Team Conventions');
     });
 
     test('controller clone reuses all profile fields without its id', () async {
@@ -230,6 +240,7 @@ void main() {
         agentType: 'codex',
         command: 'codex --model sol',
         description: 'Backend implementation',
+        customPrompt: 'Prefer Small, Reviewable Changes',
         quotaGroup: 'codex-personal',
         createdAt: DateTime.utc(2026, 7),
         updatedAt: DateTime.utc(2026, 7),
@@ -244,6 +255,7 @@ void main() {
       expect(payload['command'], 'codex --model sol');
       expect(payload['description'], 'Backend implementation');
       expect(payload['quotaGroup'], 'codex-personal');
+      expect(payload['customPrompt'], 'Prefer Small, Reviewable Changes');
     });
 
     test('managed upsert sends structured config and no raw command', () async {
@@ -398,6 +410,7 @@ Map<String, Object?> _profilePayload(String id, String name) {
     'name': name,
     'agentType': 'codex',
     'command': 'codex',
+    'customPrompt': '',
     'description': '',
     'quotaGroup': null,
     'createdAt': '2026-07-01T00:00:00.000Z',

@@ -41,6 +41,7 @@ class RuntimeAgentProfileRepository {
     required AgentProfileLaunchMode launchMode,
     String command = '',
     Map<String, Object?> managedConfig = const <String, Object?>{},
+    String customPrompt = '',
     String description = '',
     String? quotaGroup,
   }) async {
@@ -58,6 +59,7 @@ class RuntimeAgentProfileRepository {
         'launchMode': launchMode.name,
         if (launchMode == AgentProfileLaunchMode.managed)
           'managedConfig': managedConfig,
+        'customPrompt': customPrompt,
         'description': description,
         'quotaGroup': quotaGroup,
       },

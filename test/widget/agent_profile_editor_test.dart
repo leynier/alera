@@ -65,6 +65,7 @@ void main() {
     );
 
     expect(find.text('Prompt Delivery'), findsOneWidget);
+    expect(find.text('Custom Prompt'), findsOneWidget);
     expect(
       find.textContaining('appends the dispatched prompt'),
       findsOneWidget,
@@ -254,6 +255,7 @@ class _EditorHarness extends StatefulWidget {
 class _EditorHarnessState extends State<_EditorHarness> {
   late final TextEditingController _nameController;
   late final TextEditingController _commandController;
+  late final TextEditingController _customPromptController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _quotaGroupController;
 
@@ -262,6 +264,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
     super.initState();
     _nameController = TextEditingController(text: 'Codex');
     _commandController = TextEditingController(text: 'codex');
+    _customPromptController = TextEditingController();
     _descriptionController = TextEditingController();
     _quotaGroupController = TextEditingController();
   }
@@ -270,6 +273,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
   void dispose() {
     _nameController.dispose();
     _commandController.dispose();
+    _customPromptController.dispose();
     _descriptionController.dispose();
     _quotaGroupController.dispose();
     super.dispose();
@@ -285,6 +289,7 @@ class _EditorHarnessState extends State<_EditorHarness> {
           child: AgentProfileEditor(
             nameController: _nameController,
             commandController: _commandController,
+            customPromptController: _customPromptController,
             descriptionController: _descriptionController,
             quotaGroupController: _quotaGroupController,
             adapter: widget.adapter,

@@ -19,6 +19,7 @@ class AgentProfileEditor extends StatelessWidget {
     super.key,
     required this.nameController,
     required this.commandController,
+    required this.customPromptController,
     required this.descriptionController,
     required this.quotaGroupController,
     required this.adapter,
@@ -44,6 +45,7 @@ class AgentProfileEditor extends StatelessWidget {
 
   final TextEditingController nameController;
   final TextEditingController commandController;
+  final TextEditingController customPromptController;
   final TextEditingController descriptionController;
   final TextEditingController quotaGroupController;
   final AgentType adapter;
@@ -190,6 +192,18 @@ class AgentProfileEditor extends StatelessWidget {
                     ),
                   ],
                 ),
+              Padding(
+                padding: const EdgeInsets.all(AleraTokens.space12),
+                child: AleraTextField(
+                  controller: customPromptController,
+                  labelText: 'Custom Prompt',
+                  hintText: 'Optional instructions for every dispatched task',
+                  prefixIcon: AleraIcons.agent,
+                  minLines: 3,
+                  maxLines: 8,
+                  enabled: !saving,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AleraTokens.space16),
