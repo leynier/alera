@@ -16,6 +16,7 @@ pub(super) struct ResourceMonitorState {
     ticker: DemandDrivenTicker,
     last_snapshot: Option<Value>,
     sample_in_flight: bool,
+    release_sampler_when_ready: bool,
     /// Pid of the app process to attribute, as reported by the last caller.
     app_pid: Option<u32>,
 }
@@ -27,6 +28,7 @@ impl Default for ResourceMonitorState {
             ticker: DemandDrivenTicker::new(RESOURCE_IDLE_STOP),
             last_snapshot: None,
             sample_in_flight: false,
+            release_sampler_when_ready: false,
             app_pid: None,
         }
     }
@@ -35,7 +37,27 @@ impl Default for ResourceMonitorState {
 impl ResourceMonitorState {
     fn stop_ticker(&mut self) {
         self.ticker.stop();
+        self.last_snapshot = None;
+        self.app_pid = None;
+        if self.sample_in_flight {
+            self.release_sampler_when_ready = true;
+        } else if let Ok(mut sampler) = self.sampler.lock() {
+            sampler.release_process_cache();
+        }
+    }
+
+    fn finish_sample(&mut self, snapshot: Value) {
         self.sample_in_flight = false;
+        if self.release_sampler_when_ready {
+            self.release_sampler_when_ready = false;
+            if let Ok(mut sampler) = self.sampler.lock() {
+                sampler.release_process_cache();
+            }
+            if self.ticker.is_idle() {
+                return;
+            }
+        }
+        self.last_snapshot = Some(snapshot);
     }
 }
 
@@ -104,8 +126,7 @@ impl ServerActor {
     }
 
     pub(super) fn handle_resource_sample_ready(&mut self, snapshot: Value) {
-        self.resources.sample_in_flight = false;
-        self.resources.last_snapshot = Some(snapshot);
+        self.resources.finish_sample(snapshot);
     }
 
     fn resource_session_roots(&self) -> Vec<SessionPidRoot> {
@@ -161,5 +182,58 @@ mod tests {
         assert!(parse_app_pid(&json!({ "appPid": 0 })).is_err());
         assert!(parse_app_pid(&json!({ "appPid": -1 })).is_err());
         assert!(parse_app_pid(&json!({ "appPid": "one" })).is_err());
+    }
+
+    #[test]
+    fn stopping_an_idle_monitor_releases_cached_resources() {
+        let mut resources = ResourceMonitorState::default();
+        resources
+            .sampler
+            .lock()
+            .unwrap()
+            .sample(&[], std::process::id(), None);
+        resources.last_snapshot = Some(json!({"sample": true}));
+        resources.app_pid = Some(42);
+
+        resources.stop_ticker();
+
+        assert!(resources.last_snapshot.is_none());
+        assert!(resources.app_pid.is_none());
+        assert_eq!(
+            resources
+                .sampler
+                .lock()
+                .unwrap()
+                .sample(&[], std::process::id(), None)["warming"],
+            json!(true)
+        );
+    }
+
+    #[test]
+    fn an_in_flight_idle_sample_is_discarded_before_releasing_its_cache() {
+        let mut resources = ResourceMonitorState::default();
+        resources
+            .sampler
+            .lock()
+            .unwrap()
+            .sample(&[], std::process::id(), None);
+        resources.sample_in_flight = true;
+
+        resources.stop_ticker();
+        assert!(resources.release_sampler_when_ready);
+
+        resources.finish_sample(json!({"stale": true}));
+
+        assert!(!resources.sample_in_flight);
+        assert!(!resources.release_sampler_when_ready);
+        assert!(resources.last_snapshot.is_none());
+        assert_eq!(
+            resources
+                .sampler
+                .lock()
+                .unwrap()
+                .sample(&[], std::process::id(), None)["warming"],
+            json!(true)
+        );
     }
 }

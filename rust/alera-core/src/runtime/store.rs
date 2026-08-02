@@ -23,6 +23,7 @@ use super::{
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
 pub const LOCAL_HOST_ID: &str = "local";
+const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
 
 #[derive(Debug, Error)]
 pub enum RuntimeStoreError {
@@ -54,7 +55,14 @@ impl RuntimeStore {
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal);
-        let pool = SqlitePoolOptions::new().connect_with(options).await?;
+        // SQLite gives every pooled connection its own worker thread. The
+        // runtime actor serializes ordinary mutations, while a few background
+        // jobs can read concurrently, so the default of ten only leaves idle
+        // threads and connection-local caches behind after a burst.
+        let pool = SqlitePoolOptions::new()
+            .max_connections(RUNTIME_STORE_MAX_CONNECTIONS)
+            .connect_with(options)
+            .await?;
         let store = RuntimeStore { pool };
         store.migrate().await?;
         harden_sqlite_files(&path)?;
@@ -1754,6 +1762,16 @@ fn empty_to_none(value: Option<String>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn connection_pool_is_bounded_for_sqlite_worker_threads() {
+        let (_dir, store) = store().await;
+
+        assert_eq!(
+            store.pool.options().get_max_connections(),
+            RUNTIME_STORE_MAX_CONNECTIONS
+        );
+    }
 
     async fn store() -> (tempfile::TempDir, RuntimeStore) {
         let dir = tempfile::tempdir().unwrap();

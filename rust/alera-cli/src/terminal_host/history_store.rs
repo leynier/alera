@@ -9,6 +9,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 use sqlx::{Row, SqlitePool};
 
 pub const HISTORY_DATABASE_FILE_NAME: &str = "terminal_history.sqlite";
+const HISTORY_STORE_MAX_CONNECTIONS: u32 = 2;
 
 const CREATE_CHECKPOINTS_TABLE_SQL: &str = "\
 CREATE TABLE IF NOT EXISTS checkpoints (\n\
@@ -65,7 +66,13 @@ impl TerminalHostHistoryStore {
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal);
-        let pool = SqlitePoolOptions::new().connect_with(options).await?;
+        // SQLite runs one worker thread per pooled connection. Output writes
+        // are serialized by SQLite itself; a second connection lets a read or
+        // trim proceed without retaining the default pool of ten threads.
+        let pool = SqlitePoolOptions::new()
+            .max_connections(HISTORY_STORE_MAX_CONNECTIONS)
+            .connect_with(options)
+            .await?;
         destroy_legacy_checkpoint_schema(&pool).await?;
         destroy_unsequenced_output_chunks_schema(&pool).await?;
         sqlx::query(CREATE_CHECKPOINTS_TABLE_SQL)
