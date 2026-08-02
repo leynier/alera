@@ -7,7 +7,8 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
@@ -131,6 +132,10 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("agentProfile.launch"));
     assert!(mobile_request_allowed("aiText.workspaceIdentity.generate"));
     assert!(mobile_request_allowed("aiText.cancel"));
+    assert!(mobile_request_allowed("mobile.promptImage.start"));
+    assert!(mobile_request_allowed("mobile.promptImage.chunk"));
+    assert!(mobile_request_allowed("mobile.promptImage.complete"));
+    assert!(mobile_request_allowed("mobile.promptImage.cancel"));
 }
 
 #[test]
@@ -240,6 +245,7 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY));
 }
 
 #[test]

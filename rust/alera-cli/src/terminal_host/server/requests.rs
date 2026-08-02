@@ -1179,6 +1179,26 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.launch_agent_profile(payload).await
             }
+            "mobile.promptImage.start" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_prompt_image_upload(payload)
+            }
+            "mobile.promptImage.chunk" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.append_mobile_prompt_image_chunk(payload)
+            }
+            "mobile.promptImage.complete" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.complete_mobile_prompt_image_upload(payload)
+            }
+            "mobile.promptImage.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.cancel_mobile_prompt_image_upload(payload)
+            }
             "aiText.cancel" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

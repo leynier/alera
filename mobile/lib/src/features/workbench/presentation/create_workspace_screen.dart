@@ -8,6 +8,8 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:alera_mobile/src/features/workbench/application/prompt_workspace_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/workspace_parent_selection_order.dart';
+import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/prompt_image_insertion.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,8 @@ class CreateWorkspaceScreen extends ConsumerStatefulWidget {
     required this.workspaces,
     this.defaultAgentProfileId,
     this.supportsPromptWorkspaceCreation = true,
+    this.supportsPromptImageUpload = false,
+    this.promptImagePicker,
   });
 
   final String hostId;
@@ -30,6 +34,8 @@ class CreateWorkspaceScreen extends ConsumerStatefulWidget {
   final List<WorkspaceSummary> workspaces;
   final String? defaultAgentProfileId;
   final bool supportsPromptWorkspaceCreation;
+  final bool supportsPromptImageUpload;
+  final PromptImagePicker? promptImagePicker;
 
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -50,6 +56,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   bool _createAnother = false;
   bool _loadingBranches = false;
   bool _creating = false;
+  bool _uploadingImages = false;
+  String? _promptImageError;
   String? _error;
 
   List<ProjectSummary> get _orderedProjects => sortProjectsForSelection(
@@ -281,7 +289,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
     final promptState = widget.supportsPromptWorkspaceCreation
         ? ref.watch(promptWorkspaceControllerProvider(widget.hostId))
         : const PromptWorkspaceState();
-    final modeLocked = _creating || promptState.loading;
+    final modeLocked = _creating || promptState.loading || _uploadingImages;
     final segments = widget.supportsPromptWorkspaceCreation
         ? const <ButtonSegment<bool>>[
             ButtonSegment<bool>(

@@ -101,6 +101,8 @@ mod output_delivery;
 #[cfg(test)]
 mod output_resume_tests;
 mod project_requests;
+mod prompt_image_requests;
+mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
 mod push_delivery;

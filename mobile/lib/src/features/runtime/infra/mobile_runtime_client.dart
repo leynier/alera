@@ -156,6 +156,9 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(mobileHostToolsCapability);
   bool get supportsCloudEnrollment =>
       _runtimeCapabilities.contains(mobileCloudEnrollmentCapability);
+  @override
+  bool get supportsPromptImageUpload =>
+      _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,

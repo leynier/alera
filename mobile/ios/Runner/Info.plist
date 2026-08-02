@@ -35,6 +35,8 @@
 		<string>Scan Alera pairing codes.</string>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>Connect to Alera hosts on your local network.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Choose images to include in a workspace prompt.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

@@ -165,6 +165,8 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                       defaultAgentProfileId: data.value!.defaultAgentProfileId,
                       supportsPromptWorkspaceCreation:
                           data.value!.supportsPromptWorkspaceCreation,
+                      supportsPromptImageUpload:
+                          data.value!.supportsPromptImageUpload,
                     ),
                   ),
                 );
