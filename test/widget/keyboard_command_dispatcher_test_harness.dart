@@ -52,6 +52,7 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
       <({String workspaceId, String groupId, WorkbenchDropZone zone})>[];
   final List<({String workspaceId, String groupId})> mergedSplits =
       <({String workspaceId, String groupId})>[];
+  final List<String> navigationCalls = <String>[];
 
   @override
   WorkbenchState build() => _seed;
@@ -172,6 +173,16 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
     required String groupId,
   }) async {
     mergedSplits.add((workspaceId: workspaceId, groupId: groupId));
+  }
+
+  @override
+  Future<void> goBack() async {
+    navigationCalls.add('back');
+  }
+
+  @override
+  Future<void> goForward() async {
+    navigationCalls.add('forward');
   }
 
   @override

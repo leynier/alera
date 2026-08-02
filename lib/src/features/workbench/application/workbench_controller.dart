@@ -27,6 +27,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_focus_history.dart';
+import 'package:alera/src/features/workbench/domain/worktree_navigation_history.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:path/path.dart' as p;
@@ -37,6 +38,7 @@ part 'workbench_controller.g.dart';
 part 'workbench_controller_internals.dart';
 part 'workbench_controller_browser.dart';
 part 'workbench_controller_projects.dart';
+part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
 part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_tabs.dart';
@@ -50,6 +52,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerBrowser,
         _WorkbenchControllerTabOpening,
         _WorkbenchControllerProjects,
+        _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt
         // flow can synchronize its agent before appending Setup.
         _WorkbenchControllerWorkspaceCreation,

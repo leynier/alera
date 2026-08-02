@@ -391,6 +391,7 @@ mixin _WorkbenchControllerProjects
     required Project project,
     required Workspace workspace,
     required bool ensureInitialTerminal,
+    bool recordHistory = true,
   }) async {
     final prefs = state.viewPrefs;
     final nextPrefs = _viewPrefsForProjectContext(
@@ -414,6 +415,15 @@ mixin _WorkbenchControllerProjects
     _setTabsForWorkspace(workspace.id, tabs);
     final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
     await _applyLayout(layout, persist: false);
+    if (recordHistory &&
+        _worktreeNavigationHistory.record(
+          WorktreeNavigationTarget(
+            projectId: project.id,
+            workspaceId: workspace.id,
+          ),
+        )) {
+      _notifyNavigationHistoryChanged();
+    }
   }
 
   Future<void> activateProject(Project project) async {

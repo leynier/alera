@@ -93,6 +93,7 @@ mixin _WorkbenchControllerSync
       activeTabIdByWorkspace: updatedActiveTabs,
       layoutByWorkspace: updatedLayouts,
     );
+    _pruneWorktreeNavigationHistory();
     if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
@@ -233,6 +234,7 @@ mixin _WorkbenchControllerSync
       activeWorkspaceId: activeWorkspaceId,
       layoutByWorkspace: nextLayouts,
     );
+    _pruneWorktreeNavigationHistory();
     if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
