@@ -9,6 +9,21 @@ WorktreeNavigationTarget _target(String id) {
 }
 
 void main() {
+  test('navigation targets use value identity and a readable string', () {
+    final target = _target('a');
+    final equalTarget = WorktreeNavigationTarget(
+      projectId: 'project-a',
+      workspaceId: 'workspace-a',
+    );
+
+    expect(target, equalTarget);
+    expect(target.hashCode, equalTarget.hashCode);
+    expect(
+      target.toString(),
+      'WorktreeNavigationTarget(project-a, workspace-a)',
+    );
+  });
+
   test('initial selection creates a current entry without back or forward', () {
     final history = WorktreeNavigationHistory();
 
@@ -91,5 +106,28 @@ void main() {
 
     expect(history.peekBack(isValid: (_) => true), isNull);
     expect(history.peekForward(isValid: (_) => true), isNull);
+  });
+
+  test('pruning an invalid current target resets the cursor', () {
+    final history = WorktreeNavigationHistory();
+    history.record(_target('a'));
+
+    history.prune((_) => false);
+    history.record(_target('b'));
+
+    expect(history.canGoBack, isFalse);
+  });
+
+  test('stale back and forward commits are rejected', () {
+    final history = WorktreeNavigationHistory();
+    final first = _target('a');
+    final second = _target('b');
+    history.record(first);
+    history.record(second);
+
+    expect(() => history.commitBack(_target('missing')), throwsStateError);
+
+    history.commitBack(first);
+    expect(() => history.commitForward(_target('missing')), throwsStateError);
   });
 }
