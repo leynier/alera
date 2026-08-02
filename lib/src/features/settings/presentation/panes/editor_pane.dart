@@ -42,6 +42,7 @@ class EditorSettingsPane extends StatelessWidget {
           description: 'Defaults used by editor tabs.',
           children: <Widget>[
             SettingsIntegerRow(
+              key: const ValueKey<String>('editor-tab-size-row'),
               title: 'Tab Size',
               description: 'Spaces inserted when pressing tab.',
               value: settings.tabSize,
@@ -51,6 +52,32 @@ class EditorSettingsPane extends StatelessWidget {
               suffix: 'spaces',
               onChanged: (value) =>
                   onChanged(settings.copyWith(tabSize: value)),
+            ),
+          ],
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        AleraSettingsGroup(
+          title: 'Autosave',
+          description: 'Save dirty editor tabs after they have been idle.',
+          children: <Widget>[
+            SettingsSwitchRow(
+              title: 'Autosave',
+              description: 'Automatically save editor changes after a pause.',
+              value: settings.autosaveEnabled,
+              onChanged: (value) =>
+                  onChanged(settings.copyWith(autosaveEnabled: value)),
+            ),
+            SettingsIntegerRow(
+              key: const ValueKey<String>('editor-autosave-delay-row'),
+              title: 'Autosave Delay',
+              description: 'Idle time before saving editor changes.',
+              value: settings.effectiveAutosaveDelaySeconds,
+              min: EditorSettings.minAutosaveDelaySeconds,
+              max: EditorSettings.maxAutosaveDelaySeconds,
+              step: 1,
+              suffix: 'seconds',
+              onChanged: (value) =>
+                  onChanged(settings.copyWith(autosaveDelaySeconds: value)),
             ),
           ],
         ),

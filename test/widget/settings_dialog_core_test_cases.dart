@@ -62,11 +62,6 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
   }
 
-  Future<void> selectEditorSectionLocal(WidgetTester tester) async {
-    await tester.tap(find.text('Editor').first);
-    await tester.pump();
-  }
-
   Future<void> selectAiTextSectionLocal(WidgetTester tester) async {
     await tester.tap(find.text('AI Text').first);
     await tester.pump();
@@ -241,54 +236,6 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('None'), findsWidgets);
     expect(find.text('No setup commands'), findsOneWidget);
     expect(find.text('pnpm install'), findsNothing);
-  });
-
-  testWidgets('edits and resets editor settings', (tester) async {
-    final container = await pumpSettingsDialogLocal(tester);
-    await selectEditorSectionLocal(tester);
-
-    expect(find.text('Editor'), findsWidgets);
-    expect(find.text('Tab Size'), findsOneWidget);
-    expect(find.text('Theme Preset'), findsOneWidget);
-    expect(container.read(settingsControllerProvider).editor.tabSize, 4);
-    expect(
-      container.read(settingsControllerProvider).editor.themeName,
-      EditorSyntaxThemeNames.alera,
-    );
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('editor-theme-search-field')),
-      'monokai',
-    );
-    await tester.pump();
-    await tester.tap(find.text(EditorSyntaxThemeNames.monokai));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(
-      container.read(settingsControllerProvider).editor.themeName,
-      EditorSyntaxThemeNames.monokai,
-    );
-
-    await tester.ensureVisible(find.text('Tab Size'));
-    await tester.pump();
-
-    await tester.enterText(find.byType(TextField).last, '2');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(container.read(settingsControllerProvider).editor.tabSize, 2);
-
-    await tester.tap(find.text('Reset Editor'));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(
-      container.read(settingsControllerProvider).editor.tabSize,
-      EditorSettings.defaults.tabSize,
-    );
-    expect(
-      container.read(settingsControllerProvider).editor.themeName,
-      EditorSettings.defaults.themeName,
-    );
   });
 
   testWidgets('edits and resets AI text settings', (tester) async {

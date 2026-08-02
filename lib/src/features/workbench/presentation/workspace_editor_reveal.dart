@@ -5,6 +5,7 @@ extension _WorkspaceEditorReveal on _WorkspaceEditorSurfaceState {
     if (_isDirty()) {
       return;
     }
+    _autosave.cancelPending();
     _document.clearSnapshot();
     unawaited(_load());
   }
