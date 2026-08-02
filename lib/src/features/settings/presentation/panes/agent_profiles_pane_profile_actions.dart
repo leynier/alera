@@ -50,6 +50,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
             launchMode: _launchMode,
             command: command,
             managedConfig: _managedConfig,
+            customPrompt: _customPromptController.text.trim(),
             description: _descriptionController.text.trim(),
             quotaGroup: quotaGroup.isEmpty ? null : quotaGroup,
           );

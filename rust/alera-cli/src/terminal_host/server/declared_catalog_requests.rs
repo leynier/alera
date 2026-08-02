@@ -143,6 +143,7 @@ fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> {
         command,
         launch_mode,
         managed_config,
+        custom_prompt: optional_profile_string(payload, "customPrompt").unwrap_or_default(),
         description: optional_profile_string(payload, "description").unwrap_or_default(),
         quota_group: optional_profile_string(payload, "quotaGroup"),
         created_at: now,
@@ -183,6 +184,20 @@ mod tests {
         assert_eq!(profile.launch_mode, AgentProfileLaunchMode::Command);
         assert_eq!(profile.command, "codex --search");
         assert_eq!(profile.managed_config, None);
+        assert_eq!(profile.custom_prompt, "");
+    }
+
+    #[test]
+    fn profile_payload_trims_custom_prompt() {
+        let profile = profile_from_payload(&json!({
+            "name": "Codex",
+            "agentType": "codex",
+            "command": "codex --search",
+            "customPrompt": "  Keep The Changes Focused  "
+        }))
+        .unwrap();
+
+        assert_eq!(profile.custom_prompt, "Keep The Changes Focused");
     }
 
     #[test]

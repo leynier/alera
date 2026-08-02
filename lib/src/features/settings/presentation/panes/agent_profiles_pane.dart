@@ -39,6 +39,7 @@ class _AgentProfilesSettingsPaneState
     extends ConsumerState<AgentProfilesSettingsPane> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _commandController = TextEditingController();
+  final TextEditingController _customPromptController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _quotaGroupController = TextEditingController();
   String? _selectedProfileId;
@@ -65,6 +66,7 @@ class _AgentProfilesSettingsPaneState
   void dispose() {
     _nameController.dispose();
     _commandController.dispose();
+    _customPromptController.dispose();
     _descriptionController.dispose();
     _quotaGroupController.dispose();
     super.dispose();
@@ -137,6 +139,7 @@ class _AgentProfilesSettingsPaneState
           detail: AgentProfileEditor(
             nameController: _nameController,
             commandController: _commandController,
+            customPromptController: _customPromptController,
             descriptionController: _descriptionController,
             quotaGroupController: _quotaGroupController,
             adapter: _adapter,
@@ -202,6 +205,7 @@ class _AgentProfilesSettingsPaneState
       profile.command,
       profile.launchMode.name,
       jsonEncode(profile.managedConfig),
+      profile.customPrompt,
       profile.description,
       profile.quotaGroup ?? '',
     ].join('|');
@@ -211,6 +215,7 @@ class _AgentProfilesSettingsPaneState
     _seededSignature = signature;
     _nameController.text = profile.name;
     _commandController.text = profile.command;
+    _customPromptController.text = profile.customPrompt;
     _descriptionController.text = profile.description;
     _quotaGroupController.text = profile.quotaGroup ?? '';
     _adapter = agentProfileAdapterFromKey(profile.agentType) ?? AgentType.codex;
@@ -228,6 +233,7 @@ class _AgentProfilesSettingsPaneState
     _seededSignature = null;
     _selectedProfileId = null;
     _nameController.clear();
+    _customPromptController.clear();
     _descriptionController.clear();
     _quotaGroupController.clear();
     _adapter = AgentType.codex;
