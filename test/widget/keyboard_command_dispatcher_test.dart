@@ -7,6 +7,7 @@ import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -352,6 +353,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Application'), findsWidgets);
+    Navigator.of(harness.context).pop();
+    await tester.pumpAndSettle();
+
+    dispatcher.dispatch(KeyboardActionId.openCommandPalette);
+    await tester.pumpAndSettle();
+    expect(find.byType(KeyboardCommandPaletteDialog), findsOneWidget);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 

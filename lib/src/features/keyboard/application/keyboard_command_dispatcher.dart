@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -30,6 +31,15 @@ class KeyboardCommandDispatcher {
     switch (id) {
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
+      case KeyboardActionId.openQuickOpen:
+        unawaited(showQuickOpenFlow(context, ref));
+      case KeyboardActionId.openCommandPalette:
+        unawaited(
+          showKeyboardCommandPalette(
+            context,
+            onExecute: (command) => dispatch(command),
+          ),
+        );
       case KeyboardActionId.addProject:
         unawaited(showAddProjectFlow(context, ref));
       case KeyboardActionId.toggleSidebar:

@@ -142,6 +142,41 @@ void main() {
     );
   });
 
+  test(
+    'quick open and command palette have distinct terminal-safe defaults',
+    () {
+      final resolver = KeybindingResolver(
+        settings: KeyboardShortcutSettings.defaults,
+        platform: KeyboardPlatform.macos,
+      );
+
+      expect(
+        resolver
+            .effectiveChords(KeyboardActionId.openQuickOpen)
+            .single
+            .toCanonicalString(),
+        'Mod+P',
+      );
+      expect(
+        resolver
+            .effectiveChords(KeyboardActionId.openCommandPalette)
+            .single
+            .toCanonicalString(),
+        'Mod+Shift+P',
+      );
+      expect(
+        keybindingDefinitionsById[KeyboardActionId.openQuickOpen]!
+            .allowInTerminal,
+        isTrue,
+      );
+      expect(
+        keybindingDefinitionsById[KeyboardActionId.openCommandPalette]!
+            .allowInTerminal,
+        isTrue,
+      );
+    },
+  );
+
   group('resolveAction', () {
     test('matches the right action on macOS', () {
       final resolver = KeybindingResolver(

@@ -47,6 +47,8 @@ enum KeyboardActionGroup {
 @MappableEnum()
 enum KeyboardActionId {
   openSettings,
+  openQuickOpen,
+  openCommandPalette,
   addProject,
   toggleSidebar,
   createWorkspace,
@@ -151,6 +153,24 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Open the settings dialog.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Comma']),
     searchKeywords: <String>['preferences', 'config'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.openQuickOpen,
+    label: 'Quick Open',
+    group: KeyboardActionGroup.global,
+    description: 'Search and open a file in the active workspace.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+P']),
+    searchKeywords: <String>['file', 'path', 'search', 'go to'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.openCommandPalette,
+    label: 'Command Palette',
+    group: KeyboardActionGroup.global,
+    description: 'Search and run an Alera command.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+P']),
+    searchKeywords: <String>['commands', 'actions', 'search', 'run'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

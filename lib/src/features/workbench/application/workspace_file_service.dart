@@ -23,6 +23,16 @@ class WorkspaceFileService {
     );
   }
 
+  Future<List<native.WorkspaceFileEntry>> listFiles({
+    required String workspacePath,
+    int maxResults = 10000,
+  }) {
+    return native.listWorkspaceFiles(
+      workspacePath: workspacePath,
+      maxResults: maxResults,
+    );
+  }
+
   List<native.WorkspaceFileEntry> applyGitStatusSnapshot(
     List<native.WorkspaceFileEntry> entries,
     GitExplorerStatusSnapshot snapshot,
