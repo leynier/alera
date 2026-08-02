@@ -1047,6 +1047,9 @@ impl ServerActor {
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("orchestration task not found: {task_id}")))?;
         let (_allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
+        let (profile_name, effective_spec) = self
+            .compose_orchestration_prompt(&task, &stripped_spec, payload)
+            .await?;
         if from != task.coordinator_handle {
             return Err(HostError::state(format!(
                 "coordinator ownership conflict: task is owned by {}, not {from}",
@@ -1061,7 +1064,7 @@ impl ServerActor {
             let preamble = build_dispatch_preamble(&PreambleParams {
                 task_id: &task_id,
                 dispatch_id: "ctx_dryrun",
-                task_spec: &stripped_spec,
+                task_spec: &effective_spec,
                 coordinator_handle: &from,
                 base_drift: None,
                 gate_resolution: gate_resolution.as_ref(),
@@ -1135,7 +1138,7 @@ impl ServerActor {
         self.runtime_store
             .set_orchestration_dispatch_profile(
                 &dispatch.id,
-                optional_string(payload, "agentProfile").as_deref(),
+                profile_name.as_deref(),
                 optional_string(payload, "agentQuotaGroup").as_deref(),
             )
             .await
@@ -1165,7 +1168,7 @@ impl ServerActor {
         let preamble = build_dispatch_preamble(&PreambleParams {
             task_id: &task_id,
             dispatch_id: &dispatch.id,
-            task_spec: &stripped_spec,
+            task_spec: &effective_spec,
             coordinator_handle: &from,
             base_drift: None,
             gate_resolution: gate_resolution.as_ref(),
@@ -1370,6 +1373,8 @@ impl ServerActor {
             }
             base_drift = stored_drift;
         }
+        self.compose_orchestration_task_prompt(&mut task, dispatch.agent_profile.as_deref())
+            .await?;
         let gate_resolution = self.latest_resolved_gate(&dispatch.task_id).await?;
         let worker_instructions = build_worker_contract(
             &dispatch.coordinator_handle,

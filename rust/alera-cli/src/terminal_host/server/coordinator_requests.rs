@@ -736,6 +736,9 @@ impl ServerActor {
         else {
             return Ok(false);
         };
+        let (profile_name, profile_quota_group, effective_spec) = self
+            .coordinator_profile_prompt_for_task(&task, &stripped_spec)
+            .await?;
         let gates = self
             .runtime_store
             .list_orchestration_gates(Some(task_id), Some(OrchestrationGateStatus::Resolved))
@@ -763,6 +766,13 @@ impl ServerActor {
                 "keep-open",
             )
             .await?;
+        self.runtime_store
+            .set_orchestration_dispatch_profile(
+                &dispatch.id,
+                profile_name.as_deref(),
+                profile_quota_group.as_deref(),
+            )
+            .await?;
         self.orchestration_activity_last_recorded.remove(handle);
         if let Err(error) = self.install_dispatch_context(handle, &dispatch.id, &context_token) {
             self.runtime_store
@@ -773,7 +783,7 @@ impl ServerActor {
         let preamble = build_dispatch_preamble(&PreambleParams {
             task_id,
             dispatch_id: &dispatch.id,
-            task_spec: &stripped_spec,
+            task_spec: &effective_spec,
             coordinator_handle: config
                 .coordinator_handle
                 .as_deref()

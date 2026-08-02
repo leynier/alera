@@ -73,6 +73,7 @@ class AgentProfiles extends _$AgentProfiles {
     required AgentProfileLaunchMode launchMode,
     String command = '',
     Map<String, Object?> managedConfig = const <String, Object?>{},
+    String customPrompt = '',
     String description = '',
     String? quotaGroup,
   }) async {
@@ -83,6 +84,7 @@ class AgentProfiles extends _$AgentProfiles {
       launchMode: launchMode,
       command: command,
       managedConfig: managedConfig,
+      customPrompt: customPrompt,
       description: description,
       quotaGroup: quotaGroup,
     );
@@ -99,6 +101,7 @@ class AgentProfiles extends _$AgentProfiles {
       launchMode: source.launchMode,
       command: source.command,
       managedConfig: <String, Object?>{...source.managedConfig},
+      customPrompt: source.customPrompt,
       description: source.description,
       quotaGroup: source.quotaGroup,
     );
@@ -151,6 +154,7 @@ class AgentProfiles extends _$AgentProfiles {
         left.command == right.command &&
         left.launchMode == right.launchMode &&
         _sameConfig(left.managedConfig, right.managedConfig) &&
+        left.customPrompt == right.customPrompt &&
         left.description == right.description &&
         left.quotaGroup == right.quotaGroup;
   }

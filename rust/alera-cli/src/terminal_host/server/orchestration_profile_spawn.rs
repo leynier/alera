@@ -1,7 +1,9 @@
 //! Resolving which agent profile runs a task, and picking the next candidate
 //! when an earlier one failed to start.
 
-use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, OrchestrationPolicyStatus};
+use alera_core::runtime::{
+    AgentProfile, AgentProfileLaunchMode, OrchestrationPolicyStatus, OrchestrationTask,
+};
 use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -149,6 +151,31 @@ impl ServerActor {
             .await
             .ok()??;
         launch_for_profile(&profile).ok()
+    }
+
+    pub(super) async fn coordinator_profile_prompt_for_task(
+        &mut self,
+        task: &OrchestrationTask,
+        prompt: &str,
+    ) -> anyhow::Result<(Option<String>, Option<String>, String)> {
+        let profile_name = self.coordinator_profile_for_task(task).await;
+        let profile_quota_group = if let Some(profile_name) = profile_name.as_deref() {
+            self.runtime_store
+                .agent_profile_by_name(profile_name)
+                .await?
+                .and_then(|profile| profile.quota_group)
+        } else {
+            None
+        };
+        let effective_prompt = self
+            .compose_profile_prompt_for_workspace(
+                &task.workspace_id,
+                prompt,
+                profile_name.as_deref(),
+            )
+            .await
+            .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        Ok((profile_name, profile_quota_group, effective_prompt))
     }
 
     async fn quota_group_for(&mut self, profile_name: &str) -> HostResult<Option<String>> {

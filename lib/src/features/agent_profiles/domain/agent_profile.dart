@@ -26,6 +26,7 @@ class AgentProfile {
     this.quotaGroup,
     this.launchMode = AgentProfileLaunchMode.command,
     this.managedConfig = const <String, Object?>{},
+    this.customPrompt = '',
   });
 
   factory AgentProfile.fromJson(Map<String, Object?> json) {
@@ -36,6 +37,7 @@ class AgentProfile {
       command: _requiredString(json, 'command'),
       launchMode: AgentProfileLaunchMode.fromJson(json['launchMode']),
       managedConfig: _jsonObject(json['managedConfig']),
+      customPrompt: _optionalString(json['customPrompt']) ?? '',
       description: _optionalString(json['description']) ?? '',
       quotaGroup: _optionalString(json['quotaGroup']),
       createdAt: _dateTime(json['createdAt']),
@@ -57,6 +59,10 @@ class AgentProfile {
 
   /// Adapter-specific overrides. Missing keys mean the CLI's own default.
   final Map<String, Object?> managedConfig;
+
+  /// Instructions appended after a dispatched prompt and before project-level
+  /// instructions.
+  final String customPrompt;
 
   /// Free-form routing signal the orchestrator reads when choosing a profile
   /// for a stage.
@@ -80,6 +86,7 @@ class AgentProfile {
       'managedConfig': launchMode == AgentProfileLaunchMode.managed
           ? managedConfig
           : null,
+      'customPrompt': customPrompt,
       'description': description,
       'quotaGroup': quotaGroup,
       'createdAt': createdAt.toUtc().toIso8601String(),
@@ -93,6 +100,7 @@ class AgentProfile {
     String? command,
     AgentProfileLaunchMode? launchMode,
     Map<String, Object?>? managedConfig,
+    String? customPrompt,
     String? description,
     String? quotaGroup,
     bool clearQuotaGroup = false,
@@ -104,6 +112,7 @@ class AgentProfile {
       command: command ?? this.command,
       launchMode: launchMode ?? this.launchMode,
       managedConfig: managedConfig ?? this.managedConfig,
+      customPrompt: customPrompt ?? this.customPrompt,
       description: description ?? this.description,
       quotaGroup: clearQuotaGroup ? null : (quotaGroup ?? this.quotaGroup),
       createdAt: createdAt,

@@ -54,6 +54,10 @@ pub struct AgentProfile {
     pub launch_mode: AgentProfileLaunchMode,
     #[serde(default)]
     pub managed_config: Option<Value>,
+    /// Instructions appended after a dispatched prompt and before project
+    /// instructions.
+    #[serde(default)]
+    pub custom_prompt: String,
     #[serde(default)]
     pub description: String,
     /// Profiles sharing a group drain the same usage bucket. Alera never

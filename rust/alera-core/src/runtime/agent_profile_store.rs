@@ -8,7 +8,7 @@ use super::{
 };
 
 const PROFILE_COLUMNS: &str =
-    "id, name, agentType, command, launchMode, managedConfig, description, quotaGroup, createdAt, updatedAt";
+    "id, name, agentType, command, launchMode, managedConfig, customPrompt, description, quotaGroup, createdAt, updatedAt";
 
 impl RuntimeStore {
     pub async fn list_agent_profiles(&self) -> Result<Vec<AgentProfile>> {
@@ -62,11 +62,12 @@ impl RuntimeStore {
         let now = format_timestamp(Utc::now());
         sqlx::query(
             "INSERT INTO agentProfiles \
-             (id, name, agentType, command, launchMode, managedConfig, description, quotaGroup, createdAt, updatedAt) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             (id, name, agentType, command, launchMode, managedConfig, customPrompt, description, quotaGroup, createdAt, updatedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              name = excluded.name, agentType = excluded.agentType, command = excluded.command, \
              launchMode = excluded.launchMode, managedConfig = excluded.managedConfig, \
+             customPrompt = excluded.customPrompt, \
              description = excluded.description, quotaGroup = excluded.quotaGroup, \
              updatedAt = excluded.updatedAt",
         )
@@ -82,6 +83,7 @@ impl RuntimeStore {
                 .map(serde_json::to_string)
                 .transpose()?,
         )
+        .bind(&profile.custom_prompt)
         .bind(&profile.description)
         .bind(&profile.quota_group)
         .bind(format_timestamp(profile.created_at))
@@ -114,6 +116,7 @@ fn normalize_agent_profile(mut profile: AgentProfile) -> Result<AgentProfile> {
     profile.name = profile.name.trim().to_string();
     profile.agent_type = profile.agent_type.trim().to_string();
     profile.command = profile.command.trim().to_string();
+    profile.custom_prompt = profile.custom_prompt.trim().to_string();
     profile.description = profile.description.trim().to_string();
     profile.quota_group = profile
         .quota_group
@@ -172,6 +175,7 @@ fn agent_profile_from_row(row: sqlx::sqlite::SqliteRow) -> Result<AgentProfile> 
             .try_get::<Option<String>, _>("managedConfig")?
             .map(|value| serde_json::from_str(&value))
             .transpose()?,
+        custom_prompt: row.try_get("customPrompt")?,
         description: row.try_get("description")?,
         quota_group: row.try_get("quotaGroup")?,
         created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
