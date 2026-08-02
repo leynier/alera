@@ -352,6 +352,20 @@ void _registerTerminalSurfaceInteractionTests() {
         expect(allowedResult, KeyEventResult.handled);
         expect(allowedController.collapsedValues, <bool>[true]);
 
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        final allowedSearchResult = allowedSession.onKeyEvent!.call(
+          focusNode,
+          const KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.keyF,
+            logicalKey: LogicalKeyboardKey.keyF,
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+        expect(allowedSearchResult, KeyEventResult.handled);
+        expect(allowedSession.openSearchCallCount, 1);
+
         final blockedSession = _ShortcutCaptureSessionHandle(tabId: 'tab-2');
         final blockedController = _FakeWorkbenchController();
         await pumpShortcutSurface(
@@ -377,9 +391,55 @@ void _registerTerminalSurfaceInteractionTests() {
 
         expect(blockedResult, KeyEventResult.ignored);
         expect(blockedController.collapsedValues, isEmpty);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        final terminalFirstSearchResult = blockedSession.onKeyEvent!.call(
+          focusNode,
+          const KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.keyF,
+            logicalKey: LogicalKeyboardKey.keyF,
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+        expect(terminalFirstSearchResult, KeyEventResult.handled);
+        expect(blockedSession.openSearchCallCount, 1);
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
     },
   );
+
+  testWidgets('terminal search closes on Escape and restores terminal focus', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: _testShellLaunches,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      session.openSearch();
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(tester.binding.focusManager.primaryFocus, isNotNull);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(TextField), findsNothing);
+      expect(terminalFocusHasFocusForTesting(session), isTrue);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

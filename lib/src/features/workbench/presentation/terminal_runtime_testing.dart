@@ -180,6 +180,11 @@ bool terminalIsUsingAltBufferForTesting(TerminalSessionHandle session) {
 }
 
 @visibleForTesting
+bool terminalFocusHasFocusForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._focusNode.hasFocus;
+}
+
+@visibleForTesting
 TerminalVisibilityLease acquireTerminalVisibilityForTesting(
   TerminalSessionHandle session,
 ) {
