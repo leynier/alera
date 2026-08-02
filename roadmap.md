@@ -223,7 +223,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| [AI Dictation](docs/ai-dictation.md) | 4 | 2 | Planned | Editable agent instructions via device-local sherpa-onnx or an explicitly configured remote transcription provider; no automatic submission |
+| [AI Dictation](docs/ai-dictation.md) | 4 | 2 | Planned | Editable agent instructions via device-local whisper.cpp or an explicitly configured remote transcription provider; no automatic submission |
 
 ---
 

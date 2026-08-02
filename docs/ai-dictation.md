@@ -22,7 +22,7 @@ The conversation also assumed product surfaces and ownership boundaries that do 
 - Alera does not currently have Flutter task, dispatch, or coordinator specification composers. Orchestration tasks and dispatches are runtime and agent workflows, so the first release must not invent a second orchestration UI.
 - The concrete desktop instruction composer is **New Workspace** -> **Initial Prompt**. Desktop terminals can accept reviewed text through the existing paste path without submitting it. Mobile has the matching workspace prompt plus a terminal compose bar.
 - The active runtime may be remote. Microphone access, temporary audio, local model files, local inference, and remote transcription credentials therefore belong to the client device, not the runtime host.
-- The repository roadmap already selected sherpa-onnx as the intended offline speech stack. The first implementation should use that engine instead of adding whisper.cpp directly, while preserving an engine-neutral provider boundary.
+- The repository roadmap previously named sherpa-onnx, but the product decision is to use Whisper through whisper.cpp as the initial offline engine. The provider boundary remains engine-neutral so this choice does not leak into prompt or orchestration code.
 
 ## Spec
 
@@ -69,7 +69,7 @@ AI Dictation must not write to ordinary shell terminals in the first release. Th
 - Record, stop, cancel, retry, and edit behavior.
 - One application-wide dictation session.
 - Local-only, local-preferred, remote-preferred, and remote-only modes.
-- sherpa-onnx with the multilingual Whisper base ONNX model as the default local provider.
+- whisper.cpp with the multilingual Whisper base `ggml` model as the default local provider.
 - An OpenAI-compatible multipart transcription provider with configurable HTTPS base URL and model.
 - Automatic language detection plus an explicit language override.
 - Visible local or remote provider status before recording begins and while transcribing.
@@ -124,7 +124,7 @@ AiDictationProviderManager
         +-----------------------+
         |                       |
         v                       v
-LocalSherpaOnnxProvider   RemoteCompatibleProvider
+LocalWhisperCppProvider   RemoteCompatibleProvider
 embedded client Rust      HTTPS from client device
         |                       |
         +-----------+-----------+
@@ -164,7 +164,7 @@ lib/src/features/ai_dictation/
   infra/
     native_ai_dictation_backend.dart
     record_audio_capture_service.dart
-    local_sherpa_onnx_provider.dart
+    local_whisper_cpp_provider.dart
     remote_compatible_provider.dart
     ai_dictation_model_catalog.dart
     ai_dictation_model_store.dart
@@ -237,19 +237,19 @@ The existing macOS microphone usage description must be rewritten for AI Dictati
 
 ### Local Provider
 
-Use sherpa-onnx through the embedded Rust library. sherpa-onnx supports offline ASR, VAD, the three desktop operating systems, Dart, and Rust. Its Whisper exports include multilingual base models, which keeps English, Spanish, and automatic language detection in the initial scope while matching the existing roadmap.
+Use whisper.cpp through the embedded Rust library. Add the pinned `whisper-rs` binding and its pinned whisper.cpp native dependency to `alera_native`, link the native library into the application, and call the library API directly. Do not spawn `whisper-cli`. This keeps inference behind the existing Rust bridge, avoids a second process, and lets Flutter receive structured progress, cancellation, and error results.
 
-The initial catalog entry is `sherpa-onnx-whisper-base`, using the published int8 encoder when supported. The model is downloaded after explicit user action and is not bundled with every Alera installation.
+The initial catalog entry is `whisper-cpp-base`, using the published multilingual `ggml-base.bin` model. Do not use `base.en`, because English and Spanish are both in the first-release scope. The model is downloaded after explicit user action and is not bundled with every Alera installation. Quantized and larger models can be added as separate catalog entries after the base model establishes the quality and performance baseline.
 
 Model files live under the client application's support directory:
 
 ```text
-models/ai-dictation/sherpa-onnx-whisper-base/<catalog-version>/
+models/ai-dictation/whisper-cpp-base/<catalog-version>/
 ```
 
 The application bundles a model catalog containing the model id, source URL, SHA-256 values, compressed and installed sizes, required filenames, language coverage, and license metadata. Downloads go to a staging directory, verify every file, and move into place atomically. Cancellation or verification failure removes only the resolved staging directory. Model deletion uses the same exact model-root validation.
 
-whisper.cpp remains a possible future provider. It is not added alongside sherpa-onnx in the first release because two local inference stacks would duplicate packaging, acceleration, model, and test work without improving the initial user flow.
+sherpa-onnx remains a possible future provider. It is not added alongside whisper.cpp in the first release because two local inference stacks would duplicate packaging, acceleration, model, and test work without improving the initial user flow.
 
 ### Remote Provider
 
@@ -342,7 +342,7 @@ Exit criterion: a user can dictate, review, and insert text through a configured
 
 ### Phase 3: Offline Desktop Provider
 
-- Pin sherpa-onnx and document its source and model licenses.
+- Pin `whisper-rs`, its whisper.cpp source revision, and the Whisper model license metadata.
 - Add the embedded native transcription API and regenerate FRB bindings once after the API batch.
 - Package native libraries for the current desktop release architectures: macOS arm64, Windows x64, and Linux x64.
 - Add the model catalog, resumable download, SHA-256 verification, atomic installation, removal, and disk-space preflight.
@@ -416,7 +416,7 @@ Exit criterion: mobile produces editable text in the existing composers and send
 
 | Risk | Mitigation |
 | --- | --- |
-| sherpa-onnx packaging increases release size or complicates native builds | Package the engine with Alera but download models separately; pin versions and test every release target in CI. |
+| whisper.cpp packaging increases release size or complicates native builds | Link the pinned engine into Alera but download models separately; keep the first release CPU-capable and test every release target in CI. |
 | The `record` Linux backend depends on host tools | Add a fail-closed dependency probe and gate Linux release; replace capture with native `cpal` if supported distributions cannot meet the dependency contract. |
 | Local inference consumes too much memory or blocks rendering | Use the base model, one native worker, lazy model loading, explicit unload, and frame-time benchmarks. |
 | Remote configuration leaks repository information | Require visible consent, secure credentials, HTTPS, strict redaction, and no automatic upload. |
@@ -435,7 +435,8 @@ Exit criterion: mobile produces editable text in the existing composers and send
 
 ## References
 
-- [sherpa-onnx repository](https://github.com/k2-fsa/sherpa-onnx)
-- [sherpa-onnx Whisper model documentation](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/whisper/export-onnx.html)
+- [whisper.cpp repository](https://github.com/ggml-org/whisper.cpp)
+- [whisper.cpp model documentation](https://github.com/ggml-org/whisper.cpp/blob/master/models/README.md)
+- [whisper-rs crate documentation](https://docs.rs/crate/whisper-rs/latest)
 - [Flutter record package](https://pub.dev/packages/record)
 - [OpenAI audio transcription endpoint](https://platform.openai.com/docs/api-reference/audio/createTranscription)
