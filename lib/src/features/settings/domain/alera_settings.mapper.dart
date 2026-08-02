@@ -1119,17 +1119,35 @@ class EditorSettingsMapper extends ClassMapperBase<EditorSettings> {
     opt: true,
     def: EditorSyntaxThemeNames.alera,
   );
+  static bool _$autosaveEnabled(EditorSettings v) => v.autosaveEnabled;
+  static const Field<EditorSettings, bool> _f$autosaveEnabled = Field(
+    'autosaveEnabled',
+    _$autosaveEnabled,
+    opt: true,
+    def: false,
+  );
+  static int _$autosaveDelaySeconds(EditorSettings v) => v.autosaveDelaySeconds;
+  static const Field<EditorSettings, int> _f$autosaveDelaySeconds = Field(
+    'autosaveDelaySeconds',
+    _$autosaveDelaySeconds,
+    opt: true,
+    def: EditorSettings.defaultAutosaveDelaySeconds,
+  );
 
   @override
   final MappableFields<EditorSettings> fields = const {
     #tabSize: _f$tabSize,
     #themeName: _f$themeName,
+    #autosaveEnabled: _f$autosaveEnabled,
+    #autosaveDelaySeconds: _f$autosaveDelaySeconds,
   };
 
   static EditorSettings _instantiate(DecodingData data) {
     return EditorSettings(
       tabSize: data.dec(_f$tabSize),
       themeName: data.dec(_f$themeName),
+      autosaveEnabled: data.dec(_f$autosaveEnabled),
+      autosaveDelaySeconds: data.dec(_f$autosaveDelaySeconds),
     );
   }
 
@@ -1195,7 +1213,12 @@ extension EditorSettingsValueCopy<$R, $Out>
 
 abstract class EditorSettingsCopyWith<$R, $In extends EditorSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({int? tabSize, String? themeName});
+  $R call({
+    int? tabSize,
+    String? themeName,
+    bool? autosaveEnabled,
+    int? autosaveDelaySeconds,
+  });
   EditorSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -1210,16 +1233,29 @@ class _EditorSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<EditorSettings> $mapper =
       EditorSettingsMapper.ensureInitialized();
   @override
-  $R call({int? tabSize, String? themeName}) => $apply(
+  $R call({
+    int? tabSize,
+    String? themeName,
+    bool? autosaveEnabled,
+    int? autosaveDelaySeconds,
+  }) => $apply(
     FieldCopyWithData({
       if (tabSize != null) #tabSize: tabSize,
       if (themeName != null) #themeName: themeName,
+      if (autosaveEnabled != null) #autosaveEnabled: autosaveEnabled,
+      if (autosaveDelaySeconds != null)
+        #autosaveDelaySeconds: autosaveDelaySeconds,
     }),
   );
   @override
   EditorSettings $make(CopyWithData data) => EditorSettings(
     tabSize: data.get(#tabSize, or: $value.tabSize),
     themeName: data.get(#themeName, or: $value.themeName),
+    autosaveEnabled: data.get(#autosaveEnabled, or: $value.autosaveEnabled),
+    autosaveDelaySeconds: data.get(
+      #autosaveDelaySeconds,
+      or: $value.autosaveDelaySeconds,
+    ),
   );
 
   @override

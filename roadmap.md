@@ -53,7 +53,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Markdown editor | 4 | 3 | Planned | WYSIWYG markdown editing with toolbar, slash menu, code blocks, tables, mermaid |
 | Markdown viewer | 2 | 3 | Shipped | View rendered markdown files in workspace tabs |
 | Open in with other softwares | 2 | 4 | Partial | Open workspace/folder in OS file manager (Linux selects via FileManager1.ShowItems with parent-folder fallback) and open repository in browser; no VS Code / Cursor / Zed / custom editor launcher yet |
-| Autosave | 2 | 4 | Planned | Automatic file saving with configurable behavior |
+| Autosave | 2 | 4 | Shipped | Optional idle editor saves with a bounded delay and conflict-safe writes |
 | Editor scroll restore | 1 | 3 | Planned | Persist and restore scroll position across sessions |
 | External file watch | 2 | 4 | Partial | Explorer and source-control file watches are live; editor reloads/conflicts on external disk changes; no full prompt-to-reload product surface yet |
 | PDF viewer | 3 | 2 | Shipped | Render PDFs with inline tabs and in-document search |

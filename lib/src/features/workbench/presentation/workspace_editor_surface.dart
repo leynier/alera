@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
+import 'package:alera/src/features/workbench/application/editor_autosave_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -29,6 +30,7 @@ part 'workspace_editor_widgets.dart';
 part 'workspace_editor_focus.dart';
 part 'workspace_editor_reveal.dart';
 part 'workspace_editor_loading.dart';
+part 'workspace_editor_save.dart';
 
 class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
@@ -62,6 +64,7 @@ class _WorkspaceEditorSurfaceState
   late final WorkspaceFileService _workspaceFiles;
   late final EditorSessionRegistry _editorSessions;
   late final EditorSessionHandle _sessionHandle;
+  late final EditorAutosaveController _autosave;
   late EditorDocumentSession _document;
   Object? _loadError;
   bool _loading = true;
@@ -92,6 +95,22 @@ class _WorkspaceEditorSurfaceState
     );
     _controller.addListener(_handleControllerChanged);
     _document = _editorSessions.documentFor(widget.tab.id);
+    final editorSettings = ref.read(settingsControllerProvider).editor;
+    _autosave = EditorAutosaveController(
+      enabled: editorSettings.autosaveEnabled,
+      debounce: editorSettings.autosaveDebounce,
+      isDirty: _isDirty,
+      isReady: _isReadyForAutosave,
+      save: _saveAutomatically,
+      onError: _handleAutosaveError,
+    );
+    ref.listen(
+      settingsControllerProvider.select((settings) => settings.editor),
+      (previous, next) => _autosave.updateSettings(
+        enabled: next.autosaveEnabled,
+        debounce: next.autosaveDebounce,
+      ),
+    );
     _registerSession(widget.tab.id);
     _restoreDocumentOrLoad();
   }
@@ -102,6 +121,7 @@ class _WorkspaceEditorSurfaceState
     if (oldWidget.tab.id != widget.tab.id ||
         oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.tab.filePath != widget.tab.filePath) {
+      _autosave.cancelPending();
       _replaceFocusNode();
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
       _document = _editorSessions.documentFor(widget.tab.id);
@@ -112,6 +132,7 @@ class _WorkspaceEditorSurfaceState
 
   @override
   void dispose() {
+    _autosave.dispose();
     _editorSessions.unregister(widget.tab.id, _sessionHandle);
     _focusNode.suppressThirdPartyListeners();
     _focusNode.unfocus();
@@ -229,61 +250,6 @@ class _WorkspaceEditorSurfaceState
     return null;
   }
 
-  Future<void> _save() async {
-    final filePath = widget.tab.filePath;
-    if (filePath == null || _loading || _saving) {
-      return;
-    }
-    final loadError = _loadError;
-    if (loadError != null) {
-      _showToast(_messageFor(loadError), tone: AleraToastTone.error);
-      return;
-    }
-    if (!_document.canSave) {
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      final saved = await _write(overwriteIfChanged: false);
-      if (!mounted) {
-        return;
-      }
-      _acceptSaved(saved);
-      _showToast('File saved');
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      if (error is native.WorkspaceFileError &&
-          error.kind == native.WorkspaceFileErrorKind.conflict) {
-        await _resolveSaveConflict();
-      } else {
-        _showToast(_messageFor(error), tone: AleraToastTone.error);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
-    }
-  }
-
-  Future<void> _discardChanges() async {
-    if (_loading || _saving || !_document.canSave) {
-      return;
-    }
-    final loadedText = _document.loadedText;
-    if (loadedText == null) {
-      return;
-    }
-    _document.updateCurrentText(loadedText);
-    _controller.text = loadedText;
-    _undoController.clear();
-    if (mounted) {
-      setState(() {});
-      _showToast('Changes discarded');
-    }
-  }
-
   Future<void> _openDiffForFile() async {
     final filePath = widget.tab.filePath;
     if (filePath == null) {
@@ -382,56 +348,7 @@ class _WorkspaceEditorSurfaceState
     );
   }
 
-  Future<void> _resolveSaveConflict() async {
-    final overwrite = await showDialog<bool>(
-      context: context,
-      builder: (context) => const AleraConfirmDialog(
-        title: 'File changed on disk',
-        message: 'Overwrite the file with the editor contents?',
-        confirmLabel: 'Overwrite',
-        destructive: true,
-      ),
-    );
-    if (overwrite != true) {
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    final saved = await _write(overwriteIfChanged: true);
-    if (!mounted) {
-      return;
-    }
-    _acceptSaved(saved);
-    _showToast('File overwritten');
-  }
-
-  Future<native.WorkspaceEditorTextFile> _write({
-    required bool overwriteIfChanged,
-  }) {
-    return _workspaceFiles.writeEditorTextFile(
-      workspacePath: widget.workspace.path,
-      relativePath: widget.tab.filePath!,
-      currentDisplayContent: _controller.text,
-      originalRawContent: _document.loadedRawText,
-      originalDisplayContent: _document.loadedText,
-      expectedContentToken: _document.contentToken,
-      overwriteIfChanged: overwriteIfChanged,
-      tabSize: _currentEditorTabSize(),
-    );
-  }
-
-  void _acceptSaved(native.WorkspaceEditorTextFile saved) {
-    _document.acceptSaved(saved, tabSize: _currentEditorTabSize());
-    _controller.text = _document.currentText ?? '';
-  }
-
   bool _isDirty() => _document.isDirty;
-
-  void _handleControllerChanged() {
-    _document.updateCurrentText(_controller.text);
-    _refreshStateSafely();
-  }
 
   void _refreshStateSafely() {
     if (!mounted) {

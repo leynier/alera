@@ -2,6 +2,7 @@ part of 'workspace_editor_surface.dart';
 
 extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
   Future<void> _load() async {
+    _autosave.cancelPending();
     final requestId = ++_loadRequestId;
     final workspacePath = widget.workspace.path;
     final filePath = widget.tab.filePath;
@@ -40,6 +41,7 @@ extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
       if (_isCurrentLoadRequest(requestId, workspacePath, filePath)) {
         _setEditorState(() => _loading = false);
         _applyPendingReveal();
+        _autosave.notifyStateChanged();
       }
     }
   }
@@ -48,6 +50,7 @@ extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       _invalidatePendingLoads();
+      _autosave.cancelPending();
       _loading = false;
       _loadError = null;
       return;
@@ -62,6 +65,7 @@ extension _WorkspaceEditorLoading on _WorkspaceEditorSurfaceState {
       _loadError = _document.loadError;
       _loading = false;
       _applyPendingReveal();
+      _autosave.notifyStateChanged();
       return;
     }
     _loading = true;
