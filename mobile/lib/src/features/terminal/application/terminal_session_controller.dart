@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.da
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
 import 'package:flutter/widgets.dart';
+import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
@@ -43,10 +44,12 @@ class TerminalTabSession {
 
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {
+  final Logger _logger = Logger('TerminalSessionController');
   MobileTerminalClient? _client;
   String? _sessionId;
   StreamSubscription<MobileRuntimeEvent>? _driverSub;
   bool _cleanupRegistered = false;
+  bool _disposed = false;
   bool _recovering = false;
   bool _desktopReclaimed = false;
   MobileTerminalClient? _pendingRecoveryClient;
@@ -57,17 +60,21 @@ class TerminalSessionController extends _$TerminalSessionController {
 
   @override
   Future<TerminalTabSession> build(String hostId, String tabId) async {
+    _registerCleanup();
     // Keep the auto-disposed connection provider alive without rebuilding this
     // controller on every reconnect. Recovery owns the loading phase so the UI
     // can distinguish reconnecting from a first start.
     ref.listen(terminalClientProvider(hostId), (_, next) {
       switch (next) {
-        case AsyncLoading() when _client != null && !_desktopReclaimed:
+        case AsyncLoading()
+            when !_disposed && _client != null && !_desktopReclaimed:
           state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
-        case AsyncError(:final error, :final stackTrace) when !_recovering:
+        case AsyncError(:final error, :final stackTrace)
+            when !_disposed && !_recovering:
           state = AsyncError(error, stackTrace);
         case AsyncData(value: final client)
-            when _client != null &&
+            when !_disposed &&
+                _client != null &&
                 !identical(_client, client) &&
                 !_desktopReclaimed:
           unawaited(_recoverWithClient(client));
@@ -80,7 +87,6 @@ class TerminalSessionController extends _$TerminalSessionController {
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
     final session = await client.attachTerminal(tabId);
-    _registerCleanup();
     return _bindSession(client, session);
   }
 
@@ -88,7 +94,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     AppLifecycleState? previous,
     AppLifecycleState next,
   ) {
-    if (next != AppLifecycleState.resumed ||
+    if (_disposed ||
+        next != AppLifecycleState.resumed ||
         previous == AppLifecycleState.resumed ||
         _desktopReclaimed) {
       return;
@@ -105,6 +112,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     _cleanupRegistered = true;
     ref.onDispose(() {
+      _disposed = true;
       unawaited(_driverSub?.cancel());
       final client = _client;
       final sessionId = _sessionId;
@@ -118,9 +126,23 @@ class TerminalSessionController extends _$TerminalSessionController {
     MobileTerminalClient client,
     MobileTerminalSession session,
   ) {
+    final sessionId = session.attachment.sessionId;
+    if (_disposed) {
+      _logger.warning(
+        'discarding terminal session $sessionId after controller disposal',
+      );
+      unawaited(_detachQuietly(client, sessionId));
+      return TerminalTabSession(
+        sessionId: sessionId,
+        snapshot: session.attachment.snapshot,
+        running: session.attachment.running,
+        output: client.terminalOutput.where(
+          (event) => event.sessionId == sessionId,
+        ),
+      );
+    }
     final previousClient = _client;
     final previousSessionId = _sessionId;
-    final sessionId = session.attachment.sessionId;
     unawaited(_driverSub?.cancel());
     if (previousClient != null &&
         previousSessionId != null &&
@@ -132,7 +154,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     _sessionId = sessionId;
     _driverSub = client.events.listen(
       (event) {
-        if (event.name != 'terminalDriverChanged' ||
+        if (_disposed ||
+            event.name != 'terminalDriverChanged' ||
             event.payload['sessionId'] != sessionId) {
           return;
         }
@@ -146,11 +169,23 @@ class TerminalSessionController extends _$TerminalSessionController {
         }
       },
       onError: (Object error, StackTrace stackTrace) {
+        if (_disposed) {
+          _logger.warning(
+            'terminal client reported an error after controller disposal',
+            error,
+            stackTrace,
+          );
+          return;
+        }
         if (!_recovering && identical(_client, client)) {
           state = AsyncError(error, stackTrace);
         }
       },
       onDone: () {
+        if (_disposed) {
+          _logger.warning('terminal client ended after controller disposal');
+          return;
+        }
         if (!_recovering && identical(_client, client)) {
           state = AsyncError(const RuntimeConnectionLost(), StackTrace.current);
         }
@@ -170,6 +205,10 @@ class TerminalSessionController extends _$TerminalSessionController {
     MobileTerminalClient client, {
     bool showStartingState = false,
   }) async {
+    if (_disposed) {
+      _logger.warning('ignoring terminal recovery after controller disposal');
+      return;
+    }
     if (_recovering) {
       _pendingRecoveryClient = client;
       return;
@@ -177,7 +216,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     _recovering = true;
     var nextClient = client;
     try {
-      while (!_desktopReclaimed) {
+      while (!_desktopReclaimed && !_disposed) {
         _pendingRecoveryClient = null;
         state = showStartingState
             ? const AsyncLoading<TerminalTabSession>()
@@ -189,8 +228,23 @@ class TerminalSessionController extends _$TerminalSessionController {
             cols: _cols,
             rows: _rows,
           );
+          if (_disposed) {
+            _logger.warning(
+              'discarding terminal recovery session after controller disposal',
+            );
+            unawaited(_detachQuietly(nextClient, session.attachment.sessionId));
+            break;
+          }
           state = AsyncData(_bindSession(nextClient, session));
         } catch (error, stackTrace) {
+          if (_disposed) {
+            _logger.warning(
+              'terminal recovery failed after controller disposal',
+              error,
+              stackTrace,
+            );
+            break;
+          }
           state = AsyncError(error, stackTrace);
         }
         final pendingClient = _pendingRecoveryClient;
@@ -206,19 +260,44 @@ class TerminalSessionController extends _$TerminalSessionController {
   }
 
   Future<void> reconnect() async {
+    if (_disposed) {
+      _logger.warning('ignoring terminal reconnect after controller disposal');
+      return;
+    }
     _recovering = true;
     state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
     try {
       ref.invalidate(hostConnectionControllerProvider(hostId));
       ref.invalidate(terminalClientProvider(hostId));
       final client = await ref.read(terminalClientProvider(hostId).future);
+      if (_disposed) {
+        _logger.warning(
+          'discarding terminal reconnect client after controller disposal',
+        );
+        return;
+      }
       final session = await client.attachTerminal(
         tabId,
         cols: _cols,
         rows: _rows,
       );
+      if (_disposed) {
+        _logger.warning(
+          'discarding terminal reconnect session after controller disposal',
+        );
+        unawaited(_detachQuietly(client, session.attachment.sessionId));
+        return;
+      }
       state = AsyncData(_bindSession(client, session));
     } catch (error, stackTrace) {
+      if (_disposed) {
+        _logger.warning(
+          'terminal reconnect failed after controller disposal',
+          error,
+          stackTrace,
+        );
+        return;
+      }
       state = AsyncError(error, stackTrace);
     } finally {
       _recovering = false;
@@ -226,11 +305,21 @@ class TerminalSessionController extends _$TerminalSessionController {
   }
 
   Future<void> restartTerminal() async {
+    if (_disposed) {
+      _logger.warning('ignoring terminal restart after controller disposal');
+      return;
+    }
     final MobileTerminalClient client;
     if (_client case final currentClient?) {
       client = currentClient;
     } else {
       client = await ref.read(terminalClientProvider(hostId).future);
+      if (_disposed) {
+        _logger.warning(
+          'discarding terminal restart client after controller disposal',
+        );
+        return;
+      }
     }
     if (!client.supportsTerminalRestart) {
       state = AsyncError(
@@ -247,8 +336,23 @@ class TerminalSessionController extends _$TerminalSessionController {
         cols: _cols,
         rows: _rows,
       );
+      if (_disposed) {
+        _logger.warning(
+          'discarding terminal restart session after controller disposal',
+        );
+        unawaited(_detachQuietly(client, session.attachment.sessionId));
+        return;
+      }
       state = AsyncData(_bindSession(client, session));
     } catch (error, stackTrace) {
+      if (_disposed) {
+        _logger.warning(
+          'terminal restart failed after controller disposal',
+          error,
+          stackTrace,
+        );
+        return;
+      }
       state = AsyncError(error, stackTrace);
     }
   }
@@ -315,8 +419,12 @@ class TerminalSessionController extends _$TerminalSessionController {
   ) async {
     try {
       await client.detachTerminal(sessionId);
-    } on Object {
-      // The socket may already be gone; leaving is best-effort.
+    } on Object catch (error, stackTrace) {
+      _logger.warning(
+        'could not detach terminal session $sessionId',
+        error,
+        stackTrace,
+      );
     }
   }
 }

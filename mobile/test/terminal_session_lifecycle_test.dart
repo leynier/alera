@@ -11,6 +11,87 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
+  test('Disposing during the initial attach does not bind a driver', () async {
+    final attachCompletion = Completer<void>();
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachCompletion = attachCompletion.future;
+    final container = ProviderContainer(
+      overrides: [
+        terminalClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    final sessionFuture = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+
+    await _waitUntil(() => client.attachments.isNotEmpty);
+    subscription.close();
+    await pumpEventQueue();
+    attachCompletion.complete();
+
+    await sessionFuture;
+    await pumpEventQueue();
+
+    expect(client.calls, contains('detach session-tab-1'));
+  });
+
+  test(
+    'Disposing during recovery does not bind to closed client events',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final container = ProviderContainer(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          appLifecycleControllerProvider.overrideWith(() => lifecycle),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+
+      final attachCompletion = Completer<void>();
+      client.attachCompletion = attachCompletion.future;
+      lifecycle.setLifecycleState(AppLifecycleState.inactive);
+      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() => client.attachments.length == 2);
+
+      subscription.close();
+      await pumpEventQueue();
+      attachCompletion.complete();
+      await _waitUntil(
+        () =>
+            client.calls
+                .where((call) => call == 'detach session-tab-1')
+                .length ==
+            2,
+      );
+
+      await client.dispose();
+      await pumpEventQueue();
+      expect(
+        client.calls.where((call) => call == 'detach session-tab-1'),
+        hasLength(2),
+      );
+    },
+  );
+
   test(
     'Open session starts again when the app returns to foreground',
     () async {
