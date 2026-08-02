@@ -23,14 +23,28 @@ class WorkspaceFileService {
     );
   }
 
-  Future<List<native.WorkspaceFileEntry>> listFiles({
+  Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
     required String workspacePath,
-    int maxResults = 10000,
   }) {
-    return native.listWorkspaceFiles(
-      workspacePath: workspacePath,
-      maxResults: maxResults,
+    return native.startWorkspaceQuickOpenSession(workspacePath: workspacePath);
+  }
+
+  Future<List<native.WorkspaceQuickOpenMatch>> searchQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    int limit = 50,
+  }) {
+    return native.searchWorkspaceQuickOpenSession(
+      session: session,
+      query: query,
+      limit: limit,
     );
+  }
+
+  Future<void> stopQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+  }) {
+    return native.stopWorkspaceQuickOpenSession(session: session);
   }
 
   List<native.WorkspaceFileEntry> applyGitStatusSnapshot(

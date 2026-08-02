@@ -84,6 +84,16 @@ The benchmark mounts and starts `TerminalSurface` before timing, sends the defau
 
 On the Linux development machine with Flutter 3.44.8 and the 20 Hz sustained-output cadence, the protected restore queue completed all five samples within the three-second target: 2,074.59 ms median, 2,369.25 ms p95 and maximum, 6.58 ms MAD, and exactly 40 flushes per restore. The three-second target is scoped to the default 10,000-line, 2.56 MB replay budget. Larger user-configured histories preserve their additional content and scale with payload size. This is a comparison benchmark rather than a timing assertion because desktop hardware and display composition materially affect the result.
 
+## Quick Open Search Harness
+
+Run the non-gating 40,000-path Quick Open benchmark on Linux:
+
+```bash
+flutter test integration_test/quick_open_benchmark.dart -d linux
+```
+
+The harness creates 40,000 files, starts one snapshot index, verifies that every eligible file was indexed, and sends 100 FRB queries. It reports the scan duration and query p50/p95. The query path measures native indexing and ranking plus the FRB call, while the dialog itself is covered by `test/widget/quick_open_dialog_test.dart`; compare results on the same machine and Flutter revision. The working tree is temporary and is removed after the run.
+
 ## Measurement Rules
 
 - Compare before and after on the same machine, Flutter revision, build mode, display setup, and power mode.

@@ -19,19 +19,18 @@ void main() {
   ) async {
     final workspace = _workspace('workspace-1', 'Main', '/repo/main');
     final controller = _QuickOpenTestController(_state(workspace));
-    final files = Completer<List<native.WorkspaceFileEntry>>();
-    final service = _QuickOpenFileService(files: files);
+    final session = Completer<native.WorkspaceQuickOpenSession>();
+    final service = _QuickOpenFileService(
+      session: session,
+      entries: <String>['lib/main.dart', 'lib/main_test.dart', 'notes.txt'],
+    );
     await _pumpQuickOpen(tester, controller: controller, service: service);
 
     await tester.tap(find.text('Open Quick Open'));
     await tester.pump();
     expect(find.text('Loading workspace files...'), findsOneWidget);
 
-    files.complete(<native.WorkspaceFileEntry>[
-      _file('lib/main.dart'),
-      _file('lib/main_test.dart'),
-      _file('notes.txt'),
-    ]);
+    session.complete(_session('workspace-1', 3));
     await tester.pumpAndSettle();
     expect(find.text('lib/main.dart'), findsOneWidget);
     expect(find.text('lib/main_test.dart'), findsOneWidget);
@@ -46,6 +45,55 @@ void main() {
     expect(controller.openedFiles, <String>['lib/main_test.dart']);
   });
 
+  testWidgets('ignores stale searches', (tester) async {
+    final workspace = _workspace('workspace-1', 'Main', '/repo/main');
+    final controller = _QuickOpenTestController(_state(workspace));
+    final oldSearch = Completer<List<native.WorkspaceQuickOpenMatch>>();
+    final newSearch = Completer<List<native.WorkspaceQuickOpenMatch>>();
+    final service = _QuickOpenFileService(
+      entries: <String>['old.dart', 'new.dart'],
+      searchGates: <String, Completer<List<native.WorkspaceQuickOpenMatch>>>{
+        'old': oldSearch,
+        'new': newSearch,
+      },
+    );
+    await _pumpQuickOpen(tester, controller: controller, service: service);
+
+    await tester.tap(find.text('Open Quick Open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'old');
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'new');
+    await tester.pump();
+
+    oldSearch.complete(<native.WorkspaceQuickOpenMatch>[_match('old.dart')]);
+    await tester.pump();
+    expect(find.text('old.dart'), findsNothing);
+
+    newSearch.complete(<native.WorkspaceQuickOpenMatch>[_match('new.dart')]);
+    await tester.pumpAndSettle();
+    expect(find.text('new.dart'), findsOneWidget);
+  });
+
+  testWidgets('stops a session whose start completes after disposal', (
+    tester,
+  ) async {
+    final workspace = _workspace('workspace-1', 'Main', '/repo/main');
+    final controller = _QuickOpenTestController(_state(workspace));
+    final session = Completer<native.WorkspaceQuickOpenSession>();
+    final service = _QuickOpenFileService(session: session);
+    await _pumpQuickOpen(tester, controller: controller, service: service);
+
+    await tester.tap(find.text('Open Quick Open'));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    session.complete(_session('late-session', 0));
+    await tester.pump();
+    expect(service.stoppedSessionIds, <String>['late-session']);
+  });
+
   testWidgets('arrow navigation, Escape, and focus restoration work', (
     tester,
   ) async {
@@ -56,9 +104,7 @@ void main() {
     await _pumpQuickOpen(
       tester,
       controller: controller,
-      service: _QuickOpenFileService(
-        entries: <native.WorkspaceFileEntry>[_file('a.dart'), _file('b.dart')],
-      ),
+      service: _QuickOpenFileService(entries: <String>['a.dart', 'b.dart']),
       anchorFocus: anchorFocus,
     );
     anchorFocus.requestFocus();
@@ -80,15 +126,31 @@ void main() {
     expect(anchorFocus.hasFocus, isTrue);
   });
 
+  testWidgets('scrolls the selected result into view', (tester) async {
+    final workspace = _workspace('workspace-1', 'Main', '/repo/main');
+    final controller = _QuickOpenTestController(_state(workspace));
+    final service = _QuickOpenFileService(
+      entries: <String>[for (var i = 0; i < 50; i++) 'file_$i.dart'],
+    );
+    await _pumpQuickOpen(tester, controller: controller, service: service);
+
+    await tester.tap(find.text('Open Quick Open'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 49; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.pumpAndSettle();
+
+    expect(find.text('file_49.dart'), findsOneWidget);
+  });
+
   testWidgets('shows empty and error states', (tester) async {
     final workspace = _workspace('workspace-1', 'Main', '/repo/main');
     final controller = _QuickOpenTestController(_state(workspace));
     await _pumpQuickOpen(
       tester,
       controller: controller,
-      service: _QuickOpenFileService(
-        entries: const <native.WorkspaceFileEntry>[],
-      ),
+      service: _QuickOpenFileService(entries: const <String>[]),
     );
 
     await tester.tap(find.text('Open Quick Open'));
@@ -119,9 +181,9 @@ void main() {
       _state(first, extraWorkspaces: <Workspace>[second]),
     );
     final service = _QuickOpenFileService(
-      entriesByWorkspacePath: <String, List<native.WorkspaceFileEntry>>{
-        first.path: <native.WorkspaceFileEntry>[_file('old.dart')],
-        second.path: <native.WorkspaceFileEntry>[_file('new.dart')],
+      entriesByWorkspacePath: <String, List<String>>{
+        first.path: <String>['old.dart'],
+        second.path: <String>['new.dart'],
       },
     );
     await _pumpQuickOpen(tester, controller: controller, service: service);
@@ -193,48 +255,91 @@ Workspace _workspace(String id, String name, String path) {
   );
 }
 
-native.WorkspaceFileEntry _file(String relativePath) {
-  return native.WorkspaceFileEntry(
-    relativePath: relativePath,
-    name: relativePath.split('/').last,
-    kind: native.WorkspaceFileKind.file,
-    size: BigInt.zero,
-    modifiedMillis: 0,
-    contentToken: '$relativePath-token',
-    isIgnored: false,
-    isHidden: false,
-    isSymlink: false,
-    isProtected: false,
-    hasChildrenHint: false,
+native.WorkspaceQuickOpenMatch _match(String relativePath) {
+  return native.WorkspaceQuickOpenMatch(relativePath: relativePath, score: 0);
+}
+
+native.WorkspaceQuickOpenSession _session(String id, int indexedFileCount) {
+  return native.WorkspaceQuickOpenSession(
+    id: id,
+    indexedFileCount: indexedFileCount,
   );
 }
 
 class _QuickOpenFileService extends WorkspaceFileService {
   _QuickOpenFileService({
-    this.entries = const <native.WorkspaceFileEntry>[],
+    this.entries = const <String>[],
     this.error,
-    this.files,
-    this.entriesByWorkspacePath =
-        const <String, List<native.WorkspaceFileEntry>>{},
+    this.session,
+    this.entriesByWorkspacePath = const <String, List<String>>{},
+    this.searchGates =
+        const <String, Completer<List<native.WorkspaceQuickOpenMatch>>>{},
   });
 
-  final List<native.WorkspaceFileEntry> entries;
+  final List<String> entries;
   final Object? error;
-  final Completer<List<native.WorkspaceFileEntry>>? files;
-  final Map<String, List<native.WorkspaceFileEntry>> entriesByWorkspacePath;
+  final Completer<native.WorkspaceQuickOpenSession>? session;
+  final Map<String, List<String>> entriesByWorkspacePath;
+  final Map<String, Completer<List<native.WorkspaceQuickOpenMatch>>>
+  searchGates;
+  final List<String> stoppedSessionIds = <String>[];
+  final Map<String, List<String>> _entriesBySessionId =
+      <String, List<String>>{};
 
   @override
-  Future<List<native.WorkspaceFileEntry>> listFiles({
+  Future<native.WorkspaceQuickOpenSession> startQuickOpenSession({
     required String workspacePath,
-    int maxResults = 10000,
   }) {
     if (error != null) {
-      return Future<List<native.WorkspaceFileEntry>>.error(error!);
+      return Future<native.WorkspaceQuickOpenSession>.error(error!);
     }
-    if (files != null) {
-      return files!.future;
+    if (session != null) {
+      return session!.future.then((value) {
+        _entriesBySessionId[value.id] =
+            entriesByWorkspacePath[workspacePath] ?? entries;
+        return value;
+      });
     }
-    return Future.value(entriesByWorkspacePath[workspacePath] ?? entries);
+    final value = _session(
+      workspacePath,
+      entriesByWorkspacePath[workspacePath]?.length ?? entries.length,
+    );
+    _entriesBySessionId[value.id] =
+        entriesByWorkspacePath[workspacePath] ?? entries;
+    return Future.value(value);
+  }
+
+  @override
+  Future<List<native.WorkspaceQuickOpenMatch>> searchQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+    required String query,
+    int limit = 50,
+  }) {
+    final gate = searchGates[query];
+    if (gate != null) {
+      return gate.future;
+    }
+    final normalizedQuery = query.trim().toLowerCase();
+    final paths = _entriesBySessionId[session.id] ?? entries;
+    final matches =
+        paths
+            .where(
+              (path) =>
+                  normalizedQuery.isEmpty ||
+                  path.toLowerCase().contains(normalizedQuery),
+            )
+            .toList()
+          ..sort();
+    return Future.value(
+      matches.take(limit).map(_match).toList(growable: false),
+    );
+  }
+
+  @override
+  Future<void> stopQuickOpenSession({
+    required native.WorkspaceQuickOpenSession session,
+  }) async {
+    stoppedSessionIds.add(session.id);
   }
 }
 

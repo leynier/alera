@@ -8,11 +8,12 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
-import 'package:alera/src/features/workbench/domain/workspace_file_quick_open.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+const _quickOpenResultLimit = 50;
 
 class QuickOpenDialog extends ConsumerStatefulWidget {
   const QuickOpenDialog({super.key});
@@ -27,14 +28,16 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
   late final WorkspaceFileService _workspaceFiles;
 
   String? _workspaceId;
-  List<String> _relativePaths = const <String>[];
-  List<WorkspaceFileQuickOpenMatch> _matches =
-      const <WorkspaceFileQuickOpenMatch>[];
+  native.WorkspaceQuickOpenSession? _session;
+  List<native.WorkspaceQuickOpenMatch> _matches =
+      const <native.WorkspaceQuickOpenMatch>[];
   bool _loading = true;
   Object? _loadError;
   int _selectedIndex = 0;
-  int _loadGeneration = 0;
+  int _workspaceGeneration = 0;
+  int _searchGeneration = 0;
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
+  final ScrollController _resultsScrollController = ScrollController();
 
   @override
   void initState() {
@@ -55,15 +58,29 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
 
   @override
   void dispose() {
+    final session = _session;
+    _session = null;
+    _workspaceGeneration++;
+    _searchGeneration++;
+    if (session != null) {
+      unawaited(_stopSession(session));
+    }
     _queryController.dispose();
     _queryFocusNode.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
   }
 
   Future<void> _reloadWorkspace() async {
     final workspace = ref.read(workbenchControllerProvider).activeWorkspace;
     final workspaceId = workspace?.id;
-    final generation = ++_loadGeneration;
+    final generation = ++_workspaceGeneration;
+    ++_searchGeneration;
+    final previousSession = _session;
+    _session = null;
+    if (previousSession != null) {
+      unawaited(_stopSession(previousSession));
+    }
     final workspaceChanged = _workspaceId != workspaceId;
     _workspaceId = workspaceId;
     if (workspaceChanged) {
@@ -72,42 +89,38 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     if (!mounted) {
       return;
     }
+    _resetResultsScroll();
     setState(() {
-      _relativePaths = const <String>[];
-      _matches = const <WorkspaceFileQuickOpenMatch>[];
+      _matches = const <native.WorkspaceQuickOpenMatch>[];
       _selectedIndex = 0;
       _loadError = null;
       _loading = workspace != null;
       _rowKeys.clear();
     });
     if (workspace == null) {
-      if (mounted && generation == _loadGeneration) {
+      if (mounted && generation == _workspaceGeneration) {
         setState(() => _loading = false);
       }
       return;
     }
     try {
-      final entries = await _workspaceFiles.listFiles(
+      final session = await _workspaceFiles.startQuickOpenSession(
         workspacePath: workspace.path,
-        maxResults: defaultWorkspaceFileQuickOpenEnumerationLimit,
       );
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _workspaceGeneration) {
+        unawaited(_stopSession(session));
         return;
       }
-      final paths = <String>[
-        for (final entry in entries)
-          if (entry.kind == native.WorkspaceFileKind.file ||
-              entry.kind == native.WorkspaceFileKind.symlink)
-            entry.relativePath,
-      ];
-      setState(() {
-        _relativePaths = paths;
-        _matches = _rankMatches();
-        _selectedIndex = 0;
-        _loading = false;
-      });
+      _session = session;
+      final searchGeneration = ++_searchGeneration;
+      await _searchSession(
+        session: session,
+        workspaceGeneration: generation,
+        searchGeneration: searchGeneration,
+        query: _queryController.text,
+      );
     } catch (error) {
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _workspaceGeneration) {
         return;
       }
       setState(() {
@@ -117,19 +130,85 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     }
   }
 
-  List<WorkspaceFileQuickOpenMatch> _rankMatches() {
-    return rankWorkspaceFileQuickOpenMatches(
-      _relativePaths,
-      _queryController.text,
-      limit: defaultWorkspaceFileQuickOpenResultLimit,
-    );
+  Future<void> _searchSession({
+    required native.WorkspaceQuickOpenSession session,
+    required int workspaceGeneration,
+    required int searchGeneration,
+    required String query,
+  }) async {
+    try {
+      final matches = await _workspaceFiles.searchQuickOpenSession(
+        session: session,
+        query: query,
+        limit: _quickOpenResultLimit,
+      );
+      if (!_isCurrentSearch(session, workspaceGeneration, searchGeneration)) {
+        return;
+      }
+      setState(() {
+        _matches = matches;
+        _selectedIndex = 0;
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!_isCurrentSearch(session, workspaceGeneration, searchGeneration)) {
+        return;
+      }
+      setState(() {
+        _loadError = error;
+        _loading = false;
+      });
+    }
+  }
+
+  bool _isCurrentSearch(
+    native.WorkspaceQuickOpenSession session,
+    int workspaceGeneration,
+    int searchGeneration,
+  ) {
+    return mounted &&
+        workspaceGeneration == _workspaceGeneration &&
+        searchGeneration == _searchGeneration &&
+        identical(_session, session);
   }
 
   void _updateQuery(String query) {
+    final session = _session;
+    final workspaceGeneration = _workspaceGeneration;
+    final searchGeneration = ++_searchGeneration;
+    _resetResultsScroll();
     setState(() {
-      _matches = _rankMatches();
+      _matches = const <native.WorkspaceQuickOpenMatch>[];
       _selectedIndex = 0;
+      if (session != null) {
+        _loading = true;
+      }
     });
+    if (session != null) {
+      unawaited(
+        _searchSession(
+          session: session,
+          workspaceGeneration: workspaceGeneration,
+          searchGeneration: searchGeneration,
+          query: query,
+        ),
+      );
+    }
+  }
+
+  void _resetResultsScroll() {
+    if (_resultsScrollController.hasClients) {
+      _resultsScrollController.jumpTo(0);
+    }
+  }
+
+  Future<void> _stopSession(native.WorkspaceQuickOpenSession session) async {
+    try {
+      await _workspaceFiles.stopQuickOpenSession(session: session);
+    } catch (_) {
+      // Session cleanup is best effort during stale requests and disposal.
+    }
   }
 
   void _moveSelection(int delta) {
@@ -154,6 +233,25 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
           alignment: 0.5,
           duration: AleraTokens.durationFast,
         );
+      } else if (_resultsScrollController.hasClients) {
+        final position = _resultsScrollController.position;
+        final itemExtent = AleraTokens.space32;
+        final itemTop = _selectedIndex * itemExtent;
+        final itemBottom = itemTop + itemExtent;
+        final visibleTop = position.pixels;
+        final visibleBottom = visibleTop + position.viewportDimension;
+        final target = itemTop < visibleTop
+            ? itemTop
+            : itemBottom > visibleBottom
+            ? itemBottom - position.viewportDimension
+            : position.pixels;
+        if (target != position.pixels) {
+          _resultsScrollController.animateTo(
+            target.clamp(0.0, position.maxScrollExtent),
+            duration: AleraTokens.durationFast,
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
   }
@@ -315,6 +413,8 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     }
     return ListView.builder(
       key: const ValueKey<String>('quick-open-results'),
+      controller: _resultsScrollController,
+      itemExtent: AleraTokens.space32,
       padding: EdgeInsets.zero,
       itemCount: _matches.length,
       itemBuilder: (context, index) {
