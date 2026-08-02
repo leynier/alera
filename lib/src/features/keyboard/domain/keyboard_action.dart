@@ -56,6 +56,7 @@ enum KeyboardActionId {
   navigateForward,
   findInFiles,
   findInTerminal,
+  toggleTerminalComposer,
   replaceInFiles,
   saveFile,
   newTerminalTab,
@@ -240,6 +241,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Search the active terminal scrollback.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+F']),
     searchKeywords: <String>['search', 'terminal', 'scrollback'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.toggleTerminalComposer,
+    label: 'Toggle Terminal Composer',
+    group: KeyboardActionGroup.tabs,
+    description: 'Show or hide the prompt composer for the active terminal.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+Enter']),
+    searchKeywords: <String>['prompt', 'compose', 'agent', 'terminal'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

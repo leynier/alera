@@ -653,6 +653,20 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   @override
   void pasteText(String text) => _pasteTerminalText(this, text);
 
+  @override
+  Future<bool> submitText(String text) async {
+    if (_disposed || text.trim().isEmpty) {
+      return false;
+    }
+    await ensureStarted();
+    if (_disposed || !_running || _ptySession == null) {
+      return false;
+    }
+    _pasteTerminalText(this, text);
+    _handleTerminalInput('\r');
+    return true;
+  }
+
   void _requestFocusNow() {
     if (_disposed || !_focusNode.canRequestFocus) {
       return;

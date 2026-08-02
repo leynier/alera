@@ -366,6 +366,22 @@ void _registerTerminalSurfaceInteractionTests() {
         expect(allowedSearchResult, KeyEventResult.handled);
         expect(allowedSession.openSearchCallCount, 1);
 
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        final composerResult = allowedSession.onKeyEvent!.call(
+          focusNode,
+          const KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.enter,
+            logicalKey: LogicalKeyboardKey.enter,
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+        expect(composerResult, KeyEventResult.handled);
+        expect(allowedSession.composerController.visible, isTrue);
+
         final blockedSession = _ShortcutCaptureSessionHandle(tabId: 'tab-2');
         final blockedController = _FakeWorkbenchController();
         await pumpShortcutSurface(
