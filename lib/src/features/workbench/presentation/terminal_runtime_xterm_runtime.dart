@@ -51,6 +51,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   final void Function(String message, {bool error})? _interactionNotice;
   TerminalSettings _settings;
   String? _activeWorkspaceId;
+  bool _appForeground = true;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
   final Map<String, _XtermTerminalSessionHandle> _sessions =
@@ -92,7 +93,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _notifyOsc52Blocked,
             _handleSessionExit,
             _handleVisibilityChanged,
-          );
+          )..setAppForeground(_appForeground);
         })
         .sync(workspace: workspace, tab: tab);
   }
@@ -107,6 +108,19 @@ class XtermTerminalRuntime implements TerminalRuntime {
     }
     _activeWorkspaceId = workspaceId;
     _enforceBufferBudget();
+  }
+
+  /// Parks terminal delivery and frame scheduling while the desktop window is
+  /// hidden. The sidecar keeps the PTY and its bounded scrollback alive, then
+  /// resynchronises from the delivery cursor when the window returns.
+  void setAppForeground(bool foreground) {
+    if (_appForeground == foreground) {
+      return;
+    }
+    _appForeground = foreground;
+    for (final session in _sessions.values) {
+      session.setAppForeground(foreground);
+    }
   }
 
   void _handleVisibilityChanged(_XtermTerminalSessionHandle handle) {
@@ -131,10 +145,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     }
     final pinned = <String>{
       for (final entry in _sessions.entries)
-        if (entry.value.isVisible ||
-            (_activeWorkspaceId != null &&
-                entry.value.workspaceId == _activeWorkspaceId))
-          entry.key,
+        if (entry.value.isVisible) entry.key,
     };
     final evictions = budget.selectEvictions(
       live: <TerminalBufferUsage>[

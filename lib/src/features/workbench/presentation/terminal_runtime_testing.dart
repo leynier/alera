@@ -58,6 +58,14 @@ void queueTerminalOutputForTesting(TerminalSessionHandle session, String data) {
 
 @visibleForTesting
 void flushTerminalOutputForTesting(TerminalSessionHandle session) {
+  (session as _XtermTerminalSessionHandle)._flushPendingTerminalOutputFrame(
+    force: true,
+  );
+}
+
+/// Delivers a scheduled frame with production visibility checks intact.
+@visibleForTesting
+void deliverTerminalOutputFrameForTesting(TerminalSessionHandle session) {
   (session as _XtermTerminalSessionHandle)._flushPendingTerminalOutputFrame();
 }
 

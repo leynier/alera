@@ -36,6 +36,8 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
 
   set _visible(bool value);
 
+  set _appForeground(bool value);
+
   bool get _disposed;
   set _disposed(bool value);
 
@@ -83,6 +85,7 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
     _outputVisibilityGeneration += 1;
     _visibilityLeases.clear();
     _visible = false;
+    _appForeground = false;
     _pointerInputResumePending = false;
     _pointerInputCatchUpChars = 0;
     _osc8LinkTracker.dispose();

@@ -44,7 +44,9 @@ void _trimSessionLiveOutputBacklog(_XtermTerminalSessionHandle handle) {
 void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
   // A hidden terminal keeps its backlog but pays no frame time for it; the
   // backlog is drained when it becomes visible again.
-  if (handle._output.flushScheduled || handle._disposed || !handle._visible) {
+  if (handle._output.flushScheduled ||
+      handle._disposed ||
+      !handle._outputVisible) {
     return;
   }
   final clock = handle._output.sinceFlushRequest;
@@ -64,7 +66,7 @@ void _scheduleSessionTerminalOutputFlush(_XtermTerminalSessionHandle handle) {
     () {
       handle._output.flushTimer = null;
       handle._output.flushScheduled = false;
-      if (handle._disposed || !handle._visible) {
+      if (handle._disposed || !handle._outputVisible) {
         return;
       }
       _requestSessionTerminalOutputFrame(handle);
@@ -84,11 +86,17 @@ void _requestSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
   SchedulerBinding.instance.ensureVisualUpdate();
 }
 
-void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
+void _flushSessionTerminalOutputFrame(
+  _XtermTerminalSessionHandle handle, {
+  bool force = false,
+}) {
   handle._output.flushScheduled = false;
   handle._output.flushCount += 1;
   if (handle._disposed) {
     handle._clearPendingTerminalOutput();
+    return;
+  }
+  if (!force && !handle._outputVisible) {
     return;
   }
   _drainSessionTerminalOutputChunk(handle);
@@ -200,10 +208,10 @@ const int _terminalOutputMaxPendingChars = 1024 * 1024;
 /// the platform thread (`gdk_cairo_draw_from_gl`), which no GDK setting avoids.
 /// CPU therefore tracks the frame count almost linearly: 30 fps of streaming
 /// output cost 48% of a core against 31% at 20 fps, with a bare frame costing
-/// ~6 ms of CPU on its own. Nobody reads text scrolling at 60 Hz, so the cap
-/// buys back that difference with no visible loss.
+/// ~6 ms of CPU on its own. Nobody reads text scrolling at 60 Hz, so sustained
+/// output uses the measured 20 fps cadence.
 ///
 /// This is a floor on cadence, not a delay on arrival: a terminal that has been
 /// quiet flushes on the very next frame, so echo latency while typing is
 /// unchanged.
-const Duration _terminalOutputMinFlushInterval = Duration(milliseconds: 33);
+const Duration _terminalOutputMinFlushInterval = Duration(milliseconds: 50);

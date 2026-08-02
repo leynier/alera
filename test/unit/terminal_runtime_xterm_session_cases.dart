@@ -265,6 +265,50 @@ void _registerXtermRuntimeSessionTests() {
     },
   );
 
+  test('parks a mounted terminal while the app window is hidden', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final visibility = acquireTerminalVisibilityForTesting(session);
+    addTearDown(visibility.dispose);
+    try {
+      await session.ensureStarted();
+      queueTerminalOutputForTesting(session, 'queued-before-hide\r\n');
+
+      runtime.setAppForeground(false);
+      await Future<void>.delayed(Duration.zero);
+      expect(session.isVisible, isTrue, reason: 'the pane remains mounted');
+      expect(fakeSession.outputPausedCalls.last, isTrue);
+
+      deliverTerminalOutputFrameForTesting(session);
+      expect(
+        terminalBufferTextForTesting(session),
+        isNot(contains('queued-before-hide')),
+      );
+      expect(pendingTerminalOutputCharsForTesting(session), greaterThan(0));
+
+      runtime.setAppForeground(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(fakeSession.outputPausedCalls.last, isFalse);
+      flushTerminalOutputForTesting(session);
+      expect(
+        terminalBufferTextForTesting(session),
+        contains('queued-before-hide'),
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   test('hidden terminal exits still notify the runtime', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     final fakeSession = _FakeTerminalPtySession();
