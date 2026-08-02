@@ -84,6 +84,12 @@ class AleraTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textActionsAvailable =
+        textActionsEnabled &&
+        AleraTextActionsScope.maybeOf(context)?.enabled == true;
+    final contextMenuBuilder = onPaste != null || textActionsAvailable
+        ? _buildContextMenu
+        : null;
     if (!dense) {
       final field = TextField(
         controller: controller,
@@ -96,7 +102,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
-        contextMenuBuilder: _buildContextMenu,
+        contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
@@ -124,7 +130,7 @@ class AleraTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
         onEditingComplete: onEditingComplete,
         onTap: onTap,
-        contextMenuBuilder: _buildContextMenu,
+        contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
         minLines: minLines,
