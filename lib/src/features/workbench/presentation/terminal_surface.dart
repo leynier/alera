@@ -224,52 +224,53 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                         ),
                       Positioned(
                         top: AleraTokens.space4,
-                        right: searchOpen
-                            ? AleraTokens.space48 + AleraTokens.space4
-                            : AleraTokens.space4,
-                        child: AleraIconButton(
-                          tooltip: _refreshing
-                              ? 'Refreshing Terminal'
-                              : 'Refresh Terminal',
-                          icon: _refreshing
-                              ? AleraIcons.loading
-                              : AleraIcons.refresh,
-                          backgroundColor: AleraTokens.surfaceElevated,
-                          borderColor: AleraTokens.borderSubtle,
-                          onPressed: _refreshing
-                              ? null
-                              : () => unawaited(_refreshTerminal()),
-                        ),
-                      ),
-                      Positioned(
-                        top:
-                            AleraTokens.space4 +
-                            AleraTokens.space32 +
-                            AleraTokens.space4,
-                        right: searchOpen
-                            ? AleraTokens.space48 + AleraTokens.space4
-                            : AleraTokens.space4,
-                        child: AleraIconButton(
-                          tooltip: widget.session.composerController.visible
-                              ? 'Hide Terminal Composer'
-                              : 'Show Terminal Composer',
-                          icon: AleraIcons.ai,
-                          iconColor: widget.session.composerController.visible
-                              ? AleraTokens.foreground
-                              : AleraTokens.foregroundMuted,
-                          backgroundColor:
-                              widget.session.composerController.visible
-                              ? AleraTokens.accentSubtle
-                              : AleraTokens.surfaceElevated,
-                          borderColor: AleraTokens.borderSubtle,
-                          onPressed: widget.session.composerController.toggle,
+                        right: AleraTokens.space4,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: AleraTokens.space2,
+                          children: <Widget>[
+                            AleraIconButton(
+                              tooltip: widget.session.composerController.visible
+                                  ? 'Hide Terminal Composer'
+                                  : 'Show Terminal Composer',
+                              icon: AleraIcons.composer,
+                              iconColor:
+                                  widget.session.composerController.visible
+                                  ? AleraTokens.foreground
+                                  : AleraTokens.foregroundMuted,
+                              backgroundColor:
+                                  widget.session.composerController.visible
+                                  ? AleraTokens.accentSubtle
+                                  : AleraTokens.surfaceElevated,
+                              borderColor: AleraTokens.borderSubtle,
+                              onPressed:
+                                  widget.session.composerController.toggle,
+                            ),
+                            AleraIconButton(
+                              tooltip: _refreshing
+                                  ? 'Refreshing Terminal'
+                                  : 'Refresh Terminal',
+                              icon: _refreshing
+                                  ? AleraIcons.loading
+                                  : AleraIcons.refresh,
+                              backgroundColor: AleraTokens.surfaceElevated,
+                              borderColor: AleraTokens.borderSubtle,
+                              onPressed: _refreshing
+                                  ? null
+                                  : () => unawaited(_refreshTerminal()),
+                            ),
+                          ],
                         ),
                       ),
                       if (searchController != null && searchOpen)
                         Positioned(
                           top: AleraTokens.space4,
                           left: AleraTokens.space16,
-                          right: AleraTokens.space48 + AleraTokens.space4,
+                          // Leave room for the composer + refresh toolbar.
+                          right:
+                              AleraTokens.space48 +
+                              AleraTokens.space48 +
+                              AleraTokens.space4,
                           child: Align(
                             alignment: Alignment.topRight,
                             child: ConstrainedBox(
