@@ -7,6 +7,7 @@ import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,10 +16,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// controller methods and dialog flows. Construct one per dispatch with the
 /// current [ref] and a [context] suitable for showing dialogs/toasts.
 class KeyboardCommandDispatcher {
-  const KeyboardCommandDispatcher({required this.ref, required this.context});
+  const KeyboardCommandDispatcher({
+    required this.ref,
+    required this.context,
+    this.terminalSession,
+  });
 
   final WidgetRef ref;
   final BuildContext context;
+  final TerminalSessionHandle? terminalSession;
 
   void dispatch(KeyboardActionId id) {
     switch (id) {
@@ -35,6 +41,8 @@ class KeyboardCommandDispatcher {
         );
       case KeyboardActionId.findInFiles:
         _showContextPanel(WorkbenchContextPanelTab.search);
+      case KeyboardActionId.findInTerminal:
+        _openTerminalSearch();
       case KeyboardActionId.replaceInFiles:
         _showContextPanel(WorkbenchContextPanelTab.search);
       case KeyboardActionId.saveFile:
@@ -112,6 +120,20 @@ class KeyboardCommandDispatcher {
     final controller = ref.read(workbenchControllerProvider.notifier);
     controller.setContextPanelTab(tab);
     controller.setRightSidebarVisible(true);
+  }
+
+  void _openTerminalSearch() {
+    final directSession = terminalSession;
+    if (directSession != null) {
+      directSession.openSearch();
+      return;
+    }
+    final state = ref.read(workbenchControllerProvider);
+    final tab = state.activeWorkspaceTab;
+    if (tab == null || tab.kind != WorkspaceTabKind.terminal) {
+      return;
+    }
+    ref.read(terminalRuntimeProvider).peekSession(tab.id)?.openSearch();
   }
 
   void _saveActiveEditor() {

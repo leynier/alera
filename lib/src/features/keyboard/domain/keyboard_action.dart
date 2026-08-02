@@ -51,6 +51,7 @@ enum KeyboardActionId {
   toggleSidebar,
   createWorkspace,
   findInFiles,
+  findInTerminal,
   replaceInFiles,
   saveFile,
   newTerminalTab,
@@ -184,6 +185,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Open workspace search.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+F']),
     searchKeywords: <String>['search', 'grep'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.findInTerminal,
+    label: 'Find in Terminal',
+    group: KeyboardActionGroup.global,
+    description: 'Search the active terminal scrollback.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+F']),
+    searchKeywords: <String>['search', 'terminal', 'scrollback'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

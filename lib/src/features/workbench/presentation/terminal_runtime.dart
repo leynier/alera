@@ -8,6 +8,7 @@ import 'dart:isolate';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
@@ -31,6 +32,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_search.dart';
 part 'terminal_runtime_session_recovery.dart';
 part 'terminal_runtime_clipboard.dart';
 part 'terminal_runtime_output_batching.dart';
@@ -118,6 +120,15 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   ///
   /// Default is a no-op so test doubles stay source-compatible.
   void pasteText(String text) {}
+
+  /// The per-session terminal scrollback search model, when supported.
+  TerminalSearchController? get searchController => null;
+
+  /// Opens the search overlay for this terminal.
+  void openSearch() {}
+
+  /// Closes the search overlay for this terminal.
+  void closeSearch() {}
 }
 
 enum TerminalSessionOperation { starting, reconnecting, restarting }

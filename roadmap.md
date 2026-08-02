@@ -33,7 +33,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Terminal search | 2 | 5 | Planned | In-terminal text search across scrollback |
+| Terminal search | 2 | 5 | Shipped | Literal, case-insensitive search across bounded scrollback with match navigation and `Mod+F` |
 | Terminal session persistence | 4 | 4 | Shipped | Runtime host checkpoints, bounded scrollback restore, PTY detach across app restart; live processes survive host lifecycle |
 | Terminal quick commands | 2 | 3 | Planned | Shortcut palette for frequently used terminal commands (mobile Terminal Quick Keys are local accessories, not this feature) |
 | Floating terminal panel | 3 | 3 | Planned | Floating, resizable terminal overlay with window controls |
@@ -246,7 +246,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|
 | Agent auto-detection & registry | 3 | Partial |
 | Agent status tracking | 3 | Shipped |
-| Terminal search | 2 | Planned |
+| Terminal search | 2 | Shipped |
 | File Explorer panel | 4 | Shipped |
 | Code edition with LSP support | 5 | Partial |
 | Search panel | 3 | Shipped |
@@ -261,7 +261,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status |
 |---|:---:|:---:|:---:|
-| Terminal search | 2 | 5 | Planned |
+| Terminal search | 2 | 5 | Shipped |
 | Open in with other softwares | 2 | 4 | Partial |
 | Tab cycling & reopen closed tab | 2 | 4 | Partial |
 | Autosave | 2 | 4 | Planned |
