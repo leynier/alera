@@ -14,7 +14,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       children: <Widget>[
         TextField(
           controller: _prompt,
-          enabled: !promptState.loading && created == null,
+          enabled: !promptState.loading && created == null && !_uploadingImages,
           minLines: 4,
           maxLines: 8,
           decoration: const InputDecoration(
@@ -23,6 +23,17 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             alignLabelWithHint: true,
           ),
         ),
+        if (widget.supportsPromptImageUpload) ...<Widget>[
+          const SizedBox(height: AleraTokens.spaceMd),
+          OutlinedButton.icon(
+            onPressed:
+                promptState.loading || created != null || _uploadingImages
+                ? null
+                : _addPromptImages,
+            icon: const Icon(Icons.photo_library_outlined),
+            label: const Text('Add Images'),
+          ),
+        ],
         const SizedBox(height: AleraTokens.spaceLg),
         AleraDropdownField<String>(
           value: promptState.projectId,
@@ -110,12 +121,19 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
+        if (_promptImageError != null) ...<Widget>[
+          const SizedBox(height: AleraTokens.spaceMd),
+          Text(
+            _promptImageError!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
         const SizedBox(height: AleraTokens.spaceMd),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: _createAnother,
-          onChanged: promptState.loading || created != null
+          onChanged: promptState.loading || created != null || _uploadingImages
               ? null
               : (value) {
                   _update(() => _createAnother = value ?? false);
@@ -124,7 +142,20 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           subtitle: const Text('Keep this screen open after creation'),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
-        if (promptState.loading)
+        if (_uploadingImages)
+          Row(
+            children: <Widget>[
+              const SizedBox.square(
+                dimension: AleraTokens.spaceLg,
+                child: CircularProgressIndicator(
+                  strokeWidth: AleraTokens.strokeSm,
+                ),
+              ),
+              const SizedBox(width: AleraTokens.spaceMd),
+              const Expanded(child: Text('Uploading images')),
+            ],
+          )
+        else if (promptState.loading)
           Row(
             children: <Widget>[
               const SizedBox.square(
@@ -165,7 +196,8 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             onPressed:
                 promptState.projectId == null ||
                     promptState.sourceBranch == null ||
-                    promptState.profileId == null
+                    promptState.profileId == null ||
+                    _uploadingImages
                 ? null
                 : () => _createFromPrompt(controller),
             icon: const Icon(Icons.smart_toy_outlined),
@@ -173,6 +205,63 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           ),
       ],
     );
+  }
+
+  Future<void> _addPromptImages() async {
+    _update(() {
+      _uploadingImages = true;
+    });
+    try {
+      final picker = widget.promptImagePicker ?? ImagePickerPromptImagePicker();
+      final images = await picker.pickImages();
+      if (images.isEmpty) {
+        return;
+      }
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      if (!client.supportsPromptImageUpload) {
+        throw UnsupportedError(
+          'Update Alera on this host to add images to a prompt.',
+        );
+      }
+      for (final image in images) {
+        final result = await client.uploadPromptImage(
+          format: promptImageFormatForFileName(image.name),
+          sizeBytes: image.sizeBytes,
+          openRead: image.openRead,
+        );
+        if (!mounted) {
+          return;
+        }
+        insertPromptImagePaths(_prompt, <String>[result.hostPath]);
+      }
+      if (mounted) {
+        _update(() {
+          _promptImageError = null;
+        });
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        _update(() {
+          _promptImageError = _promptImageErrorMessage(error);
+        });
+      }
+    } finally {
+      if (mounted) {
+        _update(() {
+          _uploadingImages = false;
+        });
+      }
+    }
+  }
+
+  String _promptImageErrorMessage(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    if (message.isEmpty) {
+      return 'Could not add images. Try again.';
+    }
+    return 'Could not add images: $message';
   }
 
   Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
@@ -202,6 +291,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       if (_createAnother) {
         _showCreationMessage(creation);
         _prompt.clear();
+        _promptImageError = null;
         controller.resetForAnother();
       } else {
         _openWorkspace(creation, tabId: tabId);
@@ -221,6 +311,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       if (_createAnother) {
         _showCreationMessage(creation);
         _prompt.clear();
+        _promptImageError = null;
         controller.resetForAnother();
       } else {
         _openWorkspace(creation, tabId: tabId);

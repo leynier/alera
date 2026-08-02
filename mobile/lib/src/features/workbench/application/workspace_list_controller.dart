@@ -28,6 +28,7 @@ class WorkspaceListData {
     required this.projects,
     required this.supportsMutations,
     this.supportsPromptWorkspaceCreation = true,
+    this.supportsPromptImageUpload = false,
     required this.tags,
     required this.activity,
     required this.confirmWorkspaceRemoval,
@@ -43,6 +44,7 @@ class WorkspaceListData {
   /// UI hides mutating actions in that case.
   final bool supportsMutations;
   final bool supportsPromptWorkspaceCreation;
+  final bool supportsPromptImageUpload;
   final List<WorkspaceTagSummary> tags;
   final Map<String, DateTime> activity;
   final bool confirmWorkspaceRemoval;
@@ -82,6 +84,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
       supportsPromptWorkspaceCreation: client.supportsPromptWorkspaceCreation,
+      supportsPromptImageUpload: client.supportsPromptImageUpload,
       tags: snapshot.tags,
       activity: snapshot.activity,
       confirmWorkspaceRemoval: snapshot.confirmWorkspaceRemoval,

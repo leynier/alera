@@ -16,6 +16,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
@@ -61,6 +62,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
 ];
 
 impl ServerActor {
@@ -326,6 +328,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentProfile.launch"
             | "aiText.workspaceIdentity.generate"
             | "aiText.cancel"
+            | "mobile.promptImage.start"
+            | "mobile.promptImage.chunk"
+            | "mobile.promptImage.complete"
+            | "mobile.promptImage.cancel"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
