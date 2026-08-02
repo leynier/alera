@@ -144,6 +144,18 @@ pub struct SourceControlWatchSignal {
     pub coalesced_event_count: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct WorkspaceQuickOpenSession {
+    pub id: String,
+    pub indexed_file_count: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkspaceQuickOpenMatch {
+    pub relative_path: String,
+    pub score: i32,
+}
+
 impl WorkspaceFileError {
     fn new(kind: WorkspaceFileErrorKind, context: impl Into<String>) -> Self {
         Self {
@@ -203,11 +215,22 @@ pub fn list_workspace_children(
     Ok(entries)
 }
 
-pub fn list_workspace_files(
+pub fn start_workspace_quick_open_session(
     workspace_path: String,
-    max_results: u32,
-) -> Result<Vec<WorkspaceFileEntry>, WorkspaceFileError> {
-    quick_open::list_workspace_files(workspace_path, max_results)
+) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
+    quick_open::start_workspace_quick_open_session(workspace_path)
+}
+
+pub fn search_workspace_quick_open_session(
+    session: WorkspaceQuickOpenSession,
+    query: String,
+    limit: u32,
+) -> Result<Vec<WorkspaceQuickOpenMatch>, WorkspaceFileError> {
+    quick_open::search_workspace_quick_open_session(session, query, limit)
+}
+
+pub fn stop_workspace_quick_open_session(session: WorkspaceQuickOpenSession) {
+    quick_open::stop_workspace_quick_open_session(session)
 }
 
 pub fn project_workspace_explorer_tree(
