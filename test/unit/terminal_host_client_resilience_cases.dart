@@ -16,53 +16,33 @@ Future<TerminalHostOutputResyncRequiredEvent> _sendOutputResyncEvent(
 }
 
 void _registerTerminalHostClientResilienceTests() {
-  test(
-    'write-side host closure does not escape as an uncaught error',
-    () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'alera-host-client-write-close-',
-      );
-      addTearDown(() async {
-        if (await tempDir.exists()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-      final server = await _TerminalHostTestServer.start(closeForType: 'write');
-      addTearDown(server.dispose);
-      await _writeControlFile(
-        tempDir: tempDir,
-        port: server.port,
-        token: 'existing-token',
-      );
-      final client = SocketTerminalHostClient(
-        launcher: _NoopTerminalHostLauncher(),
-        applicationSupportDirectory: () async => tempDir,
-      );
-      addTearDown(client.dispose);
-      final uncaughtErrors = <Object>[];
-      final completed = Completer<void>();
+  test('write-side host closure reaches the caller as a typed error', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-write-close-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start(closeForType: 'write');
+    addTearDown(server.dispose);
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: server.port,
+      token: 'existing-token',
+    );
+    final client = SocketTerminalHostClient(
+      launcher: _NoopTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
 
-      runZonedGuarded(
-        () async {
-          await expectLater(
-            client.write(sessionId: 'session-1', bytes: const <int>[1]),
-            throwsA(isA<StateError>()),
-          );
-          completed.complete();
-        },
-        (error, _) {
-          uncaughtErrors.add(error);
-          if (!completed.isCompleted) {
-            completed.complete();
-          }
-        },
-      );
-      await completed.future;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      expect(uncaughtErrors, isEmpty);
-    },
-  );
+    await expectLater(
+      client.write(sessionId: 'session-1', bytes: const <int>[1]),
+      throwsA(isA<TerminalHostConnectionClosedException>()),
+    );
+  });
 
   test('socket closure notifies every attached session immediately', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -93,7 +73,7 @@ void _registerTerminalHostClientResilienceTests() {
 
     await expectLater(
       client.write(sessionId: 'session-1', bytes: const <int>[1]),
-      throwsA(isA<StateError>()),
+      throwsA(isA<TerminalHostConnectionClosedException>()),
     );
 
     expect(
@@ -136,14 +116,54 @@ void _registerTerminalHostClientResilienceTests() {
 
       expect(
         (await sessionError).error,
-        isA<StateError>().having(
-          (error) => error.message,
+        isA<TerminalHostConnectionClosedException>().having(
+          (error) => error.toString(),
           'message',
           'Terminal host connection closed.',
         ),
       );
     },
   );
+
+  test('pending RPC fails with a typed error when the socket closes', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-pending-stack-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final releaseWrite = Completer<void>();
+    final server = await _TerminalHostTestServer.start(
+      beforeResponse: (type) async {
+        if (type == 'write') {
+          await releaseWrite.future;
+        }
+      },
+    );
+    addTearDown(server.dispose);
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: server.port,
+      token: 'existing-token',
+    );
+    final client = SocketTerminalHostClient(
+      launcher: _NoopTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    final request = client.write(sessionId: 'session-1', bytes: const <int>[1]);
+    await _waitForServerRequestCount(server, 2);
+    server.closeClient();
+    releaseWrite.complete();
+
+    await expectLater(
+      request,
+      throwsA(isA<TerminalHostConnectionClosedException>()),
+    );
+  });
 
   test('waits for authenticated hello before sending requests', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -262,7 +282,10 @@ void _registerTerminalHostClientResilienceTests() {
       );
       addTearDown(client.dispose);
 
-      await expectLater(client.detach('session-1'), throwsA(isA<StateError>()));
+      await expectLater(
+        client.detach('session-1'),
+        throwsA(isA<TerminalHostStartupException>()),
+      );
 
       final server = await _TerminalHostTestServer.start();
       addTearDown(server.dispose);

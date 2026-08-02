@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_panel.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
+import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -81,11 +84,31 @@ class _RuntimeHostStatusBarControlState
     setState(() => _busy = true);
     try {
       await action(_confirmForce);
+    } catch (error, stackTrace) {
+      AppLogger.recordError(
+        error,
+        stackTrace,
+        context: 'RuntimeHostStatusBarControl',
+      );
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: _messageFor(error),
+          tone: AleraToastTone.error,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
       }
     }
+  }
+
+  String _messageFor(Object error) {
+    if (error is TerminalHostStartupException) {
+      return 'Could not start the runtime host. Try again.';
+    }
+    return 'Runtime host action failed. Try again.';
   }
 
   Future<bool> _confirmForce({

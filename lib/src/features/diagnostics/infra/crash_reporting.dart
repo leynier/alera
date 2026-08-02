@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/core/diagnostics/sentry_dsn.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:sentry/sentry.dart';
 
@@ -33,6 +34,16 @@ abstract final class CrashReporting {
   /// deliberately kept out of the local file.
   static SentryEvent? filterEvent(SentryEvent event) {
     if (!_enabled) {
+      return null;
+    }
+    // Host shutdown is expected when stopped from the status bar, by idle
+    // sidecar shutdown, or while the app exits; keep it local, not a crash.
+    if (event.throwable is TerminalHostConnectionClosedException ||
+        event.exceptions?.any(
+              (exception) =>
+                  exception.throwable is TerminalHostConnectionClosedException,
+            ) ==
+            true) {
       return null;
     }
     final message = event.message;
