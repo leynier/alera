@@ -1,10 +1,18 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
+import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
+import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_panel.dart';
+import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -203,6 +211,53 @@ void main() {
     );
     expect(stopForeground(), AleraTokens.error);
   });
+
+  testWidgets('start failure is shown instead of escaping the action', (
+    tester,
+  ) async {
+    final startupError = TerminalHostStartupException(
+      StateError('sidecar failed'),
+    );
+    final service = RuntimeHostLifecycleService(
+      client: _FailingRuntimeHostClient(startupError),
+      bundledVersionProbe: _WidgetBundledProbe(),
+      readConfig: () => TerminalHostConfig.defaults,
+    );
+    final toastEvents = <AleraToastData>[];
+    final toastSubscription = AleraToast.stream.listen(toastEvents.add);
+    addTearDown(toastSubscription.cancel);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          runtimeHostLifecycleServiceProvider.overrideWithValue(service),
+          runtimeHostStatusProvider.overrideWith(
+            (ref) async => const RuntimeHostStatusSnapshot(
+              running: false,
+              bundledVersion: '1.3.0',
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(body: RuntimeHostStatusBarControl()),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(RuntimeHostStatusChip));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Start'));
+    await tester.pumpAndSettle();
+
+    expect(toastEvents, hasLength(1));
+    expect(
+      toastEvents.single.message,
+      'Could not start the runtime host. Try again.',
+    );
+    expect(toastEvents.single.tone, AleraToastTone.error);
+    expect(find.text(startupError.toString()), findsNothing);
+  });
 }
 
 Widget _wrapChip(RuntimeHostStatusSnapshot snapshot) {
@@ -238,4 +293,32 @@ Widget _wrapPanel(RuntimeHostStatusSnapshot snapshot) {
       ),
     ),
   );
+}
+
+final class _WidgetBundledProbe implements BundledSidecarVersionProbe {
+  @override
+  Future<BundledSidecarVersion> probe() async {
+    return const BundledSidecarVersion(version: '1.3.0');
+  }
+}
+
+final class _FailingRuntimeHostClient implements RuntimeHostLifecycleClient {
+  _FailingRuntimeHostClient(this.startupError);
+
+  final Object startupError;
+
+  @override
+  Future<Map<String, Object?>?> probeRuntimeStatus() async => null;
+
+  @override
+  Future<RuntimeHostShutdownResult> shutdownRuntime({bool force = false}) {
+    return Future<RuntimeHostShutdownResult>.value(
+      RuntimeHostShutdownResult(stopped: true, forced: force),
+    );
+  }
+
+  @override
+  Future<void> ensureStarted({required TerminalHostConfig config}) {
+    return Future<void>.error(startupError);
+  }
 }

@@ -2,6 +2,7 @@ import 'package:alera/src/features/runtime_host/application/runtime_host_lifecyc
 import 'package:alera/src/features/runtime_host/domain/runtime_host_quit_decision.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,6 +48,22 @@ void main() {
       expect(status.running, isTrue);
       expect(status.updateAvailable, isTrue);
       expect(status.activeSessions, 1);
+    });
+
+    test('start propagates a terminal host startup failure', () async {
+      final error = TerminalHostStartupException(StateError('sidecar failed'));
+      final client = _FakeRuntimeClient(ensureStartedError: error);
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '1.3.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+      );
+
+      await expectLater(service.start(), throwsA(same(error)));
+
+      expect(client.ensureStartedCalls, 1);
     });
 
     test(
@@ -380,11 +397,13 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
     this.status,
     this.busyOnSoftStop = false,
     this.probeThrows = false,
+    this.ensureStartedError,
   });
 
   Map<String, Object?>? status;
   final bool busyOnSoftStop;
   final bool probeThrows;
+  final Object? ensureStartedError;
   final List<bool> shutdownCalls = <bool>[];
   int ensureStartedCalls = 0;
   bool _stopped = false;
@@ -421,6 +440,10 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
   @override
   Future<void> ensureStarted({required TerminalHostConfig config}) async {
     ensureStartedCalls += 1;
+    final error = ensureStartedError;
+    if (error != null) {
+      throw error;
+    }
     _stopped = false;
     status ??= <String, Object?>{'runtimeHostVersion': '1.3.0'};
   }

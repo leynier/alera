@@ -1,5 +1,17 @@
 part of 'terminal_host_client.dart';
 
+Future<T> _guardHostFuture<T>(Future<T> future) {
+  // Connection futures are shared by several awaiters and can fail before
+  // every awaiter has attached its own error handler.
+  unawaited(
+    future.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    ),
+  );
+  return future;
+}
+
 Future<Object?> _sendTerminalHostRequest(
   SocketTerminalHostClient client,
   _TerminalHostConnection connection,
@@ -29,6 +41,7 @@ Future<Object?> _sendTerminalHostRequest(
       throw TerminalHostRequestTimeoutException(type, requestTimeout);
     },
   );
+  unawaited(response.catchError((Object _) => null));
   try {
     connection.write(<String, Object?>{
       'id': id,
