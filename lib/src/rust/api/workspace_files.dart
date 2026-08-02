@@ -19,6 +19,14 @@ Future<List<WorkspaceFileEntry>> listWorkspaceChildren({
   hideIgnored: hideIgnored,
 );
 
+Future<List<WorkspaceFileEntry>> listWorkspaceFiles({
+  required String workspacePath,
+  required int maxResults,
+}) => RustLib.instance.api.crateApiWorkspaceFilesListWorkspaceFiles(
+  workspacePath: workspacePath,
+  maxResults: maxResults,
+);
+
 Future<WorkspaceExplorerTreeProjection> projectWorkspaceExplorerTree({
   required String workspaceName,
   required String workspacePath,

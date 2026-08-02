@@ -7,6 +7,7 @@ use ignore::WalkBuilder;
 
 mod editor_text;
 mod explorer_tree;
+mod quick_open;
 mod source_control_watcher;
 mod watcher;
 
@@ -200,6 +201,13 @@ pub fn list_workspace_children(
             .then_with(|| left.name.cmp(&right.name))
     });
     Ok(entries)
+}
+
+pub fn list_workspace_files(
+    workspace_path: String,
+    max_results: u32,
+) -> Result<Vec<WorkspaceFileEntry>, WorkspaceFileError> {
+    quick_open::list_workspace_files(workspace_path, max_results)
 }
 
 pub fn project_workspace_explorer_tree(
