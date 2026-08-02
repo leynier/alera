@@ -76,6 +76,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (value) {
       case r'openSettings':
         return KeyboardActionId.openSettings;
+      case r'openQuickOpen':
+        return KeyboardActionId.openQuickOpen;
+      case r'openCommandPalette':
+        return KeyboardActionId.openCommandPalette;
       case r'addProject':
         return KeyboardActionId.addProject;
       case r'toggleSidebar':
@@ -138,6 +142,10 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (self) {
       case KeyboardActionId.openSettings:
         return r'openSettings';
+      case KeyboardActionId.openQuickOpen:
+        return r'openQuickOpen';
+      case KeyboardActionId.openCommandPalette:
+        return r'openCommandPalette';
       case KeyboardActionId.addProject:
         return r'addProject';
       case KeyboardActionId.toggleSidebar:

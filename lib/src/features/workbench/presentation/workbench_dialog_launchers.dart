@@ -15,6 +15,7 @@ import 'package:alera/src/features/workbench/domain/workspace_creation_result.da
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
 import 'package:alera/src/features/workbench/presentation/prompt_workspace_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/quick_open_dialog.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
@@ -38,6 +39,22 @@ Future<void> openSettingsDialog(
       initialProjectId: initialProjectId,
     ),
   );
+}
+
+/// Opens Quick Open for the active workspace and restores the prior focus when
+/// the modal route closes.
+Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {
+  if (ref.read(workbenchControllerProvider).activeWorkspace == null) {
+    return;
+  }
+  final previousFocus = FocusManager.instance.primaryFocus;
+  await showDialog<void>(
+    context: context,
+    builder: (_) => const QuickOpenDialog(),
+  );
+  if (previousFocus?.canRequestFocus ?? false) {
+    previousFocus!.requestFocus();
+  }
 }
 
 Future<String?> showRenameDialog(
