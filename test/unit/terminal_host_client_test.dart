@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
@@ -416,8 +417,8 @@ void main() {
     await expectLater(
       client.write(sessionId: 'session-1', bytes: const <int>[1]),
       throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
+        isA<TerminalHostConnectionClosedException>().having(
+          (error) => error.toString(),
           'message',
           contains('connection closed'),
         ),
@@ -444,15 +445,30 @@ void main() {
       );
       addTearDown(client.dispose);
 
-      await expectLater(
-        client.detach('session-1'),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('did not start in time'),
-          ),
-        ),
+      Object? startupError;
+      try {
+        await client.detach('session-1');
+        fail('expected startup to time out');
+      } catch (error) {
+        startupError = error;
+      }
+
+      expect(startupError, isA<TerminalHostStartupException>());
+      final typedStartupError = startupError as TerminalHostStartupException;
+      expect(typedStartupError.cause, isNull);
+      expect(
+        typedStartupError.toString(),
+        'Terminal host did not start in time.',
+      );
+      expect(
+        TerminalHostStartupException(SocketException('refused')).toString(),
+        typedStartupError.toString(),
+      );
+      expect(
+        TerminalHostStartupException(
+          TimeoutException('authentication timed out'),
+        ).toString(),
+        typedStartupError.toString(),
       );
 
       final controlFile = File(
@@ -484,12 +500,56 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    await expectLater(client.detach('session-1'), throwsA(isA<StateError>()));
+    await expectLater(
+      client.detach('session-1'),
+      throwsA(isA<TerminalHostStartupException>()),
+    );
 
     expect(
       await File(p.join(tempDir.path, 'terminal_host', 'host.json')).exists(),
       isFalse,
     );
+  });
+
+  test('records the cause of a failed terminal host startup', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-startup-cause-',
+    );
+    final logDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-startup-log-',
+    );
+    addTearDown(() async {
+      await AppLogger.resetForTesting();
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+      if (await logDir.exists()) {
+        await logDir.delete(recursive: true);
+      }
+    });
+    await AppLogger.resetForTesting();
+    await AppLogger.configure(directory: logDir);
+    final client = SocketTerminalHostClient(
+      launcher: _FailingStartupTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+      startupTimeout: const Duration(milliseconds: 250),
+    );
+    addTearDown(client.dispose);
+
+    Object? startupError;
+    try {
+      await client.detach('session-1');
+      fail('expected startup to time out');
+    } catch (error) {
+      startupError = error;
+    }
+
+    expect(startupError, isA<TerminalHostStartupException>());
+    final typedStartupError = startupError as TerminalHostStartupException;
+    expect(typedStartupError.cause, isA<SocketException>());
+    await AppLogger.flush();
+    final log = AppLogger.sink!.fileFor(0).readAsLinesSync().join('\n');
+    expect(log, contains(typedStartupError.cause.toString()));
   });
 
   test('reuses a live legacy control for terminal requests', () async {
@@ -1127,5 +1187,32 @@ final class _NoopTerminalHostLauncher implements TerminalHostProcessLauncher {
     required TerminalHostConfig config,
   }) async {
     starts += 1;
+  }
+}
+
+final class _FailingStartupTerminalHostLauncher
+    implements TerminalHostProcessLauncher {
+  @override
+  Future<void> start({
+    required String runtimeDir,
+    required String controlFilePath,
+    required String token,
+    required TerminalHostConfig config,
+  }) async {
+    final controlFile = File(controlFilePath);
+    await controlFile.parent.create(recursive: true);
+    await controlFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'protocolVersion': aleraTerminalHostProtocolVersion,
+        'port': 1,
+        'token': token,
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostCapability,
+          aleraRuntimeHostBootstrapCapability,
+          aleraRuntimeHostManagedWorkspaceCapability,
+          aleraRuntimeHostOrchestrationCapability,
+        ],
+      }),
+    );
   }
 }

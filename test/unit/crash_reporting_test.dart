@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sentry/sentry.dart';
@@ -29,6 +30,26 @@ void main() {
   test('keeps events once reporting is enabled', () {
     CrashReporting.setEnabled(true);
     final event = SentryEvent(message: SentryMessage('boom'));
+
+    expect(CrashReporting.filterEvent(event), isNotNull);
+  });
+
+  test('drops expected terminal host connection closures', () {
+    CrashReporting.setEnabled(true);
+    final event = SentryEvent(
+      throwable: const TerminalHostConnectionClosedException(),
+    );
+
+    expect(CrashReporting.filterEvent(event), isNull);
+  });
+
+  test('keeps terminal host startup failures', () {
+    CrashReporting.setEnabled(true);
+    final event = SentryEvent(
+      throwable: TerminalHostStartupException(
+        TimeoutException('authentication timed out'),
+      ),
+    );
 
     expect(CrashReporting.filterEvent(event), isNotNull);
   });

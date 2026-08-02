@@ -82,6 +82,30 @@ final class TerminalHostRequestTimeoutException implements Exception {
   }
 }
 
+final class TerminalHostConnectionClosedException implements Exception {
+  const TerminalHostConnectionClosedException([this.reason]);
+
+  final Object? reason;
+
+  @override
+  String toString() {
+    final reason = this.reason?.toString();
+    if (reason == null || reason.isEmpty) {
+      return 'Terminal host connection closed.';
+    }
+    return 'Terminal host connection closed: $reason';
+  }
+}
+
+final class TerminalHostStartupException implements Exception {
+  const TerminalHostStartupException(this.cause);
+
+  final Object? cause;
+
+  @override
+  String toString() => 'Terminal host did not start in time.';
+}
+
 final class TerminalHostAttachment {
   const TerminalHostAttachment({
     required this.sessionId,

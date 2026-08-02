@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_f
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:alera/src/shared/infra/logging/log_redaction.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
@@ -26,15 +27,6 @@ part 'terminal_host_client_heartbeat.dart';
 part 'terminal_host_client_session_events.dart';
 part 'terminal_host_client_socket_reader.dart';
 part 'terminal_host_control_file.dart';
-
-StateError _terminalHostConnectionClosedError(Object? error) {
-  final reason = error?.toString();
-  return StateError(
-    reason == null || reason.isEmpty
-        ? 'Terminal host connection closed.'
-        : 'Terminal host connection closed: $reason',
-  );
-}
 
 final class SocketTerminalHostClient
     with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
@@ -323,6 +315,7 @@ final class SocketTerminalHostClient
       }
     });
     _terminalConnectionFuture = next;
+    _guardHostFuture(next);
     return next;
   }
 
@@ -387,6 +380,7 @@ final class SocketTerminalHostClient
           }
         });
     _runtimeConnectionFuture = next;
+    _guardHostFuture(next);
     return next;
   }
 
@@ -429,10 +423,15 @@ final class SocketTerminalHostClient
     }
     final runtimeFuture = _runtimeConnectionFuture;
     if (runtimeFuture != null) {
-      final connection = await runtimeFuture;
-      if (connection.supportsRuntime) {
-        _terminalConnection = connection;
-        return connection;
+      try {
+        final connection = await runtimeFuture;
+        if (connection.supportsRuntime) {
+          _terminalConnection = connection;
+          return connection;
+        }
+      } catch (_) {
+        // A failed runtime connection must not prevent the terminal path from
+        // starting its own host connection.
       }
     }
     return _launchAndConnect(
@@ -525,7 +524,16 @@ final class SocketTerminalHostClient
         lastError = error;
       }
     }
-    throw StateError('Terminal host did not start in time: $lastError');
+    // Keep the public message stable for crash grouping, but preserve the
+    // concrete startup cause in the local diagnostics log.
+    if (lastError case final error?) {
+      AppLogger.recordError(
+        error,
+        StackTrace.current,
+        context: 'SocketTerminalHostClient',
+      );
+    }
+    throw TerminalHostStartupException(lastError);
   }
 
   Future<_TerminalHostConnection> _connectToControl(
@@ -684,7 +692,7 @@ final class SocketTerminalHostClient
     if (connection.isClosed) {
       return;
     }
-    final closedError = _terminalHostConnectionClosedError(error);
+    final closedError = TerminalHostConnectionClosedException(error);
     _stopHeartbeatFor(connection);
     connection.completeAuthenticationError(closedError);
     final wasTerminalConnection = identical(_terminalConnection, connection);
@@ -711,13 +719,12 @@ final class SocketTerminalHostClient
     for (final id in pendingIds) {
       final completer = _pending.remove(id)?.completer;
       if (completer != null && !completer.isCompleted) {
-        final pendingError = StateError(
-          _disposed ? 'Terminal host client is disposed.' : closedError.message,
-        );
-        // Attach a sink before completeError so orphaned RPCs do not become
-        // unhandled async errors during ProviderScope / test teardown.
-        unawaited(completer.future.catchError((Object _) => null));
-        completer.completeError(pendingError);
+        final pendingError = _disposed
+            ? StateError('Terminal host client is disposed.')
+            : closedError;
+        // Preserve the close site for reporters that receive this error
+        // without an await; public callers observe the async wrapper stack.
+        completer.completeError(pendingError, StackTrace.current);
       }
     }
   }

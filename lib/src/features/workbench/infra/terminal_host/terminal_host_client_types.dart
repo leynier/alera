@@ -99,7 +99,7 @@ final class _TerminalHostConnection {
 
   void completeAuthenticationError(Object error) {
     if (!_authenticated.isCompleted) {
-      _authenticated.completeError(error);
+      _authenticated.completeError(error, StackTrace.current);
     }
   }
 
