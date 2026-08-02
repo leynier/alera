@@ -50,7 +50,7 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_disposed ||
-          !_visible ||
+          !_outputVisible ||
           _restoreGeneration != restoreGeneration ||
           _activePtyGeneration != ptyGeneration ||
           _restoreProgress.value != null) {

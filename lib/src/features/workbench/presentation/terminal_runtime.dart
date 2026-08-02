@@ -68,7 +68,7 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// restate budget bookkeeping they have no buffer for.
   bool get isVisible => false;
 
-  /// Estimated buffer cost and last-visible time, used by the memory budget.
+  /// Buffer cost and last-visible time, used by the memory budget.
   TerminalBufferUsage get bufferUsage =>
       TerminalBufferUsage(tabId: tabId, bytes: 0, lastVisibleAt: null);
 
@@ -159,8 +159,7 @@ abstract interface class TerminalRuntime {
   /// buffer, for tabs the user never opened.
   TerminalSessionHandle? peekSession(String tabId);
 
-  /// Pins the active workspace so switching tabs inside the workspace being
-  /// worked in never pays a restore.
+  /// Rechecks the buffer budget when the active workspace changes.
   void setActiveWorkspace(String? workspaceId);
 
   void closeTab(String tabId);

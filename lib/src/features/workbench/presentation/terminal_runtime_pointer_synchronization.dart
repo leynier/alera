@@ -15,7 +15,7 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
       return;
     }
 
-    final paused = !_visible;
+    final paused = !_outputVisible;
     _pointerInputResumePending = !paused;
     _refreshPointerInputSuspension();
     unawaited(
@@ -44,7 +44,7 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
     }
     if (_disposed ||
         paused ||
-        !_visible ||
+        !_outputVisible ||
         !identical(_ptySession, session) ||
         generation != _outputVisibilityGeneration) {
       return;
@@ -54,7 +54,9 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
 
   void _schedulePointerInputResume(int generation) {
     SchedulerBinding.instance.scheduleFrameCallback((_) {
-      if (_disposed || !_visible || generation != _outputVisibilityGeneration) {
+      if (_disposed ||
+          !_outputVisible ||
+          generation != _outputVisibilityGeneration) {
         return;
       }
       _pointerInputResumePending = false;
@@ -107,7 +109,9 @@ extension _TerminalPointerSynchronization on _XtermTerminalSessionHandle {
 
   void _refreshPointerInputSuspension() {
     _setPointerInputSuspended(
-      !_visible || _pointerInputResumePending || _pointerInputCatchUpChars > 0,
+      !_outputVisible ||
+          _pointerInputResumePending ||
+          _pointerInputCatchUpChars > 0,
     );
   }
 

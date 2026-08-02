@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_closed_tabs_service.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -112,9 +113,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   );
 }
 
-/// Keeps the terminal runtime's pinned workspace in sync with the active one,
-/// so the memory budget never evicts a terminal in the workspace being worked
-/// in.
+/// Rechecks the terminal memory budget when the active workspace changes.
 @Riverpod(keepAlive: true)
 void terminalRuntimeActiveWorkspaceCoordinator(Ref ref) {
   final runtime = ref.watch(terminalRuntimeProvider);
@@ -313,7 +312,13 @@ TerminalRuntime terminalRuntime(Ref ref) {
     settingsControllerProvider.select((settings) => settings.terminal),
     (_, next) => runtime.updateSettings(next),
   );
-  ref.onDispose(runtime.dispose);
+  final foreground = ref.watch(appForegroundProvider);
+  runtime.setAppForeground(foreground.isForeground);
+  final foregroundSub = foreground.changes.listen(runtime.setAppForeground);
+  ref.onDispose(() {
+    unawaited(foregroundSub.cancel());
+    runtime.dispose();
+  });
   return runtime;
 }
 
