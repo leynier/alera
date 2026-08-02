@@ -26,20 +26,40 @@ class DesktopReclaimedTerminal implements Exception {
 /// A live attachment to one terminal tab: the session handle, the scrollback
 /// snapshot to replay, and the filtered output stream.
 class TerminalTabSession {
-  const TerminalTabSession({
+  TerminalTabSession({
     required this.sessionId,
-    required this.snapshot,
+    required List<int> snapshot,
     required this.running,
     required this.output,
-  });
+  }) : _snapshot = _TerminalSnapshotPayload(snapshot);
 
   final String sessionId;
-  final List<int> snapshot;
   final bool running;
+  final _TerminalSnapshotPayload _snapshot;
 
   /// Carries the full event, not just the bytes, so a resync answer that
   /// replaces the scrollback stays ordered against the live output around it.
   final Stream<MobileTerminalOutputEvent> output;
+
+  /// Transfers the one-shot restore payload to the emulator and releases the
+  /// controller's reference so rendered scrollback is not retained twice.
+  List<int> takeSnapshot() => _snapshot.take();
+
+  int get retainedSnapshotBytes => _snapshot.retainedBytes;
+}
+
+class _TerminalSnapshotPayload {
+  _TerminalSnapshotPayload(this._bytes);
+
+  List<int>? _bytes;
+
+  int get retainedBytes => _bytes?.length ?? 0;
+
+  List<int> take() {
+    final value = _bytes;
+    _bytes = null;
+    return value ?? const <int>[];
+  }
 }
 
 @riverpod

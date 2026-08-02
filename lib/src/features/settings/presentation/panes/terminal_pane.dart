@@ -293,6 +293,7 @@ class TerminalSettingsPane extends StatelessWidget {
                     'Ceiling for terminal scrollback held in the app. Over it, '
                     'terminals you have not looked at recently are unloaded '
                     'and restored when you return. Their agents keep running. '
+                    'Only panes currently on screen stay loaded over it. '
                     'Use 0 for no limit.',
                 value: settings.bufferBudgetMegabytes,
                 min: 0,

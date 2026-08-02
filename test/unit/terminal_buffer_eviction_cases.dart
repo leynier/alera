@@ -84,12 +84,45 @@ void _registerTerminalBufferEvictionTests() {
     expect(cold.terminated, isFalse, reason: 'the agent must keep running');
   });
 
-  test('the active workspace is never evicted', () {
-    final first = _FakeTerminalPtySession();
-    final second = _FakeTerminalPtySession();
+  test(
+    'off-screen terminals in the active workspace still obey the budget',
+    () {
+      final first = _FakeTerminalPtySession();
+      final second = _FakeTerminalPtySession();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[first, second],
+        ),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+
+      for (final id in <String>['tab-1', 'tab-2']) {
+        final session = runtime.sessionFor(
+          workspace: _workspace(id: 'workspace-1'),
+          tab: _tab(id: id, workspaceId: 'workspace-1'),
+        );
+        _fillAndHide(session);
+      }
+
+      runtime.setActiveWorkspace('workspace-1');
+      runtime.updateSettings(
+        TerminalSettings.defaults.copyWith(bufferBudgetMegabytes: 1),
+      );
+
+      expect(runtime.peekSession('tab-1'), isNull);
+      expect(runtime.peekSession('tab-2'), isNull);
+    },
+  );
+
+  test('a terminal pane currently on screen is never evicted', () {
+    final coldPty = _FakeTerminalPtySession();
+    final visiblePty = _FakeTerminalPtySession();
     final runtime = XtermTerminalRuntime(
       ptySessionFactory: _FakeTerminalPtySessionFactory(
-        sessions: <_FakeTerminalPtySession>[first, second],
+        sessions: <_FakeTerminalPtySession>[coldPty, visiblePty],
       ),
       shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
         _launch('shell', shell: '/bin/sh'),
@@ -97,24 +130,25 @@ void _registerTerminalBufferEvictionTests() {
     );
     addTearDown(runtime.dispose);
 
-    for (final id in <String>['tab-1', 'tab-2']) {
-      final session = runtime.sessionFor(
-        workspace: _workspace(id: 'workspace-1'),
-        tab: _tab(id: id, workspaceId: 'workspace-1'),
-      );
-      _fillAndHide(session);
-    }
+    final cold = runtime.sessionFor(
+      workspace: _workspace(id: 'workspace-1'),
+      tab: _tab(id: 'tab-1', workspaceId: 'workspace-1'),
+    );
+    _fillAndHide(cold);
+    final visible = runtime.sessionFor(
+      workspace: _workspace(id: 'workspace-1'),
+      tab: _tab(id: 'tab-2', workspaceId: 'workspace-1'),
+    );
+    final visibility = acquireTerminalVisibilityForTesting(visible);
+    addTearDown(visibility.dispose);
+    _fillScrollback(visible);
 
-    runtime.setActiveWorkspace('workspace-1');
-    // A budget far under what the two terminals need. Both survive anyway
-    // because they belong to the workspace being worked in, which is the
-    // honest cost of pinning: the ceiling is budget plus the active workspace.
     runtime.updateSettings(
       TerminalSettings.defaults.copyWith(bufferBudgetMegabytes: 1),
     );
 
-    expect(runtime.peekSession('tab-1'), isNotNull);
-    expect(runtime.peekSession('tab-2'), isNotNull);
+    expect(runtime.peekSession('tab-1'), isNull);
+    expect(runtime.peekSession('tab-2'), same(visible));
   });
 
   test('a zero budget keeps every terminal alive', () {

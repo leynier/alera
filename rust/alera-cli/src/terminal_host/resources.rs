@@ -5,6 +5,8 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
+#[cfg(test)]
+mod cache_release_tests;
 mod history;
 mod process_tree;
 mod snapshot_payload;
@@ -120,6 +122,15 @@ impl ResourceSampler {
     /// gap, because a delta measured across that gap would describe minutes of
     /// history as if it were the last two seconds.
     pub fn reset_cpu_baseline(&mut self) {
+        self.refreshes = 0;
+    }
+
+    /// Drop process rows once nobody is reading resource snapshots.
+    ///
+    /// History stays available for the next viewing window, but the process
+    /// table and its CPU baseline are useful only while sampling is active.
+    pub fn release_process_cache(&mut self) {
+        self.system = System::new();
         self.refreshes = 0;
     }
 
