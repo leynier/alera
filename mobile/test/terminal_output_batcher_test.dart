@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,11 +11,13 @@ void main() {
   late List<String> writes;
 
   TerminalOutputBatcher batcher({int maxCharsPerFrame = 1024}) {
-    return TerminalOutputBatcher(
+    final subject = TerminalOutputBatcher(
       write: writes.add,
       maxCharsPerFrame: maxCharsPerFrame,
       maxPendingChars: 4096,
     );
+    addTearDown(subject.dispose);
+    return subject;
   }
 
   setUp(() => writes = <String>[]);
@@ -48,12 +52,52 @@ void main() {
     expect(writes.join(), 'a' * 25);
   });
 
+  test('a partial drain retains the original chunk and advances its head', () {
+    final subject = batcher(maxCharsPerFrame: 10);
+    final original = 'a' * 25;
+
+    subject.add(original);
+    subject.flushFrame();
+
+    expect(subject.debugPendingHeadStorage, same(original));
+    expect(subject.debugPendingHeadOffset, 10);
+  });
+
+  test(
+    'sustained output waits for the cadence floor after its first frame',
+    () async {
+      final frames = Queue<void Function()>();
+      final subject = TerminalOutputBatcher(
+        write: writes.add,
+        minFlushInterval: const Duration(milliseconds: 50),
+        scheduleFrame: frames.add,
+      );
+      addTearDown(subject.dispose);
+
+      subject.add('first');
+      expect(frames, hasLength(1));
+      frames.removeFirst()();
+
+      subject.add('second');
+      expect(subject.debugFlushDeferred, isTrue);
+      expect(frames, isEmpty);
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(subject.debugFlushDeferred, isFalse);
+      expect(frames, hasLength(1));
+      frames.removeFirst()();
+      expect(writes, <String>['first', 'second']);
+    },
+  );
+
   test('a runaway process cannot grow the backlog without bound', () {
     final subject = TerminalOutputBatcher(
       write: writes.add,
       maxCharsPerFrame: 100,
       maxPendingChars: 50,
     );
+    addTearDown(subject.dispose);
 
     for (var i = 0; i < 10; i++) {
       subject.add('x' * 30);
@@ -70,10 +114,29 @@ void main() {
       maxCharsPerFrame: 1000,
       maxPendingChars: 50,
     );
+    addTearDown(subject.dispose);
 
     subject.addSnapshot('y' * 300);
 
     expect(subject.pendingChars, 300);
+  });
+
+  test('live backlog trimming never discards a restore snapshot', () {
+    final subject = TerminalOutputBatcher(
+      write: writes.add,
+      maxCharsPerFrame: 1000,
+      maxPendingChars: 50,
+    );
+    addTearDown(subject.dispose);
+
+    subject.addSnapshot('s' * 300);
+    subject.add('l' * 120);
+
+    expect(subject.pendingChars, 350);
+    while (subject.pendingChars > 0) {
+      subject.flushFrame();
+    }
+    expect(writes.join(), '${'s' * 300}${'l' * 50}');
   });
 
   test('never splits a surrogate pair across frames', () {

@@ -49,6 +49,7 @@ class FakeTerminalClient
   final List<({String tabId, int cols, int rows})> attachments =
       <({String tabId, int cols, int rows})>[];
   Future<void>? attachCompletion;
+  List<int> attachmentSnapshot = const <int>[];
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   List<String> projectBranches = const <String>[];
   List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
@@ -216,7 +217,7 @@ class FakeTerminalClient
         sessionId: tab.terminalSessionId,
         created: false,
         running: true,
-        snapshot: const <int>[],
+        snapshot: attachmentSnapshot,
       ),
     );
   }

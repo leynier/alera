@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/scheduler.dart';
@@ -16,68 +17,127 @@ class TerminalOutputBatcher {
     required this.write,
     this.maxCharsPerFrame = _defaultMaxCharsPerFrame,
     this.maxPendingChars = _defaultMaxPendingChars,
-    this.scheduler,
+    this.minFlushInterval = _defaultMinFlushInterval,
+    this.scheduleFrame,
   });
 
   static const int _defaultMaxCharsPerFrame = 64 * 1024;
   static const int _defaultMaxPendingChars = 512 * 1024;
+  static const Duration _defaultMinFlushInterval = Duration(milliseconds: 33);
 
   final void Function(String text) write;
   final int maxCharsPerFrame;
   final int maxPendingChars;
+  final Duration minFlushInterval;
 
-  /// Injected only by tests, which drive frames by hand.
-  final SchedulerBinding? scheduler;
+  /// Injected only by tests, which capture and drive frame requests by hand.
+  final void Function(void Function() callback)? scheduleFrame;
 
-  final Queue<String> _pending = Queue<String>();
+  final Queue<_PendingOutputChunk> _pending = Queue<_PendingOutputChunk>();
+  final Stopwatch _sinceFlushRequest = Stopwatch();
   int _pendingChars = 0;
+  int _pendingLiveChars = 0;
   bool _flushScheduled = false;
   bool _disposed = false;
+  Timer? _flushTimer;
 
   int get pendingChars => _pendingChars;
+
+  /// Test-only evidence that a partial drain advances inside the original
+  /// string instead of allocating a fresh tail after every frame.
+  Object? get debugPendingHeadStorage =>
+      _pending.isEmpty ? null : _pending.first.text;
+
+  int get debugPendingHeadOffset => _pending.isEmpty ? 0 : _pending.first.head;
+
+  bool get debugFlushDeferred => _flushTimer != null;
 
   /// Queues live output. Oldest output is dropped past the backlog cap, since
   /// a runaway process must not grow memory without bound and what the user is
   /// looking at is the newest output.
-  void add(String text) => _enqueue(text, bounded: true);
+  void add(String text) => _enqueue(text, source: _OutputSource.live);
 
   /// Queues a restored snapshot, which is a bounded one-shot payload and so is
   /// exempt from the cap that exists to contain a live process.
-  void addSnapshot(String text) => _enqueue(text, bounded: false);
+  void addSnapshot(String text) =>
+      _enqueue(text, source: _OutputSource.restore);
 
-  void _enqueue(String text, {required bool bounded}) {
+  void _enqueue(String text, {required _OutputSource source}) {
     if (_disposed || text.isEmpty) {
       return;
     }
-    _pending.add(text);
+    _pending.add(_PendingOutputChunk(text, source));
     _pendingChars += text.length;
-    if (bounded) {
-      while (_pendingChars > maxPendingChars && _pending.length > 1) {
-        _pendingChars -= _pending.removeFirst().length;
-      }
-      if (_pendingChars > maxPendingChars) {
-        final chunk = _pending.removeFirst();
-        final start = _headTrimStart(chunk, chunk.length - maxPendingChars);
-        _pending.addFirst(chunk.substring(start));
-        _pendingChars = chunk.length - start;
-      }
+    if (source == _OutputSource.live) {
+      _pendingLiveChars += text.length;
+      _trimLiveBacklog();
     }
     _schedule();
+  }
+
+  void _trimLiveBacklog() {
+    while (_pendingLiveChars > maxPendingChars) {
+      final chunk = _pending.firstWhere(
+        (candidate) => candidate.source == _OutputSource.live,
+      );
+      final excess = _pendingLiveChars - maxPendingChars;
+      final trim = excess < chunk.remaining ? excess : chunk.remaining;
+      final target = _headTrimStart(chunk.text, chunk.head + trim);
+      final dropped = target - chunk.head;
+      if (dropped == chunk.remaining) {
+        _consume(chunk, dropped);
+        continue;
+      }
+      _pendingChars -= dropped;
+      _pendingLiveChars -= dropped;
+      // This copy is intentional and happens only when output is discarded:
+      // retaining a single oversized source string would defeat the RAM cap.
+      chunk
+        ..text = chunk.text.substring(target)
+        ..head = 0;
+    }
   }
 
   void _schedule() {
     if (_flushScheduled || _disposed) {
       return;
     }
+    final sinceLastRequest = _sinceFlushRequest.isRunning
+        ? _sinceFlushRequest.elapsed
+        : minFlushInterval;
+    if (sinceLastRequest >= minFlushInterval) {
+      _requestFrame();
+      return;
+    }
     _flushScheduled = true;
-    final binding = scheduler ?? SchedulerBinding.instance;
-    binding.scheduleFrameCallback((_) => flushFrame());
-    binding.ensureVisualUpdate();
+    _flushTimer = Timer(minFlushInterval - sinceLastRequest, () {
+      _flushTimer = null;
+      _flushScheduled = false;
+      if (!_disposed) {
+        _requestFrame();
+      }
+    });
+  }
+
+  void _requestFrame() {
+    _flushScheduled = true;
+    _sinceFlushRequest
+      ..reset()
+      ..start();
+    final testScheduler = scheduleFrame;
+    if (testScheduler != null) {
+      testScheduler(flushFrame);
+      return;
+    }
+    SchedulerBinding.instance.scheduleFrameCallback((_) => flushFrame());
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   /// Writes at most one frame's worth, splitting only the chunk that straddles
   /// the budget so the rest stays untouched.
   void flushFrame() {
+    _flushTimer?.cancel();
+    _flushTimer = null;
     _flushScheduled = false;
     if (_disposed || _pending.isEmpty) {
       return;
@@ -87,22 +147,21 @@ class TerminalOutputBatcher {
     while (_pending.isNotEmpty && written < maxCharsPerFrame) {
       final chunk = _pending.first;
       final remaining = maxCharsPerFrame - written;
-      if (chunk.length <= remaining) {
-        _pending.removeFirst();
-        _pendingChars -= chunk.length;
-        frame.write(chunk);
-        written += chunk.length;
+      if (chunk.remaining <= remaining) {
+        final available = chunk.remaining;
+        frame.write(chunk.remainingText);
+        _consume(chunk, available);
+        written += available;
         continue;
       }
-      final cutoff = _chunkCutoff(chunk, remaining);
-      if (cutoff == 0) {
+      final cutoff = _chunkCutoff(chunk.text, chunk.head + remaining);
+      if (cutoff <= chunk.head) {
         break;
       }
-      _pending.removeFirst();
-      _pending.addFirst(chunk.substring(cutoff));
-      _pendingChars -= cutoff;
-      frame.write(chunk.substring(0, cutoff));
-      written += cutoff;
+      final consumed = cutoff - chunk.head;
+      frame.write(chunk.text.substring(chunk.head, cutoff));
+      _consume(chunk, consumed);
+      written += consumed;
     }
     if (written > 0) {
       write(frame.toString());
@@ -114,9 +173,37 @@ class TerminalOutputBatcher {
 
   void dispose() {
     _disposed = true;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _sinceFlushRequest.stop();
     _pending.clear();
     _pendingChars = 0;
+    _pendingLiveChars = 0;
   }
+
+  void _consume(_PendingOutputChunk chunk, int count) {
+    chunk.head += count;
+    _pendingChars -= count;
+    if (chunk.source == _OutputSource.live) {
+      _pendingLiveChars -= count;
+    }
+    if (chunk.remaining == 0) {
+      _pending.remove(chunk);
+    }
+  }
+}
+
+enum _OutputSource { live, restore }
+
+class _PendingOutputChunk {
+  _PendingOutputChunk(this.text, this.source);
+
+  String text;
+  final _OutputSource source;
+  int head = 0;
+
+  int get remaining => text.length - head;
+  String get remainingText => head == 0 ? text : text.substring(head);
 }
 
 /// Never cuts between a surrogate pair, which would corrupt the code point.

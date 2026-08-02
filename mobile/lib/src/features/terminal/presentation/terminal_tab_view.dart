@@ -252,10 +252,9 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     _outputSub = null;
     _outputEnded = false;
     _replaceEmulator(notify: notify);
-    if (session.snapshot.isNotEmpty) {
-      _batcher!.addSnapshot(
-        utf8.decode(session.snapshot, allowMalformed: true),
-      );
+    final snapshot = session.takeSnapshot();
+    if (snapshot.isNotEmpty) {
+      _batcher!.addSnapshot(utf8.decode(snapshot, allowMalformed: true));
     }
     _outputSub = session.output.listen(
       _handleOutput,
