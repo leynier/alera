@@ -105,6 +105,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  WorkspaceQuickOpenSession dco_decode_box_autoadd_workspace_quick_open_session(
+    dynamic raw,
+  );
+
+  @protected
   WorkspaceReplaceOptions dco_decode_box_autoadd_workspace_replace_options(
     dynamic raw,
   );
@@ -301,6 +306,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WorkspaceFileEntry> dco_decode_list_workspace_file_entry(dynamic raw);
 
   @protected
+  List<WorkspaceQuickOpenMatch> dco_decode_list_workspace_quick_open_match(
+    dynamic raw,
+  );
+
+  @protected
   List<WorkspaceReplaceConflict> dco_decode_list_workspace_replace_conflict(
     dynamic raw,
   );
@@ -461,6 +471,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WorkspaceFileKind dco_decode_workspace_file_kind(dynamic raw);
 
   @protected
+  WorkspaceQuickOpenMatch dco_decode_workspace_quick_open_match(dynamic raw);
+
+  @protected
+  WorkspaceQuickOpenSession dco_decode_workspace_quick_open_session(
+    dynamic raw,
+  );
+
+  @protected
   WorkspaceReplaceConflict dco_decode_workspace_replace_conflict(dynamic raw);
 
   @protected
@@ -606,6 +624,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceFileGitStatus sse_decode_box_autoadd_workspace_file_git_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceQuickOpenSession sse_decode_box_autoadd_workspace_quick_open_session(
     SseDeserializer deserializer,
   );
 
@@ -856,6 +879,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WorkspaceQuickOpenMatch> sse_decode_list_workspace_quick_open_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WorkspaceReplaceConflict> sse_decode_list_workspace_replace_conflict(
     SseDeserializer deserializer,
   );
@@ -1050,6 +1078,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  WorkspaceQuickOpenMatch sse_decode_workspace_quick_open_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceQuickOpenSession sse_decode_workspace_quick_open_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WorkspaceReplaceConflict sse_decode_workspace_replace_conflict(
     SseDeserializer deserializer,
   );
@@ -1234,6 +1272,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_workspace_file_git_status(
     WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_quick_open_session(
+    WorkspaceQuickOpenSession self,
     SseSerializer serializer,
   );
 
@@ -1559,6 +1603,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_workspace_quick_open_match(
+    List<WorkspaceQuickOpenMatch> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_workspace_replace_conflict(
     List<WorkspaceReplaceConflict> self,
     SseSerializer serializer,
@@ -1789,6 +1839,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_workspace_file_kind(
     WorkspaceFileKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_quick_open_match(
+    WorkspaceQuickOpenMatch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_quick_open_session(
+    WorkspaceQuickOpenSession self,
     SseSerializer serializer,
   );
 

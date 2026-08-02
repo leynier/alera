@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `content_token`, `copy_recursively`, `ensure_inside_existing_parent`, `ensure_not_descendant`, `entry_for_path`, `from_io`, `has_visible_child`, `ignored_aware_children`, `is_protected_child_path`, `is_protected_relative_path`, `join_relative`, `modified_millis`, `new`, `read_dir_children`, `reject_protected`, `relative_components`, `relative_string`, `resolve_existing_no_follow`, `resolve_existing`, `resolve_new_child`, `sanitize_name`, `unique_copy_destination`, `workspace_root`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<WorkspaceFileEntry>> listWorkspaceChildren({
   required String workspacePath,
@@ -19,12 +19,27 @@ Future<List<WorkspaceFileEntry>> listWorkspaceChildren({
   hideIgnored: hideIgnored,
 );
 
-Future<List<WorkspaceFileEntry>> listWorkspaceFiles({
+Future<WorkspaceQuickOpenSession> startWorkspaceQuickOpenSession({
   required String workspacePath,
-  required int maxResults,
-}) => RustLib.instance.api.crateApiWorkspaceFilesListWorkspaceFiles(
+}) => RustLib.instance.api.crateApiWorkspaceFilesStartWorkspaceQuickOpenSession(
   workspacePath: workspacePath,
-  maxResults: maxResults,
+);
+
+Future<List<WorkspaceQuickOpenMatch>> searchWorkspaceQuickOpenSession({
+  required WorkspaceQuickOpenSession session,
+  required String query,
+  required int limit,
+}) =>
+    RustLib.instance.api.crateApiWorkspaceFilesSearchWorkspaceQuickOpenSession(
+      session: session,
+      query: query,
+      limit: limit,
+    );
+
+Future<void> stopWorkspaceQuickOpenSession({
+  required WorkspaceQuickOpenSession session,
+}) => RustLib.instance.api.crateApiWorkspaceFilesStopWorkspaceQuickOpenSession(
+  session: session,
 );
 
 Future<WorkspaceExplorerTreeProjection> projectWorkspaceExplorerTree({
@@ -524,6 +539,48 @@ enum WorkspaceFileErrorKind {
 enum WorkspaceFileGitStatus { untracked, added, modified }
 
 enum WorkspaceFileKind { file, directory, symlink, other }
+
+class WorkspaceQuickOpenMatch {
+  final String relativePath;
+  final int score;
+
+  const WorkspaceQuickOpenMatch({
+    required this.relativePath,
+    required this.score,
+  });
+
+  @override
+  int get hashCode => relativePath.hashCode ^ score.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WorkspaceQuickOpenMatch &&
+          runtimeType == other.runtimeType &&
+          relativePath == other.relativePath &&
+          score == other.score;
+}
+
+class WorkspaceQuickOpenSession {
+  final String id;
+  final int indexedFileCount;
+
+  const WorkspaceQuickOpenSession({
+    required this.id,
+    required this.indexedFileCount,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ indexedFileCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WorkspaceQuickOpenSession &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          indexedFileCount == other.indexedFileCount;
+}
 
 class WorkspaceTextFile {
   final String content;
