@@ -1,6 +1,7 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 class RuntimeSettingsRepository implements SettingsRepository {
@@ -34,6 +35,10 @@ class RuntimeSettingsRepository implements SettingsRepository {
               discoveredDefaultModelByAgent:
                   legacy.aiTextGeneration.discoveredDefaultModelByAgent,
             );
+      final runtimeTextActions = _asMap(runtime['textActions']);
+      final sharedTextActions = runtimeTextActions.isEmpty
+          ? legacy.textActions
+          : TextActionsSettings.fromJson(runtimeTextActions);
       final defaultAgentProfileId = runtime.containsKey('defaultAgentProfileId')
           ? _optionalRuntimeString(runtime['defaultAgentProfileId'])
           : legacy.agents.defaultAgentProfileId;
@@ -66,6 +71,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
           ),
         ),
         aiTextGeneration: sharedAiText,
+        textActions: sharedTextActions,
       );
     } catch (_) {
       return legacy;
@@ -84,6 +90,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
       'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
+      'textActions': settings.textActions.toMap(),
     });
   }
 }

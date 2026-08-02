@@ -17,11 +17,13 @@ import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pa
 import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_hosts_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dart';
+import 'package:alera/src/features/text_actions/presentation/text_actions_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_content.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
+import 'package:alera/src/features/settings/presentation/text_actions_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
@@ -174,6 +176,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'claude', title: 'Claude'),
       SettingsGroupSpec(id: 'credentials', title: 'Credentials'),
     ];
+    const textActionsGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'actions', title: 'Actions'),
+    ];
     const aiTextGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'generation', title: 'Generation'),
       SettingsGroupSpec(id: 'commitMessage', title: 'Commit Messages'),
@@ -265,6 +270,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           settings: settings.aiTextGeneration,
           groupKeys: _paneKeys('aiText', aiTextGroups),
           onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
+        ),
+      ),
+      SettingsSectionData(
+        id: 'textActions',
+        title: 'Text Actions',
+        description: 'Create reusable replacements for selected text.',
+        icon: AleraIcons.text,
+        entries: textActionsSearchEntries,
+        groups: textActionsGroups,
+        navGroup: SettingsNavGroup.resources,
+        builder: (_) => TextActionsSettingsPane(
+          settings: settings.textActions,
+          aiTextSettings: settings.aiTextGeneration,
+          groupKeys: _paneKeys('textActions', textActionsGroups),
+          onChanged: controller.updateTextActions,
         ),
       ),
       SettingsSectionData(

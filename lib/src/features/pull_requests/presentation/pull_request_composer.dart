@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -388,6 +389,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
         aiEnabled && widget.canCreate && !widget.busy && !_generating;
     final titleField = TextField(
       controller: _titleController,
+      contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
       enabled: enabled,
       style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
       cursorColor: AleraTokens.foreground,
@@ -400,6 +402,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     );
     final descriptionField = TextField(
       controller: _bodyController,
+      contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
       enabled: enabled,
       minLines: 3,
       maxLines: 20,

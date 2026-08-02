@@ -3,6 +3,7 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
@@ -396,6 +397,7 @@ class AleraSettings with AleraSettingsMappable {
     required this.general,
     this.agents = AgentSettings.defaults,
     this.aiTextGeneration = AiTextGenerationSettings.defaults,
+    this.textActions = TextActionsSettings.defaults,
     this.editor = EditorSettings.defaults,
     this.diagnostics = DiagnosticsSettings.defaults,
     required this.terminal,
@@ -405,6 +407,7 @@ class AleraSettings with AleraSettingsMappable {
   final GeneralSettings general;
   final AgentSettings agents;
   final AiTextGenerationSettings aiTextGeneration;
+  final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
   final TerminalSettings terminal;

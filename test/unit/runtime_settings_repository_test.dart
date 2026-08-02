@@ -2,6 +2,7 @@ import 'package:alera/src/features/settings/application/settings_repository.dart
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
+import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -200,6 +201,59 @@ void main() {
             .id,
         'local-model',
       );
+    },
+  );
+
+  test(
+    'saves and loads text actions while older hosts fall back locally',
+    () async {
+      final legacyRepository = _MemorySettingsRepository();
+      final action = const TextAction(
+        id: 'polish',
+        name: 'Polish',
+        prompt: 'Improve the selected text.',
+      );
+      final client = _RecordingRuntimeHostClient();
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacyRepository,
+      );
+
+      await repository.save(
+        AleraSettings.defaults.copyWith(
+          textActions: TextActionsSettings(actions: <TextAction>[action]),
+        ),
+      );
+      final payload = client.payloads['runtimeSettings.update']!.single;
+      expect(payload['textActions'], <String, Object?>{
+        'actions': <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'polish',
+            'name': 'Polish',
+            'prompt': 'Improve the selected text.',
+            'enabled': true,
+            'agentOverride': null,
+            'modelOverride': null,
+            'reasoningByModel': <String, String>{},
+          },
+        ],
+      });
+
+      legacyRepository.settings = AleraSettings.defaults.copyWith(
+        textActions: TextActionsSettings(actions: <TextAction>[action]),
+      );
+      client.responses['runtimeSettings.get'] = <String, Object?>{
+        'workspaceDirectory': '/tmp/workspaces',
+      };
+      final loadedFromOldHost = await repository.load();
+      expect(loadedFromOldHost.textActions.actions.single.id, 'polish');
+
+      client.responses['runtimeSettings.get'] = <String, Object?>{
+        'workspaceDirectory': '/tmp/workspaces',
+        'textActions': <String, Object?>{'actions': <Object?>[]},
+      };
+      final loadedFromNewHost = await repository.load();
+      expect(loadedFromNewHost.textActions.actions, isEmpty);
     },
   );
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::{
     RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeAiTextGenerationSettings,
-    RuntimeMobilePushSettings, RuntimeSettings, RuntimeStore,
+    RuntimeMobilePushSettings, RuntimeSettings, RuntimeStore, RuntimeTextActionsSettings,
 };
 
 impl RuntimeStore {
@@ -16,7 +16,29 @@ impl RuntimeStore {
             agent_quotas: self.agent_quota_settings().await?,
             mobile_push_notifications: self.mobile_push_settings().await?,
             ai_text_generation: self.ai_text_generation_settings().await?,
+            text_actions: self.text_actions_settings().await?,
         })
+    }
+
+    pub async fn text_actions_settings(&self) -> Result<Option<RuntimeTextActionsSettings>> {
+        let Some(encoded) = self.get_metadata("settings.textActions").await? else {
+            return Ok(None);
+        };
+        Ok(serde_json::from_str::<RuntimeTextActionsSettings>(&encoded)
+            .ok()
+            .map(RuntimeTextActionsSettings::normalized))
+    }
+
+    pub async fn set_text_actions_settings(
+        &self,
+        settings: RuntimeTextActionsSettings,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.textActions",
+            &serde_json::to_string(&settings.normalized())?,
+        )
+        .await?;
+        self.runtime_settings().await
     }
 
     pub async fn mobile_push_settings(&self) -> Result<RuntimeMobilePushSettings> {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -260,6 +261,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
         TextField(
           controller: _titleController,
           enabled: !_busy,
+          contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
           autofocus: true,
           style: theme.textTheme.bodySmall?.copyWith(
             color: AleraTokens.foreground,
