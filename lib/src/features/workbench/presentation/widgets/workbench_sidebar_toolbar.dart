@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -59,6 +61,21 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
             ),
           ),
           const Spacer(),
+          AleraIconButton(
+            tooltip: 'Go Back',
+            onPressed: controller.canGoBack
+                ? () => unawaited(controller.goBack())
+                : null,
+            icon: AleraIcons.back,
+          ),
+          AleraIconButton(
+            tooltip: 'Go Forward',
+            onPressed: controller.canGoForward
+                ? () => unawaited(controller.goForward())
+                : null,
+            icon: AleraIcons.forward,
+          ),
+          const SizedBox(width: AleraTokens.space2),
           const WorkbenchViewOptionsButton(),
           const SizedBox(width: AleraTokens.space2),
           AleraIconButton(

@@ -39,6 +39,10 @@ class KeyboardCommandDispatcher {
         unawaited(
           showCreateWorkspaceFlow(context, ref, initialProject: project),
         );
+      case KeyboardActionId.navigateBack:
+        unawaited(ref.read(workbenchControllerProvider.notifier).goBack());
+      case KeyboardActionId.navigateForward:
+        unawaited(ref.read(workbenchControllerProvider.notifier).goForward());
       case KeyboardActionId.findInFiles:
         _showContextPanel(WorkbenchContextPanelTab.search);
       case KeyboardActionId.findInTerminal:

@@ -166,6 +166,29 @@ void main() {
     expect(controller.closedTabIds, <String>[newTab.id]);
   });
 
+  testWidgets('worktree navigation commands use the controller history', (
+    tester,
+  ) async {
+    final controller = _DispatcherTestWorkbenchController(
+      const WorkbenchState(),
+    );
+    final harness = await _pumpDispatcherHarness(
+      tester,
+      controller: controller,
+      runtime: _FakeTerminalRuntime(),
+    );
+    final dispatcher = KeyboardCommandDispatcher(
+      ref: harness.ref,
+      context: harness.context,
+    );
+
+    dispatcher.dispatch(KeyboardActionId.navigateBack);
+    dispatcher.dispatch(KeyboardActionId.navigateForward);
+    await tester.pump();
+
+    expect(controller.navigationCalls, <String>['back', 'forward']);
+  });
+
   testWidgets('closeSplit merges only multi-pane layouts', (tester) async {
     final workspace = _workspace();
     final firstTab = _tab(id: 'tab-1');

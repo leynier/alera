@@ -102,6 +102,44 @@ void main() {
         isEmpty,
       );
     });
+
+    test('uses platform-correct worktree navigation defaults', () {
+      final macResolver = KeybindingResolver(
+        settings: KeyboardShortcutSettings.defaults,
+        platform: KeyboardPlatform.macos,
+      );
+      final desktopResolver = KeybindingResolver(
+        settings: KeyboardShortcutSettings.defaults,
+        platform: KeyboardPlatform.windows,
+      );
+
+      expect(
+        macResolver
+            .effectiveChords(KeyboardActionId.navigateBack)
+            .single
+            .toCanonicalString(),
+        'Mod+BracketLeft',
+      );
+      expect(
+        desktopResolver
+            .effectiveChords(KeyboardActionId.navigateForward)
+            .single
+            .toCanonicalString(),
+        'Alt+ArrowRight',
+      );
+    });
+  });
+
+  test('worktree navigation remains terminal-first safe', () {
+    expect(
+      keybindingDefinitionsById[KeyboardActionId.navigateBack]!.allowInTerminal,
+      isFalse,
+    );
+    expect(
+      keybindingDefinitionsById[KeyboardActionId.navigateForward]!
+          .allowInTerminal,
+      isFalse,
+    );
   });
 
   group('resolveAction', () {

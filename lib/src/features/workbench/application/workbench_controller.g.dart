@@ -42,7 +42,7 @@ final class WorkbenchControllerProvider
 }
 
 String _$workbenchControllerHash() =>
-    r'53050c45e971cd9d2380285413cd80859a8d83b7';
+    r'da0351315888e2976aac0ed89408b70bcf95c40d';
 
 abstract class _$WorkbenchController extends $Notifier<WorkbenchState> {
   WorkbenchState build();
