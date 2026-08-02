@@ -167,6 +167,8 @@ abstract final class AleraIcons {
   static const IconData terminal = LucideIcons.terminal;
   static const IconData code = LucideIcons.code;
   static const IconData keyboard = LucideIcons.keyboard;
+  // Prompt composer: write/send a message into the active terminal.
+  static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData ai = LucideIcons.sparkles;
   static const IconData package = LucideIcons.package;
   static const IconData public = LucideIcons.globe;
