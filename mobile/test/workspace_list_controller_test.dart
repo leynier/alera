@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -136,6 +137,9 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   bool get supportsPromptWorkspaceCreation => true;
 
   @override
+  bool get supportsPromptImageUpload => true;
+
+  @override
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return WorkspaceSidebarSnapshot(
       projects: await listProjects(),
@@ -197,6 +201,17 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
 
   @override
   Future<void> cancelWorkspaceIdentity(String operationId) async {}
+
+  @override
+  Future<PromptImageUploadResult> uploadPromptImage({
+    required String format,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  }) async {
+    return PromptImageUploadResult(
+      hostPath: '/runtime/prompt-images/test.$format',
+    );
+  }
 
   @override
   Future<AgentProfileLaunchResult> launchAgentProfile({

@@ -4,3 +4,4 @@
 const int aleraMobileProtocolVersion = 1;
 
 const String mobileCloudEnrollmentCapability = 'mobileCloudEnrollmentV1';
+const String mobilePromptImageUploadCapability = 'mobilePromptImageUploadV1';

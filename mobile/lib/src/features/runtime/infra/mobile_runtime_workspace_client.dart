@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:logging/logging.dart';
 
 // Managed workspace lifecycle mirrors the desktop client timeouts
 // (lib/src/features/workbench/infra/runtime_managed_workspace_client.dart).
@@ -36,6 +42,9 @@ mixin MobileRuntimeWorkspaceClient {
   bool get supportsPromptWorkspaceCreation =>
       runtimeCapabilities.contains(aiTextWorkspaceIdentityCapability) &&
       runtimeCapabilities.contains(agentProfilePromptLaunchCapability);
+
+  bool get supportsPromptImageUpload =>
+      runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
     await request('workspace.setPinned', <String, Object?>{
@@ -169,6 +178,85 @@ mixin MobileRuntimeWorkspaceClient {
     await request('aiText.cancel', <String, Object?>{
       'operationId': operationId,
     });
+  }
+
+  Future<PromptImageUploadResult> uploadPromptImage({
+    required String format,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  }) async {
+    if (!supportsPromptImageUpload) {
+      throw UnsupportedError(
+        'Update Alera on this host to add images to a prompt.',
+      );
+    }
+    if (sizeBytes <= 0) {
+      throw StateError('The selected image is empty.');
+    }
+    if (sizeBytes > maxPromptImageBytes) {
+      throw StateError('The selected image is larger than the 18 MiB limit.');
+    }
+
+    String? uploadId;
+    try {
+      final started = await requestMap(
+        'mobile.promptImage.start',
+        <String, Object?>{'format': format, 'sizeBytes': sizeBytes},
+      );
+      uploadId = started.requiredString('uploadId');
+      var offset = 0;
+      await for (final bytes in openRead()) {
+        for (var start = 0; start < bytes.length;) {
+          final end = start + maxPromptImageChunkBytes < bytes.length
+              ? start + maxPromptImageChunkBytes
+              : bytes.length;
+          final chunk = bytes.sublist(start, end);
+          final response = await requestMap(
+            'mobile.promptImage.chunk',
+            <String, Object?>{
+              'uploadId': uploadId,
+              'offset': offset,
+              'dataBase64': base64Encode(chunk),
+            },
+          );
+          final nextOffset = response['nextOffset'];
+          final expectedOffset = offset + chunk.length;
+          if (nextOffset is! int || nextOffset != expectedOffset) {
+            throw StateError(
+              'The host returned an invalid image upload offset.',
+            );
+          }
+          offset = nextOffset;
+          start = end;
+        }
+      }
+      if (offset != sizeBytes) {
+        throw StateError('The selected image could not be read completely.');
+      }
+      final completed = await requestMap(
+        'mobile.promptImage.complete',
+        <String, Object?>{'uploadId': uploadId},
+      );
+      return PromptImageUploadResult.fromJson(completed);
+    } on Object {
+      final failedUploadId = uploadId;
+      if (failedUploadId != null) {
+        try {
+          await request('mobile.promptImage.cancel', <String, Object?>{
+            'uploadId': failedUploadId,
+          });
+        } on Object catch (cancelError, cancelStackTrace) {
+          // The original upload error is more useful to the user, but a failed
+          // cleanup must remain visible in diagnostics instead of disappearing.
+          Logger('MobileRuntimeWorkspaceClient').warning(
+            'could not cancel failed prompt image upload',
+            cancelError,
+            cancelStackTrace,
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<AgentProfileLaunchResult> launchAgentProfile({

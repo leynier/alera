@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -116,6 +118,7 @@ abstract interface class MobileWorkspaceClient {
   bool get supportsWorkspaceSidebarParity;
   bool get supportsTabRename;
   bool get supportsPromptWorkspaceCreation;
+  bool get supportsPromptImageUpload;
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot();
   Future<MobileViewPrefs> loadWorkbenchViewPrefs();
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(MobileViewPrefs prefs);
@@ -129,6 +132,11 @@ abstract interface class MobileWorkspaceClient {
     required String prompt,
   });
   Future<void> cancelWorkspaceIdentity(String operationId);
+  Future<PromptImageUploadResult> uploadPromptImage({
+    required String format,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  });
   Future<AgentProfileLaunchResult> launchAgentProfile({
     required String workspaceId,
     required String profileId,
