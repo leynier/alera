@@ -79,12 +79,22 @@ String? textActionValidationError(
   Iterable<TextAction> existing, {
   String? editingId,
 }) {
+  final id = action.id.trim();
+  if (id.isEmpty) {
+    return 'Action ID is required.';
+  }
   final name = action.name.trim();
   if (name.isEmpty) {
     return 'Action name is required.';
   }
   if (action.prompt.trim().isEmpty) {
     return 'Action prompt is required.';
+  }
+  final duplicateId = existing.any(
+    (candidate) => candidate.id != editingId && candidate.id.trim() == id,
+  );
+  if (duplicateId) {
+    return 'Action IDs must be unique.';
   }
   final normalizedName = name.toLowerCase();
   final duplicate = existing.any(

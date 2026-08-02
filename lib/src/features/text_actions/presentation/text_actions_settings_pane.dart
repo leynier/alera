@@ -153,10 +153,13 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
           return;
         }
         setState(() {
-          _reasoningByModel = <String, String>{
-            ..._reasoningByModel,
-            modelId: value,
-          };
+          final next = <String, String>{..._reasoningByModel};
+          if (value == null) {
+            next.remove(modelId);
+          } else {
+            next[modelId] = value;
+          }
+          _reasoningByModel = next;
         });
       },
       onSave: _save,

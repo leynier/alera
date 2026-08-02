@@ -40,7 +40,7 @@ class TextActionEditor extends StatelessWidget {
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<AiTextGenerationAgent?> onAgentChanged;
   final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
+  final ValueChanged<String?> onReasoningChanged;
   final VoidCallback onSave;
   final VoidCallback onDelete;
   final bool isNew;
@@ -61,11 +61,15 @@ class TextActionEditor extends StatelessWidget {
       extraModels: discoveredModelsForAgent(aiTextSettings, agent),
     );
     final reasoningLevels = model.thinkingLevels;
-    final reasoningValue =
-        reasoningByModel[model.id] ??
+    final reasoningValue = reasoningByModel[model.id];
+    final inheritedReasoning =
         aiTextSettings.thinkingForModel(model.id) ??
         model.defaultThinkingLevel ??
         (reasoningLevels.isEmpty ? null : reasoningLevels.first.id);
+    final inheritedReasoningLabel = reasoningLevels
+        .where((level) => level.id == inheritedReasoning)
+        .firstOrNull
+        ?.label;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,11 +159,17 @@ class TextActionEditor extends StatelessWidget {
                 AleraSettingRow(
                   title: 'Reasoning',
                   description: 'Reasoning effort for the effective model.',
-                  child: AleraDropdownField<String>(
+                  child: AleraDropdownField<String?>(
                     value: reasoningValue,
-                    entries: <AleraDropdownFieldEntry<String>>[
+                    entries: <AleraDropdownFieldEntry<String?>>[
+                      AleraDropdownFieldEntry<String?>(
+                        value: null,
+                        label: inheritedReasoningLabel == null
+                            ? 'Global'
+                            : 'Global ($inheritedReasoningLabel)',
+                      ),
                       for (final level in reasoningLevels)
-                        AleraDropdownFieldEntry<String>(
+                        AleraDropdownFieldEntry<String?>(
                           value: level.id,
                           label: level.label,
                         ),

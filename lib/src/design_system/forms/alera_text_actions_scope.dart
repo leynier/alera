@@ -74,7 +74,10 @@ class AleraTextActionsScope extends InheritedWidget {
       items.add(
         ContextMenuButtonItem(
           label: 'Text Actions',
-          onPressed: () => scope!.onOpen(context, editableTextState),
+          onPressed: () {
+            ContextMenuController.removeAny();
+            scope!.onOpen(context, editableTextState);
+          },
           type: ContextMenuButtonType.custom,
         ),
       );

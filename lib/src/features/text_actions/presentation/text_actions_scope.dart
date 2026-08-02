@@ -9,6 +9,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/text_actions/application/text_action_prompt.dart';
+import 'package:alera/src/features/text_actions/application/text_action_replacement.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -159,26 +160,37 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
       if (!mounted || !editableTextState.mounted) {
         return;
       }
-      if (editableTextState.textEditingValue != captured) {
+      final currentValue = editableTextState.textEditingValue;
+      if (currentValue != captured) {
         AleraToast.publish(
           message: 'Text changed while the action was running.',
         );
         return;
       }
-      if (result.text.trim().isEmpty) {
+      if (!canApplyTextActionReplacement(
+        captured: captured,
+        current: currentValue,
+        replacement: result.text,
+      )) {
         AleraToast.publish(
           message: 'Text action returned no replacement text.',
           tone: AleraToastTone.error,
         );
         return;
       }
+      final editingContext = editableTextState.widget.focusNode.context;
+      if (editingContext == null || !editingContext.mounted) {
+        AleraToast.publish(
+          message: 'Text action could not update this field.',
+          tone: AleraToastTone.error,
+        );
+        return;
+      }
       Actions.invoke(
-        editableTextState.context,
-        ReplaceTextIntent(
-          captured,
-          result.text,
-          captured.selection,
-          SelectionChangedCause.toolbar,
+        editingContext,
+        buildTextActionReplacementIntent(
+          captured: captured,
+          replacement: result.text,
         ),
       );
       AleraToast.publish(

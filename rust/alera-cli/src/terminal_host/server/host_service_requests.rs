@@ -313,6 +313,7 @@ fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> Host
     const AGENTS: [&str; 10] = [
         "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
     ];
+    let mut ids = std::collections::HashSet::new();
     let mut names = std::collections::HashSet::new();
     for action in &settings.actions {
         if action.id.trim().is_empty()
@@ -322,6 +323,9 @@ fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> Host
             return Err(HostError::format(
                 "textActions actions require an id, name, and prompt.",
             ));
+        }
+        if !ids.insert(action.id.trim()) {
+            return Err(HostError::format("textActions action ids must be unique."));
         }
         if !names.insert(action.name.trim().to_ascii_lowercase()) {
             return Err(HostError::format(
@@ -425,6 +429,24 @@ mod tests {
                 action("one", "Polish", "Improve"),
                 action("two", "polish", "Summarize"),
             ],
+        };
+
+        assert!(validate_text_actions_settings(&settings).is_err());
+    }
+
+    #[test]
+    fn text_action_ids_are_unique() {
+        let action = |name: &str| RuntimeTextAction {
+            id: "same-id".to_string(),
+            name: name.to_string(),
+            prompt: "Improve".to_string(),
+            enabled: true,
+            agent_override: None,
+            model_override: None,
+            reasoning_by_model: HashMap::new(),
+        };
+        let settings = RuntimeTextActionsSettings {
+            actions: vec![action("Polish"), action("Summarize")],
         };
 
         assert!(validate_text_actions_settings(&settings).is_err());
