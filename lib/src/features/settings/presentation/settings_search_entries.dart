@@ -115,6 +115,20 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
     groupId: 'cliSkill',
   ),
   SettingsSearchEntry(
+    title: 'Agent Canvas Skill',
+    description:
+        'Install agent instructions for publishing structured updates in Agent Canvas.',
+    keywords: <String>[
+      'agent canvas',
+      'canvas',
+      'skill',
+      'agent',
+      'publish',
+      'decision',
+    ],
+    groupId: 'cliSkill',
+  ),
+  SettingsSearchEntry(
     title: 'Alera Orchestration Skill',
     description: 'Install agent instructions for Alera orchestration.',
     keywords: <String>[

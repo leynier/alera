@@ -14,6 +14,7 @@ class AleraCommandLine extends StatelessWidget {
     required this.command,
     this.trailing,
     this.backgroundColor = AleraTokens.surface,
+    this.singleLine = false,
   });
 
   final String command;
@@ -24,8 +25,17 @@ class AleraCommandLine extends StatelessWidget {
   /// Overridable so the component reads as inset against either surface tone.
   final Color backgroundColor;
 
+  /// Keeps long commands on one row and lets the user scroll horizontally.
+  final bool singleLine;
+
   @override
   Widget build(BuildContext context) {
+    final commandText = SelectableText(
+      command,
+      maxLines: singleLine ? 1 : null,
+      contextMenuBuilder: AleraTextSelectionToolbar.editableText,
+      style: AleraTokens.monoStyle.copyWith(color: AleraTokens.foreground),
+    );
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -36,13 +46,12 @@ class AleraCommandLine extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Expanded(
-            child: SelectableText(
-              command,
-              contextMenuBuilder: AleraTextSelectionToolbar.editableText,
-              style: AleraTokens.monoStyle.copyWith(
-                color: AleraTokens.foreground,
-              ),
-            ),
+            child: singleLine
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: commandText,
+                  )
+                : commandText,
           ),
           if (trailing case final action?) ...<Widget>[
             const SizedBox(width: AleraTokens.space8),
