@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
 import 'package:alera/src/features/orchestration/presentation/run_policy_review_dialog.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -73,6 +74,7 @@ class _NativeAppMenuBridgeState extends ConsumerState<_NativeAppMenuBridge> {
 
 enum _AppMenuAction {
   openSettings,
+  openAutomations,
   reviewExecutionPlans,
   checkForUpdates,
   undo,
@@ -135,6 +137,10 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
           label: 'Settings',
         ),
         AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.openAutomations,
+          label: 'Automations',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
           value: _AppMenuAction.reviewExecutionPlans,
           label: 'Execution Plans',
         ),
@@ -192,6 +198,8 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
     switch (selected) {
       case _AppMenuAction.openSettings:
         await openAppMenuSettings(context);
+      case _AppMenuAction.openAutomations:
+        await openAutomationsDialog(context);
       case _AppMenuAction.reviewExecutionPlans:
         await showRunPolicyReviewDialog(context);
       case _AppMenuAction.checkForUpdates:
@@ -269,6 +277,12 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
                   // accelerator can open Settings twice.
                   onSelected: () {
                     unawaited(openAppMenuSettings(context));
+                  },
+                ),
+                PlatformMenuItem(
+                  label: 'Automations',
+                  onSelected: () {
+                    unawaited(openAutomationsDialog(context));
                   },
                 ),
                 PlatformMenuItem(

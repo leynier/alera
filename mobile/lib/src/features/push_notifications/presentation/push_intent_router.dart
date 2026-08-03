@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/app_navigation.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
 import 'package:alera_mobile/src/features/push_notifications/domain/push_navigation_intent.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -29,6 +30,14 @@ Future<void> routePushIntent(WidgetRef ref, PushNavigationIntent intent) async {
       .firstOrNull;
   if (host == null) {
     _showMessage('This host is not paired');
+    return;
+  }
+  if (intent.eventKind == PushEventKind.automation) {
+    unawaited(
+      navigator.push<void>(
+        MaterialPageRoute<void>(builder: (_) => AutomationsScreen(host: host)),
+      ),
+    );
     return;
   }
   unawaited(

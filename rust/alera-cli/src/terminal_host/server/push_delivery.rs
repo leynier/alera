@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
+use alera_core::runtime::{AutomationDefinition, AutomationRun, AutomationRunStatus};
+
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use crate::terminal_host::push_notifications::{
     grouped_events_by_category, PushEvent, PushLocation,
@@ -113,6 +115,74 @@ impl ServerActor {
             return;
         };
         self.enqueue_push_event(PushEvent::escalation(task_id, subject, location));
+    }
+
+    pub(super) async fn queue_automation_push(
+        &mut self,
+        run: &AutomationRun,
+        definition: &AutomationDefinition,
+        status: AutomationRunStatus,
+        summary: Option<&str>,
+    ) {
+        let settings = match self.runtime_store.mobile_push_settings().await {
+            Ok(settings) if settings.enabled => settings,
+            _ => return,
+        };
+        let attention = matches!(
+            status,
+            AutomationRunStatus::Failure
+                | AutomationRunStatus::Blocked
+                | AutomationRunStatus::Timeout
+        );
+        let enabled = if attention {
+            settings.attention
+        } else {
+            status == AutomationRunStatus::Success && definition.notify_on_success && settings.done
+        };
+        if !enabled {
+            return;
+        }
+        let workspace_id = run.workspace_id.clone().or_else(|| {
+            run.target_identity
+                .as_ref()
+                .and_then(|identity| identity.workspace_id.clone())
+        });
+        let location = match workspace_id {
+            Some(workspace_id) => self
+                .push_location(run.session_id.clone(), workspace_id, run.tab_id.clone())
+                .await
+                .unwrap_or_else(|| PushLocation {
+                    terminal_session_id: run.session_id.clone(),
+                    workspace_id: None,
+                    tab_id: run.tab_id.clone(),
+                    project_name: None,
+                    workspace_name: None,
+                    tab_title: None,
+                }),
+            None => PushLocation {
+                terminal_session_id: run.session_id.clone(),
+                workspace_id: None,
+                tab_id: run.tab_id.clone(),
+                project_name: None,
+                workspace_name: None,
+                tab_title: None,
+            },
+        };
+        let status_name = match status {
+            AutomationRunStatus::Success => "success",
+            AutomationRunStatus::Failure => "failure",
+            AutomationRunStatus::Blocked => "blocked",
+            AutomationRunStatus::Timeout => "timeout",
+            _ => return,
+        };
+        self.enqueue_push_event(PushEvent::automation(
+            &run.automation_id,
+            &run.id,
+            &definition.name,
+            status_name,
+            summary,
+            location,
+        ));
     }
 
     fn enqueue_push_event(&mut self, event: PushEvent) {

@@ -24,7 +24,9 @@ pub fn build(command: &Command) -> io::Result<Runtime> {
 
 fn profile(command: &Command) -> RuntimeProfile {
     match command {
-        Command::RuntimeHost(_) | Command::TerminalHost(_) => RuntimeProfile::Host,
+        Command::RuntimeHost(_) | Command::AutomationHost(_) | Command::TerminalHost(_) => {
+            RuntimeProfile::Host
+        }
         _ => RuntimeProfile::Cli,
     }
 }

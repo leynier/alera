@@ -162,6 +162,56 @@ impl ServerActor {
             .inbox
             .send(ServerCommand::ClientDisconnected { id: client_id });
     }
+
+    pub(super) async fn dispose_client(&mut self, client_id: u64) {
+        let Some(client) = self.clients.get(&client_id) else {
+            return;
+        };
+        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
+        self.orchestration_waiters.remove_client(client_id);
+        self.handle_browser_client_disconnect(client_id);
+        self.cancel_queued_emulator_requests(client_id);
+        self.release_mobile_driver_for_client(client_id);
+        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
+        for session_id in session_ids {
+            self.flush_all_output(&session_id);
+            if let Some(session) = self.sessions.get_mut(&session_id) {
+                session.detach(client_id);
+            }
+            self.immediate_checkpoint(&session_id).await;
+        }
+        self.clients.remove(&client_id);
+        if release_emulator {
+            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
+    pub(super) async fn dispose_mobile_clients(&mut self) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| (client.kind == ClientKind::Mobile).then_some(*id))
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
+
+    pub(super) async fn dispose_mobile_clients_for_device(&mut self, device_id: &str) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| {
+                (client.kind == ClientKind::Mobile
+                    && client.mobile_device_id.as_deref() == Some(device_id))
+                .then_some(*id)
+            })
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
 }
 
 fn requested_local_role(payload: &Value) -> LocalClientRole {
@@ -219,6 +269,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store,
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),

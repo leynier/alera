@@ -24,10 +24,12 @@ class _SidebarFooter extends StatelessWidget {
   const _SidebarFooter({
     required this.onAddProject,
     required this.onOpenSettings,
+    required this.onOpenAutomations,
   });
 
   final VoidCallback onAddProject;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenAutomations;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +51,12 @@ class _SidebarFooter extends StatelessWidget {
               ),
               const Spacer(),
               _FooterIconButton(
+                tooltip: 'Automations',
+                onPressed: onOpenAutomations,
+                icon: AleraIcons.checks,
+              ),
+              const SizedBox(width: AleraTokens.space8),
+              _FooterIconButton(
                 tooltip: 'Settings',
                 onPressed: onOpenSettings,
                 icon: AleraIcons.settings,
@@ -62,21 +70,36 @@ class _SidebarFooter extends StatelessWidget {
 }
 
 class _CollapsedSidebarFooter extends StatelessWidget {
-  const _CollapsedSidebarFooter({required this.onOpenSettings});
+  const _CollapsedSidebarFooter({
+    required this.onOpenSettings,
+    required this.onOpenAutomations,
+  });
 
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenAutomations;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: AleraTokens.sidebarHeaderHeight,
+      height: AleraTokens.collapsedSidebarFooterHeight,
       child: DecoratedBox(
         decoration: const BoxDecoration(color: AleraTokens.surface),
         child: Center(
-          child: _FooterIconButton(
-            tooltip: 'Settings',
-            onPressed: onOpenSettings,
-            icon: AleraIcons.settings,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _FooterIconButton(
+                tooltip: 'Automations',
+                onPressed: onOpenAutomations,
+                icon: AleraIcons.checks,
+              ),
+              const SizedBox(height: AleraTokens.space8),
+              _FooterIconButton(
+                tooltip: 'Settings',
+                onPressed: onOpenSettings,
+                icon: AleraIcons.settings,
+              ),
+            ],
           ),
         ),
       ),

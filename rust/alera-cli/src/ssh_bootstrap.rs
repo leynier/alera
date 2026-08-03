@@ -828,7 +828,7 @@ async fn run_checked(program: &str, args: &[String]) -> Result<RemoteCommandOutp
     Ok(RemoteCommandOutput { stdout })
 }
 
-fn ssh_args(target: &SshTarget) -> Vec<String> {
+pub(crate) fn ssh_args(target: &SshTarget) -> Vec<String> {
     vec![
         "-p".to_string(),
         target.port.to_string(),
@@ -858,7 +858,7 @@ fn default_install_dir(platform: &str) -> String {
     }
 }
 
-fn normalize_platform(value: &str) -> String {
+pub(crate) fn normalize_platform(value: &str) -> String {
     let normalized = value.trim().to_lowercase();
     match normalized.as_str() {
         "darwin" | "mac" | "macos" => "macos".to_string(),
@@ -926,15 +926,15 @@ fn windows_sftp_path(value: &str) -> String {
     value.replace('\\', "/")
 }
 
-fn shell_quote(value: &str) -> String {
+pub(crate) fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-fn powershell_string(value: &str) -> String {
+pub(crate) fn powershell_string(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
-fn powershell_encoded(script: &str) -> String {
+pub(crate) fn powershell_encoded(script: &str) -> String {
     let bytes = script
         .encode_utf16()
         .flat_map(u16::to_le_bytes)

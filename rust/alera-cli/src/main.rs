@@ -1,5 +1,8 @@
 mod agent_quota;
 mod agent_status;
+mod automation_autostart;
+mod automation_commands;
+mod automation_ssh_precheck;
 mod browser_commands;
 mod canvas_commands;
 mod cli;
@@ -104,6 +107,7 @@ fn main() {
 async fn run(cli: Cli) -> i32 {
     match cli.command {
         Command::RuntimeHost(args) => runtime_host_command::run(args).await,
+        Command::AutomationHost(args) => runtime_host_command::run_automation_host(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => runtime_host_command::run(args).await,
@@ -119,6 +123,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Browser(command) => browser_commands::run(command).await,
         Command::Emulator(command) => emulator_commands::run(command).await,
         Command::Canvas(command) => canvas_commands::run(command).await,
+        Command::Automation(command) => automation_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
@@ -1067,7 +1072,7 @@ async fn open_store(args: &RuntimeDirArgs) -> anyhow::Result<RuntimeStore> {
     RuntimeStore::open(&runtime_dir(args)).await
 }
 
-fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
+pub(crate) fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
     if let Some(dir) = args
         .runtime_dir
         .as_ref()

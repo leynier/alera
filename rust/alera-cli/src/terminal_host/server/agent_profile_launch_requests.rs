@@ -63,6 +63,14 @@ impl ServerActor {
                 })
             });
         let now = chrono::Utc::now();
+        let automation_run_id = payload
+            .get("automationRunId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let automation_owned = payload
+            .get("automationOwned")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -86,6 +94,8 @@ impl ServerActor {
                 "agentProfileId": profile.id,
                 "agentType": profile.agent_type,
                 "spawnOnCreate": true,
+                "automationRunId": automation_run_id,
+                "automationOwned": automation_owned,
             }),
         };
         let saved = self.upsert_workspace_tab_and_spawn(tab).await?;

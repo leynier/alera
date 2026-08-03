@@ -47,6 +47,7 @@ enum KeyboardActionGroup {
 @MappableEnum()
 enum KeyboardActionId {
   openSettings,
+  openAutomations,
   openQuickOpen,
   openCommandPalette,
   addProject,
@@ -154,6 +155,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Open the settings dialog.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Comma']),
     searchKeywords: <String>['preferences', 'config'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.openAutomations,
+    label: 'Open Automations',
+    group: KeyboardActionGroup.global,
+    description: 'Open the runtime-local automation manager.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+A']),
+    searchKeywords: <String>['schedule', 'runs', 'workflow', 'jobs'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(
