@@ -8,7 +8,7 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
-import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
@@ -291,7 +291,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                   ),
                 ),
                 if (widget.session.composerController.visible)
-                  TerminalComposer(session: widget.session),
+                  buildTerminalComposerForWorkspace(ref, widget.session),
               ],
             ),
           ),

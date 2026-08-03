@@ -19,11 +19,13 @@ class TerminalComposer extends StatelessWidget {
     required this.session,
     this.clipboard = const NativeTerminalClipboard(),
     this.externalUriLauncher,
+    this.onOpenWorkspaceFile,
   });
 
   final TerminalSessionHandle session;
   final TerminalClipboard clipboard;
   final ExternalUriLauncher? externalUriLauncher;
+  final Future<bool> Function(String path)? onOpenWorkspaceFile;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +118,9 @@ class TerminalComposer extends StatelessWidget {
 
   Future<void> _openFile(String path) async {
     try {
+      if (await onOpenWorkspaceFile?.call(path) == true) {
+        return;
+      }
       await (externalUriLauncher ?? UrlLauncherExternalUriLauncher()).open(
         Uri.file(path),
       );

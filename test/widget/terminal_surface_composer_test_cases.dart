@@ -307,6 +307,46 @@ void _registerTerminalSurfaceComposerTests() {
     expect(launcher.openedUris, <Uri>[Uri.file('/tmp/report.pdf')]);
   });
 
+  testWidgets('composer opens supported workspace attachments inside Alera', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    session.composerController.addAttachment(
+      kind: TerminalComposerAttachmentKind.file,
+      path: '/workspace/lib/main.dart',
+      displayName: 'main.dart',
+    );
+    final launcher = _FakeExternalUriLauncher();
+    final openedWorkspacePaths = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalComposer(
+            session: session,
+            externalUriLauncher: launcher,
+            onOpenWorkspaceFile: (path) async {
+              openedWorkspacePaths.add(path);
+              return true;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'terminal-composer-attachment-open-attachment-0',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(openedWorkspacePaths, <String>['/workspace/lib/main.dart']);
+    expect(launcher.openedUris, isEmpty);
+  });
+
   testWidgets('composer preserves native text paste without probing images', (
     tester,
   ) async {
