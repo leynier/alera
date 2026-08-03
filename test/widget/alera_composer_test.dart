@@ -78,6 +78,7 @@ void main() {
       await tester.tap(find.text('Text Actions'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Select Text Action'), findsOneWidget);
       expect(find.text('Make Concise'), findsOneWidget);
       await tester.tap(find.text('Make Concise'));
       await tester.pumpAndSettle();
