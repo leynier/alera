@@ -52,6 +52,18 @@ AgentStatusEntry? matchingAgentStatusForTab({
   required WorkspaceTabRecord tab,
   required Map<String, AgentStatusEntry> agentStatuses,
 }) {
+  if (tab.kind == WorkspaceTabKind.codex) {
+    final handle = 'codex:${tab.id}';
+    final entry = agentStatuses[handle];
+    if (entry == null ||
+        entry.agentType != AgentType.codex ||
+        entry.workspaceId != tab.workspaceId ||
+        entry.tabId != tab.id ||
+        entry.terminalSessionId != handle) {
+      return null;
+    }
+    return entry;
+  }
   if (tab.kind != WorkspaceTabKind.terminal) {
     return null;
   }

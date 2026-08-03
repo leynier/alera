@@ -46,6 +46,30 @@ void main() {
     expect(state.timelineCells.last.isStreaming, isFalse);
   });
 
+  test('mobile replaces full diff snapshots instead of appending them', () {
+    var cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'turn/diff/updated',
+        'params': <String, Object?>{
+          'turnId': 'turn-1',
+          'diff': 'first snapshot',
+        },
+      },
+    );
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'turn/diff/updated',
+      'params': <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'second snapshot',
+      },
+    });
+    expect(
+      cells.singleWhere((cell) => cell.id == 'diff-turn-1').detailsText,
+      'second snapshot',
+    );
+  });
+
   test(
     'mobile controller exposes catalogues, options, questions and queue actions',
     () async {
@@ -73,6 +97,10 @@ void main() {
       var state = container.read(provider).value!;
       expect(state.selectedModel, 'gpt-current');
       expect(state.models.single.contextWindowTokens, 128000);
+      expect(state.models.single.reasoningEfforts, <String>['xhigh', 'low']);
+      expect(state.models.single.defaultReasoningEffort, 'low');
+      expect(state.models.single.supportsFastMode, isTrue);
+      expect(state.reasoningEffort, 'low');
       expect(state.skills.single['name'], 'review');
       expect(state.apps.single['name'], 'filesystem');
       final question = state.pendingRequests.firstWhere(
@@ -84,8 +112,10 @@ void main() {
         'mode': <String>['Careful'],
       });
       expect(client.calls.last.payload['result'], <String, Object?>{
-        'answers': <String, List<String>>{
-          'mode': <String>['Careful'],
+        'answers': <String, Object?>{
+          'mode': <String, Object?>{
+            'answers': <String>['Careful'],
+          },
         },
       });
       final approval = state.pendingRequests.firstWhere(
@@ -97,8 +127,19 @@ void main() {
         forSession: true,
       );
       expect(client.calls.last.payload['result'], <String, Object?>{
-        'decision': 'accept',
-        'acceptSettings': <String, Object?>{'forSession': true},
+        'decision': 'acceptForSession',
+      });
+      final mcp = state.pendingRequests.firstWhere(
+        (request) => request.isElicitation,
+      );
+      await controller.respondElicitation(
+        mcp,
+        action: 'accept',
+        content: const <String, Object?>{'name': 'Alera'},
+      );
+      expect(client.calls.last.payload['result'], <String, Object?>{
+        'action': 'accept',
+        'content': <String, Object?>{'name': 'Alera'},
       });
       await controller.send('first');
       client.emit(
@@ -131,6 +172,43 @@ void main() {
         client.calls.any((call) => call.type == 'codex.thread.rename'),
         isTrue,
       );
+      final turn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect(turn.payload['clientUserMessageId'], isA<String>());
+      client.emit(
+        const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+          'tabId': 'tab-1',
+          'snapshot': <String, Object?>{},
+        }),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await controller.send('/app filesystem Open the selected file');
+      final appTurn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect((appTurn.payload['input'] as List).first, <String, Object?>{
+        'type': 'mention',
+        'name': 'filesystem',
+        'path': 'app://connector-filesystem',
+      });
+      expect((appTurn.payload['input'] as List)[1], <String, Object?>{
+        'type': 'text',
+        'text': r'$filesystem Open the selected file',
+      });
+      await controller.send('/skill review');
+      final skillTurn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect((skillTurn.payload['input'] as List).first, <String, Object?>{
+        'type': 'skill',
+        'name': 'review',
+        'path': '/skills/review',
+      });
+      expect((skillTurn.payload['input'] as List)[1], <String, Object?>{
+        'type': 'text',
+        'text': r'$review',
+      });
     },
   );
 
@@ -158,6 +236,8 @@ void main() {
     expect(find.text('Answer from Codex'), findsOneWidget);
     expect(find.text('Codex Needs Approval'), findsOneWidget);
     expect(find.text('Approve For Session'), findsOneWidget);
+    expect(find.text('MCP Server Needs Input'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('Current Codex'), findsOneWidget);
     expect(find.text('Message Codex'), findsOneWidget);
   });
@@ -217,6 +297,19 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
               'method': 'item/commandExecution/requestApproval',
               'params': <String, Object?>{'command': 'git status'},
             },
+            <String, Object?>{
+              'id': 11,
+              'method': 'mcpServer/elicitation/request',
+              'params': <String, Object?>{
+                'mode': 'form',
+                'requestedSchema': <String, Object?>{
+                  'type': 'object',
+                  'properties': <String, Object?>{
+                    'name': <String, Object?>{'type': 'string'},
+                  },
+                },
+              },
+            },
           ],
         },
       };
@@ -229,7 +322,15 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
             'displayName': 'Current Codex',
             'isDefault': true,
             'contextWindowTokens': 128000,
-            'reasoningEfforts': <String>['medium', 'high'],
+            'supportedReasoningEfforts': <Object?>[
+              <String, Object?>{'reasoningEffort': 'xhigh'},
+              <String, Object?>{'reasoningEffort': 'low'},
+            ],
+            'defaultReasoningEffort': 'low',
+            'additionalSpeedTiers': <String>['fast'],
+            'serviceTiers': <Object?>[
+              <String, Object?>{'id': 'priority', 'name': 'Fast'},
+            ],
           },
         ],
       };
@@ -237,14 +338,19 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
     if (type == 'codex.skills.list') {
       return <String, Object?>{
         'data': <Object?>[
-          <String, Object?>{'name': 'review'},
+          <String, Object?>{'name': 'review', 'path': '/skills/review'},
         ],
       };
     }
     if (type == 'codex.apps.list') {
       return <String, Object?>{
         'data': <Object?>[
-          <String, Object?>{'name': 'filesystem'},
+          <String, Object?>{
+            'name': 'filesystem',
+            'slug': 'filesystem',
+            'id': 'connector-filesystem',
+            'connectorId': 'connector-filesystem',
+          },
         ],
       };
     }

@@ -24,6 +24,7 @@ CodexTimelineCell _newCell({
   title: title,
   subtitle: subtitle,
   markdownText: markdownText,
+  renderedMarkdownText: markdownText,
   detailsText: detailsText,
   isStreaming: isStreaming,
   metadata: metadata,
@@ -48,6 +49,8 @@ List<CodexTimelineCell> _upsert(
     title: next.title ?? result[index].title,
     subtitle: next.subtitle ?? result[index].subtitle,
     markdownText: next.markdownText ?? result[index].markdownText,
+    renderedMarkdownText:
+        next.renderedMarkdownText ?? result[index].renderedMarkdownText,
     detailsText: next.detailsText ?? result[index].detailsText,
     itemId: next.itemId ?? result[index].itemId,
     metadata: <String, Object?>{...result[index].metadata, ...next.metadata},
@@ -136,6 +139,3 @@ String _firstString(Iterable<Object?> values) {
   }
   return '';
 }
-
-String _merge(String? current, String incoming) =>
-    current == null || current.isEmpty ? incoming : '$current$incoming';

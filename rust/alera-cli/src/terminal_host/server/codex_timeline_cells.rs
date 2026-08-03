@@ -2,6 +2,8 @@
 
 use serde_json::{json, Value};
 
+use super::codex_markdown::render_markdown;
+
 pub(super) fn append_delta(
     cells: &mut Vec<Value>,
     turn_id: &str,
@@ -157,6 +159,7 @@ pub(super) fn new_cell(
         "title": title,
         "subtitle": subtitle,
         "markdownText": markdown,
+        "renderedMarkdownText": markdown.as_deref().map(render_markdown),
         "detailsText": details,
         "metadata": metadata.unwrap_or_else(|| json!({})),
     })
@@ -189,6 +192,7 @@ pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
         "title",
         "subtitle",
         "markdownText",
+        "renderedMarkdownText",
         "detailsText",
     ] {
         if let Some(value) = next_map.get(key).filter(|value| !value.is_null()) {

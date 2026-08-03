@@ -47,6 +47,8 @@ impl ServerActor {
                     }
                 }
                 self.apply_runtime_mutation_effect(completion.effect).await;
+                self.reconcile_codex_presence().await;
+                self.schedule_codex_presence_changed();
                 self.client_write(client_id, ok_response(request_id, completion.response));
             }
             Err(error) => {
@@ -100,6 +102,7 @@ impl ServerActor {
                 tab_id,
                 workspace_id,
             } => {
+                self.remove_codex_presence(&tab_id);
                 self.handle_browser_tab_removed(&tab_id);
                 self.terminate_terminal_sessions_for_tab(&tab_id).await;
                 self.broadcast_workspace_tabs_changed(workspace_id.as_deref());

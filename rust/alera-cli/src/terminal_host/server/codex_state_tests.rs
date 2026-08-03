@@ -76,11 +76,121 @@ fn question_answers_are_persisted_as_timeline_cells() {
     append_question_answer(
         &mut record,
         &json!(7),
-        &json!({"answers": {"mode": ["Careful"]}}),
+        &json!({"answers": {"mode": {"answers": ["Careful"]}}}),
     );
     let saved = snapshot(&record);
     assert_eq!(saved["timelineCells"][0]["kind"], "questionAnswer");
     assert_eq!(saved["timelineCells"][0]["markdownText"], "Careful");
+}
+
+#[test]
+fn historical_list_question_answers_are_still_persisted() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "id": 7,
+            "method": "item/tool/request_user_input",
+            "params": {"questions": [{"id": "mode", "question": "Choose a mode"}]}
+        }),
+    );
+    append_question_answer(
+        &mut record,
+        &json!(7),
+        &json!({"answers": [{"answers": ["Careful"]}]}),
+    );
+    assert_eq!(
+        snapshot(&record)["timelineCells"][0]["markdownText"],
+        "Careful"
+    );
+}
+
+#[test]
+fn resolved_server_requests_are_removed_from_the_snapshot() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({"id": 7, "method": "item/commandExecution/requestApproval", "params": {}}),
+    );
+    append_message(
+        &mut record,
+        json!({"method": "serverRequest/resolved", "params": {"requestId": 7}}),
+    );
+    assert_eq!(snapshot(&record)["pendingRequests"], json!([]));
+}
+
+#[test]
+fn diff_updates_replace_the_full_snapshot() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/diff/updated",
+            "params": {"turnId": "turn", "diff": "first"}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/diff/updated",
+            "params": {"turnId": "turn", "diff": "second"}
+        }),
+    );
+    let saved = snapshot(&record);
+    let cells = saved["timelineCells"].as_array().unwrap();
+    assert_eq!(
+        cells.iter().find(|cell| cell["id"] == "diff-turn").unwrap()["detailsText"],
+        "second"
+    );
+}
+
+#[test]
+fn empty_diff_snapshot_replaces_previous_content() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/diff/updated",
+            "params": {"turnId": "turn", "diff": "content"}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/diff/updated",
+            "params": {"turnId": "turn", "diff": ""}
+        }),
+    );
+    assert_eq!(
+        snapshot(&record)["timelineCells"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|cell| cell["id"] == "diff-turn")
+            .unwrap()["detailsText"],
+        ""
+    );
+}
+
+#[test]
+fn timeline_cells_keep_raw_and_rendered_markdown() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "item/agentMessage/delta",
+            "params": {"turnId": "turn", "itemId": "answer", "delta": "**hello"}
+        }),
+    );
+    let saved = snapshot(&record);
+    let cell = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["id"] == "item-answer")
+        .unwrap();
+    assert_eq!(cell["markdownText"], "**hello");
+    assert_eq!(cell["renderedMarkdownText"], "**hello**");
 }
 
 #[test]

@@ -11,6 +11,7 @@ class MobileCodexModelOption {
     this.contextWindowTokens,
     this.supportsFastMode = false,
     this.reasoningEfforts = const <String>[],
+    this.defaultReasoningEffort,
     this.metadata = const <String, Object?>{},
   });
 
@@ -29,9 +30,11 @@ class MobileCodexModelOption {
       contextWindowTokens: _int(
         json['contextWindowTokens'] ?? json['contextWindow'],
       ),
+      defaultReasoningEffort: _string(json['defaultReasoningEffort']),
       supportsFastMode:
           json['supportsFastMode'] == true ||
           json['serviceTier'] == 'fast' ||
+          _containsFast(json['additionalSpeedTiers']) ||
           _containsFast(json['serviceTiers']) ||
           _containsFast(json['supportedServiceTiers']),
       reasoningEfforts: _reasoningEfforts(
@@ -51,6 +54,7 @@ class MobileCodexModelOption {
   final int? contextWindowTokens;
   final bool supportsFastMode;
   final List<String> reasoningEfforts;
+  final String? defaultReasoningEffort;
   final Map<String, Object?> metadata;
 }
 
@@ -67,6 +71,7 @@ class MobileCodexTimelineCell {
     this.title,
     this.subtitle,
     this.markdownText,
+    this.renderedMarkdownText,
     this.detailsText,
     this.isStreaming = false,
     this.isCollapsed = false,
@@ -86,6 +91,7 @@ class MobileCodexTimelineCell {
       title: _string(json['title']),
       subtitle: _string(json['subtitle']),
       markdownText: _string(json['markdownText']),
+      renderedMarkdownText: _string(json['renderedMarkdownText']),
       detailsText: _string(json['detailsText']),
       isStreaming: json['isStreaming'] == true,
       isCollapsed: json['isCollapsed'] == true,
@@ -103,6 +109,7 @@ class MobileCodexTimelineCell {
   final String? title;
   final String? subtitle;
   final String? markdownText;
+  final String? renderedMarkdownText;
   final String? detailsText;
   final bool isStreaming;
   final bool isCollapsed;
@@ -115,6 +122,7 @@ class MobileCodexTimelineCell {
     String? title,
     String? subtitle,
     String? markdownText,
+    String? renderedMarkdownText,
     String? detailsText,
     bool? isStreaming,
     bool? isCollapsed,
@@ -130,14 +138,20 @@ class MobileCodexTimelineCell {
     title: title ?? this.title,
     subtitle: subtitle ?? this.subtitle,
     markdownText: markdownText ?? this.markdownText,
+    renderedMarkdownText: renderedMarkdownText ?? this.renderedMarkdownText,
     detailsText: detailsText ?? this.detailsText,
     isStreaming: isStreaming ?? this.isStreaming,
     isCollapsed: isCollapsed ?? this.isCollapsed,
     metadata: metadata ?? this.metadata,
   );
 
-  String get displayText =>
-      markdownText ?? detailsText ?? title ?? 'Codex activity';
+  String get displayText => _safeMarkdown(
+    renderedMarkdownText ??
+        markdownText ??
+        detailsText ??
+        title ??
+        'Codex activity',
+  );
   bool get isAssistant => kind == 'assistantMessage';
   bool get isUser => kind == 'userMessage';
   bool get isReasoning => kind == 'reasoning';
@@ -234,8 +248,37 @@ class MobileCodexPendingRequest {
         lower.contains('requestfile');
   }
 
-  bool get isQuestion =>
-      method.toLowerCase().contains('input') || params['questions'] is List;
+  bool get isPermissionsRequest =>
+      method.toLowerCase() == 'item/permissions/requestapproval';
+
+  bool get isElicitation =>
+      method.toLowerCase() == 'mcpserver/elicitation/request';
+
+  bool get isBlocking {
+    final value = params['isBlocking'];
+    if (value is bool) return value;
+    if (params.containsKey('autoResolutionMs')) return false;
+    return true;
+  }
+
+  int? get autoResolutionMs => _int(params['autoResolutionMs']);
+
+  String get elicitationMode => _string(params['mode']) ?? '';
+
+  Map<String, Object?> get elicitationSchema => _map(params['requestedSchema']);
+
+  bool get hasSupportedElicitationForm =>
+      isElicitation &&
+      (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
+      elicitationSchema['properties'] is Map;
+
+  bool get isQuestion {
+    final lower = method.toLowerCase();
+    return lower.contains('question') ||
+        lower.contains('userinput') ||
+        lower.contains('request_user_input') ||
+        params['questions'] is List;
+  }
 
   List<MobileCodexQuestion> get questions {
     final values = params['questions'];
@@ -415,21 +458,42 @@ String _first(Iterable<Object?> values) {
 
 int? _int(Object? value) =>
     value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
-
 DateTime? _dateTime(Object? value) =>
     value is DateTime ? value : DateTime.tryParse(value?.toString() ?? '');
 
-bool _containsFast(Object? value) =>
-    value is List && value.any((item) => item.toString() == 'fast');
+bool _containsFast(Object? value) {
+  if (value is! List) return false;
+  return value.any((item) {
+    if (item is String) return item.toLowerCase() == 'fast';
+    if (item is Map) {
+      return <Object?>[
+        item['id'],
+        item['name'],
+        item['tier'],
+        item['slug'],
+      ].whereType<String>().any((entry) => entry.toLowerCase() == 'fast');
+    }
+    return false;
+  });
+}
 
 List<String> _reasoningEfforts(Object? value) {
   if (value is! List) return const <String>[];
   final result = <String>[];
   for (final entry in value) {
     final effort = entry is Map
-        ? (entry['effort'] ?? entry['id'] ?? entry['name'])?.toString()
+        ? (entry['reasoningEffort'] ??
+                  entry['effort'] ??
+                  entry['id'] ??
+                  entry['name'])
+              ?.toString()
         : entry.toString();
     if (effort != null && effort.trim().isNotEmpty) result.add(effort.trim());
   }
   return result;
 }
+
+String _safeMarkdown(String value) => value.replaceAll(
+  RegExp(r'\[([^\]]+)\]\(streamdown:incomplete-link\)'),
+  r'\$1',
+);

@@ -128,6 +128,29 @@ void main() {
     },
   );
 
+  test('replaces full diff snapshots instead of appending them', () {
+    final first = CodexTimelineReducer.reduce(
+      const <CodexTimelineCell>[],
+      _message('turn/diff/updated', <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'first snapshot',
+      }),
+      now: now,
+    );
+    final second = CodexTimelineReducer.reduce(
+      first,
+      _message('turn/diff/updated', <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'second snapshot',
+      }),
+      now: now,
+    );
+    expect(
+      second.singleWhere((cell) => cell.id == 'diff-turn-1').detailsText,
+      'second snapshot',
+    );
+  });
+
   test('turn completion closes every streaming cell and marks failures', () {
     var cells = CodexTimelineReducer.reduce(
       <CodexTimelineCell>[],

@@ -30,6 +30,7 @@ impl ServerActor {
             "codex.tab.create" => self.create_codex_tab(payload).await,
             "codex.thread.open" => self.open_codex_thread(payload).await,
             "codex.thread.snapshot" => self.codex_thread_snapshot(payload).await,
+            "codex.thread.items.list" => self.list_codex_thread_items(payload).await,
             "codex.model.list" => self.codex_server_request("model/list", json!({})).await,
             "codex.collaborationModes.list" => {
                 self.codex_server_request("collaborationMode/list", json!({}))
@@ -76,7 +77,8 @@ impl ServerActor {
             .upsert_workspace_tab(next)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        self.refresh_codex_presence(&saved);
+        self.schedule_codex_presence_changed();
         self.broadcast_authenticated(crate::terminal_host::protocol::event(
             "codexThreadChanged",
             json!({
@@ -123,8 +125,12 @@ impl ServerActor {
         self.codex_server_request(
             "turn/steer",
             json!({
-                "threadId": thread_id,
-                "expectedTurnId": turn_id,
+            "threadId": thread_id,
+            "expectedTurnId": turn_id,
+                "clientUserMessageId": payload
+                    .get("clientUserMessageId")
+                    .cloned()
+                    .unwrap_or_else(|| Value::String(Uuid::new_v4().to_string())),
                 "input": payload.get("input").cloned().unwrap_or_else(|| json!([])),
             }),
         )
@@ -197,10 +203,7 @@ impl ServerActor {
             .cloned()
             .ok_or_else(|| HostError::format("Codex response requires requestId."))?;
         let server = self.ensure_codex_server(None).await?;
-        let result = payload
-            .get("result")
-            .cloned()
-            .map(normalize_codex_response_result);
+        let result = payload.get("result").cloned();
         server
             .respond(id.clone(), result, payload.get("error").cloned())
             .await?;
@@ -213,7 +216,8 @@ impl ServerActor {
             );
             remove_pending_request(&mut next, &id);
             if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
-                self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+                self.refresh_codex_presence(&saved);
+                self.schedule_codex_presence_changed();
                 self.broadcast_authenticated(crate::terminal_host::protocol::event(
                     "codexThreadChanged",
                     json!({
@@ -283,7 +287,10 @@ impl ServerActor {
                 snapshot.remove("activeTurnId");
             }
         }
-        let _ = self.runtime_store.upsert_workspace_tab(next).await;
+        if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
+            self.refresh_codex_presence(&saved);
+            self.schedule_codex_presence_changed();
+        }
     }
 
     fn require_codex_client(&self, client_id: u64) -> HostResult<()> {
@@ -308,20 +315,6 @@ fn copy_optional(payload: &Value, target: &mut Value, key: &str) {
     }
 }
 
-fn normalize_codex_response_result(mut result: Value) -> Value {
-    let Some(object) = result.as_object_mut() else {
-        return result;
-    };
-    if object.get("decision").and_then(Value::as_str) != Some("acceptForSession") {
-        return result;
-    }
-    object.insert("decision".to_string(), Value::String("accept".to_string()));
-    object
-        .entry("acceptSettings".to_string())
-        .or_insert_with(|| json!({"forSession": true}));
-    result
-}
-
 fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
     let mut params = json!({
         "threadId": thread_id,
@@ -338,8 +331,15 @@ fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
         "collaborationMode",
         "reasoning",
         "effort",
+        "clientUserMessageId",
     ] {
         copy_optional(payload, &mut params, key);
+    }
+    if params
+        .get("clientUserMessageId")
+        .is_none_or(|value| value.as_str().is_none_or(str::is_empty))
+    {
+        params["clientUserMessageId"] = Value::String(Uuid::new_v4().to_string());
     }
     if let Some(effort) = payload.pointer("/reasoning/effort") {
         params["effort"] = effort.clone();
@@ -368,7 +368,7 @@ fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_codex_response_result, turn_params};
+    use super::turn_params;
     use serde_json::json;
 
     #[test]
@@ -389,6 +389,7 @@ mod tests {
         assert_eq!(params["effort"], "medium");
         assert_eq!(params["serviceTier"], "fast");
         assert_eq!(params["approvalPolicy"], "never");
+        assert!(params["clientUserMessageId"].as_str().is_some());
         assert_eq!(
             params["collaborationMode"]["settings"]["model"],
             "gpt-current"
@@ -410,14 +411,5 @@ mod tests {
             params["collaborationMode"]["settings"]["model"],
             "gpt-5.6-sol"
         );
-    }
-
-    #[test]
-    fn normalizes_legacy_session_approval_decision() {
-        let result = normalize_codex_response_result(json!({
-            "decision": "acceptForSession"
-        }));
-        assert_eq!(result["decision"], "accept");
-        assert_eq!(result["acceptSettings"]["forSession"], true);
     }
 }

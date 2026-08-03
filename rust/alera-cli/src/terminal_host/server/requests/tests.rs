@@ -140,6 +140,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
         "codex.tab.create",
         "codex.thread.open",
         "codex.thread.snapshot",
+        "codex.thread.items.list",
         "codex.model.list",
         "codex.collaborationModes.list",
         "codex.skills.list",

@@ -29,7 +29,10 @@ void main() {
     final state = container.read(provider);
     expect(state.loading, isFalse);
     expect(state.selectedModel, 'gpt-current');
-    expect(state.models.single.reasoningEfforts, <String>['medium', 'high']);
+    expect(state.models.single.reasoningEfforts, <String>['xhigh', 'low']);
+    expect(state.models.single.defaultReasoningEffort, 'low');
+    expect(state.models.single.supportsFastMode, isTrue);
+    expect(state.reasoningEffort, 'low');
     expect(state.collaborationModes.single['mode'], 'plan');
     expect(state.skills.single['name'], 'review');
     expect(state.apps.single['name'], 'filesystem');
@@ -128,13 +131,15 @@ void main() {
         (request) => request.type == 'codex.turn.start',
       );
       expect((appTurn.payload['input'] as List).first, <String, Object?>{
-        'type': 'app',
+        'type': 'mention',
         'name': 'filesystem',
+        'path': 'app://connector-filesystem',
       });
       expect((appTurn.payload['input'] as List)[1], <String, Object?>{
         'type': 'text',
-        'text': 'Open the selected file',
+        'text': r'$filesystem Open the selected file',
       });
+      expect(appTurn.payload['clientUserMessageId'], isA<String>());
     },
   );
 
@@ -164,8 +169,75 @@ void main() {
     );
     await controller.respondApproval(request, accepted: true, forSession: true);
     expect(client.requests.last.payload['result'], <String, Object?>{
-      'decision': 'accept',
-      'acceptSettings': <String, Object?>{'forSession': true},
+      'decision': 'acceptForSession',
+    });
+  });
+
+  test('uses current keyed question answers and permission subsets', () async {
+    final client = _FakeCodexRuntimeClient();
+    final container = ProviderContainer(
+      overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-1');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    container.read(provider);
+    await _settle();
+    final controller = container.read(provider.notifier);
+    const question = CodexPendingRequest(
+      id: 8,
+      method: 'item/tool/request_user_input',
+      params: <String, Object?>{
+        'questions': <Object?>[
+          <String, Object?>{'id': 'mode', 'question': 'Choose'},
+        ],
+      },
+    );
+    await controller.respondQuestion(question, <String, Object?>{
+      'mode': <String>['Careful'],
+    });
+    expect(client.requests.last.payload['result'], <String, Object?>{
+      'answers': <String, Object?>{
+        'mode': <String, Object?>{
+          'answers': <String>['Careful'],
+        },
+      },
+    });
+    const permissions = CodexPendingRequest(
+      id: 9,
+      method: 'item/permissions/requestApproval',
+      params: <String, Object?>{
+        'permissions': <String, Object?>{
+          'fileSystem': <String, Object?>{
+            'read': true,
+            'write': false,
+            'secret': 'ignored',
+          },
+          'network': <String, Object?>{'enabled': true, 'secret': 'ignored'},
+          'unknown': true,
+        },
+      },
+    );
+    await controller.respondApproval(permissions, accepted: true);
+    expect(client.requests.last.payload['result'], <String, Object?>{
+      'permissions': <String, Object?>{
+        'fileSystem': <String, Object?>{'read': true, 'write': false},
+        'network': <String, Object?>{'enabled': true},
+      },
+      'scope': 'turn',
+    });
+    await controller.respondApproval(permissions, accepted: false);
+    expect(client.requests.last.payload['result'], <String, Object?>{
+      'permissions': <String, Object?>{},
+      'scope': 'turn',
     });
   });
 }
@@ -207,7 +279,15 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
               'displayName': 'Current Codex',
               'isDefault': true,
               'supportsFastMode': true,
-              'reasoningEfforts': <String>['medium', 'high'],
+              'supportedReasoningEfforts': <Object?>[
+                <String, Object?>{'reasoningEffort': 'xhigh'},
+                <String, Object?>{'reasoningEffort': 'low'},
+              ],
+              'defaultReasoningEffort': 'low',
+              'additionalSpeedTiers': <String>['fast'],
+              'serviceTiers': <Object?>[
+                <String, Object?>{'id': 'priority', 'name': 'Fast'},
+              ],
             },
           ],
         };
@@ -226,7 +306,12 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
       case 'codex.apps.list':
         return <String, Object?>{
           'data': <Object?>[
-            <String, Object?>{'name': 'filesystem'},
+            <String, Object?>{
+              'name': 'filesystem',
+              'slug': 'filesystem',
+              'id': 'connector-filesystem',
+              'connectorId': 'connector-filesystem',
+            },
           ],
         };
       default:

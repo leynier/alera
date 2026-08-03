@@ -8,17 +8,24 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'mobile_codex_controller.g.dart';
 part 'mobile_codex_controller_helpers.dart';
+part 'mobile_codex_controller_lifecycle.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
     ref.watch(hostConnectionControllerProvider(hostId).future);
 
 @riverpod
-class MobileCodexController extends _$MobileCodexController {
+class MobileCodexController extends _$MobileCodexController
+    with _MobileCodexControllerLifecycle {
+  @override
   final Logger _logger = Logger('MobileCodexController');
+  @override
   MobileCodexClient? _client;
   StreamSubscription<MobileRuntimeEvent>? _events;
   Timer? _interruptSafetyTimer;
+
+  @override
+  Timer? get _interruptSafetyTimerValue => _interruptSafetyTimer;
 
   @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
@@ -81,8 +88,10 @@ class MobileCodexController extends _$MobileCodexController {
     final selectedOption = next.models
         .where((model) => model.id == next.selectedModel)
         .firstOrNull;
+    final initialEffort =
+        selectedOption?.defaultReasoningEffort ?? next.reasoningEffort;
     next = next.copyWith(
-      reasoningEffort: _supportedEffort(selectedOption, next.reasoningEffort),
+      reasoningEffort: _supportedEffort(selectedOption, initialEffort),
       speedMode: selectedOption?.supportsFastMode == false
           ? 'normal'
           : next.speedMode,
@@ -144,6 +153,7 @@ class MobileCodexController extends _$MobileCodexController {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
     final message = <String, Object?>{
+      'id': _newClientMessageId(),
       'text': trimmed,
       'attachments': attachments,
     };
@@ -162,6 +172,34 @@ class MobileCodexController extends _$MobileCodexController {
     await _sendNow(message);
   }
 
+  bool get supportsImageUpload =>
+      _client is MobileWorkspaceClient &&
+      (_client! as MobileWorkspaceClient).supportsPromptImageUpload;
+
+  Future<String> uploadImage({
+    required String format,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  }) async {
+    final client = _client;
+    if (client is! MobileWorkspaceClient) {
+      throw UnsupportedError('Image uploads are unavailable on this client.');
+    }
+    final workspaceClient = client as MobileWorkspaceClient;
+    try {
+      final result = await workspaceClient.uploadPromptImage(
+        format: format,
+        sizeBytes: sizeBytes,
+        openRead: openRead,
+      );
+      return result.hostPath;
+    } catch (error, stackTrace) {
+      _setError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> _sendNow(Map<String, Object?> message) async {
     final client = _client;
     if (client == null) return;
@@ -170,6 +208,8 @@ class MobileCodexController extends _$MobileCodexController {
     try {
       await client.codexRequest('codex.turn.start', <String, Object?>{
         'tabId': tabId,
+        'clientUserMessageId':
+            message['id']?.toString() ?? _newClientMessageId(),
         'input': _input(message, current),
         'model': current.selectedModel,
         'reasoning': <String, Object?>{'effort': current.reasoningEffort},
@@ -232,6 +272,7 @@ class MobileCodexController extends _$MobileCodexController {
       await client.codexRequest('codex.turn.steer', <String, Object?>{
         'tabId': tabId,
         'turnId': current!.activeTurnId,
+        'clientUserMessageId': _newClientMessageId(),
         'input': <Map<String, Object?>>[
           <String, Object?>{'type': 'text', 'text': text.trim()},
         ],
@@ -246,10 +287,21 @@ class MobileCodexController extends _$MobileCodexController {
     required bool accepted,
     bool forSession = false,
   }) async {
+    if (request.isPermissionsRequest) {
+      await _respond(request, <String, Object?>{
+        'permissions': accepted
+            ? _permissionSubset(request.params['permissions'])
+            : const <String, Object?>{},
+        'scope': forSession ? 'session' : 'turn',
+      });
+      return;
+    }
     await _respond(request, <String, Object?>{
-      'decision': accepted ? 'accept' : 'decline',
-      if (accepted && forSession)
-        'acceptSettings': <String, Object?>{'forSession': true},
+      'decision': accepted
+          ? forSession
+                ? 'acceptForSession'
+                : 'accept'
+          : 'decline',
     });
   }
 
@@ -257,7 +309,30 @@ class MobileCodexController extends _$MobileCodexController {
     MobileCodexPendingRequest request,
     Map<String, List<String>> answers,
   ) async {
-    await _respond(request, <String, Object?>{'answers': answers});
+    await _respond(request, <String, Object?>{
+      'answers': <String, Object?>{
+        for (final entry in answers.entries)
+          entry.key: <String, Object?>{'answers': entry.value},
+      },
+    });
+  }
+
+  Future<void> respondElicitation(
+    MobileCodexPendingRequest request, {
+    required String action,
+    Map<String, Object?> content = const <String, Object?>{},
+  }) async {
+    await _respond(request, <String, Object?>{
+      'action': action,
+      if (action == 'accept') 'content': content,
+    });
+  }
+
+  Future<void> rejectRequest(MobileCodexPendingRequest request) async {
+    await _respondError(request, <String, Object?>{
+      'code': -32601,
+      'message': 'Alera does not support this Codex request.',
+    });
   }
 
   Future<void> _respond(
@@ -270,6 +345,22 @@ class MobileCodexController extends _$MobileCodexController {
       await client.codexRequest('codex.response', <String, Object?>{
         'requestId': request.id,
         'result': result,
+      });
+    } catch (error, stackTrace) {
+      _setError(error, stackTrace);
+    }
+  }
+
+  Future<void> _respondError(
+    MobileCodexPendingRequest request,
+    Map<String, Object?> error,
+  ) async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.codexRequest('codex.response', <String, Object?>{
+        'requestId': request.id,
+        'error': error,
       });
     } catch (error, stackTrace) {
       _setError(error, stackTrace);
@@ -323,7 +414,11 @@ class MobileCodexController extends _$MobileCodexController {
             : current.speedMode,
         reasoningEffort: _supportedEffort(
           current.models.where((item) => item.id == model).firstOrNull,
-          current.reasoningEffort,
+          current.models
+                  .where((item) => item.id == model)
+                  .firstOrNull
+                  ?.defaultReasoningEffort ??
+              current.reasoningEffort,
         ),
       ),
     );
@@ -384,93 +479,4 @@ class MobileCodexController extends _$MobileCodexController {
     next[index] = <String, Object?>{...next[index], 'text': text.trim()};
     return current.copyWith(queuedMessages: next);
   });
-
-  void _onEvent(MobileRuntimeEvent event) {
-    if (event.name == 'codexServerChanged') {
-      final current = state.value;
-      if (current == null) return;
-      final status = event.payload['status']?.toString();
-      if (status == 'error') {
-        _logger.warning(
-          'Codex app-server reported an error.',
-          event.payload['error'],
-        );
-        state = AsyncData(
-          current.copyWith(
-            error: _safeError(event.payload['error'] ?? 'Codex server failed.'),
-          ),
-        );
-      }
-      return;
-    }
-    if (event.name != 'codexThreadChanged' || event.payload['tabId'] != tabId) {
-      return;
-    }
-    final next = MobileCodexState.fromSnapshot(event.payload['snapshot']);
-    final current = state.value;
-    if (current == null) return;
-    if (!next.busy) _interruptSafetyTimer?.cancel();
-    state = AsyncData(
-      next.copyWith(
-        models: current.models,
-        collaborationModes: current.collaborationModes,
-        skills: current.skills,
-        apps: current.apps,
-        selectedModel: current.selectedModel,
-        reasoningEffort: current.reasoningEffort,
-        speedMode: current.speedMode,
-        permissionMode: current.permissionMode,
-        planMode: current.planMode,
-        collaborationMode: current.collaborationMode,
-        queuedMessages: current.queuedMessages,
-        sending: next.busy ? current.sending : false,
-        interrupting: next.busy ? current.interrupting : false,
-        error: null,
-      ),
-    );
-    if (!next.busy && current.queuedMessages.isNotEmpty) {
-      final message = current.queuedMessages.first;
-      _update(
-        (value) => value.copyWith(
-          queuedMessages: value.queuedMessages.skip(1).toList(growable: false),
-        ),
-      );
-      unawaited(_sendNow(message));
-    }
-  }
-
-  Future<void> _simpleRequest(
-    String request, [
-    Map<String, Object?> payload = const <String, Object?>{},
-  ]) async {
-    final client = _client;
-    if (client == null) return;
-    try {
-      await client.codexRequest(request, <String, Object?>{
-        'tabId': tabId,
-        ...payload,
-      });
-    } catch (error, stackTrace) {
-      _setError(error, stackTrace);
-    }
-  }
-
-  void _update(MobileCodexState Function(MobileCodexState) update) {
-    final current = state.value;
-    if (current != null) state = AsyncData(update(current));
-  }
-
-  void _setError(Object error, StackTrace stackTrace) {
-    _logger.warning('Codex request failed.', error, stackTrace);
-    if (!ref.mounted) {
-      Error.throwWithStackTrace(error, stackTrace);
-    }
-    _update(
-      (current) => current.copyWith(
-        sending: false,
-        interrupting: false,
-        error: _safeError(error),
-      ),
-    );
-  }
 }

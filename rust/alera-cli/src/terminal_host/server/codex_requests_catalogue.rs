@@ -16,22 +16,6 @@ use super::super::requests::require_string_key;
 use super::super::ServerActor;
 
 impl ServerActor {
-    pub(crate) async fn interrupt_codex_tab_id_in_background(&self, tab_id: String) {
-        let Some(server) = self.codex.as_ref().cloned() else {
-            return;
-        };
-        let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await else {
-            return;
-        };
-        let Some(thread_id) = tab_thread_id(&tab) else {
-            return;
-        };
-        let Some(turn_id) = active_turn_id(&snapshot(&tab)) else {
-            return;
-        };
-        server.interrupt_in_background(thread_id, turn_id);
-    }
-
     pub(crate) async fn interrupt_codex_workspace_in_background(&self, workspace_id: String) {
         let Some(server) = self.codex.as_ref().cloned() else {
             return;
@@ -58,6 +42,42 @@ impl ServerActor {
             self.interrupt_codex_workspace_in_background(workspace.id)
                 .await;
         }
+    }
+
+    pub(crate) async fn close_codex_tab_before_removal(&mut self, tab_id: &str) -> HostResult<()> {
+        let Some(tab) = self
+            .runtime_store
+            .find_workspace_tab(tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+        else {
+            return Ok(());
+        };
+        if !is_codex_tab(&tab) {
+            return Ok(());
+        }
+        let Some(thread_id) = tab_thread_id(&tab) else {
+            return Ok(());
+        };
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
+        let server = self.ensure_codex_server(Some(&workspace.path)).await?;
+        if let Some(turn_id) = active_turn_id(&snapshot(&tab)) {
+            let _ = server
+                .request(
+                    "turn/interrupt",
+                    json!({"threadId": thread_id, "turnId": turn_id}),
+                )
+                .await;
+        }
+        server
+            .request("thread/delete", json!({"threadId": thread_id}))
+            .await
+            .map(|_| ())
     }
 
     pub(super) async fn create_codex_tab(&mut self, payload: &Value) -> HostResult<Value> {
@@ -129,6 +149,19 @@ impl ServerActor {
         self.codex_server_request("app/list", params).await
     }
 
+    pub(super) async fn list_codex_thread_items(&mut self, payload: &Value) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let tab = self.codex_tab(&tab_id).await?;
+        let thread_id = tab_thread_id(&tab)
+            .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
+        let mut params = payload.clone();
+        if let Some(object) = params.as_object_mut() {
+            object.remove("tabId");
+            object.insert("threadId".to_string(), Value::String(thread_id));
+        }
+        self.codex_server_request("thread/items/list", params).await
+    }
+
     pub(super) async fn open_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
         let tab_id = require_string_key(payload, "tabId")?;
         let mut tab = self.codex_tab(&tab_id).await?;
@@ -143,17 +176,9 @@ impl ServerActor {
         let server = self.ensure_codex_server(Some(&workspace.path)).await?;
         let existing_thread = tab_thread_id(&tab);
         let response = if let Some(thread_id) = existing_thread.as_deref() {
-            match server
+            server
                 .request("thread/resume", json!({"threadId": thread_id}))
-                .await
-            {
-                Ok(response) => response,
-                Err(_) => {
-                    let mut params = json!({"cwd": workspace.path, "approvalPolicy": "on-request"});
-                    copy_optional(payload, &mut params, "model");
-                    server.request("thread/start", params).await?
-                }
-            }
+                .await?
         } else {
             let mut params = json!({"cwd": workspace.path, "approvalPolicy": "on-request"});
             copy_optional(payload, &mut params, "model");

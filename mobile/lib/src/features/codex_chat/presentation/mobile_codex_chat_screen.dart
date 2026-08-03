@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_controller.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
+import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -95,11 +96,22 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                   _MobileApprovalCard(request: request, controller: controller)
                 else if (request.isQuestion)
                   _MobileQuestionCard(request: request, controller: controller)
+                else if (request.isElicitation)
+                  _MobileElicitationCard(
+                    request: request,
+                    controller: controller,
+                  )
                 else
                   _MobileRequestCard(
                     title: 'Codex Request',
                     body: request.method,
-                    actions: const <Widget>[],
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () =>
+                            unawaited(controller.rejectRequest(request)),
+                        child: const Text('Decline'),
+                      ),
+                    ],
                   ),
               if (state.hasPlan)
                 Align(
@@ -144,12 +156,13 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
           attachments: _attachments,
           busy: state.busy,
           interrupting: state.interrupting,
-          onAttach: _pickImage,
+          onAttach: () => _pickImage(controller),
           onRemoveAttachment: (attachment) =>
               setState(() => _attachments.remove(attachment)),
           onSend: () => _send(controller),
           onSteer: () => _steer(controller),
           onStop: controller.stop,
+          canAttach: controller.supportsImageUpload,
         ),
       ],
     );
@@ -178,14 +191,22 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
     );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(MobileCodexController controller) async {
     final image = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (image == null || !mounted) return;
+    String path;
+    try {
+      path = await controller.uploadImage(
+        format: promptImageFormatForFileName(image.name),
+        sizeBytes: await image.length(),
+        openRead: () => image.openRead(),
+      );
+    } on Object {
+      return;
+    }
+    if (!mounted) return;
     setState(() {
-      _attachments.add(<String, Object?>{
-        'type': 'localImage',
-        'path': image.path,
-      });
+      _attachments.add(<String, Object?>{'type': 'localImage', 'path': path});
     });
   }
 

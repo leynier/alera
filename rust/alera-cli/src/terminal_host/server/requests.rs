@@ -272,8 +272,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
-                self.interrupt_codex_tab_id_in_background(tab_id.clone())
-                    .await;
+                self.close_codex_tab_before_removal(&tab_id).await?;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,

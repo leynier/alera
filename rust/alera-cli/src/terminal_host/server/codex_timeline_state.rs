@@ -123,8 +123,11 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
             }
         }
     } else if method == "turn/diff/updated" && !turn_id.is_empty() {
+        let has_snapshot = params.get("diff").is_some()
+            || params.get("delta").is_some()
+            || params.get("text").is_some();
         let diff = first_delta(&[params.get("diff"), params.get("delta"), params.get("text")]);
-        if !diff.is_empty() {
+        if has_snapshot {
             let id = format!("diff-{turn_id}");
             if cell_by_id(&cells, &id)
                 .and_then(|cell| cell.pointer("/metadata/lastDelta"))
@@ -135,11 +138,6 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 object.insert("timelineCells".to_string(), Value::Array(cells));
                 return;
             }
-            let previous = cell_by_id(&cells, &id)
-                .and_then(|cell| cell.get("detailsText"))
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string();
             upsert_cell(
                 &mut cells,
                 new_cell(
@@ -151,7 +149,7 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                     Some("File changes".to_string()),
                     None,
                     None,
-                    Some(format!("{previous}{diff}")),
+                    Some(diff.clone()),
                     true,
                     Some(json!({"lastDelta": diff})),
                 ),

@@ -370,6 +370,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.thread.open"
             | "codex.tab.create"
             | "codex.thread.snapshot"
+            | "codex.thread.items.list"
             | "codex.model.list"
             | "codex.collaborationModes.list"
             | "codex.skills.list"

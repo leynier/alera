@@ -87,7 +87,11 @@ abstract final class MobileCodexTimelineReducer {
         params['delta'],
         params['text'],
       ]);
-      if (turnId.isEmpty || delta.isEmpty) return cells;
+      final hasSnapshot =
+          params.containsKey('diff') ||
+          params.containsKey('delta') ||
+          params.containsKey('text');
+      if (turnId.isEmpty || !hasSnapshot) return cells;
       final id = 'diff-$turnId';
       final existing = _find(cells, id);
       if (existing?.metadata['lastDelta'] == delta) return cells;
@@ -99,7 +103,7 @@ abstract final class MobileCodexTimelineReducer {
           kind: 'diff',
           status: 'inProgress',
           title: 'File changes',
-          detailsText: _merge(existing?.detailsText, delta),
+          detailsText: delta,
           isStreaming: true,
           metadata: <String, Object?>{
             ...?existing?.metadata,
@@ -369,6 +373,7 @@ abstract final class MobileCodexTimelineReducer {
     title: title,
     subtitle: subtitle,
     markdownText: markdownText,
+    renderedMarkdownText: markdownText,
     detailsText: detailsText,
     isStreaming: isStreaming,
     metadata: metadata,
@@ -397,6 +402,8 @@ abstract final class MobileCodexTimelineReducer {
       title: next.title ?? previous.title,
       subtitle: next.subtitle ?? previous.subtitle,
       markdownText: next.markdownText ?? previous.markdownText,
+      renderedMarkdownText:
+          next.renderedMarkdownText ?? previous.renderedMarkdownText,
       detailsText: next.detailsText ?? previous.detailsText,
       metadata: <String, Object?>{...previous.metadata, ...next.metadata},
     );
@@ -468,9 +475,6 @@ String _titleFor(String type, String method, Map<String, Object?> item) {
   if (type.contains('tool') || method.contains('tool')) return 'Tool call';
   return 'Codex activity';
 }
-
-String _merge(String? current, String incoming) =>
-    current == null || current.isEmpty ? incoming : '$current$incoming';
 
 String _rawFirst(Iterable<Object?> values) {
   for (final value in values) {

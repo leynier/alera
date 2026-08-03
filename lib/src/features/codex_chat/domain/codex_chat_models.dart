@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import 'codex_timeline.dart';
 
+part 'codex_chat_state.dart';
+
 @immutable
 class CodexModelOption {
   const CodexModelOption({
@@ -11,6 +13,7 @@ class CodexModelOption {
     this.contextWindowTokens,
     this.supportsFastMode = false,
     this.reasoningEfforts = const <String>[],
+    this.defaultReasoningEffort,
     this.metadata = const <String, Object?>{},
   });
 
@@ -35,9 +38,11 @@ class CodexModelOption {
       contextWindowTokens: _int(
         json['contextWindowTokens'] ?? json['contextWindow'],
       ),
+      defaultReasoningEffort: _string(json['defaultReasoningEffort']),
       supportsFastMode:
           json['supportsFastMode'] == true ||
           _string(json['serviceTier']) == 'fast' ||
+          _containsFast(json['additionalSpeedTiers']) ||
           _containsFast(json['serviceTiers']) ||
           _containsFast(json['supportedServiceTiers']),
       reasoningEfforts: _reasoningEfforts(reasoning),
@@ -51,6 +56,7 @@ class CodexModelOption {
   final int? contextWindowTokens;
   final bool supportsFastMode;
   final List<String> reasoningEfforts;
+  final String? defaultReasoningEffort;
   final Map<String, Object?> metadata;
 }
 
@@ -61,12 +67,14 @@ class CodexInputAttachment {
     required this.isImage,
     this.mimeType,
     this.displayName,
+    this.detail,
   });
 
   final String path;
   final bool isImage;
   final String? mimeType;
   final String? displayName;
+  final String? detail;
 }
 
 @immutable
@@ -171,10 +179,35 @@ class CodexPendingRequest {
         methodName.contains('requestfile');
   }
 
+  bool get isPermissionsRequest =>
+      method.toLowerCase() == 'item/permissions/requestapproval';
+
+  bool get isElicitation =>
+      method.toLowerCase() == 'mcpserver/elicitation/request';
+
+  bool get isBlocking {
+    final value = params['isBlocking'];
+    if (value is bool) return value;
+    if (params.containsKey('autoResolutionMs')) return false;
+    return true;
+  }
+
+  int? get autoResolutionMs => _int(params['autoResolutionMs']);
+
+  String get elicitationMode => _string(params['mode']) ?? '';
+
+  Map<String, Object?> get elicitationSchema => _map(params['requestedSchema']);
+
+  bool get hasSupportedElicitationForm =>
+      isElicitation &&
+      (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
+      elicitationSchema['properties'] is Map;
+
   bool get isQuestion {
     final methodName = method.toLowerCase();
     return methodName.contains('question') ||
         methodName.contains('userinput') ||
+        methodName.contains('request_user_input') ||
         params['questions'] is List;
   }
 
@@ -191,6 +224,8 @@ class CodexPendingRequest {
 
   String get requestTitle => isApproval
       ? 'Codex Needs Approval'
+      : isElicitation
+      ? 'MCP Server Needs Input'
       : isQuestion
       ? 'Codex Needs Your Input'
       : 'Codex Request';
@@ -341,94 +376,6 @@ class CodexChatSnapshot {
   };
 }
 
-@immutable
-class CodexChatState {
-  const CodexChatState({
-    this.loading = true,
-    this.sending = false,
-    this.interrupting = false,
-    this.snapshot = const CodexChatSnapshot(),
-    this.models = const <CodexModelOption>[],
-    this.collaborationModes = const <Map<String, Object?>>[],
-    this.skills = const <Map<String, Object?>>[],
-    this.apps = const <Map<String, Object?>>[],
-    this.selectedModel,
-    this.reasoningEffort = 'medium',
-    this.speedMode = 'normal',
-    this.permissionMode = 'on-request',
-    this.planMode = false,
-    this.collaborationMode,
-    this.queuedMessages = const <CodexQueuedMessage>[],
-    this.error,
-  });
-
-  final bool loading;
-  final bool sending;
-  final bool interrupting;
-  final CodexChatSnapshot snapshot;
-  final List<CodexModelOption> models;
-  final List<Map<String, Object?>> collaborationModes;
-  final List<Map<String, Object?>> skills;
-  final List<Map<String, Object?>> apps;
-  final String? selectedModel;
-  final String reasoningEffort;
-  final String speedMode;
-  final String permissionMode;
-  final bool planMode;
-  final String? collaborationMode;
-  final List<CodexQueuedMessage> queuedMessages;
-  final String? error;
-
-  bool get busy => sending || snapshot.isBusy;
-  CodexModelOption? get selectedModelOption {
-    for (final model in models) {
-      if (model.id == selectedModel) return model;
-    }
-    return null;
-  }
-
-  CodexChatState copyWith({
-    bool? loading,
-    bool? sending,
-    bool? interrupting,
-    CodexChatSnapshot? snapshot,
-    List<CodexModelOption>? models,
-    List<Map<String, Object?>>? collaborationModes,
-    List<Map<String, Object?>>? skills,
-    List<Map<String, Object?>>? apps,
-    String? selectedModel,
-    String? reasoningEffort,
-    String? speedMode,
-    String? permissionMode,
-    bool? planMode,
-    Object? collaborationMode = _keepCollaborationMode,
-    List<CodexQueuedMessage>? queuedMessages,
-    Object? error = _keepError,
-  }) => CodexChatState(
-    loading: loading ?? this.loading,
-    sending: sending ?? this.sending,
-    interrupting: interrupting ?? this.interrupting,
-    snapshot: snapshot ?? this.snapshot,
-    models: models ?? this.models,
-    collaborationModes: collaborationModes ?? this.collaborationModes,
-    skills: skills ?? this.skills,
-    apps: apps ?? this.apps,
-    selectedModel: selectedModel ?? this.selectedModel,
-    reasoningEffort: reasoningEffort ?? this.reasoningEffort,
-    speedMode: speedMode ?? this.speedMode,
-    permissionMode: permissionMode ?? this.permissionMode,
-    planMode: planMode ?? this.planMode,
-    collaborationMode: identical(collaborationMode, _keepCollaborationMode)
-        ? this.collaborationMode
-        : collaborationMode as String?,
-    queuedMessages: queuedMessages ?? this.queuedMessages,
-    error: identical(error, _keepError) ? this.error : error as String?,
-  );
-}
-
-const Object _keepError = Object();
-const Object _keepCollaborationMode = Object();
-
 Map<String, Object?> _map(Object? value) {
   if (value is Map<String, Object?>) return value;
   if (value is Map) {
@@ -458,7 +405,11 @@ List<String> _reasoningEfforts(Object? value) {
   final result = <String>[];
   for (final entry in value) {
     final effort = entry is Map
-        ? (entry['effort'] ?? entry['id'] ?? entry['name'])?.toString()
+        ? (entry['reasoningEffort'] ??
+                  entry['effort'] ??
+                  entry['id'] ??
+                  entry['name'])
+              ?.toString()
         : entry.toString();
     if (effort != null && effort.trim().isNotEmpty) result.add(effort.trim());
   }
@@ -468,8 +419,21 @@ List<String> _reasoningEfforts(Object? value) {
 int? _int(Object? value) =>
     value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
 
-bool _containsFast(Object? value) =>
-    value is List && value.any((item) => item.toString() == 'fast');
+bool _containsFast(Object? value) {
+  if (value is! List) return false;
+  return value.any((item) {
+    if (item is String) return item.toLowerCase() == 'fast';
+    if (item is Map) {
+      return <Object?>[
+        item['id'],
+        item['name'],
+        item['tier'],
+        item['slug'],
+      ].whereType<String>().any((entry) => entry.toLowerCase() == 'fast');
+    }
+    return false;
+  });
+}
 
 String _legacyKind(String method, Map<String, Object?> item) {
   final type = (item['type'] ?? '').toString().toLowerCase();

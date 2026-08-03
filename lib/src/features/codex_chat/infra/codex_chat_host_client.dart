@@ -45,6 +45,7 @@ class CodexChatHostClient {
     required String permissionMode,
     required bool planMode,
     String? collaborationMode,
+    String? clientUserMessageId,
   }) {
     return request('codex.turn.start', <String, Object?>{
       'tabId': tabId,
@@ -52,6 +53,7 @@ class CodexChatHostClient {
       if (model != null && model.isNotEmpty) 'model': model,
       'reasoning': <String, Object?>{'effort': reasoningEffort},
       'effort': reasoningEffort,
+      'clientUserMessageId': ?clientUserMessageId,
       'serviceTier': speedMode == 'fast' ? 'fast' : null,
       'approvalPolicy': permissionMode,
       if (planMode || collaborationMode != null)
@@ -75,12 +77,14 @@ class CodexChatHostClient {
   Future<Map<String, Object?>> steer(
     String tabId,
     String turnId,
-    List<Map<String, Object?>> input,
-  ) {
+    List<Map<String, Object?>> input, {
+    String? clientUserMessageId,
+  }) {
     return request('codex.turn.steer', <String, Object?>{
       'tabId': tabId,
       'turnId': turnId,
       'input': input,
+      'clientUserMessageId': ?clientUserMessageId,
     });
   }
 

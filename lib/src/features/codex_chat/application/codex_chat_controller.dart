@@ -84,13 +84,15 @@ class CodexChatController extends _$CodexChatController {
     final selectedOption = models
         .where((model) => model.id == selectedModel)
         .firstOrNull;
+    final initialReasoning =
+        selectedOption?.defaultReasoningEffort ?? state.reasoningEffort;
     state = state.copyWith(
       models: models,
       collaborationModes: modes,
       skills: skills,
       apps: apps,
       selectedModel: selectedModel,
-      reasoningEffort: _supportedEffort(selectedOption, state.reasoningEffort),
+      reasoningEffort: _supportedEffort(selectedOption, initialReasoning),
       speedMode: selectedOption?.supportsFastMode == false
           ? 'normal'
           : state.speedMode,
@@ -123,6 +125,7 @@ class CodexChatController extends _$CodexChatController {
     final message = CodexQueuedMessage(
       text: trimmed,
       attachments: List<CodexInputAttachment>.unmodifiable(attachments),
+      id: _newClientMessageId(),
     );
     if (state.busy) {
       state = state.copyWith(
@@ -145,6 +148,7 @@ class CodexChatController extends _$CodexChatController {
         permissionMode: state.permissionMode,
         planMode: state.planMode,
         collaborationMode: state.collaborationMode,
+        clientUserMessageId: message.id,
       );
       if (ref.mounted) {
         state = state.copyWith(sending: false);
@@ -180,7 +184,7 @@ class CodexChatController extends _$CodexChatController {
     try {
       await _host.steer(tabId, turnId, <Map<String, Object?>>[
         <String, Object?>{'type': 'text', 'text': text.trim()},
-      ]);
+      ], clientUserMessageId: _newClientMessageId());
     } catch (error) {
       state = state.copyWith(error: _safeError(error));
     }
@@ -229,14 +233,21 @@ class CodexChatController extends _$CodexChatController {
     bool forSession = false,
   }) async {
     try {
-      await _host.respond(
-        request.id,
-        result: <String, Object?>{
-          'decision': accepted ? 'accept' : 'decline',
-          if (accepted && forSession)
-            'acceptSettings': <String, Object?>{'forSession': true},
-        },
-      );
+      final result = request.isPermissionsRequest
+          ? <String, Object?>{
+              'permissions': accepted
+                  ? _permissionSubset(request.params['permissions'])
+                  : const <String, Object?>{},
+              'scope': forSession ? 'session' : 'turn',
+            }
+          : <String, Object?>{
+              'decision': accepted
+                  ? forSession
+                        ? 'acceptForSession'
+                        : 'accept'
+                  : 'decline',
+            };
+      await _host.respond(request.id, result: result);
     } catch (error) {
       state = state.copyWith(error: _safeError(error));
     }
@@ -249,7 +260,44 @@ class CodexChatController extends _$CodexChatController {
     try {
       await _host.respond(
         request.id,
-        result: <String, Object?>{'answers': answers},
+        result: <String, Object?>{
+          'answers': <String, Object?>{
+            for (final entry in answers.entries)
+              entry.key: <String, Object?>{'answers': entry.value},
+          },
+        },
+      );
+    } catch (error) {
+      state = state.copyWith(error: _safeError(error));
+    }
+  }
+
+  Future<void> respondElicitation(
+    CodexPendingRequest request, {
+    required String action,
+    Map<String, Object?> content = const <String, Object?>{},
+  }) async {
+    try {
+      await _host.respond(
+        request.id,
+        result: <String, Object?>{
+          'action': action,
+          if (action == 'accept') 'content': content,
+        },
+      );
+    } catch (error) {
+      state = state.copyWith(error: _safeError(error));
+    }
+  }
+
+  Future<void> rejectRequest(CodexPendingRequest request) async {
+    try {
+      await _host.respond(
+        request.id,
+        error: <String, Object?>{
+          'code': -32601,
+          'message': 'Alera does not support this Codex request.',
+        },
       );
     } catch (error) {
       state = state.copyWith(error: _safeError(error));
@@ -270,7 +318,10 @@ class CodexChatController extends _$CodexChatController {
     final option = state.models.where((item) => item.id == model).firstOrNull;
     state = state.copyWith(
       selectedModel: model,
-      reasoningEffort: _supportedEffort(option, state.reasoningEffort),
+      reasoningEffort: _supportedEffort(
+        option,
+        option?.defaultReasoningEffort ?? state.reasoningEffort,
+      ),
       speedMode: option?.supportsFastMode == false ? 'normal' : state.speedMode,
     );
   }
