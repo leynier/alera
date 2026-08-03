@@ -397,13 +397,21 @@ class MobileCodexController extends _$MobileCodexController
     <String, Object?>{'tabId': tabId, 'name': title.trim()},
   );
 
-  Future<void> implementPlan() => send('Implement the plan.');
+  Future<void> implementPlan() async {
+    setPlanMode(false);
+    await send('Implement plan');
+  }
 
-  Future<void> declinePlan() => send('Do not implement the plan.');
+  Future<void> declinePlan() async {
+    setPlanMode(false);
+    await send('Do not implement the plan.');
+  }
 
-  Future<void> refinePlan(String refinement) {
+  Future<void> refinePlan(String refinement) async {
     final text = refinement.trim();
-    return text.isEmpty ? Future<void>.value() : send(text);
+    if (text.isEmpty) return;
+    setPlanMode(true);
+    await send(text);
   }
 
   void setModel(String? model) {

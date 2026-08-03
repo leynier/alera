@@ -56,7 +56,7 @@ final class TabsControllerProvider
   }
 }
 
-String _$tabsControllerHash() => r'f6c9a67efcaa2369882968427c9af289bae92570';
+String _$tabsControllerHash() => r'90ff982290979bf812599c20c33e98a281384db7';
 
 /// Tabs of one workspace. The mobile app shows one tab at a time; splits stay
 /// a desktop concept.

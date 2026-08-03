@@ -19,7 +19,7 @@ pub(super) fn should_force_flush(messages: &[Value]) -> bool {
         return true;
     }
     let chars = messages.iter().map(delta_chars).sum::<usize>();
-    chars >= HARD_CHARS && safe_boundary(messages)
+    chars >= HARD_CHARS
 }
 
 pub(super) fn batch_delay(messages: &[Value]) -> Duration {
@@ -38,21 +38,23 @@ pub(super) fn safe_boundary(messages: &[Value]) -> bool {
     if text.is_empty() {
         return true;
     }
-    if odd_fence_count(&text)
-        || open_link(&text)
-        || open_inline_code(&text)
-        || open_math(&text)
-        || open_html_tag(&text)
-    {
+    if has_open_structure(&text) {
         return false;
     }
     let trimmed = text.trim_end();
-    if trimmed.starts_with('|') && !trimmed.ends_with('|') {
-        return false;
-    }
     text.ends_with('\n')
         || text.ends_with(['.', ',', ';', ':', '!', '?', ')', ']', '}', '`'])
         || text.len() >= HARD_CHARS
+        || (trimmed.starts_with('|') && trimmed.ends_with('|'))
+}
+
+fn has_open_structure(text: &str) -> bool {
+    odd_fence_count(text)
+        || open_link(text)
+        || open_inline_code(text)
+        || open_math(text)
+        || open_html_tag(text)
+        || (text.trim_start().starts_with('|') && !text.trim_end().ends_with('|'))
 }
 
 pub(super) fn delta_chars(message: &Value) -> usize {
@@ -188,12 +190,16 @@ mod tests {
     }
 
     #[test]
-    fn caps_message_count_and_flushes_large_safe_batches() {
+    fn bounds_batches_even_while_remend_completes_open_structures() {
         let capped = (0..128).map(|_| delta("x")).collect::<Vec<_>>();
         assert!(should_force_flush(&capped));
         let large = vec![delta(&format!("{}\n", "x".repeat(2_100)))];
         assert!(should_force_flush(&large));
         let partial = vec![delta(&format!("```\n{}", "x".repeat(2_100)))];
-        assert!(!should_force_flush(&partial));
+        assert!(should_force_flush(&partial));
+        let capped_partial = (0..128)
+            .map(|index| delta(if index == 0 { "```\n" } else { "x" }))
+            .collect::<Vec<_>>();
+        assert!(should_force_flush(&capped_partial));
     }
 }

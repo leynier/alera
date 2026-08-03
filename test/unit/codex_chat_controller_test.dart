@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +12,10 @@ void main() {
   test('loads dynamic catalogues and uses current model metadata', () async {
     final client = _FakeCodexRuntimeClient();
     final container = ProviderContainer(
-      overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
     );
     addTearDown(() {
       client.dispose();
@@ -41,7 +46,10 @@ void main() {
   test('queues, edits and removes messages while a turn is active', () async {
     final client = _FakeCodexRuntimeClient();
     final container = ProviderContainer(
-      overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
     );
     addTearDown(() {
       client.dispose();
@@ -84,7 +92,10 @@ void main() {
     () async {
       final client = _FakeCodexRuntimeClient();
       final container = ProviderContainer(
-        overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+        overrides: [
+          codexChatRuntimeClientProvider.overrideWithValue(client),
+          settingsControllerProvider.overrideWith(_TestSettingsController.new),
+        ],
       );
       addTearDown(() {
         client.dispose();
@@ -101,10 +112,17 @@ void main() {
       await _settle();
       final controller = container.read(provider.notifier);
       controller.setModel('gpt-current');
-      controller.setReasoning('high');
+      controller.setReasoning('xhigh');
       controller.setSpeed('fast');
       controller.setPermissionMode('never');
       controller.setCollaborationMode('plan');
+      await _settle();
+      final persisted = container.read(settingsControllerProvider).codexChat;
+      expect(persisted.selectedModel, 'gpt-current');
+      expect(persisted.reasoningEffort, 'xhigh');
+      expect(persisted.speedMode, 'fast');
+      expect(persisted.permissionMode, 'never');
+      expect(persisted.planMode, isTrue);
       await controller.send(
         'Inspect @lib/main.dart',
         attachments: const <CodexInputAttachment>[
@@ -146,7 +164,10 @@ void main() {
   test('maps command approval for a single turn and for the session', () async {
     final client = _FakeCodexRuntimeClient();
     final container = ProviderContainer(
-      overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
     );
     addTearDown(() {
       client.dispose();
@@ -173,10 +194,56 @@ void main() {
     });
   });
 
+  test('plan fallback switches execution and refinement modes', () async {
+    final client = _FakeCodexRuntimeClient();
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-1');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    container.read(provider);
+    await _settle();
+    final controller = container.read(provider.notifier);
+
+    controller.setPlanMode(true);
+    await controller.implementPlan();
+    var turn = client.requests.lastWhere(
+      (request) => request.type == 'codex.turn.start',
+    );
+    expect(container.read(provider).planMode, isFalse);
+    expect(turn.payload, isNot(contains('collaborationMode')));
+    expect((turn.payload['input'] as List).last, <String, Object?>{
+      'type': 'text',
+      'text': 'Implement plan',
+    });
+
+    await controller.refinePlan('Add tests first');
+    turn = client.requests.lastWhere(
+      (request) => request.type == 'codex.turn.start',
+    );
+    expect(container.read(provider).planMode, isTrue);
+    expect(turn.payload['collaborationMode'], isA<Map<String, Object?>>());
+  });
+
   test('uses current keyed question answers and permission subsets', () async {
     final client = _FakeCodexRuntimeClient();
     final container = ProviderContainer(
-      overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
     );
     addTearDown(() {
       client.dispose();
@@ -324,6 +391,16 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
   void emit(RuntimeHostEvent event) => _events.add(event);
 
   void dispose() => _events.close();
+}
+
+final class _TestSettingsController extends SettingsController {
+  @override
+  AleraSettings build() => AleraSettings.defaults;
+
+  @override
+  Future<void> updateCodexChat(CodexChatSettings settings) async {
+    state = state.copyWith(codexChat: settings);
+  }
 }
 
 final class _Request {

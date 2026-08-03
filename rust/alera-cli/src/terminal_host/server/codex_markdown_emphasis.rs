@@ -64,10 +64,12 @@ pub(super) fn complete_double_underscore(text: &str) -> String {
     if let Some(captures) = pattern.captures(text) {
         let marker = captures.get(1).unwrap();
         let content = captures.get(2).map_or("", |value| value.as_str());
-        if !content.is_empty()
-            && !only_markers_or_whitespace(content)
-            && !is_in_code(text, marker.start())
-            && count_double_underscores(text) % 2 == 1
+        if !(content.is_empty()
+            || only_markers_or_whitespace(content)
+            || is_in_code(text, marker.start())
+            || is_horizontal_rule(text, marker.start(), '_')
+            || count_double_underscores(text) % 2 != 1
+            || line_prefix_is_list(text, marker.start()) && content.contains('\n'))
         {
             return format!("{text}__");
         }
@@ -143,7 +145,9 @@ fn line_prefix_is_list(text: &str, marker: usize) -> bool {
         .rsplit_once('\n')
         .map_or(text, |(_, line)| line);
     let trimmed = line.trim_start();
-    trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ")
+    Regex::new(r"^(?:[-*+]|\d+[.)])\s+")
+        .expect("the list prefix pattern is valid")
+        .is_match(trimmed)
 }
 
 fn first_single_asterisk(text: &str) -> Option<usize> {

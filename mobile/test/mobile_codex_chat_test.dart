@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 void main() {
   test('mobile rebuilds a coherent timeline from legacy raw events', () {
@@ -261,6 +262,28 @@ void main() {
         'type': 'text',
         'text': r'$review',
       });
+
+      controller.setPlanMode(true);
+      await controller.implementPlan();
+      final implementationTurn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect(container.read(provider).value!.planMode, isFalse);
+      expect(implementationTurn.payload, isNot(contains('collaborationMode')));
+      expect(
+        (implementationTurn.payload['input'] as List).last,
+        <String, Object?>{'type': 'text', 'text': 'Implement plan'},
+      );
+
+      await controller.refinePlan('Add tests first');
+      final refinementTurn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect(container.read(provider).value!.planMode, isTrue);
+      expect(
+        refinementTurn.payload['collaborationMode'],
+        isA<Map<String, Object?>>(),
+      );
     },
   );
 
@@ -288,6 +311,12 @@ void main() {
     expect(find.text('Answer from Codex'), findsOneWidget);
     expect(find.text('Codex Needs Approval'), findsOneWidget);
     expect(find.text('Approve For Session'), findsOneWidget);
+    expect(find.byType(GptMarkdown), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('MCP Server Needs Input'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('MCP Server Needs Input'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('Current Codex'), findsOneWidget);
@@ -321,10 +350,22 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
         'snapshot': <String, Object?>{
           'timelineCells': <Object?>[
             <String, Object?>{
+              'id': 'request',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Inspect the workspace',
+            },
+            <String, Object?>{
               'id': 'answer',
               'kind': 'assistantMessage',
               'status': 'completed',
               'markdownText': 'Answer from Codex',
+            },
+            <String, Object?>{
+              'id': 'plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': '1. Inspect\n2. Implement',
             },
           ],
           'pendingRequests': <Object?>[

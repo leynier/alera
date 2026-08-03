@@ -1,0 +1,2222 @@
+[
+  {
+    "input": "",
+    "output": ""
+  },
+  {
+    "input": "\n\n\n**bold",
+    "output": "\n\n\n**bold**"
+  },
+  {
+    "input": "\n** __\n",
+    "output": "\n** __\n"
+  },
+  {
+    "input": "\n-",
+    "output": "\n-"
+  },
+  {
+    "input": "\n- __\n- **",
+    "output": "\n- __\n- **"
+  },
+  {
+    "input": "\n=",
+    "output": "\n="
+  },
+  {
+    "input": "\n==",
+    "output": "\n=="
+  },
+  {
+    "input": " ",
+    "output": ""
+  },
+  {
+    "input": "    **bold in indented",
+    "output": "    **bold in indented**"
+  },
+  {
+    "input": "    *asterisks in indented",
+    "output": "    *asterisks in indented*"
+  },
+  {
+    "input": "    - > 5: expensive",
+    "output": "    - \\> 5: expensive"
+  },
+  {
+    "input": "   ---",
+    "output": "   ---"
+  },
+  {
+    "input": "  **  ",
+    "output": "  **  "
+  },
+  {
+    "input": "  ***",
+    "output": "  ***"
+  },
+  {
+    "input": "  - > 25: rich",
+    "output": "  - \\> 25: rich"
+  },
+  {
+    "input": " **",
+    "output": " **"
+  },
+  {
+    "input": " ___",
+    "output": " ___"
+  },
+  {
+    "input": "![logo](./assets/log",
+    "output": ""
+  },
+  {
+    "input": "![nested [brackets] text",
+    "output": ""
+  },
+  {
+    "input": "![partial",
+    "output": ""
+  },
+  {
+    "input": "# Heading\n\n**Bold text** with *italic* and `code`.\n\n- List item\n- Another item with ~~strike~~",
+    "output": "# Heading\n\n**Bold text** with *italic* and `code`.\n\n- List item\n- Another item with ~~strike~~"
+  },
+  {
+    "input": "# Heading\n\nParagraph <custom",
+    "output": "# Heading\n\nParagraph"
+  },
+  {
+    "input": "# Heading\n**bold",
+    "output": "# Heading\n**bold**"
+  },
+  {
+    "input": "# Main Title\n## Subtitle with **emph",
+    "output": "# Main Title\n## Subtitle with **emph**"
+  },
+  {
+    "input": "# Title\n\nSome content with **bold** text.\n\n---\n\n## Section 2\n\nMore content.",
+    "output": "# Title\n\nSome content with **bold** text.\n\n---\n\n## Section 2\n\nMore content."
+  },
+  {
+    "input": "## Important *note",
+    "output": "## Important *note*"
+  },
+  {
+    "input": "$$\n\\mathbf{w}^{*} = \\underset{\\|\\mathbf{w}\\|=1}{\\arg\\max} \\;\\; \\mathbf{w}^T S \\mathbf{w}\n$$",
+    "output": "$$\n\\mathbf{w}^{*} = \\underset{\\|\\mathbf{w}\\|=1}{\\arg\\max} \\;\\; \\mathbf{w}^T S \\mathbf{w}\n$$"
+  },
+  {
+    "input": "$$\n\\sum_{i=0}^{n} x_i",
+    "output": "$$\n\\sum_{i=0}^{n} x_i\n$$"
+  },
+  {
+    "input": "$$\na_1 + b_2\nc_3 + d_4\n$$",
+    "output": "$$\na_1 + b_2\nc_3 + d_4\n$$"
+  },
+  {
+    "input": "$$\nx = 1\ny = 2",
+    "output": "$$\nx = 1\ny = 2\n$$"
+  },
+  {
+    "input": "$$$",
+    "output": "$$$$$"
+  },
+  {
+    "input": "$$$$",
+    "output": "$$$$"
+  },
+  {
+    "input": "$$\\begin{matrix} a",
+    "output": "$$\\begin{matrix} a$$"
+  },
+  {
+    "input": "$$\\frac{x}{y",
+    "output": "$$\\frac{x}{y$$"
+  },
+  {
+    "input": "$$\\mathbf{w}^{*}$$",
+    "output": "$$\\mathbf{w}^{*}$$"
+  },
+  {
+    "input": "$$\\sum_{i=1}^{n} x_i = \\prod_{j=1}^{m} y_j$$",
+    "output": "$$\\sum_{i=1}^{n} x_i = \\prod_{j=1}^{m} y_j$$"
+  },
+  {
+    "input": "$$block$$ and $inline",
+    "output": "$$block$$ and $inline"
+  },
+  {
+    "input": "$$first$$ and $$second",
+    "output": "$$first$$ and $$second$$"
+  },
+  {
+    "input": "$$formula$",
+    "output": "$$formula$$"
+  },
+  {
+    "input": "$$formula$$ and code `$$` and $$incomplete",
+    "output": "$$formula$$ and code `$$` and $$incomplete$$"
+  },
+  {
+    "input": "$$formula1$$ and $$formula2$$",
+    "output": "$$formula1$$ and $$formula2$$"
+  },
+  {
+    "input": "$$formula_",
+    "output": "$$formula_$$"
+  },
+  {
+    "input": "$$incomplete",
+    "output": "$$incomplete$$"
+  },
+  {
+    "input": "$$x + y = z",
+    "output": "$$x + y = z$$"
+  },
+  {
+    "input": "$$x = y$",
+    "output": "$$x = y$$"
+  },
+  {
+    "input": "$$x_1 + y_2 = z_3$$",
+    "output": "$$x_1 + y_2 = z_3$$"
+  },
+  {
+    "input": "$a = 1$ and $b = 2$",
+    "output": "$a = 1$ and $b = 2$"
+  },
+  {
+    "input": "$first$ and $second",
+    "output": "$first$ and $second"
+  },
+  {
+    "input": "$incomplete",
+    "output": "$incomplete"
+  },
+  {
+    "input": "$x + y = z",
+    "output": "$x + y = z"
+  },
+  {
+    "input": "$x_1 + x_2 + x_3 = y_1$",
+    "output": "$x_1 + x_2 + x_3 = y_1$"
+  },
+  {
+    "input": "*",
+    "output": "*"
+  },
+  {
+    "input": "*\tItem with tab\n*\tAnother item",
+    "output": "*\tItem with tab\n*\tAnother item"
+  },
+  {
+    "input": "*   *   *",
+    "output": "*   *   *"
+  },
+  {
+    "input": "* * *",
+    "output": "* * *"
+  },
+  {
+    "input": "* **content\n* Another item",
+    "output": "* **content\n* Another item"
+  },
+  {
+    "input": "* > 25: rich",
+    "output": "* \\> 25: rich"
+  },
+  {
+    "input": "* First item\n* Second *italic* item\n* Third item",
+    "output": "* First item\n* Second *italic* item\n* Third item"
+  },
+  {
+    "input": "* Item 1\n* Item 2\n* Item 3",
+    "output": "* Item 1\n* Item 2\n* Item 3"
+  },
+  {
+    "input": "* Item with *incomplete italic\n* Another item",
+    "output": "* Item with *incomplete italic\n* Another item*"
+  },
+  {
+    "input": "* Item with *italic* text\n* Another item",
+    "output": "* Item with *italic* text\n* Another item"
+  },
+  {
+    "input": "* Parent item\n  * Nested item 1\n  * Nested item 2",
+    "output": "* Parent item\n  * Nested item 1\n  * Nested item 2"
+  },
+  {
+    "input": "* Single item",
+    "output": "* Single item"
+  },
+  {
+    "input": "* _ ~~ `",
+    "output": "* _ ~~ `"
+  },
+  {
+    "input": "* __\n* **",
+    "output": "* __\n* **"
+  },
+  {
+    "input": "* user123\n* user456\n* user789",
+    "output": "* user123\n* user456\n* user789"
+  },
+  {
+    "input": "**",
+    "output": "**"
+  },
+  {
+    "input": "** ",
+    "output": "**"
+  },
+  {
+    "input": "** __",
+    "output": "** __"
+  },
+  {
+    "input": "**&lt;tag&gt;",
+    "output": "**&lt;tag&gt;**"
+  },
+  {
+    "input": "***",
+    "output": "***"
+  },
+  {
+    "input": "***\n\nSome text",
+    "output": "***\n\nSome text"
+  },
+  {
+    "input": "****",
+    "output": "****"
+  },
+  {
+    "input": "*****",
+    "output": "*****"
+  },
+  {
+    "input": "*****text",
+    "output": "*****text***"
+  },
+  {
+    "input": "****text",
+    "output": "****text***"
+  },
+  {
+    "input": "***Starting bold-italic",
+    "output": "***Starting bold-italic***"
+  },
+  {
+    "input": "***bold-italic with `code",
+    "output": "***bold-italic with `code***`"
+  },
+  {
+    "input": "***bold-italic ~~strike `code",
+    "output": "***bold-italic ~~strike `code***`~~"
+  },
+  {
+    "input": "***first*** and ***second",
+    "output": "***first*** and ***second***"
+  },
+  {
+    "input": "***first*** and ***second***",
+    "output": "***first*** and ***second***"
+  },
+  {
+    "input": "***incomplete",
+    "output": "***incomplete***"
+  },
+  {
+    "input": "***start***end***",
+    "output": "***start***end***"
+  },
+  {
+    "input": "***text***",
+    "output": "***text***"
+  },
+  {
+    "input": "***word text***",
+    "output": "***word text***"
+  },
+  {
+    "input": "**Hello 世界",
+    "output": "**Hello 世界**"
+  },
+  {
+    "input": "**_text",
+    "output": "**_text_**"
+  },
+  {
+    "input": "**bold",
+    "output": "**bold**"
+  },
+  {
+    "input": "**bold\twith\ttabs",
+    "output": "**bold\twith\ttabs**"
+  },
+  {
+    "input": "**bold\r\nwith CRLF",
+    "output": "**bold\r\nwith CRLF**"
+  },
+  {
+    "input": "**bold ",
+    "output": "**bold**"
+  },
+  {
+    "input": "**bold *italic `code ~~strike",
+    "output": "**bold *italic `code ~~strike*`"
+  },
+  {
+    "input": "**bold *italic ~~strike `code",
+    "output": "**bold *italic ~~strike `code*`~~"
+  },
+  {
+    "input": "**bold *italic* text** and `code`",
+    "output": "**bold *italic* text** and `code`"
+  },
+  {
+    "input": "**bold _und",
+    "output": "**bold _und_**"
+  },
+  {
+    "input": "**bold and *bold-italic***",
+    "output": "**bold and *bold-italic***"
+  },
+  {
+    "input": "**bold and *italic",
+    "output": "**bold and *italic*"
+  },
+  {
+    "input": "**bold and *italic*** more text",
+    "output": "**bold and *italic*** more text"
+  },
+  {
+    "input": "**bold text*",
+    "output": "**bold text**"
+  },
+  {
+    "input": "**bold text**\n-",
+    "output": "**bold text**\n-​"
+  },
+  {
+    "input": "**bold then *italic then ~~strike",
+    "output": "**bold then *italic then ~~strike*~~"
+  },
+  {
+    "input": "**bold with $x^2",
+    "output": "**bold with $x^2**"
+  },
+  {
+    "input": "**bold with *italic* inside**",
+    "output": "**bold with *italic* inside**"
+  },
+  {
+    "input": "**bold with `code",
+    "output": "**bold with `code**`"
+  },
+  {
+    "input": "**bold ~~strike",
+    "output": "**bold ~~strike**~~"
+  },
+  {
+    "input": "**bold*",
+    "output": "**bold**"
+  },
+  {
+    "input": "**bold** and *italic",
+    "output": "**bold** and *italic*"
+  },
+  {
+    "input": "**bold** and *italic* and `code` and ~~strike~~",
+    "output": "**bold** and *italic* and `code` and ~~strike~~"
+  },
+  {
+    "input": "**bold** then **more",
+    "output": "**bold** then **more**"
+  },
+  {
+    "input": "**bold1** and **bold2**",
+    "output": "**bold1** and **bold2**"
+  },
+  {
+    "input": "**first** and **second",
+    "output": "**first** and **second**"
+  },
+  {
+    "input": "**incomplete",
+    "output": "**incomplete**"
+  },
+  {
+    "input": "**text",
+    "output": "**text**"
+  },
+  {
+    "input": "**xxx*",
+    "output": "**xxx**"
+  },
+  {
+    "input": "**émoji 🎉",
+    "output": "**émoji 🎉**"
+  },
+  {
+    "input": "**中文粗体",
+    "output": "**中文粗体**"
+  },
+  {
+    "input": "*Note:* Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n```",
+    "output": "*Note:* Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n```"
+  },
+  {
+    "input": "*P/E*\n  - < 10: potentially cheap.\n  - 10–20: reasonable/normal zone.\n  - > 25–30: rich; you need strong growth.\n\n*P/S*\n  - < 1: often cheap for mature businesses.\n  - 1–3: okay range.\n  - > 5: expensive unless high-margin.",
+    "output": "*P/E*\n  - < 10: potentially cheap.\n  - 10–20: reasonable/normal zone.\n  - \\> 25–30: rich; you need strong growth.\n\n*P/S*\n  - < 1: often cheap for mature businesses.\n  - 1–3: okay range.\n  - \\> 5: expensive unless high-margin."
+  },
+  {
+    "input": "*a**b",
+    "output": "*a**b***"
+  },
+  {
+    "input": "*first* and *second",
+    "output": "*first* and *second*"
+  },
+  {
+    "input": "*incomplete",
+    "output": "*incomplete*"
+  },
+  {
+    "input": "*italic",
+    "output": "*italic*"
+  },
+  {
+    "input": "*italic **bold",
+    "output": "*italic **bold***"
+  },
+  {
+    "input": "*italic **bold ~~strike `code",
+    "output": "*italic **bold ~~strike `code***`~~"
+  },
+  {
+    "input": "*italic text*\n-",
+    "output": "*italic text*\n-​"
+  },
+  {
+    "input": "*italic with **bold",
+    "output": "*italic with **bold***"
+  },
+  {
+    "input": "*italic with some*var*name inside",
+    "output": "*italic with some*var*name inside*"
+  },
+  {
+    "input": "*italic* **bold** ***both",
+    "output": "*italic* **bold** ***both***"
+  },
+  {
+    "input": "*start \\* middle \\* end",
+    "output": "*start \\* middle \\* end*"
+  },
+  {
+    "input": "*text",
+    "output": "*text*"
+  },
+  {
+    "input": "*word* and more text",
+    "output": "*word* and more text"
+  },
+  {
+    "input": "*日本語",
+    "output": "*日本語*"
+  },
+  {
+    "input": "+ > 25: rich",
+    "output": "+ \\> 25: rich"
+  },
+  {
+    "input": "+ __\n+ **",
+    "output": "+ __\n+ **"
+  },
+  {
+    "input": "-",
+    "output": "-"
+  },
+  {
+    "input": "-  -  -",
+    "output": "-  -  -"
+  },
+  {
+    "input": "- *",
+    "output": "- *"
+  },
+  {
+    "input": "- **",
+    "output": "- **"
+  },
+  {
+    "input": "- ** text after",
+    "output": "- ** text after**"
+  },
+  {
+    "input": "- ***",
+    "output": "- ***"
+  },
+  {
+    "input": "- **text\nmore text",
+    "output": "- **text\nmore text"
+  },
+  {
+    "input": "- - -",
+    "output": "- - -"
+  },
+  {
+    "input": "- < 10: potentially cheap.\n- 10–20: reasonable/normal zone.\n- > 25–30: rich; you need strong growth + quality to justify.",
+    "output": "- < 10: potentially cheap.\n- 10–20: reasonable/normal zone.\n- \\> 25–30: rich; you need strong growth + quality to justify."
+  },
+  {
+    "input": "- > $100: expensive",
+    "output": "- \\> $100: expensive"
+  },
+  {
+    "input": "- > 25: **bold",
+    "output": "- \\> 25: **bold**"
+  },
+  {
+    "input": "- > 25: rich",
+    "output": "- \\> 25: rich"
+  },
+  {
+    "input": "- > 5: expensive\n- > 25: very expensive",
+    "output": "- \\> 5: expensive\n- \\> 25: very expensive"
+  },
+  {
+    "input": "- > Read more about this",
+    "output": "- > Read more about this"
+  },
+  {
+    "input": "- > Some quoted text",
+    "output": "- > Some quoted text"
+  },
+  {
+    "input": "- >25: rich",
+    "output": "- \\>25: rich"
+  },
+  {
+    "input": "- >= 10: high",
+    "output": "- \\>= 10: high"
+  },
+  {
+    "input": "- Combined **bold and *italic*** text",
+    "output": "- Combined **bold and *italic*** text"
+  },
+  {
+    "input": "- Item 1\n- Item 2\n\n---\n\nNew section",
+    "output": "- Item 1\n- Item 2\n\n---\n\nNew section"
+  },
+  {
+    "input": "- Item 1\n- Item 2 with **bol",
+    "output": "- Item 1\n- Item 2 with **bol**"
+  },
+  {
+    "input": "- Item 1\n- Item 2 with *italic*\n- Item 3",
+    "output": "- Item 1\n- Item 2 with *italic*\n- Item 3"
+  },
+  {
+    "input": "- Use `map` to transform\n- Use `filter",
+    "output": "- Use `map` to transform\n- Use `filter`"
+  },
+  {
+    "input": "- [ ] **bold task",
+    "output": "- [ ] **bold task**"
+  },
+  {
+    "input": "- [ ] *italic task",
+    "output": "- [ ] *italic task*"
+  },
+  {
+    "input": "- [ ] `code task",
+    "output": "- [ ] `code task`"
+  },
+  {
+    "input": "- [x] completed ~~struck~~",
+    "output": "- [x] completed ~~struck~~"
+  },
+  {
+    "input": "- _",
+    "output": "- _"
+  },
+  {
+    "input": "- __",
+    "output": "- __"
+  },
+  {
+    "input": "- __\n- **",
+    "output": "- __\n- **"
+  },
+  {
+    "input": "- __\n- Normal item\n- **",
+    "output": "- __\n- Normal item\n- **"
+  },
+  {
+    "input": "- __ text after",
+    "output": "- __ text after__"
+  },
+  {
+    "input": "- `",
+    "output": "- `"
+  },
+  {
+    "input": "- ~~",
+    "output": "- ~~"
+  },
+  {
+    "input": "--",
+    "output": "--"
+  },
+  {
+    "input": "---",
+    "output": "---"
+  },
+  {
+    "input": "---\n\n# Heading",
+    "output": "---\n\n# Heading"
+  },
+  {
+    "input": "---\n\nSome text",
+    "output": "---\n\nSome text"
+  },
+  {
+    "input": "---\n**bold after rule",
+    "output": "---\n**bold after rule**"
+  },
+  {
+    "input": "----",
+    "output": "----"
+  },
+  {
+    "input": "-----",
+    "output": "-----"
+  },
+  {
+    "input": "1. > 25: rich",
+    "output": "1. \\> 25: rich"
+  },
+  {
+    "input": "1. First\n2. **Second item with bold",
+    "output": "1. First\n2. **Second item with bold**"
+  },
+  {
+    "input": "1. First item\n   - Nested with `code\n2. Second",
+    "output": "1. First item\n   - Nested with `code\n2. Second`"
+  },
+  {
+    "input": "123*abc",
+    "output": "123*abc"
+  },
+  {
+    "input": "2 * 3 * 4",
+    "output": "2 * 3 * 4"
+  },
+  {
+    "input": "2) > 10: high",
+    "output": "2) \\> 10: high"
+  },
+  {
+    "input": "20~25 and ~~strike",
+    "output": "20\\~25 and ~~strike~~"
+  },
+  {
+    "input": "20~25°C",
+    "output": "20\\~25°C"
+  },
+  {
+    "input": "20~25°C。20~25°C",
+    "output": "20\\~25°C。20\\~25°C"
+  },
+  {
+    "input": "234234*123",
+    "output": "234234*123"
+  },
+  {
+    "input": "3 + 2 - 5 * 0 = ?",
+    "output": "3 + 2 - 5 * 0 = ?"
+  },
+  {
+    "input": "3 < 5",
+    "output": "3 < 5"
+  },
+  {
+    "input": "3<5 _text",
+    "output": "3<5 _text_"
+  },
+  {
+    "input": "5 * 0",
+    "output": "5 * 0"
+  },
+  {
+    "input": "5 * 0 and *italic",
+    "output": "5 * 0 and *italic*"
+  },
+  {
+    "input": "</div",
+    "output": ""
+  },
+  {
+    "input": "<a target=\"_blank\" href=\"https://link.com\">word</a>",
+    "output": "<a target=\"_blank\" href=\"https://link.com\">word</a>"
+  },
+  {
+    "input": "<a target=\"_blank\">link</a>",
+    "output": "<a target=\"_blank\">link</a>"
+  },
+  {
+    "input": "<br/>",
+    "output": "<br/>"
+  },
+  {
+    "input": "<custom",
+    "output": ""
+  },
+  {
+    "input": "<custom data-id",
+    "output": ""
+  },
+  {
+    "input": "<div",
+    "output": ""
+  },
+  {
+    "input": "<div data_attribute=\"value\">",
+    "output": "<div data_attribute=\"value\">"
+  },
+  {
+    "input": "<div>\n_text",
+    "output": "<div>\n_text_"
+  },
+  {
+    "input": "<div>Hello</div> <span",
+    "output": "<div>Hello</div>"
+  },
+  {
+    "input": "<div>content</di",
+    "output": "<div>content"
+  },
+  {
+    "input": "<div>content</div>",
+    "output": "<div>content</div>"
+  },
+  {
+    "input": "<iframe src=\"x\" sandbox=\"allow_scripts\">",
+    "output": "<iframe src=\"x\" sandbox=\"allow_scripts\">"
+  },
+  {
+    "input": "<img src='test'>",
+    "output": "<img src='test'>"
+  },
+  {
+    "input": "> * list with **bold",
+    "output": "> * list with **bold**"
+  },
+  {
+    "input": "> 25 is a number",
+    "output": "> 25 is a number"
+  },
+  {
+    "input": "> > **deeply nested bold",
+    "output": "> > **deeply nested bold**"
+  },
+  {
+    "input": "> > > triple nested *italic",
+    "output": "> > > triple nested *italic*"
+  },
+  {
+    "input": "> Quote with **bold",
+    "output": "> Quote with **bold**"
+  },
+  {
+    "input": "> Some blockquote",
+    "output": "> Some blockquote"
+  },
+  {
+    "input": "> quote\n**bold",
+    "output": "> quote\n**bold**"
+  },
+  {
+    "input": "> ~~struck text",
+    "output": "> ~~struck text~~"
+  },
+  {
+    "input": ">25",
+    "output": ">25"
+  },
+  {
+    "input": "Check out [this lin",
+    "output": "Check out [this lin](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Check the [documentation",
+    "output": "Check the [documentation](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Combined **bold and *italic*** text",
+    "output": "Combined **bold and *italic*** text"
+  },
+  {
+    "input": "Cost \\$100 with _incomplete",
+    "output": "Cost \\$100 with _incomplete_"
+  },
+  {
+    "input": "Formula: $a_b + c_d = e_f$",
+    "output": "Formula: $a_b + c_d = e_f$"
+  },
+  {
+    "input": "Heading\n===",
+    "output": "Heading\n==="
+  },
+  {
+    "input": "Hello </custom",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello </div",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <a href=\"https://example.com",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <casecard",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <custom",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <div",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <div class=",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <div class=\"foo",
+    "output": "Hello"
+  },
+  {
+    "input": "Hello <div>",
+    "output": "Hello <div>"
+  },
+  {
+    "input": "Here is",
+    "output": "Here is"
+  },
+  {
+    "input": "Here is a **bold",
+    "output": "Here is a **bold**"
+  },
+  {
+    "input": "Here is a **bold statement",
+    "output": "Here is a **bold statement**"
+  },
+  {
+    "input": "Here is a **bold statement** about",
+    "output": "Here is a **bold statement** about"
+  },
+  {
+    "input": "Here is a **bold statement** about `code",
+    "output": "Here is a **bold statement** about `code`"
+  },
+  {
+    "input": "Here is a **bold statement** about `code`.",
+    "output": "Here is a **bold statement** about `code`."
+  },
+  {
+    "input": "Here is some **bold tex",
+    "output": "Here is some **bold tex**"
+  },
+  {
+    "input": "Here's a code block:\n```bash\necho \"test\"\n```\nAnd here's an [incomplete link",
+    "output": "Here's a code block:\n```bash\necho \"test\"\n```\nAnd here's an [incomplete link](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Loading: fetch()",
+    "output": "Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Loading: fetch()"
+  },
+  {
+    "input": "Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Loading: fetch()\n    Loading --> Success: 200 OK\n    Loading --> Error: 4xx/5xx\n    Error --> Loading: retry()\n    Success --> Idle: reset()\n```",
+    "output": "Here's a state diagram:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Loading: fetch()\n    Loading --> Success: 200 OK\n    Loading --> Error: 4xx/5xx\n    Error --> Loading: retry()\n    Success --> Idle: reset()\n```"
+  },
+  {
+    "input": "Here's how to use it:\n\n```typescript\nconst x = 1",
+    "output": "Here's how to use it:\n\n```typescript\nconst x = 1"
+  },
+  {
+    "input": "Here's some code:\n```javascript\nconst arr = [1, 2, 3];\nconsole.log(arr[0]);\n```\nDone with code block.",
+    "output": "Here's some code:\n```javascript\nconst arr = [1, 2, 3];\nconsole.log(arr[0]);\n```\nDone with code block."
+  },
+  {
+    "input": "Here's some code:\n```javascript\nconst my__variable = \"test\";\nconst another_var = 5;\n```\n\nSome notes:\n* First note\n* Second note",
+    "output": "Here's some code:\n```javascript\nconst my__variable = \"test\";\nconst another_var = 5;\n```\n\nSome notes:\n* First note\n* Second note"
+  },
+  {
+    "input": "Here's the diagram:\n\n![architecture",
+    "output": "Here's the diagram:\n\n"
+  },
+  {
+    "input": "Inline $x_1$ and block $$y_2$$ math",
+    "output": "Inline $x_1$ and block $$y_2$$ math"
+  },
+  {
+    "input": "Line 1\nLine 2\nLine 3\n-",
+    "output": "Line 1\nLine 2\nLine 3\n-​"
+  },
+  {
+    "input": "MAX_VALUE",
+    "output": "MAX_VALUE"
+  },
+  {
+    "input": "Math expression $x_",
+    "output": "Math expression $x_"
+  },
+  {
+    "input": "Math: $$x+y and code: `$$`",
+    "output": "Math: $$x+y and code: `$$`$$"
+  },
+  {
+    "input": "Precisely.\n\nWhen full-screen TUI applications like **Vim**, **less**, or **htop** start, they switch the terminal into what's called the **alternate screen buffer**\u2014a second, temporary display area separate from the main scrollback buffer.\n\n### How it works\nThey send ANSI escape sequences such as:\n```bash\n# Enter alternate screen buffer\necho -e \"\\\\e[?1049h\"\n\n# Exit (back to normal buffer)\necho -e \"\\\\e[?1049l\"\n```\n\n- `\\\\e[?1049h` \u2014 activates the alternate screen.\n- `\\\\e[?1049l` \u2014 deactivates it and restores the previous view.\n\nWhile in this mode:\n- The \"scrollback\" (your regular terminal history) is hidden.\n- The program gets a fresh, empty screen to draw on.\n- When the program exits, the screen restores exactly as it was before.\n\n### tmux behavior\n`tmux` respects these escape sequences by default. When apps use the alternate buffer, tmux holds that screen separately from the main one. That's why, when you scroll in tmux during Vim, you don't see your shell history\u2014you have to leave Vim first.\n\nIf someone wants to **disable** this behavior (so the app draws on the main screen and you can scroll back freely), they can set:\n```bash\nset -g terminal-overrides 'xterm*:smcup@:rmcup@'\n```\nin their `~/.tmux.conf`, which disables use of the alternate buffer entirely.\n\nWould you like me to show how to conditionally toggle that behavior per app or session?",
+    "output": "Precisely.\n\nWhen full-screen TUI applications like **Vim**, **less**, or **htop** start, they switch the terminal into what's called the **alternate screen buffer**\u2014a second, temporary display area separate from the main scrollback buffer.\n\n### How it works\nThey send ANSI escape sequences such as:\n```bash\n# Enter alternate screen buffer\necho -e \"\\\\e[?1049h\"\n\n# Exit (back to normal buffer)\necho -e \"\\\\e[?1049l\"\n```\n\n- `\\\\e[?1049h` \u2014 activates the alternate screen.\n- `\\\\e[?1049l` \u2014 deactivates it and restores the previous view.\n\nWhile in this mode:\n- The \"scrollback\" (your regular terminal history) is hidden.\n- The program gets a fresh, empty screen to draw on.\n- When the program exits, the screen restores exactly as it was before.\n\n### tmux behavior\n`tmux` respects these escape sequences by default. When apps use the alternate buffer, tmux holds that screen separately from the main one. That's why, when you scroll in tmux during Vim, you don't see your shell history\u2014you have to leave Vim first.\n\nIf someone wants to **disable** this behavior (so the app draws on the main screen and you can scroll back freely), they can set:\n```bash\nset -g terminal-overrides 'xterm*:smcup@:rmcup@'\n```\nin their `~/.tmux.conf`, which disables use of the alternate buffer entirely.\n\nWould you like me to show how to conditionally toggle that behavior per app or session?"
+  },
+  {
+    "input": "Price is \\$100",
+    "output": "Price is \\$100"
+  },
+  {
+    "input": "Price is \\$50 and _this is italic_",
+    "output": "Price is \\$50 and _this is italic_"
+  },
+  {
+    "input": "Section 1\n\n---\n\nSection 2\n\n---\n\nSection 3",
+    "output": "Section 1\n\n---\n\nSection 2\n\n---\n\nSection 3"
+  },
+  {
+    "input": "See ![diagram](http://example.com/img",
+    "output": "See "
+  },
+  {
+    "input": "See ![the diag",
+    "output": "See "
+  },
+  {
+    "input": "Some text\n\n***",
+    "output": "Some text\n\n***"
+  },
+  {
+    "input": "Some text\n\n---",
+    "output": "Some text\n\n---"
+  },
+  {
+    "input": "Some text\n\n___",
+    "output": "Some text\n\n___"
+  },
+  {
+    "input": "Some text\n  -",
+    "output": "Some text\n  -​"
+  },
+  {
+    "input": "Some text\n- ",
+    "output": "Some text\n-​"
+  },
+  {
+    "input": "Some text\n- Item 1\n- Item 2",
+    "output": "Some text\n- Item 1\n- Item 2"
+  },
+  {
+    "input": "Some text\n--",
+    "output": "Some text\n--​"
+  },
+  {
+    "input": "Some text\n---",
+    "output": "Some text\n---"
+  },
+  {
+    "input": "Some text\n----",
+    "output": "Some text\n----"
+  },
+  {
+    "input": "Some text\n-x",
+    "output": "Some text\n-x"
+  },
+  {
+    "input": "Some text\n=",
+    "output": "Some text\n=​"
+  },
+  {
+    "input": "Some text\n==",
+    "output": "Some text\n==​"
+  },
+  {
+    "input": "Some text\n```js\nconsole.log",
+    "output": "Some text\n```js\nconsole.log"
+  },
+  {
+    "input": "Some text here\n\n<casecard",
+    "output": "Some text here"
+  },
+  {
+    "input": "Start ![foo [bar] baz",
+    "output": "Start "
+  },
+  {
+    "input": "Start *italic with $$x^{*}$$",
+    "output": "Start *italic with $$x^{*}$$*"
+  },
+  {
+    "input": "Start \\_escaped\\_ middle _incomplete",
+    "output": "Start \\_escaped\\_ middle _incomplete_"
+  },
+  {
+    "input": "Start _italic with $x_1$",
+    "output": "Start _italic with $x_1$_"
+  },
+  {
+    "input": "Start _text\n",
+    "output": "Start _text_\n"
+  },
+  {
+    "input": "Streamdown uses double dollar signs (`$$`) to delimit mathematical expressions.",
+    "output": "Streamdown uses double dollar signs (`$$`) to delimit mathematical expressions."
+  },
+  {
+    "input": "Text\n\n--",
+    "output": "Text\n\n--"
+  },
+  {
+    "input": "Text\n***",
+    "output": "Text\n***"
+  },
+  {
+    "input": "Text ![outer [inner]",
+    "output": "Text "
+  },
+  {
+    "input": "Text **bold `code",
+    "output": "Text **bold `code**`"
+  },
+  {
+    "input": "Text 1\n-\nText 2\n-",
+    "output": "Text 1\n-\nText 2\n-​"
+  },
+  {
+    "input": "Text <MyComponent",
+    "output": "Text"
+  },
+  {
+    "input": "Text [foo [bar] baz](",
+    "output": "Text [foo [bar] baz](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text [outer [inner",
+    "output": "Text [outer [inner](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text [outer [inner]",
+    "output": "Text [outer [inner]](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text [partial",
+    "output": "Text [partial](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text before\n***\nText after",
+    "output": "Text before\n***\nText after"
+  },
+  {
+    "input": "Text before\n___\nText after",
+    "output": "Text before\n___\nText after"
+  },
+  {
+    "input": "Text ending with *",
+    "output": "Text ending with *"
+  },
+  {
+    "input": "Text ending with **",
+    "output": "Text ending with **"
+  },
+  {
+    "input": "Text with ![alt text](image.png)",
+    "output": "Text with ![alt text](image.png)"
+  },
+  {
+    "input": "Text with ![incomplete image",
+    "output": "Text with "
+  },
+  {
+    "input": "Text with $$E = mc^2$$",
+    "output": "Text with $$E = mc^2$$"
+  },
+  {
+    "input": "Text with $$formula",
+    "output": "Text with $$formula$$"
+  },
+  {
+    "input": "Text with $formula",
+    "output": "Text with $formula"
+  },
+  {
+    "input": "Text with $x^2 + y^2 = z^2$",
+    "output": "Text with $x^2 + y^2 = z^2$"
+  },
+  {
+    "input": "Text with ***bold and italic text***",
+    "output": "Text with ***bold and italic text***"
+  },
+  {
+    "input": "Text with ***bold-italic",
+    "output": "Text with ***bold-italic***"
+  },
+  {
+    "input": "Text with **bold",
+    "output": "Text with **bold**"
+  },
+  {
+    "input": "Text with **bold text**",
+    "output": "Text with **bold text**"
+  },
+  {
+    "input": "Text with **bold*",
+    "output": "Text with **bold**"
+  },
+  {
+    "input": "Text with *italic",
+    "output": "Text with *italic*"
+  },
+  {
+    "input": "Text with *italic text*",
+    "output": "Text with *italic text*"
+  },
+  {
+    "input": "Text with *italic* and math $$x^{*}$$",
+    "output": "Text with *italic* and math $$x^{*}$$"
+  },
+  {
+    "input": "Text with --",
+    "output": "Text with --"
+  },
+  {
+    "input": "Text with [complete link](url)",
+    "output": "Text with [complete link](url)"
+  },
+  {
+    "input": "Text with [incomplete link",
+    "output": "Text with [incomplete link](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text with [link and **bold",
+    "output": "Text with [link and **bold](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Text with \\* escaped asterisk",
+    "output": "Text with \\* escaped asterisk"
+  },
+  {
+    "input": "Text with \\_escaped underscore",
+    "output": "Text with \\_escaped underscore"
+  },
+  {
+    "input": "Text with __bold_",
+    "output": "Text with __bold__"
+  },
+  {
+    "input": "Text with __italic",
+    "output": "Text with __italic__"
+  },
+  {
+    "input": "Text with __italic text__",
+    "output": "Text with __italic text__"
+  },
+  {
+    "input": "Text with _italic",
+    "output": "Text with _italic_"
+  },
+  {
+    "input": "Text with _italic\n",
+    "output": "Text with _italic_\n"
+  },
+  {
+    "input": "Text with _italic text_",
+    "output": "Text with _italic text_"
+  },
+  {
+    "input": "Text with _italic_ and math $x_1$",
+    "output": "Text with _italic_ and math $x_1$"
+  },
+  {
+    "input": "Text with `code",
+    "output": "Text with `code`"
+  },
+  {
+    "input": "Text with `inline code`",
+    "output": "Text with `inline code`"
+  },
+  {
+    "input": "Text with ~~strike",
+    "output": "Text with ~~strike~~"
+  },
+  {
+    "input": "Text with ~~strikethrough text~~",
+    "output": "Text with ~~strikethrough text~~"
+  },
+  {
+    "input": "Text with ~~strike~",
+    "output": "Text with ~~strike~~"
+  },
+  {
+    "input": "The formula",
+    "output": "The formula"
+  },
+  {
+    "input": "The formula $E",
+    "output": "The formula $E"
+  },
+  {
+    "input": "The formula $E = mc",
+    "output": "The formula $E = mc"
+  },
+  {
+    "input": "The formula $E = mc^2",
+    "output": "The formula $E = mc^2"
+  },
+  {
+    "input": "The formula $E = mc^2$ shows",
+    "output": "The formula $E = mc^2$ shows"
+  },
+  {
+    "input": "The function `getData` returns a **Promise",
+    "output": "The function `getData` returns a **Promise**"
+  },
+  {
+    "input": "The price is $50 and $100",
+    "output": "The price is $50 and $100"
+  },
+  {
+    "input": "The user_id field stores the _unique identifier",
+    "output": "The user_id field stores the _unique identifier_"
+  },
+  {
+    "input": "The user_name and user_email are required",
+    "output": "The user_name and user_email are required"
+  },
+  {
+    "input": "The value is 1_000_000",
+    "output": "The value is 1_000_000"
+  },
+  {
+    "input": "The variable $x_1$ represents the first element",
+    "output": "The variable $x_1$ represents the first element"
+  },
+  {
+    "input": "The variable_name is _important",
+    "output": "The variable_name is _important_"
+  },
+  {
+    "input": "This is",
+    "output": "This is"
+  },
+  {
+    "input": "This is ***very",
+    "output": "This is ***very***"
+  },
+  {
+    "input": "This is ***very important",
+    "output": "This is ***very important***"
+  },
+  {
+    "input": "This is ***very important***",
+    "output": "This is ***very important***"
+  },
+  {
+    "input": "This is ***very important*** to know",
+    "output": "This is ***very important*** to know"
+  },
+  {
+    "input": "This is **bold text*",
+    "output": "This is **bold text**"
+  },
+  {
+    "input": "This is **bold with *ital",
+    "output": "This is **bold with *ital*"
+  },
+  {
+    "input": "This is *italic",
+    "output": "This is *italic*"
+  },
+  {
+    "input": "This is __bold text_",
+    "output": "This is __bold text__"
+  },
+  {
+    "input": "This is _italic",
+    "output": "This is _italic_"
+  },
+  {
+    "input": "This is a title\n=",
+    "output": "This is a title\n=​"
+  },
+  {
+    "input": "This is a title\n==",
+    "output": "This is a title\n==​"
+  },
+  {
+    "input": "This is a title\n===",
+    "output": "This is a title\n==="
+  },
+  {
+    "input": "This is not a --- horizontal rule",
+    "output": "This is not a --- horizontal rule"
+  },
+  {
+    "input": "This is plain text without any markdown",
+    "output": "This is plain text without any markdown"
+  },
+  {
+    "input": "This is ~~strikethrough~",
+    "output": "This is ~~strikethrough~~"
+  },
+  {
+    "input": "To use this function",
+    "output": "To use this function"
+  },
+  {
+    "input": "To use this function, call `getData(",
+    "output": "To use this function, call `getData(`"
+  },
+  {
+    "input": "To use this function, call `getData()` with",
+    "output": "To use this function, call `getData()` with"
+  },
+  {
+    "input": "Use `$$` for math blocks and `$$formula$$` for inline.",
+    "output": "Use `$$` for math blocks and `$$formula$$` for inline."
+  },
+  {
+    "input": "Use `variable_name` in your code",
+    "output": "Use `variable_name` in your code"
+  },
+  {
+    "input": "Visit [our site](https://exa",
+    "output": "Visit [our site](streamdown:incomplete-link)"
+  },
+  {
+    "input": "Visit https://example.com/path_with_underscore",
+    "output": "Visit https://example.com/path_with_underscore"
+  },
+  {
+    "input": "[**bold link",
+    "output": "[**bold link](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[**bold link**](incomplete-url",
+    "output": "[**bold link**](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[*italic link*](incomplete",
+    "output": "[*italic link*](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[^1]",
+    "output": "[^1]"
+  },
+  {
+    "input": "[^1]: footnote text",
+    "output": "[^1]: footnote text"
+  },
+  {
+    "input": "[`code link`](incomplete",
+    "output": "[`code link`](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[click here](https://example.com) for **more",
+    "output": "[click here](https://example.com) for **more**"
+  },
+  {
+    "input": "[first](url1) and [second",
+    "output": "[first](url1) and [second](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[foo [bar [baz",
+    "output": "[foo [bar [baz](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[link [nested] text",
+    "output": "[link [nested] text](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[link with [brackets] inside](https://example.com)",
+    "output": "[link with [brackets] inside](https://example.com)"
+  },
+  {
+    "input": "[link with [inner] content](http://incomplete",
+    "output": "[link with [inner] content](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[link1 and [link2",
+    "output": "[link1 and [link2](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[link1](url1) and [link2](url2)",
+    "output": "[link1](url1) and [link2](url2)"
+  },
+  {
+    "input": "[link](a_b) _word",
+    "output": "[link](a_b) _word_"
+  },
+  {
+    "input": "[link](url) _word",
+    "output": "[link](url) _word_"
+  },
+  {
+    "input": "[outer [inner]",
+    "output": "[outer [inner]](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[outer [nested] text](incomplete",
+    "output": "[outer [nested] text](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[text][",
+    "output": "[text][](streamdown:incomplete-link)"
+  },
+  {
+    "input": "[text][ref]",
+    "output": "[text][ref]"
+  },
+  {
+    "input": "\\**not bold",
+    "output": "\\**not bold**"
+  },
+  {
+    "input": "\\*escaped asterisk and *italic",
+    "output": "\\*escaped asterisk and *italic*"
+  },
+  {
+    "input": "\\*escaped\\* but *real italic",
+    "output": "\\*escaped\\* but *real italic*"
+  },
+  {
+    "input": "\\*not italic",
+    "output": "\\*not italic"
+  },
+  {
+    "input": "\\\\*actually italic",
+    "output": "\\\\*actually italic"
+  },
+  {
+    "input": "\\_escaped\\_ _complete_ pair",
+    "output": "\\_escaped\\_ _complete_ pair"
+  },
+  {
+    "input": "\\_escaped\\_ and _unescaped",
+    "output": "\\_escaped\\_ and _unescaped_"
+  },
+  {
+    "input": "\\_fully\\_escaped\\_",
+    "output": "\\_fully\\_escaped\\_"
+  },
+  {
+    "input": "\\` *italic",
+    "output": "\\` *italic*"
+  },
+  {
+    "input": "\\`not code\\` **bold",
+    "output": "\\`not code\\` **bold**"
+  },
+  {
+    "input": "](partial",
+    "output": "](partial"
+  },
+  {
+    "input": "_",
+    "output": "_"
+  },
+  {
+    "input": "_    _    _",
+    "output": "_    _    _"
+  },
+  {
+    "input": "_ _ _",
+    "output": "_ _ _"
+  },
+  {
+    "input": "__",
+    "output": "__"
+  },
+  {
+    "input": "___",
+    "output": "___"
+  },
+  {
+    "input": "___\n\nSome text",
+    "output": "___\n\nSome text"
+  },
+  {
+    "input": "____",
+    "output": "____"
+  },
+  {
+    "input": "_____",
+    "output": "_____"
+  },
+  {
+    "input": "__a__ __b__content_",
+    "output": "__a__ __b__content_"
+  },
+  {
+    "input": "__bold text_",
+    "output": "__bold text__"
+  },
+  {
+    "input": "__bold__ and _italic",
+    "output": "__bold__ and _italic_"
+  },
+  {
+    "input": "__content_",
+    "output": "__content__"
+  },
+  {
+    "input": "__first__ and __second",
+    "output": "__first__ and __second__"
+  },
+  {
+    "input": "__incomplete",
+    "output": "__incomplete__"
+  },
+  {
+    "input": "__init__ and __main__ are special",
+    "output": "__init__ and __main__ are special"
+  },
+  {
+    "input": "__text",
+    "output": "__text__"
+  },
+  {
+    "input": "__xxx_",
+    "output": "__xxx__"
+  },
+  {
+    "input": "_complete italic_ and some_other_text",
+    "output": "_complete italic_ and some_other_text"
+  },
+  {
+    "input": "_incomplete",
+    "output": "_incomplete_"
+  },
+  {
+    "input": "_incomplete\n\n",
+    "output": "_incomplete_\n\n"
+  },
+  {
+    "input": "_italic\n",
+    "output": "_italic_\n"
+  },
+  {
+    "input": "_italic and **bold",
+    "output": "_italic and **bold**_"
+  },
+  {
+    "input": "_italic start $x_1$ italic end_",
+    "output": "_italic start $x_1$ italic end_"
+  },
+  {
+    "input": "_italic text",
+    "output": "_italic text_"
+  },
+  {
+    "input": "_italic text_ followed by $a_b$",
+    "output": "_italic text_ followed by $a_b$"
+  },
+  {
+    "input": "_italic with some_var_name inside",
+    "output": "_italic with some_var_name inside_"
+  },
+  {
+    "input": "_privateVariable",
+    "output": "_privateVariable_"
+  },
+  {
+    "input": "_start with underscore",
+    "output": "_start with underscore_"
+  },
+  {
+    "input": "_text",
+    "output": "_text_"
+  },
+  {
+    "input": "_text**",
+    "output": "_text**_"
+  },
+  {
+    "input": "`",
+    "output": "`"
+  },
+  {
+    "input": "`&amp;",
+    "output": "`&amp;`"
+  },
+  {
+    "input": "`**bold`",
+    "output": "`**bold`"
+  },
+  {
+    "input": "`*italic`",
+    "output": "`*italic`"
+  },
+  {
+    "input": "`20~25`",
+    "output": "`20~25`"
+  },
+  {
+    "input": "`<div`",
+    "output": "`<div`"
+  },
+  {
+    "input": "``",
+    "output": "``"
+  },
+  {
+    "input": "```\n***\n```\n***text",
+    "output": "```\n***\n```\n***text***"
+  },
+  {
+    "input": "```\n***bold",
+    "output": "```\n***bold"
+  },
+  {
+    "input": "```\n- > 25: in code\n```",
+    "output": "```\n- > 25: in code\n```"
+  },
+  {
+    "input": "```\n20~25\n```",
+    "output": "```\n20~25\n```"
+  },
+  {
+    "input": "```\n<div\n```",
+    "output": "```\n<div\n```"
+  },
+  {
+    "input": "```\nSimple code block\nwith multiple lines\nand some special characters: !@#$%^&*()\n```",
+    "output": "```\nSimple code block\nwith multiple lines\nand some special characters: !@#$%^&*()\n```"
+  },
+  {
+    "input": "```\n__code\n```\n__text",
+    "output": "```\n__code\n```\n__text__"
+  },
+  {
+    "input": "```\n__content_",
+    "output": "```\n__content_"
+  },
+  {
+    "input": "```\n_code\n```\n_text",
+    "output": "```\n_code\n```\n_text_"
+  },
+  {
+    "input": "```\nblock\n```\n`inline",
+    "output": "```\nblock\n```\n`inline`"
+  },
+  {
+    "input": "```\ncode\n```",
+    "output": "```\ncode\n```"
+  },
+  {
+    "input": "```\ncode\n```\n**bold",
+    "output": "```\ncode\n```\n**bold**"
+  },
+  {
+    "input": "```\ncode\n```\n*italic",
+    "output": "```\ncode\n```\n*italic*"
+  },
+  {
+    "input": "```\ncode\n```\nMore text",
+    "output": "```\ncode\n```\nMore text"
+  },
+  {
+    "input": "```\ncode\n```\n```\nmore",
+    "output": "```\ncode\n```\n```\nmore"
+  },
+  {
+    "input": "```\ncode block with `backtick\n```",
+    "output": "```\ncode block with `backtick\n```"
+  },
+  {
+    "input": "```\ncode here",
+    "output": "```\ncode here"
+  },
+  {
+    "input": "```\nconst str = `template`;\n```",
+    "output": "```\nconst str = `template`;\n```"
+  },
+  {
+    "input": "```\nfunction_name()\n```",
+    "output": "```\nfunction_name()\n```"
+  },
+  {
+    "input": "``````",
+    "output": "``````"
+  },
+  {
+    "input": "```code```",
+    "output": "```code```"
+  },
+  {
+    "input": "```code```\n",
+    "output": "```code```\n"
+  },
+  {
+    "input": "```css\n/* Commentary */\n\n[class*=\"WidgetTitle__Header\"] {\n  font-size: 18px !important;\n}\n```\n\nNotes and tips:\n* Use !important only where necessary in CSS.",
+    "output": "```css\n/* Commentary */\n\n[class*=\"WidgetTitle__Header\"] {\n  font-size: 18px !important;\n}\n```\n\nNotes and tips:\n* Use !important only where necessary in CSS."
+  },
+  {
+    "input": "```css\ncode here\n```\n\n**incomplete bold",
+    "output": "```css\ncode here\n```\n\n**incomplete bold**"
+  },
+  {
+    "input": "```html\n<custom",
+    "output": "```html\n<custom"
+  },
+  {
+    "input": "```javascript\nconst x = 5;",
+    "output": "```javascript\nconst x = 5;"
+  },
+  {
+    "input": "```javascript\nconst x = 5;\n```",
+    "output": "```javascript\nconst x = 5;\n```"
+  },
+  {
+    "input": "```javascript\nconst x = `template",
+    "output": "```javascript\nconst x = `template"
+  },
+  {
+    "input": "```js\ncode1\n```\n\n```python\ncode2\n```",
+    "output": "```js\ncode1\n```\n\n```python\ncode2\n```"
+  },
+  {
+    "input": "```js\nconst x = 1;\n```\n\nThis creates a **variable",
+    "output": "```js\nconst x = 1;\n```\n\nThis creates a **variable**"
+  },
+  {
+    "input": "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n```\n\nHere is *incomplete italic",
+    "output": "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n```\n\nHere is *incomplete italic*"
+  },
+  {
+    "input": "```python\ndef __init__(self):\n    pass\n```\n\n* List item",
+    "output": "```python\ndef __init__(self):\n    pass\n```\n\n* List item"
+  },
+  {
+    "input": "```python\ndef greet(name):\n    return f\"Hello, {name}!\"\n```",
+    "output": "```python\ndef greet(name):\n    return f\"Hello, {name}!\"\n```"
+  },
+  {
+    "input": "```python\ndef greet(name):\n    return f\"Hello, {name}!\"\n```\n",
+    "output": "```python\ndef greet(name):\n    return f\"Hello, {name}!\"\n```\n"
+  },
+  {
+    "input": "```python\ndef hello():",
+    "output": "```python\ndef hello():"
+  },
+  {
+    "input": "```python\ndef hello_world():\n    \"\"\"A simple function\"\"\"\n    name = \"World\"\n    print(f\"Hello, {name}!\")\n    \n    # List comprehension\n    numbers = [x**2 for x in range(10) if x % 2 == 0]\n    return numbers\n\nclass TestClass:\n    def __init__(self, value):\n        self.value = value\n```",
+    "output": "```python\ndef hello_world():\n    \"\"\"A simple function\"\"\"\n    name = \"World\"\n    print(f\"Hello, {name}!\")\n    \n    # List comprehension\n    numbers = [x**2 for x in range(10) if x % 2 == 0]\n    return numbers\n\nclass TestClass:\n    def __init__(self, value):\n        self.value = value\n```"
+  },
+  {
+    "input": "```python code\n```",
+    "output": "```python code\n```"
+  },
+  {
+    "input": "```python code```",
+    "output": "```python code```"
+  },
+  {
+    "input": "```python def greet(name): return f\"Hello, {name}!\"\n```",
+    "output": "```python def greet(name): return f\"Hello, {name}!\"\n```"
+  },
+  {
+    "input": "```python print(\"Hello, Sunnyvale!\")``",
+    "output": "```python print(\"Hello, Sunnyvale!\")```"
+  },
+  {
+    "input": "```python print(\"Hello, Sunnyvale!\")```",
+    "output": "```python print(\"Hello, Sunnyvale!\")```"
+  },
+  {
+    "input": "`code1` and `code2`",
+    "output": "`code1` and `code2`"
+  },
+  {
+    "input": "`code`\n-",
+    "output": "`code`\n-​"
+  },
+  {
+    "input": "`code` **bold",
+    "output": "`code` **bold**"
+  },
+  {
+    "input": "`code` then `more",
+    "output": "`code` then `more`"
+  },
+  {
+    "input": "`código",
+    "output": "`código`"
+  },
+  {
+    "input": "`incomplete",
+    "output": "`incomplete`"
+  },
+  {
+    "input": "`text",
+    "output": "`text`"
+  },
+  {
+    "input": "`~~strikethrough`",
+    "output": "`~~strikethrough`"
+  },
+  {
+    "input": "`한국어 코드",
+    "output": "`한국어 코드`"
+  },
+  {
+    "input": "a * b = c",
+    "output": "a * b = c"
+  },
+  {
+    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa **bold",
+    "output": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa **bold**"
+  },
+  {
+    "input": "abc*123",
+    "output": "abc*123"
+  },
+  {
+    "input": "a~~b~~c~",
+    "output": "a~~b~~c~"
+  },
+  {
+    "input": "a~~b~~text",
+    "output": "a~~b~~text"
+  },
+  {
+    "input": "café_price",
+    "output": "café_price"
+  },
+  {
+    "input": "combined **_bold and italic",
+    "output": "combined **_bold and italic_**"
+  },
+  {
+    "input": "div> _text",
+    "output": "div> _text_"
+  },
+  {
+    "input": "end******",
+    "output": "end******"
+  },
+  {
+    "input": "foo~bar",
+    "output": "foo\\~bar"
+  },
+  {
+    "input": "func(_arg",
+    "output": "func(_arg_"
+  },
+  {
+    "input": "hello ~ world",
+    "output": "hello ~ world"
+  },
+  {
+    "input": "hello*world",
+    "output": "hello*world"
+  },
+  {
+    "input": "hello_world",
+    "output": "hello_world"
+  },
+  {
+    "input": "hello_world\n\n<a href=\"example_link\"/>",
+    "output": "hello_world\n\n<a href=\"example_link\"/>"
+  },
+  {
+    "input": "hello_world_test",
+    "output": "hello_world_test"
+  },
+  {
+    "input": "hello~",
+    "output": "hello~"
+  },
+  {
+    "input": "here is a list",
+    "output": "here is a list"
+  },
+  {
+    "input": "here is a list\n",
+    "output": "here is a list\n"
+  },
+  {
+    "input": "here is a list\n-",
+    "output": "here is a list\n-​"
+  },
+  {
+    "input": "here is a list\n- ",
+    "output": "here is a list\n-​"
+  },
+  {
+    "input": "here is a list\n- list item 1",
+    "output": "here is a list\n- list item 1"
+  },
+  {
+    "input": "if a <",
+    "output": "if a <"
+  },
+  {
+    "input": "line1\n\n*italic text",
+    "output": "line1\n\n*italic text*"
+  },
+  {
+    "input": "naïve_approach",
+    "output": "naïve_approach"
+  },
+  {
+    "input": "paragraph1\n\n**bold",
+    "output": "paragraph1\n\n**bold**"
+  },
+  {
+    "input": "some\\_text_with_underscores",
+    "output": "some\\_text_with_underscores"
+  },
+  {
+    "input": "some_variable_name",
+    "output": "some_variable_name"
+  },
+  {
+    "input": "test **bold and *italic*** end",
+    "output": "test **bold and *italic*** end"
+  },
+  {
+    "input": "test*123*test",
+    "output": "test*123*test"
+  },
+  {
+    "input": "test*var and *incomplete italic",
+    "output": "test*var and *incomplete italic*"
+  },
+  {
+    "input": "test_123_value",
+    "output": "test_123_value"
+  },
+  {
+    "input": "test_var and _incomplete italic",
+    "output": "test_var and _incomplete italic_"
+  },
+  {
+    "input": "text\t`code",
+    "output": "text\t`code`"
+  },
+  {
+    "input": "text\n\n\n**bold",
+    "output": "text\n\n\n**bold**"
+  },
+  {
+    "input": "text\n\n`code",
+    "output": "text\n\n`code`"
+  },
+  {
+    "input": "text\n**bold",
+    "output": "text\n**bold**"
+  },
+  {
+    "input": "text ",
+    "output": "text"
+  },
+  {
+    "input": "text  ",
+    "output": "text  "
+  },
+  {
+    "input": "text ***",
+    "output": "text ***"
+  },
+  {
+    "input": "text ****",
+    "output": "text ****"
+  },
+  {
+    "input": "text *****",
+    "output": "text *****"
+  },
+  {
+    "input": "text ******",
+    "output": "text ******"
+  },
+  {
+    "input": "text **bold",
+    "output": "text **bold**"
+  },
+  {
+    "input": "text <!-- comment -->",
+    "output": "text <!-- comment -->"
+  },
+  {
+    "input": "text <!-- incomplete comment",
+    "output": "text <!-- incomplete comment"
+  },
+  {
+    "input": "text <br>",
+    "output": "text <br>"
+  },
+  {
+    "input": "text <div class=\"test",
+    "output": "text"
+  },
+  {
+    "input": "text <script>alert('",
+    "output": "text <script>alert('"
+  },
+  {
+    "input": "text$",
+    "output": "text$"
+  },
+  {
+    "input": "text*",
+    "output": "text*"
+  },
+  {
+    "input": "text**",
+    "output": "text**"
+  },
+  {
+    "input": "text***",
+    "output": "text***"
+  },
+  {
+    "input": "textContent ![image1](https://example.com/path_1!!test.png) ![image2](https://example.com/path_2!!test.png)",
+    "output": "textContent ![image1](https://example.com/path_1!!test.png) ![image2](https://example.com/path_2!!test.png)"
+  },
+  {
+    "input": "textContent ![image](https://img.alicdn.com/imgextra/i4/6000000003603/O1CN01ApW8bQ1cUE8LduPra_!!6000000003603-2-skyky.png)",
+    "output": "textContent ![image](https://img.alicdn.com/imgextra/i4/6000000003603/O1CN01ApW8bQ1cUE8LduPra_!!6000000003603-2-skyky.png)"
+  },
+  {
+    "input": "textContent [link](https://example.com/path_name!!test)",
+    "output": "textContent [link](https://example.com/path_name!!test)"
+  },
+  {
+    "input": "text`",
+    "output": "text`"
+  },
+  {
+    "input": "text``````",
+    "output": "text``````"
+  },
+  {
+    "input": "text~",
+    "output": "text~"
+  },
+  {
+    "input": "text~~",
+    "output": "text~~"
+  },
+  {
+    "input": "value <1",
+    "output": "value <1"
+  },
+  {
+    "input": "word****",
+    "output": "word****"
+  },
+  {
+    "input": "word_",
+    "output": "word_"
+  },
+  {
+    "input": "x * y",
+    "output": "x * y"
+  },
+  {
+    "input": "x < y",
+    "output": "x < y"
+  },
+  {
+    "input": "| **bold | next |",
+    "output": "| **bold | next |**"
+  },
+  {
+    "input": "| **bold** | next |",
+    "output": "| **bold** | next |"
+  },
+  {
+    "input": "| Col1 | Col2 |\n|------|------|\n| **dat",
+    "output": "| Col1 | Col2 |\n|------|------|\n| **dat**"
+  },
+  {
+    "input": "| `code | next |",
+    "output": "| `code | next |`"
+  },
+  {
+    "input": "~hello",
+    "output": "~hello"
+  },
+  {
+    "input": "~~",
+    "output": "~~"
+  },
+  {
+    "input": "~~done~~ and ~~undone",
+    "output": "~~done~~ and ~~undone~~"
+  },
+  {
+    "input": "~~first~~ and ~~second",
+    "output": "~~first~~ and ~~second~~"
+  },
+  {
+    "input": "~~incomplete",
+    "output": "~~incomplete~~"
+  },
+  {
+    "input": "~~strike",
+    "output": "~~strike~~"
+  },
+  {
+    "input": "~~strike **bold *italic",
+    "output": "~~strike **bold *italic*~~"
+  },
+  {
+    "input": "~~strike text~",
+    "output": "~~strike text~~"
+  },
+  {
+    "input": "~~strike with **bold",
+    "output": "~~strike with **bold**~~"
+  },
+  {
+    "input": "~~strike1~~ and ~~strike2~~",
+    "output": "~~strike1~~ and ~~strike2~~"
+  },
+  {
+    "input": "~~strikethrough~~",
+    "output": "~~strikethrough~~"
+  },
+  {
+    "input": "~~strike~",
+    "output": "~~strike~~"
+  },
+  {
+    "input": "~~text",
+    "output": "~~text~~"
+  },
+  {
+    "input": "~~xxx~",
+    "output": "~~xxx~~"
+  },
+  {
+    "input": "~~🎉 celebration",
+    "output": "~~🎉 celebration~~"
+  }
+]

@@ -1,4 +1,32 @@
-use super::render_markdown;
+use super::{render_markdown, render_remend};
+
+#[test]
+fn matches_complete_remend_default_fixture_corpus() {
+    let cases: Vec<serde_json::Value> =
+        serde_json::from_str(include_str!("codex_markdown_remend_fixtures.json"))
+            .expect("the vendored remend fixture corpus must be valid JSON");
+    let mut mismatches = Vec::new();
+    for case in cases {
+        let input = case["input"]
+            .as_str()
+            .expect("every remend fixture must have an input");
+        let expected = case["output"]
+            .as_str()
+            .expect("every remend fixture must have an output");
+        let actual = render_remend(input);
+        if actual != expected {
+            mismatches.push(format!(
+                "input: {input:?}\nexpected: {expected:?}\nactual: {actual:?}"
+            ));
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "{} remend fixtures diverged:\n{}",
+        mismatches.len(),
+        mismatches.join("\n\n")
+    );
+}
 
 fn assert_cases(cases: &[(&str, &str)]) {
     for (input, expected) in cases {

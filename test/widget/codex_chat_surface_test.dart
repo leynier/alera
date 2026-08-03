@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/presentation/codex_chat_surface.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 void main() {
   testWidgets('renders rich timeline cells and structured approval controls', (
@@ -17,7 +20,10 @@ void main() {
     addTearDown(client.dispose);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [codexChatRuntimeClientProvider.overrideWithValue(client)],
+        overrides: [
+          codexChatRuntimeClientProvider.overrideWithValue(client),
+          settingsControllerProvider.overrideWith(_SurfaceSettings.new),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: SizedBox(
@@ -37,6 +43,8 @@ void main() {
     expect(find.text('Approve For Session'), findsOneWidget);
     expect(find.text('Current Codex'), findsOneWidget);
     expect(find.text('Permission: On Request'), findsOneWidget);
+    expect(find.byType(GptMarkdown), findsWidgets);
+    expect(find.text('Implement Plan'), findsNothing);
   });
 }
 
@@ -84,6 +92,14 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
         'snapshot': <String, Object?>{
           'timelineCells': <Object?>[
             <String, Object?>{
+              'id': 'request',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'createdAt': '2026-08-02T11:59:00Z',
+              'updatedAt': '2026-08-02T11:59:00Z',
+              'markdownText': 'Inspect the workspace',
+            },
+            <String, Object?>{
               'id': 'answer',
               'kind': 'assistantMessage',
               'status': 'completed',
@@ -98,6 +114,14 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               'createdAt': '2026-08-02T12:00:00Z',
               'updatedAt': '2026-08-02T12:00:00Z',
               'markdownText': 'Reasoning',
+            },
+            <String, Object?>{
+              'id': 'plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'createdAt': '2026-08-02T12:00:00Z',
+              'updatedAt': '2026-08-02T12:00:00Z',
+              'markdownText': '1. Inspect\n2. Implement',
             },
           ],
           'pendingRequests': <Object?>[
@@ -135,4 +159,9 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   }
 
   void dispose() => _events.close();
+}
+
+final class _SurfaceSettings extends SettingsController {
+  @override
+  AleraSettings build() => AleraSettings.defaults;
 }

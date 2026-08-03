@@ -3,6 +3,7 @@ part of 'codex_chat_surface.dart';
 class _CodexTimeline extends StatefulWidget {
   const _CodexTimeline({
     required this.snapshot,
+    required this.planMode,
     required this.showRawLogs,
     required this.timeline,
     required this.onApproval,
@@ -15,6 +16,7 @@ class _CodexTimeline extends StatefulWidget {
   });
 
   final CodexChatSnapshot snapshot;
+  final bool planMode;
   final bool showRawLogs;
   final ScrollController timeline;
   final Future<void> Function(
@@ -93,7 +95,7 @@ class _CodexTimelineState extends State<_CodexTimeline> {
                     request: request,
                     onReject: widget.onReject,
                   ),
-              if (snapshot.shouldShowImplementPlan)
+              if (widget.planMode && snapshot.shouldShowImplementPlan)
                 _CodexPlanPrompt(
                   onImplement: widget.onImplementPlan,
                   onDecline: widget.onDeclinePlan,

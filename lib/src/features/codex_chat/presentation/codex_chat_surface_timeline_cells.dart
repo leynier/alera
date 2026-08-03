@@ -219,9 +219,53 @@ class _CodexMarkdownText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DefaultTextStyle.merge(
     style: Theme.of(context).textTheme.bodyMedium,
-    child: GptMarkdown(text),
+    child: GptMarkdown(
+      text,
+      onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(url)),
+      imageBuilder: _buildCodexMarkdownImage,
+    ),
   );
 }
+
+Future<void> _openCodexMarkdownLink(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri != null) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+Widget _buildCodexMarkdownImage(
+  BuildContext context,
+  String source,
+  double? width,
+  double? height,
+) {
+  final uri = Uri.tryParse(source);
+  final image = uri != null && (uri.scheme.isEmpty || uri.scheme == 'file')
+      ? Image.file(
+          File(uri.scheme == 'file' ? uri.toFilePath() : source),
+          fit: BoxFit.contain,
+          errorBuilder: _codexImageError,
+        )
+      : Image.network(
+          source,
+          fit: BoxFit.contain,
+          errorBuilder: _codexImageError,
+        );
+  return ConstrainedBox(
+    constraints: BoxConstraints(
+      maxWidth: width ?? AleraTokens.imageMaxWidth,
+      maxHeight: height ?? AleraTokens.imageMaxHeight,
+    ),
+    child: image,
+  );
+}
+
+Widget _codexImageError(
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+) => const Icon(AleraIcons.imageError, color: AleraTokens.foregroundMuted);
 
 bool _defaultCollapsed(CodexTimelineCell cell) => switch (cell.kind) {
   CodexTimelineKind.reasoning ||
