@@ -1,5 +1,6 @@
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
 import 'package:alera/src/features/text_actions/application/text_action_replacement.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +18,7 @@ void main() {
         home: Scaffold(
           body: AleraTextActionsScope(
             enabled: true,
-            onOpen: (_, _) => opened = true,
+            onOpen: (_, _, _) => opened = true,
             child: TextField(
               controller: controller,
               contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
@@ -35,8 +36,8 @@ void main() {
               tester.element(editableFinder),
               editable,
             )
-            as AdaptiveTextSelectionToolbar;
-    final items = toolbar.buttonItems!;
+            as AleraTextSelectionToolbar;
+    final items = toolbar.buttonItems;
 
     expect(
       items.take(nativeItems.length).map((item) => item.type),
@@ -68,7 +69,7 @@ void main() {
           home: Scaffold(
             body: AleraTextActionsScope(
               enabled: scopeEnabled,
-              onOpen: (_, _) {},
+              onOpen: (_, _, _) {},
               child: TextField(
                 controller: controller,
                 readOnly: readOnly,
@@ -94,8 +95,8 @@ void main() {
                 editable,
                 textActionsEnabled: textActionsEnabled,
               )
-              as AdaptiveTextSelectionToolbar;
-      return toolbar.buttonItems!;
+              as AleraTextSelectionToolbar;
+      return toolbar.buttonItems;
     }
 
     bool hasTextActions(List<ContextMenuButtonItem> items) =>
@@ -126,7 +127,7 @@ void main() {
         home: Scaffold(
           body: AleraTextActionsScope(
             enabled: true,
-            onOpen: (_, _) {},
+            onOpen: (_, _, _) {},
             child: AleraTextField(
               controller: controller,
               onPaste: () async {
@@ -144,8 +145,8 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField));
     final toolbar =
         field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AdaptiveTextSelectionToolbar;
-    final paste = toolbar.buttonItems!.firstWhere(
+            as AleraTextSelectionToolbar;
+    final paste = toolbar.buttonItems.firstWhere(
       (item) => item.type == ContextMenuButtonType.paste,
     );
 
@@ -165,7 +166,7 @@ void main() {
         home: Scaffold(
           body: AleraTextActionsScope(
             enabled: true,
-            onOpen: (_, _) {},
+            onOpen: (_, _, _) {},
             child: PullRequestLinkForm(
               controller: controller,
               busy: false,
@@ -183,10 +184,10 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField));
     final toolbar =
         field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AdaptiveTextSelectionToolbar;
+            as AleraTextSelectionToolbar;
 
     expect(
-      toolbar.buttonItems!.any((item) => item.label == 'Text Actions'),
+      toolbar.buttonItems.any((item) => item.label == 'Text Actions'),
       isTrue,
     );
   });

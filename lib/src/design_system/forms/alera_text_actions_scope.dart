@@ -1,12 +1,35 @@
 import 'dart:async';
 
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 
 typedef AleraTextActionsContextMenuHandler =
-    void Function(BuildContext context, EditableTextState editableTextState);
+    void Function(
+      BuildContext context,
+      AleraTextActionTarget target,
+      Offset globalAnchor,
+    );
 
 typedef AleraTextActionHandler =
-    void Function(EditableTextState editableTextState, String actionId);
+    void Function(AleraTextActionTarget target, String actionId);
+
+typedef AleraTextActionReplacementHandler =
+    bool Function(TextEditingValue captured, String replacement);
+
+class AleraTextActionTarget {
+  /// Adapts any editable surface to the shared Text Actions runner.
+  const AleraTextActionTarget({
+    required this.identity,
+    required this.readValue,
+    required this.isAvailable,
+    required this.applyReplacement,
+  });
+
+  final Object identity;
+  final TextEditingValue Function() readValue;
+  final bool Function() isAvailable;
+  final AleraTextActionReplacementHandler applyReplacement;
+}
 
 class AleraTextActionMenuItem {
   const AleraTextActionMenuItem({required this.id, required this.label});
@@ -31,9 +54,23 @@ class AleraTextActionsScope extends InheritedWidget {
   final List<AleraTextActionMenuItem> actions;
   final AleraTextActionHandler? onRun;
 
-  void run(EditableTextState editableTextState, String actionId) {
+  void open(
+    BuildContext context,
+    AleraTextActionTarget target,
+    Offset globalAnchor,
+  ) {
     if (enabled) {
-      onRun?.call(editableTextState, actionId);
+      onOpen(context, target, globalAnchor);
+    }
+  }
+
+  void run(EditableTextState editableTextState, String actionId) {
+    runTarget(_editableTextTarget(editableTextState), actionId);
+  }
+
+  void runTarget(AleraTextActionTarget target, String actionId) {
+    if (enabled) {
+      onRun?.call(target, actionId);
     }
   }
 
@@ -96,15 +133,46 @@ class AleraTextActionsScope extends InheritedWidget {
           label: 'Text Actions',
           onPressed: () {
             ContextMenuController.removeAny();
-            scope!.onOpen(context, editableTextState);
+            final anchors = editableTextState.contextMenuAnchors;
+            scope!.open(
+              context,
+              _editableTextTarget(editableTextState),
+              anchors.secondaryAnchor ?? anchors.primaryAnchor,
+            );
           },
           type: ContextMenuButtonType.custom,
         ),
       );
     }
-    return AdaptiveTextSelectionToolbar.buttonItems(
+    return AleraTextSelectionToolbar(
       anchors: editableTextState.contextMenuAnchors,
       buttonItems: items,
+    );
+  }
+
+  static AleraTextActionTarget _editableTextTarget(
+    EditableTextState editableTextState,
+  ) {
+    return AleraTextActionTarget(
+      identity: editableTextState,
+      readValue: () => editableTextState.textEditingValue,
+      isAvailable: () => editableTextState.mounted,
+      applyReplacement: (captured, replacement) {
+        final editingContext = editableTextState.widget.focusNode.context;
+        if (editingContext == null || !editingContext.mounted) {
+          return false;
+        }
+        Actions.invoke(
+          editingContext,
+          ReplaceTextIntent(
+            captured,
+            replacement,
+            captured.selection,
+            SelectionChangedCause.toolbar,
+          ),
+        );
+        return true;
+      },
     );
   }
 
