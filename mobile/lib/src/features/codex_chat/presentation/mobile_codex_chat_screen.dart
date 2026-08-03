@@ -5,12 +5,14 @@ import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_co
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
 import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-part 'mobile_codex_chat_toolbar.dart';
 part 'mobile_codex_chat_composer.dart';
 part 'mobile_codex_chat_timeline.dart';
+part 'mobile_codex_chat_markdown.dart';
 
 class MobileCodexChatScreen extends ConsumerStatefulWidget {
   const MobileCodexChatScreen({
@@ -29,17 +31,22 @@ class MobileCodexChatScreen extends ConsumerStatefulWidget {
 
 class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   late final TextEditingController _composer;
+  late final FocusNode _composerFocus;
+  final ScrollController _timeline = ScrollController();
   final List<Map<String, Object?>> _attachments = <Map<String, Object?>>[];
 
   @override
   void initState() {
     super.initState();
     _composer = TextEditingController();
+    _composerFocus = FocusNode();
   }
 
   @override
   void dispose() {
     _composer.dispose();
+    _composerFocus.dispose();
+    _timeline.dispose();
     super.dispose();
   }
 
@@ -63,23 +70,12 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
     MobileCodexState state,
     MobileCodexController controller,
   ) {
+    _scheduleTimelinePin();
     return Column(
       children: <Widget>[
-        _MobileCodexToolbar(
-          state: state,
-          onModel: controller.setModel,
-          onReasoning: controller.setReasoning,
-          onSpeed: controller.setSpeed,
-          onPermission: controller.setPermissionMode,
-          onPlan: controller.setPlanMode,
-          onCollaboration: controller.setCollaborationMode,
-          onInsertToken: _insertToken,
-          onCompact: controller.compact,
-          onReview: () => _review(context, controller),
-          onRename: () => _rename(context, controller, state.title),
-        ),
         Expanded(
           child: ListView(
+            controller: _timeline,
             padding: AleraTokens.contentPadding,
             children: <Widget>[
               if (state.timelineCells.isEmpty && state.pendingRequests.isEmpty)
@@ -113,14 +109,8 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                       ),
                     ],
                   ),
-              if (state.hasPlan)
-                Align(
-                  alignment: Alignment.center,
-                  child: FilledButton(
-                    onPressed: () => unawaited(controller.implementPlan()),
-                    child: const Text('Implement Plan'),
-                  ),
-                ),
+              if (state.shouldShowImplementPlan)
+                _MobilePlanPrompt(controller: controller),
             ],
           ),
         ),
@@ -153,6 +143,8 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
           ),
         _MobileComposer(
           controller: _composer,
+          focusNode: _composerFocus,
+          state: state,
           attachments: _attachments,
           busy: state.busy,
           interrupting: state.interrupting,
@@ -163,9 +155,31 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
           onSteer: () => _steer(controller),
           onStop: controller.stop,
           canAttach: controller.supportsImageUpload,
+          onModel: controller.setModel,
+          onReasoning: controller.setReasoning,
+          onSpeed: controller.setSpeed,
+          onPermission: controller.setPermissionMode,
+          onPlan: controller.setPlanMode,
+          onCollaboration: controller.setCollaborationMode,
+          onInsertToken: _insertToken,
+          onCompact: controller.compact,
+          onReview: () => _review(context, controller),
+          onRename: () => _rename(context, controller, state.title),
         ),
       ],
     );
+  }
+
+  void _scheduleTimelinePin() {
+    if (!_timeline.hasClients) return;
+    final position = _timeline.position;
+    final nearBottom =
+        position.maxScrollExtent - position.pixels <= AleraTokens.space48;
+    if (!nearBottom) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_timeline.hasClients) return;
+      _timeline.jumpTo(_timeline.position.maxScrollExtent);
+    });
   }
 
   Future<void> _send(MobileCodexController controller) async {

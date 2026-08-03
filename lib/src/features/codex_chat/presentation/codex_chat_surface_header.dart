@@ -2,47 +2,19 @@ part of 'codex_chat_surface.dart';
 
 class _CodexHeader extends StatelessWidget {
   const _CodexHeader({
-    required this.state,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
-    required this.onPermissionChanged,
-    required this.onPlanChanged,
-    required this.onCollaborationChanged,
     required this.onCompact,
     required this.onReview,
     required this.onRename,
-    required this.onInsertToken,
     required this.onToggleRawLogs,
   });
 
-  final CodexChatState state;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
-  final ValueChanged<String> onPermissionChanged;
-  final ValueChanged<bool> onPlanChanged;
-  final ValueChanged<String?> onCollaborationChanged;
   final Future<void> Function() onCompact;
   final Future<void> Function() onReview;
   final VoidCallback onRename;
-  final ValueChanged<String> onInsertToken;
   final VoidCallback onToggleRawLogs;
 
   @override
   Widget build(BuildContext context) {
-    final model = state.selectedModel ?? state.models.firstOrNull?.id;
-    final reasoningValues =
-        state.selectedModelOption?.reasoningEfforts
-            .where((value) => value.trim().isNotEmpty)
-            .toList(growable: false) ??
-        const <String>[];
-    final effectiveReasoningValues = reasoningValues.isEmpty
-        ? const <String>['low', 'medium', 'high', 'xhigh']
-        : reasoningValues;
-    final speedValues = state.selectedModelOption?.supportsFastMode == true
-        ? const <String>['normal', 'fast']
-        : const <String>['normal'];
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
@@ -53,71 +25,6 @@ class _CodexHeader extends StatelessWidget {
         runSpacing: AleraTokens.space4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: <Widget>[
-          DropdownButton<String>(
-            value: state.models.any((item) => item.id == model) ? model : null,
-            hint: const Text('Model'),
-            dropdownColor: AleraTokens.surfaceElevated,
-            underline: const SizedBox.shrink(),
-            items: <DropdownMenuItem<String>>[
-              for (final option in state.models)
-                DropdownMenuItem<String>(
-                  value: option.id,
-                  child: Text(option.label),
-                ),
-            ],
-            onChanged: onModelChanged,
-          ),
-          if (state.snapshot.contextUsed != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space4,
-              ),
-              child: Text(
-                'Context: ${state.snapshot.contextUsed}/${state.snapshot.contextLimit ?? '?'}',
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-            ),
-          _CodexCatalogButton(
-            label: 'Skills',
-            prefix: '/skill ',
-            items: state.skills,
-            onSelected: onInsertToken,
-          ),
-          _CodexCatalogButton(
-            label: 'Apps',
-            prefix: '/app ',
-            items: state.apps,
-            onSelected: onInsertToken,
-          ),
-          _CodexMentionButton(onSelected: onInsertToken),
-          _CodexChoiceButton(
-            label: 'Reasoning: ${_choiceLabel(state.reasoningEffort)}',
-            values: effectiveReasoningValues,
-            value: state.reasoningEffort,
-            onChanged: onReasoningChanged,
-          ),
-          _CodexChoiceButton(
-            label: 'Speed: ${_choiceLabel(state.speedMode)}',
-            values: speedValues,
-            value: state.speedMode,
-            onChanged: onSpeedChanged,
-          ),
-          _CodexChoiceButton(
-            label: 'Permission: ${_choiceLabel(state.permissionMode)}',
-            values: const <String>['on-request', 'never'],
-            value: state.permissionMode,
-            onChanged: onPermissionChanged,
-          ),
-          FilterChip(
-            label: const Text('Plan'),
-            selected: state.planMode,
-            onSelected: onPlanChanged,
-          ),
-          _CodexCollaborationButton(
-            modes: state.collaborationModes,
-            value: state.collaborationMode,
-            onChanged: onCollaborationChanged,
-          ),
           AleraIconButton(
             tooltip: 'Compact Context',
             icon: AleraIcons.collapseAll,

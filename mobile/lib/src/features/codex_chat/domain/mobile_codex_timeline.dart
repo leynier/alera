@@ -406,6 +406,7 @@ abstract final class MobileCodexTimelineReducer {
           next.renderedMarkdownText ?? previous.renderedMarkdownText,
       detailsText: next.detailsText ?? previous.detailsText,
       metadata: <String, Object?>{...previous.metadata, ...next.metadata},
+      isCollapsed: next.isCollapsed || previous.isCollapsed,
     );
     return result;
   }

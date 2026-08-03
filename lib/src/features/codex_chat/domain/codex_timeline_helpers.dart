@@ -45,7 +45,9 @@ List<CodexTimelineCell> _upsert(
     createdAt: result[index].createdAt,
     updatedAt: next.updatedAt,
     isStreaming: next.isStreaming,
-    isCollapsed: next.isCollapsed,
+    // Server snapshots carry the reducer's default value (false). Keep a
+    // user's local collapse choice when a later delta updates the same item.
+    isCollapsed: next.isCollapsed || result[index].isCollapsed,
     title: next.title ?? result[index].title,
     subtitle: next.subtitle ?? result[index].subtitle,
     markdownText: next.markdownText ?? result[index].markdownText,

@@ -1,12 +1,30 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileTimelineCell extends StatelessWidget {
+class _MobileTimelineCell extends StatefulWidget {
   const _MobileTimelineCell({required this.cell});
 
   final MobileCodexTimelineCell cell;
 
   @override
+  State<_MobileTimelineCell> createState() => _MobileTimelineCellState();
+}
+
+class _MobileTimelineCellState extends State<_MobileTimelineCell> {
+  late bool _collapsed =
+      widget.cell.isCollapsed || _mobileDefaultCollapsed(widget.cell);
+
+  @override
+  void didUpdateWidget(covariant _MobileTimelineCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cell.id != widget.cell.id) {
+      _collapsed =
+          widget.cell.isCollapsed || _mobileDefaultCollapsed(widget.cell);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final cell = widget.cell;
     if (cell.kind == 'turnSeparator') {
       return const Divider(height: AleraTokens.space24);
     }
@@ -19,56 +37,104 @@ class _MobileTimelineCell extends StatelessWidget {
         : cell.kind == 'diff'
         ? AleraTokens.success
         : AleraTokens.foreground;
-    return Card(
-      color: cell.isUser ? AleraTokens.surfaceVariant : AleraTokens.surface,
-      margin: const EdgeInsets.only(bottom: AleraTokens.space12),
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final collapseable =
+        cell.kind == 'reasoning' ||
+        cell.kind == 'toolCall' ||
+        cell.kind == 'command' ||
+        cell.kind == 'diff' ||
+        cell.kind == 'subAgent' ||
+        cell.kind == 'plan' ||
+        cell.kind == 'questionAnswer';
+    final body = _MobileCodexMarkdown(text: cell.displayText);
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    _mobileCellLabel(cell),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleSmall?.copyWith(color: color),
-                  ),
-                ),
-                if (cell.isStreaming)
-                  const SizedBox(
-                    width: AleraTokens.iconSm,
-                    height: AleraTokens.iconSm,
-                    child: CircularProgressIndicator(
-                      strokeWidth: AleraTokens.strokeSm,
-                    ),
-                  ),
-              ],
-            ),
-            if (cell.subtitle != null)
-              Text(cell.subtitle!, style: AleraTokens.monoStyle),
-            const SizedBox(height: AleraTokens.space6),
-            SelectableText(
-              cell.displayText,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: color),
-            ),
-            if (cell.status == 'failed')
-              Text(
-                'Codex could not complete this item.',
+            Expanded(
+              child: Text(
+                _mobileCellLabel(cell),
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                ).textTheme.titleSmall?.copyWith(color: color),
+              ),
+            ),
+            if (cell.isStreaming)
+              const SizedBox(
+                width: AleraTokens.iconSm,
+                height: AleraTokens.iconSm,
+                child: CircularProgressIndicator(
+                  strokeWidth: AleraTokens.strokeSm,
+                ),
+              ),
+            if (collapseable)
+              IconButton(
+                tooltip: _collapsed ? 'Expand Item' : 'Collapse Item',
+                onPressed: () => setState(() => _collapsed = !_collapsed),
+                icon: Icon(_collapsed ? Icons.expand_more : Icons.expand_less),
               ),
           ],
         ),
-      ),
+        if (!_collapsed) ...<Widget>[
+          if (cell.subtitle != null)
+            Text(cell.subtitle!, style: AleraTokens.monoStyle),
+          const SizedBox(height: AleraTokens.space6),
+          body,
+          if (cell.status == 'failed')
+            Text(
+              'Codex could not complete this item.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+            ),
+        ],
+      ],
+    );
+    if (cell.isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AleraTokens.chatBubbleMaxWidth,
+          ),
+          child: Card(
+            color: AleraTokens.surfaceVariant,
+            margin: const EdgeInsets.only(bottom: AleraTokens.space12),
+            child: Padding(
+              padding: const EdgeInsets.all(AleraTokens.space12),
+              child: body,
+            ),
+          ),
+        ),
+      );
+    }
+    final assistant = cell.isAssistant || cell.kind == 'progressText';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+      child: assistant
+          ? content
+          : Card(
+              color: AleraTokens.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(AleraTokens.space12),
+                child: content,
+              ),
+            ),
     );
   }
 }
+
+bool _mobileDefaultCollapsed(MobileCodexTimelineCell cell) =>
+    switch (cell.kind) {
+      'reasoning' ||
+      'toolCall' ||
+      'command' ||
+      'diff' ||
+      'subAgent' ||
+      'questionAnswer' ||
+      'plan' => true,
+      _ => false,
+    };
 
 class _MobileApprovalCard extends StatelessWidget {
   const _MobileApprovalCard({required this.request, required this.controller});
@@ -346,10 +412,68 @@ String _mobileCellLabel(MobileCodexTimelineCell cell) {
   return cell.title ?? 'Codex Activity';
 }
 
-String _mobileLabel(String value) => value
-    .split('-')
-    .map(
-      (part) =>
-          part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}',
-    )
-    .join(' ');
+class _MobilePlanPrompt extends StatelessWidget {
+  const _MobilePlanPrompt({required this.controller});
+
+  final MobileCodexController controller;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: AleraTokens.surfaceElevated,
+    child: Padding(
+      padding: const EdgeInsets.all(AleraTokens.space12),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: AleraTokens.space8,
+        runSpacing: AleraTokens.space8,
+        children: <Widget>[
+          const Text('Implement this plan?'),
+          FilledButton(
+            onPressed: () => unawaited(controller.implementPlan()),
+            child: const Text('Implement Plan'),
+          ),
+          TextButton(
+            onPressed: () => unawaited(controller.declinePlan()),
+            child: const Text('Decline'),
+          ),
+          OutlinedButton(
+            onPressed: () => unawaited(_refine(context)),
+            child: const Text('Refine Plan'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _refine(BuildContext context) async {
+    final input = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Refine Plan'),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Tell Codex what to change.',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(input.text),
+            child: const Text('Send Refinement'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (value != null && value.trim().isNotEmpty) {
+      await controller.refinePlan(value);
+    }
+  }
+}

@@ -399,6 +399,13 @@ class MobileCodexController extends _$MobileCodexController
 
   Future<void> implementPlan() => send('Implement the plan.');
 
+  Future<void> declinePlan() => send('Do not implement the plan.');
+
+  Future<void> refinePlan(String refinement) {
+    final text = refinement.trim();
+    return text.isEmpty ? Future<void>.value() : send(text);
+  }
+
   void setModel(String? model) {
     if (model == null || model.isEmpty) return;
     _update(

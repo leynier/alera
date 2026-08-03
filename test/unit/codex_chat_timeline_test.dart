@@ -345,4 +345,79 @@ void main() {
       expect(model.supportsFastMode, isTrue);
     },
   );
+
+  test('shows only the latest actionable plan after the latest user turn', () {
+    CodexChatSnapshot snapshot(Object? pendingRequests) =>
+        CodexChatSnapshot.fromJson(<String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'old-user',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Old request',
+            },
+            <String, Object?>{
+              'id': 'old-plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Old plan',
+            },
+            <String, Object?>{
+              'id': 'latest-user',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Latest request',
+            },
+            <String, Object?>{
+              'id': 'latest-plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Latest plan',
+            },
+          ],
+          'pendingRequests': pendingRequests,
+        });
+
+    expect(snapshot(const <Object?>[]).shouldShowImplementPlan, isTrue);
+    expect(
+      snapshot(<Object?>[
+        <String, Object?>{
+          'id': 5,
+          'method': 'item/tool/request_user_input',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'plan',
+                'question': 'Implement this plan?',
+              },
+            ],
+          },
+        },
+      ]).shouldShowImplementPlan,
+      isFalse,
+    );
+  });
+
+  test('preserves reasoning order and structured fast service tiers', () {
+    final model = CodexModelOption.fromJson(<String, Object?>{
+      'id': 'gpt-5.6-sol',
+      'supportedReasoningEfforts': <Object?>[
+        <String, Object?>{'reasoningEffort': 'xhigh'},
+        <String, Object?>{'reasoningEffort': 'low'},
+      ],
+      'additionalSpeedTiers': <Object?>[
+        <String, Object?>{'id': 'fast', 'displayName': 'Fast'},
+      ],
+      'serviceTiers': <Object?>[
+        <String, Object?>{
+          'id': 'priority',
+          'options': <Object?>[
+            <String, Object?>{'name': 'fast'},
+          ],
+        },
+      ],
+    });
+    expect(model.reasoningEfforts, <String>['xhigh', 'low']);
+    expect(model.supportsFastMode, isTrue);
+  });
 }

@@ -70,6 +70,58 @@ void main() {
     );
   });
 
+  test('mobile exposes only the latest actionable plan', () {
+    MobileCodexState state(Object? pendingRequests) =>
+        MobileCodexState.fromSnapshot(<String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'user-old',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Old request',
+            },
+            <String, Object?>{
+              'id': 'plan-old',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Old plan',
+            },
+            <String, Object?>{
+              'id': 'user-latest',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Latest request',
+            },
+            <String, Object?>{
+              'id': 'plan-latest',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Latest plan',
+            },
+          ],
+          'pendingRequests': pendingRequests,
+        });
+
+    expect(state(const <Object?>[]).shouldShowImplementPlan, isTrue);
+    expect(
+      state(<Object?>[
+        <String, Object?>{
+          'id': 3,
+          'method': 'item/tool/request_user_input',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'plan',
+                'question': 'Implement this plan?',
+              },
+            ],
+          },
+        },
+      ]).shouldShowImplementPlan,
+      isFalse,
+    );
+  });
+
   test(
     'mobile controller exposes catalogues, options, questions and queue actions',
     () async {
