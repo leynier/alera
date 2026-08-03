@@ -29,6 +29,8 @@ abstract final class AleraTokens {
   static const double masterDetailMinDetailWidth = 240.0;
   static const double agentCanvasListWidth = 148.0;
   static const double emptyStateMaxWidth = 520.0;
+  static const double conversationMaxWidth = 760.0;
+  static const double chatBubbleMaxWidth = 620.0;
   static const double activityLogHeight = 160.0;
   static const double imageMaxWidth = 400.0;
   static const double imageMaxHeight = 300.0;
@@ -44,6 +46,8 @@ abstract final class AleraTokens {
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double dividerExtent = 1.0;
+  static const double iconSm = space12;
+  static const double strokeSm = 2.0;
 
   static const double radiusSm = 4.0;
   static const double radiusMd = 6.0;

@@ -132,7 +132,7 @@ final class AgentProfilesProvider
   AgentProfiles create() => AgentProfiles();
 }
 
-String _$agentProfilesHash() => r'9c691a7318d661f8193afc9343c32943ab0230a5';
+String _$agentProfilesHash() => r'97a834c3626b141ff4d59d1e0e26ab764d8d4d58';
 
 abstract class _$AgentProfiles extends $AsyncNotifier<List<AgentProfile>> {
   FutureOr<List<AgentProfile>> build();

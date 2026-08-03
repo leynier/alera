@@ -23,8 +23,11 @@ abstract final class AleraTokens {
 
   /// Minimum comfortable finger tap target (Material / HIG ~48dp).
   static const double minTapTarget = space48;
+  static const double iconSm = space12;
 
   static const double emptyStateMaxWidth = 520.0;
+  static const double conversationMaxWidth = 760.0;
+  static const double chatBubbleMaxWidth = 620.0;
 
   // Control radii match desktop so ported DS widgets look identical.
   static const double radiusSm = 4.0;

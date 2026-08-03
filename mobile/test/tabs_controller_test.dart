@@ -64,6 +64,25 @@ void main() {
     },
   );
 
+  test('Closing a Codex tab removes it without terminal termination', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[
+        fakeTab(id: 'codex-1', title: 'Codex', kind: 'codex'),
+      ];
+    final container = _container(client);
+    final notifier = container.read(
+      tabsControllerProvider('host-1', 'workspace-1').notifier,
+    );
+    await container.read(
+      tabsControllerProvider('host-1', 'workspace-1').future,
+    );
+
+    await notifier.closeTab(client.tabs.single);
+
+    expect(client.calls, contains('removeTab codex-1'));
+    expect(client.calls.where((call) => call.startsWith('terminate')), isEmpty);
+  });
+
   test('Renames terminal and non-terminal tabs through the runtime', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[

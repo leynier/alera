@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/codex_chat/presentation/mobile_codex_chat_screen.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
@@ -71,6 +72,27 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           _creating = false;
         });
       }
+    }
+  }
+
+  Future<void> _createCodexTab() async {
+    if (_creating) return;
+    setState(() => _creating = true);
+    try {
+      final tabId = await ref
+          .read(
+            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+          )
+          .createCodexTab();
+      if (mounted) setState(() => _selectedTabId = tabId);
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not create Codex tab: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _creating = false);
     }
   }
 
@@ -156,7 +178,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                 title: const Text('Rename Tab'),
                 onTap: () => Navigator.of(context).pop('rename'),
               ),
-            if (tab.isTerminal)
+            if (tab.isTerminal || tab.isCodex)
               ListTile(
                 leading: const Icon(Icons.close),
                 title: const Text('Close Tab'),
@@ -172,11 +194,13 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   }
 
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
-    final terminals = tabs.where((tab) => tab.isTerminal).toList();
-    if (terminals.isEmpty) {
+    final supported = tabs
+        .where((tab) => tab.isTerminal || tab.isCodex)
+        .toList();
+    if (supported.isEmpty) {
       return null;
     }
-    for (final tab in terminals) {
+    for (final tab in supported) {
       if (tab.id == _selectedTabId) {
         return tab;
       }
@@ -184,7 +208,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (!widget.selectFallbackTab) {
       return null;
     }
-    return terminals.first;
+    return supported.first;
   }
 
   @override
@@ -251,6 +275,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   onActions: (tab) =>
                       _showTabActions(tab, canRename: canRename),
                   onCreate: _createTab,
+                  onCreateCodex: _createCodexTab,
                 ),
               )
             : null,
@@ -258,6 +283,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       body: SafeArea(
         child: switch (tabs) {
           AsyncData(value: final tabList) => switch (_selectedTab(tabList)) {
+            final WorkspaceTabSummary tab when tab.isCodex =>
+              MobileCodexChatScreen(
+                key: ValueKey<String>(tab.id),
+                hostId: widget.hostId,
+                tabId: tab.id,
+              ),
             final WorkspaceTabSummary tab => TerminalTabView(
               key: ValueKey<String>(tab.id),
               hostId: widget.hostId,
@@ -292,6 +323,7 @@ class _TabStrip extends StatelessWidget {
     required this.onClose,
     required this.onActions,
     required this.onCreate,
+    required this.onCreateCodex,
   });
 
   final List<WorkspaceTabSummary> tabs;
@@ -301,6 +333,7 @@ class _TabStrip extends StatelessWidget {
   final ValueChanged<WorkspaceTabSummary> onClose;
   final ValueChanged<WorkspaceTabSummary> onActions;
   final VoidCallback onCreate;
+  final VoidCallback onCreateCodex;
 
   @override
   Widget build(BuildContext context) {
@@ -331,8 +364,12 @@ class _TabStrip extends StatelessWidget {
                 selected: tab.id == selectedTabId,
                 // Non-terminal tabs remain disabled content surfaces, while
                 // their metadata actions stay available through long press.
-                onSelected: tab.isTerminal ? (_) => onSelect(tab) : null,
-                onDeleted: tab.isTerminal ? () => onClose(tab) : null,
+                onSelected: (tab.isTerminal || tab.isCodex)
+                    ? (_) => onSelect(tab)
+                    : null,
+                onDeleted: (tab.isTerminal || tab.isCodex)
+                    ? () => onClose(tab)
+                    : null,
                 deleteButtonTooltipMessage: 'Close Tab',
               ),
             ),
@@ -349,6 +386,11 @@ class _TabStrip extends StatelessWidget {
                     ),
                   )
                 : const Icon(Icons.add),
+          ),
+          IconButton.filledTonal(
+            tooltip: 'New Codex Tab',
+            onPressed: creating ? null : onCreateCodex,
+            icon: const Icon(Icons.forum_outlined),
           ),
         ],
       ),

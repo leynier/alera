@@ -58,6 +58,7 @@ class AgentCanvasStateMapper extends EnumMapper<AgentCanvasState> {
     }
   }
 }
+
 extension AgentCanvasStateMapperExtension on AgentCanvasState {
   String toValue() {
     AgentCanvasStateMapper.ensureInitialized();

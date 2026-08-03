@@ -40,6 +40,7 @@ const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
+const String codexChatTabCapability = 'codexChatTabV1';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);
@@ -108,6 +109,19 @@ abstract interface class MobileTerminalClient {
   Future<void> resizeTerminal(String sessionId, int cols, int rows);
   Future<void> detachTerminal(String sessionId);
   Future<void> terminateSession(String sessionId);
+}
+
+/// Additive mobile surface for the host-owned Codex app-server. Keeping this
+/// separate from the terminal fake interface lets older mobile test clients
+/// and older hosts continue to exercise terminal parity unchanged.
+abstract interface class MobileCodexClient {
+  bool get supportsCodexChat;
+  Stream<MobileRuntimeEvent> get events;
+  Future<WorkspaceTabSummary> createCodexTab(String workspaceId);
+  Future<Map<String, Object?>> codexRequest(
+    String type, [
+    Map<String, Object?> payload,
+  ]);
 }
 
 /// Workspace listing and mutation surface consumed by the workbench

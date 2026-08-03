@@ -7,7 +7,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::terminal_host::client::{ClientFrame, ClientHandle};
 use crate::terminal_host::protocol::{
-    MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
+    CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
     RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
 };
@@ -61,6 +61,117 @@ fn emulator_tab() -> WorkspaceTabRecord {
             "deviceId": "pixel-9",
         }),
     }
+}
+
+fn codex_tab() -> WorkspaceTabRecord {
+    let now = "2026-07-27T12:34:56.789Z"
+        .parse::<chrono::DateTime<Utc>>()
+        .unwrap();
+    WorkspaceTabRecord {
+        id: "codex-1".to_string(),
+        workspace_id: "workspace-1".to_string(),
+        kind: CODEX_TAB_KIND.to_string(),
+        title: "Codex".to_string(),
+        created_at: now,
+        updated_at: now,
+        payload: json!({"codexThreadId": "thread-1"}),
+    }
+}
+
+#[tokio::test]
+async fn tab_reads_hide_codex_from_clients_without_tab_support() {
+    let dir = tempfile::tempdir().unwrap();
+    let (legacy_handle, mut legacy_rx) = ClientHandle::test_channels();
+    let (modern_handle, mut modern_rx) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([
+            (1, local_client(legacy_handle)),
+            (2, local_client(modern_handle)),
+        ]),
+        HashMap::new(),
+    )
+    .await;
+    let tab = codex_tab();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(tab.clone())
+        .await
+        .unwrap();
+
+    request(
+        &mut actor,
+        1,
+        1,
+        "hello",
+        json!({"protocolVersion": PROTOCOL_VERSION, "token": "token"}),
+        &mut legacy_rx,
+    )
+    .await;
+    request(
+        &mut actor,
+        2,
+        2,
+        "hello",
+        json!({
+            "protocolVersion": PROTOCOL_VERSION,
+            "token": "token",
+            "supportedTabKinds": [CODEX_TAB_KIND],
+        }),
+        &mut modern_rx,
+    )
+    .await;
+
+    let legacy_list = request(
+        &mut actor,
+        1,
+        3,
+        "tab.list",
+        json!({"workspaceId": "workspace-1"}),
+        &mut legacy_rx,
+    )
+    .await;
+    let legacy_find = request(
+        &mut actor,
+        1,
+        4,
+        "tab.find",
+        json!({"id": "codex-1"}),
+        &mut legacy_rx,
+    )
+    .await;
+    let modern_list = request(
+        &mut actor,
+        2,
+        5,
+        "tab.list",
+        json!({"workspaceId": "workspace-1"}),
+        &mut modern_rx,
+    )
+    .await;
+    let modern_find = request(
+        &mut actor,
+        2,
+        6,
+        "tab.find",
+        json!({"id": "codex-1"}),
+        &mut modern_rx,
+    )
+    .await;
+
+    assert_eq!(legacy_list, json!([]));
+    assert_eq!(legacy_find, Value::Null);
+    assert_eq!(modern_list, json!([tab.clone()]));
+    assert_eq!(modern_find, json!(tab.clone()));
+    assert_eq!(
+        actor
+            .runtime_store
+            .find_workspace_tab("codex-1")
+            .await
+            .unwrap(),
+        Some(tab),
+        "compatibility projection must not rewrite the stored Codex tab",
+    );
 }
 
 #[tokio::test]

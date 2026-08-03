@@ -158,6 +158,20 @@ pub enum ServerCommand {
     BrowserRequestTimeout {
         correlation_id: String,
     },
+    /// A notification or server request emitted by the shared Codex process.
+    CodexMessage {
+        message: Value,
+    },
+    CodexProcessExited {
+        reason: String,
+    },
+    CodexMalformed {
+        reason: String,
+    },
+    CodexPresenceTick,
+    CodexFlush {
+        tab_id: String,
+    },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),
 }

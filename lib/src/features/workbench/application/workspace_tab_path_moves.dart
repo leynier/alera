@@ -183,6 +183,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => true,
     WorkspaceTabKind.terminal ||
+    WorkspaceTabKind.codex ||
     WorkspaceTabKind.browser ||
     WorkspaceTabKind.mobileEmulator => false,
   };
@@ -211,6 +212,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
           ? WorkspaceTabKind.pdf
           : WorkspaceTabKind.editor,
     WorkspaceTabKind.terminal ||
+    WorkspaceTabKind.codex ||
     WorkspaceTabKind.browser ||
     WorkspaceTabKind.mobileEmulator => null,
   };
