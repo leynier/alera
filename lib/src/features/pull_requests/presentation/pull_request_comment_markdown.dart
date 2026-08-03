@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
 class PullRequestCommentMarkdown extends StatelessWidget {
@@ -10,10 +12,16 @@ class PullRequestCommentMarkdown extends StatelessWidget {
     super.key,
     required this.body,
     required this.onOpenUrl,
+    this.taskListEditable = false,
+    this.taskListSaving = false,
+    this.onTaskListItemToggle,
   });
 
   final String body;
   final Future<void> Function(String url) onOpenUrl;
+  final bool taskListEditable;
+  final bool taskListSaving;
+  final Future<void> Function(int itemIndex)? onTaskListItemToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +32,15 @@ class PullRequestCommentMarkdown extends StatelessWidget {
           height: 1.4,
         ) ??
         const TextStyle(color: AleraTokens.foreground, height: 1.4);
+    final components = <MarkdownComponent>[
+      for (final component in MarkdownComponent.globalComponents)
+        if (component is! CheckBoxMd) component,
+      _PullRequestTaskCheckboxMd(
+        enabled:
+            taskListEditable && !taskListSaving && onTaskListItemToggle != null,
+        onToggle: onTaskListItemToggle,
+      ),
+    ];
     return SelectionArea(
       child: GptMarkdownTheme(
         gptThemeData: GptMarkdownThemeData(
@@ -51,6 +68,7 @@ class PullRequestCommentMarkdown extends StatelessWidget {
           child: GptMarkdown(
             body,
             style: bodyStyle,
+            components: components,
             codeBuilder: _buildCodeBlock,
             imageBuilder: buildPullRequestCommentImage,
             onLinkTap: (url, _) {
@@ -107,6 +125,47 @@ class PullRequestCommentMarkdown extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PullRequestTaskCheckboxMd extends BlockMd {
+  _PullRequestTaskCheckboxMd({required this.enabled, required this.onToggle});
+
+  final bool enabled;
+  final Future<void> Function(int itemIndex)? onToggle;
+  var _nextItemIndex = 0;
+
+  @override
+  String get expString => r"\[((?:x|X| ))\][ \t]+(\S[^\n]*?)$";
+
+  @override
+  Widget build(BuildContext context, String text, GptMarkdownConfig config) {
+    final match = exp.firstMatch(text.trim());
+    if (match == null) {
+      return const SizedBox.shrink();
+    }
+    final itemIndex = _nextItemIndex++;
+    final checked = match.group(1)!.toLowerCase() == 'x';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        AleraCheckbox(
+          value: checked,
+          enabled: enabled,
+          onChanged: (_) {
+            final callback = onToggle;
+            if (callback != null) {
+              unawaited(callback(itemIndex));
+            }
+          },
+        ),
+        const SizedBox(width: AleraTokens.space4),
+        Flexible(
+          child: MdWidget(context, match.group(2)!, false, config: config),
+        ),
+      ],
     );
   }
 }

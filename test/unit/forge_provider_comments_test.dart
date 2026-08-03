@@ -221,6 +221,65 @@ void main() {
       expect(call.optionValue('repo'), 'leynier/alera');
       expect(call.optionValue('body'), 'Ready to merge');
     });
+
+    test('updates conversation, review summary, and inline comments', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('{}'),
+        _ok('{}'),
+        _ok('{}'),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      await provider.updateReviewComment(
+        identity: _githubIdentity,
+        repoPath: '/repo',
+        number: 123,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.conversation,
+          commentId: '11',
+        ),
+        body: '- [x] exact\nline',
+      );
+      await provider.updateReviewComment(
+        identity: _githubIdentity,
+        repoPath: '/repo',
+        number: 123,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.reviewSummary,
+          commentId: '12',
+        ),
+        body: 'Summary',
+      );
+      await provider.updateReviewComment(
+        identity: _githubIdentity,
+        repoPath: '/repo',
+        number: 123,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.reviewThread,
+          commentId: '13',
+          parentId: 'thread-1',
+        ),
+        body: 'Inline',
+      );
+
+      expect(
+        runner.calls[0].arguments,
+        contains('repos/leynier/alera/issues/comments/11'),
+      );
+      expect(runner.calls[0].optionValue('method'), 'PATCH');
+      expect(
+        runner.calls[0].optionValue('raw-field'),
+        'body=- [x] exact\nline',
+      );
+      expect(
+        runner.calls[1].arguments,
+        contains('repos/leynier/alera/pulls/123/reviews/12'),
+      );
+      expect(
+        runner.calls[2].arguments,
+        contains('repos/leynier/alera/pulls/comments/13'),
+      );
+    });
   });
 
   group('AzureDevOpsForgeProvider comments', () {
@@ -282,5 +341,35 @@ void main() {
         '"commentType":1}],"status":1}',
       );
     });
+
+    test(
+      'updates a thread comment through the official comment endpoint',
+      () async {
+        final runner = FakeRecordingProcessRunner(<Object>[_ok('{}')]);
+        final provider = AzureDevOpsForgeProvider(runner);
+
+        await provider.updateReviewComment(
+          identity: _azureIdentity,
+          repoPath: '/repo',
+          number: 42,
+          locator: const ReviewCommentLocator(
+            source: ReviewCommentSource.reviewThread,
+            commentId: '2',
+            parentId: '11',
+          ),
+          body: '- [x] exact',
+        );
+
+        final call = runner.calls.single;
+        expect(call.optionValue('resource'), 'pullRequestThreadComments');
+        expect(call.optionValue('http-method'), 'PATCH');
+        expect(call.arguments, contains('threadId=11'));
+        expect(call.arguments, contains('commentId=2'));
+        expect(
+          AzureDevOpsForgeProvider.commentBodyJson('- [x] exact'),
+          '{"content":"- [x] exact"}',
+        );
+      },
+    );
   });
 }

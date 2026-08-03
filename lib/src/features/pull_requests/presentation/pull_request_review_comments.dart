@@ -4,15 +4,21 @@ class _PullRequestCommentsSection extends StatefulWidget {
   const _PullRequestCommentsSection({
     required this.comments,
     required this.canComment,
+    required this.canEditComments,
+    required this.savingCommentIds,
     required this.action,
     required this.onAddComment,
+    required this.onToggleTask,
     required this.onOpenUrl,
   });
 
   final List<ReviewComment> comments;
   final bool canComment;
+  final bool canEditComments;
+  final Set<String> savingCommentIds;
   final PullRequestAction? action;
   final Future<bool> Function(String body) onAddComment;
+  final Future<void> Function(String commentId, int itemIndex) onToggleTask;
   final Future<void> Function(String url) onOpenUrl;
 
   @override
@@ -140,6 +146,14 @@ class _PullRequestCommentsSectionState
             _ReviewCommentCard(
               comment: widget.comments[index],
               onOpenUrl: widget.onOpenUrl,
+              taskListEditable:
+                  widget.canEditComments &&
+                  widget.comments[index].locator != null,
+              taskListSaving: widget.savingCommentIds.contains(
+                widget.comments[index].id,
+              ),
+              onTaskListItemToggle: (itemIndex) =>
+                  widget.onToggleTask(widget.comments[index].id, itemIndex),
             ),
             if (index != widget.comments.length - 1)
               const SizedBox(height: AleraTokens.space8),
@@ -150,10 +164,19 @@ class _PullRequestCommentsSectionState
 }
 
 class _ReviewCommentCard extends StatelessWidget {
-  const _ReviewCommentCard({required this.comment, required this.onOpenUrl});
+  const _ReviewCommentCard({
+    required this.comment,
+    required this.onOpenUrl,
+    required this.taskListEditable,
+    required this.taskListSaving,
+    required this.onTaskListItemToggle,
+  });
 
   final ReviewComment comment;
   final Future<void> Function(String url) onOpenUrl;
+  final bool taskListEditable;
+  final bool taskListSaving;
+  final Future<void> Function(int itemIndex) onTaskListItemToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +255,9 @@ class _ReviewCommentCard extends StatelessWidget {
             PullRequestCommentMarkdown(
               body: comment.body,
               onOpenUrl: onOpenUrl,
+              taskListEditable: taskListEditable,
+              taskListSaving: taskListSaving,
+              onTaskListItemToggle: onTaskListItemToggle,
             ),
           ],
         ),
