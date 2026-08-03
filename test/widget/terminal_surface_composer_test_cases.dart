@@ -87,6 +87,10 @@ void _registerTerminalSurfaceComposerTests() {
       expect(submitted, isTrue);
       expect(factory.sessions.single.writes.map(utf8.decode).toList(), <String>[
         'Review this change',
+      ]);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(factory.sessions.single.writes.map(utf8.decode).toList(), <String>[
+        'Review this change',
         '\r',
       ]);
     } finally {

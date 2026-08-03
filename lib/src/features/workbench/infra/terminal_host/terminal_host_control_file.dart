@@ -118,6 +118,9 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsTerminalRestart: capabilities.contains(
         aleraRuntimeHostTerminalRestartCapability,
       ),
+      supportsDeferredInput: capabilities.contains(
+        aleraRuntimeHostTerminalDeferredInputCapability,
+      ),
     );
   } catch (_) {
     return null;

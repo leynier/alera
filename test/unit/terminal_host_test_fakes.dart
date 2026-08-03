@@ -38,6 +38,7 @@ final class FakeTerminalHostClient implements TerminalHostClient {
         })
       >[];
   final List<List<int>> writes = <List<int>>[];
+  final List<bool> deferredEnterFlags = <bool>[];
   final List<(String, int, int)> resizes = <(String, int, int)>[];
   final List<(String, bool)> outputPaused = <(String, bool)>[];
   final List<String> detached = <String>[];
@@ -61,6 +62,9 @@ final class FakeTerminalHostClient implements TerminalHostClient {
 
   @override
   bool get supportsTerminalRestart => true;
+
+  @override
+  bool get supportsDeferredInput => true;
 
   @override
   Stream<TerminalHostEvent> eventsForSession(String sessionId) {
@@ -122,6 +126,7 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   Future<void> write({
     required String sessionId,
     required List<int> bytes,
+    bool deferredEnter = false,
   }) async {
     if (writeErrors.isNotEmpty) {
       throw writeErrors.removeAt(0);
@@ -130,6 +135,7 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       throw error;
     }
     writes.add(List<int>.from(bytes));
+    deferredEnterFlags.add(deferredEnter);
   }
 
   @override
