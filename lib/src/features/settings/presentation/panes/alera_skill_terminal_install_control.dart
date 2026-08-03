@@ -20,7 +20,7 @@ typedef AleraSkillTerminalFollowUp =
 /// Installs a skill by running its command in a terminal dialog.
 ///
 /// The installer resolves `npx` out of the user's interactive shell, which is
-/// where it actually is, and anything it asks for has somewhere to be answered.
+/// where it actually is, and skips its confirmation prompts.
 /// There is no `View Output` here because the output is no longer something
 /// that happens offscreen and gets shown afterwards. The external Copy action
 /// remains available for users who want to run the command themselves.
@@ -79,7 +79,7 @@ class _AleraSkillTerminalInstallControlState
           title: widget.dialogTitle,
           command: widget.commandFor(_runner),
           description:
-              'The installer runs here. Answer any prompt in the terminal.',
+              'The installer runs here and skips confirmation prompts.',
         ),
       );
       // The follow-up reads providers through the wrapper's ref, which stops

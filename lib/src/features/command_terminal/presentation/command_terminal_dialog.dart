@@ -103,6 +103,7 @@ class _CommandTerminalDialogState extends State<CommandTerminalDialog> {
                 AleraCommandLine(
                   command: widget.request.command,
                   backgroundColor: AleraTokens.surfaceVariant,
+                  singleLine: true,
                   trailing: AleraIconButton(
                     tooltip: 'Copy Command',
                     icon: AleraIcons.copy,

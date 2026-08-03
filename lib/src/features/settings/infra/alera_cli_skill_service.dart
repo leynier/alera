@@ -12,12 +12,14 @@ const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraComputerUseSkillName = 'computer-use';
 const String aleraEmulatorSkillName = 'alera-emulator';
+const String aleraAgentCanvasSkillName = 'agent-canvas';
 
 enum AleraAgentSkill {
   cli(aleraCliSkillName),
   orchestration(aleraOrchestrationSkillName),
   computerUse(aleraComputerUseSkillName),
-  emulator(aleraEmulatorSkillName);
+  emulator(aleraEmulatorSkillName),
+  agentCanvas(aleraAgentCanvasSkillName);
 
   const AleraAgentSkill(this.name);
 
@@ -84,7 +86,7 @@ String _windowsAutoInstallCommand(AleraAgentSkill skill) {
 }
 
 String _installCommandFor(AleraCliSkillRunner runner, AleraAgentSkill skill) {
-  return '${runner.label} skills add $aleraCliSkillRepositoryUrl --skill ${skill.name} --global';
+  return '${runner.label} ${_skillInstallArguments(skill).join(' ')}';
 }
 
 List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
@@ -94,6 +96,7 @@ List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
   '--skill',
   skill.name,
   '--global',
+  '--yes',
 ];
 
 class AleraCliSkillInstallAttempt {

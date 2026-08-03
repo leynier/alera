@@ -21,6 +21,16 @@ void main() {
     expect(entry.groupId, 'cliSkill');
   });
 
+  test('Agent Canvas skill is searchable in the agents skill group', () {
+    final entry = agentsSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Agent Canvas Skill',
+    );
+
+    expect(entry.matches('canvas'), isTrue);
+    expect(entry.matches('decision'), isTrue);
+    expect(entry.groupId, 'cliSkill');
+  });
+
   test('Grok Build hooks are searchable in the hooks group', () {
     final entry = agentsSearchEntries.singleWhere(
       (candidate) => candidate.title == 'Grok Build Hooks',
