@@ -19,6 +19,153 @@ class _CodexPendingCard extends StatelessWidget {
   );
 }
 
+class _CodexApprovalCard extends StatelessWidget {
+  const _CodexApprovalCard({required this.request, required this.onApproval});
+
+  final CodexPendingRequest request;
+  final Future<void> Function(
+    CodexPendingRequest request, {
+    required bool accepted,
+    bool forSession,
+  })
+  onApproval;
+
+  @override
+  Widget build(BuildContext context) => _CodexRequestCard(
+    title: request.requestTitle,
+    body: request.approvalDescription,
+    actions: <Widget>[
+      TextButton(
+        onPressed: () => unawaited(onApproval(request, accepted: false)),
+        child: const Text('Decline'),
+      ),
+      FilledButton(
+        onPressed: () => unawaited(onApproval(request, accepted: true)),
+        child: const Text('Approve'),
+      ),
+      TextButton(
+        onPressed: () =>
+            unawaited(onApproval(request, accepted: true, forSession: true)),
+        child: const Text('Approve For Session'),
+      ),
+    ],
+  );
+}
+
+class _CodexQuestionCard extends StatefulWidget {
+  const _CodexQuestionCard({required this.request, required this.onQuestion});
+
+  final CodexPendingRequest request;
+  final Future<void> Function(
+    CodexPendingRequest request,
+    Map<String, List<String>> answers,
+  )
+  onQuestion;
+
+  @override
+  State<_CodexQuestionCard> createState() => _CodexQuestionCardState();
+}
+
+class _CodexQuestionCardState extends State<_CodexQuestionCard> {
+  final Map<String, TextEditingController> _answers =
+      <String, TextEditingController>{};
+  final Map<String, Set<String>> _selected = <String, Set<String>>{};
+
+  @override
+  void dispose() {
+    for (final controller in _answers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final questions = widget.request.questions;
+    return _CodexRequestCard(
+      title: widget.request.requestTitle,
+      bodyWidget: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            widget.request.isBlocking
+                ? 'Response required.'
+                : 'Response optional.',
+          ),
+          for (final question in questions) _question(context, question),
+        ],
+      ),
+      actions: <Widget>[
+        FilledButton(
+          onPressed: () => unawaited(
+            widget.onQuestion(widget.request, <String, List<String>>{
+              for (final question in questions)
+                question.id:
+                    question.isOther &&
+                        (_answers[question.id]?.text.trim().isNotEmpty ?? false)
+                    ? <String>[_answers[question.id]!.text.trim()]
+                    : _selected[question.id]
+                              ?.toList(growable: false)
+                              .isNotEmpty ==
+                          true
+                    ? _selected[question.id]!.toList(growable: false)
+                    : <String>[_answers[question.id]?.text.trim() ?? ''],
+            }),
+          ),
+          child: const Text('Submit Answers'),
+        ),
+      ],
+    );
+  }
+
+  Widget _question(BuildContext context, CodexQuestion question) {
+    final controller = _answers.putIfAbsent(
+      question.id,
+      TextEditingController.new,
+    );
+    final selected = _selected.putIfAbsent(question.id, () => <String>{});
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            question.header ?? question.question,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          if (question.header != null) Text(question.question),
+          if (question.options.isNotEmpty)
+            Wrap(
+              spacing: AleraTokens.space4,
+              runSpacing: AleraTokens.space4,
+              children: <Widget>[
+                for (final option in question.options)
+                  ChoiceChip(
+                    label: Text(option.label),
+                    selected: selected.contains(option.label),
+                    onSelected: (isSelected) => setState(() {
+                      if (!question.isMultiSelect) selected.clear();
+                      if (isSelected) {
+                        selected.add(option.label);
+                      } else {
+                        selected.remove(option.label);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          if (question.options.isEmpty || question.isOther)
+            TextField(
+              controller: controller,
+              obscureText: question.isSecret,
+              decoration: const InputDecoration(hintText: 'Your Answer'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CodexElicitationCard extends StatefulWidget {
   const _CodexElicitationCard({
     required this.request,

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'codex_timeline.dart';
 
 part 'codex_chat_state.dart';
+part 'codex_chat_models_helpers.dart';
 
 @immutable
 class CodexModelOption {
@@ -41,10 +42,11 @@ class CodexModelOption {
       defaultReasoningEffort: _string(json['defaultReasoningEffort']),
       supportsFastMode:
           json['supportsFastMode'] == true ||
-          _string(json['serviceTier']) == 'fast' ||
+          _containsFast(json['serviceTier']) ||
           _containsFast(json['additionalSpeedTiers']) ||
           _containsFast(json['serviceTiers']) ||
-          _containsFast(json['supportedServiceTiers']),
+          _containsFast(json['supportedServiceTiers']) ||
+          _containsFast(json['serviceTierOptions']),
       reasoningEfforts: _reasoningEfforts(reasoning),
       metadata: json,
     );
@@ -352,8 +354,59 @@ class CodexChatSnapshot {
   final String? title;
 
   bool get isBusy => activeTurnId != null;
-  bool get hasPlan =>
-      timelineCells.any((cell) => cell.kind == CodexTimelineKind.plan);
+
+  /// The plan prompt is a turn-local affordance. Older snapshots can retain
+  /// plans from many turns, so rendering a button for any plan makes a stale
+  /// plan actionable after the user has started a new request.
+  CodexTimelineCell? get latestActionablePlan {
+    final latestUserIndex = _latestUserIndex;
+    if (latestUserIndex < 0) return null;
+    for (
+      var index = timelineCells.length - 1;
+      index > latestUserIndex;
+      index--
+    ) {
+      final cell = timelineCells[index];
+      if (cell.kind != CodexTimelineKind.plan ||
+          cell.status == CodexTimelineStatus.failed ||
+          cell.status == CodexTimelineStatus.declined ||
+          cell.isStreaming ||
+          (cell.markdownText ?? cell.detailsText ?? '').trim().isEmpty) {
+        continue;
+      }
+      return cell;
+    }
+    return null;
+  }
+
+  /// A server question asking whether to implement a plan owns the prompt.
+  /// Showing the local fallback at the same time creates two competing
+  /// actions and can send an answer for an already resolved request.
+  bool get hasEquivalentPlanRequest => pendingRequests.any((request) {
+    if (!request.isQuestion) return false;
+    final text = <Object?>[
+      request.params['title'],
+      request.params['question'],
+      request.params['prompt'],
+      request.params['message'],
+      for (final question in request.questions) question.question,
+    ].join(' ').toLowerCase();
+    return text.contains('implement') && text.contains('plan');
+  });
+
+  bool get shouldShowImplementPlan =>
+      latestActionablePlan != null && !hasEquivalentPlanRequest;
+
+  bool get hasPlan => shouldShowImplementPlan;
+
+  int get _latestUserIndex {
+    for (var index = timelineCells.length - 1; index >= 0; index--) {
+      if (timelineCells[index].kind == CodexTimelineKind.userMessage) {
+        return index;
+      }
+    }
+    return -1;
+  }
 
   Map<String, Object?> toJson() => <String, Object?>{
     'schemaVersion': 2,
@@ -374,76 +427,4 @@ class CodexChatSnapshot {
     if (contextLimit != null) 'contextLimit': contextLimit,
     if (title != null) 'title': title,
   };
-}
-
-Map<String, Object?> _map(Object? value) {
-  if (value is Map<String, Object?>) return value;
-  if (value is Map) {
-    return value.map((key, value) => MapEntry(key.toString(), value));
-  }
-  return const <String, Object?>{};
-}
-
-String? _string(Object? value) =>
-    value is String && value.trim().isNotEmpty ? value : null;
-
-String? _nullableString(Iterable<Object?> values) {
-  final value = _firstString(values);
-  return value.isEmpty ? null : value;
-}
-
-String _firstString(Iterable<Object?> values) {
-  for (final value in values) {
-    if (value is String && value.trim().isNotEmpty) return value.trim();
-    if (value is num) return value.toString();
-  }
-  return '';
-}
-
-List<String> _reasoningEfforts(Object? value) {
-  if (value is! List) return const <String>[];
-  final result = <String>[];
-  for (final entry in value) {
-    final effort = entry is Map
-        ? (entry['reasoningEffort'] ??
-                  entry['effort'] ??
-                  entry['id'] ??
-                  entry['name'])
-              ?.toString()
-        : entry.toString();
-    if (effort != null && effort.trim().isNotEmpty) result.add(effort.trim());
-  }
-  return result;
-}
-
-int? _int(Object? value) =>
-    value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
-
-bool _containsFast(Object? value) {
-  if (value is! List) return false;
-  return value.any((item) {
-    if (item is String) return item.toLowerCase() == 'fast';
-    if (item is Map) {
-      return <Object?>[
-        item['id'],
-        item['name'],
-        item['tier'],
-        item['slug'],
-      ].whereType<String>().any((entry) => entry.toLowerCase() == 'fast');
-    }
-    return false;
-  });
-}
-
-String _legacyKind(String method, Map<String, Object?> item) {
-  final type = (item['type'] ?? '').toString().toLowerCase();
-  final lower = method.toLowerCase();
-  if (type.contains('user')) return 'user';
-  if (type.contains('agent') || type.contains('assistant')) return 'assistant';
-  if (type.contains('reason')) return 'reasoning';
-  if (type.contains('command') || lower.contains('command')) return 'command';
-  if (type.contains('tool') || lower.contains('tool')) return 'tool';
-  if (type.contains('diff') || lower.contains('diff')) return 'diff';
-  if (type.contains('plan') || lower.contains('plan')) return 'plan';
-  return 'event';
 }

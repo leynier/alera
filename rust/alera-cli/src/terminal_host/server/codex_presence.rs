@@ -85,10 +85,27 @@ fn presence_for_tab(tab: &WorkspaceTabRecord, previous: Option<&Value>) -> Optio
         .get("activeTurnId")
         .and_then(Value::as_str)
         .is_some_and(|turn| !turn.trim().is_empty());
-    let failed = cells.iter().any(|cell| {
-        cell.get("status").and_then(Value::as_str) == Some("failed")
-            || cell.get("kind").and_then(Value::as_str) == Some("systemNotice")
-                && cell.get("status").and_then(Value::as_str) == Some("failed")
+    let latest_turn = latest_turn_id(&saved, cells);
+    let latest_turn_index = latest_turn.as_deref().and_then(|turn_id| {
+        cells
+            .iter()
+            .rposition(|cell| cell.get("turnId").and_then(Value::as_str) == Some(turn_id))
+    });
+    let failed = cells.iter().enumerate().any(|(index, cell)| {
+        let belongs_to_latest = match latest_turn.as_deref() {
+            Some(turn_id) => {
+                cell.get("turnId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value == turn_id)
+                    || cell.get("turnId").is_none()
+                        && latest_turn_index.is_some_and(|last| index > last)
+            }
+            None => true,
+        };
+        belongs_to_latest
+            && (cell.get("status").and_then(Value::as_str) == Some("failed")
+                || cell.get("kind").and_then(Value::as_str) == Some("systemNotice")
+                    && cell.get("status").and_then(Value::as_str) == Some("failed"))
     });
     let interrupted = saved
         .get("events")
@@ -141,6 +158,32 @@ fn presence_for_tab(tab: &WorkspaceTabRecord, previous: Option<&Value>) -> Optio
         "lastAssistantMessage": last_assistant_message,
         "interrupted": interrupted.then_some(true),
     }))
+}
+
+fn latest_turn_id(saved: &Value, cells: &[Value]) -> Option<String> {
+    saved
+        .get("activeTurnId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            cells
+                .iter()
+                .rev()
+                .find(|cell| cell.get("kind").and_then(Value::as_str) == Some("userMessage"))
+                .and_then(|cell| cell.get("turnId"))
+                .and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .map(str::to_string)
+        })
+        .or_else(|| {
+            cells
+                .iter()
+                .rev()
+                .find_map(|cell| cell.get("turnId").and_then(Value::as_str))
+                .filter(|value| !value.trim().is_empty())
+                .map(str::to_string)
+        })
 }
 
 fn latest_cell_text(cells: &[Value], kind: &str) -> String {
@@ -223,5 +266,21 @@ mod tests {
         let second = presence_for_tab(&first, Some(&previous)).unwrap();
         assert_eq!(second["stateStartedAt"], previous["stateStartedAt"]);
         assert_eq!(second["prompt"], "Done");
+    }
+
+    #[test]
+    fn an_old_failed_turn_does_not_block_a_later_successful_turn() {
+        let current = tab(json!({
+            "timelineCells": [
+                {"kind": "userMessage", "turnId": "turn-old", "markdownText": "Old"},
+                {"kind": "systemNotice", "turnId": "turn-old", "status": "failed"},
+                {"kind": "userMessage", "turnId": "turn-new", "markdownText": "New"},
+                {"kind": "assistantMessage", "turnId": "turn-new", "status": "completed", "markdownText": "Done"}
+            ]
+        }));
+        assert_eq!(
+            presence_for_tab(&current, None).unwrap()["agentState"],
+            "done"
+        );
     }
 }

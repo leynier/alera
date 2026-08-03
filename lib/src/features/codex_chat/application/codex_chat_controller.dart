@@ -227,6 +227,16 @@ class CodexChatController extends _$CodexChatController {
 
   Future<void> implementPlan() => send('Implement the plan.');
 
+  /// Local plan fallback used when an older app-server does not send its own
+  /// implement-plan question. Keep the actions as ordinary user turns so the
+  /// server remains the source of truth for plan execution.
+  Future<void> declinePlan() => send('Do not implement the plan.');
+
+  Future<void> refinePlan(String refinement) {
+    final text = refinement.trim();
+    return text.isEmpty ? Future<void>.value() : send(text);
+  }
+
   Future<void> respondApproval(
     CodexPendingRequest request, {
     required bool accepted,

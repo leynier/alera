@@ -12,6 +12,9 @@ use super::codex_state::{
 };
 use super::ServerActor;
 
+#[path = "codex_stream_collector.rs"]
+mod codex_stream_collector;
+
 fn is_streaming_codex_message(message: &Value) -> bool {
     let method = message
         .get("method")
@@ -68,11 +71,11 @@ impl ServerActor {
             self.queue_codex_message(&tab.id, message).await;
             return;
         }
-        self.handle_codex_flush(&tab.id).await;
+        self.handle_codex_force_flush(&tab.id).await;
         self.persist_codex_messages(tab, vec![message]).await;
     }
 
-    pub(super) async fn handle_codex_flush(&mut self, tab_id: &str) {
+    pub(super) async fn handle_codex_force_flush(&mut self, tab_id: &str) {
         self.codex_flush_scheduled.remove(tab_id);
         let Some(messages) = self.codex_pending_messages.remove(tab_id) else {
             return;
@@ -91,23 +94,42 @@ impl ServerActor {
         self.persist_codex_messages(tab, messages).await;
     }
 
+    pub(super) async fn handle_codex_flush(&mut self, tab_id: &str) {
+        self.codex_flush_scheduled.remove(tab_id);
+        let Some(messages) = self.codex_pending_messages.get(tab_id) else {
+            return;
+        };
+        if !codex_stream_collector::safe_boundary(messages) {
+            let delay = codex_stream_collector::batch_delay(messages);
+            self.schedule_codex_flush(tab_id, delay);
+            return;
+        }
+        self.handle_codex_force_flush(tab_id).await;
+    }
+
+    fn schedule_codex_flush(&mut self, tab_id: &str, delay: std::time::Duration) {
+        if !self.codex_flush_scheduled.insert(tab_id.to_string()) {
+            return;
+        }
+        let inbox = self.inbox.clone();
+        let tab_id = tab_id.to_string();
+        tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            let _ = inbox.send(super::ServerCommand::CodexFlush { tab_id });
+        });
+    }
+
     async fn queue_codex_message(&mut self, tab_id: &str, message: Value) {
         let pending = self
             .codex_pending_messages
             .entry(tab_id.to_string())
             .or_default();
         pending.push(message);
-        let should_flush_now = pending.len() >= 128;
-        if self.codex_flush_scheduled.insert(tab_id.to_string()) {
-            let inbox = self.inbox.clone();
-            let tab_id = tab_id.to_string();
-            tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_millis(32)).await;
-                let _ = inbox.send(super::ServerCommand::CodexFlush { tab_id });
-            });
-        }
+        let should_flush_now = codex_stream_collector::should_force_flush(pending);
+        let delay = codex_stream_collector::batch_delay(pending);
+        self.schedule_codex_flush(tab_id, delay);
         if should_flush_now {
-            self.handle_codex_flush(tab_id).await;
+            self.handle_codex_force_flush(tab_id).await;
         }
     }
 
@@ -184,7 +206,7 @@ impl ServerActor {
             .cloned()
             .collect::<Vec<_>>();
         for tab_id in pending_ids {
-            self.handle_codex_flush(&tab_id).await;
+            self.handle_codex_force_flush(&tab_id).await;
         }
         self.codex = None;
         let workspaces = match self.runtime_store.list_all_workspaces().await {

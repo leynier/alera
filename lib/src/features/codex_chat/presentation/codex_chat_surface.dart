@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/forms/alera_composer.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
@@ -10,6 +12,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -18,6 +21,8 @@ import 'package:path/path.dart' as p;
 part 'codex_chat_surface_composer.dart';
 part 'codex_chat_surface_header.dart';
 part 'codex_chat_surface_timeline.dart';
+part 'codex_chat_surface_timeline_cells.dart';
+part 'codex_chat_surface_timeline_groups.dart';
 part 'codex_chat_surface_timeline_requests.dart';
 
 class CodexChatSurface extends ConsumerStatefulWidget {
@@ -76,17 +81,9 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           _CodexHeader(
-            state: state,
-            onModelChanged: controller.setModel,
-            onReasoningChanged: controller.setReasoning,
-            onSpeedChanged: controller.setSpeed,
-            onPermissionChanged: controller.setPermissionMode,
-            onPlanChanged: controller.setPlanMode,
-            onCollaborationChanged: controller.setCollaborationMode,
             onCompact: controller.compact,
             onReview: () => _startReview(context, controller),
             onRename: () => _rename(context, controller),
-            onInsertToken: _insertComposerToken,
             onToggleRawLogs: () => setState(() => _showRawLogs = !_showRawLogs),
           ),
           const Divider(
@@ -112,6 +109,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                     onElicitation: controller.respondElicitation,
                     onReject: controller.rejectRequest,
                     onImplementPlan: controller.implementPlan,
+                    onDeclinePlan: controller.declinePlan,
+                    onRefinePlan: controller.refinePlan,
                   ),
           ),
           if (state.error != null)
@@ -129,6 +128,16 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
             busy: state.busy,
             interrupting: state.interrupting,
             attachments: _attachments,
+            state: state,
+            onModelChanged: controller.setModel,
+            onReasoningChanged: controller.setReasoning,
+            onSpeedChanged: controller.setSpeed,
+            onPermissionChanged: controller.setPermissionMode,
+            onPlanChanged: controller.setPlanMode,
+            onCollaborationChanged: controller.setCollaborationMode,
+            onInsertToken: _insertComposerToken,
+            onCompact: controller.compact,
+            onReview: () => _startReview(context, controller),
             onSend: () => _send(controller),
             onSteer: () => _steer(controller),
             onStop: controller.stop,
