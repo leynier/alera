@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -87,6 +88,7 @@ class _WorkspaceMarkdownViewerSurfaceState
       content = _MarkdownViewerMessage(message: _messageFor(loadError));
     } else {
       content = SelectionArea(
+        contextMenuBuilder: AleraTextSelectionToolbar.selectableRegion,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AleraTokens.space24),
           child: GptMarkdownTheme(

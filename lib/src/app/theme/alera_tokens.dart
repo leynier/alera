@@ -39,6 +39,7 @@ abstract final class AleraTokens {
   // by its text: 720px fits roughly 95 columns at the mono size.
   static const double dialogTerminalWidth = 720.0;
   static const double dialogTerminalHeight = 460.0;
+  static const double contextMenuWidth = 220.0;
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double dividerExtent = 1.0;

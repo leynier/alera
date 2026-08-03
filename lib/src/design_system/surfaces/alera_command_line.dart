@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 
 /// A shell command shown verbatim, selectable, with room for the action that
@@ -37,6 +38,7 @@ class AleraCommandLine extends StatelessWidget {
           Expanded(
             child: SelectableText(
               command,
+              contextMenuBuilder: AleraTextSelectionToolbar.editableText,
               style: AleraTokens.monoStyle.copyWith(
                 color: AleraTokens.foreground,
               ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -42,6 +43,7 @@ class PullRequestCommentMarkdown extends StatelessWidget {
       ),
     ];
     return SelectionArea(
+      contextMenuBuilder: AleraTextSelectionToolbar.selectableRegion,
       child: GptMarkdownTheme(
         gptThemeData: GptMarkdownThemeData(
           brightness: Brightness.dark,
