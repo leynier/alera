@@ -287,7 +287,7 @@ class SettingsSwitchRow extends StatelessWidget {
   final String title;
   final String description;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   /// Optional control rendered before the switch (e.g., a pin toggle).
   final Widget? secondary;

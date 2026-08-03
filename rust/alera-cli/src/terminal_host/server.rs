@@ -14,6 +14,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::Mutex;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver};
@@ -59,6 +60,16 @@ mod agent_prompt_composition;
 mod ai_text_grok_plan;
 mod ai_text_requests;
 mod ai_text_workspace_identity;
+mod automation_actor;
+mod automation_catalog_requests;
+mod automation_definition_requests;
+mod automation_dispatch;
+mod automation_policy_requests;
+mod automation_request_authorization;
+mod automation_request_routes;
+mod automation_requests;
+mod automation_run_target_requests;
+mod automation_scheduler;
 mod browser_artifact_requests;
 mod browser_artifact_store;
 mod browser_broker;
@@ -193,6 +204,7 @@ pub async fn run_terminal_host_server(
     runtime_store.cleanup_agent_canvases().await?;
     runtime_store.expire_agent_canvas_decisions().await?;
     runtime_store.ensure_default_browser_profile().await?;
+    crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
             .await?;
@@ -201,6 +213,12 @@ pub async fn run_terminal_host_server(
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+    let automation_wake = Arc::new(Notify::new());
+    let automation_ticker = automation_scheduler::spawn(
+        runtime_store.clone(),
+        inbox.clone(),
+        automation_wake.clone(),
+    );
     if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
         tracing::warn!("alera agent hook receiver unavailable: {error}");
     }
@@ -225,6 +243,8 @@ pub async fn run_terminal_host_server(
         config,
         store,
         runtime_store,
+        automation_wake,
+        automations_active: false,
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
@@ -280,6 +300,12 @@ pub async fn run_terminal_host_server(
     if let Some(directory) = actor.setup_script_directory() {
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
     }
+    actor.automations_active = actor.runtime_store.has_active_automations().await?
+        || !actor
+            .runtime_store
+            .list_active_automation_runs()
+            .await?
+            .is_empty();
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -304,6 +330,8 @@ pub async fn run_terminal_host_server(
             break;
         }
     }
+    automation_ticker.abort();
+    let _ = automation_ticker.await;
     Ok(exit)
 }
 
@@ -314,6 +342,8 @@ struct ServerActor {
     config: TerminalHostConfig,
     store: TerminalHostHistoryStore,
     runtime_store: RuntimeStore,
+    automation_wake: Arc<Notify>,
+    automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
@@ -686,6 +716,7 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
+            ServerCommand::AutomationTick => self.handle_automation_tick().await,
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
@@ -1122,61 +1153,6 @@ impl ServerActor {
         });
     }
 
-    // --- Client lifecycle -------------------------------------------------
-
-    async fn dispose_client(&mut self, client_id: u64) {
-        let Some(client) = self.clients.get(&client_id) else {
-            return;
-        };
-        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
-        // Parked long-poll requests die with their connection.
-        self.orchestration_waiters.remove_client(client_id);
-        self.handle_browser_client_disconnect(client_id);
-        self.cancel_queued_emulator_requests(client_id);
-        // A vanished phone must not leave terminals locked at phone size.
-        self.release_mobile_driver_for_client(client_id);
-        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
-        for session_id in session_ids {
-            self.flush_all_output(&session_id);
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                session.detach(client_id);
-            }
-            self.immediate_checkpoint(&session_id).await;
-        }
-        // Dropping the handle ends the connection loop and closes the socket.
-        self.clients.remove(&client_id);
-        if release_emulator {
-            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
-    pub(super) async fn dispose_mobile_clients(&mut self) {
-        let client_ids = self
-            .clients
-            .iter()
-            .filter_map(|(id, client)| (client.kind == ClientKind::Mobile).then_some(*id))
-            .collect::<Vec<_>>();
-        for client_id in client_ids {
-            self.dispose_client(client_id).await;
-        }
-    }
-
-    pub(super) async fn dispose_mobile_clients_for_device(&mut self, device_id: &str) {
-        let client_ids = self
-            .clients
-            .iter()
-            .filter_map(|(id, client)| {
-                (client.kind == ClientKind::Mobile
-                    && client.mobile_device_id.as_deref() == Some(device_id))
-                .then_some(*id)
-            })
-            .collect::<Vec<_>>();
-        for client_id in client_ids {
-            self.dispose_client(client_id).await;
-        }
-    }
-
     async fn dispose(&mut self) {
         if self.disposed {
             return;
@@ -1241,6 +1217,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1323,6 +1301,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1415,6 +1395,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1502,6 +1484,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1611,6 +1595,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1693,6 +1679,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1762,6 +1750,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),

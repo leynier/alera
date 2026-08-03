@@ -93,6 +93,8 @@ pub(super) async fn test_actor(
         config: TerminalHostConfig::default(),
         store,
         runtime_store,
+        automation_wake: Arc::new(tokio::sync::Notify::new()),
+        automations_active: false,
         sessions,
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),

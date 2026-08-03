@@ -3,6 +3,7 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
+mod automation;
 mod browser;
 mod canvas;
 mod computer;
@@ -10,6 +11,7 @@ mod emulator;
 mod mobile;
 mod workspace;
 
+pub use automation::*;
 pub use browser::*;
 pub use canvas::*;
 pub use computer::*;
@@ -37,6 +39,9 @@ pub enum Command {
     /// Run the persistent runtime host sidecar.
     #[command(name = RUNTIME_HOST_COMMAND)]
     RuntimeHost(TerminalHostArgs),
+    /// Start the automation host from a native user-login entry.
+    #[command(name = "automation-host", hide = true)]
+    AutomationHost(AutomationHostArgs),
     RuntimeProxy,
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
@@ -76,6 +81,9 @@ pub enum Command {
 
     /// Publish and inspect Agent Canvas surfaces owned by terminal sessions.
     Canvas(CanvasCommand),
+
+    /// Manage runtime-local automations and their runs.
+    Automation(AutomationCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
@@ -209,6 +217,13 @@ pub struct TerminalHostArgs {
     /// Send crashes to Sentry. Off unless the user opted in.
     #[arg(long = "crash-reporting")]
     pub crash_reporting: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct AutomationHostArgs {
+    /// Runtime profile directory used by the automation host.
+    #[arg(long = "runtime-dir", value_name = "path")]
+    pub runtime_dir: String,
 }
 
 #[derive(Debug, Args, Clone)]

@@ -5,7 +5,7 @@ use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, Worktr
 
 use crate::git_cli::git_in_dir;
 mod repository_metadata;
-pub use repository_metadata::{current_branch, repository_remote_url};
+pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitWorktreeEntry {

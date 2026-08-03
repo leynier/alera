@@ -8,6 +8,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
 import 'package:alera/src/features/projects/domain/project_selection_order.dart';
+import 'package:alera/src/features/automations/presentation/automation_policy_sections.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor_loader.dart';
@@ -81,25 +82,32 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
                 ),
               ),
               detail: SingleChildScrollView(
-                child: ProjectConfigEditorLoader(
-                  project: selected,
-                  overrideConfig: overrides[selected.id],
-                  repoConfigFuture: _repoConfigFuture(selected),
-                  saveError: _saveError,
-                  saving: _saving,
-                  seedEditor: _seedEditor,
-                  updateCopyRule: _updateCopyRule,
-                  removeCopyRule: _removeCopyRule,
-                  addCopyRule: _addCopyRule,
-                  updateSetupCommand: _updateSetupCommand,
-                  removeSetupCommand: _removeSetupCommand,
-                  addSetupCommand: _addSetupCommand,
-                  onPromptAppendChanged: _setPromptAppend,
-                  saveOverride: _saveOverride,
-                  useRepoFile: overrides.containsKey(selected.id)
-                      ? () => _useRepoFile(selected)
-                      : null,
-                  onGitHostingProviderChanged: _setGitHostingProvider,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    ProjectConfigEditorLoader(
+                      project: selected,
+                      overrideConfig: overrides[selected.id],
+                      repoConfigFuture: _repoConfigFuture(selected),
+                      saveError: _saveError,
+                      saving: _saving,
+                      seedEditor: _seedEditor,
+                      updateCopyRule: _updateCopyRule,
+                      removeCopyRule: _removeCopyRule,
+                      addCopyRule: _addCopyRule,
+                      updateSetupCommand: _updateSetupCommand,
+                      removeSetupCommand: _removeSetupCommand,
+                      addSetupCommand: _addSetupCommand,
+                      onPromptAppendChanged: _setPromptAppend,
+                      saveOverride: _saveOverride,
+                      useRepoFile: overrides.containsKey(selected.id)
+                          ? () => _useRepoFile(selected)
+                          : null,
+                      onGitHostingProviderChanged: _setGitHostingProvider,
+                    ),
+                    const SizedBox(height: AleraTokens.space16),
+                    AutomationProjectPolicySection(projectId: selected.id),
+                  ],
                 ),
               ),
             );

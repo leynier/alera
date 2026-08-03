@@ -233,4 +233,89 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         outcome TEXT,
         updatedAt INTEGER NOT NULL
     );",
+    "CREATE TABLE IF NOT EXISTS automations (
+        id TEXT PRIMARY KEY,
+        slug TEXT NOT NULL,
+        state TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        dataJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        trashedAt TEXT
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS automationsSlugIdx ON automations(slug COLLATE NOCASE);",
+    "CREATE INDEX IF NOT EXISTS automationsStateIdx ON automations(state, updatedAt);",
+    "CREATE TABLE IF NOT EXISTS automationOccurrences (
+        automationId TEXT NOT NULL,
+        occurrenceKey TEXT NOT NULL,
+        scheduledAt TEXT NOT NULL,
+        claimedAt TEXT NOT NULL,
+        PRIMARY KEY(automationId, occurrenceKey)
+    );",
+    "CREATE INDEX IF NOT EXISTS automationOccurrencesScheduledIdx ON automationOccurrences(automationId, scheduledAt);",
+    "CREATE TABLE IF NOT EXISTS automationRuns (
+        id TEXT PRIMARY KEY,
+        automationId TEXT NOT NULL,
+        runNumber INTEGER NOT NULL,
+        occurrenceKey TEXT NOT NULL,
+        scheduledAt TEXT NOT NULL,
+        trigger TEXT NOT NULL,
+        status TEXT NOT NULL,
+        dataJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        finishedAt TEXT
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS automationRunsOccurrenceIdx ON automationRuns(automationId, occurrenceKey);",
+    "CREATE INDEX IF NOT EXISTS automationRunsHistoryIdx ON automationRuns(automationId, createdAt DESC);",
+    "CREATE TABLE IF NOT EXISTS automationAttempts (
+        id TEXT PRIMARY KEY,
+        runId TEXT NOT NULL,
+        attemptNumber INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        dataJson TEXT NOT NULL,
+        startedAt TEXT NOT NULL,
+        finishedAt TEXT
+    );",
+    "CREATE INDEX IF NOT EXISTS automationAttemptsRunIdx ON automationAttempts(runId, attemptNumber);",
+    "CREATE TABLE IF NOT EXISTS automationAuditEvents (
+        id TEXT PRIMARY KEY,
+        automationId TEXT,
+        runId TEXT,
+        action TEXT NOT NULL,
+        actorJson TEXT NOT NULL,
+        revision INTEGER,
+        detailsJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+    );",
+    "CREATE INDEX IF NOT EXISTS automationAuditCreatedIdx ON automationAuditEvents(createdAt DESC);",
+    "CREATE TABLE IF NOT EXISTS automationTemplates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        dataJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS automationTemplatesNameIdx ON automationTemplates(name COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS automationTags (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS automationTagsNameIdx ON automationTags(name COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS automationTagAssignments (
+        automationId TEXT NOT NULL,
+        tagId TEXT NOT NULL,
+        PRIMARY KEY(automationId, tagId)
+    );",
+    "CREATE TABLE IF NOT EXISTS automationAgentPolicies (
+        profileId TEXT PRIMARY KEY,
+        dataJson TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+    );",
+    "CREATE TABLE IF NOT EXISTS automationProjectPolicies (
+        projectId TEXT PRIMARY KEY,
+        dataJson TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+    );",
 ];
