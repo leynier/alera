@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
 import 'package:alera/src/features/codex_chat/infra/codex_chat_host_client.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -28,7 +30,15 @@ class CodexChatController extends _$CodexChatController {
       _events?.cancel();
     });
     unawaited(_load());
-    return const CodexChatState();
+    final defaults = ref.read(settingsControllerProvider).codexChat;
+    return CodexChatState(
+      selectedModel: defaults.selectedModel,
+      reasoningEffort: defaults.reasoningEffort,
+      speedMode: defaults.speedMode,
+      permissionMode: defaults.permissionMode,
+      planMode: defaults.planMode,
+      collaborationMode: defaults.planMode ? 'plan' : null,
+    );
   }
 
   Future<void> _load() async {
@@ -39,7 +49,7 @@ class CodexChatController extends _$CodexChatController {
       state = state.copyWith(
         loading: false,
         snapshot: openSnapshot,
-        selectedModel: _string(open['model']),
+        selectedModel: _string(open['model']) ?? state.selectedModel,
         error: null,
       );
       await _loadCatalogues();
@@ -225,16 +235,24 @@ class CodexChatController extends _$CodexChatController {
     }
   }
 
-  Future<void> implementPlan() => send('Implement the plan.');
+  Future<void> implementPlan() async {
+    state = state.copyWith(planMode: false, collaborationMode: null);
+    await send('Implement plan');
+  }
 
   /// Local plan fallback used when an older app-server does not send its own
   /// implement-plan question. Keep the actions as ordinary user turns so the
   /// server remains the source of truth for plan execution.
-  Future<void> declinePlan() => send('Do not implement the plan.');
+  Future<void> declinePlan() async {
+    state = state.copyWith(planMode: false, collaborationMode: null);
+    await send('Do not implement the plan.');
+  }
 
-  Future<void> refinePlan(String refinement) {
+  Future<void> refinePlan(String refinement) async {
     final text = refinement.trim();
-    return text.isEmpty ? Future<void>.value() : send(text);
+    if (text.isEmpty) return;
+    state = state.copyWith(planMode: true, collaborationMode: 'plan');
+    await send(text);
   }
 
   Future<void> respondApproval(
@@ -334,16 +352,19 @@ class CodexChatController extends _$CodexChatController {
       ),
       speedMode: option?.supportsFastMode == false ? 'normal' : state.speedMode,
     );
+    _persistSettings();
   }
 
   void setReasoning(String effort) {
     state = state.copyWith(
       reasoningEffort: _supportedEffort(state.selectedModelOption, effort),
     );
+    _persistSettings();
   }
 
   void setPermissionMode(String mode) {
     state = state.copyWith(permissionMode: mode);
+    _persistSettings();
   }
 
   void setSpeed(String mode) {
@@ -353,6 +374,7 @@ class CodexChatController extends _$CodexChatController {
           ? 'normal'
           : mode,
     );
+    _persistSettings();
   }
 
   void setPlanMode(bool enabled) {
@@ -364,6 +386,7 @@ class CodexChatController extends _$CodexChatController {
           ? null
           : state.collaborationMode,
     );
+    _persistSettings();
   }
 
   void setCollaborationMode(String? mode) {
@@ -372,6 +395,24 @@ class CodexChatController extends _$CodexChatController {
     state = state.copyWith(
       collaborationMode: normalized,
       planMode: normalized == 'plan',
+    );
+    _persistSettings();
+  }
+
+  void _persistSettings() {
+    unawaited(
+      ref
+          .read(settingsControllerProvider.notifier)
+          .updateCodexChat(
+            CodexChatSettings(
+              selectedModel: state.selectedModel,
+              reasoningEffort: state.reasoningEffort,
+              speedMode: state.speedMode,
+              permissionMode: state.permissionMode,
+              planMode: state.planMode,
+            ),
+          )
+          .catchError((_) {}),
     );
   }
 

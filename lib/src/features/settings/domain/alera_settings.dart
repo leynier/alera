@@ -396,6 +396,28 @@ class DiagnosticsSettings with DiagnosticsSettingsMappable {
       DiagnosticsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
+@MappableClass()
+class CodexChatSettings with CodexChatSettingsMappable {
+  const CodexChatSettings({
+    this.selectedModel,
+    this.reasoningEffort = 'medium',
+    this.speedMode = 'normal',
+    this.permissionMode = 'on-request',
+    this.planMode = false,
+  });
+
+  final String? selectedModel;
+  final String reasoningEffort;
+  final String speedMode;
+  final String permissionMode;
+  final bool planMode;
+
+  static const CodexChatSettings defaults = CodexChatSettings();
+
+  factory CodexChatSettings.fromJson(Map<String, Object?> json) =>
+      CodexChatSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
 @MappableClass(hook: _LegacyAgentSettingsHook())
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
@@ -405,6 +427,7 @@ class AleraSettings with AleraSettingsMappable {
     this.textActions = TextActionsSettings.defaults,
     this.editor = EditorSettings.defaults,
     this.diagnostics = DiagnosticsSettings.defaults,
+    this.codexChat = CodexChatSettings.defaults,
     required this.terminal,
     required this.keyboard,
   });
@@ -415,6 +438,7 @@ class AleraSettings with AleraSettingsMappable {
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
+  final CodexChatSettings codexChat;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
@@ -424,6 +448,7 @@ class AleraSettings with AleraSettingsMappable {
     aiTextGeneration: AiTextGenerationSettings.defaults,
     editor: EditorSettings.defaults,
     diagnostics: DiagnosticsSettings.defaults,
+    codexChat: CodexChatSettings.defaults,
     terminal: TerminalSettings.defaults,
     keyboard: KeyboardShortcutSettings.defaults,
   );

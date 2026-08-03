@@ -155,7 +155,7 @@ final class CliRegistrationControllerProvider
 }
 
 String _$cliRegistrationControllerHash() =>
-    r'a8f00df0677461afd142c12509e353770eb48e96';
+    r'31459b40048992589ee7318e646de05a37f3f019';
 
 final class CliRegistrationControllerFamily extends $Family
     with
@@ -260,7 +260,7 @@ final class SkillInstallControllerProvider
 }
 
 String _$skillInstallControllerHash() =>
-    r'ae721623caacad94e042c1ee70e5eefdacdd4570';
+    r'75493db8dba46381e06b2f7fb9d540b269640b34';
 
 final class SkillInstallControllerFamily extends $Family
     with

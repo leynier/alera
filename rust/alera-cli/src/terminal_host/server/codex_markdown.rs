@@ -43,6 +43,8 @@ pub(super) fn normalize_markdown_newlines(text: &str) -> String {
             || line.starts_with("___")
             || line.starts_with("[ ] ")
             || line.starts_with("[x] ")
+            || line.starts_with("( ) ")
+            || line.starts_with("(x) ")
             || line.split_once('.').is_some_and(|(prefix, rest)| {
                 !prefix.is_empty()
                     && prefix.chars().all(|character| character.is_ascii_digit())
@@ -56,6 +58,8 @@ pub(super) fn normalize_markdown_newlines(text: &str) -> String {
             || line.starts_with("+ ")
             || line.starts_with("[ ] ")
             || line.starts_with("[x] ")
+            || line.starts_with("( ) ")
+            || line.starts_with("(x) ")
             || line.split_once('.').is_some_and(|(prefix, rest)| {
                 !prefix.is_empty()
                     && prefix.chars().all(|character| character.is_ascii_digit())
@@ -118,7 +122,11 @@ pub(super) fn normalize_markdown_newlines(text: &str) -> String {
 }
 
 pub(super) fn render_markdown(raw: &str) -> String {
-    let mut result = normalize_markdown_newlines(raw);
+    render_remend(&normalize_markdown_newlines(raw))
+}
+
+fn render_remend(input: &str) -> String {
+    let mut result = input.to_string();
     if result.ends_with(' ') && !result.ends_with("  ") {
         result.pop();
     }

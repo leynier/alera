@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.da
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -109,7 +110,7 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                       ),
                     ],
                   ),
-              if (state.shouldShowImplementPlan)
+              if (state.planMode && state.shouldShowImplementPlan)
                 _MobilePlanPrompt(controller: controller),
             ],
           ),

@@ -100,8 +100,6 @@ impl ServerActor {
             return;
         };
         if !codex_stream_collector::safe_boundary(messages) {
-            let delay = codex_stream_collector::batch_delay(messages);
-            self.schedule_codex_flush(tab_id, delay);
             return;
         }
         self.handle_codex_force_flush(tab_id).await;

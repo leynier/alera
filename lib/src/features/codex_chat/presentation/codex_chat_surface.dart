@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
@@ -17,6 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:path/path.dart' as p;
+import 'package:url_launcher/url_launcher.dart';
 
 part 'codex_chat_surface_composer.dart';
 part 'codex_chat_surface_header.dart';
@@ -102,6 +104,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                   )
                 : _CodexTimeline(
                     snapshot: state.snapshot,
+                    planMode: state.planMode,
                     showRawLogs: _showRawLogs,
                     timeline: _timeline,
                     onApproval: controller.respondApproval,
