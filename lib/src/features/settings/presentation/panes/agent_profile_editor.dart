@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:alera/src/design_system/surfaces/alera_command_line.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
@@ -166,6 +167,8 @@ class AgentProfileEditor extends StatelessWidget {
                       controlWidth: 320,
                       child: SelectableText(
                         managedCommandPreview,
+                        contextMenuBuilder:
+                            AleraTextSelectionToolbar.editableText,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AleraTokens.foregroundMuted,
                         ),

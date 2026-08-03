@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:flutter/material.dart';
 
@@ -118,6 +119,7 @@ class _SecurityDetail extends StatelessWidget {
           Expanded(
             child: SelectableText(
               value,
+              contextMenuBuilder: AleraTextSelectionToolbar.editableText,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foreground,
                 fontFamily: 'JetBrains Mono',

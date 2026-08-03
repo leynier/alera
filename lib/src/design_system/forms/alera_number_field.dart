@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
@@ -90,6 +91,13 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
           child: TextField(
             controller: _controller,
             keyboardType: TextInputType.number,
+            contextMenuBuilder: (context, editableTextState) {
+              return AleraTextActionsScope.buildContextMenu(
+                context,
+                editableTextState,
+                textActionsEnabled: false,
+              );
+            },
             onSubmitted: (_) => _commit(),
             onEditingComplete: _commit,
             decoration: InputDecoration(suffixText: widget.suffix),

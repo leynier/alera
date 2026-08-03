@@ -43,7 +43,7 @@ void _registerTerminalSurfaceComposerTests() {
             actions: const <AleraTextActionMenuItem>[
               AleraTextActionMenuItem(id: 'concise', label: 'Make Concise'),
             ],
-            onOpen: (_, _) {},
+            onOpen: (_, _, _) {},
             onRun: (_, actionId) => selectedActionId = actionId,
             child: SizedBox.expand(child: TerminalSurface(session: session)),
           ),

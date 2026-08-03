@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -18,6 +19,7 @@ import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:code_forge/code_forge.dart' as code_forge;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/scheduler.dart';
@@ -31,6 +33,7 @@ part 'workspace_editor_focus.dart';
 part 'workspace_editor_reveal.dart';
 part 'workspace_editor_loading.dart';
 part 'workspace_editor_save.dart';
+part 'workspace_editor_text_actions.dart';
 
 class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
@@ -70,6 +73,7 @@ class _WorkspaceEditorSurfaceState
   bool _loading = true;
   bool _saving = false;
   bool _stateRefreshQueued = false;
+  Offset? _lastSecondaryTapGlobalPosition;
   int _loadRequestId = 0;
 
   @override
@@ -104,7 +108,7 @@ class _WorkspaceEditorSurfaceState
       save: _saveAutomatically,
       onError: _handleAutosaveError,
     );
-    ref.listen(
+    ref.listenManual(
       settingsControllerProvider.select((settings) => settings.editor),
       (previous, next) => _autosave.updateSettings(
         enabled: next.autosaveEnabled,
@@ -170,33 +174,38 @@ class _WorkspaceEditorSurfaceState
     } else {
       content = Stack(
         children: <Widget>[
-          code_forge.CodeForge(
-            key: ValueKey<String>(
-              workspaceEditorCodeForgeKey(
-                tabId: widget.tab.id,
-                filePath: filePath,
-                themeName: effectiveThemeName,
+          Listener(
+            onPointerDown: _captureEditorPointerDown,
+            child: code_forge.CodeForge(
+              key: ValueKey<String>(
+                workspaceEditorCodeForgeKey(
+                  tabId: widget.tab.id,
+                  filePath: filePath,
+                  themeName: effectiveThemeName,
+                ),
               ),
-            ),
-            controller: _controller,
-            undoController: _undoController,
-            findController: _findController,
-            focusNode: _focusNode,
-            autoFocus: widget.autofocus,
-            lineWrap: true,
-            enableLocalSuggestions: false,
-            enableGuideLines: true,
-            enableGutter: true,
-            enableGutterDivider: false,
-            editorTheme: editorTheme,
-            language: _languageForPath(filePath),
-            tabSize: effectiveTabSize,
-            useSpaceAsTab: true,
-            scrollbarDecoration: _scrollbarDecoration(),
-            textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontFamily: 'JetBrains Mono',
-              color: rootStyle.color ?? AleraTokens.foreground,
-              height: 1.35,
+              controller: _controller,
+              undoController: _undoController,
+              findController: _findController,
+              focusNode: _focusNode,
+              autoFocus: widget.autofocus,
+              lineWrap: true,
+              enableLocalSuggestions: false,
+              enableGuideLines: true,
+              enableGutter: true,
+              enableGutterDivider: false,
+              editorTheme: editorTheme,
+              language: _languageForPath(filePath),
+              tabSize: effectiveTabSize,
+              useSpaceAsTab: true,
+              scrollbarDecoration: _scrollbarDecoration(),
+              suggestionStyle: _editorOverlayStyle(context),
+              customContextMenuItems: _editorTextActionMenuItems(context),
+              textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontFamily: 'JetBrains Mono',
+                color: rootStyle.color ?? AleraTokens.foreground,
+                height: 1.35,
+              ),
             ),
           ),
           if (_saving)
@@ -483,13 +492,4 @@ String workspaceEditorDisplayPath({
     return p.relative(normalizedFilePath, from: workspacePath);
   }
   return filePath;
-}
-
-@visibleForTesting
-String workspaceEditorCodeForgeKey({
-  required String tabId,
-  required String filePath,
-  required String themeName,
-}) {
-  return 'workspace-editor-$tabId-$filePath-$themeName';
 }
