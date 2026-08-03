@@ -7,17 +7,26 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'codex_chat_controller.g.dart';
+part 'codex_chat_controller_helpers.dart';
+
+@Riverpod(keepAlive: false)
+RuntimeHostClient codexChatRuntimeClient(Ref ref) =>
+    ref.watch(runtimeHostClientProvider);
 
 @Riverpod(keepAlive: false)
 class CodexChatController extends _$CodexChatController {
   late final CodexChatHostClient _host;
   StreamSubscription<RuntimeHostEvent>? _events;
+  Timer? _interruptSafetyTimer;
 
   @override
   CodexChatState build(String tabId) {
-    _host = CodexChatHostClient(ref.watch(runtimeHostClientProvider));
+    _host = CodexChatHostClient(ref.watch(codexChatRuntimeClientProvider));
     _events = _host.events.listen(_onRuntimeEvent);
-    ref.onDispose(() => _events?.cancel());
+    ref.onDispose(() {
+      _interruptSafetyTimer?.cancel();
+      _events?.cancel();
+    });
     unawaited(_load());
     return const CodexChatState();
   }
@@ -57,21 +66,34 @@ class CodexChatController extends _$CodexChatController {
       // Collaboration modes are optional on older app-server builds.
     }
     try {
-      skills = _items(await _host.listSkills());
+      skills = _items(await _host.listSkills(tabId));
     } catch (_) {
       // Skills are optional on older app-server builds.
     }
     try {
-      apps = _items(await _host.listApps());
+      apps = _items(await _host.listApps(tabId));
     } catch (_) {
       // Apps are optional on older app-server builds.
     }
     if (!ref.mounted) return;
+    final selectedModel =
+        state.selectedModel ??
+        (models.where((model) => model.isDefault).firstOrNull ??
+                (models.isNotEmpty ? models.first : null))
+            ?.id;
+    final selectedOption = models
+        .where((model) => model.id == selectedModel)
+        .firstOrNull;
     state = state.copyWith(
       models: models,
       collaborationModes: modes,
       skills: skills,
       apps: apps,
+      selectedModel: selectedModel,
+      reasoningEffort: _supportedEffort(selectedOption, state.reasoningEffort),
+      speedMode: selectedOption?.supportsFastMode == false
+          ? 'normal'
+          : state.speedMode,
     );
   }
 
@@ -122,6 +144,7 @@ class CodexChatController extends _$CodexChatController {
         speedMode: state.speedMode,
         permissionMode: state.permissionMode,
         planMode: state.planMode,
+        collaborationMode: state.collaborationMode,
       );
       if (ref.mounted) {
         state = state.copyWith(sending: false);
@@ -136,12 +159,15 @@ class CodexChatController extends _$CodexChatController {
   Future<void> stop() async {
     if (state.snapshot.activeTurnId == null || state.interrupting) return;
     state = state.copyWith(interrupting: true, error: null);
+    _interruptSafetyTimer?.cancel();
+    _interruptSafetyTimer = Timer(const Duration(seconds: 2), () {
+      if (!ref.mounted) return;
+      state = state.copyWith(interrupting: false, sending: false);
+    });
     try {
       await _host.interrupt(tabId, state.snapshot.activeTurnId);
-      if (ref.mounted) {
-        state = state.copyWith(interrupting: false, sending: false);
-      }
     } catch (error) {
+      _interruptSafetyTimer?.cancel();
       if (ref.mounted) {
         state = state.copyWith(interrupting: false, error: _safeError(error));
       }
@@ -178,9 +204,18 @@ class CodexChatController extends _$CodexChatController {
     }
   }
 
-  Future<void> startReview() async {
+  Future<void> startReview({
+    String target = 'uncommittedChanges',
+    String? argument,
+    String? delivery,
+  }) async {
     try {
-      await _host.review(tabId);
+      await _host.review(
+        tabId,
+        target: target,
+        argument: argument,
+        delivery: delivery,
+      );
     } catch (error) {
       state = state.copyWith(error: _safeError(error));
     }
@@ -197,9 +232,9 @@ class CodexChatController extends _$CodexChatController {
       await _host.respond(
         request.id,
         result: <String, Object?>{
-          'decision': accepted
-              ? (forSession ? 'acceptForSession' : 'accept')
-              : 'decline',
+          'decision': accepted ? 'accept' : 'decline',
+          if (accepted && forSession)
+            'acceptSettings': <String, Object?>{'forSession': true},
         },
       );
     } catch (error) {
@@ -221,13 +256,29 @@ class CodexChatController extends _$CodexChatController {
     }
   }
 
+  Future<void> submitQuestions(
+    CodexPendingRequest request,
+    Map<String, List<String>> answers,
+  ) async {
+    await respondQuestion(request, <String, Object?>{
+      for (final entry in answers.entries) entry.key: entry.value,
+    });
+  }
+
   void setModel(String? model) {
     if (model == null || model.isEmpty) return;
-    state = state.copyWith(selectedModel: model);
+    final option = state.models.where((item) => item.id == model).firstOrNull;
+    state = state.copyWith(
+      selectedModel: model,
+      reasoningEffort: _supportedEffort(option, state.reasoningEffort),
+      speedMode: option?.supportsFastMode == false ? 'normal' : state.speedMode,
+    );
   }
 
   void setReasoning(String effort) {
-    state = state.copyWith(reasoningEffort: effort);
+    state = state.copyWith(
+      reasoningEffort: _supportedEffort(state.selectedModelOption, effort),
+    );
   }
 
   void setPermissionMode(String mode) {
@@ -235,11 +286,32 @@ class CodexChatController extends _$CodexChatController {
   }
 
   void setSpeed(String mode) {
-    state = state.copyWith(speedMode: mode);
+    state = state.copyWith(
+      speedMode:
+          mode == 'fast' && state.selectedModelOption?.supportsFastMode == false
+          ? 'normal'
+          : mode,
+    );
   }
 
   void setPlanMode(bool enabled) {
-    state = state.copyWith(planMode: enabled);
+    state = state.copyWith(
+      planMode: enabled,
+      collaborationMode: enabled
+          ? 'plan'
+          : state.collaborationMode == 'plan'
+          ? null
+          : state.collaborationMode,
+    );
+  }
+
+  void setCollaborationMode(String? mode) {
+    final normalized = mode?.trim();
+    if (normalized == null || normalized.isEmpty) return;
+    state = state.copyWith(
+      collaborationMode: normalized,
+      planMode: normalized == 'plan',
+    );
   }
 
   void removeQueuedMessage(int index) {
@@ -248,13 +320,46 @@ class CodexChatController extends _$CodexChatController {
     state = state.copyWith(queuedMessages: next);
   }
 
+  void editQueuedMessage(
+    int index, {
+    required String text,
+    List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+  }) {
+    if (index < 0 || index >= state.queuedMessages.length) return;
+    final next = <CodexQueuedMessage>[...state.queuedMessages];
+    next[index] = CodexQueuedMessage(
+      id: next[index].id,
+      text: text.trim(),
+      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
+    );
+    if (next[index].text.isEmpty && next[index].attachments.isEmpty) {
+      next.removeAt(index);
+    }
+    state = state.copyWith(queuedMessages: next);
+  }
+
+  void clearQueuedMessages() {
+    state = state.copyWith(queuedMessages: const <CodexQueuedMessage>[]);
+  }
+
   void _onRuntimeEvent(RuntimeHostEvent event) {
+    if (event.name == 'codexServerChanged') {
+      if (!ref.mounted) return;
+      final status = event.payload['status']?.toString();
+      if (status == 'error') {
+        state = state.copyWith(
+          error: _safeError(event.payload['error'] ?? 'Codex server failed.'),
+        );
+      }
+      return;
+    }
     if (event.name != 'codexThreadChanged') return;
     if (event.payload['tabId'] != tabId) return;
     final snapshot = event.payload['snapshot'];
     if (snapshot is! Map) return;
     final next = CodexChatSnapshot.fromJson(snapshot);
     if (!ref.mounted) return;
+    if (!next.isBusy) _interruptSafetyTimer?.cancel();
     state = state.copyWith(
       snapshot: next,
       sending: next.isBusy ? state.sending : false,
@@ -269,66 +374,4 @@ class CodexChatController extends _$CodexChatController {
       unawaited(_sendNow(nextMessage));
     }
   }
-}
-
-List<Map<String, Object?>> _items(Map<String, Object?> payload) {
-  final value = payload['data'] ?? payload['items'] ?? payload['apps'];
-  if (value is! List) return const <Map<String, Object?>>[];
-  return <Map<String, Object?>>[
-    for (final item in value)
-      if (item is Map) Map<String, Object?>.from(item),
-  ];
-}
-
-String? _string(Object? value) =>
-    value is String && value.trim().isNotEmpty ? value : null;
-
-String _safeError(Object error) {
-  final message = error.toString().replaceFirst('Exception: ', '').trim();
-  return message.isEmpty ? 'Codex request failed.' : message;
-}
-
-List<Map<String, Object?>> _buildInput(
-  CodexQueuedMessage message,
-  CodexChatState state,
-) {
-  final skill = _skillInput(message.text, state.skills);
-  return <Map<String, Object?>>[
-    if (skill != null) skill.$1,
-    if (message.text.isNotEmpty && skill == null)
-      <String, Object?>{'type': 'text', 'text': message.text},
-    if (skill != null && skill.$2.isNotEmpty)
-      <String, Object?>{'type': 'text', 'text': skill.$2},
-    for (final attachment in message.attachments)
-      if (attachment.isImage)
-        <String, Object?>{'type': 'localImage', 'path': attachment.path}
-      else
-        <String, Object?>{
-          'type': 'text',
-          'text': 'Attached file: ${attachment.path}',
-        },
-  ];
-}
-
-(Map<String, Object?>, String)? _skillInput(
-  String text,
-  List<Map<String, Object?>> skills,
-) {
-  final match = RegExp(
-    r'^/skill\s+([^\s]+)(?:\s+(.+))?$',
-    dotAll: true,
-  ).firstMatch(text);
-  if (match == null) return null;
-  final name = match.group(1)!;
-  for (final skill in skills) {
-    final skillName = skill['name']?.toString();
-    final path = skill['path']?.toString();
-    if (skillName == name && path != null && path.isNotEmpty) {
-      return (
-        <String, Object?>{'type': 'skill', 'name': skillName, 'path': path},
-        match.group(2)?.trim() ?? '',
-      );
-    }
-  }
-  return null;
 }

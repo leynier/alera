@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_timeline.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
@@ -15,6 +16,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:path/path.dart' as p;
 
 part 'codex_chat_surface_composer.dart';
+part 'codex_chat_surface_header.dart';
 part 'codex_chat_surface_timeline.dart';
 
 class CodexChatSurface extends ConsumerStatefulWidget {
@@ -79,8 +81,9 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
             onSpeedChanged: controller.setSpeed,
             onPermissionChanged: controller.setPermissionMode,
             onPlanChanged: controller.setPlanMode,
+            onCollaborationChanged: controller.setCollaborationMode,
             onCompact: controller.compact,
-            onReview: controller.startReview,
+            onReview: () => _startReview(context, controller),
             onRename: () => _rename(context, controller),
             onInsertToken: _insertComposerToken,
             onToggleRawLogs: () => setState(() => _showRawLogs = !_showRawLogs),
@@ -89,7 +92,9 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
           Expanded(
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
-                : state.error != null && state.snapshot.events.isEmpty
+                : state.error != null &&
+                      state.snapshot.timelineCells.isEmpty &&
+                      state.snapshot.events.isEmpty
                 ? _CodexFailure(
                     message: state.error!,
                     onRetry: controller.retry,
@@ -109,6 +114,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
             _CodexQueueBar(
               messages: state.queuedMessages,
               onRemove: controller.removeQueuedMessage,
+              onEdit: (index, message) =>
+                  _editQueued(context, controller, index, message),
             ),
           _CodexComposer(
             controller: _composer,
@@ -142,6 +149,40 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     _composer.clear();
     await controller.steer(text);
     if (mounted) _composerFocus.requestFocus();
+  }
+
+  Future<void> _editQueued(
+    BuildContext context,
+    CodexChatController controller,
+    int index,
+    CodexQueuedMessage message,
+  ) async {
+    final input = TextEditingController(text: message.text);
+    final text = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Queued Message'),
+        content: TextField(controller: input, autofocus: true, maxLines: 5),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(input.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (text != null) {
+      controller.editQueuedMessage(
+        index,
+        text: text,
+        attachments: message.attachments,
+      );
+    }
   }
 
   Future<void> _pasteText() async {
@@ -230,6 +271,90 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     input.dispose();
     if (name != null) await controller.rename(name);
   }
+
+  Future<void> _startReview(
+    BuildContext context,
+    CodexChatController controller,
+  ) async {
+    final input = TextEditingController();
+    var target = 'uncommittedChanges';
+    var delivery = 'inline';
+    final selection = await showDialog<Map<String, String?>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Start Review'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              DropdownButtonFormField<String>(
+                initialValue: target,
+                decoration: const InputDecoration(labelText: 'Target'),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: 'uncommittedChanges',
+                    child: Text('Uncommitted Changes'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'baseBranch',
+                    child: Text('Base Branch'),
+                  ),
+                  DropdownMenuItem(value: 'commit', child: Text('Commit')),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => target = value);
+                },
+              ),
+              if (target != 'uncommittedChanges')
+                TextField(
+                  controller: input,
+                  decoration: InputDecoration(
+                    labelText: switch (target) {
+                      'baseBranch' => 'Branch',
+                      'commit' => 'Commit Sha',
+                      _ => 'Instructions',
+                    },
+                  ),
+                ),
+              DropdownButtonFormField<String>(
+                initialValue: delivery,
+                decoration: const InputDecoration(labelText: 'Delivery'),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'inline', child: Text('Inline')),
+                  DropdownMenuItem(value: 'detached', child: Text('Detached')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => delivery = value);
+                },
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(<String, String?>{
+                'target': target,
+                'argument': input.text,
+                'delivery': delivery,
+              }),
+              child: const Text('Start Review'),
+            ),
+          ],
+        ),
+      ),
+    );
+    input.dispose();
+    if (selection == null || !mounted) return;
+    await controller.startReview(
+      target: selection['target'] ?? 'uncommittedChanges',
+      argument: selection['argument'],
+      delivery: selection['delivery'],
+    );
+  }
 }
 
 bool _isImagePath(String path) {
@@ -240,201 +365,4 @@ bool _isImagePath(String path) {
       lower.endsWith('.gif') ||
       lower.endsWith('.webp') ||
       lower.endsWith('.bmp');
-}
-
-class _CodexHeader extends StatelessWidget {
-  const _CodexHeader({
-    required this.state,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
-    required this.onPermissionChanged,
-    required this.onPlanChanged,
-    required this.onCompact,
-    required this.onReview,
-    required this.onRename,
-    required this.onInsertToken,
-    required this.onToggleRawLogs,
-  });
-
-  final CodexChatState state;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
-  final ValueChanged<String> onPermissionChanged;
-  final ValueChanged<bool> onPlanChanged;
-  final Future<void> Function() onCompact;
-  final Future<void> Function() onReview;
-  final VoidCallback onRename;
-  final ValueChanged<String> onInsertToken;
-  final VoidCallback onToggleRawLogs;
-
-  @override
-  Widget build(BuildContext context) {
-    final model = state.selectedModel ?? state.models.firstOrNull?.id;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space12,
-        vertical: AleraTokens.space8,
-      ),
-      child: Wrap(
-        spacing: AleraTokens.space8,
-        runSpacing: AleraTokens.space4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: <Widget>[
-          DropdownButton<String>(
-            value: state.models.any((item) => item.id == model) ? model : null,
-            hint: const Text('Model'),
-            dropdownColor: AleraTokens.surfaceElevated,
-            underline: const SizedBox.shrink(),
-            items: <DropdownMenuItem<String>>[
-              for (final option in state.models)
-                DropdownMenuItem<String>(
-                  value: option.id,
-                  child: Text(option.label),
-                ),
-            ],
-            onChanged: onModelChanged,
-          ),
-          _CodexCatalogButton(
-            label: 'Skills',
-            prefix: '/skill ',
-            items: state.skills,
-            onSelected: onInsertToken,
-          ),
-          _CodexCatalogButton(
-            label: 'Apps',
-            prefix: '/app ',
-            items: state.apps,
-            onSelected: onInsertToken,
-          ),
-          _CodexCatalogButton(
-            label: 'Mentions',
-            prefix: '@',
-            items: state.apps,
-            onSelected: onInsertToken,
-          ),
-          _CodexChoiceButton(
-            label: 'Reasoning: ${_choiceLabel(state.reasoningEffort)}',
-            values: const <String>['low', 'medium', 'high', 'xhigh'],
-            value: state.reasoningEffort,
-            onChanged: onReasoningChanged,
-          ),
-          _CodexChoiceButton(
-            label: 'Speed: ${_choiceLabel(state.speedMode)}',
-            values: const <String>['normal', 'fast'],
-            value: state.speedMode,
-            onChanged: onSpeedChanged,
-          ),
-          _CodexChoiceButton(
-            label: 'Permission: ${_choiceLabel(state.permissionMode)}',
-            values: const <String>['on-request', 'never'],
-            value: state.permissionMode,
-            onChanged: onPermissionChanged,
-          ),
-          FilterChip(
-            label: const Text('Plan'),
-            selected: state.planMode,
-            onSelected: onPlanChanged,
-          ),
-          AleraIconButton(
-            tooltip: 'Compact Context',
-            icon: AleraIcons.collapseAll,
-            onPressed: () => unawaited(onCompact()),
-          ),
-          AleraIconButton(
-            tooltip: 'Start Review',
-            icon: AleraIcons.checks,
-            onPressed: () => unawaited(onReview()),
-          ),
-          AleraIconButton(
-            tooltip: 'Rename Thread',
-            icon: AleraIcons.edit,
-            onPressed: onRename,
-          ),
-          AleraIconButton(
-            tooltip: 'Raw Logs',
-            icon: AleraIcons.file,
-            onPressed: onToggleRawLogs,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _choiceLabel(String value) {
-  return value
-      .split('-')
-      .map(
-        (part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1)}',
-      )
-      .join(' ');
-}
-
-class _CodexChoiceButton extends StatelessWidget {
-  const _CodexChoiceButton({
-    required this.label,
-    required this.values,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final List<String> values;
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      tooltip: label,
-      onSelected: onChanged,
-      itemBuilder: (context) => <PopupMenuEntry<String>>[
-        for (final item in values)
-          PopupMenuItem<String>(value: item, child: Text(_choiceLabel(item))),
-      ],
-      child: TextButton.icon(
-        onPressed: null,
-        icon: const Icon(AleraIcons.chevronDown, size: 14),
-        label: Text(label),
-      ),
-    );
-  }
-}
-
-class _CodexCatalogButton extends StatelessWidget {
-  const _CodexCatalogButton({
-    required this.label,
-    required this.prefix,
-    required this.items,
-    required this.onSelected,
-  });
-
-  final String label;
-  final String prefix;
-  final List<Map<String, Object?>> items;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      enabled: items.isNotEmpty,
-      tooltip: label,
-      onSelected: (name) => onSelected('$prefix$name'),
-      itemBuilder: (context) => <PopupMenuEntry<String>>[
-        for (final item in items)
-          if (item['name']?.toString().trim() case final String name
-              when name.isNotEmpty)
-            PopupMenuItem<String>(value: name, child: Text(name)),
-      ],
-      child: TextButton.icon(
-        onPressed: null,
-        icon: const Icon(AleraIcons.chevronDown, size: 14),
-        label: Text(label),
-      ),
-    );
-  }
 }

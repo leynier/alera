@@ -30,9 +30,11 @@ class CodexChatHostClient {
   Future<Map<String, Object?>> listCollaborationModes() =>
       request('codex.collaborationModes.list');
 
-  Future<Map<String, Object?>> listSkills() => request('codex.skills.list');
+  Future<Map<String, Object?>> listSkills(String tabId) =>
+      request('codex.skills.list', <String, Object?>{'tabId': tabId});
 
-  Future<Map<String, Object?>> listApps() => request('codex.apps.list');
+  Future<Map<String, Object?>> listApps(String tabId) =>
+      request('codex.apps.list', <String, Object?>{'tabId': tabId});
 
   Future<Map<String, Object?>> startTurn(
     String tabId,
@@ -42,6 +44,7 @@ class CodexChatHostClient {
     required String speedMode,
     required String permissionMode,
     required bool planMode,
+    String? collaborationMode,
   }) {
     return request('codex.turn.start', <String, Object?>{
       'tabId': tabId,
@@ -51,7 +54,14 @@ class CodexChatHostClient {
       'effort': reasoningEffort,
       'serviceTier': speedMode == 'fast' ? 'fast' : null,
       'approvalPolicy': permissionMode,
-      if (planMode) 'collaborationMode': <String, Object?>{'mode': 'plan'},
+      if (planMode || collaborationMode != null)
+        'collaborationMode': <String, Object?>{
+          'mode': collaborationMode ?? 'plan',
+          'settings': <String, Object?>{
+            if (model != null && model.isNotEmpty) 'model': model,
+            'reasoning_effort': reasoningEffort,
+          },
+        },
     });
   }
 
@@ -85,8 +95,27 @@ class CodexChatHostClient {
     return request('codex.thread.compact', <String, Object?>{'tabId': tabId});
   }
 
-  Future<Map<String, Object?>> review(String tabId) {
-    return request('codex.review.start', <String, Object?>{'tabId': tabId});
+  Future<Map<String, Object?>> review(
+    String tabId, {
+    String target = 'uncommittedChanges',
+    String? argument,
+    String? delivery,
+  }) {
+    final targetPayload = <String, Object?>{'type': target};
+    if (argument != null && argument.trim().isNotEmpty) {
+      final key = switch (target) {
+        'baseBranch' => 'branch',
+        'commit' => 'sha',
+        'custom' => 'instructions',
+        _ => null,
+      };
+      if (key != null) targetPayload[key] = argument.trim();
+    }
+    return request('codex.review.start', <String, Object?>{
+      'tabId': tabId,
+      'target': targetPayload,
+      if (delivery != null && delivery.isNotEmpty) 'delivery': delivery,
+    });
   }
 
   Future<void> respond(

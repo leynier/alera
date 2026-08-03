@@ -89,10 +89,15 @@ class _CodexComposer extends StatelessWidget {
 }
 
 class _CodexQueueBar extends StatelessWidget {
-  const _CodexQueueBar({required this.messages, required this.onRemove});
+  const _CodexQueueBar({
+    required this.messages,
+    required this.onRemove,
+    required this.onEdit,
+  });
 
   final List<CodexQueuedMessage> messages;
   final ValueChanged<int> onRemove;
+  final void Function(int index, CodexQueuedMessage message) onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +121,7 @@ class _CodexQueueBar extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              onPressed: () => onEdit(index, message),
               onDeleted: () => onRemove(index),
             ),
         ],

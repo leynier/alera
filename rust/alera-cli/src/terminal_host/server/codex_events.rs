@@ -81,6 +81,37 @@ impl ServerActor {
 
     pub(super) async fn handle_codex_process_exited(&mut self, reason: String) {
         self.codex = None;
+        let workspaces = match self.runtime_store.list_all_workspaces().await {
+            Ok(workspaces) => workspaces,
+            Err(error) => {
+                self.broadcast_codex_server_error(format!(
+                    "{reason} Workspace state could not be reconciled: {error}"
+                ));
+                return;
+            }
+        };
+        for workspace in workspaces {
+            let tabs = match self.runtime_store.list_workspace_tabs(&workspace.id).await {
+                Ok(tabs) => tabs,
+                Err(_) => continue,
+            };
+            for tab in tabs.into_iter().filter(is_codex_tab) {
+                let mut failed = tab;
+                let next_snapshot = super::codex_state::mark_server_failure(&mut failed, &reason);
+                if let Ok(saved) = self.runtime_store.upsert_workspace_tab(failed).await {
+                    self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+                    self.broadcast_authenticated(event(
+                        "codexThreadChanged",
+                        json!({
+                            "tabId": saved.id,
+                            "workspaceId": saved.workspace_id,
+                            "threadId": tab_thread_id(&saved),
+                            "snapshot": next_snapshot,
+                        }),
+                    ));
+                }
+            }
+        }
         self.broadcast_codex_server_error(reason);
     }
 

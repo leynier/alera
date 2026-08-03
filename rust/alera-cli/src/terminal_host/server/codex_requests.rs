@@ -1,17 +1,18 @@
 //! Host requests for Codex threads, turns, approvals, and catalogues.
 
+#[path = "codex_requests_catalogue.rs"]
+mod codex_requests_catalogue;
+
 use alera_core::runtime::WorkspaceTabRecord;
-use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
 use super::codex_app_server::CodexAppServer;
 use super::codex_state::{
-    active_turn_id, is_codex_tab, remove_pending_request, set_thread_and_snapshot, snapshot,
-    tab_thread_id,
+    active_turn_id, append_question_answer, append_user_input, is_codex_tab,
+    remove_pending_request, snapshot, tab_thread_id,
 };
 use super::requests::require_string_key;
 use super::ServerActor;
@@ -34,11 +35,8 @@ impl ServerActor {
                 self.codex_server_request("collaborationMode/list", json!({}))
                     .await
             }
-            "codex.skills.list" => {
-                self.codex_server_request("skills/list", payload.clone())
-                    .await
-            }
-            "codex.apps.list" => self.codex_server_request("app/list", payload.clone()).await,
+            "codex.skills.list" => self.list_codex_skills(payload).await,
+            "codex.apps.list" => self.list_codex_apps(payload).await,
             "codex.turn.start" => self.start_codex_turn(payload).await,
             "codex.turn.interrupt" => self.interrupt_codex_turn(payload).await,
             "codex.turn.steer" => self.steer_codex_turn(payload).await,
@@ -55,142 +53,6 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn interrupt_codex_tab_id_in_background(&self, tab_id: String) {
-        let Some(server) = self.codex.as_ref().cloned() else {
-            return;
-        };
-        let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await else {
-            return;
-        };
-        let Some(thread_id) = tab_thread_id(&tab) else {
-            return;
-        };
-        let Some(turn_id) = active_turn_id(&snapshot(&tab)) else {
-            return;
-        };
-        server.interrupt_in_background(thread_id, turn_id);
-    }
-
-    pub(super) async fn interrupt_codex_workspace_in_background(&self, workspace_id: String) {
-        let Some(server) = self.codex.as_ref().cloned() else {
-            return;
-        };
-        let Ok(tabs) = self.runtime_store.list_workspace_tabs(&workspace_id).await else {
-            return;
-        };
-        for tab in tabs.into_iter().filter(is_codex_tab) {
-            let Some(thread_id) = tab_thread_id(&tab) else {
-                continue;
-            };
-            let Some(turn_id) = active_turn_id(&snapshot(&tab)) else {
-                continue;
-            };
-            server.interrupt_in_background(thread_id, turn_id);
-        }
-    }
-
-    pub(super) async fn interrupt_codex_project_in_background(&self, project_id: String) {
-        let Ok(workspaces) = self.runtime_store.list_workspaces(&project_id).await else {
-            return;
-        };
-        for workspace in workspaces {
-            self.interrupt_codex_workspace_in_background(workspace.id)
-                .await;
-        }
-    }
-
-    async fn create_codex_tab(&mut self, payload: &Value) -> HostResult<Value> {
-        let workspace_id = require_string_key(payload, "workspaceId")?;
-        let workspace = self
-            .runtime_store
-            .find_workspace(&workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
-        let now = Utc::now();
-        let tab = WorkspaceTabRecord {
-            id: Uuid::new_v4().to_string(),
-            workspace_id: workspace.id.clone(),
-            kind: CODEX_TAB_KIND.to_string(),
-            title: "Codex".to_string(),
-            created_at: now,
-            updated_at: now,
-            payload: json!({}),
-        };
-        let tab = self
-            .runtime_store
-            .upsert_workspace_tab(tab)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_workspace_tabs_changed(Some(&workspace.id));
-        Ok(json!(tab))
-    }
-
-    async fn open_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
-        let tab_id = require_string_key(payload, "tabId")?;
-        let mut tab = self.codex_tab(&tab_id).await?;
-        let workspace = self
-            .runtime_store
-            .find_workspace(&tab.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| {
-                HostError::state(format!("Workspace not found: {}", tab.workspace_id))
-            })?;
-        let server = self.ensure_codex_server(Some(&workspace.path)).await?;
-        let existing_thread = tab_thread_id(&tab);
-        let response = if let Some(thread_id) = existing_thread.as_deref() {
-            match server
-                .request("thread/resume", json!({"threadId": thread_id}))
-                .await
-            {
-                Ok(response) => response,
-                Err(_) => {
-                    let mut params = json!({"cwd": workspace.path, "approvalPolicy": "on-request"});
-                    copy_optional(payload, &mut params, "model");
-                    server.request("thread/start", params).await?
-                }
-            }
-        } else {
-            let mut params = json!({"cwd": workspace.path, "approvalPolicy": "on-request"});
-            copy_optional(payload, &mut params, "model");
-            server.request("thread/start", params).await?
-        };
-        let thread_id = response
-            .pointer("/thread/id")
-            .or_else(|| response.get("threadId"))
-            .and_then(Value::as_str)
-            .or(existing_thread.as_deref())
-            .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?;
-        let next_snapshot = response
-            .get("snapshot")
-            .filter(|value| value.is_object())
-            .cloned()
-            .unwrap_or_else(|| snapshot(&tab));
-        set_thread_and_snapshot(&mut tab, thread_id, next_snapshot);
-        let saved = self
-            .runtime_store
-            .upsert_workspace_tab(tab)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
-        Ok(json!({
-            "tab": saved,
-            "threadId": thread_id,
-            "snapshot": snapshot(&saved),
-        }))
-    }
-
-    async fn codex_thread_snapshot(&self, payload: &Value) -> HostResult<Value> {
-        let tab_id = require_string_key(payload, "tabId")?;
-        let tab = self.codex_tab(&tab_id).await?;
-        Ok(json!({
-            "tabId": tab.id,
-            "threadId": tab_thread_id(&tab),
-            "snapshot": snapshot(&tab),
-        }))
-    }
-
     async fn start_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
         let tab = self
             .codex_tab(&require_string_key(payload, "tabId")?)
@@ -198,44 +60,33 @@ impl ServerActor {
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("Open the Codex thread before sending a message."))?;
         let input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
-        let mut params = json!({
-            "threadId": thread_id,
-            "input": input,
-            "approvalPolicy": payload.get("approvalPolicy").cloned().unwrap_or(json!("on-request")),
-        });
-        for key in [
-            "model",
-            "cwd",
-            "serviceTier",
-            "collaborationMode",
-            "reasoning",
-            "effort",
-        ] {
-            copy_optional(payload, &mut params, key);
-        }
-        if let Some(effort) = payload.pointer("/reasoning/effort") {
-            params["effort"] = effort.clone();
-        }
-        if let Some(mode) = params
-            .get("collaborationMode")
-            .and_then(|value| value.get("mode"))
+        let params = turn_params(payload, &thread_id, input.clone());
+        let result = self.codex_server_request("turn/start", params).await?;
+        let turn_id = result
+            .pointer("/turn/id")
+            .or_else(|| result.get("turnId"))
             .and_then(Value::as_str)
-        {
-            let model = params
-                .get("model")
-                .and_then(Value::as_str)
-                .unwrap_or("gpt-5.6-sol");
-            let effort = params
-                .get("effort")
-                .and_then(Value::as_str)
-                .or_else(|| params.pointer("/reasoning/effort").and_then(Value::as_str))
-                .unwrap_or("high");
-            params["collaborationMode"] = json!({
-                "mode": mode,
-                "settings": {"model": model, "reasoning_effort": effort},
-            });
-        }
-        self.codex_server_request("turn/start", params).await
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("queued-{}", Uuid::new_v4()));
+        let mut next = self.codex_tab(&tab.id).await?;
+        append_user_input(&mut next, &input, &turn_id);
+        let saved = self
+            .runtime_store
+            .upsert_workspace_tab(next)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "codexThreadChanged",
+            json!({
+                "tabId": saved.id,
+                "workspaceId": saved.workspace_id,
+                "threadId": tab_thread_id(&saved),
+                "snapshot": snapshot(&saved),
+            }),
+        ));
+        Ok(result)
     }
 
     async fn interrupt_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
@@ -291,12 +142,35 @@ impl ServerActor {
             )
             .await?;
         }
-        let saved = self
+        let mut saved = self
             .runtime_store
             .rename_workspace_tab(&tab_id, &title)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        if let Some(payload) = saved.payload.as_object_mut() {
+            payload.insert("manualTitle".to_string(), Value::Bool(true));
+            if let Some(snapshot) = payload
+                .get_mut("codexSnapshot")
+                .and_then(Value::as_object_mut)
+            {
+                snapshot.insert("title".to_string(), Value::String(title.clone()));
+            }
+        }
+        saved = self
+            .runtime_store
+            .upsert_workspace_tab(saved)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "codexThreadChanged",
+            json!({
+                "tabId": saved.id,
+                "workspaceId": saved.workspace_id,
+                "threadId": tab_thread_id(&saved),
+                "snapshot": snapshot(&saved),
+            }),
+        ));
         Ok(json!(saved))
     }
 
@@ -323,15 +197,20 @@ impl ServerActor {
             .cloned()
             .ok_or_else(|| HostError::format("Codex response requires requestId."))?;
         let server = self.ensure_codex_server(None).await?;
+        let result = payload
+            .get("result")
+            .cloned()
+            .map(normalize_codex_response_result);
         server
-            .respond(
-                id.clone(),
-                payload.get("result").cloned(),
-                payload.get("error").cloned(),
-            )
+            .respond(id.clone(), result, payload.get("error").cloned())
             .await?;
         if let Some(tab) = self.find_codex_tab_for_request(&id).await? {
             let mut next = tab;
+            append_question_answer(
+                &mut next,
+                &id,
+                payload.get("result").unwrap_or(&Value::Null),
+            );
             remove_pending_request(&mut next, &id);
             if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
                 self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
@@ -349,7 +228,11 @@ impl ServerActor {
         Ok(json!({}))
     }
 
-    async fn codex_server_request(&mut self, method: &str, params: Value) -> HostResult<Value> {
+    pub(super) async fn codex_server_request(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> HostResult<Value> {
         let server = self.ensure_codex_server(None).await?;
         let result = server.request(method, params).await;
         if let Err(error) = &result {
@@ -358,7 +241,10 @@ impl ServerActor {
         result
     }
 
-    async fn ensure_codex_server(&mut self, cwd: Option<&str>) -> HostResult<CodexAppServer> {
+    pub(super) async fn ensure_codex_server(
+        &mut self,
+        cwd: Option<&str>,
+    ) -> HostResult<CodexAppServer> {
         if let Some(server) = self.codex.as_ref() {
             return Ok(server.clone());
         }
@@ -371,7 +257,7 @@ impl ServerActor {
         Ok(server)
     }
 
-    async fn codex_tab(&self, tab_id: &str) -> HostResult<WorkspaceTabRecord> {
+    pub(super) async fn codex_tab(&self, tab_id: &str) -> HostResult<WorkspaceTabRecord> {
         let tab = self
             .runtime_store
             .find_workspace_tab(tab_id)
@@ -419,5 +305,119 @@ fn copy_optional(payload: &Value, target: &mut Value, key: &str) {
         if let Some(object) = target.as_object_mut() {
             object.insert(key.to_string(), value.clone());
         }
+    }
+}
+
+fn normalize_codex_response_result(mut result: Value) -> Value {
+    let Some(object) = result.as_object_mut() else {
+        return result;
+    };
+    if object.get("decision").and_then(Value::as_str) != Some("acceptForSession") {
+        return result;
+    }
+    object.insert("decision".to_string(), Value::String("accept".to_string()));
+    object
+        .entry("acceptSettings".to_string())
+        .or_insert_with(|| json!({"forSession": true}));
+    result
+}
+
+fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
+    let mut params = json!({
+        "threadId": thread_id,
+        "input": input,
+        "approvalPolicy": payload
+            .get("approvalPolicy")
+            .cloned()
+            .unwrap_or(json!("on-request")),
+    });
+    for key in [
+        "model",
+        "cwd",
+        "serviceTier",
+        "collaborationMode",
+        "reasoning",
+        "effort",
+    ] {
+        copy_optional(payload, &mut params, key);
+    }
+    if let Some(effort) = payload.pointer("/reasoning/effort") {
+        params["effort"] = effort.clone();
+    }
+    if let Some(mode) = params
+        .get("collaborationMode")
+        .and_then(|value| value.get("mode"))
+        .and_then(Value::as_str)
+    {
+        let model = params
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or("gpt-5.6-sol");
+        let effort = params
+            .get("effort")
+            .and_then(Value::as_str)
+            .or_else(|| params.pointer("/reasoning/effort").and_then(Value::as_str))
+            .unwrap_or("high");
+        params["collaborationMode"] = json!({
+            "mode": mode,
+            "settings": {"model": model, "reasoning_effort": effort},
+        });
+    }
+    params
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_codex_response_result, turn_params};
+    use serde_json::json;
+
+    #[test]
+    fn turn_params_maps_current_and_legacy_reasoning_inputs() {
+        let params = turn_params(
+            &json!({
+                "model": "gpt-current",
+                "reasoning": {"effort": "medium"},
+                "serviceTier": "fast",
+                "approvalPolicy": "never",
+                "collaborationMode": {"mode": "plan"},
+                "input": [{"type": "text", "text": "plan"}],
+            }),
+            "thread-1",
+            json!([{"type": "text", "text": "plan"}]),
+        );
+        assert_eq!(params["threadId"], "thread-1");
+        assert_eq!(params["effort"], "medium");
+        assert_eq!(params["serviceTier"], "fast");
+        assert_eq!(params["approvalPolicy"], "never");
+        assert_eq!(
+            params["collaborationMode"]["settings"]["model"],
+            "gpt-current"
+        );
+        assert_eq!(
+            params["collaborationMode"]["settings"]["reasoning_effort"],
+            "medium"
+        );
+    }
+
+    #[test]
+    fn turn_params_defaults_to_a_current_codex_model_for_collaboration() {
+        let params = turn_params(
+            &json!({"collaborationMode": {"mode": "plan"}}),
+            "thread-1",
+            json!([]),
+        );
+        assert_eq!(
+            params["collaborationMode"]["settings"]["model"],
+            "gpt-5.6-sol"
+        );
+    }
+
+    #[test]
+    fn normalizes_legacy_session_approval_decision() {
+        let result = normalize_codex_response_result(json!({
+            "decision": "acceptForSession"
+        }));
+        assert_eq!(result["decision"], "accept");
+        assert_eq!(result["acceptSettings"]["forSession"], true);
     }
 }
