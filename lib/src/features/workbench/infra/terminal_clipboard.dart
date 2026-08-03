@@ -2,11 +2,14 @@ import 'dart:io';
 
 import 'package:alera/src/rust/api/clipboard.dart' as native_clipboard;
 import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 abstract interface class TerminalClipboard {
   Future<String?> readText();
 
   Future<void> writeText(String text);
+
+  Future<List<String>> readFilePaths();
 
   Future<String?> saveImageAsTempFile();
 }
@@ -28,6 +31,9 @@ final class NativeTerminalClipboard implements TerminalClipboard {
   Future<void> writeText(String text) {
     return Clipboard.setData(ClipboardData(text: text));
   }
+
+  @override
+  Future<List<String>> readFilePaths() => Pasteboard.files();
 
   @override
   Future<String?> saveImageAsTempFile() {

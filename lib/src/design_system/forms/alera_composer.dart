@@ -17,6 +17,8 @@ class AleraComposer extends StatefulWidget {
     required this.textActions,
     required this.onTextActionSelected,
     this.onPaste,
+    this.attachmentBar,
+    this.hasAttachments = false,
     this.enabled = true,
     this.hintText = 'Write a prompt for this terminal',
   });
@@ -33,6 +35,8 @@ class AleraComposer extends StatefulWidget {
   /// Return `true` when the callback consumed the clipboard. Returning
   /// `false` preserves Flutter's normal text-paste behavior.
   final Future<bool> Function()? onPaste;
+  final Widget? attachmentBar;
+  final bool hasAttachments;
   final bool enabled;
   final String hintText;
 
@@ -65,7 +69,8 @@ class _AleraComposerState extends State<AleraComposer> {
   void _handleControllerChanged() => setState(() {});
 
   bool get _canSend =>
-      widget.enabled && widget.controller.text.trim().isNotEmpty;
+      widget.enabled &&
+      (widget.controller.text.trim().isNotEmpty || widget.hasAttachments);
 
   bool get _hasSelection {
     final value = widget.controller.value;
@@ -156,6 +161,7 @@ class _AleraComposerState extends State<AleraComposer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            ?widget.attachmentBar,
             CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
                 const SingleActivator(LogicalKeyboardKey.enter): _send,

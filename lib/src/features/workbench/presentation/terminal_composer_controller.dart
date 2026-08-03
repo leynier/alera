@@ -1,15 +1,63 @@
+import 'dart:collection';
+
+import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:flutter/material.dart';
 
 class TerminalComposerController extends ChangeNotifier {
   final textController = TextEditingController();
   final focusNode = FocusNode(debugLabel: 'TerminalComposer');
 
+  final List<TerminalComposerAttachment> _attachments =
+      <TerminalComposerAttachment>[];
+  late final List<TerminalComposerAttachment> attachments =
+      UnmodifiableListView<TerminalComposerAttachment>(_attachments);
   bool _visible = false;
   bool _submitting = false;
   bool _disposed = false;
+  int _nextAttachmentId = 0;
 
   bool get visible => _visible;
   bool get submitting => _submitting;
+
+  void addAttachment({
+    required TerminalComposerAttachmentKind kind,
+    required String path,
+    required String displayName,
+  }) {
+    if (_disposed) {
+      return;
+    }
+    _attachments.add(
+      TerminalComposerAttachment(
+        id: 'attachment-${_nextAttachmentId++}',
+        kind: kind,
+        path: path,
+        displayName: displayName,
+      ),
+    );
+    notifyListeners();
+  }
+
+  void removeAttachment(String id) {
+    removeAttachments(<String>[id]);
+  }
+
+  void removeAttachments(Iterable<String> ids) {
+    if (_disposed) {
+      return;
+    }
+    final removedIds = ids.toSet();
+    if (removedIds.isEmpty) {
+      return;
+    }
+    final previousLength = _attachments.length;
+    _attachments.removeWhere(
+      (attachment) => removedIds.contains(attachment.id),
+    );
+    if (_attachments.length != previousLength) {
+      notifyListeners();
+    }
+  }
 
   void toggle() => _setVisible(!_visible);
 
@@ -39,6 +87,7 @@ class TerminalComposerController extends ChangeNotifier {
       return;
     }
     _disposed = true;
+    _attachments.clear();
     textController.dispose();
     focusNode.dispose();
     super.dispose();

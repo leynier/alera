@@ -94,7 +94,7 @@ void _registerTerminalSurfaceComposerTests() {
     }
   });
 
-  testWidgets('composer pastes an image path at the current selection', (
+  testWidgets('composer pastes an image as a clickable attachment', (
     tester,
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
@@ -110,10 +110,6 @@ void _registerTerminalSurfaceComposerTests() {
       ),
     );
     await tester.enterText(find.byType(TextField), 'Review this placeholder');
-    session.composerController.textController.selection = const TextSelection(
-      baseOffset: 12,
-      extentOffset: 23,
-    );
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
 
@@ -126,9 +122,189 @@ void _registerTerminalSurfaceComposerTests() {
 
     expect(
       session.composerController.textController.text,
-      'Review this /tmp/alera-paste-\u241b.png',
+      'Review this placeholder',
     );
+    expect(session.composerController.attachments, hasLength(1));
+    expect(
+      session.composerController.attachments.single.path,
+      '/tmp/alera-paste-\x1b.png',
+    );
+    expect(find.text('alera-paste-\u241b.png'), findsOneWidget);
+    expect(clipboard.fileReads, 1);
     expect(clipboard.imageReads, 1);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'terminal-composer-attachment-open-attachment-0',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('terminal-composer-image-preview')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('terminal-composer-image-preview-close'),
+      ),
+    );
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('composer removes an image attachment before submission', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    session.composerController.addAttachment(
+      kind: TerminalComposerAttachmentKind.image,
+      path: '/tmp/remove-me.png',
+      displayName: 'remove-me.png',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TerminalComposer(session: session)),
+      ),
+    );
+
+    expect(find.text('remove-me.png'), findsOneWidget);
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'terminal-composer-attachment-remove-attachment-0',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(session.composerController.attachments, isEmpty);
+    expect(find.text('remove-me.png'), findsNothing);
+  });
+
+  testWidgets('composer submits text and attachments then clears both', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    session.composerController.addAttachment(
+      kind: TerminalComposerAttachmentKind.image,
+      path: '/tmp/review.png',
+      displayName: 'review.png',
+    );
+    session.composerController.addAttachment(
+      kind: TerminalComposerAttachmentKind.file,
+      path: '/tmp/report.pdf',
+      displayName: 'report.pdf',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TerminalComposer(session: session)),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Review this change');
+    await tester.tap(
+      find.byKey(const ValueKey<String>('composer-send-button')),
+    );
+    await tester.pump();
+
+    expect(session.submittedTexts, <String>[
+      'Review this change\n\n'
+          'Attached images:\n/tmp/review.png\n'
+          'Attached files:\n/tmp/report.pdf',
+    ]);
+    expect(session.composerController.textController.text, isEmpty);
+    expect(session.composerController.attachments, isEmpty);
+  });
+
+  testWidgets('composer submits an attachment without prompt text', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    session.composerController.addAttachment(
+      kind: TerminalComposerAttachmentKind.image,
+      path: '/tmp/image-only.png',
+      displayName: 'image-only.png',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TerminalComposer(session: session)),
+      ),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('composer-send-button')),
+    );
+    await tester.pump();
+
+    expect(session.submittedTexts, <String>[
+      'Attached images:\n/tmp/image-only.png',
+    ]);
+    expect(session.composerController.attachments, isEmpty);
+  });
+
+  testWidgets('composer pastes copied files and opens file attachments', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    final clipboard = _FakeComposerClipboard(
+      text: '/tmp/report.pdf',
+      filePaths: const <String>['/tmp/photo.webp', '/tmp/report.pdf'],
+    );
+    final launcher = _FakeExternalUriLauncher();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalComposer(
+            session: session,
+            clipboard: clipboard,
+            externalUriLauncher: launcher,
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Review these files');
+    final focusContext = tester.binding.focusManager.primaryFocus?.context;
+    expect(focusContext, isNotNull);
+
+    Actions.invoke(
+      focusContext!,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      session.composerController.textController.text,
+      'Review these files',
+    );
+    expect(session.composerController.attachments, hasLength(2));
+    expect(
+      session.composerController.attachments.map((item) => item.kind),
+      <TerminalComposerAttachmentKind>[
+        TerminalComposerAttachmentKind.image,
+        TerminalComposerAttachmentKind.file,
+      ],
+    );
+    expect(find.text('photo.webp'), findsOneWidget);
+    expect(find.text('report.pdf'), findsOneWidget);
+    expect(clipboard.fileReads, 1);
+    expect(clipboard.imageReads, 0);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'terminal-composer-attachment-open-attachment-1',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(launcher.openedUris, <Uri>[Uri.file('/tmp/report.pdf')]);
   });
 
   testWidgets('composer preserves native text paste without probing images', (
@@ -174,16 +350,29 @@ void _registerTerminalSurfaceComposerTests() {
       session.composerController.textController.text,
       'Before clipboard text',
     );
+    expect(clipboard.fileReads, 1);
     expect(clipboard.imageReads, 0);
   });
 }
 
 final class _FakeComposerClipboard implements TerminalClipboard {
-  _FakeComposerClipboard({this.text, this.imagePath});
+  _FakeComposerClipboard({
+    this.text,
+    this.imagePath,
+    this.filePaths = const <String>[],
+  });
 
   final String? text;
   final String? imagePath;
+  final List<String> filePaths;
+  int fileReads = 0;
   int imageReads = 0;
+
+  @override
+  Future<List<String>> readFilePaths() async {
+    fileReads += 1;
+    return filePaths;
+  }
 
   @override
   Future<String?> readText() async => text;
