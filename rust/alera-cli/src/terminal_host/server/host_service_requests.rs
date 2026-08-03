@@ -182,7 +182,7 @@ impl ServerActor {
         let skill_name = required_non_blank(payload, "skill")?;
         let runner_name = required_non_blank(payload, "runner")?;
         let skill = SkillKind::parse(&skill_name).ok_or_else(|| {
-            HostError::format("skill must be cli, computer-use, emulator, or orchestration.")
+            HostError::format("skill must be cli, emulator, orchestration, or agent-canvas.")
         })?;
         let runner = SkillRunner::parse(&runner_name)
             .ok_or_else(|| HostError::format("runner must be auto, npx, or bunx."))?;

@@ -11,6 +11,7 @@ const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
+const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
     'mobileCloudEnrollmentV1';

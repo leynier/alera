@@ -52,6 +52,7 @@ mod account_requests;
 mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
+mod agent_canvas_requests;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
@@ -197,6 +198,8 @@ pub async fn run_terminal_host_server(
     prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    runtime_store.cleanup_agent_canvases().await?;
+    runtime_store.expire_agent_canvas_decisions().await?;
     runtime_store.ensure_default_browser_profile().await?;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())

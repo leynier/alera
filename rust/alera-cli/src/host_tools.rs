@@ -123,6 +123,7 @@ pub(crate) enum SkillKind {
     ComputerUse,
     Emulator,
     Orchestration,
+    AgentCanvas,
 }
 
 impl SkillKind {
@@ -132,6 +133,7 @@ impl SkillKind {
             "computer-use" => Some(Self::ComputerUse),
             "emulator" => Some(Self::Emulator),
             "orchestration" => Some(Self::Orchestration),
+            "agent-canvas" | "canvas" => Some(Self::AgentCanvas),
             _ => None,
         }
     }
@@ -142,6 +144,7 @@ impl SkillKind {
             Self::ComputerUse => "computer-use",
             Self::Emulator => "alera-emulator",
             Self::Orchestration => "alera-orchestration",
+            Self::AgentCanvas => "alera-agent-canvas",
         }
     }
 }
