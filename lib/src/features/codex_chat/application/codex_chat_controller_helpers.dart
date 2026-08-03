@@ -33,6 +33,9 @@ String _safeError(Object error) {
   return message.isEmpty ? 'Codex request failed.' : message;
 }
 
+String _newClientMessageId() =>
+    'alera-${DateTime.now().toUtc().microsecondsSinceEpoch}';
+
 List<Map<String, Object?>> _buildInput(
   CodexQueuedMessage message,
   CodexChatState state,
@@ -42,15 +45,17 @@ List<Map<String, Object?>> _buildInput(
   return <Map<String, Object?>>[
     if (skill != null) skill.$1,
     if (app != null) app.$1,
+    if (skill != null) <String, Object?>{'type': 'text', 'text': skill.$2},
+    if (app != null) <String, Object?>{'type': 'text', 'text': app.$2},
     if (message.text.isNotEmpty && skill == null && app == null)
       <String, Object?>{'type': 'text', 'text': message.text},
-    if (skill != null && skill.$2.isNotEmpty)
-      <String, Object?>{'type': 'text', 'text': skill.$2},
-    if (app != null && app.$2.isNotEmpty)
-      <String, Object?>{'type': 'text', 'text': app.$2},
     for (final attachment in message.attachments)
       if (attachment.isImage)
-        <String, Object?>{'type': 'localImage', 'path': attachment.path}
+        <String, Object?>{
+          'type': 'localImage',
+          'path': attachment.path,
+          if (attachment.detail != null) 'detail': attachment.detail,
+        }
       else
         <String, Object?>{
           'type': 'mention',
@@ -72,15 +77,20 @@ List<Map<String, Object?>> _buildInput(
   if (match == null) return null;
   final name = match.group(1)!;
   for (final app in apps) {
-    if (app['name']?.toString() != name) continue;
+    final slug = _catalogName(app);
+    final matches = <String?>[
+      app['name']?.toString(),
+      app['slug']?.toString(),
+      app['id']?.toString(),
+      app['appId']?.toString(),
+      app['connectorId']?.toString(),
+    ].contains(name);
+    if (!matches || slug.isEmpty) continue;
+    final connector = _appConnectorPath(app);
+    if (connector == null) continue;
     return (
-      <String, Object?>{
-        'type': 'app',
-        'name': name,
-        if (app['path']?.toString().isNotEmpty == true)
-          'path': app['path'].toString(),
-      },
-      match.group(2)?.trim() ?? '',
+      <String, Object?>{'type': 'mention', 'name': slug, 'path': connector},
+      _wireCatalogText(slug, match.group(2)),
     );
   }
   return null;
@@ -118,14 +128,72 @@ String _basename(String path) {
   if (match == null) return null;
   final name = match.group(1)!;
   for (final skill in skills) {
-    final skillName = skill['name']?.toString();
+    final skillName = _catalogName(skill);
     final path = skill['path']?.toString();
     if (skillName == name && path != null && path.isNotEmpty) {
       return (
         <String, Object?>{'type': 'skill', 'name': skillName, 'path': path},
-        match.group(2)?.trim() ?? '',
+        _wireCatalogText(skillName, match.group(2)),
       );
     }
   }
   return null;
+}
+
+String _catalogName(Map<String, Object?> item) => _firstNonEmpty(<Object?>[
+  item['slug'],
+  item['name'],
+  item['id'],
+  item['appId'],
+]);
+
+String? _appConnectorPath(Map<String, Object?> app) {
+  final path = app['path']?.toString();
+  if (path != null && path.startsWith('app://')) return path;
+  final connector = _firstNonEmpty(<Object?>[
+    app['connectorId'],
+    app['connector_id'],
+    app['appId'],
+    app['id'],
+  ]);
+  return connector.isEmpty ? null : 'app://$connector';
+}
+
+String _wireCatalogText(String name, String? remainder) {
+  final suffix = remainder?.trim() ?? '';
+  return suffix.isEmpty ? '\$$name' : '\$$name $suffix';
+}
+
+String _firstNonEmpty(Iterable<Object?> values) {
+  for (final value in values) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return '';
+}
+
+Map<String, Object?> _permissionSubset(Object? value) {
+  if (value is! Map) return const <String, Object?>{};
+  final source = Map<String, Object?>.from(value);
+  final result = <String, Object?>{};
+  final fileSystem = _permissionObject(source['fileSystem'], const <String>[
+    'entries',
+    'globScanMaxDepth',
+    'read',
+    'write',
+  ]);
+  final network = _permissionObject(source['network'], const <String>[
+    'enabled',
+  ]);
+  if (fileSystem.isNotEmpty) result['fileSystem'] = fileSystem;
+  if (network.isNotEmpty) result['network'] = network;
+  return result;
+}
+
+Map<String, Object?> _permissionObject(Object? value, List<String> keys) {
+  if (value is! Map) return const <String, Object?>{};
+  final source = Map<String, Object?>.from(value);
+  return <String, Object?>{
+    for (final key in keys)
+      if (source.containsKey(key)) key: source[key],
+  };
 }

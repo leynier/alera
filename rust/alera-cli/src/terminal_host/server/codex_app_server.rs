@@ -24,6 +24,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::ServerCommand;
 
 const CODEX_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
+const CODEX_OVERLOAD_RETRIES: usize = 3;
 
 type PendingRequests = Arc<Mutex<HashMap<i64, oneshot::Sender<HostResult<Value>>>>>;
 
@@ -45,7 +46,7 @@ impl CodexAppServer {
             .arg("app-server")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .kill_on_drop(true);
         if let Some(cwd) = cwd.filter(|value| !value.trim().is_empty()) {
             command.current_dir(cwd);
@@ -63,6 +64,10 @@ impl CodexAppServer {
             .stdout
             .take()
             .ok_or_else(|| HostError::state("Codex app-server did not expose an output stream."))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| HostError::state("Codex app-server did not expose an error stream."))?;
         let server = Self {
             stdin: Arc::new(Mutex::new(stdin)),
             pending: Arc::new(Mutex::new(HashMap::new())),
@@ -74,6 +79,7 @@ impl CodexAppServer {
             server.pending.clone(),
             inbox,
         ));
+        tokio::spawn(read_codex_stderr(BufReader::new(stderr)));
         server
             .request(
                 "initialize",
@@ -92,6 +98,18 @@ impl CodexAppServer {
     }
 
     pub(super) async fn request(&self, method: &str, params: Value) -> HostResult<Value> {
+        for attempt in 0..=CODEX_OVERLOAD_RETRIES {
+            match self.request_once(method, params.clone()).await {
+                Err(error) if attempt < CODEX_OVERLOAD_RETRIES && is_codex_overloaded(&error) => {
+                    tokio::time::sleep(codex_overload_delay(attempt)).await;
+                }
+                result => return result,
+            }
+        }
+        unreachable!("Codex overload retry loop always returns");
+    }
+
+    async fn request_once(&self, method: &str, params: Value) -> HostResult<Value> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (sender, receiver) = oneshot::channel();
         self.pending.lock().await.insert(id, sender);
@@ -195,6 +213,10 @@ async fn read_codex_messages<R>(
                         continue;
                     }
                 };
+                if message.get("method").and_then(Value::as_str).is_some() {
+                    let _ = inbox.send(ServerCommand::CodexMessage { message });
+                    continue;
+                }
                 if let Some(id) = message.get("id").and_then(Value::as_i64) {
                     if let Some(sender) = pending.lock().await.remove(&id) {
                         let result = if let Some(error) = message.get("error") {
@@ -203,11 +225,7 @@ async fn read_codex_messages<R>(
                             Ok(message.get("result").cloned().unwrap_or(Value::Null))
                         };
                         let _ = sender.send(result);
-                        continue;
                     }
-                }
-                if message.get("method").and_then(Value::as_str).is_some() {
-                    let _ = inbox.send(ServerCommand::CodexMessage { message });
                 }
             }
             Ok(None) => break "Codex app-server closed its output stream.".to_string(),
@@ -222,19 +240,52 @@ async fn read_codex_messages<R>(
     let _ = inbox.send(ServerCommand::CodexProcessExited { reason });
 }
 
+async fn read_codex_stderr<R>(reader: R)
+where
+    R: AsyncBufRead + Unpin,
+{
+    let mut lines = reader.lines();
+    loop {
+        match lines.next_line().await {
+            Ok(Some(line)) => tracing::debug!(target: "codex_app_server", "{line}"),
+            Ok(None) => return,
+            Err(error) => {
+                tracing::warn!(target: "codex_app_server", "Codex app-server diagnostics failed: {error}");
+                return;
+            }
+        }
+    }
+}
+
 fn codex_error_message(error: &Value) -> String {
-    error
+    let message = error
         .get("message")
         .and_then(Value::as_str)
         .map(str::to_string)
-        .unwrap_or_else(|| "Codex app-server returned an error.".to_string())
+        .unwrap_or_else(|| "Codex app-server returned an error.".to_string());
+    match error.get("code").and_then(Value::as_i64) {
+        Some(-32001) => format!("Codex app-server error -32001: {message}"),
+        _ => message,
+    }
+}
+
+fn is_codex_overloaded(error: &HostError) -> bool {
+    error.wire_message().contains("error -32001")
+}
+
+fn codex_overload_delay(attempt: usize) -> Duration {
+    Duration::from_millis(25_u64.saturating_mul(1_u64 << attempt.min(3)))
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use super::{codex_error_message, read_codex_messages, PendingRequests};
+    use super::{
+        codex_error_message, codex_overload_delay, is_codex_overloaded, read_codex_messages,
+        PendingRequests,
+    };
+    use crate::terminal_host::host_error::HostError;
     use serde_json::json;
     use tokio::io::{duplex, AsyncWriteExt, BufReader};
     use tokio::sync::{mpsc, oneshot, Mutex};
@@ -246,6 +297,30 @@ mod tests {
         assert_eq!(
             codex_error_message(&json!({"code": -1})),
             "Codex app-server returned an error."
+        );
+    }
+
+    #[test]
+    fn overload_errors_use_bounded_exponential_retry_delays() {
+        let error = HostError::state(codex_error_message(
+            &json!({"code": -32001, "message": "busy"}),
+        ));
+        assert!(is_codex_overloaded(&error));
+        assert_eq!(
+            codex_overload_delay(0),
+            std::time::Duration::from_millis(25)
+        );
+        assert_eq!(
+            codex_overload_delay(1),
+            std::time::Duration::from_millis(50)
+        );
+        assert_eq!(
+            codex_overload_delay(3),
+            std::time::Duration::from_millis(200)
+        );
+        assert_eq!(
+            codex_overload_delay(20),
+            std::time::Duration::from_millis(200)
         );
     }
 
@@ -290,6 +365,32 @@ mod tests {
             }
             _ => panic!("unexpected fake app-server command"),
         }
+        read_task.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn server_request_id_does_not_consume_a_pending_client_response() {
+        let (mut writer, reader) = duplex(4096);
+        let pending: PendingRequests = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let (response_tx, _response_rx) = oneshot::channel();
+        pending.lock().await.insert(7, response_tx);
+        let (inbox, mut messages) = mpsc::unbounded_channel();
+        let read_task = tokio::spawn(read_codex_messages(
+            BufReader::new(reader),
+            pending.clone(),
+            inbox,
+        ));
+        writer
+            .write_all(
+                br#"{"jsonrpc":"2.0","id":7,"method":"mcpServer/elicitation/request","params":{}}
+"#,
+            )
+            .await
+            .unwrap();
+        let message = messages.recv().await.unwrap();
+        assert!(matches!(message, ServerCommand::CodexMessage { message } if message["id"] == 7));
+        assert!(pending.lock().await.contains_key(&7));
+        drop(writer);
         read_task.await.unwrap();
     }
 }

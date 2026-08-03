@@ -126,7 +126,11 @@ abstract final class CodexTimelineReducer {
         params['delta'],
         params['text'],
       ]);
-      if (turnId.isEmpty || diff.isEmpty) return cells;
+      final hasSnapshot =
+          params.containsKey('diff') ||
+          params.containsKey('delta') ||
+          params.containsKey('text');
+      if (turnId.isEmpty || !hasSnapshot) return cells;
       final id = 'diff-$turnId';
       final existing = _find(cells, id);
       if (existing?.metadata['lastDelta'] == diff) return cells;
@@ -139,7 +143,7 @@ abstract final class CodexTimelineReducer {
           status: CodexTimelineStatus.inProgress,
           timestamp: timestamp,
           title: 'File changes',
-          detailsText: _merge(existing?.detailsText, diff),
+          detailsText: diff,
           isStreaming: true,
           metadata: <String, Object?>{
             ...?existing?.metadata,

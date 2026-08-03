@@ -39,6 +39,8 @@ abstract final class AleraTokens {
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double dividerExtent = 1.0;
+  static const double iconSm = space12;
+  static const double strokeSm = 2.0;
 
   static const double radiusSm = 4.0;
   static const double radiusMd = 6.0;

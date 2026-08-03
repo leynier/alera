@@ -168,6 +168,10 @@ pub enum ServerCommand {
     CodexMalformed {
         reason: String,
     },
+    CodexPresenceTick,
+    CodexFlush {
+        tab_id: String,
+    },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),
 }

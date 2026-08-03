@@ -7,6 +7,8 @@ class _CodexTimeline extends StatelessWidget {
     required this.timeline,
     required this.onApproval,
     required this.onQuestion,
+    required this.onElicitation,
+    required this.onReject,
     required this.onImplementPlan,
   });
 
@@ -24,6 +26,13 @@ class _CodexTimeline extends StatelessWidget {
     Map<String, List<String>> answers,
   )
   onQuestion;
+  final Future<void> Function(
+    CodexPendingRequest request, {
+    required String action,
+    Map<String, Object?> content,
+  })
+  onElicitation;
+  final Future<void> Function(CodexPendingRequest request) onReject;
   final Future<void> Function() onImplementPlan;
 
   @override
@@ -45,8 +54,13 @@ class _CodexTimeline extends StatelessWidget {
               _CodexApprovalCard(request: request, onApproval: onApproval)
             else if (request.isQuestion)
               _CodexQuestionCard(request: request, onQuestion: onQuestion)
+            else if (request.isElicitation)
+              _CodexElicitationCard(
+                request: request,
+                onElicitation: onElicitation,
+              )
             else
-              _CodexPendingCard(request: request),
+              _CodexPendingCard(request: request, onReject: onReject),
           if (snapshot.hasPlan)
             Align(
               alignment: Alignment.center,
@@ -99,8 +113,11 @@ class _CodexTimelineCellCard extends StatelessWidget {
       CodexTimelineKind.systemNotice => AleraTokens.error,
       _ => AleraTokens.foreground,
     };
-    final text =
+    final rawText =
         cell.markdownText ?? cell.detailsText ?? cell.title ?? 'Codex activity';
+    final renderedText = _safeMarkdown(
+      cell.renderedMarkdownText ?? cell.markdownText ?? '',
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space12),
       child: DecoratedBox(
@@ -121,26 +138,28 @@ class _CodexTimelineCellCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       _cellLabel(cell),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelSmall?.copyWith(color: color),
                     ),
                   ),
                   if (cell.isStreaming)
                     const Padding(
                       padding: EdgeInsets.only(right: AleraTokens.space8),
                       child: SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                        width: AleraTokens.iconSm,
+                        height: AleraTokens.iconSm,
+                        child: CircularProgressIndicator(
+                          strokeWidth: AleraTokens.strokeSm,
+                        ),
                       ),
                     ),
                   AleraIconButton(
                     tooltip: 'Copy',
                     icon: AleraIcons.copy,
-                    onPressed: () =>
-                        unawaited(Clipboard.setData(ClipboardData(text: text))),
+                    onPressed: () => unawaited(
+                      Clipboard.setData(ClipboardData(text: rawText)),
+                    ),
                   ),
                 ],
               ),
@@ -150,18 +169,19 @@ class _CodexTimelineCellCard extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AleraTokens.space4),
                   child: Text(subtitle, style: AleraTokens.monoStyle),
                 ),
-              if (cell.markdownText case final String markdown
-                  when markdown.isNotEmpty)
+              if (renderedText.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: AleraTokens.space8),
                   child:
                       cell.kind == CodexTimelineKind.assistantMessage ||
                           cell.kind == CodexTimelineKind.progressText ||
                           cell.kind == CodexTimelineKind.plan
-                      ? GptMarkdown(markdown)
+                      ? GptMarkdown(renderedText)
                       : SelectableText(
-                          markdown,
-                          style: TextStyle(color: color, height: 1.4),
+                          renderedText,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(color: color),
                         ),
                 ),
               if (cell.detailsText case final String details
@@ -175,7 +195,9 @@ class _CodexTimelineCellCard extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AleraTokens.space8),
                   child: Text(
                     'Codex could not complete this item.',
-                    style: TextStyle(color: AleraTokens.error),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
                   ),
                 ),
             ],
@@ -196,7 +218,7 @@ class _CodexRawEvent extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: AleraTokens.space4),
     child: SelectableText(
       '${event.method}: ${event.raw}',
-      style: AleraTokens.monoStyle.copyWith(fontSize: 11),
+      style: AleraTokens.monoStyle,
     ),
   );
 }
@@ -216,6 +238,11 @@ String _cellLabel(CodexTimelineCell cell) {
   }
   return cell.title ?? 'Codex Activity';
 }
+
+String _safeMarkdown(String value) => value.replaceAll(
+  RegExp(r'\[([^\]]+)\]\(streamdown:incomplete-link\)'),
+  r'$1',
+);
 
 class _CodexApprovalCard extends StatelessWidget {
   const _CodexApprovalCard({required this.request, required this.onApproval});
@@ -285,6 +312,11 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
       bodyWidget: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          Text(
+            widget.request.isBlocking
+                ? 'Response required.'
+                : 'Response optional.',
+          ),
           for (final question in questions) _question(context, question),
         ],
       ),
@@ -357,57 +389,4 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
       ),
     );
   }
-}
-
-class _CodexPendingCard extends StatelessWidget {
-  const _CodexPendingCard({required this.request});
-
-  final CodexPendingRequest request;
-
-  @override
-  Widget build(BuildContext context) => _CodexRequestCard(
-    title: request.requestTitle,
-    body: request.method,
-    actions: const <Widget>[],
-  );
-}
-
-class _CodexRequestCard extends StatelessWidget {
-  const _CodexRequestCard({
-    required this.title,
-    this.body,
-    this.bodyWidget,
-    required this.actions,
-  });
-
-  final String title;
-  final String? body;
-  final Widget? bodyWidget;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    color: AleraTokens.surfaceElevated,
-    child: Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
-          if (body != null) ...<Widget>[
-            const SizedBox(height: AleraTokens.space6),
-            Text(body!),
-          ],
-          if (bodyWidget != null) ...<Widget>[
-            const SizedBox(height: AleraTokens.space6),
-            bodyWidget!,
-          ],
-          if (actions.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AleraTokens.space8),
-            Wrap(spacing: AleraTokens.space8, children: actions),
-          ],
-        ],
-      ),
-    ),
-  );
 }

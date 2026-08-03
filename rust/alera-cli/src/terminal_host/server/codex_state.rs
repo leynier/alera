@@ -11,6 +11,8 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
+#[path = "codex_markdown.rs"]
+mod codex_markdown;
 #[path = "codex_state_snapshot.rs"]
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
@@ -115,6 +117,7 @@ pub(super) fn append_user_input(
             "isStreaming": false,
             "isCollapsed": false,
             "markdownText": text,
+            "renderedMarkdownText": codex_markdown::render_markdown(&text),
             "metadata": {"attachments": attachments},
         }));
         trim_cells(cells);
@@ -173,6 +176,7 @@ pub(super) fn mark_server_failure(tab: &mut WorkspaceTabRecord, reason: &str) ->
             "isCollapsed": false,
             "title": "Codex error",
             "markdownText": reason,
+            "renderedMarkdownText": codex_markdown::render_markdown(reason),
             "metadata": {"source": "codexServer"},
         }));
         trim_cells(cells);
@@ -232,7 +236,7 @@ pub(super) fn append_question_answer(
     else {
         return;
     };
-    let answer_map = result.get("answers").and_then(Value::as_object);
+    let answers = result.get("answers");
     let question_values = request
         .pointer("/params/questions")
         .and_then(Value::as_array)
@@ -245,7 +249,12 @@ pub(super) fn append_question_answer(
             .or_else(|| question.get("key"))
             .and_then(Value::as_str)
             .unwrap_or(if index == 0 { "question-0" } else { "" });
-        let Some(raw_answer) = answer_map.and_then(|answers| answers.get(question_id)) else {
+        let Some(raw_answer) = answers.and_then(|answers| {
+            answers
+                .as_object()
+                .and_then(|values| values.get(question_id))
+                .or_else(|| answers.as_array().and_then(|values| values.get(index)))
+        }) else {
             continue;
         };
         let answer = raw_answer
@@ -304,6 +313,7 @@ pub(super) fn append_question_answer(
             "isCollapsed": false,
             "title": "Question Answer",
             "markdownText": summary,
+            "renderedMarkdownText": codex_markdown::render_markdown(&summary),
             "metadata": {"questions": answered},
         }));
         trim_cells(cells);
@@ -399,7 +409,19 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         object.remove("activeTurnId");
     }
     update_context_usage(object, message, method);
-    if method.is_empty() && message.get("id").is_some() {
+    if method == "serverRequest/resolved" {
+        let request_id = message
+            .pointer("/params/requestId")
+            .or_else(|| message.pointer("/params/request_id"));
+        if let Some(request_id) = request_id {
+            if let Some(requests) = object
+                .get_mut("pendingRequests")
+                .and_then(Value::as_array_mut)
+            {
+                requests.retain(|request| request.get("id") != Some(request_id));
+            }
+        }
+    } else if method.is_empty() && message.get("id").is_some() {
         if let Some(requests) = object
             .get_mut("pendingRequests")
             .and_then(Value::as_array_mut)

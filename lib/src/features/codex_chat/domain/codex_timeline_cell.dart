@@ -37,6 +37,7 @@ class CodexTimelineCell {
     this.title,
     this.subtitle,
     this.markdownText,
+    this.renderedMarkdownText,
     this.detailsText,
     this.itemId,
     this.metadata = const <String, Object?>{},
@@ -67,6 +68,7 @@ class CodexTimelineCell {
       title: _string(json['title']),
       subtitle: _string(json['subtitle']),
       markdownText: _string(json['markdownText']),
+      renderedMarkdownText: _string(json['renderedMarkdownText']),
       detailsText: _string(json['detailsText']),
       itemId: _string(json['itemId']),
       metadata: _map(json['metadata']),
@@ -84,6 +86,7 @@ class CodexTimelineCell {
   final String? title;
   final String? subtitle;
   final String? markdownText;
+  final String? renderedMarkdownText;
   final String? detailsText;
   final String? itemId;
   final Map<String, Object?> metadata;
@@ -97,6 +100,7 @@ class CodexTimelineCell {
     String? title,
     String? subtitle,
     String? markdownText,
+    String? renderedMarkdownText,
     String? detailsText,
     String? itemId,
     Map<String, Object?>? metadata,
@@ -112,6 +116,7 @@ class CodexTimelineCell {
     title: title ?? this.title,
     subtitle: subtitle ?? this.subtitle,
     markdownText: markdownText ?? this.markdownText,
+    renderedMarkdownText: renderedMarkdownText ?? this.renderedMarkdownText,
     detailsText: detailsText ?? this.detailsText,
     itemId: itemId ?? this.itemId,
     metadata: metadata ?? this.metadata,
@@ -129,6 +134,7 @@ class CodexTimelineCell {
     'title': title,
     'subtitle': subtitle,
     'markdownText': markdownText,
+    'renderedMarkdownText': renderedMarkdownText,
     'detailsText': detailsText,
     'itemId': itemId,
     'metadata': metadata,

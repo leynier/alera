@@ -18,6 +18,7 @@ import 'package:path/path.dart' as p;
 part 'codex_chat_surface_composer.dart';
 part 'codex_chat_surface_header.dart';
 part 'codex_chat_surface_timeline.dart';
+part 'codex_chat_surface_timeline_requests.dart';
 
 class CodexChatSurface extends ConsumerStatefulWidget {
   const CodexChatSurface({
@@ -88,7 +89,10 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
             onInsertToken: _insertComposerToken,
             onToggleRawLogs: () => setState(() => _showRawLogs = !_showRawLogs),
           ),
-          const Divider(height: 1, color: AleraTokens.borderSubtle),
+          const Divider(
+            height: AleraTokens.dividerExtent,
+            color: AleraTokens.borderSubtle,
+          ),
           Expanded(
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
@@ -104,7 +108,9 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                     showRawLogs: _showRawLogs,
                     timeline: _timeline,
                     onApproval: controller.respondApproval,
-                    onQuestion: controller.respondQuestion,
+                    onQuestion: controller.submitQuestions,
+                    onElicitation: controller.respondElicitation,
+                    onReject: controller.rejectRequest,
                     onImplementPlan: controller.implementPlan,
                   ),
           ),

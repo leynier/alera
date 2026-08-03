@@ -78,6 +78,7 @@ mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
 mod codex_events;
+mod codex_presence;
 mod codex_requests;
 mod codex_state;
 mod computer_request_payloads;
@@ -248,12 +249,17 @@ pub async fn run_terminal_host_server(
         browser: BrowserBroker::default(),
         emulators,
         codex: None,
+        codex_presence: HashMap::new(),
+        codex_presence_scheduled: false,
+        codex_pending_messages: HashMap::new(),
+        codex_flush_scheduled: HashSet::new(),
         inbox,
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
+    actor.reconcile_codex_presence().await;
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
@@ -332,6 +338,10 @@ struct ServerActor {
     browser: BrowserBroker,
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
+    codex_presence: HashMap<String, Value>,
+    codex_presence_scheduled: bool,
+    codex_pending_messages: HashMap<String, Vec<Value>>,
+    codex_flush_scheduled: HashSet<String>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -689,6 +699,8 @@ impl ServerActor {
                 self.handle_codex_process_exited(reason).await
             }
             ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
+            ServerCommand::CodexPresenceTick => self.handle_codex_presence_tick(),
+            ServerCommand::CodexFlush { tab_id } => self.handle_codex_flush(&tab_id).await,
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1261,6 +1273,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1331,6 +1347,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1419,6 +1439,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1502,6 +1526,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1607,6 +1635,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1685,6 +1717,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1754,6 +1790,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,

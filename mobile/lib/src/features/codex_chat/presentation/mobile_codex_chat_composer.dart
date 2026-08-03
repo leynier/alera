@@ -109,6 +109,7 @@ class _MobileComposer extends StatelessWidget {
     required this.onSend,
     required this.onSteer,
     required this.onStop,
+    required this.canAttach,
   });
 
   final TextEditingController controller;
@@ -120,6 +121,7 @@ class _MobileComposer extends StatelessWidget {
   final Future<void> Function() onSend;
   final Future<void> Function() onSteer;
   final Future<void> Function() onStop;
+  final bool canAttach;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -147,7 +149,7 @@ class _MobileComposer extends StatelessWidget {
           children: <Widget>[
             IconButton(
               tooltip: 'Attach Image',
-              onPressed: () => unawaited(onAttach()),
+              onPressed: canAttach ? () => unawaited(onAttach()) : null,
               icon: const Icon(Icons.image_outlined),
             ),
             Expanded(

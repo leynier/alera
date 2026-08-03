@@ -32,14 +32,18 @@ class _MobileTimelineCell extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _mobileCellLabel(cell),
-                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleSmall?.copyWith(color: color),
                   ),
                 ),
                 if (cell.isStreaming)
                   const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                    width: AleraTokens.iconSm,
+                    height: AleraTokens.iconSm,
+                    child: CircularProgressIndicator(
+                      strokeWidth: AleraTokens.strokeSm,
+                    ),
                   ),
               ],
             ),
@@ -48,12 +52,16 @@ class _MobileTimelineCell extends StatelessWidget {
             const SizedBox(height: AleraTokens.space6),
             SelectableText(
               cell.displayText,
-              style: TextStyle(color: color, height: 1.4),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: color),
             ),
             if (cell.status == 'failed')
               Text(
                 'Codex could not complete this item.',
-                style: TextStyle(color: AleraTokens.error),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
               ),
           ],
         ),
@@ -124,6 +132,11 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
       bodyWidget: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          Text(
+            widget.request.isBlocking
+                ? 'Response required.'
+                : 'Response optional.',
+          ),
           for (final question in questions) _question(question),
         ],
       ),
@@ -160,7 +173,7 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
         children: <Widget>[
           Text(
             question.header ?? question.question,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.titleSmall,
           ),
           if (question.header != null) Text(question.question),
           if (question.options.isNotEmpty)
@@ -192,6 +205,111 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
       ),
     );
   }
+}
+
+class _MobileElicitationCard extends StatefulWidget {
+  const _MobileElicitationCard({
+    required this.request,
+    required this.controller,
+  });
+
+  final MobileCodexPendingRequest request;
+  final MobileCodexController controller;
+
+  @override
+  State<_MobileElicitationCard> createState() => _MobileElicitationCardState();
+}
+
+class _MobileElicitationCardState extends State<_MobileElicitationCard> {
+  final Map<String, TextEditingController> _fields =
+      <String, TextEditingController>{};
+
+  @override
+  void dispose() {
+    for (final field in _fields.values) {
+      field.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
+    final properties = request.elicitationSchema['properties'];
+    final isSupported =
+        request.hasSupportedElicitationForm && properties is Map;
+    return _MobileRequestCard(
+      title: 'MCP Server Needs Input',
+      bodyWidget: isSupported
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final entry in Map<Object?, Object?>.from(
+                  properties,
+                ).entries)
+                  _field(entry.key.toString(), entry.value),
+              ],
+            )
+          : const Text('This MCP input form is not supported on mobile.'),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => unawaited(
+            widget.controller.respondElicitation(request, action: 'cancel'),
+          ),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => unawaited(
+            widget.controller.respondElicitation(request, action: 'decline'),
+          ),
+          child: const Text('Decline'),
+        ),
+        if (isSupported)
+          FilledButton(
+            onPressed: () => unawaited(
+              widget.controller.respondElicitation(
+                request,
+                action: 'accept',
+                content: <String, Object?>{
+                  for (final entry in _fields.entries)
+                    entry.key: _elicitationValue(
+                      properties[entry.key],
+                      entry.value.text,
+                    ),
+                },
+              ),
+            ),
+            child: const Text('Accept'),
+          ),
+      ],
+    );
+  }
+
+  Widget _field(String name, Object? schema) {
+    final controller = _fields.putIfAbsent(name, TextEditingController.new);
+    final schemaMap = schema is Map
+        ? Map<Object?, Object?>.from(schema)
+        : const <Object?, Object?>{};
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: name,
+          hintText: schemaMap['description']?.toString(),
+        ),
+        obscureText: schemaMap['format'] == 'password',
+      ),
+    );
+  }
+}
+
+Object _elicitationValue(Object? schema, String value) {
+  final type = schema is Map ? schema['type']?.toString() : null;
+  if (type == 'number') return double.tryParse(value) ?? 0;
+  if (type == 'integer') return int.tryParse(value) ?? 0;
+  if (type == 'boolean') return value.toLowerCase() == 'true';
+  return value;
 }
 
 class _MobileError extends StatelessWidget {
