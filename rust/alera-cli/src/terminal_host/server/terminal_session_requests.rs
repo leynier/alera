@@ -18,6 +18,64 @@ impl ServerActor {
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
 
+        // Attaching a user client to a tab created for an automation is the
+        // durable takeover signal. It prevents a later successful completion
+        // from deleting a tab the user has started using.
+        if let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await {
+            if tab
+                .payload
+                .get("automationOwned")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                let mut tab = tab;
+                let run_id = tab
+                    .payload
+                    .get("automationRunId")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                tab.updated_at = chrono::Utc::now();
+                let _ = self.runtime_store.upsert_workspace_tab(tab).await;
+                if let Some(run_id) = run_id.as_deref() {
+                    let (mobile, local_role, id, human_client) = self
+                        .clients
+                        .get(&client_id)
+                        .map(|client| {
+                            (
+                                client.kind == super::ClientKind::Mobile,
+                                client.local_role,
+                                client
+                                    .mobile_device_id
+                                    .clone()
+                                    .or_else(|| Some(client_id.to_string())),
+                                client.kind == super::ClientKind::Mobile
+                                    || (client.kind == super::ClientKind::Local
+                                        && client.local_role
+                                            == super::client_delivery::LocalClientRole::App),
+                            )
+                        })
+                        .unwrap_or((
+                            false,
+                            super::client_delivery::LocalClientRole::Cli,
+                            None,
+                            false,
+                        ));
+                    if human_client {
+                        let actor =
+                            super::automation_actor::actor_for_client(mobile, local_role, id);
+                        // Only a desktop or authenticated mobile client counts
+                        // as a user takeover. The automation CLI is a local
+                        // client too, but it must not preserve its own cleanup
+                        // target.
+                        let _ = self
+                            .runtime_store
+                            .mark_automation_run_taken_over(run_id, actor)
+                            .await;
+                    }
+                }
+            }
+        }
+
         let max_bytes = self.config.scrollback_bytes as usize;
         let restore_bytes = self.config.restore_snapshot_bytes as usize;
 

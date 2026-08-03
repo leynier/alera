@@ -165,6 +165,9 @@ class MobileRuntimeClient
   bool get supportsCodexChat =>
       _runtimeCapabilities.contains(codexChatTabCapability);
 
+  bool get supportsAutomations =>
+      _runtimeCapabilities.contains(automationsCapability);
+
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
     required String deviceToken,

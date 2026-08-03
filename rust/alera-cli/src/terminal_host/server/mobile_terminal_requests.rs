@@ -9,13 +9,13 @@ use crate::terminal_host::protocol::{
     int_or, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
@@ -65,6 +65,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
+    RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
 ];
 
 impl ServerActor {
@@ -382,5 +383,28 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.thread.compact"
             | "codex.review.start"
             | "codex.response"
+            | "automation.list"
+            | "automation.show"
+            | "automation.upsert"
+            | "automation.approve"
+            | "automation.pause"
+            | "automation.resume"
+            | "automation.trash"
+            | "automation.restore"
+            | "automation.purge"
+            | "automation.runNow"
+            | "automation.runs"
+            | "automation.runShow"
+            | "automation.context"
+            | "automation.heartbeat"
+            | "automation.wait"
+            | "automation.extend"
+            | "automation.complete"
+            | "automation.cancel"
+            | "automation.templates"
+            | "automation.tags"
+            | "automation.export"
+            | "automation.import"
+            | "automation.policy"
     )
 }

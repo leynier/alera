@@ -22,7 +22,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
+pub(super) use super::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -496,6 +496,10 @@ impl ServerActor {
                 self.handle_resource_snapshot(payload)
             }
             ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
+            _ if request_type.starts_with("automation.") => {
+                self.handle_automation_request(client_id, request_type, payload)
+                    .await
+            }
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
                 let path_count = crate::login_shell_environment::reload_login_shell_path().await;
@@ -537,7 +541,7 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 7] = [
+                const ALLOWED: [&str; 8] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
@@ -545,6 +549,7 @@ impl ServerActor {
                     "agentStatusHooks",
                     "agentQuotas",
                     "mobilePushNotifications",
+                    "automation",
                 ];
                 if let Some(key) = payload
                     .as_object()
@@ -1076,24 +1081,6 @@ impl ServerActor {
         self.clients
             .get(&client_id)
             .is_some_and(|client| client.kind == ClientKind::Mobile)
-    }
-
-    pub(super) fn require_request_allowed(
-        &self,
-        client_id: u64,
-        request_type: &str,
-    ) -> HostResult<()> {
-        let Some(client) = self.clients.get(&client_id) else {
-            return Err(HostError::state(
-                "Terminal host client is not authenticated.",
-            ));
-        };
-        if client.kind == ClientKind::Local || mobile_request_allowed(request_type) {
-            return Ok(());
-        }
-        Err(HostError::state(format!(
-            "Mobile clients cannot call terminal host request: {request_type}"
-        )))
     }
 }
 

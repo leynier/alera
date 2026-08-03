@@ -119,6 +119,44 @@ impl PushEvent {
         }
     }
 
+    pub(crate) fn automation(
+        automation_id: &str,
+        run_id: &str,
+        name: &str,
+        status: &str,
+        summary: Option<&str>,
+        location: PushLocation,
+    ) -> Self {
+        let attention = matches!(status, "failure" | "blocked" | "timeout");
+        let (category, title) = if attention {
+            ("attention", format!("Automation {name} needs attention"))
+        } else {
+            ("done", format!("Automation {name} finished"))
+        };
+        Self {
+            event_id: Uuid::new_v4().to_string(),
+            category: category.to_string(),
+            event_type: format!("automation_{status}"),
+            title,
+            body: summary
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .unwrap_or_else(|| location_body(&location)),
+            data: location_data(
+                &location,
+                json!({
+                    "kind": "automation",
+                    "automationId": automation_id,
+                    "runId": run_id,
+                    "status": status,
+                    "route": "automation",
+                }),
+            ),
+            occurred_at: Utc::now(),
+        }
+    }
+
     pub(crate) fn into_request(self, runtime_id: &str) -> PushEventRequest {
         PushEventRequest {
             runtime_id: runtime_id.to_string(),
@@ -270,5 +308,40 @@ mod tests {
         assert_eq!(groups.len(), 2);
         assert!(groups.iter().any(|event| event.category == "done"));
         assert!(groups.iter().any(|event| event.category == "terminalExit"));
+    }
+
+    #[test]
+    fn automation_events_use_attention_and_done_categories_with_tap_route() {
+        let location = PushLocation {
+            terminal_session_id: None,
+            workspace_id: None,
+            tab_id: None,
+            project_name: None,
+            workspace_name: None,
+            tab_title: None,
+        };
+        let blocked = PushEvent::automation(
+            "automation",
+            "run-blocked",
+            "Review",
+            "blocked",
+            Some("approval is required"),
+            location.clone(),
+        );
+        assert_eq!(blocked.category, "attention");
+        assert_eq!(blocked.data["kind"], "automation");
+        assert_eq!(blocked.data["route"], "automation");
+        assert_eq!(blocked.data["runId"], "run-blocked");
+
+        let success = PushEvent::automation(
+            "automation",
+            "run-success",
+            "Review",
+            "success",
+            None,
+            location,
+        );
+        assert_eq!(success.category, "done");
+        assert_eq!(success.data["status"], "success");
     }
 }

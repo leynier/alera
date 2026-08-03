@@ -267,6 +267,39 @@ impl ServerActor {
         .await
         .map_err(|error| HostError::state(error.to_string()))?
         .map_err(|error| HostError::state(error.to_string()))?;
+        if let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await {
+            if let Some(profile_id) = tab.payload.get("agentProfileId").and_then(Value::as_str) {
+                launch
+                    .environment
+                    .insert("ALERA_AGENT_PROFILE_ID".to_string(), profile_id.to_string());
+            }
+            if let Some(conversation_id) = tab.payload.get("conversationId").and_then(Value::as_str)
+            {
+                launch.environment.insert(
+                    "ALERA_AGENT_CONVERSATION_ID".to_string(),
+                    conversation_id.to_string(),
+                );
+            }
+            if tab.payload.get("automationOwned").and_then(Value::as_bool) == Some(true) {
+                if let Some(run_id) = tab.payload.get("automationRunId").and_then(Value::as_str) {
+                    // These values come from the host-owned tab record, never
+                    // from a launch request. They bind automation CLI calls to
+                    // the exact PTY that the host created for the run.
+                    launch
+                        .environment
+                        .insert("ALERA_AUTOMATION_RUN_ID".to_string(), run_id.to_string());
+                    launch
+                        .environment
+                        .insert("ALERA_WORKSPACE_ID".to_string(), workspace_id.clone());
+                    launch
+                        .environment
+                        .insert("ALERA_TAB_ID".to_string(), tab_id.clone());
+                    launch
+                        .environment
+                        .insert("ALERA_TERMINAL_SESSION_ID".to_string(), session_id.clone());
+                }
+            }
+        }
         let inbox = self.inbox.clone();
         let reader_session_id = session_id.clone();
         let session = Session::start(

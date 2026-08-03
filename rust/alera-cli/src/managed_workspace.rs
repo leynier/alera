@@ -42,6 +42,9 @@ pub struct ManagedWorkspaceCreateRequest {
     /// which is what the `alera` CLI and the mobile gateway still want.
     #[serde(default)]
     pub defer_setup: bool,
+    /// Skips both copy and command setup for callers with an explicit policy.
+    #[serde(default)]
+    pub skip_setup: bool,
     /// Directory the deferred setup script is written to. The host fills this
     /// in from its own state directory; a caller cannot choose it.
     #[serde(skip)]
@@ -183,6 +186,13 @@ pub async fn create_managed_workspace(
             .find_workspace(&workspace.id)
             .await?
             .ok_or_else(|| anyhow!("Workspace disappeared after linking: {}", workspace.id))?;
+    }
+    if request.skip_setup {
+        return Ok(WorkspaceCreationResult {
+            workspace,
+            setup_report: alera_core::runtime::WorktreeSetupReport::empty(),
+            deferred_setup_command: None,
+        });
     }
     if request.defer_setup {
         let (setup_report, deferred_setup_command) = prepare_deferred_worktree_setup(
@@ -484,6 +494,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -533,6 +544,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -606,6 +618,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -647,6 +660,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
             },
         )
@@ -696,6 +710,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
             },
         )
@@ -730,6 +745,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
             },
         )
@@ -769,6 +785,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
             },
         )

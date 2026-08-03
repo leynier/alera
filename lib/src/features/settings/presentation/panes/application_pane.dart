@@ -6,6 +6,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_diagnostics_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_workspace_directory_row.dart';
+import 'package:alera/src/features/automations/presentation/automation_settings_section.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
@@ -119,6 +120,11 @@ class ApplicationSettingsPane extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: AleraTokens.space24),
+        KeyedSubtree(
+          key: groupKeys['automations'],
+          child: const AutomationSettingsSection(),
         ),
         const SizedBox(height: AleraTokens.space24),
         KeyedSubtree(

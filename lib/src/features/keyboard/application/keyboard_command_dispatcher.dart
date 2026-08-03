@@ -31,6 +31,8 @@ class KeyboardCommandDispatcher {
     switch (id) {
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
+      case KeyboardActionId.openAutomations:
+        unawaited(openAutomationsDialog(context));
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:
