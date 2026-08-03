@@ -40,6 +40,7 @@ class RuntimeMobileAccessRepository {
 
   Future<MobileGatewaySettings> updateSettings({
     bool? enabled,
+    bool? remoteAccessEnabled,
     String? bindHost,
     int? port,
     MobileEndpointMode? endpointMode,
@@ -47,6 +48,7 @@ class RuntimeMobileAccessRepository {
     final payload = await _client
         .runtimeRequest('mobile.settings.update', <String, Object?>{
           'enabled': ?enabled,
+          'remoteAccessEnabled': ?remoteAccessEnabled,
           'bindHost': ?bindHost,
           'port': ?port,
           'endpointMode': ?endpointMode?.wireName,

@@ -90,6 +90,30 @@ pub(crate) struct RuntimeSubscriptionStatus {
     pub(crate) active_subscriptions: i64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RelayIdentityResponse {
+    pub(crate) client_id: String,
+    pub(crate) client_kind: String,
+    pub(crate) public_key: String,
+    pub(crate) key_version: i32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RelayGrant {
+    pub(crate) grant: String,
+    pub(crate) relay_url: String,
+    pub(crate) expires_in: i64,
+    pub(crate) account_id: String,
+    pub(crate) runtime_id: String,
+    pub(crate) client_id: String,
+    pub(crate) client_kind: String,
+    pub(crate) client_key_version: i32,
+    pub(crate) client_public_key: String,
+    pub(crate) runtime_public_key: Option<String>,
+}
+
 #[derive(Clone)]
 pub(crate) struct CloudAccountClient {
     base_url: String,
@@ -272,6 +296,38 @@ impl CloudAccountClient {
             "/v1/runtime/subscriptions",
             Some(access_token),
             None,
+        )
+        .await
+    }
+
+    pub(crate) async fn register_relay_identity(
+        &self,
+        access_token: &str,
+        public_key: &str,
+        key_version: i32,
+    ) -> Result<RelayIdentityResponse> {
+        self.json(
+            Method::POST,
+            "/v1/relay/identity",
+            Some(access_token),
+            Some(serde_json::json!({
+                "publicKey": public_key,
+                "keyVersion": key_version,
+            })),
+        )
+        .await
+    }
+
+    pub(crate) async fn relay_grant(
+        &self,
+        access_token: &str,
+        runtime_id: &str,
+    ) -> Result<RelayGrant> {
+        self.json(
+            Method::POST,
+            "/v1/relay/grants",
+            Some(access_token),
+            Some(serde_json::json!({ "runtimeId": runtime_id })),
         )
         .await
     }

@@ -206,6 +206,8 @@ pub struct SshTarget {
 #[serde(rename_all = "camelCase")]
 pub struct MobileAccessSettings {
     pub enabled: bool,
+    #[serde(default)]
+    pub remote_access_enabled: bool,
     pub bind_host: String,
     pub port: i64,
     #[serde(default)]
@@ -219,6 +221,7 @@ impl Default for MobileAccessSettings {
     fn default() -> Self {
         Self {
             enabled: false,
+            remote_access_enabled: false,
             bind_host: "127.0.0.1".to_string(),
             port: 6768,
             endpoint_mode: MobileEndpointMode::default(),

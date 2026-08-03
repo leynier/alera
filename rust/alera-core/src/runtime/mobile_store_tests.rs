@@ -31,6 +31,7 @@ async fn mobile_access_settings_roundtrip() {
     let saved = store
         .set_mobile_access_settings(MobileAccessSettings {
             enabled: true,
+            remote_access_enabled: true,
             bind_host: "127.0.0.1".to_string(),
             port: 7777,
             endpoint_mode: MobileEndpointMode::Tailscale,
@@ -41,12 +42,14 @@ async fn mobile_access_settings_roundtrip() {
         .unwrap();
 
     assert!(saved.enabled);
+    assert!(saved.remote_access_enabled);
     assert_eq!(saved.bind_host, "127.0.0.1");
     assert_eq!(saved.port, 7777);
     assert_eq!(saved.endpoint_mode, MobileEndpointMode::Tailscale);
     assert_eq!(saved.server_public_key_b64.as_deref(), Some("pub"));
 
     let reloaded = store.mobile_access_settings().await.unwrap();
+    assert!(reloaded.remote_access_enabled);
     assert_eq!(reloaded.endpoint_mode, MobileEndpointMode::Tailscale);
 }
 

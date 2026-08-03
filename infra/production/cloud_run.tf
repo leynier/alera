@@ -14,6 +14,7 @@ locals {
     ALERA_MAX_MOBILE_DEVICES     = tostring(var.account_mobile_limit)
     ALERA_MAX_RUNTIMES           = tostring(var.account_runtime_limit)
     ALERA_PUBLIC_BASE_URL        = "https://${var.api_hostname}"
+    ALERA_RELAY_BASE_URL         = "wss://${var.api_hostname}/v1/relay"
     ALERA_PUSH_BURST_LIMIT       = "10"
     ALERA_PUSH_DAILY_LIMIT       = tostring(var.notification_daily_limit)
     ALERA_PUSH_DELIVERY_ENABLED  = tostring(var.push_delivery_enabled)

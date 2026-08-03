@@ -32,6 +32,7 @@ class MobileGatewayGroup extends StatelessWidget {
     required this.gatewayPort,
     required this.applying,
     required this.onEnabledChanged,
+    required this.onRemoteAccessChanged,
     required this.onModeSelected,
     required this.onBindHostChanged,
     required this.onPortChanged,
@@ -43,6 +44,7 @@ class MobileGatewayGroup extends StatelessWidget {
   final int gatewayPort;
   final bool applying;
   final ValueChanged<bool> onEnabledChanged;
+  final ValueChanged<bool> onRemoteAccessChanged;
   final ValueChanged<MobileEndpointMode> onModeSelected;
   final ValueChanged<String> onBindHostChanged;
   final ValueChanged<int> onPortChanged;
@@ -64,6 +66,13 @@ class MobileGatewayGroup extends StatelessWidget {
           description: 'Accept connections from paired mobile devices.',
           value: settings.enabled,
           onChanged: applying ? (_) {} : onEnabledChanged,
+        ),
+        SettingsSwitchRow(
+          title: 'Enable Remote Access',
+          description:
+              'Allow signed-in Alera mobile devices to discover this runtime and use the encrypted relay.',
+          value: settings.remoteAccessEnabled,
+          onChanged: applying ? (_) {} : onRemoteAccessChanged,
         ),
         AleraSettingRow(
           title: 'Connection Mode',

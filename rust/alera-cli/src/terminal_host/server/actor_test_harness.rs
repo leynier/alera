@@ -40,6 +40,7 @@ impl ClientState {
             mobile_device_id: None,
             mobile_device_name: None,
             cloud_device_id: None,
+            relay_client_id: None,
         }
     }
 }
@@ -55,6 +56,7 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         mobile_device_id: Some(device.to_string()),
         mobile_device_name: Some(format!("{device} phone")),
         cloud_device_id: Some(format!("cloud-{device}")),
+        relay_client_id: None,
     }
 }
 
@@ -69,6 +71,7 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         mobile_device_id: None,
         mobile_device_name: None,
         cloud_device_id: None,
+        relay_client_id: None,
     }
 }
 

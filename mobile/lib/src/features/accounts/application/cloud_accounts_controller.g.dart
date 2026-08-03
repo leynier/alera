@@ -38,7 +38,7 @@ final class CloudAccountsControllerProvider
 }
 
 String _$cloudAccountsControllerHash() =>
-    r'dd41b0c4316a098487b876b2ad8b1a24ca77da1e';
+    r'261ab26055d4d7a7db532d9b49c33b98e8242a6a';
 
 abstract class _$CloudAccountsController
     extends $AsyncNotifier<List<CloudAccountSession>> {

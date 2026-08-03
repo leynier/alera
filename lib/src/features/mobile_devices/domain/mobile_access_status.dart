@@ -24,6 +24,7 @@ class MobileGatewaySettings {
     required this.enabled,
     required this.bindHost,
     required this.port,
+    this.remoteAccessEnabled = false,
     this.endpointMode = MobileEndpointMode.loopback,
     this.serverPublicKeyB64,
   });
@@ -40,6 +41,7 @@ class MobileGatewaySettings {
     final publicKey = json['serverPublicKeyB64'];
     return MobileGatewaySettings(
       enabled: enabled,
+      remoteAccessEnabled: json['remoteAccessEnabled'] == true,
       bindHost: bindHost,
       port: port.toInt(),
       endpointMode: MobileEndpointMode.fromWire(json['endpointMode']),
@@ -50,6 +52,7 @@ class MobileGatewaySettings {
   }
 
   final bool enabled;
+  final bool remoteAccessEnabled;
   final String bindHost;
   final int port;
   final MobileEndpointMode endpointMode;

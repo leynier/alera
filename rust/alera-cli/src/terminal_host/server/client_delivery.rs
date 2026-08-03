@@ -229,6 +229,7 @@ mod tests {
                     mobile_device_id: None,
                     mobile_device_name: None,
                     cloud_device_id: None,
+                    relay_client_id: None,
                 },
             )]),
             pending_output_writes: HashMap::new(),

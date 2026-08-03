@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
+import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
+import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
+import 'package:alera_mobile/src/features/runtime/application/remote_runtime_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
@@ -118,9 +122,55 @@ class HostConnectionController extends _$HostConnectionController {
   Future<MobileRuntimeClient> _openClient() async {
     final hosts = await ref.read(pairedHostsControllerProvider.future);
     final host = hosts.where((host) => host.id == hostId).firstOrNull;
-    if (host == null) {
-      throw StateError('Host is not paired.');
+    if (host != null) {
+      try {
+        return await _openPairedClient(host);
+      } on Object catch (error, stackTrace) {
+        if (!isRelayFallbackTransportFailure(error)) {
+          rethrow;
+        }
+        final accountId = await _findRemoteAccountId();
+        if (accountId == null) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        return connectRuntimeThroughRelay(ref, accountId, hostId);
+      }
     }
+    final accountId = await _findRemoteAccountId();
+    if (accountId == null) {
+      throw StateError('Host is not paired or available remotely.');
+    }
+    return connectRuntimeThroughRelay(ref, accountId, hostId);
+  }
+
+  Future<String?> _findRemoteAccountId() async {
+    final sessions = await ref.read(cloudAccountsControllerProvider.future);
+    final api = ref.read(aleraRelayCloudApiProvider);
+    for (final session in sessions) {
+      try {
+        final runtimes = await api.discoverRuntimes(session);
+        if (runtimes.any((runtime) => runtime.id == hostId)) {
+          return session.account.id;
+        }
+      } on AleraCloudException catch (error, stackTrace) {
+        _logger.warning(
+          'could not discover remote host $hostId for ${session.account.id}',
+          error,
+          stackTrace,
+        );
+        rethrow;
+      } on Object catch (error, stackTrace) {
+        _logger.warning(
+          'could not discover remote host $hostId for ${session.account.id}',
+          error,
+          stackTrace,
+        );
+      }
+    }
+    return null;
+  }
+
+  Future<MobileRuntimeClient> _openPairedClient(PairedHostProfile host) async {
     final deviceToken = await ref
         .read(hostRepositoryProvider)
         .readDeviceToken(hostId);

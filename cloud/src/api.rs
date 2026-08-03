@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use tower_http::trace::TraceLayer;
 
-use crate::{accounts, auth, error::ApiError, mobile, push, runtimes, state::AppState};
+use crate::{accounts, auth, error::ApiError, mobile, push, relay, runtimes, state::AppState};
 
 pub fn router(state: AppState) -> Router {
     Router::new()
@@ -46,6 +46,9 @@ pub fn router(state: AppState) -> Router {
             "/v1/mobile/subscriptions/{runtime_id}",
             put(mobile::put_subscription).delete(mobile::delete_subscription),
         )
+        .route("/v1/relay/identity", post(relay::register_identity))
+        .route("/v1/relay/grants", post(relay::create_grant))
+        .route("/v1/mobile/runtimes", get(relay::discover_runtimes))
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(

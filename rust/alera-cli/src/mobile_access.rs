@@ -17,6 +17,8 @@ pub struct MobileSettingsUpdateRequest {
     #[serde(default)]
     pub enabled: Option<bool>,
     #[serde(default)]
+    pub remote_access_enabled: Option<bool>,
+    #[serde(default)]
     pub bind_host: Option<String>,
     #[serde(default)]
     pub port: Option<i64>,
@@ -145,6 +147,9 @@ pub fn apply_mobile_settings_update(
 ) -> Result<MobileAccessSettings> {
     if let Some(enabled) = request.enabled {
         settings.enabled = enabled;
+    }
+    if let Some(remote_access_enabled) = request.remote_access_enabled {
+        settings.remote_access_enabled = remote_access_enabled;
     }
     if let Some(bind_host) = request
         .bind_host
