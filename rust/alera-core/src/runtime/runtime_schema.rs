@@ -116,6 +116,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         name TEXT NOT NULL,
         agentType TEXT NOT NULL,
         command TEXT NOT NULL,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
         launchMode TEXT NOT NULL DEFAULT 'command',
         managedConfig TEXT,
         customPrompt TEXT NOT NULL DEFAULT '',

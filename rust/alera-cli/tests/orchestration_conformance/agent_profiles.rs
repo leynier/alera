@@ -74,6 +74,45 @@ fn agent_profiles_round_trip_through_the_host() {
 }
 
 #[test]
+fn agent_profile_order_can_be_reordered_through_the_host() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let first = request(
+        &mut writer,
+        &mut reader,
+        250,
+        "agentProfile.upsert",
+        json!({"name": "Alpha", "agentType": "codex", "command": "codex"}),
+    );
+    let first_id = payload(&first)["id"].as_str().unwrap().to_string();
+    let second = request(
+        &mut writer,
+        &mut reader,
+        251,
+        "agentProfile.upsert",
+        json!({"name": "Beta", "agentType": "codex", "command": "codex"}),
+    );
+    let second_id = payload(&second)["id"].as_str().unwrap().to_string();
+
+    let reordered = request(
+        &mut writer,
+        &mut reader,
+        252,
+        "agentProfile.reorder",
+        json!({"ids": [second_id, first_id]}),
+    );
+    assert_eq!(
+        reordered["ok"],
+        json!(true),
+        "reorder rejected: {reordered}"
+    );
+    assert_eq!(payload(&reordered)["items"][0]["name"], json!("Beta"));
+    assert_eq!(payload(&reordered)["items"][1]["name"], json!("Alpha"));
+}
+
+#[test]
 fn managed_agent_profiles_round_trip_structured_configuration() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
@@ -268,6 +307,10 @@ fn the_host_advertises_the_agent_profiles_capability() {
     assert!(
         capabilities.contains(&json!("orchestrationAgentProfilesV1")),
         "capability missing: {capabilities:?}"
+    );
+    assert!(
+        capabilities.contains(&json!("orchestrationAgentProfileOrderingV1")),
+        "ordering capability missing: {capabilities:?}"
     );
     assert!(
         capabilities.contains(&json!("orchestrationManagedAgentProfilesV1")),

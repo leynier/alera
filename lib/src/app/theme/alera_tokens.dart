@@ -27,6 +27,7 @@ abstract final class AleraTokens {
   static const double masterDetailMinWidth = 180.0;
   static const double masterDetailMaxWidth = 420.0;
   static const double masterDetailMinDetailWidth = 240.0;
+  static const double agentCanvasListWidth = 148.0;
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
   static const double chatBubbleMaxWidth = 620.0;
@@ -41,6 +42,7 @@ abstract final class AleraTokens {
   // by its text: 720px fits roughly 95 columns at the mono size.
   static const double dialogTerminalWidth = 720.0;
   static const double dialogTerminalHeight = 460.0;
+  static const double contextMenuWidth = 220.0;
   static const double wideContentBreakpoint = 760.0;
   static const double desktopPreviewWidth = 980.0;
   static const double dividerExtent = 1.0;

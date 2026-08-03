@@ -4,12 +4,14 @@ use crate::terminal_host::protocol::{
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
 mod browser;
+mod canvas;
 mod computer;
 mod emulator;
 mod mobile;
 mod workspace;
 
 pub use browser::*;
+pub use canvas::*;
 pub use computer::*;
 pub use emulator::*;
 pub use mobile::*;
@@ -71,6 +73,9 @@ pub enum Command {
 
     /// Inspect and automate Android emulators and iOS simulators.
     Emulator(EmulatorCommand),
+
+    /// Publish and inspect Agent Canvas surfaces owned by terminal sessions.
+    Canvas(CanvasCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),

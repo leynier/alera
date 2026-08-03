@@ -1,3 +1,5 @@
+mod agent_canvas_models;
+mod agent_canvas_store;
 mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
@@ -54,6 +56,8 @@ mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
 
+pub use agent_canvas_models::*;
+pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
 pub use agent_profile_models::*;
 pub use alera_account_models::*;
 pub use browser_models::*;

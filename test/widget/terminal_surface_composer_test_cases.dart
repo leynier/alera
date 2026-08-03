@@ -43,7 +43,7 @@ void _registerTerminalSurfaceComposerTests() {
             actions: const <AleraTextActionMenuItem>[
               AleraTextActionMenuItem(id: 'concise', label: 'Make Concise'),
             ],
-            onOpen: (_, _) {},
+            onOpen: (_, _, _) {},
             onRun: (_, actionId) => selectedActionId = actionId,
             child: SizedBox.expand(child: TerminalSurface(session: session)),
           ),
@@ -85,6 +85,10 @@ void _registerTerminalSurfaceComposerTests() {
       final submitted = await session.submitText('Review this change');
 
       expect(submitted, isTrue);
+      expect(factory.sessions.single.writes.map(utf8.decode).toList(), <String>[
+        'Review this change',
+      ]);
+      await tester.pump(const Duration(milliseconds: 500));
       expect(factory.sessions.single.writes.map(utf8.decode).toList(), <String>[
         'Review this change',
         '\r',

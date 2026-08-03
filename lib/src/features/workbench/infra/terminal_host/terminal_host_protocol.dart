@@ -11,17 +11,22 @@ const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
+const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
     'mobileCloudEnrollmentV1';
 const String aleraRuntimeHostCloudPushCapability = 'cloudPushNotificationsV1';
 const String aleraRuntimeHostManagedAgentProfilesCapability =
     'orchestrationManagedAgentProfilesV1';
+const String aleraRuntimeHostAgentProfileOrderingCapability =
+    'orchestrationAgentProfileOrderingV1';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
 const String aleraRuntimeHostCodexResetCreditsCapability =
     'codexResetCreditsV1';
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
+const String aleraRuntimeHostTerminalDeferredInputCapability =
+    'terminalDeferredInputV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';
 const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';

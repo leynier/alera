@@ -8,6 +8,8 @@ abstract interface class TerminalHostClient {
 
   bool get supportsTerminalRestart;
 
+  bool get supportsDeferredInput;
+
   /// Events for one PTY session only.
   ///
   /// Every session used to filter the global stream, so one output chunk was
@@ -42,7 +44,11 @@ abstract interface class TerminalHostClient {
     required int rows,
   });
 
-  Future<void> write({required String sessionId, required List<int> bytes});
+  Future<void> write({
+    required String sessionId,
+    required List<int> bytes,
+    bool deferredEnter = false,
+  });
 
   Future<void> resize({
     required String sessionId,
@@ -312,4 +318,5 @@ const Set<String> runtimeHostEventNames = <String>{
   'agentPresenceChanged',
   'codexThreadChanged',
   'codexServerChanged',
+  'agentCanvasChanged',
 };

@@ -50,12 +50,19 @@ class FakeForgeProvider implements ForgeProvider {
   bool canCloseReview = true;
   bool canChangeDraftStatus = true;
   bool canComment = true;
+  bool canEditComments = true;
   List<ReviewComment> comments = <ReviewComment>[];
   Future<List<ReviewComment>> Function()? commentsLoader;
   int commentsCalls = 0;
   String? lastCommentBody;
   int addCommentCalls = 0;
   Object? addCommentError;
+  int updateCommentCalls = 0;
+  ReviewCommentLocator? lastCommentLocator;
+  String? lastUpdatedCommentBody;
+  Object? updateCommentError;
+  Future<void> Function(ReviewCommentLocator locator, String body)?
+  updateCommentAction;
   ReviewMergeMethod? lastMergeMethod;
   int mergeCalls = 0;
   Object? mergeError;
@@ -82,6 +89,9 @@ class FakeForgeProvider implements ForgeProvider {
 
   @override
   bool get supportsReviewComments => canComment;
+
+  @override
+  bool get supportsReviewCommentEditing => canEditComments;
 
   @override
   Future<ForgeAuthStatus> checkAuth({
@@ -163,6 +173,34 @@ class FakeForgeProvider implements ForgeProvider {
         createdAt: DateTime.utc(2026, 7, 16),
         kind: ReviewCommentKind.conversation,
       ),
+    ];
+  }
+
+  @override
+  Future<void> updateReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCommentLocator locator,
+    required String body,
+  }) async {
+    updateCommentCalls++;
+    lastCommentLocator = locator;
+    lastUpdatedCommentBody = body;
+    final error = updateCommentError;
+    if (error != null) {
+      throw error;
+    }
+    final action = updateCommentAction;
+    if (action != null) {
+      await action(locator, body);
+      return;
+    }
+    comments = <ReviewComment>[
+      for (final comment in comments)
+        comment.locator?.commentId == locator.commentId
+            ? comment.copyWith(body: body)
+            : comment,
     ];
   }
 

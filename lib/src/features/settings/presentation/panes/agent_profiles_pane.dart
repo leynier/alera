@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
-import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
@@ -114,12 +114,24 @@ class _AgentProfilesSettingsPaneState
                   message:
                       'Declare a profile to let a run dispatch work to it.',
                 )
-              : SingleChildScrollView(
-                  child: AleraPanel(
-                    clipBehavior: Clip.antiAlias,
-                    children: <Widget>[
-                      for (final profile in profiles)
-                        AgentProfileListRow(
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AleraTokens.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    border: Border.all(color: AleraTokens.borderSubtle),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    child: ReorderableListView.builder(
+                      buildDefaultDragHandles: false,
+                      itemCount: profiles.length,
+                      onReorderItem: (oldIndex, newIndex) => unawaited(
+                        _reorderProfiles(profiles, oldIndex, newIndex),
+                      ),
+                      itemBuilder: (context, index) {
+                        final profile = profiles[index];
+                        return AgentProfileListRow(
+                          key: ValueKey<String>(profile.id),
                           profile: profile,
                           selected: profile.id == _selectedProfileId,
                           isDefault: profile.id == defaultAgentProfileId,
@@ -132,8 +144,17 @@ class _AgentProfilesSettingsPaneState
                               ? null
                               : () =>
                                     unawaited(_cloneProfile(profile, profiles)),
-                        ),
-                    ],
+                          dragHandle: ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(
+                              AleraIcons.dragHandle,
+                              size: 16,
+                              color: AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
           detail: AgentProfileEditor(

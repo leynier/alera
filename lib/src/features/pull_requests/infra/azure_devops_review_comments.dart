@@ -87,6 +87,55 @@ mixin _AzureDevOpsReviewComments {
     }
   }
 
+  Future<void> updateReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCommentLocator locator,
+    required String body,
+  }) async {
+    final project = _project(identity);
+    final threadId = locator.parentId;
+    if (threadId == null || threadId.isEmpty) {
+      throw const ForgeRequestFailed(
+        'The Azure DevOps comment thread could not be determined.',
+      );
+    }
+    final tempDir = await Directory.systemTemp.createTemp('alera-pr-comment');
+    try {
+      final bodyFile = File(p.join(tempDir.path, 'body.json'));
+      await bodyFile.writeAsString(
+        AzureDevOpsForgeProvider.commentBodyJson(body),
+      );
+      await _azure._run(<String>[
+        'devops',
+        'invoke',
+        '--area',
+        'git',
+        '--resource',
+        'pullRequestThreadComments',
+        '--route-parameters',
+        'project=$project',
+        'repositoryId=${identity.repo}',
+        'pullRequestId=$number',
+        'threadId=$threadId',
+        'commentId=${locator.commentId}',
+        '--http-method',
+        'PATCH',
+        '--api-version',
+        '7.1',
+        '--in-file',
+        bodyFile.path,
+        '--organization',
+        azureOrgUrl(identity),
+        '--output',
+        'json',
+      ], repoPath);
+    } finally {
+      await tempDir.delete(recursive: true);
+    }
+  }
+
   Iterable<ReviewComment> _mapThread(Map<String, Object?> thread) sync* {
     final threadId = '${thread['id']}';
     final context = thread['threadContext'];
@@ -134,6 +183,15 @@ mixin _AzureDevOpsReviewComments {
         path: path,
         line: line,
         resolved: resolved,
+        locator: rawComment['id'] == null
+            ? null
+            : ReviewCommentLocator(
+                source: path == null
+                    ? ReviewCommentSource.conversation
+                    : ReviewCommentSource.reviewThread,
+                commentId: '${rawComment['id']}',
+                parentId: threadId,
+              ),
       );
     }
   }

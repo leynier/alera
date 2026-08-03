@@ -71,6 +71,9 @@ class GitHubForgeProvider
   @override
   bool get supportsReviewComments => true;
 
+  @override
+  bool get supportsReviewCommentEditing => true;
+
   /// `gh` accepts `[HOST/]OWNER/REPO`; the host prefix is only needed for
   /// GitHub Enterprise hosts.
   String _repoSlug(GitRemoteIdentity identity) {

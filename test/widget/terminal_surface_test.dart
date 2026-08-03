@@ -28,6 +28,7 @@ import 'package:xterm/xterm.dart' as xterm;
 
 part 'terminal_surface_core_test_cases.dart';
 part 'terminal_surface_composer_test_cases.dart';
+part 'terminal_surface_composer_submit_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
 part 'terminal_surface_tab_switch_test_cases.dart';
 part 'terminal_surface_test_harness.dart';
@@ -35,6 +36,7 @@ part 'terminal_surface_test_harness.dart';
 void main() {
   _registerTerminalSurfaceRuntimeTests();
   _registerTerminalSurfaceComposerTests();
+  _registerTerminalSurfaceComposerSubmitTests();
   _registerTerminalSurfaceInteractionTests();
   _registerTerminalSurfaceTabSwitchTests();
 }

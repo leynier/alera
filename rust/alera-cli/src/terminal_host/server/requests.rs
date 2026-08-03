@@ -684,11 +684,11 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
             }
+            ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
-                let path_entry_count =
-                    crate::login_shell_environment::reload_login_shell_path().await;
-                Ok(json!({ "pathEntryCount": path_entry_count }))
+                let path_count = crate::login_shell_environment::reload_login_shell_path().await;
+                Ok(json!({ "pathEntryCount": path_count }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;
@@ -1114,6 +1114,10 @@ impl ServerActor {
             "agentProfile.upsert" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_upsert(payload).await
+            }
+            "agentProfile.reorder" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.agent_profile_reorder(payload).await
             }
             "agentProfile.remove" => {
                 self.require_auth(client_id)?;
