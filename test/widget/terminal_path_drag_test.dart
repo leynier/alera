@@ -1,3 +1,5 @@
+import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
@@ -28,12 +30,62 @@ void main() {
     expect(session.pasted, isEmpty);
     expect(session.focusRequests, 0);
   });
+
+  testWidgets('composer turns in-app path drags into attachments', (
+    tester,
+  ) async {
+    final session = _CapturingTerminalSessionHandle();
+    session.composerController.show();
+
+    await _pumpDragHarness(
+      tester,
+      session,
+      paths: const <String>['/tmp/image.png', '/tmp/my file'],
+    );
+    await _dragSourceToTerminal(
+      tester,
+      target: find.byKey(session.composerController.dropTargetKey),
+    );
+
+    expect(session.pasted, isEmpty);
+    expect(session.composerController.attachments, hasLength(2));
+    expect(
+      session.composerController.attachments.map(
+        (attachment) => attachment.kind,
+      ),
+      <TerminalComposerAttachmentKind>[
+        TerminalComposerAttachmentKind.image,
+        TerminalComposerAttachmentKind.file,
+      ],
+    );
+  });
+
+  testWidgets('composer turns desktop file drops into attachments', (
+    tester,
+  ) async {
+    final session = _CapturingTerminalSessionHandle();
+    session.composerController.show();
+    await _pumpDragHarness(tester, session);
+
+    handleTerminalFileDrop(
+      session: session,
+      paths: const <String>['/tmp/image.webp', '/tmp/report.pdf'],
+      globalPosition: tester.getCenter(
+        find.byKey(session.composerController.dropTargetKey),
+      ),
+    );
+    await tester.pump();
+
+    expect(session.pasted, isEmpty);
+    expect(session.composerController.attachments, hasLength(2));
+  });
 }
 
 Future<void> _pumpDragHarness(
   WidgetTester tester,
-  _CapturingTerminalSessionHandle session,
-) async {
+  _CapturingTerminalSessionHandle session, {
+  List<String> paths = const <String>['/tmp/foo', '/tmp/my file'],
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -43,9 +95,7 @@ Future<void> _pumpDragHarness(
               width: 200,
               child: Center(
                 child: TerminalPathLongPressDraggable<TerminalPathDragData>(
-                  data: const TerminalPathDragData(
-                    paths: <String>['/tmp/foo', '/tmp/my file'],
-                  ),
+                  data: TerminalPathDragData(paths: paths),
                   feedback: const Material(child: Text('Dragging Paths')),
                   child: const Text('Drag Paths'),
                 ),
@@ -60,14 +110,19 @@ Future<void> _pumpDragHarness(
   await tester.pump();
 }
 
-Future<void> _dragSourceToTerminal(WidgetTester tester) async {
+Future<void> _dragSourceToTerminal(
+  WidgetTester tester, {
+  Finder? target,
+}) async {
   final gesture = await tester.startGesture(
     tester.getCenter(find.text('Drag Paths')),
   );
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
   expect(find.text('Dragging Paths'), findsOneWidget);
 
-  await gesture.moveTo(tester.getCenter(find.byType(TerminalSurface)));
+  await gesture.moveTo(
+    tester.getCenter(target ?? find.byType(TerminalSurface)),
+  );
   await tester.pump();
   await gesture.up();
   await tester.pump();
