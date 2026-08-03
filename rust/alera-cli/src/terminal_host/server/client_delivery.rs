@@ -1,5 +1,5 @@
 use super::*;
-use crate::terminal_host::protocol::{MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
+use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LocalClientRole {
@@ -50,10 +50,19 @@ impl ServerActor {
                     .iter()
                     .any(|kind| kind.as_str() == Some(MOBILE_EMULATOR_TAB_KIND))
             });
+        let supports_codex_tab_kind = payload
+            .get("supportedTabKinds")
+            .and_then(Value::as_array)
+            .is_some_and(|kinds| {
+                kinds
+                    .iter()
+                    .any(|kind| kind.as_str() == Some(CODEX_TAB_KIND))
+            });
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
             client.supports_mobile_emulator_tab_kind = supports_mobile_emulator_tab_kind;
+            client.supports_codex_tab_kind = supports_codex_tab_kind;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
             }
@@ -215,6 +224,7 @@ mod tests {
                     authenticated: true,
                     binary_frames: false,
                     supports_mobile_emulator_tab_kind: false,
+                    supports_codex_tab_kind: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
@@ -232,6 +242,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

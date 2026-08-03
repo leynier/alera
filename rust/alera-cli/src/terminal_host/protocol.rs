@@ -126,6 +126,10 @@ pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCert
 // sending emulator verbs.
 pub const RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY: &str = "mobileEmulatorV1";
 pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
+/// Native Codex chat tabs are additive. Clients advertise support for the tab
+/// kind separately so an older client never attempts to decode it.
+pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
+pub const CODEX_TAB_KIND: &str = "codex";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.
 pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;

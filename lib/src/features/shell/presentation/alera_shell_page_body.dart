@@ -305,6 +305,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                   );
                 }
               : null,
+          onCreateCodexTab: ({targetGroupId}) async {
+            await controller.createCodexTab(
+              workspace,
+              targetGroupId: targetGroupId,
+            );
+          },
           onOpenMobileEmulator: ({targetGroupId}) async {
             final existing = tabs.any(
               (tab) => tab.kind == WorkspaceTabKind.mobileEmulator,

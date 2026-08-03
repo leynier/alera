@@ -19,6 +19,8 @@ class WorkspaceTabSummary {
 
   bool get isTerminal => kind == 'terminal';
 
+  bool get isCodex => kind == 'codex';
+
   bool get hasManualTitle => payload['manualTitle'] == true;
 
   String get displayTitle {

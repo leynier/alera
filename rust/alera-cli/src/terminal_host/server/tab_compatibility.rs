@@ -2,7 +2,7 @@
 
 use alera_core::runtime::WorkspaceTabRecord;
 
-use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
+use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND};
 
 use super::{ClientKind, ServerActor};
 
@@ -16,6 +16,13 @@ impl ServerActor {
             client.kind == ClientKind::Mobile || client.supports_mobile_emulator_tab_kind
         });
         if tab.kind == MOBILE_EMULATOR_TAB_KIND && !supports_mobile_emulator {
+            return None;
+        }
+        let supports_codex = self
+            .clients
+            .get(&client_id)
+            .is_some_and(|client| client.supports_codex_tab_kind);
+        if tab.kind == CODEX_TAB_KIND && !supports_codex {
             return None;
         }
         Some(tab)
