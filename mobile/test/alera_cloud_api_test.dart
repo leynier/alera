@@ -98,6 +98,27 @@ void main() {
     expect(methods, <String>['PUT', 'DELETE']);
   });
 
+  test('Revokes The Remote Session Before Local Account Removal', () async {
+    late http.Request captured;
+    final api = HttpAleraCloudApi(
+      configuration: AleraCloudConfiguration(
+        baseUri: Uri.parse('https://api.example/'),
+      ),
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response('{}', 204);
+      }),
+    );
+
+    await api.revokeSession(_session());
+
+    expect(captured.method, 'POST');
+    expect(captured.url.path, '/v1/auth/revoke');
+    expect(jsonDecode(captured.body), <String, Object?>{
+      'refreshToken': 'refresh',
+    });
+  });
+
   test('Maps Structured Cloud Failures', () async {
     final api = HttpAleraCloudApi(
       configuration: AleraCloudConfiguration(
@@ -119,6 +140,81 @@ void main() {
             .having((error) => error.code, 'code', 'quota_exceeded'),
       ),
     );
+  });
+
+  test('Relay Endpoints Discover Identities And Decode Grants', () async {
+    final paths = <String>[];
+    final api = HttpAleraCloudApi(
+      configuration: AleraCloudConfiguration(
+        baseUri: Uri.parse('https://api.example/'),
+      ),
+      client: MockClient((request) async {
+        paths.add(request.url.path);
+        if (request.url.path == '/v1/mobile/runtimes') {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'runtimes': <Map<String, Object?>>[
+                <String, Object?>{
+                  'id': 'runtime-1',
+                  'name': 'Alera Dev',
+                  'lastSeenAt': '2026-08-03T00:00:00Z',
+                  'relayPublicKey': 'runtime-key',
+                  'relayKeyVersion': 1,
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/v1/relay/identity') {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'clientId': 'mobile-1',
+              'clientKind': 'mobile',
+              'publicKey': 'mobile-key',
+              'keyVersion': 1,
+            }),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'grant': 'signed-grant',
+            'relayUrl': 'wss://relay.example/v1/relay/runtime-1',
+            'expiresIn': 120,
+            'accountId': 'account-1',
+            'runtimeId': 'runtime-1',
+            'clientId': 'mobile-1',
+            'clientKind': 'mobile',
+            'clientKeyVersion': 1,
+            'clientPublicKey': 'mobile-key',
+            'runtimePublicKey': 'runtime-key',
+          }),
+          200,
+        );
+      }),
+    );
+
+    final relayApi = api as AleraRelayCloudApi;
+    final runtimes = await relayApi.discoverRuntimes(_session());
+    final identity = await relayApi.registerRelayIdentity(
+      session: _session(),
+      publicKey: 'mobile-key',
+      keyVersion: 1,
+    );
+    final grant = await relayApi.requestRelayGrant(
+      session: _session(),
+      runtimeId: 'runtime-1',
+    );
+
+    expect(runtimes.single.relayKeyVersion, 1);
+    expect(identity.clientKind, 'mobile');
+    expect(grant.runtimePublicKey, 'runtime-key');
+    expect(paths, <String>[
+      '/v1/mobile/runtimes',
+      '/v1/relay/identity',
+      '/v1/relay/grants',
+    ]);
   });
 }
 

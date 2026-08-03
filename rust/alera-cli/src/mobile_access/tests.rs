@@ -253,6 +253,7 @@ fn settings_update_applies_endpoint_mode() {
         MobileAccessSettings::default(),
         MobileSettingsUpdateRequest {
             enabled: Some(true),
+            remote_access_enabled: None,
             bind_host: None,
             port: None,
             endpoint_mode: Some(MobileEndpointMode::Tailscale),

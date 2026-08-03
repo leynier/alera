@@ -122,6 +122,12 @@ impl RuntimeStore {
         .await?;
         self.ensure_column(
             "mobileAccessSettings",
+            "remoteAccessEnabled",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+        .await?;
+        self.ensure_column(
+            "mobileAccessSettings",
             "netbirdEndpoint",
             "TEXT NOT NULL DEFAULT 'ip'",
         )
@@ -360,7 +366,8 @@ impl RuntimeStore {
 
     pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
         let row = sqlx::query(
-            "SELECT enabled, bindHost, port, endpointMode, netbirdEndpoint, serverPublicKeyB64, updatedAt \
+            "SELECT enabled, remoteAccessEnabled, bindHost, port, endpointMode, netbirdEndpoint, \
+             serverPublicKeyB64, updatedAt \
              FROM mobileAccessSettings WHERE id = 1",
         )
         .fetch_optional(&self.pool)
@@ -384,15 +391,17 @@ impl RuntimeStore {
         settings.updated_at = Utc::now();
         sqlx::query(
             "INSERT INTO mobileAccessSettings \
-             (id, enabled, bindHost, port, endpointMode, netbirdEndpoint, serverPublicKeyB64, updatedAt) \
-             VALUES (1, ?, ?, ?, ?, ?, ?, ?) \
+             (id, enabled, remoteAccessEnabled, bindHost, port, endpointMode, netbirdEndpoint, \
+             serverPublicKeyB64, updatedAt) \
+             VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
-             enabled = excluded.enabled, bindHost = excluded.bindHost, port = excluded.port, \
+             enabled = excluded.enabled, remoteAccessEnabled = excluded.remoteAccessEnabled, bindHost = excluded.bindHost, port = excluded.port, \
              endpointMode = excluded.endpointMode, \
              netbirdEndpoint = excluded.netbirdEndpoint, \
              serverPublicKeyB64 = excluded.serverPublicKeyB64, updatedAt = excluded.updatedAt",
         )
         .bind(if settings.enabled { 1_i64 } else { 0_i64 })
+        .bind(if settings.remote_access_enabled { 1_i64 } else { 0_i64 })
         .bind(&settings.bind_host)
         .bind(settings.port)
         .bind(settings.endpoint_mode.as_str())
@@ -1729,6 +1738,7 @@ fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
 fn mobile_access_settings_from_row(row: sqlx::sqlite::SqliteRow) -> Result<MobileAccessSettings> {
     Ok(MobileAccessSettings {
         enabled: row.try_get::<i64, _>("enabled")? == 1,
+        remote_access_enabled: row.try_get::<i64, _>("remoteAccessEnabled")? == 1,
         bind_host: row.try_get("bindHost")?,
         port: row.try_get("port")?,
         endpoint_mode: MobileEndpointMode::from_db(

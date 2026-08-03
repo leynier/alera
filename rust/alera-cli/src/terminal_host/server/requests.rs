@@ -46,6 +46,8 @@ struct MobileHelloRequest {
     cloud_device_id: Option<String>,
     #[serde(default)]
     supported_tab_kinds: Vec<String>,
+    #[serde(default)]
+    relay_client_id: Option<String>,
 }
 
 impl ServerActor {
@@ -189,13 +191,50 @@ impl ServerActor {
                         request.protocol_version
                     )));
                 }
-                let device = authenticate_mobile_device(
-                    &self.runtime_store,
-                    &request.device_id,
-                    &request.device_token,
-                )
-                .await
-                .map_err(|error| HostError::state(error.to_string()))?;
+                let (device_id, device_name, device) = if let Some(relay_client_id) = request
+                    .relay_client_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty())
+                {
+                    let client = self
+                        .clients
+                        .get(&client_id)
+                        .ok_or_else(|| HostError::state("Client disconnected."))?;
+                    if client.relay_client_id.as_deref() != Some(relay_client_id)
+                        || !request.device_token.trim().is_empty()
+                    {
+                        return Err(HostError::state("The relay mobile identity is invalid."));
+                    }
+                    (
+                        relay_client_id.to_string(),
+                        client
+                            .mobile_device_name
+                            .clone()
+                            .unwrap_or_else(|| "Remote Mobile".to_string()),
+                        json!({
+                            "id": relay_client_id,
+                            "displayName": "Remote Mobile",
+                            "permission": "fullControl",
+                            "pairedAt": chrono::Utc::now(),
+                            "lastSeenAt": chrono::Utc::now(),
+                            "revokedAt": Value::Null,
+                        }),
+                    )
+                } else {
+                    let device = authenticate_mobile_device(
+                        &self.runtime_store,
+                        &request.device_id,
+                        &request.device_token,
+                    )
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                    (
+                        device.id.clone(),
+                        device.display_name.clone(),
+                        json!(device),
+                    )
+                };
                 let binary_frames = payload
                     .get("binaryFrames")
                     .and_then(Value::as_bool)
@@ -203,11 +242,12 @@ impl ServerActor {
                 if let Some(client) = self.clients.get_mut(&client_id) {
                     client.authenticated = true;
                     client.binary_frames = binary_frames;
-                    client.mobile_device_id = Some(device.id.clone());
-                    client.mobile_device_name = Some(device.display_name.clone());
+                    client.mobile_device_id = Some(device_id);
+                    client.mobile_device_name = Some(device_name);
                     client.cloud_device_id = request
                         .cloud_device_id
-                        .filter(|device_id| !device_id.trim().is_empty());
+                        .filter(|device_id| !device_id.trim().is_empty())
+                        .or_else(|| client.relay_client_id.clone());
                     client.supports_codex_tab_kind = request
                         .supported_tab_kinds
                         .iter()

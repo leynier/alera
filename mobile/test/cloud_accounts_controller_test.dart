@@ -117,4 +117,7 @@ class _RemovalApi implements AleraCloudApi {
   Future<CloudAccountSession> refreshSession(
     CloudAccountSession session,
   ) async => session;
+
+  @override
+  Future<void> revokeSession(CloudAccountSession session) async {}
 }
