@@ -87,6 +87,27 @@ class WorkspaceTabService {
     return tab;
   }
 
+  Future<WorkspaceTabRecord> createCodexTab(String workspaceId) async {
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    final now = _now();
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.codex,
+      title: 'Codex',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{},
+    );
+    // The next ordinal is deliberately not used for Codex: the product name
+    // is stable until the user renames the thread or tab.
+    if (existing.any((candidate) => candidate.id == tab.id)) {
+      throw StateError('Could not allocate a unique Codex tab id.');
+    }
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
   Future<WorkspaceTabRecord> openOrCreateEditorTab({
     required String workspaceId,
     required String relativePath,

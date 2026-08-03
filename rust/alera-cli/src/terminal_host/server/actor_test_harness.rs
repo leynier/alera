@@ -31,6 +31,7 @@ impl ClientState {
             authenticated: true,
             binary_frames: false,
             supports_mobile_emulator_tab_kind: false,
+            supports_codex_tab_kind: false,
             kind: ClientKind::Local,
             local_role: if app_client {
                 LocalClientRole::App
@@ -50,6 +51,7 @@ pub(super) fn mobile_client(handle: ClientHandle, device: &str) -> ClientState {
         authenticated: true,
         binary_frames: false,
         supports_mobile_emulator_tab_kind: false,
+        supports_codex_tab_kind: false,
         kind: ClientKind::Mobile,
         local_role: LocalClientRole::Cli,
         mobile_device_id: Some(device.to_string()),
@@ -64,6 +66,7 @@ pub(super) fn local_client(handle: ClientHandle) -> ClientState {
         authenticated: true,
         binary_frames: false,
         supports_mobile_emulator_tab_kind: false,
+        supports_codex_tab_kind: false,
         kind: ClientKind::Local,
         local_role: LocalClientRole::Cli,
         mobile_device_id: None,
@@ -108,6 +111,7 @@ pub(super) async fn test_actor(
         resources: ResourceMonitorState::default(),
         browser: BrowserBroker::default(),
         emulators: None,
+        codex: None,
         inbox,
         next_client_id: Arc::new(AtomicU64::new(10)),
         mobile_gateway: None,

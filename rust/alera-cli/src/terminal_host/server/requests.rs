@@ -46,6 +46,8 @@ struct MobileHelloRequest {
     device_token: String,
     #[serde(default)]
     cloud_device_id: Option<String>,
+    #[serde(default)]
+    supported_tab_kinds: Vec<String>,
 }
 
 impl ServerActor {
@@ -102,7 +104,10 @@ impl ServerActor {
                         }
                         return;
                     }
-                    match self.try_start_deferred_request(client_id, id, &request_type, &payload) {
+                    match self
+                        .try_start_deferred_request(client_id, id, &request_type, &payload)
+                        .await
+                    {
                         Ok(true) => return,
                         Ok(false) => {}
                         Err(error) => {
@@ -155,7 +160,7 @@ impl ServerActor {
         }
     }
 
-    fn try_start_deferred_request(
+    async fn try_start_deferred_request(
         &mut self,
         client_id: u64,
         request_id: i64,
@@ -225,6 +230,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
+                self.interrupt_codex_workspace_in_background(request.id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -236,6 +243,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let project_id = require_string_key(payload, "id")?;
+                self.interrupt_codex_project_in_background(project_id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -247,6 +256,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "id")?;
+                self.interrupt_codex_workspace_in_background(workspace_id.clone())
+                    .await;
                 let cascade_tabs = payload
                     .get("cascadeTabs")
                     .and_then(Value::as_bool)
@@ -265,6 +276,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let project_id = require_string_key(payload, "projectId")?;
+                self.interrupt_codex_project_in_background(project_id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -276,6 +289,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
+                self.interrupt_codex_workspace_in_background(workspace_id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -287,6 +302,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
+                self.interrupt_codex_tab_id_in_background(tab_id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -298,6 +315,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
+                self.interrupt_codex_workspace_in_background(workspace_id.clone())
+                    .await;
                 self.start_runtime_mutation(
                     client_id,
                     request_id,
@@ -399,6 +418,10 @@ impl ServerActor {
                     client.cloud_device_id = request
                         .cloud_device_id
                         .filter(|device_id| !device_id.trim().is_empty());
+                    client.supports_codex_tab_kind = request
+                        .supported_tab_kinds
+                        .iter()
+                        .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
                 }
                 self.cancel_shutdown_timer();
                 if binary_frames {
@@ -414,6 +437,7 @@ impl ServerActor {
                     "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
                     "authenticated": true,
                     "binaryFrames": binary_frames,
+                    "supportedTabKinds": request.supported_tab_kinds,
                     "device": device,
                 }))
             }
@@ -440,6 +464,10 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
+            request_type if request_type.starts_with("codex.") => {
+                self.handle_codex_request(client_id, request_type, payload)
+                    .await
+            }
             "configure" => {
                 self.require_auth(client_id)?;
                 // Crash reporting is a live switch rather than a start-up flag:
@@ -995,7 +1023,9 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
                 if self.is_mobile_client(client_id) {
-                    Ok(self.mobile_workspace_tabs_payload(tabs))
+                    Ok(self.mobile_workspace_tabs_payload(
+                        self.workspace_tabs_for_client(client_id, tabs),
+                    ))
                 } else {
                     Ok(json!(self.workspace_tabs_for_client(client_id, tabs)))
                 }

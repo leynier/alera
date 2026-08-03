@@ -582,7 +582,10 @@ final class SocketTerminalHostClient
           'protocolVersion': aleraTerminalHostProtocolVersion,
           'token': control.token,
           'clientKind': 'app',
-          'supportedTabKinds': const <String>[aleraMobileEmulatorTabKind],
+          'supportedTabKinds': const <String>[
+            aleraMobileEmulatorTabKind,
+            aleraCodexTabKind,
+          ],
           if (control.supportsBinaryFrames) 'binaryFrames': true,
         },
       });

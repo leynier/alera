@@ -76,6 +76,10 @@ mod browser_tab_rollback;
 mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
+mod codex_app_server;
+mod codex_events;
+mod codex_requests;
+mod codex_state;
 mod computer_request_payloads;
 mod computer_requests;
 mod coordinator_requests;
@@ -159,6 +163,7 @@ struct ClientState {
     authenticated: bool,
     binary_frames: bool,
     supports_mobile_emulator_tab_kind: bool,
+    supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -242,6 +247,7 @@ pub async fn run_terminal_host_server(
         resources: ResourceMonitorState::default(),
         browser: BrowserBroker::default(),
         emulators,
+        codex: None,
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -325,6 +331,7 @@ struct ServerActor {
     resources: ResourceMonitorState,
     browser: BrowserBroker,
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
+    codex: Option<codex_app_server::CodexAppServer>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -496,6 +503,7 @@ impl ServerActor {
                         authenticated: false,
                         binary_frames: false,
                         supports_mobile_emulator_tab_kind: false,
+                        supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -676,6 +684,11 @@ impl ServerActor {
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
+            ServerCommand::CodexMessage { message } => self.handle_codex_message(message).await,
+            ServerCommand::CodexProcessExited { reason } => {
+                self.handle_codex_process_exited(reason).await
+            }
+            ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1163,6 +1176,7 @@ impl ServerActor {
         }
         self.disposed = true;
         self.cancel_shutdown_timer();
+        self.codex = None;
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
         }
@@ -1246,6 +1260,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1315,6 +1330,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1402,6 +1418,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1484,6 +1501,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1588,6 +1606,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1665,6 +1684,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1733,6 +1753,7 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,
