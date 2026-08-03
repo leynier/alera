@@ -91,6 +91,7 @@ class _FakeTerminalClipboard implements TerminalClipboard {
 
   String? text;
   String? imagePath;
+  List<String> filePaths = <String>[];
   Object? readError;
   Object? imageError;
   final List<String> writes = <String>[];
@@ -103,6 +104,9 @@ class _FakeTerminalClipboard implements TerminalClipboard {
     }
     return text;
   }
+
+  @override
+  Future<List<String>> readFilePaths() async => filePaths;
 
   @override
   Future<String?> saveImageAsTempFile() async {
