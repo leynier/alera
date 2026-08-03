@@ -1,0 +1,3 @@
+interface:
+  display_name: "Agent Canvas"
+  short_description: "Publish structured agent progress and durable decisions through Alera's Agent Canvas."
