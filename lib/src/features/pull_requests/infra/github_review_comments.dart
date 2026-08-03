@@ -86,6 +86,7 @@ query($thread: ID!, $commentsAfter: String) {
           entry,
           kind: ReviewCommentKind.conversation,
           idPrefix: 'issue',
+          source: ReviewCommentSource.conversation,
         ),
       ...threads,
       for (final entry in reviews)
@@ -95,6 +96,7 @@ query($thread: ID!, $commentsAfter: String) {
             kind: ReviewCommentKind.conversation,
             idPrefix: 'review',
             createdAtField: 'submitted_at',
+            source: ReviewCommentSource.reviewSummary,
           ),
     ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return comments;
@@ -114,6 +116,34 @@ query($thread: ID!, $commentsAfter: String) {
       _github._repoSlug(identity),
       '--body',
       body,
+    ], repoPath);
+  }
+
+  Future<void> updateReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCommentLocator locator,
+    required String body,
+  }) async {
+    _github._ensureSupportedHost(identity);
+    final endpoint = switch (locator.source) {
+      ReviewCommentSource.conversation =>
+        'repos/${identity.owner}/${identity.repo}/issues/comments/${locator.commentId}',
+      ReviewCommentSource.reviewSummary =>
+        'repos/${identity.owner}/${identity.repo}/pulls/$number/reviews/${locator.commentId}',
+      ReviewCommentSource.reviewThread =>
+        'repos/${identity.owner}/${identity.repo}/pulls/comments/${locator.commentId}',
+    };
+    await _github._run(<String>[
+      'api',
+      '--hostname',
+      identity.host,
+      endpoint,
+      '--method',
+      'PATCH',
+      '--raw-field',
+      'body=$body',
     ], repoPath);
   }
 
@@ -313,8 +343,9 @@ query($thread: ID!, $commentsAfter: String) {
         continue;
       }
       final authorData = node['author'];
+      final databaseId = node['databaseId'];
       yield ReviewComment(
-        id: 'thread:$threadId:${node['databaseId']}',
+        id: 'thread:$threadId:$databaseId',
         author: authorData is Map<String, Object?>
             ? authorData['login'] as String? ?? 'Unknown author'
             : 'Unknown author',
@@ -327,6 +358,13 @@ query($thread: ID!, $commentsAfter: String) {
         path: node['path'] as String?,
         line: line,
         resolved: thread['isResolved'] == true,
+        locator: databaseId == null
+            ? null
+            : ReviewCommentLocator(
+                source: ReviewCommentSource.reviewThread,
+                commentId: '$databaseId',
+                parentId: threadId,
+              ),
       );
     }
   }
@@ -335,6 +373,7 @@ query($thread: ID!, $commentsAfter: String) {
     Map<String, Object?> entry, {
     required ReviewCommentKind kind,
     required String idPrefix,
+    required ReviewCommentSource source,
     String createdAtField = 'created_at',
   }) {
     final user = entry['user'];
@@ -350,6 +389,9 @@ query($thread: ID!, $commentsAfter: String) {
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       kind: kind,
       url: entry['html_url'] as String?,
+      locator: entry['id'] == null
+          ? null
+          : ReviewCommentLocator(source: source, commentId: '${entry['id']}'),
     );
   }
 }

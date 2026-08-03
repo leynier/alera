@@ -37,6 +37,8 @@ class PullRequestReviewView extends StatefulWidget {
     required this.canCloseReview,
     required this.canChangeDraftStatus,
     required this.canComment,
+    this.canEditComments = false,
+    this.savingCommentIds = const <String>{},
     required this.action,
     required this.onOpenUrl,
     required this.onUnlink,
@@ -44,6 +46,7 @@ class PullRequestReviewView extends StatefulWidget {
     required this.onClose,
     required this.onDraftStatusChanged,
     required this.onAddComment,
+    this.onToggleTask = _ignorePullRequestTaskToggle,
     required this.onUpdate,
     required this.onLoadCheckDetails,
   });
@@ -56,6 +59,8 @@ class PullRequestReviewView extends StatefulWidget {
   final bool canCloseReview;
   final bool canChangeDraftStatus;
   final bool canComment;
+  final bool canEditComments;
+  final Set<String> savingCommentIds;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
   final Future<void> Function() onUnlink;
@@ -63,6 +68,7 @@ class PullRequestReviewView extends StatefulWidget {
   final Future<void> Function() onClose;
   final Future<void> Function(bool draft) onDraftStatusChanged;
   final Future<bool> Function(String body) onAddComment;
+  final Future<void> Function(String commentId, int itemIndex) onToggleTask;
   final Future<UpdateReviewResult> Function(UpdateReviewInput input) onUpdate;
   final Future<ReviewCheckDetails?> Function(ReviewCheck check)
   onLoadCheckDetails;
@@ -70,6 +76,11 @@ class PullRequestReviewView extends StatefulWidget {
   @override
   State<PullRequestReviewView> createState() => _PullRequestReviewViewState();
 }
+
+Future<void> _ignorePullRequestTaskToggle(
+  String commentId,
+  int itemIndex,
+) async {}
 
 class _PullRequestReviewViewState extends State<PullRequestReviewView> {
   final TextEditingController _titleController = TextEditingController();
@@ -165,8 +176,11 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                 _PullRequestCommentsSection(
                   comments: widget.comments,
                   canComment: widget.canComment && review.isOpen,
+                  canEditComments: widget.canEditComments && review.isOpen,
+                  savingCommentIds: widget.savingCommentIds,
                   action: widget.action,
                   onAddComment: widget.onAddComment,
+                  onToggleTask: widget.onToggleTask,
                   onOpenUrl: widget.onOpenUrl,
                 ),
               ],

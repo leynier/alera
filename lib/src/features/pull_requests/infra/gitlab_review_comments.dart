@@ -33,9 +33,11 @@ mixin _GitLabReviewComments {
         final author = note['author'];
         final position = note['position'];
         final positioned = position is Map;
+        final noteId = note['id'];
+        final discussionId = discussion['id'];
         comments.add(
           ReviewComment(
-            id: 'discussion:${discussion['id']}:${note['id']}',
+            id: 'discussion:$discussionId:$noteId',
             author: author is Map
                 ? author['username'] as String? ??
                       author['name'] as String? ??
@@ -58,6 +60,15 @@ mixin _GitLabReviewComments {
                       ?.toInt()
                 : null,
             resolved: positioned && note['resolved'] == true,
+            locator: noteId == null
+                ? null
+                : ReviewCommentLocator(
+                    source: positioned
+                        ? ReviewCommentSource.reviewThread
+                        : ReviewCommentSource.conversation,
+                    commentId: '$noteId',
+                    parentId: positioned ? '$discussionId' : null,
+                  ),
           ),
         );
       }
@@ -77,6 +88,40 @@ mixin _GitLabReviewComments {
       repoPath,
       '${_gitlab._projectEndpoint(identity)}/merge_requests/$number/notes',
       method: 'POST',
+      fields: <String>['body=$body'],
+    );
+  }
+
+  Future<void> updateReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCommentLocator locator,
+    required String body,
+  }) async {
+    if (locator.source == ReviewCommentSource.reviewSummary) {
+      throw const ForgeRequestFailed(
+        'GitLab does not expose pull-request review summaries as comments.',
+      );
+    }
+    final discussionId = locator.parentId;
+    if (locator.source == ReviewCommentSource.reviewThread &&
+        (discussionId == null || discussionId.isEmpty)) {
+      throw const ForgeRequestFailed(
+        'The GitLab comment discussion could not be determined.',
+      );
+    }
+    final endpoint = locator.source == ReviewCommentSource.reviewThread
+        ? '${_gitlab._projectEndpoint(identity)}/merge_requests/$number'
+              '/discussions/${Uri.encodeComponent(discussionId!)}'
+              '/notes/${Uri.encodeComponent(locator.commentId)}'
+        : '${_gitlab._projectEndpoint(identity)}/merge_requests/$number'
+              '/notes/${Uri.encodeComponent(locator.commentId)}';
+    await _gitlab._api(
+      identity,
+      repoPath,
+      endpoint,
+      method: 'PUT',
       fields: <String>['body=$body'],
     );
   }

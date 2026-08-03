@@ -38,6 +38,9 @@ abstract interface class ForgeProvider {
   /// Whether this provider can read and create pull-request comments.
   bool get supportsReviewComments;
 
+  /// Whether this provider can update existing pull-request comments.
+  bool get supportsReviewCommentEditing;
+
   /// Reports whether the provider's CLI is installed and authenticated for the
   /// host in [identity]. Never throws.
   Future<ForgeAuthStatus> checkAuth({required GitRemoteIdentity identity});
@@ -88,6 +91,16 @@ abstract interface class ForgeProvider {
     required GitRemoteIdentity identity,
     required String repoPath,
     required int number,
+    required String body,
+  });
+
+  /// Replaces the complete Markdown body of an existing review comment.
+  /// Provider permissions are enforced by the provider endpoint.
+  Future<void> updateReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCommentLocator locator,
     required String body,
   });
 

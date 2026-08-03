@@ -42,6 +42,9 @@ class AzureDevOpsForgeProvider
   bool get supportsReviewCreation => true;
 
   @override
+  bool get supportsReviewCommentEditing => true;
+
+  @override
   bool get supportsReviewComments => true;
 
   @visibleForTesting
@@ -56,6 +59,11 @@ class AzureDevOpsForgeProvider
       ],
       'status': 1,
     });
+  }
+
+  @visibleForTesting
+  static String commentBodyJson(String body) {
+    return jsonEncode(<String, String>{'content': body});
   }
 
   /// PATCH body for retargeting a pull request via `az devops invoke`.
