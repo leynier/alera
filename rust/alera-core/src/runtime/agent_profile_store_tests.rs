@@ -15,6 +15,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
     AgentProfile {
         id: id.to_string(),
         name: name.to_string(),
+        sort_order: 0,
         agent_type: "codex".to_string(),
         command: "codex".to_string(),
         launch_mode: AgentProfileLaunchMode::Command,
@@ -28,7 +29,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
 }
 
 #[tokio::test]
-async fn upserts_and_lists_profiles_by_name() {
+async fn upserts_and_lists_profiles_in_saved_order() {
     let (_dir, store) = store().await;
     store
         .upsert_agent_profile(profile("prof_b", "Zed Runner"))
@@ -41,7 +42,77 @@ async fn upserts_and_lists_profiles_by_name() {
 
     let profiles = store.list_agent_profiles().await.unwrap();
     let names: Vec<_> = profiles.iter().map(|item| item.name.as_str()).collect();
-    assert_eq!(names, ["Alpha Runner", "Zed Runner"]);
+    assert_eq!(names, ["Zed Runner", "Alpha Runner"]);
+}
+
+#[tokio::test]
+async fn reorders_profiles_transactionally_and_persists_the_order() {
+    let (_dir, store) = store().await;
+    for (id, name) in [
+        ("prof_a", "Alpha"),
+        ("prof_b", "Beta"),
+        ("prof_c", "Charlie"),
+    ] {
+        store.upsert_agent_profile(profile(id, name)).await.unwrap();
+    }
+
+    let reordered = store
+        .reorder_agent_profiles(&[
+            "prof_c".to_string(),
+            "prof_a".to_string(),
+            "prof_b".to_string(),
+        ])
+        .await
+        .unwrap();
+    assert_eq!(
+        reordered
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Charlie", "Alpha", "Beta"]
+    );
+    assert_eq!(
+        reordered
+            .iter()
+            .map(|item| item.sort_order)
+            .collect::<Vec<_>>(),
+        [0, 1, 2]
+    );
+
+    let reopened = store.list_agent_profiles().await.unwrap();
+    assert_eq!(
+        reopened
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Charlie", "Alpha", "Beta"]
+    );
+}
+
+#[tokio::test]
+async fn rejects_an_incomplete_profile_order_without_mutating_it() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Alpha"))
+        .await
+        .unwrap();
+    store
+        .upsert_agent_profile(profile("prof_b", "Beta"))
+        .await
+        .unwrap();
+
+    assert!(store
+        .reorder_agent_profiles(&["prof_a".to_string()])
+        .await
+        .is_err());
+    let profiles = store.list_agent_profiles().await.unwrap();
+    assert_eq!(
+        profiles
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Alpha", "Beta"]
+    );
 }
 
 #[tokio::test]

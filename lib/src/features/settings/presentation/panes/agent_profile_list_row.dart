@@ -14,6 +14,7 @@ class AgentProfileListRow extends StatelessWidget {
     required this.profile,
     required this.selected,
     required this.onTap,
+    required this.dragHandle,
     this.isDefault = false,
     this.onSetDefault,
     this.onClone,
@@ -22,6 +23,7 @@ class AgentProfileListRow extends StatelessWidget {
   final AgentProfile profile;
   final bool selected;
   final VoidCallback onTap;
+  final Widget dragHandle;
   final bool isDefault;
   final VoidCallback? onSetDefault;
   final VoidCallback? onClone;
@@ -37,6 +39,7 @@ class AgentProfileListRow extends StatelessWidget {
         ? '$launchLabel  ·  ${profile.command}'
         : '$launchLabel  ·  ${profile.command}  ·  ${profile.quotaGroup}';
     return Material(
+      key: key,
       color: selected ? AleraTokens.accentSubtle : Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -45,6 +48,8 @@ class AgentProfileListRow extends StatelessWidget {
           padding: const EdgeInsets.all(AleraTokens.space12),
           child: Row(
             children: <Widget>[
+              Tooltip(message: 'Reorder Agent Profile', child: dragHandle),
+              const SizedBox(width: AleraTokens.space4),
               if (adapter != null)
                 AgentIdentityIcon(
                   agentType: adapter,

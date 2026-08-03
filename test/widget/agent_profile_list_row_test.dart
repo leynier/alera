@@ -24,6 +24,7 @@ void main() {
             ),
             selected: false,
             onTap: () {},
+            dragHandle: const SizedBox(),
           ),
         ),
       ),
