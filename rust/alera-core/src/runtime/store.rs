@@ -133,6 +133,8 @@ impl RuntimeStore {
         .await?;
         self.ensure_column("agentProfiles", "managedConfig", "TEXT")
             .await?;
+        self.ensure_column("agentProfiles", "sortOrder", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
         self.ensure_column("agentProfiles", "customPrompt", "TEXT NOT NULL DEFAULT ''")
             .await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE

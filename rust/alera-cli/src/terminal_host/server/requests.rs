@@ -1208,6 +1208,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.agent_profile_upsert(payload).await
             }
+            "agentProfile.reorder" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.agent_profile_reorder(payload).await
+            }
             "agentProfile.remove" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_remove(payload).await
