@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_canvas/presentation/agent_canvas_panel.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -8,6 +9,7 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/material.dart';
 
 class WorkspaceContextSidebar extends StatelessWidget {
@@ -30,6 +32,10 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.onOpenGitCommitDiff,
     required this.onOpenSearchMatch,
     required this.onPathMoved,
+    this.onFocusTerminal,
+    this.onOpenPullRequest,
+    this.onOpenArtifact,
+    this.onSourceControlAction,
   });
 
   final Workspace workspace;
@@ -50,6 +56,10 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
+  final AgentCanvasTerminalFocuser? onFocusTerminal;
+  final VoidCallback? onOpenPullRequest;
+  final AgentCanvasArtifactOpener? onOpenArtifact;
+  final AgentCanvasSourceControlAction? onSourceControlAction;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +121,30 @@ class WorkspaceContextSidebar extends StatelessWidget {
                           workspace: workspace,
                           repoPath: sourceControlScope.path,
                         ),
+                      WorkbenchContextPanelTab.agentCanvas => AgentCanvasPanel(
+                        workspace: workspace,
+                        onOpenFile: (relativePath) async {
+                          onOpenFile(relativePath);
+                        },
+                        onOpenDiff: (relativePath) async {
+                          final sourceRelativePath = sourceControlScope
+                              ?.toSourceRelativePath(relativePath);
+                          if (sourceControlScope == null ||
+                              sourceRelativePath == null) {
+                            return;
+                          }
+                          await onOpenGitDiff(
+                            relativePath: sourceRelativePath,
+                            gitDiffRoot: sourceControlScope.relativeRoot,
+                            scope: WorkspaceGitDiffScope.file,
+                          );
+                        },
+                        onFocusTerminal: onFocusTerminal ?? (_) {},
+                        onOpenPullRequest: onOpenPullRequest ?? () {},
+                        onOpenArtifact: onOpenArtifact ?? (_) {},
+                        onSwitchContextPanel: onSetContextPanelTab,
+                        onSourceControlAction: onSourceControlAction,
+                      ),
                     },
                   ),
                 ],
@@ -252,6 +286,14 @@ class _CollapsedContextRail extends StatelessWidget {
               onPressed: () => onOpenTab(WorkbenchContextPanelTab.pullRequests),
             ),
           ],
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.agentCanvas,
+            activeTab: activeTab,
+            tooltip: 'Agent Canvas',
+            icon: AleraIcons.agent,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.agentCanvas),
+          ),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -330,6 +372,15 @@ class _ContextTabHeader extends StatelessWidget {
                       onSetActiveTab(WorkbenchContextPanelTab.pullRequests),
                 ),
               ],
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.agentCanvas,
+                activeTab: activeTab,
+                tooltip: 'Agent Canvas',
+                icon: AleraIcons.agent,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.agentCanvas),
+              ),
               const Spacer(),
               AleraIconButton(
                 tooltip: 'Collapse panel',

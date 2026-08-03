@@ -1,6 +1,7 @@
 mod agent_quota;
 mod agent_status;
 mod browser_commands;
+mod canvas_commands;
 mod cli;
 mod cli_async_runtime;
 mod cli_orchestration;
@@ -117,6 +118,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Computer(command) => computer_commands::run(command).await,
         Command::Browser(command) => browser_commands::run(command).await,
         Command::Emulator(command) => emulator_commands::run(command).await,
+        Command::Canvas(command) => canvas_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
