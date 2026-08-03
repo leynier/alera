@@ -87,6 +87,7 @@ mod computer_requests;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
+mod deferred_requests;
 mod emulator_request_payloads;
 mod emulator_request_queue;
 mod emulator_requests;
