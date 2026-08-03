@@ -15,10 +15,9 @@ use super::runtime_schema::RUNTIME_SCHEMA;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
-    MobileEndpointMode, MobileNetbirdEndpoint, MobilePairingOffer, Project, ProjectConfig,
-    ProjectConfigMap, ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind,
-    SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
-    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
+    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
+    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -373,7 +372,9 @@ impl RuntimeStore {
         .fetch_optional(&self.pool)
         .await?;
         match row {
-            Some(row) => Ok(mobile_access_settings_from_row(row)?),
+            Some(row) => {
+                Ok(super::mobile_access_settings_row::mobile_access_settings_from_row(row)?)
+            }
             None => Ok(MobileAccessSettings::default()),
         }
     }
@@ -1732,23 +1733,6 @@ fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
         last_bootstrap_at,
         last_checked_at,
         last_error: row.try_get("lastError")?,
-    })
-}
-
-fn mobile_access_settings_from_row(row: sqlx::sqlite::SqliteRow) -> Result<MobileAccessSettings> {
-    Ok(MobileAccessSettings {
-        enabled: row.try_get::<i64, _>("enabled")? == 1,
-        remote_access_enabled: row.try_get::<i64, _>("remoteAccessEnabled")? == 1,
-        bind_host: row.try_get("bindHost")?,
-        port: row.try_get("port")?,
-        endpoint_mode: MobileEndpointMode::from_db(
-            row.try_get::<String, _>("endpointMode")?.as_str(),
-        ),
-        netbird_endpoint: MobileNetbirdEndpoint::from_db(
-            row.try_get::<String, _>("netbirdEndpoint")?.as_str(),
-        ),
-        server_public_key_b64: row.try_get("serverPublicKeyB64")?,
-        updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
     })
 }
 

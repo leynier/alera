@@ -9,11 +9,11 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
 use crate::mobile_access::{
-    apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
+    apply_mobile_settings_update_resolved, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
     mobile_status, pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved,
     rename_mobile_device, revoke_mobile_device, MobileDevicePairRequest,
-    MobilePairingCreateRequest, MobileSettingsUpdateRequest, MOBILE_PROTOCOL_VERSION,
+    MobilePairingCreateRequest, MobileSettingsUpdateRequest,
 };
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -22,7 +22,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-pub(super) use super::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
+use super::mobile_terminal_requests::mobile_request_allowed;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -34,20 +34,6 @@ struct ProjectConfigUpsertRequest {
     config: ProjectConfig,
     #[serde(default)]
     updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MobileHelloRequest {
-    protocol_version: i64,
-    device_id: String,
-    device_token: String,
-    #[serde(default)]
-    cloud_device_id: Option<String>,
-    #[serde(default)]
-    supported_tab_kinds: Vec<String>,
-    #[serde(default)]
-    relay_client_id: Option<String>,
 }
 
 impl ServerActor {
@@ -178,99 +164,7 @@ impl ServerActor {
     ) -> HostResult<Value> {
         match request_type {
             "hello" => self.handle_hello(client_id, payload),
-            "mobile.hello" => {
-                if !self.is_mobile_client(client_id) {
-                    return Err(HostError::state(
-                        "mobile authentication is only available on the mobile gateway.",
-                    ));
-                }
-                let request: MobileHelloRequest = parse_payload(payload)?;
-                if request.protocol_version != MOBILE_PROTOCOL_VERSION {
-                    return Err(HostError::state(format!(
-                        "Unsupported mobile protocol version: {}",
-                        request.protocol_version
-                    )));
-                }
-                let (device_id, device_name, device) = if let Some(relay_client_id) = request
-                    .relay_client_id
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|id| !id.is_empty())
-                {
-                    let client = self
-                        .clients
-                        .get(&client_id)
-                        .ok_or_else(|| HostError::state("Client disconnected."))?;
-                    if client.relay_client_id.as_deref() != Some(relay_client_id)
-                        || !request.device_token.trim().is_empty()
-                    {
-                        return Err(HostError::state("The relay mobile identity is invalid."));
-                    }
-                    (
-                        relay_client_id.to_string(),
-                        client
-                            .mobile_device_name
-                            .clone()
-                            .unwrap_or_else(|| "Remote Mobile".to_string()),
-                        json!({
-                            "id": relay_client_id,
-                            "displayName": "Remote Mobile",
-                            "permission": "fullControl",
-                            "pairedAt": chrono::Utc::now(),
-                            "lastSeenAt": chrono::Utc::now(),
-                            "revokedAt": Value::Null,
-                        }),
-                    )
-                } else {
-                    let device = authenticate_mobile_device(
-                        &self.runtime_store,
-                        &request.device_id,
-                        &request.device_token,
-                    )
-                    .await
-                    .map_err(|error| HostError::state(error.to_string()))?;
-                    (
-                        device.id.clone(),
-                        device.display_name.clone(),
-                        json!(device),
-                    )
-                };
-                let binary_frames = payload
-                    .get("binaryFrames")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                if let Some(client) = self.clients.get_mut(&client_id) {
-                    client.authenticated = true;
-                    client.binary_frames = binary_frames;
-                    client.mobile_device_id = Some(device_id);
-                    client.mobile_device_name = Some(device_name);
-                    client.cloud_device_id = request
-                        .cloud_device_id
-                        .filter(|device_id| !device_id.trim().is_empty())
-                        .or_else(|| client.relay_client_id.clone());
-                    client.supports_codex_tab_kind = request
-                        .supported_tab_kinds
-                        .iter()
-                        .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
-                }
-                self.cancel_shutdown_timer();
-                if binary_frames {
-                    // Same in-band ordering as the desktop socket: queued
-                    // behind this response so the device never sees a binary
-                    // message before it knows to expect one.
-                    self.upgrade_client_to_binary(client_id);
-                }
-                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
-                Ok(json!({
-                    "protocolVersion": MOBILE_PROTOCOL_VERSION,
-                    "runtime": "alera",
-                    "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
-                    "authenticated": true,
-                    "binaryFrames": binary_frames,
-                    "supportedTabKinds": request.supported_tab_kinds,
-                    "device": device,
-                }))
-            }
+            "mobile.hello" => self.handle_mobile_hello(client_id, payload).await,
             "mobile.device.pair" if self.is_mobile_client(client_id) => {
                 let request: MobileDevicePairRequest = parse_payload(payload)?;
                 let value = json_result(pair_mobile_device(&self.runtime_store, request).await)?;

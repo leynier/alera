@@ -26,6 +26,7 @@ mod browser_session_store_tests;
 mod browser_store;
 #[cfg(test)]
 mod browser_store_tests;
+mod mobile_access_settings_row;
 #[cfg(test)]
 mod mobile_store_tests;
 mod models;

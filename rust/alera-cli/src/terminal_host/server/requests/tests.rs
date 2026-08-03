@@ -1,6 +1,9 @@
 use super::*;
 use crate::terminal_host::server::mobile_gateway_surface::mobile_request_allowed;
 
+use crate::mobile_access::MOBILE_PROTOCOL_VERSION;
+use crate::terminal_host::server::mobile_hello_requests::MobileHelloRequest;
+use crate::terminal_host::server::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
