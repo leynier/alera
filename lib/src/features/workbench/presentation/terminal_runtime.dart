@@ -15,6 +15,7 @@ import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_inject
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/terminal_osc52_clipboard.dart';
+import 'package:alera/src/features/workbench/domain/terminal_submit_payload.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
@@ -40,6 +41,7 @@ part 'terminal_runtime_output_batching.dart';
 part 'terminal_runtime_output_pipeline.dart';
 part 'terminal_runtime_pointer_synchronization.dart';
 part 'terminal_runtime_startup_delivery.dart';
+part 'terminal_runtime_submit_delivery.dart';
 part 'terminal_runtime_interactive_view.dart';
 part 'terminal_runtime_shell_launches.dart';
 part 'terminal_login_shell_launch.dart';
@@ -280,6 +282,15 @@ abstract interface class RecoverableTerminalPtySession
   Future<void> reconnect();
 
   Future<void> restartProcess();
+}
+
+/// A backend that can queue the submit CR as its own delayed write, kept
+/// adjacent to its payload so no other client can interleave between them.
+abstract interface class DeferredEnterTerminalPtySession
+    implements TerminalPtySession {
+  bool get supportsDeferredEnter;
+
+  bool writeBytesWithDeferredEnter(List<int> bytes);
 }
 
 sealed class TerminalPtySessionEvent {

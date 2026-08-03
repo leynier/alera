@@ -24,6 +24,8 @@ const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
 const String aleraRuntimeHostCodexResetCreditsCapability =
     'codexResetCreditsV1';
 const String aleraRuntimeHostTerminalRestartCapability = 'terminalRestartV1';
+const String aleraRuntimeHostTerminalDeferredInputCapability =
+    'terminalDeferredInputV1';
 const String aleraRuntimeHostBrowserCertificateTrustCapability =
     'browserCertificateTrustV1';
 const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';

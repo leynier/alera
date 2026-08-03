@@ -60,6 +60,7 @@ void main() {
       rows: 24,
     );
     expect(client.supportsTerminalRestart, isTrue);
+    expect(client.supportsDeferredInput, isTrue);
     final restarted = await client.restart(
       sessionId: 'session-1',
       workspaceId: 'workspace-1',
@@ -71,6 +72,11 @@ void main() {
     );
     await client.write(sessionId: 'session-1', bytes: const <int>[]);
     await client.write(sessionId: 'session-1', bytes: const <int>[1, 2]);
+    await client.write(
+      sessionId: 'session-1',
+      bytes: const <int>[3],
+      deferredEnter: true,
+    );
     await client.resize(sessionId: 'session-1', cols: 120, rows: 40);
     final resume = await client.setOutputPaused(
       sessionId: 'session-1',
@@ -113,6 +119,7 @@ void main() {
       'createOrAttach',
       'terminal.restart',
       'write',
+      'write',
       'resize',
       'setOutputPaused',
       'detach',
@@ -132,10 +139,15 @@ void main() {
       isNot(containsPair('setupCommand', anything)),
     );
     expect(server.payloadFor('terminal.restart')['sessionId'], 'session-1');
+    final writePayloads = server.payloadsFor('write');
+    expect(writePayloads, hasLength(2));
     expect(
-      server.payloadFor('write')['dataBase64'],
+      writePayloads[0]['dataBase64'],
       encodeTerminalHostBytes(<int>[1, 2]),
     );
+    expect(writePayloads[0].containsKey('deferredEnter'), isFalse);
+    expect(writePayloads[1]['dataBase64'], encodeTerminalHostBytes(<int>[3]));
+    expect(writePayloads[1]['deferredEnter'], isTrue);
     expect(server.payloadFor('setOutputPaused'), <String, Object?>{
       'sessionId': 'session-1',
       'paused': false,
@@ -1123,6 +1135,7 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
           aleraRuntimeHostManagedWorkspaceCapability,
           aleraRuntimeHostOrchestrationCapability,
           aleraRuntimeHostTerminalRestartCapability,
+          aleraRuntimeHostTerminalDeferredInputCapability,
         ],
       }),
     );

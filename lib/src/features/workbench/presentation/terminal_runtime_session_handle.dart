@@ -73,6 +73,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
   Timer? _selectionCopyTimer;
+  Timer? _deferredSubmitEnterTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
   @override
@@ -615,6 +616,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     _pendingPtySize = null;
     _selectionCopyTimer?.cancel();
     _selectionCopyTimer = null;
+    _cancelDeferredSubmitEnter(this);
     final generation = _activePtyGeneration;
     if (suppressExit && generation != null) {
       _suppressedExitPtyGenerations.add(generation);
@@ -662,9 +664,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     if (_disposed || !_running || _ptySession == null) {
       return false;
     }
-    _pasteTerminalText(this, text);
-    _handleTerminalInput('\r');
-    return true;
+    return _submitTerminalText(this, text);
   }
 
   void _requestFocusNow() {

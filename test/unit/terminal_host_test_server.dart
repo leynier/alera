@@ -54,6 +54,14 @@ final class _TerminalHostTestServer {
         .last;
   }
 
+  List<Map<String, Object?>> payloadsFor(String type) {
+    return <Map<String, Object?>>[
+      for (final request in requests)
+        if (request['type'] == type)
+          request['payload']! as Map<String, Object?>,
+    ];
+  }
+
   void _accept(Socket socket) {
     acceptedConnections += 1;
     _client = socket;
