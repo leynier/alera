@@ -59,6 +59,10 @@ pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrat
 // Purely additive: older hosts simply do not answer agentProfile.* verbs, so
 // callers negotiate this instead of comparing protocol versions.
 pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProfilesV1";
+// Advertised once the host persists the user-defined order of agent profiles.
+// This is additive so a newer app can remain attached to an older host.
+pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
+    "orchestrationAgentProfileOrderingV1";
 // Advertised once agent profiles may carry validated, adapter-specific launch
 // configuration. This is additive so a new app can fall back to Command when
 // attached to an older live host.

@@ -63,17 +63,56 @@ void main() {
 
     expect(runtime.closedTabIds, <String>[runtime.lastTab!.id]);
   });
+
+  testWidgets('reorders profiles through the drag handle callback', (
+    tester,
+  ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+
+    final controller = await _pumpPane(
+      tester,
+      runtime,
+      _profile(
+        id: 'profile-1',
+        name: 'Alpha',
+        launchMode: AgentProfileLaunchMode.command,
+      ),
+      profiles: <AgentProfile>[
+        _profile(
+          id: 'profile-1',
+          name: 'Alpha',
+          launchMode: AgentProfileLaunchMode.command,
+        ),
+        _profile(
+          id: 'profile-2',
+          name: 'Beta',
+          launchMode: AgentProfileLaunchMode.command,
+        ),
+      ],
+    );
+
+    final list = tester.widget<ReorderableListView>(
+      find.byType(ReorderableListView),
+    );
+    list.onReorderItem!(0, 2);
+    await tester.pumpAndSettle();
+
+    expect(controller.reorderedIds, <String>['profile-2', 'profile-1']);
+  });
 }
 
 AgentProfile _profile({
   required AgentProfileLaunchMode launchMode,
   AgentType adapter = AgentType.codex,
   Map<String, Object?> managedConfig = const <String, Object?>{},
+  String id = 'profile-1',
+  String name = 'Codex Sol',
 }) {
   final now = DateTime.utc(2026, 8, 1);
   return AgentProfile(
-    id: 'profile-1',
-    name: 'Codex Sol',
+    id: id,
+    name: name,
     agentType: adapter.key,
     command: launchMode == AgentProfileLaunchMode.command
         ? 'codex --model gpt-5.6-sol'
@@ -85,15 +124,17 @@ AgentProfile _profile({
   );
 }
 
-Future<void> _pumpPane(
+Future<_TestAgentProfiles> _pumpPane(
   WidgetTester tester,
   FakeCommandTerminalRuntime runtime,
-  AgentProfile profile,
-) async {
+  AgentProfile profile, {
+  List<AgentProfile>? profiles,
+}) async {
+  final controller = _TestAgentProfiles(profiles ?? <AgentProfile>[profile]);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        agentProfilesProvider.overrideWith(() => _TestAgentProfiles(profile)),
+        agentProfilesProvider.overrideWith(() => controller),
         settingsControllerProvider.overrideWith(
           () => _TestSettingsController(),
         ),
@@ -113,16 +154,31 @@ Future<void> _pumpPane(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
+  return controller;
 }
 
 class _TestAgentProfiles extends AgentProfiles {
-  _TestAgentProfiles(this.profile);
+  _TestAgentProfiles(this.profiles);
 
-  final AgentProfile profile;
+  final List<AgentProfile> profiles;
+  List<String>? reorderedIds;
 
   @override
   Future<List<AgentProfile>> build() async {
-    return <AgentProfile>[profile];
+    return profiles;
+  }
+
+  @override
+  Future<List<AgentProfile>> reorder(List<String> profileIds) async {
+    reorderedIds = profileIds;
+    final byId = <String, AgentProfile>{
+      for (final profile in profiles) profile.id: profile,
+    };
+    final reordered = <AgentProfile>[
+      for (final profileId in profileIds) byId[profileId]!,
+    ];
+    state = AsyncData<List<AgentProfile>>(reordered);
+    return reordered;
   }
 }
 

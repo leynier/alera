@@ -41,6 +41,9 @@ impl std::str::FromStr for AgentProfileLaunchMode {
 pub struct AgentProfile {
     pub id: String,
     pub name: String,
+    /// Stable user-defined order within the profile catalog.
+    #[serde(default)]
+    pub sort_order: i64,
     /// Which built-in adapter drives readiness detection, preamble injection
     /// and submission. Validated against the adapter registry by the host,
     /// which owns that table.

@@ -67,6 +67,16 @@ class RuntimeAgentProfileRepository {
     return AgentProfile.fromJson(_mapFromPayload(payload));
   }
 
+  Future<List<AgentProfile>> reorder(List<String> profileIds) async {
+    await beforeAccess?.call();
+    await _requireAgentProfileOrderingSupport();
+    final payload = await _client.runtimeRequest(
+      'agentProfile.reorder',
+      <String, Object?>{'ids': profileIds},
+    );
+    return _profileListFromPayload(payload);
+  }
+
   Future<void> _requireManagedProfileSupport() async {
     final status = _mapFromPayload(await _client.runtimeRequest('status.get'));
     final capabilities = status['runtimeCapabilities'];
@@ -77,6 +87,20 @@ class RuntimeAgentProfileRepository {
       throw StateError(
         'Managed agent profiles require a newer runtime host. Restart Alera to '
         'replace the running host, or use Command mode.',
+      );
+    }
+  }
+
+  Future<void> _requireAgentProfileOrderingSupport() async {
+    final status = _mapFromPayload(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    final supported =
+        capabilities is List &&
+        capabilities.contains(aleraRuntimeHostAgentProfileOrderingCapability);
+    if (!supported) {
+      throw StateError(
+        'Reordering agent profiles requires a newer runtime host. Restart '
+        'Alera to replace the running host.',
       );
     }
   }

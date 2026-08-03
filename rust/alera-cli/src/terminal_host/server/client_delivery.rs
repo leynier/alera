@@ -17,6 +17,15 @@ impl ServerActor {
         }
     }
 
+    pub(super) fn require_authenticated_local_request(
+        &self,
+        client_id: u64,
+        request_type: &str,
+    ) -> HostResult<()> {
+        self.require_auth(client_id)?;
+        self.require_request_allowed(client_id, request_type)
+    }
+
     pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
         let session_id = match payload.get("sessionId") {
             Some(Value::String(value)) => value.clone(),

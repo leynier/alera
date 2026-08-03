@@ -87,6 +87,37 @@ impl ServerActor {
         Ok(value)
     }
 
+    pub(super) async fn agent_profile_reorder(&mut self, payload: &Value) -> HostResult<Value> {
+        let raw_ids = payload
+            .get("ids")
+            .and_then(Value::as_array)
+            .ok_or_else(|| HostError::format("ids must be a JSON array."))?;
+        let profile_ids = raw_ids
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+                    .ok_or_else(|| HostError::format("ids must contain profile IDs."))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let profiles = self
+            .runtime_store
+            .reorder_agent_profiles(&profile_ids)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let items =
+            serde_json::to_value(profiles).map_err(|error| HostError::format(error.to_string()))?;
+        self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
+        Ok(json!({
+            "kind": "agentProfiles",
+            "items": items,
+            "filters": {}
+        }))
+    }
+
     pub(super) async fn agent_profile_remove(&mut self, payload: &Value) -> HostResult<Value> {
         let id = require_profile_string(payload, "id")?;
         let removed = self
@@ -139,6 +170,7 @@ fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> {
     Ok(AgentProfile {
         id,
         name: require_profile_string(payload, "name")?,
+        sort_order: 0,
         agent_type,
         command,
         launch_mode,

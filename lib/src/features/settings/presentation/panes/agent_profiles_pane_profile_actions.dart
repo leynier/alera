@@ -1,6 +1,58 @@
 part of 'agent_profiles_pane.dart';
 
 extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
+  Future<void> _reorderProfiles(
+    List<AgentProfile> profiles,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (_saving) {
+      return;
+    }
+    final reordered = <AgentProfile>[...profiles];
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    if (oldIndex < 0 ||
+        oldIndex >= reordered.length ||
+        newIndex < 0 ||
+        newIndex > reordered.length) {
+      return;
+    }
+    if (newIndex == oldIndex) {
+      return;
+    }
+    final profile = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex.clamp(0, reordered.length).toInt(), profile);
+    _setPaneState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(agentProfilesProvider.notifier)
+          .reorder(
+            reordered.map((profile) => profile.id).toList(growable: false),
+          );
+      if (mounted) {
+        _setPaneState(() => _saving = false);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _setPaneState(() {
+        _saving = false;
+        _error = error.toString();
+      });
+      AleraToast.show(
+        context,
+        message: 'Agent profile order could not be saved',
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
   Future<void> _saveProfile() async {
     final name = _nameController.text.trim();
     final command = _commandController.text.trim();
