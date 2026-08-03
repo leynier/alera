@@ -5,6 +5,11 @@ import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_co
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
+part 'mobile_codex_chat_toolbar.dart';
+part 'mobile_codex_chat_composer.dart';
+part 'mobile_codex_chat_timeline.dart';
 
 class MobileCodexChatScreen extends ConsumerStatefulWidget {
   const MobileCodexChatScreen({
@@ -23,6 +28,7 @@ class MobileCodexChatScreen extends ConsumerStatefulWidget {
 
 class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   late final TextEditingController _composer;
+  final List<Map<String, Object?>> _attachments = <Map<String, Object?>>[];
 
   @override
   void initState() {
@@ -38,97 +44,261 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final value = ref.watch(
-      mobileCodexControllerProvider(widget.hostId, widget.tabId),
-    );
-    final controller = ref.read(
-      mobileCodexControllerProvider(widget.hostId, widget.tabId).notifier,
-    );
+    final provider = mobileCodexControllerProvider(widget.hostId, widget.tabId);
+    final value = ref.watch(provider);
+    final controller = ref.read(provider.notifier);
     return switch (value) {
-      AsyncData(value: final state) => _buildChat(state, controller),
-      AsyncError(:final error) => Center(child: Text(error.toString())),
+      AsyncData(value: final state) => _buildChat(context, state, controller),
+      AsyncError(:final error) => _MobileError(
+        message: error.toString(),
+        onRetry: () => ref.invalidate(provider),
+      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
 
-  Widget _buildChat(MobileCodexState state, MobileCodexController controller) {
+  Widget _buildChat(
+    BuildContext context,
+    MobileCodexState state,
+    MobileCodexController controller,
+  ) {
     return Column(
       children: <Widget>[
+        _MobileCodexToolbar(
+          state: state,
+          onModel: controller.setModel,
+          onReasoning: controller.setReasoning,
+          onSpeed: controller.setSpeed,
+          onPermission: controller.setPermissionMode,
+          onPlan: controller.setPlanMode,
+          onCollaboration: controller.setCollaborationMode,
+          onInsertToken: _insertToken,
+          onCompact: controller.compact,
+          onReview: () => _review(context, controller),
+          onRename: () => _rename(context, controller, state.title),
+        ),
         Expanded(
           child: ListView(
             padding: AleraTokens.contentPadding,
             children: <Widget>[
-              for (final event in state.events)
-                Card(
-                  child: Padding(
-                    padding: AleraTokens.contentPadding,
-                    child: SelectableText(mobileCodexEventText(event)),
+              if (state.timelineCells.isEmpty && state.pendingRequests.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AleraTokens.space32),
+                  child: Center(
+                    child: Text('Ask Codex to work on this workspace.'),
                   ),
                 ),
+              for (final cell in state.timelineCells)
+                _MobileTimelineCell(cell: cell),
               for (final request in state.pendingRequests)
-                if (mobileCodexRequestIsApproval(request))
-                  Card(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    child: Padding(
-                      padding: AleraTokens.contentPadding,
-                      child: Wrap(
-                        spacing: AleraTokens.spaceSm,
-                        children: <Widget>[
-                          const Text('Codex Needs Approval'),
-                          FilledButton(
-                            onPressed: () =>
-                                unawaited(controller.respond(request, true)),
-                            child: const Text('Approve'),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                unawaited(controller.respond(request, false)),
-                            child: const Text('Decline'),
-                          ),
-                        ],
-                      ),
-                    ),
+                if (request.isApproval)
+                  _MobileApprovalCard(request: request, controller: controller)
+                else if (request.isQuestion)
+                  _MobileQuestionCard(request: request, controller: controller)
+                else
+                  _MobileRequestCard(
+                    title: 'Codex Request',
+                    body: request.method,
+                    actions: const <Widget>[],
                   ),
+              if (state.hasPlan)
+                Align(
+                  alignment: Alignment.center,
+                  child: FilledButton(
+                    onPressed: () => unawaited(controller.implementPlan()),
+                    child: const Text('Implement Plan'),
+                  ),
+                ),
             ],
           ),
         ),
         if (state.error != null)
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.spaceMd,
+              horizontal: AleraTokens.space16,
             ),
-            child: Text(
-              state.error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            child: MaterialBanner(
+              content: Text(state.error!),
+              leading: const Icon(Icons.error_outline),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => ref.invalidate(
+                    mobileCodexControllerProvider(widget.hostId, widget.tabId),
+                  ),
+                  child: const Text('Retry'),
+                ),
+                TextButton(
+                  onPressed: controller.clearError,
+                  child: const Text('Dismiss'),
+                ),
+              ],
             ),
           ),
-        Padding(
-          padding: AleraTokens.contentPadding,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+        if (state.queuedMessages.isNotEmpty)
+          _MobileQueueBar(
+            messages: state.queuedMessages,
+            controller: controller,
+          ),
+        _MobileComposer(
+          controller: _composer,
+          attachments: _attachments,
+          busy: state.busy,
+          interrupting: state.interrupting,
+          onAttach: _pickImage,
+          onRemoveAttachment: (attachment) =>
+              setState(() => _attachments.remove(attachment)),
+          onSend: () => _send(controller),
+          onSteer: () => _steer(controller),
+          onStop: controller.stop,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _send(MobileCodexController controller) async {
+    final text = _composer.text;
+    final attachments = List<Map<String, Object?>>.of(_attachments);
+    _composer.clear();
+    _attachments.clear();
+    await controller.send(text, attachments: attachments);
+  }
+
+  Future<void> _steer(MobileCodexController controller) async {
+    final text = _composer.text.trim();
+    if (text.isEmpty) return;
+    _composer.clear();
+    await controller.steer(text);
+  }
+
+  void _insertToken(String token) {
+    final current = _composer.text.trimRight();
+    _composer.text = current.isEmpty ? token : '$current $token';
+    _composer.selection = TextSelection.collapsed(
+      offset: _composer.text.length,
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) return;
+    setState(() {
+      _attachments.add(<String, Object?>{
+        'type': 'localImage',
+        'path': image.path,
+      });
+    });
+  }
+
+  Future<void> _rename(
+    BuildContext context,
+    MobileCodexController controller,
+    String? current,
+  ) async {
+    final input = TextEditingController(text: current ?? 'Codex');
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Codex Thread'),
+        content: TextField(controller: input, autofocus: true),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(input.text),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (value != null && value.trim().isNotEmpty) {
+      await controller.rename(value);
+    }
+  }
+
+  Future<void> _review(
+    BuildContext context,
+    MobileCodexController controller,
+  ) async {
+    final input = TextEditingController();
+    var target = 'uncommittedChanges';
+    var delivery = 'inline';
+    final selection = await showDialog<Map<String, String?>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Start Review'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Expanded(
-                child: TextField(
-                  controller: _composer,
-                  minLines: 1,
-                  maxLines: 5,
-                  decoration: const InputDecoration(hintText: 'Message Codex'),
-                ),
+              DropdownButtonFormField<String>(
+                initialValue: target,
+                decoration: const InputDecoration(labelText: 'Target'),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: 'uncommittedChanges',
+                    child: Text('Uncommitted Changes'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'baseBranch',
+                    child: Text('Base Branch'),
+                  ),
+                  DropdownMenuItem(value: 'commit', child: Text('Commit')),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => target = value);
+                },
               ),
-              IconButton.filled(
-                onPressed: state.busy
-                    ? () => unawaited(controller.stop())
-                    : () {
-                        final text = _composer.text;
-                        _composer.clear();
-                        unawaited(controller.send(text));
-                      },
-                icon: Icon(state.busy ? Icons.stop : Icons.send),
+              if (target != 'uncommittedChanges')
+                TextField(
+                  controller: input,
+                  decoration: InputDecoration(
+                    labelText: switch (target) {
+                      'baseBranch' => 'Branch',
+                      'commit' => 'Commit Sha',
+                      _ => 'Instructions',
+                    },
+                  ),
+                ),
+              DropdownButtonFormField<String>(
+                initialValue: delivery,
+                decoration: const InputDecoration(labelText: 'Delivery'),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'inline', child: Text('Inline')),
+                  DropdownMenuItem(value: 'detached', child: Text('Detached')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => delivery = value);
+                },
               ),
             ],
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(<String, String?>{
+                'target': target,
+                'argument': input.text,
+                'delivery': delivery,
+              }),
+              child: const Text('Start Review'),
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+    input.dispose();
+    if (selection == null || !mounted) return;
+    await controller.review(
+      target: selection['target'] ?? 'uncommittedChanges',
+      argument: selection['argument'],
+      delivery: selection['delivery'],
     );
   }
 }

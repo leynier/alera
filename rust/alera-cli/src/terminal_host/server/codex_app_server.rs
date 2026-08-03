@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use alera_core::child_process::windowless_async_command;
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::{mpsc::UnboundedSender, oneshot, Mutex};
 
@@ -70,7 +70,7 @@ impl CodexAppServer {
             next_id: Arc::new(AtomicI64::new(1)),
         };
         tokio::spawn(read_codex_messages(
-            BufReader::new(stdout).lines(),
+            BufReader::new(stdout),
             server.pending.clone(),
             inbox,
         ));
@@ -175,11 +175,14 @@ impl CodexAppServer {
     }
 }
 
-async fn read_codex_messages(
-    mut lines: tokio::io::Lines<BufReader<tokio::process::ChildStdout>>,
+async fn read_codex_messages<R>(
+    reader: R,
     pending: PendingRequests,
     inbox: UnboundedSender<ServerCommand>,
-) {
+) where
+    R: AsyncBufRead + Unpin,
+{
+    let mut lines = reader.lines();
     let reason = loop {
         match lines.next_line().await {
             Ok(Some(line)) => {
@@ -229,8 +232,14 @@ fn codex_error_message(error: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::codex_error_message;
+    use std::sync::Arc;
+
+    use super::{codex_error_message, read_codex_messages, PendingRequests};
     use serde_json::json;
+    use tokio::io::{duplex, AsyncWriteExt, BufReader};
+    use tokio::sync::{mpsc, oneshot, Mutex};
+
+    use crate::terminal_host::server::ServerCommand;
 
     #[test]
     fn error_message_is_safe_when_server_omits_message() {
@@ -238,5 +247,49 @@ mod tests {
             codex_error_message(&json!({"code": -1})),
             "Codex app-server returned an error."
         );
+    }
+
+    #[tokio::test]
+    async fn fake_jsonl_app_server_routes_responses_notifications_and_requests() {
+        let (mut writer, reader) = duplex(4096);
+        let pending: PendingRequests = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let (response_tx, response_rx) = oneshot::channel();
+        pending.lock().await.insert(7, response_tx);
+        let (inbox, mut messages) = mpsc::unbounded_channel();
+        let read_task = tokio::spawn(read_codex_messages(
+            BufReader::new(reader),
+            pending.clone(),
+            inbox,
+        ));
+        writer
+            .write_all(
+                br#"{"jsonrpc":"2.0","id":7,"result":{"thread":{"id":"thread-1"}}}
+{"jsonrpc":"2.0","method":"turn/started","params":{"turn":{"id":"turn-1","threadId":"thread-1"}}}
+{"jsonrpc":"2.0","id":99,"method":"item/tool/request_user_input","params":{"threadId":"thread-1","questions":[{"id":"mode","question":"Choose","options":[{"label":"Fast"}]}]}}
+"#,
+            )
+            .await
+            .unwrap();
+        drop(writer);
+        assert_eq!(
+            response_rx.await.unwrap().unwrap()["thread"]["id"],
+            "thread-1"
+        );
+        let first = messages.recv().await.unwrap();
+        let second = messages.recv().await.unwrap();
+        match first {
+            ServerCommand::CodexMessage { message } => {
+                assert_eq!(message["method"], "turn/started");
+            }
+            _ => panic!("unexpected fake app-server command"),
+        }
+        match second {
+            ServerCommand::CodexMessage { message } => {
+                assert_eq!(message["id"], 99);
+                assert_eq!(message["params"]["questions"][0]["id"], "mode");
+            }
+            _ => panic!("unexpected fake app-server command"),
+        }
+        read_task.await.unwrap();
     }
 }

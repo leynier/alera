@@ -9,6 +9,54 @@ part of 'codex_chat_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
+@ProviderFor(codexChatRuntimeClient)
+final codexChatRuntimeClientProvider = CodexChatRuntimeClientProvider._();
+
+final class CodexChatRuntimeClientProvider
+    extends
+        $FunctionalProvider<
+          RuntimeHostClient,
+          RuntimeHostClient,
+          RuntimeHostClient
+        >
+    with $Provider<RuntimeHostClient> {
+  CodexChatRuntimeClientProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'codexChatRuntimeClientProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$codexChatRuntimeClientHash();
+
+  @$internal
+  @override
+  $ProviderElement<RuntimeHostClient> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  RuntimeHostClient create(Ref ref) {
+    return codexChatRuntimeClient(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(RuntimeHostClient value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<RuntimeHostClient>(value),
+    );
+  }
+}
+
+String _$codexChatRuntimeClientHash() =>
+    r'3d83da5bd040031693f5fa809a9ed04a332c97ae';
+
 @ProviderFor(CodexChatController)
 final codexChatControllerProvider = CodexChatControllerFamily._();
 
@@ -59,7 +107,7 @@ final class CodexChatControllerProvider
 }
 
 String _$codexChatControllerHash() =>
-    r'e66a069bce126c77b79016c08f4495ead7f6681d';
+    r'da9f627c484e5c6d9d43b451c59f9547994adb54';
 
 final class CodexChatControllerFamily extends $Family
     with
