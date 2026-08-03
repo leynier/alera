@@ -214,6 +214,52 @@ ${_reviewJson.trim()}
       expect(call.optionValue('raw-field'), 'body=Ready to merge');
       expect(call.arguments[1], endsWith('/merge_requests/42/notes'));
     });
+
+    test(
+      'updates top-level and discussion notes through their endpoints',
+      () async {
+        final topLevelRunner = FakeRecordingProcessRunner(<Object>[_ok('{}')]);
+        await GitLabForgeProvider(topLevelRunner).updateReviewComment(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 42,
+          locator: const ReviewCommentLocator(
+            source: ReviewCommentSource.conversation,
+            commentId: '7',
+          ),
+          body: '- [x] exact',
+        );
+        expect(
+          topLevelRunner.calls.single.arguments[1],
+          endsWith('/merge_requests/42/notes/7'),
+        );
+        expect(topLevelRunner.calls.single.optionValue('method'), 'PUT');
+        expect(
+          topLevelRunner.calls.single.optionValue('raw-field'),
+          'body=- [x] exact',
+        );
+
+        final discussionRunner = FakeRecordingProcessRunner(<Object>[
+          _ok('{}'),
+        ]);
+        await GitLabForgeProvider(discussionRunner).updateReviewComment(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 42,
+          locator: const ReviewCommentLocator(
+            source: ReviewCommentSource.reviewThread,
+            commentId: '8',
+            parentId: 'discussion-1',
+          ),
+          body: 'Inline',
+        );
+        expect(
+          discussionRunner.calls.single.arguments[1],
+          endsWith('/merge_requests/42/discussions/discussion-1/notes/8'),
+        );
+        expect(discussionRunner.calls.single.optionValue('method'), 'PUT');
+      },
+    );
   });
 
   group('GitLabForgeProvider mutations', () {

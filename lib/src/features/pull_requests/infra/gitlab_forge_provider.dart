@@ -35,6 +35,9 @@ class GitLabForgeProvider
   @override
   bool get supportsReviewCreation => true;
 
+  @override
+  bool get supportsReviewCommentEditing => true;
+
   String _repoUrl(GitRemoteIdentity identity) =>
       'https://${identity.host}/${identity.owner}/${identity.repo}';
 

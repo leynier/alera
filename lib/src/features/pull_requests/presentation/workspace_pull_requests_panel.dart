@@ -193,6 +193,8 @@ class _PullRequestBody extends StatelessWidget {
         canCloseReview: state.canCloseReview,
         canChangeDraftStatus: state.canChangeDraftStatus,
         canComment: state.canComment,
+        canEditComments: state.canEditComments,
+        savingCommentIds: state.savingCommentIds,
         action: state.action,
         onOpenUrl: onOpenUrl,
         onUnlink: controller.unlink,
@@ -200,6 +202,7 @@ class _PullRequestBody extends StatelessWidget {
         onClose: controller.closeReview,
         onDraftStatusChanged: controller.setReviewDraft,
         onAddComment: controller.addReviewComment,
+        onToggleTask: controller.toggleReviewCommentTask,
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
       );

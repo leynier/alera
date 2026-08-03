@@ -123,6 +123,7 @@ class WorkspacePullRequestLoader {
         canCloseReview: forge.supportsReviewClosure,
         canChangeDraftStatus: forge.supportsReviewDraftConversion,
         canComment: forge.supportsReviewComments,
+        canEditComments: forge.supportsReviewCommentEditing,
       );
     } on ForgeNotAuthenticated {
       return WorkspacePullRequestState(
