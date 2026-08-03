@@ -90,6 +90,7 @@ class TextActionMapper extends ClassMapperBase<TextAction> {
     return ensureInitialized().decodeJson<TextAction>(json);
   }
 }
+
 mixin TextActionMappable {
   String toJson() {
     return TextActionMapper.ensureInitialized().encodeJson<TextAction>(
