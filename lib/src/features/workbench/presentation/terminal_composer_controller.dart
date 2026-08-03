@@ -1,11 +1,14 @@
 import 'dart:collection';
 
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
+import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 class TerminalComposerController extends ChangeNotifier {
   final textController = TextEditingController();
   final focusNode = FocusNode(debugLabel: 'TerminalComposer');
+  final dropTargetKey = GlobalKey(debugLabel: 'TerminalComposerDropTarget');
 
   final List<TerminalComposerAttachment> _attachments =
       <TerminalComposerAttachment>[];
@@ -36,6 +39,55 @@ class TerminalComposerController extends ChangeNotifier {
       ),
     );
     notifyListeners();
+  }
+
+  void addPathAttachment(String path, {TerminalComposerAttachmentKind? kind}) {
+    if (_disposed) {
+      return;
+    }
+    final attachment = _pathAttachment(path, kind: kind);
+    if (attachment != null) {
+      _attachments.add(attachment);
+      notifyListeners();
+    }
+  }
+
+  void addPathAttachments(Iterable<String> paths) {
+    if (_disposed) {
+      return;
+    }
+    var changed = false;
+    for (final path in paths) {
+      final attachment = _pathAttachment(path);
+      if (attachment != null) {
+        _attachments.add(attachment);
+        changed = true;
+      }
+    }
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
+  TerminalComposerAttachment? _pathAttachment(
+    String path, {
+    TerminalComposerAttachmentKind? kind,
+  }) {
+    if (path.isEmpty) {
+      return null;
+    }
+    final resolvedKind = kind ?? terminalComposerAttachmentKindForPath(path);
+    final displayName = sanitizeTerminalImagePastePath(p.basename(path));
+    return TerminalComposerAttachment(
+      id: 'attachment-${_nextAttachmentId++}',
+      kind: resolvedKind,
+      path: path,
+      displayName: displayName.isEmpty
+          ? resolvedKind == TerminalComposerAttachmentKind.image
+                ? 'Pasted Image'
+                : 'Pasted File'
+          : displayName,
+    );
   }
 
   void removeAttachment(String id) {

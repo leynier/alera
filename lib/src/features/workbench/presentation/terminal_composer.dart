@@ -5,13 +5,11 @@ import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_submission.dart';
-import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_attachment_bar.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 class TerminalComposer extends StatelessWidget {
   const TerminalComposer({
@@ -66,10 +64,9 @@ class TerminalComposer extends StatelessWidget {
     try {
       final filePaths = await clipboard.readFilePaths();
       if (filePaths.isNotEmpty) {
-        for (final path in filePaths.where((path) => path.isNotEmpty)) {
-          _addAttachment(path);
-        }
-        session.composerController.focusNode.requestFocus();
+        final composer = session.composerController;
+        composer.addPathAttachments(filePaths);
+        composer.focusNode.requestFocus();
         return true;
       }
     } catch (_) {
@@ -90,7 +87,10 @@ class TerminalComposer extends StatelessWidget {
         return false;
       }
       final composer = session.composerController;
-      _addAttachment(imagePath, kind: TerminalComposerAttachmentKind.image);
+      composer.addPathAttachment(
+        imagePath,
+        kind: TerminalComposerAttachmentKind.image,
+      );
       composer.focusNode.requestFocus();
       return true;
     } catch (_) {
@@ -100,20 +100,6 @@ class TerminalComposer extends StatelessWidget {
       );
       return true;
     }
-  }
-
-  void _addAttachment(String path, {TerminalComposerAttachmentKind? kind}) {
-    final resolvedKind = kind ?? terminalComposerAttachmentKindForPath(path);
-    final displayName = sanitizeTerminalImagePastePath(p.basename(path));
-    session.composerController.addAttachment(
-      kind: resolvedKind,
-      path: path,
-      displayName: displayName.isEmpty
-          ? resolvedKind == TerminalComposerAttachmentKind.image
-                ? 'Pasted Image'
-                : 'Pasted File'
-          : displayName,
-    );
   }
 
   Future<void> _openFile(String path) async {

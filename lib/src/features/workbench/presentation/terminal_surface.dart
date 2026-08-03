@@ -8,6 +8,7 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -163,9 +164,10 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         return DropTarget(
           enable: error == null,
           onDragDone: (details) {
-            handleTerminalPathDrop(
+            handleTerminalFileDrop(
               session: widget.session,
               paths: details.files.map((file) => file.path),
+              globalPosition: details.globalPosition,
             );
           },
           child: DragTarget<TerminalPathDragPayload>(

@@ -1,17 +1,22 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/workbench/application/terminal_composer_workspace_attachment.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-TerminalComposer buildTerminalComposerForWorkspace(
+TerminalComposerDropTarget buildTerminalComposerForWorkspace(
   WidgetRef ref,
   TerminalSessionHandle session,
 ) {
-  return TerminalComposer(
+  return TerminalComposerDropTarget(
+    key: session.composerController.dropTargetKey,
     session: session,
-    onOpenWorkspaceFile: (filePath) =>
-        openTerminalComposerWorkspaceFile(ref, session.workspaceId, filePath),
+    child: TerminalComposer(
+      session: session,
+      onOpenWorkspaceFile: (filePath) =>
+          openTerminalComposerWorkspaceFile(ref, session.workspaceId, filePath),
+    ),
   );
 }
 
