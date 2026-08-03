@@ -93,4 +93,107 @@ void _registerTerminalSurfaceComposerTests() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('composer pastes an image path at the current selection', (
+    tester,
+  ) async {
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    final clipboard = _FakeComposerClipboard(
+      imagePath: '/tmp/alera-paste-\x1b.png',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalComposer(session: session, clipboard: clipboard),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Review this placeholder');
+    session.composerController.textController.selection = const TextSelection(
+      baseOffset: 12,
+      extentOffset: 23,
+    );
+    final focusContext = tester.binding.focusManager.primaryFocus?.context;
+    expect(focusContext, isNotNull);
+
+    Actions.invoke(
+      focusContext!,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      session.composerController.textController.text,
+      'Review this /tmp/alera-paste-\u241b.png',
+    );
+    expect(clipboard.imageReads, 1);
+  });
+
+  testWidgets('composer preserves native text paste without probing images', (
+    tester,
+  ) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, Object?>{'text': 'clipboard text'};
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
+    final clipboard = _FakeComposerClipboard(text: 'clipboard text');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalComposer(session: session, clipboard: clipboard),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Before ');
+    final focusContext = tester.binding.focusManager.primaryFocus?.context;
+    expect(focusContext, isNotNull);
+
+    Actions.invoke(
+      focusContext!,
+      const PasteTextIntent(SelectionChangedCause.keyboard),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(
+      session.composerController.textController.text,
+      'Before clipboard text',
+    );
+    expect(clipboard.imageReads, 0);
+  });
+}
+
+final class _FakeComposerClipboard implements TerminalClipboard {
+  _FakeComposerClipboard({this.text, this.imagePath});
+
+  final String? text;
+  final String? imagePath;
+  int imageReads = 0;
+
+  @override
+  Future<String?> readText() async => text;
+
+  @override
+  Future<String?> saveImageAsTempFile() async {
+    imageReads += 1;
+    return imagePath;
+  }
+
+  @override
+  Future<void> writeText(String text) async {}
 }
