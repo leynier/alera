@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -15,6 +16,7 @@ class AleraComposer extends StatefulWidget {
     required this.onClose,
     required this.textActions,
     required this.onTextActionSelected,
+    this.onPaste,
     this.enabled = true,
     this.hintText = 'Write a prompt for this terminal',
   });
@@ -25,6 +27,12 @@ class AleraComposer extends StatefulWidget {
   final VoidCallback onClose;
   final List<AleraTextActionMenuItem> textActions;
   final ValueChanged<String> onTextActionSelected;
+
+  /// Handles a paste before the default text action runs.
+  ///
+  /// Return `true` when the callback consumed the clipboard. Returning
+  /// `false` preserves Flutter's normal text-paste behavior.
+  final Future<bool> Function()? onPaste;
   final bool enabled;
   final String hintText;
 
@@ -89,6 +97,51 @@ class _AleraComposerState extends State<AleraComposer> {
     );
   }
 
+  Widget _buildTextField(BuildContext context) {
+    final field = TextField(
+      controller: widget.controller,
+      focusNode: widget.focusNode,
+      enabled: widget.enabled,
+      minLines: 2,
+      maxLines: 6,
+      textInputAction: TextInputAction.newline,
+      style: Theme.of(context).textTheme.bodyMedium,
+      contextMenuBuilder: (context, editableTextState) {
+        return AleraTextActionsScope.buildContextMenu(
+          context,
+          editableTextState,
+          onPaste: widget.onPaste,
+        );
+      },
+      decoration: InputDecoration(
+        hintText: widget.hintText,
+        filled: true,
+        fillColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        contentPadding: const EdgeInsets.fromLTRB(
+          AleraTokens.space12,
+          AleraTokens.space16,
+          AleraTokens.space12,
+          AleraTokens.space8,
+        ),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+      ),
+    );
+    final onPaste = widget.onPaste;
+    if (onPaste == null) {
+      return field;
+    }
+    return Actions(
+      actions: <Type, Action<Intent>>{
+        PasteTextIntent: AleraClipboardPasteAction(onPaste),
+      },
+      child: field,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textActionsEnabled = widget.textActions.isNotEmpty && _hasSelection;
@@ -111,32 +164,7 @@ class _AleraComposerState extends State<AleraComposer> {
                 const SingleActivator(LogicalKeyboardKey.escape):
                     widget.onClose,
               },
-              child: TextField(
-                controller: widget.controller,
-                focusNode: widget.focusNode,
-                enabled: widget.enabled,
-                minLines: 2,
-                maxLines: 6,
-                textInputAction: TextInputAction.newline,
-                style: Theme.of(context).textTheme.bodyMedium,
-                contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
-                decoration: InputDecoration(
-                  hintText: widget.hintText,
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  hoverColor: Colors.transparent,
-                  contentPadding: const EdgeInsets.fromLTRB(
-                    AleraTokens.space12,
-                    AleraTokens.space16,
-                    AleraTokens.space12,
-                    AleraTokens.space8,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                ),
-              ),
+              child: _buildTextField(context),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -206,12 +234,24 @@ class _TextActionsMenu extends StatelessWidget {
         enabled: enabled,
         tooltip: '',
         onSelected: onSelected,
+        constraints: const BoxConstraints(minWidth: 220),
         color: AleraTokens.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
           side: const BorderSide(color: AleraTokens.border),
         ),
         itemBuilder: (context) => <PopupMenuEntry<String>>[
+          PopupMenuItem<String>(
+            enabled: false,
+            height: AleraTokens.space32,
+            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
+            child: Text(
+              'Select Text Action',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foregroundFaint,
+              ),
+            ),
+          ),
           for (final action in actions)
             AleraDropdownEntry<String>(value: action.id, label: action.label),
         ],

@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/forms/alera_clipboard_paste_action.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -192,7 +191,7 @@ class AleraTextField extends StatelessWidget {
     }
     return Actions(
       actions: <Type, Action<Intent>>{
-        PasteTextIntent: _ClipboardAwarePasteAction(paste),
+        PasteTextIntent: AleraClipboardPasteAction(paste),
       },
       child: field,
     );
@@ -214,30 +213,4 @@ class AleraTextField extends StatelessWidget {
     borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
     borderSide: BorderSide(color: color),
   );
-}
-
-final class _ClipboardAwarePasteAction extends Action<PasteTextIntent> {
-  _ClipboardAwarePasteAction(this._onPaste);
-
-  final Future<bool> Function() _onPaste;
-
-  @override
-  bool get isActionEnabled => callingAction?.isActionEnabled ?? true;
-
-  @override
-  Object? invoke(PasteTextIntent intent) {
-    final defaultAction = callingAction;
-    unawaited(_invokePaste(intent, defaultAction));
-    return null;
-  }
-
-  Future<void> _invokePaste(
-    PasteTextIntent intent,
-    Action<PasteTextIntent>? defaultAction,
-  ) async {
-    if (await _onPaste()) {
-      return;
-    }
-    defaultAction?.invoke(intent);
-  }
 }

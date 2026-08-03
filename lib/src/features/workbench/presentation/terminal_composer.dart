@@ -3,13 +3,20 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
+import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
+import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/material.dart';
 
 class TerminalComposer extends StatelessWidget {
-  const TerminalComposer({super.key, required this.session});
+  const TerminalComposer({
+    super.key,
+    required this.session,
+    this.clipboard = const NativeTerminalClipboard(),
+  });
 
   final TerminalSessionHandle session;
+  final TerminalClipboard clipboard;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +37,57 @@ class TerminalComposer extends StatelessWidget {
           textActionsScope?.run(editableTextState, actionId);
         }
       },
+      onPaste: _pasteClipboard,
       onSend: () => unawaited(_send(context)),
       onClose: composer.hide,
     );
+  }
+
+  Future<bool> _pasteClipboard() async {
+    String? clipboardText;
+    try {
+      clipboardText = await clipboard.readText();
+    } catch (_) {
+      // Image-only clipboards can reject text reads on some platforms.
+    }
+    if (clipboardText != null && clipboardText.isNotEmpty) {
+      return false;
+    }
+    try {
+      final imagePath = await clipboard.saveImageAsTempFile();
+      if (imagePath == null || imagePath.isEmpty) {
+        return false;
+      }
+      final composer = session.composerController;
+      final focusContext = composer.focusNode.context;
+      if (focusContext == null || !focusContext.mounted) {
+        return true;
+      }
+      final value = composer.textController.value;
+      final selection = _validSelection(value);
+      composer.textController.value = value.replaced(
+        selection,
+        sanitizeTerminalImagePastePath(imagePath),
+      );
+      composer.focusNode.requestFocus();
+      return true;
+    } catch (_) {
+      AleraToast.publish(
+        message: 'Could not paste clipboard image.',
+        tone: AleraToastTone.error,
+      );
+      return true;
+    }
+  }
+
+  TextSelection _validSelection(TextEditingValue value) {
+    final selection = value.selection;
+    if (selection.isValid &&
+        selection.start <= value.text.length &&
+        selection.end <= value.text.length) {
+      return selection;
+    }
+    return TextSelection.collapsed(offset: value.text.length);
   }
 
   Future<void> _send(BuildContext context) async {
