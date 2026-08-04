@@ -125,6 +125,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CodexSavedPrompt dco_decode_codex_saved_prompt(dynamic raw);
+
+  @protected
+  CodexSavedPromptScope dco_decode_codex_saved_prompt_scope(dynamic raw);
+
+  @protected
   GitChangeArea dco_decode_git_change_area(dynamic raw);
 
   @protected
@@ -233,6 +239,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AgentHookEventDto> dco_decode_list_agent_hook_event_dto(dynamic raw);
+
+  @protected
+  List<CodexSavedPrompt> dco_decode_list_codex_saved_prompt(dynamic raw);
 
   @protected
   List<GitChangeEntry> dco_decode_list_git_change_entry(dynamic raw);
@@ -648,6 +657,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CodexSavedPrompt sse_decode_codex_saved_prompt(SseDeserializer deserializer);
+
+  @protected
+  CodexSavedPromptScope sse_decode_codex_saved_prompt_scope(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitChangeArea sse_decode_git_change_area(SseDeserializer deserializer);
 
   @protected
@@ -778,6 +795,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AgentHookEventDto> sse_decode_list_agent_hook_event_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CodexSavedPrompt> sse_decode_list_codex_saved_prompt(
     SseDeserializer deserializer,
   );
 
@@ -1300,6 +1322,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_codex_saved_prompt(
+    CodexSavedPrompt self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_codex_saved_prompt_scope(
+    CodexSavedPromptScope self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_change_area(GitChangeArea self, SseSerializer serializer);
 
   @protected
@@ -1476,6 +1510,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_agent_hook_event_dto(
     List<AgentHookEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_codex_saved_prompt(
+    List<CodexSavedPrompt> self,
     SseSerializer serializer,
   );
 

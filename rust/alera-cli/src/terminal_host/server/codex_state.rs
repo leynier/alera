@@ -17,6 +17,10 @@ mod codex_markdown;
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
 mod codex_timeline_cells;
+#[path = "codex_timeline_content.rs"]
+mod codex_timeline_content;
+#[path = "codex_timeline_modern.rs"]
+mod codex_timeline_modern;
 #[path = "codex_timeline_state.rs"]
 mod codex_timeline_state;
 

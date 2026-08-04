@@ -3,6 +3,7 @@ import 'codex_timeline_cell.dart';
 export 'codex_timeline_cell.dart';
 
 part 'codex_timeline_helpers.dart';
+part 'codex_timeline_modern.dart';
 
 /// The host and Flutter clients use this reducer as a compatibility oracle.
 /// It deliberately keys cells by app-server item IDs, so deltas update one row
@@ -44,6 +45,15 @@ abstract final class CodexTimelineReducer {
     final type = (item['type'] ?? params['type'] ?? '')
         .toString()
         .toLowerCase();
+    final modern = _reduceModernCodexNotification(
+      cells,
+      method: method,
+      params: params,
+      turnId: turnId,
+      itemId: itemId,
+      timestamp: timestamp,
+    );
+    if (modern != null) return modern;
 
     if (rawMethod == 'codex/event/task_complete') {
       final text = _firstString(<Object?>[
@@ -68,7 +78,7 @@ abstract final class CodexTimelineReducer {
           ),
         );
       }
-      return <CodexTimelineCell>[
+      final completed = <CodexTimelineCell>[
         for (final cell in next)
           if (cell.turnId == turnId && cell.isStreaming)
             cell.copyWith(
@@ -79,10 +89,12 @@ abstract final class CodexTimelineReducer {
           else
             cell,
       ];
+      return _updateTurnSeparator(completed, turnId, params, timestamp);
     }
 
     if (method == 'turn/started' || method == 'turn/created') {
       if (turnId.isEmpty) return cells;
+      final turn = _map(params['turn']);
       return _upsert(
         cells,
         _newCell(
@@ -92,6 +104,11 @@ abstract final class CodexTimelineReducer {
           status: CodexTimelineStatus.info,
           timestamp: timestamp,
           title: 'Turn started',
+          metadata: <String, Object?>{
+            'startedAt': turn['startedAt'],
+            'completedAt': turn['completedAt'],
+            'computedDurationMs': turn['durationMs'],
+          },
         ),
       );
     }
@@ -105,7 +122,7 @@ abstract final class CodexTimelineReducer {
           method == 'turn/failed' ||
           (turnError is String && turnError.trim().isNotEmpty) ||
           (turnError is Map && turnError.isNotEmpty);
-      return <CodexTimelineCell>[
+      final completed = <CodexTimelineCell>[
         for (final cell in cells)
           if (turnId.isNotEmpty && cell.turnId == turnId && cell.isStreaming)
             cell.copyWith(
@@ -118,6 +135,7 @@ abstract final class CodexTimelineReducer {
           else
             cell,
       ];
+      return _updateTurnSeparator(completed, turnId, params, timestamp);
     }
 
     if (method == 'turn/diff/updated') {
@@ -346,18 +364,8 @@ abstract final class CodexTimelineReducer {
           ? '${kind.name}-$turnId'
           : 'item-$itemId';
       final current = _find(cells, id) ?? existing;
-      final fullText = _firstString(<Object?>[
-        item['text'],
-        item['content'],
-        item['summary'],
-        item['message'],
-      ]);
-      final details = _firstString(<Object?>[
-        item['output'],
-        item['result'],
-        item['diff'],
-        item['commandOutput'],
-      ]);
+      final fullText = _itemMarkdown(item);
+      final details = _itemDetails(item);
       final rawStatus = (item['status'] ?? params['status'] ?? '')
           .toString()
           .toLowerCase();
@@ -382,6 +390,8 @@ abstract final class CodexTimelineReducer {
             item['command'],
             item['name'],
             item['path'],
+            item['cwd'],
+            item['server'],
           ]),
           markdownText: fullText.isEmpty ? current?.markdownText : fullText,
           detailsText: details.isEmpty ? current?.detailsText : details,
@@ -389,6 +399,16 @@ abstract final class CodexTimelineReducer {
           metadata: <String, Object?>{
             ...?current?.metadata,
             'itemType': item['type'],
+            'type': item['type'],
+            'query': item['query'],
+            'url': item['url'],
+            'action': item['action'],
+            'changes': item['changes'],
+            'arguments': item['arguments'],
+            'result': item['result'],
+            'commandActions': item['commandActions'],
+            'durationMs': item['durationMs'],
+            'status': item['status'],
             if (isAgentMessage && phase.isNotEmpty) 'streamPhase': phase,
           },
         ),

@@ -8,6 +8,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -38,13 +39,42 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 30));
 
-    expect(find.text('Answer from Codex'), findsOneWidget);
-    expect(find.text('Reasoning'), findsWidgets);
-    expect(find.text('Approve For Session'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Answer from Codex'), findsOneWidget);
+    expect(find.text('Thinking'), findsOneWidget);
     expect(find.text('Current Codex'), findsOneWidget);
-    expect(find.text('Permission: On Request'), findsOneWidget);
+    expect(find.text('Ask First'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsWidgets);
+    expect(find.text('dart'), findsOneWidget);
+    expect(find.textContaining('void main'), findsOneWidget);
     expect(find.text('Implement Plan'), findsNothing);
+
+    final timeline = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('File changes'),
+      200,
+      scrollable: timeline,
+    );
+    await tester.tap(find.text('File changes'));
+    await tester.pump();
+    expect(find.text('@@ -1 +1 @@'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Allow For Session'),
+      200,
+      scrollable: timeline,
+    );
+    expect(find.text('Allow For Session'), findsOneWidget);
+
+    final contextIndicator = find.byWidgetPredicate(
+      (widget) => widget is CircularProgressIndicator && widget.value == 0.1,
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(contextIndicator));
+    await tester.pump();
+    expect(find.text('Context Window'), findsOneWidget);
   });
 }
 
@@ -105,7 +135,8 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               'status': 'completed',
               'createdAt': '2026-08-02T12:00:00Z',
               'updatedAt': '2026-08-02T12:00:00Z',
-              'markdownText': 'Answer from Codex',
+              'markdownText':
+                  'Answer from Codex\n\n![Malformed](data:not-valid)\n\n```dart\nvoid main() {}\n```',
             },
             <String, Object?>{
               'id': 'reasoning',
@@ -116,6 +147,15 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               'markdownText': 'Reasoning',
             },
             <String, Object?>{
+              'id': 'diff',
+              'kind': 'diff',
+              'status': 'completed',
+              'createdAt': '2026-08-02T12:00:00Z',
+              'updatedAt': '2026-08-02T12:00:00Z',
+              'title': 'File changes',
+              'detailsText': 'diff --git a/a b/a\n@@ -1 +1 @@\n-old\n+new',
+            },
+            <String, Object?>{
               'id': 'plan',
               'kind': 'plan',
               'status': 'completed',
@@ -124,6 +164,8 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               'markdownText': '1. Inspect\n2. Implement',
             },
           ],
+          'contextUsed': 1000,
+          'contextLimit': 10000,
           'pendingRequests': <Object?>[
             <String, Object?>{
               'id': 1,

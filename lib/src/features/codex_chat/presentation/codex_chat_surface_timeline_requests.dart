@@ -32,21 +32,31 @@ class _CodexApprovalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _CodexRequestCard(
-    title: request.requestTitle,
-    body: request.approvalDescription,
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => unawaited(onApproval(request, accepted: false)),
-        child: const Text('Decline'),
+    title: 'Approval Required',
+    bodyWidget: ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxHeight: AleraTokens.codexRequestMaxHeight,
       ),
+      child: SingleChildScrollView(
+        child: SelectableText(
+          request.approvalDescription,
+          style: AleraTokens.monoStyle,
+        ),
+      ),
+    ),
+    actions: <Widget>[
       FilledButton(
         onPressed: () => unawaited(onApproval(request, accepted: true)),
-        child: const Text('Approve'),
+        child: const Text('Allow Once'),
       ),
       TextButton(
         onPressed: () =>
             unawaited(onApproval(request, accepted: true, forSession: true)),
-        child: const Text('Approve For Session'),
+        child: const Text('Allow For Session'),
+      ),
+      TextButton(
+        onPressed: () => unawaited(onApproval(request, accepted: false)),
+        child: const Text('Decline'),
       ),
     ],
   );
@@ -70,6 +80,7 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
   final Map<String, TextEditingController> _answers =
       <String, TextEditingController>{};
   final Map<String, Set<String>> _selected = <String, Set<String>>{};
+  int _page = 0;
 
   @override
   void dispose() {
@@ -82,37 +93,46 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
   @override
   Widget build(BuildContext context) {
     final questions = widget.request.questions;
+    final question = questions[_page.clamp(0, questions.length - 1)];
+    final isLast = _page == questions.length - 1;
     return _CodexRequestCard(
-      title: widget.request.requestTitle,
+      title: question.header ?? 'Codex Needs Your Input',
       bodyWidget: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            widget.request.isBlocking
-                ? 'Response required.'
-                : 'Response optional.',
+            question.question,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
-          for (final question in questions) _question(context, question),
+          const SizedBox(height: AleraTokens.space8),
+          _question(context, question),
+          if (!widget.request.isBlocking)
+            Padding(
+              padding: const EdgeInsets.only(top: AleraTokens.space6),
+              child: Text(
+                widget.request.autoResolutionMs == null
+                    ? 'A response is optional.'
+                    : 'This question can continue automatically.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AleraTokens.foregroundFaint,
+                ),
+              ),
+            ),
         ],
       ),
       actions: <Widget>[
-        FilledButton(
-          onPressed: () => unawaited(
-            widget.onQuestion(widget.request, <String, List<String>>{
-              for (final question in questions)
-                question.id:
-                    question.isOther &&
-                        (_answers[question.id]?.text.trim().isNotEmpty ?? false)
-                    ? <String>[_answers[question.id]!.text.trim()]
-                    : _selected[question.id]
-                              ?.toList(growable: false)
-                              .isNotEmpty ==
-                          true
-                    ? _selected[question.id]!.toList(growable: false)
-                    : <String>[_answers[question.id]?.text.trim() ?? ''],
-            }),
+        if (_page > 0)
+          TextButton(
+            onPressed: () => setState(() => _page -= 1),
+            child: const Text('Back'),
           ),
-          child: const Text('Submit Answers'),
+        FilledButton(
+          onPressed: _hasAnswer(question)
+              ? isLast
+                    ? () => unawaited(_submit(questions))
+                    : () => setState(() => _page += 1)
+              : null,
+          child: Text(isLast ? 'Submit Answers' : 'Continue'),
         ),
       ],
     );
@@ -129,40 +149,108 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            question.header ?? question.question,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          if (question.header != null) Text(question.question),
           if (question.options.isNotEmpty)
-            Wrap(
-              spacing: AleraTokens.space4,
-              runSpacing: AleraTokens.space4,
+            Column(
               children: <Widget>[
                 for (final option in question.options)
-                  ChoiceChip(
-                    label: Text(option.label),
-                    selected: selected.contains(option.label),
-                    onSelected: (isSelected) => setState(() {
-                      if (!question.isMultiSelect) selected.clear();
-                      if (isSelected) {
-                        selected.add(option.label);
-                      } else {
-                        selected.remove(option.label);
-                      }
-                    }),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space4),
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        if (!question.isMultiSelect) selected.clear();
+                        if (!selected.add(option.label)) {
+                          selected.remove(option.label);
+                        }
+                      }),
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AleraTokens.space8),
+                        decoration: BoxDecoration(
+                          color: selected.contains(option.label)
+                              ? AleraTokens.accentSubtle
+                              : AleraTokens.surfaceVariant,
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusMd,
+                          ),
+                          border: Border.all(color: AleraTokens.borderSubtle),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(option.label),
+                            if (option.description != null)
+                              Text(
+                                option.description!,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AleraTokens.foregroundMuted,
+                                    ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (question.isOther)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space4),
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        if (!question.isMultiSelect) selected.clear();
+                        if (!selected.add('__other__')) {
+                          selected.remove('__other__');
+                        }
+                      }),
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AleraTokens.space8),
+                        decoration: BoxDecoration(
+                          color: selected.contains('__other__')
+                              ? AleraTokens.accentSubtle
+                              : AleraTokens.surfaceVariant,
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusMd,
+                          ),
+                          border: Border.all(color: AleraTokens.borderSubtle),
+                        ),
+                        child: const Text('Other'),
+                      ),
+                    ),
                   ),
               ],
             ),
-          if (question.options.isEmpty || question.isOther)
+          if (question.options.isEmpty || selected.contains('__other__'))
             TextField(
               controller: controller,
               obscureText: question.isSecret,
+              onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(hintText: 'Your Answer'),
             ),
         ],
       ),
     );
+  }
+
+  Future<void> _submit(List<CodexQuestion> questions) =>
+      widget.onQuestion(widget.request, <String, List<String>>{
+        for (final question in questions)
+          question.id: <String>[
+            ...?_selected[question.id]?.where((value) => value != '__other__'),
+            if ((_selected[question.id]?.contains('__other__') == true ||
+                    question.options.isEmpty) &&
+                _answers[question.id]?.text.trim().isNotEmpty == true)
+              _answers[question.id]!.text.trim(),
+          ],
+      });
+
+  bool _hasAnswer(CodexQuestion question) {
+    final selected = _selected[question.id] ?? const <String>{};
+    if (selected.any((value) => value != '__other__')) return true;
+    final text = _answers[question.id]?.text.trim() ?? '';
+    return text.isNotEmpty &&
+        (question.options.isEmpty || selected.contains('__other__'));
   }
 }
 

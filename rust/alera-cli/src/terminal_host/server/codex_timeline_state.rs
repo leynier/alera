@@ -8,6 +8,7 @@ use super::{
         append_delta, cell_by_id, first_delta, first_string, is_agent_delta, is_output_delta,
         is_reasoning_delta, kind_for, new_cell, title_for, upsert_cell,
     },
+    codex_timeline_content::{item_details, item_markdown, update_turn_separator_metrics},
     trim_cells, turn_id_from_message,
 };
 
@@ -51,6 +52,14 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     let lower = method.to_lowercase();
     let now = Utc::now().to_rfc3339();
 
+    if super::codex_timeline_modern::reduce_modern_notification(
+        &mut cells, method, &params, &turn_id, &item_id, &now,
+    ) {
+        trim_cells(&mut cells);
+        object.insert("timelineCells".to_string(), Value::Array(cells));
+        return;
+    }
+
     if raw_method == "codex/event/task_complete" {
         let text = first_string(&[
             legacy_msg.get("last_agent_message"),
@@ -85,7 +94,9 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 }
             }
         }
+        update_turn_separator_metrics(&mut cells, &turn_id, &params, &now);
     } else if matches!(method, "turn/started" | "turn/created") && !turn_id.is_empty() {
+        let turn = params.get("turn").unwrap_or(&Value::Null);
         upsert_cell(
             &mut cells,
             new_cell(
@@ -99,7 +110,11 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 None,
                 None,
                 false,
-                None,
+                Some(json!({
+                    "startedAt": turn.get("startedAt"),
+                    "completedAt": turn.get("completedAt"),
+                    "computedDurationMs": turn.get("durationMs"),
+                })),
             ),
         );
     } else if matches!(
@@ -122,6 +137,7 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 }
             }
         }
+        update_turn_separator_metrics(&mut cells, &turn_id, &params, &now);
     } else if method == "turn/diff/updated" && !turn_id.is_empty() {
         let has_snapshot = params.get("diff").is_some()
             || params.get("delta").is_some()
@@ -299,19 +315,14 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
         } else {
             "inProgress"
         };
-        let text = first_string(&[
-            item.get("text"),
-            item.get("content"),
-            item.get("summary"),
-            item.get("message"),
+        let text = item_markdown(&item);
+        let details = item_details(&item);
+        let title = first_string(&[
+            item.get("title"),
+            item.get("name"),
+            item.get("tool"),
+            item.get("command"),
         ]);
-        let details = first_string(&[
-            item.get("output"),
-            item.get("result"),
-            item.get("diff"),
-            item.get("commandOutput"),
-        ]);
-        let title = first_string(&[item.get("title"), item.get("name"), item.get("command")]);
         upsert_cell(
             &mut cells,
             new_cell(
@@ -325,7 +336,12 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 } else {
                     Some(title)
                 },
-                Some(first_string(&[item.get("command"), item.get("path")])),
+                Some(first_string(&[
+                    item.get("command"),
+                    item.get("path"),
+                    item.get("cwd"),
+                    item.get("server"),
+                ])),
                 if text.is_empty() { None } else { Some(text) },
                 if details.is_empty() {
                     None
@@ -335,6 +351,16 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 method != "item/completed",
                 Some(json!({
                     "itemType": item.get("type"),
+                    "type": item.get("type"),
+                    "query": item.get("query"),
+                    "url": item.get("url"),
+                    "action": item.get("action"),
+                    "changes": item.get("changes"),
+                    "arguments": item.get("arguments"),
+                    "result": item.get("result"),
+                    "commandActions": item.get("commandActions"),
+                    "durationMs": item.get("durationMs"),
+                    "status": item.get("status"),
                     "streamPhase": if is_agent_message && !phase.is_empty() {
                         Value::String(phase)
                     } else {

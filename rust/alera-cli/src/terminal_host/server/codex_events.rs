@@ -26,7 +26,17 @@ fn is_streaming_codex_message(message: &Value) -> bool {
 
 impl ServerActor {
     pub(super) async fn handle_codex_message(&mut self, message: Value) {
-        if message.get("method").and_then(Value::as_str) == Some("currentTime/read") {
+        let method = message.get("method").and_then(Value::as_str);
+        if matches!(method, Some("skills/changed" | "app/list/updated")) {
+            self.broadcast_authenticated(event(
+                "codexCatalogChanged",
+                json!({
+                    "catalog": if method == Some("skills/changed") { "skills" } else { "apps" },
+                }),
+            ));
+            return;
+        }
+        if method == Some("currentTime/read") {
             let Some(id) = message.get("id").cloned() else {
                 return;
             };

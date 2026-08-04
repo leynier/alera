@@ -378,6 +378,92 @@ fn nested_token_usage_updates_context_metadata() {
 }
 
 #[test]
+fn turn_completion_records_server_duration_on_the_separator() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/started",
+            "params": {"turn": {"id": "turn", "startedAt": "2026-08-03T12:00:00Z"}}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
+            "method": "turn/completed",
+            "params": {"turn": {
+                "id": "turn",
+                "startedAt": "2026-08-03T12:00:00Z",
+                "completedAt": "2026-08-03T12:00:01.250Z",
+                "durationMs": 1250
+            }}
+        }),
+    );
+    let saved = snapshot(&record);
+    let separator = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["kind"] == "turnSeparator")
+        .unwrap();
+    assert_eq!(separator["metadata"]["computedDurationMs"], 1250);
+    assert_eq!(
+        separator["metadata"]["completedAt"],
+        "2026-08-03T12:00:01.250Z"
+    );
+}
+
+#[test]
+fn modern_app_server_items_keep_rich_content_and_metadata() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "item/completed",
+            "params": {"turnId": "turn", "item": {
+                "id": "search",
+                "type": "webSearch",
+                "query": "Alera",
+                "action": {"type": "search", "query": "Alera"},
+                "status": "completed"
+            }}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
+            "method": "item/completed",
+            "params": {"turnId": "turn", "item": {
+                "id": "dynamic",
+                "type": "dynamicToolCall",
+                "tool": "inspect",
+                "arguments": {"path": "README.md"},
+                "contentItems": [{"type": "inputText", "text": "done"}],
+                "durationMs": 42,
+                "status": "completed"
+            }}
+        }),
+    );
+    let saved = snapshot(&record);
+    let cells = saved["timelineCells"].as_array().unwrap();
+    let search = cells
+        .iter()
+        .find(|cell| cell["id"] == "item-search")
+        .unwrap();
+    assert_eq!(search["kind"], "toolCall");
+    assert_eq!(search["title"], "Web search");
+    assert_eq!(search["metadata"]["query"], "Alera");
+    let dynamic = cells
+        .iter()
+        .find(|cell| cell["id"] == "item-dynamic")
+        .unwrap();
+    assert_eq!(dynamic["kind"], "toolCall");
+    assert_eq!(dynamic["title"], "inspect");
+    assert_eq!(dynamic["metadata"]["durationMs"], 42);
+    assert!(dynamic["detailsText"].as_str().unwrap().contains("done"));
+}
+
+#[test]
 fn server_failure_closes_streams_without_deleting_thread_history() {
     let mut record = tab();
     record.payload = json!({
