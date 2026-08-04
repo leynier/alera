@@ -211,6 +211,8 @@ pub struct MobileAccessSettings {
     #[serde(default)]
     pub endpoint_mode: MobileEndpointMode,
     #[serde(default)]
+    pub netbird_endpoint: MobileNetbirdEndpoint,
+    #[serde(default)]
     pub server_public_key_b64: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
@@ -222,6 +224,7 @@ impl Default for MobileAccessSettings {
             bind_host: "127.0.0.1".to_string(),
             port: 6768,
             endpoint_mode: MobileEndpointMode::default(),
+            netbird_endpoint: MobileNetbirdEndpoint::default(),
             server_public_key_b64: None,
             updated_at: Utc::now(),
         }
@@ -236,6 +239,33 @@ pub enum MobileEndpointMode {
     Tailscale,
     Netbird,
     Manual,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MobileNetbirdEndpoint {
+    #[default]
+    Ip,
+    Dns,
+    Interface,
+}
+
+impl MobileNetbirdEndpoint {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MobileNetbirdEndpoint::Ip => "ip",
+            MobileNetbirdEndpoint::Dns => "dns",
+            MobileNetbirdEndpoint::Interface => "interface",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "dns" => MobileNetbirdEndpoint::Dns,
+            "interface" => MobileNetbirdEndpoint::Interface,
+            _ => MobileNetbirdEndpoint::Ip,
+        }
+    }
 }
 
 impl MobileEndpointMode {

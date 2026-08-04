@@ -80,6 +80,8 @@ void main() {
         'detected': true,
         'connected': true,
         'netbirdIp': '100.121.195.4',
+        'dnsHostname': 'laptop.netbird.cloud',
+        'interfaceName': 'wt0',
         'managementKind': 'selfHosted',
       };
     await pumpPane(tester, client: client);
@@ -92,6 +94,30 @@ void main() {
     });
     expect(find.text('NetBird Status'), findsOneWidget);
     expect(find.text('Connected - 100.121.195.4'), findsOneWidget);
+  });
+
+  testWidgets('selecting a NetBird DNS endpoint persists the endpoint source', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()
+      ..netbirdStatus = <String, Object?>{
+        'detected': true,
+        'connected': true,
+        'netbirdIp': '100.121.195.4',
+        'dnsHostname': 'laptop.netbird.cloud',
+        'interfaceName': 'wt0',
+      };
+    await pumpPane(tester, client: client);
+
+    await tester.tap(find.text('NetBird'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DNS Hostname'));
+    await tester.pumpAndSettle();
+
+    expect(client.requestsOfType('mobile.settings.update').last, {
+      'netbirdEndpoint': 'dns',
+    });
+    expect(find.text('Interface (wt0)'), findsOneWidget);
   });
 
   testWidgets('tailscale mode hides the pairing endpoint field', (
@@ -263,6 +289,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
   bool offerCancelled = false;
   String bindHost = '127.0.0.1';
   String endpointMode = 'loopback';
+  String netbirdEndpoint = 'ip';
   Map<String, Object?>? tailscaleStatus;
   Map<String, Object?>? netbirdStatus = <String, Object?>{
     'detected': false,
@@ -341,6 +368,10 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
                   ? '100.121.195.4'
                   : '127.0.0.1';
         }
+        final requestedNetbirdEndpoint = payload['netbirdEndpoint'];
+        if (requestedNetbirdEndpoint is String) {
+          netbirdEndpoint = requestedNetbirdEndpoint;
+        }
         _events.add(
           const RuntimeHostEvent('mobileSettingsChanged', <String, Object?>{}),
         );
@@ -349,6 +380,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
           'bindHost': payload['bindHost'] ?? bindHost,
           'port': payload['port'] ?? 6768,
           'endpointMode': endpointMode,
+          'netbirdEndpoint': netbirdEndpoint,
         };
       default:
         throw UnimplementedError(type);
@@ -363,6 +395,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
         'bindHost': bindHost,
         'port': 6768,
         'endpointMode': endpointMode,
+        'netbirdEndpoint': netbirdEndpoint,
       },
       if (tailscaleStatus != null) 'tailscale': tailscaleStatus,
       if (netbirdStatus != null) 'netbird': netbirdStatus,

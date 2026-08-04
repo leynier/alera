@@ -220,6 +220,19 @@ fn pairing_settings_accept_plaintext_netbird_endpoint_with_port_match() {
 }
 
 #[test]
+fn pairing_settings_accept_netbird_dns_endpoint_only_for_netbird_payloads() {
+    let endpoint = validate_pairing_endpoint(
+        "ws://laptop.netbird.example:6123".to_string(),
+        Some("netbird"),
+    )
+    .unwrap();
+    assert_eq!(endpoint.value, "ws://laptop.netbird.example:6123");
+    assert!(
+        validate_pairing_endpoint("ws://laptop.netbird.example:6123".to_string(), None,).is_err()
+    );
+}
+
+#[test]
 fn pairing_settings_allow_plaintext_tailscale_ipv6_endpoint() {
     let settings = MobileAccessSettings::default();
     let request = MobilePairingCreateRequest {
@@ -243,12 +256,31 @@ fn settings_update_applies_endpoint_mode() {
             bind_host: None,
             port: None,
             endpoint_mode: Some(MobileEndpointMode::Tailscale),
+            netbird_endpoint: None,
         },
     )
     .unwrap();
 
     assert_eq!(settings.endpoint_mode, MobileEndpointMode::Tailscale);
     assert_eq!(settings.bind_host, "127.0.0.1");
+}
+
+#[test]
+fn settings_update_applies_netbird_endpoint_source() {
+    let settings = apply_mobile_settings_update(
+        MobileAccessSettings::default(),
+        MobileSettingsUpdateRequest {
+            enabled: None,
+            bind_host: None,
+            port: None,
+            endpoint_mode: Some(MobileEndpointMode::Netbird),
+            netbird_endpoint: Some(MobileNetbirdEndpoint::Dns),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(settings.endpoint_mode, MobileEndpointMode::Netbird);
+    assert_eq!(settings.netbird_endpoint, MobileNetbirdEndpoint::Dns);
 }
 
 #[test]

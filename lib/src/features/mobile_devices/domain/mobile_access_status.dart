@@ -21,12 +21,29 @@ enum MobileEndpointMode {
   String get wireName => name;
 }
 
+enum MobileNetbirdEndpoint {
+  ip,
+  dns,
+  interface;
+
+  static MobileNetbirdEndpoint fromWire(Object? value) {
+    return switch (value) {
+      'dns' => MobileNetbirdEndpoint.dns,
+      'interface' => MobileNetbirdEndpoint.interface,
+      _ => MobileNetbirdEndpoint.ip,
+    };
+  }
+
+  String get wireName => name;
+}
+
 class MobileGatewaySettings {
   const MobileGatewaySettings({
     required this.enabled,
     required this.bindHost,
     required this.port,
     this.endpointMode = MobileEndpointMode.loopback,
+    this.netbirdEndpoint = MobileNetbirdEndpoint.ip,
     this.serverPublicKeyB64,
   });
 
@@ -45,6 +62,9 @@ class MobileGatewaySettings {
       bindHost: bindHost,
       port: port.toInt(),
       endpointMode: MobileEndpointMode.fromWire(json['endpointMode']),
+      netbirdEndpoint: MobileNetbirdEndpoint.fromWire(
+        json['netbirdEndpoint'],
+      ),
       serverPublicKeyB64:
           publicKey is String && publicKey.trim().isNotEmpty ? publicKey : null,
     );
@@ -54,6 +74,7 @@ class MobileGatewaySettings {
   final String bindHost;
   final int port;
   final MobileEndpointMode endpointMode;
+  final MobileNetbirdEndpoint netbirdEndpoint;
   final String? serverPublicKeyB64;
 }
 
@@ -91,6 +112,8 @@ class MobileNetbirdStatus {
     this.profileName,
     this.managementUrl,
     this.managementKind,
+    this.dnsHostname,
+    this.interfaceName,
     this.error,
   });
 
@@ -107,6 +130,8 @@ class MobileNetbirdStatus {
       profileName: optionalString('profileName'),
       managementUrl: optionalString('managementUrl'),
       managementKind: optionalString('managementKind'),
+      dnsHostname: optionalString('dnsHostname'),
+      interfaceName: optionalString('interfaceName'),
       error: optionalString('error'),
     );
   }
@@ -117,6 +142,8 @@ class MobileNetbirdStatus {
   final String? profileName;
   final String? managementUrl;
   final String? managementKind;
+  final String? dnsHostname;
+  final String? interfaceName;
   final String? error;
 }
 

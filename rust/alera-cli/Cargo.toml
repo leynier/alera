@@ -53,6 +53,7 @@ dirs = "6"
 regex = "1"
 axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"
+if-addrs = "0.13"
 serde_urlencoded = "0.7"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 async-trait = "0.1.91"
