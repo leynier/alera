@@ -47,6 +47,7 @@ void main() {
 
     expect(find.text('This Device'), findsOneWidget);
     expect(find.text('Tailscale'), findsOneWidget);
+    expect(find.text('NetBird'), findsOneWidget);
     expect(find.text('Manual'), findsOneWidget);
     // Loopback mode keeps the manual bind host field hidden.
     expect(find.text('Bind Host'), findsNothing);
@@ -71,6 +72,26 @@ void main() {
     });
     expect(find.text('Tailscale Status'), findsOneWidget);
     expect(find.text('Running · 100.101.102.103'), findsOneWidget);
+  });
+
+  testWidgets('selecting netbird sends only the endpoint mode', (tester) async {
+    final client = _FakeMobileRuntimeHostClient()
+      ..netbirdStatus = <String, Object?>{
+        'detected': true,
+        'connected': true,
+        'netbirdIp': '100.121.195.4',
+        'managementKind': 'selfHosted',
+      };
+    await pumpPane(tester, client: client);
+
+    await tester.tap(find.text('NetBird'));
+    await tester.pumpAndSettle();
+
+    expect(client.requestsOfType('mobile.settings.update').single, {
+      'endpointMode': 'netbird',
+    });
+    expect(find.text('NetBird Status'), findsOneWidget);
+    expect(find.text('Connected - 100.121.195.4'), findsOneWidget);
   });
 
   testWidgets('tailscale mode hides the pairing endpoint field', (
@@ -191,7 +212,7 @@ void main() {
 
     expect(
       find.text(
-        'Endpoints outside loopback or a Tailscale Tailnet must use wss://',
+        'Endpoints outside loopback or a private overlay must use wss://',
       ),
       findsOneWidget,
     );
@@ -243,6 +264,10 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
   String bindHost = '127.0.0.1';
   String endpointMode = 'loopback';
   Map<String, Object?>? tailscaleStatus;
+  Map<String, Object?>? netbirdStatus = <String, Object?>{
+    'detected': false,
+    'connected': false,
+  };
   bool failSettingsUpdate = false;
 
   List<Map<String, Object?>> requestsOfType(String type) {
@@ -312,7 +337,9 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
           endpointMode = requestedMode;
           bindHost = requestedMode == 'tailscale'
               ? '100.101.102.103'
-              : '127.0.0.1';
+              : requestedMode == 'netbird'
+                  ? '100.121.195.4'
+                  : '127.0.0.1';
         }
         _events.add(
           const RuntimeHostEvent('mobileSettingsChanged', <String, Object?>{}),
@@ -338,6 +365,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
         'endpointMode': endpointMode,
       },
       if (tailscaleStatus != null) 'tailscale': tailscaleStatus,
+      if (netbirdStatus != null) 'netbird': netbirdStatus,
       'devices': deviceDeleted ? const <Object?>[] : <Object?>[_device()],
       'activePairings': offerCancelled
           ? const <Object?>[]

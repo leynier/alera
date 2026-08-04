@@ -13,10 +13,10 @@ void validatePairingEndpoint(String endpoint) {
   }
   if (uri.scheme == 'ws' &&
       !_isLocalPairingHost(uri.host) &&
-      !_isTailscalePairingHost(uri.host)) {
+      !_isPrivateOverlayPairingHost(uri.host)) {
     throw const FormatException(
       'Plaintext pairing endpoint must use localhost, loopback, or a '
-      'Tailscale Tailnet address',
+      'private overlay address',
     );
   }
 }
@@ -29,10 +29,10 @@ bool _isLocalPairingHost(String host) {
   return InternetAddress.tryParse(host)?.isLoopback ?? false;
 }
 
-/// Tailscale tailnet ranges (IPv4 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48).
+/// Private overlay ranges (IPv4 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48).
 /// Traffic to these addresses rides the device's WireGuard tunnel, so
 /// plaintext ws:// is acceptable. Mirrors the runtime's `is_tailscale_ip`.
-bool _isTailscalePairingHost(String host) {
+bool _isPrivateOverlayPairingHost(String host) {
   final address = InternetAddress.tryParse(host);
   if (address == null) {
     return false;

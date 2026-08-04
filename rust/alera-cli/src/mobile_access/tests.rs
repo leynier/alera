@@ -149,7 +149,7 @@ fn pairing_settings_reject_plaintext_external_endpoint() {
         .unwrap_err()
         .to_string();
 
-    assert!(error.contains("outside loopback or a tailscale tailnet must use wss://"));
+    assert!(error.contains("outside loopback or a private overlay must use wss://"));
 }
 
 #[test]
@@ -200,7 +200,23 @@ fn pairing_settings_reject_plaintext_cgnat_endpoint_outside_tailscale_range() {
         .unwrap_err()
         .to_string();
 
-    assert!(error.contains("outside loopback or a tailscale tailnet must use wss://"));
+    assert!(error.contains("outside loopback or a private overlay must use wss://"));
+}
+
+#[test]
+fn pairing_settings_accept_plaintext_netbird_endpoint_with_port_match() {
+    let settings = MobileAccessSettings::default();
+    let request = MobilePairingCreateRequest {
+        endpoint: Some("ws://100.121.195.4:6123".to_string()),
+        device_name: None,
+        expires_minutes: None,
+    };
+
+    let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
+
+    assert!(next.enabled);
+    assert_eq!(next.port, 6123);
+    assert_eq!(endpoint, "ws://100.121.195.4:6123");
 }
 
 #[test]

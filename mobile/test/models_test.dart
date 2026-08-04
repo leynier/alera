@@ -43,6 +43,14 @@ void main() {
       expect(ipv6.endpoint, 'ws://[fd7a:115c:a1e0:ab12::4]:6768');
     });
 
+    test('Accepts plaintext NetBird endpoints', () {
+      final offer = PairingOffer.fromJson(
+        _offer(endpoint: 'ws://100.121.195.4:6768'),
+      );
+
+      expect(offer.endpoint, 'ws://100.121.195.4:6768');
+    });
+
     test('Rejects plaintext cgnat endpoints outside the tailscale range', () {
       expect(
         () => PairingOffer.fromJson(_offer(endpoint: 'ws://100.63.0.1:6768')),

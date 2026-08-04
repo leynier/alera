@@ -64,6 +64,29 @@ void main() {
       expect(status.tailscale!.error, isNull);
     });
 
+    test('status parses netbird detection and self-hosted management',
+        () async {
+      final client = _FakeRuntimeHostClient();
+      final payload = _statusPayload();
+      (payload['settings']! as Map<String, Object?>)['endpointMode'] =
+          'netbird';
+      payload['netbird'] = <String, Object?>{
+        'detected': true,
+        'connected': true,
+        'netbirdIp': '100.121.195.4',
+        'profileName': 'default',
+        'managementKind': 'selfHosted',
+      };
+      client.responses['mobile.status.get'] = payload;
+      final status = await RuntimeMobileAccessRepository(client).status();
+
+      expect(status.settings.endpointMode, MobileEndpointMode.netbird);
+      expect(status.netbird, isNotNull);
+      expect(status.netbird!.connected, isTrue);
+      expect(status.netbird!.netbirdIp, '100.121.195.4');
+      expect(status.netbird!.managementKind, 'selfHosted');
+    });
+
     test('watchStatus coalesces a burst of mobile change events', () async {
       final client = _FakeRuntimeHostClient();
       client.responses['mobile.status.get'] = _statusPayload();

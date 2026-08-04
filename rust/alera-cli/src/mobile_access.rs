@@ -57,6 +57,8 @@ pub struct MobileStatusPayload {
     pub runtime_host_active: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tailscale: Option<crate::tailscale::TailscaleStatusSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub netbird: Option<crate::netbird::NetbirdStatusSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +130,7 @@ pub async fn mobile_status(
         active_pairings,
         runtime_host_active,
         tailscale: Some(crate::tailscale::detect().await),
+        netbird: Some(crate::netbird::detect().await),
     })
 }
 
@@ -185,6 +188,9 @@ pub async fn apply_mobile_settings_update_resolved(
                 .await?
                 .to_string();
         }
+        MobileEndpointMode::Netbird if settings.enabled || switched_mode => {
+            settings.bind_host = crate::netbird::resolve_netbird_bind_ip().await?.to_string();
+        }
         MobileEndpointMode::Loopback if switched_mode && !request_has_bind_host => {
             settings.bind_host = MobileAccessSettings::default().bind_host;
         }
@@ -207,6 +213,9 @@ pub async fn prepare_mobile_pairing_offer_settings_resolved(
         settings.bind_host = crate::tailscale::resolve_tailnet_bind_ip()
             .await?
             .to_string();
+    }
+    if settings.endpoint_mode == MobileEndpointMode::Netbird && !has_explicit_endpoint {
+        settings.bind_host = crate::netbird::resolve_netbird_bind_ip().await?.to_string();
     }
     prepare_mobile_pairing_offer_settings(settings, request)
 }
@@ -497,9 +506,9 @@ fn validate_pairing_endpoint(endpoint: String) -> Result<ValidPairingEndpoint> {
     }
     if parsed.scheme() == "ws"
         && !is_loopback_endpoint_host(host)
-        && !is_tailscale_endpoint_host(host)
+        && !is_private_overlay_endpoint_host(host)
     {
-        bail!("mobile pairing endpoints outside loopback or a tailscale tailnet must use wss://");
+        bail!("mobile pairing endpoints outside loopback or a private overlay must use wss://");
     }
     Ok(ValidPairingEndpoint {
         value: endpoint,
@@ -525,7 +534,7 @@ fn is_loopback_endpoint_host(host: &str) -> bool {
             .is_ok_and(|address| address.is_loopback())
 }
 
-fn is_tailscale_endpoint_host(host: &str) -> bool {
+fn is_private_overlay_endpoint_host(host: &str) -> bool {
     normalize_endpoint_host(host)
         .parse::<std::net::IpAddr>()
         .is_ok_and(crate::tailscale::is_tailscale_ip)

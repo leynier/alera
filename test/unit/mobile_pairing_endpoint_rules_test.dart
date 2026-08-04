@@ -225,12 +225,12 @@ void main() {
       );
     });
 
-    test('hints tailscale binds toward the tailnet instead of wss', () {
+    test('hints private overlay binds instead of wss', () {
       final hint = mobileGatewayBindHostHint(
         bindHost: '100.101.102.103',
         port: 6768,
       );
-      expect(hint, contains('Tailnet'));
+      expect(hint, contains('private overlay'));
       expect(hint, isNot(contains('wss://')));
     });
 

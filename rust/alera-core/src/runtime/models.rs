@@ -234,6 +234,7 @@ pub enum MobileEndpointMode {
     #[default]
     Loopback,
     Tailscale,
+    Netbird,
     Manual,
 }
 
@@ -242,6 +243,7 @@ impl MobileEndpointMode {
         match self {
             MobileEndpointMode::Loopback => "loopback",
             MobileEndpointMode::Tailscale => "tailscale",
+            MobileEndpointMode::Netbird => "netbird",
             MobileEndpointMode::Manual => "manual",
         }
     }
@@ -249,6 +251,7 @@ impl MobileEndpointMode {
     pub fn from_db(value: &str) -> Self {
         match value {
             "tailscale" => MobileEndpointMode::Tailscale,
+            "netbird" => MobileEndpointMode::Netbird,
             "manual" => MobileEndpointMode::Manual,
             _ => MobileEndpointMode::Loopback,
         }
