@@ -1,5 +1,6 @@
 use super::{IdArgs, OutputArgs, RuntimeDirArgs};
-use clap::{Args, Subcommand};
+use alera_core::runtime::MobileNetbirdEndpoint;
+use clap::{Args, Subcommand, ValueEnum};
 
 #[derive(Debug, Args)]
 pub struct MobileCommand {
@@ -37,6 +38,26 @@ pub struct MobileEnableArgs {
     /// Bind the gateway to this machine's NetBird peer IP.
     #[arg(long, conflicts_with_all = ["bind_host", "tailscale"])]
     pub netbird: bool,
+    /// Address source advertised by NetBird pairing offers.
+    #[arg(long, value_enum, default_value_t = NetbirdEndpointArg::Ip)]
+    pub netbird_endpoint: NetbirdEndpointArg,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum NetbirdEndpointArg {
+    Ip,
+    Dns,
+    Interface,
+}
+
+impl From<NetbirdEndpointArg> for MobileNetbirdEndpoint {
+    fn from(value: NetbirdEndpointArg) -> Self {
+        match value {
+            NetbirdEndpointArg::Ip => MobileNetbirdEndpoint::Ip,
+            NetbirdEndpointArg::Dns => MobileNetbirdEndpoint::Dns,
+            NetbirdEndpointArg::Interface => MobileNetbirdEndpoint::Interface,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

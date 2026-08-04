@@ -14,6 +14,7 @@ class PairingOffer {
     required this.pairingSecret,
     required this.expiresAt,
     this.serverPublicKeyB64,
+    this.endpointNetwork,
   });
 
   final int version;
@@ -23,6 +24,7 @@ class PairingOffer {
   final String hostName;
   final String pairingSecret;
   final String? serverPublicKeyB64;
+  final String? endpointNetwork;
   final DateTime expiresAt;
 
   bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
@@ -42,7 +44,8 @@ class PairingOffer {
     }
     final expiresAt = DateTime.parse(json.requiredString('expiresAt'));
     final endpoint = json.requiredString('endpoint');
-    validatePairingEndpoint(endpoint);
+    final endpointNetwork = json.optionalString('endpointNetwork');
+    validatePairingEndpoint(endpoint, endpointNetwork: endpointNetwork);
     final offer = PairingOffer(
       version: version,
       pairingId: json.requiredString('pairingId'),
@@ -51,6 +54,7 @@ class PairingOffer {
       hostName: json.requiredString('hostName'),
       pairingSecret: json.requiredString('pairingSecret'),
       serverPublicKeyB64: json.optionalString('serverPublicKeyB64'),
+      endpointNetwork: endpointNetwork,
       expiresAt: expiresAt,
     );
     if (offer.isExpired) {

@@ -125,6 +125,7 @@ class _MobileDevicesSettingsPaneState
       applying: _applying,
       onEnabledChanged: (enabled) => _applySettings(enabled: enabled),
       onModeSelected: _selectMode,
+      onNetbirdEndpointSelected: _selectNetbirdEndpoint,
       onBindHostChanged: (_) => setState(() {}),
       onPortChanged: (value) => setState(() => _gatewayPort = value),
       onApply: _applySettings,
@@ -254,9 +255,13 @@ class _MobileDevicesSettingsPaneState
   }
 
   Future<void> _selectMode(MobileEndpointMode mode) async {
-    // Only the mode is sent: the runtime resolves the tailnet bind host or
+    // Only the mode is sent: the runtime resolves the overlay bind host or
     // resets loopback itself, so a stale local bind host must not ride along.
     await _updateSettings(endpointMode: mode);
+  }
+
+  Future<void> _selectNetbirdEndpoint(MobileNetbirdEndpoint endpoint) async {
+    await _updateSettings(netbirdEndpoint: endpoint);
   }
 
   Future<void> _updateSettings({
@@ -264,6 +269,7 @@ class _MobileDevicesSettingsPaneState
     String? bindHost,
     int? port,
     MobileEndpointMode? endpointMode,
+    MobileNetbirdEndpoint? netbirdEndpoint,
   }) async {
     setState(() {
       _applying = true;
@@ -275,6 +281,7 @@ class _MobileDevicesSettingsPaneState
             bindHost: bindHost,
             port: port,
             endpointMode: endpointMode,
+            netbirdEndpoint: netbirdEndpoint,
           );
       if (!mounted) {
         return;

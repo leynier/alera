@@ -34,6 +34,7 @@ async fn mobile_access_settings_roundtrip() {
             bind_host: "127.0.0.1".to_string(),
             port: 7777,
             endpoint_mode: MobileEndpointMode::Tailscale,
+            netbird_endpoint: MobileNetbirdEndpoint::default(),
             server_public_key_b64: Some("pub".to_string()),
             updated_at: Utc::now(),
         })
@@ -56,15 +57,25 @@ async fn mobile_access_settings_roundtrip_netbird_mode() {
     let saved = store
         .set_mobile_access_settings(MobileAccessSettings {
             endpoint_mode: MobileEndpointMode::Netbird,
+            netbird_endpoint: MobileNetbirdEndpoint::Dns,
             ..MobileAccessSettings::default()
         })
         .await
         .unwrap();
 
     assert_eq!(saved.endpoint_mode, MobileEndpointMode::Netbird);
+    assert_eq!(saved.netbird_endpoint, MobileNetbirdEndpoint::Dns);
     assert_eq!(
         store.mobile_access_settings().await.unwrap().endpoint_mode,
         MobileEndpointMode::Netbird
+    );
+    assert_eq!(
+        store
+            .mobile_access_settings()
+            .await
+            .unwrap()
+            .netbird_endpoint,
+        MobileNetbirdEndpoint::Dns
     );
 }
 
@@ -106,6 +117,7 @@ async fn mobile_endpoint_mode_column_is_added_to_legacy_runtime_databases() {
     let settings = store.mobile_access_settings().await.unwrap();
     assert!(settings.enabled);
     assert_eq!(settings.endpoint_mode, MobileEndpointMode::Loopback);
+    assert_eq!(settings.netbird_endpoint, MobileNetbirdEndpoint::Ip);
 }
 
 #[tokio::test]

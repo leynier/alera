@@ -187,6 +187,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         bindHost TEXT NOT NULL,
         port INTEGER NOT NULL,
         endpointMode TEXT NOT NULL DEFAULT 'loopback',
+        netbirdEndpoint TEXT NOT NULL DEFAULT 'ip',
         serverPublicKeyB64 TEXT,
         updatedAt TEXT NOT NULL
     );",

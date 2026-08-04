@@ -766,6 +766,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 } else {
                     args.tailscale.then_some(MobileEndpointMode::Tailscale)
                 },
+                netbird_endpoint: args.netbird.then_some(args.netbird_endpoint.into()),
             };
             match mobile_runtime_host_request::<MobileAccessSettings, _>(
                 &runtime,
@@ -784,6 +785,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 bind_host: None,
                 port: None,
                 endpoint_mode: None,
+                netbird_endpoint: None,
             };
             let fallback_request = request.clone();
             match mobile_runtime_host_or_store(
