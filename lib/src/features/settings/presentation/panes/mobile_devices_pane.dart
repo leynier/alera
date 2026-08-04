@@ -132,15 +132,17 @@ class _MobileDevicesSettingsPaneState
   }
 
   Widget _pairingGroup(MobileAccessStatus status) {
-    final tailscaleMode =
-        displayedEndpointMode(status.settings) == MobileEndpointMode.tailscale;
+    final overlayMode = switch (displayedEndpointMode(status.settings)) {
+      MobileEndpointMode.tailscale || MobileEndpointMode.netbird => true,
+      _ => false,
+    };
     return AleraSettingsGroup(
       title: 'Link A Device',
       description:
           'Generates a one-time QR offer for the Alera mobile app. The QR is '
           'only shown at creation time.',
       children: <Widget>[
-        if (!tailscaleMode)
+        if (!overlayMode)
           AleraSettingRow(
             title: 'Endpoint',
             description:
@@ -268,9 +270,7 @@ class _MobileDevicesSettingsPaneState
       _error = null;
     });
     try {
-      await ref
-          .read(mobileAccessRepositoryProvider)
-          .updateSettings(
+      await ref.read(mobileAccessRepositoryProvider).updateSettings(
             enabled: enabled,
             bindHost: bindHost,
             port: port,
@@ -308,8 +308,7 @@ class _MobileDevicesSettingsPaneState
       }
     } else if (isWildcardBindHost(status.settings.bindHost)) {
       setState(() {
-        _error =
-            'Wildcard bind hosts require an explicit wss:// endpoint to '
+        _error = 'Wildcard bind hosts require an explicit wss:// endpoint to '
             'create an offer';
       });
       return;
@@ -320,13 +319,12 @@ class _MobileDevicesSettingsPaneState
       _error = null;
     });
     try {
-      final grant = await ref
-          .read(mobileAccessRepositoryProvider)
-          .createPairingOffer(
-            endpoint: endpoint.isEmpty ? null : endpoint,
-            deviceName: deviceName.isEmpty ? null : deviceName,
-            expiresMinutes: _expiresMinutes,
-          );
+      final grant =
+          await ref.read(mobileAccessRepositoryProvider).createPairingOffer(
+                endpoint: endpoint.isEmpty ? null : endpoint,
+                deviceName: deviceName.isEmpty ? null : deviceName,
+                expiresMinutes: _expiresMinutes,
+              );
       if (!mounted) {
         return;
       }
@@ -400,8 +398,7 @@ class _MobileDevicesSettingsPaneState
       context: context,
       builder: (_) => AleraConfirmDialog(
         title: 'Revoke ${device.displayName}',
-        message:
-            'The device loses access and active sessions disconnect '
+        message: 'The device loses access and active sessions disconnect '
             'immediately. This cannot be undone.',
         confirmLabel: 'Revoke',
         destructive: true,

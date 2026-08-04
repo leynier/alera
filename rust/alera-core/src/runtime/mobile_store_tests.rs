@@ -51,6 +51,24 @@ async fn mobile_access_settings_roundtrip() {
 }
 
 #[tokio::test]
+async fn mobile_access_settings_roundtrip_netbird_mode() {
+    let (_dir, store) = store().await;
+    let saved = store
+        .set_mobile_access_settings(MobileAccessSettings {
+            endpoint_mode: MobileEndpointMode::Netbird,
+            ..MobileAccessSettings::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(saved.endpoint_mode, MobileEndpointMode::Netbird);
+    assert_eq!(
+        store.mobile_access_settings().await.unwrap().endpoint_mode,
+        MobileEndpointMode::Netbird
+    );
+}
+
+#[tokio::test]
 async fn mobile_endpoint_mode_column_is_added_to_legacy_runtime_databases() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(RUNTIME_DATABASE_FILE_NAME);

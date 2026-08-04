@@ -22,6 +22,7 @@ pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
 /// with the CLI so `--timeout-ms` can refuse a budget the host would silently
 /// cut down to this.
 pub const ORCHESTRATION_MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
+pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.

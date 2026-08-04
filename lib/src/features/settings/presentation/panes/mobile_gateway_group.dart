@@ -54,8 +54,7 @@ class MobileGatewayGroup extends StatelessWidget {
     final mode = displayedEndpointMode(settings);
     return AleraSettingsGroup(
       title: 'Mobile Gateway',
-      description:
-          'WebSocket listener the mobile companion app connects to. '
+      description: 'WebSocket listener the mobile companion app connects to. '
           'Applying changes restarts the gateway and disconnects '
           'connected devices.',
       children: <Widget>[
@@ -72,6 +71,8 @@ class MobileGatewayGroup extends StatelessWidget {
               'Only this machine can reach the gateway.',
             MobileEndpointMode.tailscale =>
               'Devices on your Tailnet reach the gateway over Tailscale.',
+            MobileEndpointMode.netbird =>
+              'Devices on your NetBird network reach the gateway over NetBird.',
             MobileEndpointMode.manual =>
               'Configure the bind host and endpoint yourself.',
           },
@@ -80,16 +81,21 @@ class MobileGatewayGroup extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: AleraSegmentedButton<MobileEndpointMode>(
               dense: true,
-              segments: const <ButtonSegment<MobileEndpointMode>>[
-                ButtonSegment<MobileEndpointMode>(
+              segments: <ButtonSegment<MobileEndpointMode>>[
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.loopback,
                   label: Text('This Device'),
                 ),
-                ButtonSegment<MobileEndpointMode>(
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.tailscale,
                   label: Text('Tailscale'),
                 ),
-                ButtonSegment<MobileEndpointMode>(
+                if (status.netbird != null)
+                  const ButtonSegment<MobileEndpointMode>(
+                    value: MobileEndpointMode.netbird,
+                    label: Text('NetBird'),
+                  ),
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.manual,
                   label: Text('Manual'),
                 ),
@@ -101,6 +107,17 @@ class MobileGatewayGroup extends StatelessWidget {
         ),
         if (mode == MobileEndpointMode.tailscale) ...<Widget>[
           _tailscaleStatusRow(),
+          if (defaultTargetPlatform == TargetPlatform.windows)
+            const AleraSettingRow(
+              title: 'Windows Firewall',
+              description:
+                  'If the phone cannot connect, allow Alera through Windows '
+                  'Firewall for incoming connections on the gateway port.',
+              child: SizedBox.shrink(),
+            ),
+        ],
+        if (mode == MobileEndpointMode.netbird) ...<Widget>[
+          _netbirdStatusRow(),
           if (defaultTargetPlatform == TargetPlatform.windows)
             const AleraSettingRow(
               title: 'Windows Firewall',
@@ -162,33 +179,79 @@ class MobileGatewayGroup extends StatelessWidget {
     final tailscale = status.tailscale;
     final (bool active, String label, String description) = switch (tailscale) {
       null => (
-        false,
-        'Unknown',
-        'The runtime does not report Tailscale - update the Alera CLI.',
-      ),
+          false,
+          'Unknown',
+          'The runtime does not report Tailscale - update the Alera CLI.',
+        ),
       MobileTailscaleStatus(detected: false) => (
-        false,
-        'Not detected',
-        'Install Tailscale on this machine to use this mode.',
-      ),
+          false,
+          'Not detected',
+          'Install Tailscale on this machine to use this mode.',
+        ),
       MobileTailscaleStatus(running: false) => (
-        false,
-        'Not running',
-        tailscale.error ?? 'Run "tailscale up" and sign in to your Tailnet.',
-      ),
+          false,
+          'Not running',
+          tailscale.error ?? 'Run "tailscale up" and sign in to your Tailnet.',
+        ),
       MobileTailscaleStatus(tailnetIp: final String ip) => (
-        true,
-        'Running · $ip',
-        'Devices signed in to the same Tailnet can pair and connect.',
-      ),
+          true,
+          'Running · $ip',
+          'Devices signed in to the same Tailnet can pair and connect.',
+        ),
       _ => (
-        false,
-        'No Tailnet IP',
-        'Tailscale is running but reported no Tailnet IPv4 address.',
-      ),
+          false,
+          'No Tailnet IP',
+          'Tailscale is running but reported no Tailnet IPv4 address.',
+        ),
     };
     return AleraSettingRow(
       title: 'Tailscale Status',
+      description: description,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AleraStatusDot(active: active),
+            const SizedBox(width: AleraTokens.space6),
+            Flexible(child: AleraBadge(label: label)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _netbirdStatusRow() {
+    final netbird = status.netbird;
+    final (bool active, String label, String description) = switch (netbird) {
+      null => (
+          false,
+          'Unknown',
+          'The runtime does not report NetBird - update the Alera CLI.',
+        ),
+      MobileNetbirdStatus(detected: false) => (
+          false,
+          'Not Detected',
+          'Install NetBird on this machine to use this mode.',
+        ),
+      MobileNetbirdStatus(connected: false) => (
+          false,
+          'Not Connected',
+          netbird.error ?? 'Run "netbird up" and sign in to your network.',
+        ),
+      MobileNetbirdStatus(netbirdIp: final String ip) => (
+          true,
+          'Connected - $ip',
+          'Devices connected to the same NetBird network can pair and connect.',
+        ),
+      _ => (
+          false,
+          'No NetBird IP',
+          'NetBird is connected but reported no NetBird IPv4 address.',
+        ),
+    };
+    return AleraSettingRow(
+      title: 'NetBird Status',
       description: description,
       child: Align(
         alignment: Alignment.centerRight,

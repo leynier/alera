@@ -32,8 +32,11 @@ pub struct MobileEnableArgs {
     #[arg(long)]
     pub port: Option<i64>,
     /// Bind the gateway to this machine's Tailscale tailnet IP.
-    #[arg(long, conflicts_with = "bind_host")]
+    #[arg(long, conflicts_with_all = ["bind_host", "netbird"])]
     pub tailscale: bool,
+    /// Bind the gateway to this machine's NetBird peer IP.
+    #[arg(long, conflicts_with_all = ["bind_host", "tailscale"])]
+    pub netbird: bool,
 }
 
 #[derive(Debug, Args)]

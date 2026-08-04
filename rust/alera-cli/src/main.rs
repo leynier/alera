@@ -23,6 +23,7 @@ mod managed_workspace;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
 mod mobile_access;
+mod netbird;
 mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_terminal_commands;
@@ -767,7 +768,11 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 enabled: Some(true),
                 bind_host: args.bind_host,
                 port: args.port,
-                endpoint_mode: args.tailscale.then_some(MobileEndpointMode::Tailscale),
+                endpoint_mode: if args.netbird {
+                    Some(MobileEndpointMode::Netbird)
+                } else {
+                    args.tailscale.then_some(MobileEndpointMode::Tailscale)
+                },
             };
             match mobile_runtime_host_request::<MobileAccessSettings, _>(
                 &runtime,

@@ -18,6 +18,7 @@ pub(super) enum MobileEndpointMode {
     #[default]
     Loopback,
     Tailscale,
+    Netbird,
     Manual,
 }
 
@@ -25,6 +26,7 @@ impl MobileEndpointMode {
     fn from_wire(value: &str) -> Self {
         match value {
             "tailscale" => Self::Tailscale,
+            "netbird" => Self::Netbird,
             "manual" => Self::Manual,
             _ => Self::Loopback,
         }
@@ -34,6 +36,7 @@ impl MobileEndpointMode {
         match self {
             Self::Loopback => "loopback",
             Self::Tailscale => "tailscale",
+            Self::Netbird => "netbird",
             Self::Manual => "manual",
         }
     }
@@ -69,6 +72,18 @@ pub(super) struct MobileTailscaleStatus {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub(super) struct MobileNetbirdStatus {
+    pub detected: bool,
+    pub connected: bool,
+    pub netbird_ip: Option<String>,
+    pub profile_name: Option<String>,
+    pub management_url: Option<String>,
+    pub management_kind: Option<String>,
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct MobilePairingOffer {
@@ -97,6 +112,7 @@ pub(super) struct MobileAccessStatus {
     #[serde(default)]
     pub active_pairings: Vec<MobilePairingOffer>,
     pub tailscale: Option<MobileTailscaleStatus>,
+    pub netbird: Option<MobileNetbirdStatus>,
 }
 
 #[derive(Clone, Debug)]

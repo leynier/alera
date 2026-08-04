@@ -52,16 +52,22 @@ impl AleraApp {
                     MobileEndpointMode::Tailscale => {
                         "Devices On Your Tailnet Reach The Gateway Over Tailscale."
                     }
+                    MobileEndpointMode::Netbird => {
+                        "Devices On Your NetBird Network Reach The Gateway Over NetBird."
+                    }
                     MobileEndpointMode::Manual => {
                         "Configure The Bind Host And Endpoint Yourself."
                     }
                 },
                 320.0,
-                self.mobile_mode_control(mode, cx),
+                        self.mobile_mode_control(mode, status.netbird.is_some(), cx),
             ),
         ];
         if mode == MobileEndpointMode::Tailscale {
             gateway_rows.push(self.mobile_tailscale_row(status));
+        }
+        if mode == MobileEndpointMode::Netbird {
+            gateway_rows.push(self.mobile_netbird_row(status));
         }
         if mode == MobileEndpointMode::Manual {
             gateway_rows.push(mobile_settings_row(
@@ -104,7 +110,7 @@ impl AleraApp {
         ));
 
         let mut pairing_rows = Vec::new();
-        if mode != MobileEndpointMode::Tailscale {
+        if !matches!(mode, MobileEndpointMode::Tailscale | MobileEndpointMode::Netbird) {
             pairing_rows.push(mobile_settings_row(
                 "Endpoint",
                 "Optional wss://host:port the phone connects to. Leave empty to use the bind host.",
@@ -211,6 +217,7 @@ impl AleraApp {
     fn mobile_mode_control(
         &self,
         selected: MobileEndpointMode,
+        netbird_available: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         div()
@@ -222,11 +229,17 @@ impl AleraApp {
             .border_color(theme::border())
             .overflow_hidden()
             .children(
-                [
-                    (MobileEndpointMode::Loopback, "This Device"),
-                    (MobileEndpointMode::Tailscale, "Tailscale"),
-                    (MobileEndpointMode::Manual, "Manual"),
-                ]
+                {
+                    let mut modes = vec![
+                        (MobileEndpointMode::Loopback, "This Device"),
+                        (MobileEndpointMode::Tailscale, "Tailscale"),
+                    ];
+                    if netbird_available {
+                        modes.push((MobileEndpointMode::Netbird, "NetBird"));
+                    }
+                    modes.push((MobileEndpointMode::Manual, "Manual"));
+                    modes
+                }
                 .into_iter()
                 .enumerate()
                 .map(|(index, (mode, label))| {
@@ -297,6 +310,63 @@ impl AleraApp {
         };
         mobile_settings_row(
             "Tailscale Status",
+            description,
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .child(
+                    div()
+                        .w(px(8.0))
+                        .h(px(8.0))
+                        .rounded_full()
+                        .bg(if active {
+                            theme::success()
+                        } else {
+                            theme::text_faint()
+                        }),
+                )
+                .child(mobile_badge(label))
+                .into_any_element(),
+        )
+    }
+
+    fn mobile_netbird_row(&self, status: &MobileAccessStatus) -> gpui::Div {
+        let (active, label, description) = match status.netbird.as_ref() {
+            None => (
+                false,
+                "Unknown".to_string(),
+                "The Runtime Does Not Report NetBird - Update The Alera CLI.".to_string(),
+            ),
+            Some(netbird) if !netbird.detected => (
+                false,
+                "Not Detected".to_string(),
+                "Install NetBird On This Machine To Use This Mode.".to_string(),
+            ),
+            Some(netbird) if !netbird.connected => (
+                false,
+                "Not Connected".to_string(),
+                netbird.error.clone().unwrap_or_else(|| {
+                    "Run \"netbird up\" And Sign In To Your Network.".to_string()
+                }),
+            ),
+            Some(netbird) if netbird.netbird_ip.is_some() => (
+                true,
+                format!(
+                    "Connected · {}",
+                    netbird.netbird_ip.as_deref().unwrap_or_default()
+                ),
+                "Devices Connected To The Same NetBird Network Can Pair And Connect."
+                    .to_string(),
+            ),
+            Some(_) => (
+                false,
+                "No NetBird IP".to_string(),
+                "NetBird Is Connected But Reported No NetBird IPv4 Address.".to_string(),
+            ),
+        };
+        mobile_settings_row(
+            "NetBird Status",
             description,
             div()
                 .flex()

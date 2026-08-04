@@ -98,8 +98,11 @@ fn validate_pairing_endpoint(endpoint: &str, enabled: bool, gateway_port: u16) -
     if port == 0 || host.trim().is_empty() {
         return Some("Endpoint Port Must Be Between 1 And 65535".into());
     }
-    if scheme.eq_ignore_ascii_case("ws") && !is_loopback_host(&host) && !is_tailscale_host(&host) {
-        return Some("Endpoints Outside Loopback Or A Tailscale Tailnet Must Use wss://".into());
+    if scheme.eq_ignore_ascii_case("ws")
+        && !is_loopback_host(&host)
+        && !is_private_overlay_host(&host)
+    {
+        return Some("Endpoints Outside Loopback Or A Private Overlay Must Use wss://".into());
     }
     if scheme.eq_ignore_ascii_case("ws") && enabled && port != gateway_port {
         return Some(format!(
@@ -109,7 +112,7 @@ fn validate_pairing_endpoint(endpoint: &str, enabled: bool, gateway_port: u16) -
     None
 }
 
-fn is_tailscale_host(value: &str) -> bool {
+fn is_private_overlay_host(value: &str) -> bool {
     value
         .trim_matches(['[', ']'])
         .parse::<std::net::Ipv4Addr>()
@@ -118,7 +121,7 @@ fn is_tailscale_host(value: &str) -> bool {
         || value
             .trim_matches(['[', ']'])
             .to_lowercase()
-            .starts_with("fd7a:115c:a1e0:")
+        .starts_with("fd7a:115c:a1e0:")
 }
 
 #[cfg(test)]
