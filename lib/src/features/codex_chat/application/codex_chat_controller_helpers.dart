@@ -1,5 +1,24 @@
 part of 'codex_chat_controller.dart';
 
+extension on CodexChatController {
+  Future<List<CodexModelOption>> _loadModels() async {
+    try {
+      final payload = await _host.listModels();
+      final items = _items(payload);
+      final models = <CodexModelOption>[
+        for (final item in items) CodexModelOption.fromJson(item),
+      ];
+      if (models.isNotEmpty) return models;
+    } catch (_) {
+      // Fall back below. The fallback is intentionally a current Codex set,
+      // never a persisted model snapshot from an older app.
+    }
+    return const <CodexModelOption>[
+      CodexModelOption(id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol'),
+    ];
+  }
+}
+
 List<Map<String, Object?>> _items(Map<String, Object?> payload) {
   final value =
       payload['data'] ??
@@ -15,6 +34,29 @@ List<Map<String, Object?>> _items(Map<String, Object?> payload) {
       if (item is Map) Map<String, Object?>.from(item),
   ];
 }
+
+List<Map<String, Object?>> _skillItems(Map<String, Object?> payload) {
+  final entries = _items(payload);
+  final grouped = entries.any((entry) => entry['skills'] is List);
+  if (!grouped) return entries;
+  return <Map<String, Object?>>[
+    for (final entry in entries)
+      if (entry['skills'] is List)
+        for (final skill in entry['skills'] as List)
+          if (skill is Map && skill['enabled'] != false)
+            <String, Object?>{
+              ...Map<String, Object?>.from(skill),
+              if (entry['cwd'] != null) 'cwd': entry['cwd'],
+            },
+  ];
+}
+
+List<Map<String, Object?>> _appItems(Map<String, Object?> payload) =>
+    _items(payload)
+        .where(
+          (app) => app['isAccessible'] != false && app['isEnabled'] != false,
+        )
+        .toList(growable: false);
 
 String _supportedEffort(CodexModelOption? model, String requested) {
   final supported = model?.reasoningEfforts ?? const <String>[];
@@ -43,6 +85,16 @@ List<Map<String, Object?>> _buildInput(
   final skill = _skillInput(message.text, state.skills);
   final app = _appInput(message.text, state.apps);
   return <Map<String, Object?>>[
+    for (final item in message.draftItems)
+      <String, Object?>{
+        'type': switch (item.kind) {
+          CodexDraftItemKind.skill => 'skill',
+          CodexDraftItemKind.app => 'mention',
+          CodexDraftItemKind.mention => 'workspaceFile',
+        },
+        'name': item.name,
+        'path': item.path,
+      },
     if (skill != null) skill.$1,
     if (app != null) app.$1,
     if (skill != null) <String, Object?>{'type': 'text', 'text': skill.$2},
@@ -56,14 +108,36 @@ List<Map<String, Object?>> _buildInput(
           'path': attachment.path,
           if (attachment.detail != null) 'detail': attachment.detail,
         }
+      else if (_isAudioInput(attachment.path, attachment.mimeType))
+        <String, Object?>{'type': 'localAudio', 'path': attachment.path}
       else
         <String, Object?>{
-          'type': 'mention',
+          'type': 'localFile',
           'name': attachment.displayName ?? _basename(attachment.path),
           'path': attachment.path,
         },
-    ..._mentionInputs(message.text),
+    ..._mentionInputs(
+      message.text,
+      excludedPaths: message.draftItems
+          .where((item) => item.kind == CodexDraftItemKind.mention)
+          .map((item) => item.path)
+          .toSet(),
+    ),
   ];
+}
+
+bool _isAudioInput(String path, String? mimeType) {
+  if (mimeType?.toLowerCase().startsWith('audio/') == true) return true;
+  final lower = path.toLowerCase();
+  return <String>[
+    '.mp3',
+    '.m4a',
+    '.wav',
+    '.ogg',
+    '.flac',
+    '.aac',
+    '.opus',
+  ].any(lower.endsWith);
 }
 
 (Map<String, Object?>, String)? _appInput(
@@ -96,14 +170,24 @@ List<Map<String, Object?>> _buildInput(
   return null;
 }
 
-List<Map<String, Object?>> _mentionInputs(String text) {
+List<Map<String, Object?>> _mentionInputs(
+  String text, {
+  Set<String> excludedPaths = const <String>{},
+}) {
   final mentions = <Map<String, Object?>>[];
   final seen = <String>{};
   for (final match in RegExp(r'@([^\s]+)').allMatches(text)) {
     final path = match.group(1)?.trim() ?? '';
-    if (path.isEmpty || !seen.add(path) || path.startsWith('@')) continue;
+    if (path.isEmpty ||
+        excludedPaths.any(
+          (excluded) => text.startsWith('@$excluded', match.start),
+        ) ||
+        !seen.add(path) ||
+        path.startsWith('@')) {
+      continue;
+    }
     mentions.add(<String, Object?>{
-      'type': 'mention',
+      'type': 'workspaceFile',
       'name': _basename(path),
       'path': path,
     });

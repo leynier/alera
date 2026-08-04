@@ -30,6 +30,19 @@ abstract final class AleraTokens {
   static const double agentCanvasListWidth = 148.0;
   static const double emptyStateMaxWidth = 520.0;
   static const double conversationMaxWidth = 760.0;
+  static const double codexConversationMaxWidth = 720.0;
+  static const double codexUserMessageLeftInset = 80.0;
+  static const double codexComposerOverlayMaxHeight = 220.0;
+  static const double codexRequestMaxHeight = 320.0;
+  static const double codexMenuItemHeight = 36.0;
+  static const double codexDraftChipHeight = 28.0;
+  static const double codexAttachmentRowHeight = 34.0;
+  static const double codexAttachmentPreviewSize = 26.0;
+  static const double codexAttachmentThumbnailSize = 60.0;
+  static const double codexToolPreviewWidth = 180.0;
+  static const double codexToolPreviewHeight = 120.0;
+  static const double codexStatusDotSize = 7.0;
+  static const double imagePreviewMaxScale = 5.0;
   static const double chatBubbleMaxWidth = 620.0;
   static const double activityLogHeight = 160.0;
   static const double imageMaxWidth = 400.0;
@@ -51,7 +64,14 @@ abstract final class AleraTokens {
   static const double automationInfoLabelWidth = 100.0;
   static const double collapsedSidebarFooterHeight = 72.0;
   static const double dividerExtent = 1.0;
+  static const double iconXs = 10.0;
   static const double iconSm = space12;
+  static const double iconMd = 14.0;
+  static const double iconLg = space16;
+  static const double iconXl = 18.0;
+  static const double strokeHairline = 1.4;
+  static const double strokeThin = 1.5;
+  static const double strokeIndicator = 1.6;
   static const double strokeSm = 2.0;
 
   static const double radiusSm = 4.0;
@@ -68,13 +88,16 @@ abstract final class AleraTokens {
   static const Color borderSubtle = Color(0xFF272727);
   static const Color accent = Color(0xFFE0E0E0);
   static const Color accentSubtle = Color(0x1AE0E0E0);
+  static const Color codexSteeringBorder = Color(0x4DE0E0E0);
   static const Color onAccent = Color(0xFF101010);
   static const Color foreground = Color(0xFFF5F5F5);
   static const Color foregroundMuted = Color(0xFFA1A1A1);
   static const Color foregroundFaint = Color(0xFF606060);
   static const Color success = Color(0xFF22C55E);
+  static const Color codexDiffAdditionBackground = Color(0x1F22C55E);
   static const Color info = Color(0xFF60A5FA);
   static const Color error = Color(0xFFF87171);
+  static const Color codexDiffDeletionBackground = Color(0x1AF87171);
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);
   static const Color syntaxKeyword = Color(0xFFC792EA);
@@ -92,10 +115,30 @@ abstract final class AleraTokens {
   /// Full-turn period for continuously rotating progress indicators.
   static const Duration durationSpin = Duration(milliseconds: 1200);
 
+  static const double codexSteeringOpacity = 0.6;
+
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: foregroundMuted,
+  );
+  static const TextStyle monoCompactStyle = TextStyle(
+    fontFamily: 'JetBrains Mono',
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: foregroundMuted,
+  );
+  static const TextStyle labelFaintStyle = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: foregroundFaint,
+  );
+  static const TextStyle labelMicroFaintStyle = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: foregroundFaint,
   );
 }

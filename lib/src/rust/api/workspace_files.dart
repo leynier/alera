@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `content_token`, `copy_recursively`, `ensure_inside_existing_parent`, `ensure_not_descendant`, `entry_for_path`, `from_io`, `has_visible_child`, `ignored_aware_children`, `is_protected_child_path`, `is_protected_relative_path`, `join_relative`, `modified_millis`, `new`, `read_dir_children`, `reject_protected`, `relative_components`, `relative_string`, `resolve_existing_no_follow`, `resolve_existing`, `resolve_new_child`, `sanitize_name`, `unique_copy_destination`, `workspace_root`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<WorkspaceFileEntry>> listWorkspaceChildren({
   required String workspacePath,
@@ -40,6 +40,12 @@ Future<void> stopWorkspaceQuickOpenSession({
   required WorkspaceQuickOpenSession session,
 }) => RustLib.instance.api.crateApiWorkspaceFilesStopWorkspaceQuickOpenSession(
   session: session,
+);
+
+Future<List<CodexSavedPrompt>> listCodexSavedPrompts({
+  required String workspacePath,
+}) => RustLib.instance.api.crateApiWorkspaceFilesListCodexSavedPrompts(
+  workspacePath: workspacePath,
 );
 
 Future<WorkspaceExplorerTreeProjection> projectWorkspaceExplorerTree({
@@ -209,6 +215,43 @@ Future<void> deleteWorkspaceEntry({
   relativePath: relativePath,
   useTrash: useTrash,
 );
+
+class CodexSavedPrompt {
+  final String name;
+  final String description;
+  final String? argumentHint;
+  final String body;
+  final CodexSavedPromptScope scope;
+
+  const CodexSavedPrompt({
+    required this.name,
+    required this.description,
+    this.argumentHint,
+    required this.body,
+    required this.scope,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      description.hashCode ^
+      argumentHint.hashCode ^
+      body.hashCode ^
+      scope.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodexSavedPrompt &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          description == other.description &&
+          argumentHint == other.argumentHint &&
+          body == other.body &&
+          scope == other.scope;
+}
+
+enum CodexSavedPromptScope { user, repo }
 
 class SourceControlWatchSignal {
   final int coalescedEventCount;

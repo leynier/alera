@@ -8,6 +8,9 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'codex_chat_controller_test_support.dart';
+part 'codex_chat_controller_request_test_cases.dart';
+
 void main() {
   test('loads dynamic catalogues and uses current model metadata', () async {
     final client = _FakeCodexRuntimeClient();
@@ -42,6 +45,87 @@ void main() {
     expect(state.skills.single['name'], 'review');
     expect(state.apps.single['name'], 'filesystem');
   });
+
+  test(
+    'flattens current cwd-grouped skills and ignores disabled skills',
+    () async {
+      final client = _FakeCodexRuntimeClient()
+        ..skills = <String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'cwd': '/repo',
+              'skills': <Object?>[
+                <String, Object?>{
+                  'name': 'enabled-skill',
+                  'description': 'Enabled',
+                  'path': '/skills/enabled/SKILL.md',
+                  'enabled': true,
+                },
+                <String, Object?>{
+                  'name': 'disabled-skill',
+                  'description': 'Disabled',
+                  'path': '/skills/disabled/SKILL.md',
+                  'enabled': false,
+                },
+              ],
+              'errors': const <Object?>[],
+            },
+          ],
+        };
+      final container = ProviderContainer(
+        overrides: [
+          codexChatRuntimeClientProvider.overrideWithValue(client),
+          settingsControllerProvider.overrideWith(_TestSettingsController.new),
+        ],
+      );
+      addTearDown(() {
+        client.dispose();
+        container.dispose();
+      });
+      final sub = container.listen(
+        codexChatControllerProvider('tab-skills'),
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
+
+      await _settle();
+
+      final skills = container
+          .read(codexChatControllerProvider('tab-skills'))
+          .skills;
+      expect(skills.map((skill) => skill['name']), <String>['enabled-skill']);
+      expect(skills.single['cwd'], '/repo');
+
+      client.skills = <String, Object?>{
+        'data': <Object?>[
+          <String, Object?>{
+            'cwd': '/repo',
+            'skills': <Object?>[
+              <String, Object?>{
+                'name': 'refreshed-skill',
+                'path': '/skills/refreshed/SKILL.md',
+                'enabled': true,
+              },
+            ],
+          },
+        ],
+      };
+      client.emit(
+        const RuntimeHostEvent('codexCatalogChanged', <String, Object?>{
+          'catalog': 'skills',
+        }),
+      );
+      await _settle();
+      expect(
+        container
+            .read(codexChatControllerProvider('tab-skills'))
+            .skills
+            .single['name'],
+        'refreshed-skill',
+      );
+    },
+  );
 
   test('queues, edits and removes messages while a turn is active', () async {
     final client = _FakeCodexRuntimeClient();
@@ -188,11 +272,142 @@ void main() {
       method: 'item/commandExecution/requestApproval',
       params: <String, Object?>{'command': 'git status'},
     );
-    await controller.respondApproval(request, accepted: true, forSession: true);
+    await controller.respondApproval(request, decision: 'acceptForSession');
     expect(client.requests.last.payload['result'], <String, Object?>{
       'decision': 'acceptForSession',
     });
+    const restricted = CodexPendingRequest(
+      id: 8,
+      method: 'item/commandExecution/requestApproval',
+      params: <String, Object?>{
+        'availableDecisions': <Object?>['accept', 'cancel'],
+      },
+    );
+    expect(restricted.supportsApprovalDecision('accept'), isTrue);
+    expect(restricted.supportsApprovalDecision('acceptForSession'), isFalse);
+    expect(restricted.availableApprovalDecisions, <String>{'accept', 'cancel'});
+    const structured = CodexPendingRequest(
+      id: 9,
+      method: 'item/commandExecution/requestApproval',
+      params: <String, Object?>{
+        'availableDecisions': <Object?>[
+          <String, Object?>{
+            'acceptWithExecpolicyAmendment': <String, Object?>{
+              'execpolicy_amendment': <Object?>['prefix_rule'],
+            },
+          },
+        ],
+      },
+    );
+    final structuredDecision = structured.approvalDecisionValue(
+      'acceptWithExecpolicyAmendment',
+    );
+    expect(structured.availableApprovalDecisions, <String>{
+      'acceptWithExecpolicyAmendment',
+    });
+    expect(
+      structured.approvalDecisionName(structuredDecision),
+      'acceptWithExecpolicyAmendment',
+    );
+    await controller.respondApproval(structured, decision: structuredDecision);
+    expect(client.requests.last.payload['result'], <String, Object?>{
+      'decision': structuredDecision,
+    });
   });
+
+  test(
+    'sends selected skills, apps, files, images and audio as typed input',
+    () async {
+      final client = _FakeCodexRuntimeClient();
+      final container = ProviderContainer(
+        overrides: [
+          codexChatRuntimeClientProvider.overrideWithValue(client),
+          settingsControllerProvider.overrideWith(_TestSettingsController.new),
+        ],
+      );
+      addTearDown(() {
+        client.dispose();
+        container.dispose();
+      });
+      final provider = codexChatControllerProvider('tab-1');
+      final listener = container.listen(
+        provider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(listener.close);
+      container.read(provider);
+      await _settle();
+
+      await container
+          .read(provider.notifier)
+          .send(
+            'Use these inputs and @docs/my notes.md',
+            draftItems: const <CodexDraftItem>[
+              CodexDraftItem(
+                id: 'skill-review',
+                kind: CodexDraftItemKind.skill,
+                name: 'review',
+                path: '/skills/review',
+              ),
+              CodexDraftItem(
+                id: 'app-filesystem',
+                kind: CodexDraftItemKind.app,
+                name: 'filesystem',
+                path: 'app://connector-filesystem',
+                tokenText: r'$filesystem',
+              ),
+              CodexDraftItem(
+                id: 'mention-docs/my notes.md',
+                kind: CodexDraftItemKind.mention,
+                name: 'my notes.md',
+                path: 'docs/my notes.md',
+                tokenText: '@docs/my notes.md',
+              ),
+            ],
+            attachments: const <CodexInputAttachment>[
+              CodexInputAttachment(path: '/tmp/image.png', isImage: true),
+              CodexInputAttachment(path: '/tmp/prompt.wav', isImage: false),
+              CodexInputAttachment(
+                path: '/tmp/notes.txt',
+                displayName: 'notes.txt',
+                isImage: false,
+              ),
+            ],
+          );
+      final turn = client.requests.lastWhere(
+        (request) => request.type == 'codex.turn.start',
+      );
+      expect(turn.payload['input'], <Object?>[
+        <String, Object?>{
+          'type': 'skill',
+          'name': 'review',
+          'path': '/skills/review',
+        },
+        <String, Object?>{
+          'type': 'mention',
+          'name': 'filesystem',
+          'path': 'app://connector-filesystem',
+        },
+        <String, Object?>{
+          'type': 'workspaceFile',
+          'name': 'my notes.md',
+          'path': 'docs/my notes.md',
+        },
+        <String, Object?>{
+          'type': 'text',
+          'text': 'Use these inputs and @docs/my notes.md',
+        },
+        <String, Object?>{'type': 'localImage', 'path': '/tmp/image.png'},
+        <String, Object?>{'type': 'localAudio', 'path': '/tmp/prompt.wav'},
+        <String, Object?>{
+          'type': 'localFile',
+          'name': 'notes.txt',
+          'path': '/tmp/notes.txt',
+        },
+      ]);
+    },
+  );
 
   test('plan fallback switches execution and refinement modes', () async {
     final client = _FakeCodexRuntimeClient();
@@ -237,175 +452,5 @@ void main() {
     expect(turn.payload['collaborationMode'], isA<Map<String, Object?>>());
   });
 
-  test('uses current keyed question answers and permission subsets', () async {
-    final client = _FakeCodexRuntimeClient();
-    final container = ProviderContainer(
-      overrides: [
-        codexChatRuntimeClientProvider.overrideWithValue(client),
-        settingsControllerProvider.overrideWith(_TestSettingsController.new),
-      ],
-    );
-    addTearDown(() {
-      client.dispose();
-      container.dispose();
-    });
-    final provider = codexChatControllerProvider('tab-1');
-    final listener = container.listen(
-      provider,
-      (_, _) {},
-      fireImmediately: true,
-    );
-    addTearDown(listener.close);
-    container.read(provider);
-    await _settle();
-    final controller = container.read(provider.notifier);
-    const question = CodexPendingRequest(
-      id: 8,
-      method: 'item/tool/request_user_input',
-      params: <String, Object?>{
-        'questions': <Object?>[
-          <String, Object?>{'id': 'mode', 'question': 'Choose'},
-        ],
-      },
-    );
-    await controller.respondQuestion(question, <String, Object?>{
-      'mode': <String>['Careful'],
-    });
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'answers': <String, Object?>{
-        'mode': <String, Object?>{
-          'answers': <String>['Careful'],
-        },
-      },
-    });
-    const permissions = CodexPendingRequest(
-      id: 9,
-      method: 'item/permissions/requestApproval',
-      params: <String, Object?>{
-        'permissions': <String, Object?>{
-          'fileSystem': <String, Object?>{
-            'read': true,
-            'write': false,
-            'secret': 'ignored',
-          },
-          'network': <String, Object?>{'enabled': true, 'secret': 'ignored'},
-          'unknown': true,
-        },
-      },
-    );
-    await controller.respondApproval(permissions, accepted: true);
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'permissions': <String, Object?>{
-        'fileSystem': <String, Object?>{'read': true, 'write': false},
-        'network': <String, Object?>{'enabled': true},
-      },
-      'scope': 'turn',
-    });
-    await controller.respondApproval(permissions, accepted: false);
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'permissions': <String, Object?>{},
-      'scope': 'turn',
-    });
-  });
-}
-
-Future<void> _settle() async {
-  await Future<void>.delayed(Duration.zero);
-  await Future<void>.delayed(const Duration(milliseconds: 10));
-}
-
-final class _FakeCodexRuntimeClient implements RuntimeHostClient {
-  final StreamController<RuntimeHostEvent> _events =
-      StreamController<RuntimeHostEvent>.broadcast();
-  final List<_Request> requests = <_Request>[];
-
-  @override
-  Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
-
-  @override
-  Future<Object?> runtimeRequest(
-    String type, [
-    Map<String, Object?> payload = const <String, Object?>{},
-    Duration? timeout,
-  ]) async {
-    requests.add(_Request(type, payload));
-    switch (type) {
-      case 'codex.thread.open':
-        return <String, Object?>{
-          'snapshot': <String, Object?>{
-            'events': const <Object?>[],
-            'timelineCells': const <Object?>[],
-            'pendingRequests': const <Object?>[],
-          },
-        };
-      case 'codex.model.list':
-        return <String, Object?>{
-          'data': <Object?>[
-            <String, Object?>{
-              'id': 'gpt-current',
-              'displayName': 'Current Codex',
-              'isDefault': true,
-              'supportsFastMode': true,
-              'supportedReasoningEfforts': <Object?>[
-                <String, Object?>{'reasoningEffort': 'xhigh'},
-                <String, Object?>{'reasoningEffort': 'low'},
-              ],
-              'defaultReasoningEffort': 'low',
-              'additionalSpeedTiers': <String>['fast'],
-              'serviceTiers': <Object?>[
-                <String, Object?>{'id': 'priority', 'name': 'Fast'},
-              ],
-            },
-          ],
-        };
-      case 'codex.collaborationModes.list':
-        return <String, Object?>{
-          'data': <Object?>[
-            <String, Object?>{'mode': 'plan'},
-          ],
-        };
-      case 'codex.skills.list':
-        return <String, Object?>{
-          'data': <Object?>[
-            <String, Object?>{'name': 'review', 'path': '/skills/review'},
-          ],
-        };
-      case 'codex.apps.list':
-        return <String, Object?>{
-          'data': <Object?>[
-            <String, Object?>{
-              'name': 'filesystem',
-              'slug': 'filesystem',
-              'id': 'connector-filesystem',
-              'connectorId': 'connector-filesystem',
-            },
-          ],
-        };
-      default:
-        return <String, Object?>{
-          'turn': <String, Object?>{'id': 'turn-1'},
-        };
-    }
-  }
-
-  void emit(RuntimeHostEvent event) => _events.add(event);
-
-  void dispose() => _events.close();
-}
-
-final class _TestSettingsController extends SettingsController {
-  @override
-  AleraSettings build() => AleraSettings.defaults;
-
-  @override
-  Future<void> updateCodexChat(CodexChatSettings settings) async {
-    state = state.copyWith(codexChat: settings);
-  }
-}
-
-final class _Request {
-  const _Request(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
+  registerCodexChatControllerRequestTests();
 }

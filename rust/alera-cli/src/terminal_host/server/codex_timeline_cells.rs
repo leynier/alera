@@ -188,7 +188,6 @@ pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
         "status",
         "updatedAt",
         "isStreaming",
-        "isCollapsed",
         "title",
         "subtitle",
         "markdownText",
@@ -237,7 +236,19 @@ pub(super) fn kind_for(item_type: &str, method: &str) -> &'static str {
         "subAgent"
     } else if item_type.contains("plan") || method.contains("/plan") {
         "plan"
-    } else if item_type.contains("tool") || method.contains("tool") || method == "output" {
+    } else if item_type.contains("websearch")
+        || item_type.contains("dynamictool")
+        || item_type.contains("imageview")
+        || item_type.contains("imagegeneration")
+        || item_type.contains("sleep")
+        || item_type.contains("contextcompaction")
+        || item_type.contains("enteredreview")
+        || item_type.contains("exitedreview")
+        || item_type.contains("extension")
+        || item_type.contains("tool")
+        || method.contains("tool")
+        || method == "output"
+    {
         "toolCall"
     } else {
         "progressText"
@@ -263,6 +274,24 @@ pub(super) fn title_for(item_type: &str, method: &str) -> String {
         || method.contains("collab")
     {
         return "Sub-agent".to_string();
+    }
+    if item_type.contains("websearch") {
+        return "Web search".to_string();
+    }
+    if item_type.contains("imageview") {
+        return "Viewed image".to_string();
+    }
+    if item_type.contains("imagegeneration") {
+        return "Generated image".to_string();
+    }
+    if item_type.contains("contextcompaction") {
+        return "Compacted context".to_string();
+    }
+    if item_type.contains("enteredreview") {
+        return "Entered review mode".to_string();
+    }
+    if item_type.contains("exitedreview") {
+        return "Exited review mode".to_string();
     }
     if item_type.contains("tool") || method.contains("tool") {
         return "Tool call".to_string();

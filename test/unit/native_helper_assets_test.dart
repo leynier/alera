@@ -450,10 +450,11 @@ void main() {
         'await _prepareCliNativeHelpers(destinationDir)',
       );
       final sidecarCopy = debugContext.indexOf(
-        'await source.copy(destination.path)',
+        'await source.copy(staged.path)',
       );
       expect(helperPreparation, greaterThanOrEqualTo(0));
       expect(sidecarCopy, greaterThan(helperPreparation));
+      expect(debugContext, contains('await staged.rename(destination.path)'));
       expect(
         debugContext,
         contains('final helperExit = await _prepareCliNativeHelpers'),

@@ -65,18 +65,41 @@ class CodexModelOption {
 @immutable
 class CodexInputAttachment {
   const CodexInputAttachment({
+    this.id,
     required this.path,
     required this.isImage,
     this.mimeType,
     this.displayName,
+    this.sizeBytes,
     this.detail,
   });
 
+  final String? id;
   final String path;
   final bool isImage;
   final String? mimeType;
   final String? displayName;
+  final int? sizeBytes;
   final String? detail;
+}
+
+enum CodexDraftItemKind { skill, app, mention }
+
+@immutable
+class CodexDraftItem {
+  const CodexDraftItem({
+    required this.id,
+    required this.kind,
+    required this.name,
+    required this.path,
+    this.tokenText,
+  });
+
+  final String id;
+  final CodexDraftItemKind kind;
+  final String name;
+  final String path;
+  final String? tokenText;
 }
 
 @immutable
@@ -84,11 +107,13 @@ class CodexQueuedMessage {
   const CodexQueuedMessage({
     required this.text,
     this.attachments = const <CodexInputAttachment>[],
+    this.draftItems = const <CodexDraftItem>[],
     this.id,
   });
 
   final String text;
   final List<CodexInputAttachment> attachments;
+  final List<CodexDraftItem> draftItems;
   final String? id;
 }
 
@@ -203,7 +228,15 @@ class CodexPendingRequest {
   bool get hasSupportedElicitationForm =>
       isElicitation &&
       (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
-      elicitationSchema['properties'] is Map;
+      elicitationSchema['properties'] is Map &&
+      (elicitationSchema['properties'] as Map).values.every((schema) {
+        final type = _string(_map(schema)['type']);
+        return type == null ||
+            type == 'string' ||
+            type == 'number' ||
+            type == 'integer' ||
+            type == 'boolean';
+      });
 
   bool get isQuestion {
     final methodName = method.toLowerCase();
@@ -239,6 +272,43 @@ class CodexPendingRequest {
     params['filePath'],
     'Codex is requesting permission to continue.',
   ]);
+
+  Set<String> get availableApprovalDecisions {
+    final values = params['availableDecisions'];
+    if (values is! List) return const <String>{};
+    return <String>{
+      for (final value in values)
+        if (value is String)
+          value
+        else if (value is Map && value.keys.isNotEmpty)
+          value.keys.first.toString(),
+    };
+  }
+
+  bool supportsApprovalDecision(String decision) {
+    final available = availableApprovalDecisions;
+    return available.isEmpty || available.contains(decision);
+  }
+
+  Object approvalDecisionValue(String decision) {
+    final values = params['availableDecisions'];
+    if (values is List) {
+      for (final value in values) {
+        if (value == decision || value is Map && value.containsKey(decision)) {
+          return value!;
+        }
+      }
+    }
+    return decision;
+  }
+
+  String approvalDecisionName(Object decision) {
+    if (decision is String) return decision;
+    if (decision is Map && decision.keys.isNotEmpty) {
+      return decision.keys.first.toString();
+    }
+    return '';
+  }
 }
 
 @immutable

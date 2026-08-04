@@ -2,6 +2,8 @@
 
 #[path = "codex_requests_catalogue.rs"]
 mod codex_requests_catalogue;
+#[path = "codex_workspace_inputs.rs"]
+mod codex_workspace_inputs;
 
 use alera_core::runtime::WorkspaceTabRecord;
 use serde_json::{json, Value};
@@ -16,6 +18,7 @@ use super::codex_state::{
 };
 use super::requests::require_string_key;
 use super::ServerActor;
+use codex_workspace_inputs::expand_workspace_inputs;
 
 impl ServerActor {
     pub(super) async fn handle_codex_request(
@@ -60,8 +63,15 @@ impl ServerActor {
             .await?;
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("Open the Codex thread before sending a message."))?;
-        let input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
-        let params = turn_params(payload, &thread_id, input.clone());
+        let original_input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
+        let input = expand_workspace_inputs(original_input.clone(), &workspace.path).await?;
+        let params = turn_params(payload, &thread_id, input);
         let result = self.codex_server_request("turn/start", params).await?;
         let turn_id = result
             .pointer("/turn/id")
@@ -71,7 +81,7 @@ impl ServerActor {
             .map(str::to_string)
             .unwrap_or_else(|| format!("queued-{}", Uuid::new_v4()));
         let mut next = self.codex_tab(&tab.id).await?;
-        append_user_input(&mut next, &input, &turn_id);
+        append_user_input(&mut next, &original_input, &turn_id);
         let saved = self
             .runtime_store
             .upsert_workspace_tab(next)
@@ -122,6 +132,17 @@ impl ServerActor {
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
         let turn_id = require_string_key(payload, "turnId")?;
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
+        let input = expand_workspace_inputs(
+            payload.get("input").cloned().unwrap_or_else(|| json!([])),
+            &workspace.path,
+        )
+        .await?;
         self.codex_server_request(
             "turn/steer",
             json!({
@@ -131,7 +152,7 @@ impl ServerActor {
                     .get("clientUserMessageId")
                     .cloned()
                     .unwrap_or_else(|| Value::String(Uuid::new_v4().to_string())),
-                "input": payload.get("input").cloned().unwrap_or_else(|| json!([])),
+                "input": input,
             }),
         )
         .await
