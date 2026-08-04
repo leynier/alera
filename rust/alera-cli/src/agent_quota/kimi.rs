@@ -1,7 +1,7 @@
 const KIMI_API_KEY_ENV: &str = "KIMI_API_KEY";
 
 async fn fetch_kimi(names: &EnvironmentNames, environment: &QuotaEnvironment) -> QuotaSnapshot {
-    let Some(api_key) = environment.value(&names.kimi_api_key) else {
+    let Some(api_key) = environment.value(&names.kimi_api_key).await else {
         return QuotaSnapshot::unavailable(
             "kimi",
             "default",
@@ -9,8 +9,9 @@ async fn fetch_kimi(names: &EnvironmentNames, environment: &QuotaEnvironment) ->
             format!("{} is not configured", names.kimi_api_key),
         );
     };
-    let base = std::env::var("KIMI_CODE_BASE_URL")
-        .unwrap_or_else(|_| "https://api.kimi.com/coding/v1".to_string());
+    let base = shell_environment_value("KIMI_CODE_BASE_URL")
+        .await
+        .unwrap_or_else(|| "https://api.kimi.com/coding/v1".to_string());
     let response = reqwest::Client::new()
         .get(format!("{}/usages", base.trim_end_matches('/')))
         .header(AUTHORIZATION, format!("Bearer {api_key}"))

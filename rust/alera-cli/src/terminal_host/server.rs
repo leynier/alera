@@ -235,6 +235,8 @@ pub async fn run_terminal_host_server(
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
     tokio::spawn(async {
+        // Variables first: the PATH cache is filled from the same probe.
+        let _ = crate::login_shell_environment::login_shell_variables().await;
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 

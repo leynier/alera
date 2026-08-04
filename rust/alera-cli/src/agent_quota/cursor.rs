@@ -55,7 +55,7 @@ async fn fetch_cursor() -> QuotaSnapshot {
 }
 
 async fn read_cursor_access_token() -> Option<String> {
-    let path = cursor_auth_path()?;
+    let path = cursor_auth_path().await?;
     let raw = tokio::fs::read_to_string(path).await.ok()?;
     let parsed: Value = serde_json::from_str(&raw).ok()?;
     let token = parsed
@@ -66,15 +66,15 @@ async fn read_cursor_access_token() -> Option<String> {
     Some(token.to_string())
 }
 
-fn cursor_auth_path() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("CURSOR_CONFIG_DIR") {
+async fn cursor_auth_path() -> Option<PathBuf> {
+    if let Some(dir) = shell_environment_value("CURSOR_CONFIG_DIR").await {
         let trimmed = dir.trim();
         if !trimmed.is_empty() {
             return Some(PathBuf::from(trimmed).join("auth.json"));
         }
     }
-    let config_dir = std::env::var("XDG_CONFIG_HOME")
-        .ok()
+    let config_dir = shell_environment_value("XDG_CONFIG_HOME")
+        .await
         .map(PathBuf::from)
         .filter(|path| !path.as_os_str().is_empty())
         .or_else(|| home_dir().map(|home| home.join(".config")))?;

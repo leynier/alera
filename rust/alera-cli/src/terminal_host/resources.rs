@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -9,6 +9,7 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 mod cache_release_tests;
 mod history;
 mod process_tree;
+mod sampling_cadence;
 mod snapshot_payload;
 
 use history::ResourceHistory;
@@ -18,13 +19,11 @@ use snapshot_payload::{
 };
 
 pub use process_tree::{ProcessIndex, ShellProcess};
+pub use sampling_cadence::{
+    clamp_resource_interval, resource_idle_stop_for, RESOURCE_IDLE_STOP, RESOURCE_SAMPLE_INTERVAL,
+};
 pub use snapshot_payload::warming_snapshot;
 
-/// Sampling cadence while a client is watching. Matches the panel's refresh.
-pub const RESOURCE_SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
-/// The ticker stops itself once no client has asked for a snapshot this long,
-/// so an unattended host does not sweep the process table forever.
-pub const RESOURCE_IDLE_STOP: Duration = Duration::from_secs(10);
 /// `sysinfo` derives CPU from the delta between refreshes, so the first sweeps
 /// after a (re)start report zero for every process.
 ///
