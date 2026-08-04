@@ -228,7 +228,15 @@ class CodexPendingRequest {
   bool get hasSupportedElicitationForm =>
       isElicitation &&
       (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
-      elicitationSchema['properties'] is Map;
+      elicitationSchema['properties'] is Map &&
+      (elicitationSchema['properties'] as Map).values.every((schema) {
+        final type = _string(_map(schema)['type']);
+        return type == null ||
+            type == 'string' ||
+            type == 'number' ||
+            type == 'integer' ||
+            type == 'boolean';
+      });
 
   bool get isQuestion {
     final methodName = method.toLowerCase();
@@ -264,6 +272,43 @@ class CodexPendingRequest {
     params['filePath'],
     'Codex is requesting permission to continue.',
   ]);
+
+  Set<String> get availableApprovalDecisions {
+    final values = params['availableDecisions'];
+    if (values is! List) return const <String>{};
+    return <String>{
+      for (final value in values)
+        if (value is String)
+          value
+        else if (value is Map && value.keys.isNotEmpty)
+          value.keys.first.toString(),
+    };
+  }
+
+  bool supportsApprovalDecision(String decision) {
+    final available = availableApprovalDecisions;
+    return available.isEmpty || available.contains(decision);
+  }
+
+  Object approvalDecisionValue(String decision) {
+    final values = params['availableDecisions'];
+    if (values is List) {
+      for (final value in values) {
+        if (value == decision || value is Map && value.containsKey(decision)) {
+          return value!;
+        }
+      }
+    }
+    return decision;
+  }
+
+  String approvalDecisionName(Object decision) {
+    if (decision is String) return decision;
+    if (decision is Map && decision.keys.isNotEmpty) {
+      return decision.keys.first.toString();
+    }
+    return '';
+  }
 }
 
 @immutable

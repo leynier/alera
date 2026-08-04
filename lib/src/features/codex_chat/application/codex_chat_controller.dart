@@ -257,24 +257,20 @@ class CodexChatController extends _$CodexChatController {
 
   Future<void> respondApproval(
     CodexPendingRequest request, {
-    required bool accepted,
-    bool forSession = false,
+    required Object decision,
   }) async {
     try {
+      final decisionName = request.approvalDecisionName(decision);
+      final accepted =
+          decisionName == 'accept' || decisionName == 'acceptForSession';
       final result = request.isPermissionsRequest
           ? <String, Object?>{
               'permissions': accepted
                   ? _permissionSubset(request.params['permissions'])
                   : const <String, Object?>{},
-              'scope': forSession ? 'session' : 'turn',
+              'scope': decisionName == 'acceptForSession' ? 'session' : 'turn',
             }
-          : <String, Object?>{
-              'decision': accepted
-                  ? forSession
-                        ? 'acceptForSession'
-                        : 'accept'
-                  : 'decline',
-            };
+          : <String, Object?>{'decision': decision};
       await _host.respond(request.id, result: result);
     } catch (error) {
       state = state.copyWith(error: _safeError(error));

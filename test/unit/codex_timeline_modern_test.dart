@@ -53,6 +53,7 @@ void main() {
       _event('guardianWarning', <String, Object?>{
         'turnId': 'turn-1',
         'message': 'Review this action.',
+        'details': 'The operation needs explicit confirmation.',
       }),
     ]) {
       cells = CodexTimelineReducer.reduce(cells, event, now: now);
@@ -60,6 +61,7 @@ void main() {
     expect(cells[0].title, 'Compacted context');
     expect(cells[1].markdownText, contains('gpt-b'));
     expect(cells[2].title, 'Safety warning');
+    expect(cells[2].markdownText, contains('explicit confirmation'));
   });
 
   test('surfaces verification, safety buffering and MCP startup', () {

@@ -80,19 +80,7 @@ impl CodexAppServer {
             inbox,
         ));
         tokio::spawn(read_codex_stderr(BufReader::new(stderr)));
-        server
-            .request(
-                "initialize",
-                json!({
-                    "clientInfo": {
-                        "name": "alera",
-                        "title": "Alera",
-                        "version": env!("CARGO_PKG_VERSION")
-                    },
-                    "capabilities": {"experimentalApi": true}
-                }),
-            )
-            .await?;
+        server.request("initialize", initialize_params()).await?;
         server.notify("initialized", json!({})).await?;
         Ok(server)
     }
@@ -193,6 +181,20 @@ impl CodexAppServer {
     }
 }
 
+fn initialize_params() -> Value {
+    json!({
+        "clientInfo": {
+            "name": "alera",
+            "title": "Alera",
+            "version": env!("CARGO_PKG_VERSION")
+        },
+        "capabilities": {
+            "experimentalApi": true,
+            "mcpServerOpenaiFormElicitation": true
+        }
+    })
+}
+
 async fn read_codex_messages<R>(
     reader: R,
     pending: PendingRequests,
@@ -282,8 +284,8 @@ mod tests {
     use std::sync::Arc;
 
     use super::{
-        codex_error_message, codex_overload_delay, is_codex_overloaded, read_codex_messages,
-        PendingRequests,
+        codex_error_message, codex_overload_delay, initialize_params, is_codex_overloaded,
+        read_codex_messages, PendingRequests,
     };
     use crate::terminal_host::host_error::HostError;
     use serde_json::json;
@@ -321,6 +323,17 @@ mod tests {
         assert_eq!(
             codex_overload_delay(20),
             std::time::Duration::from_millis(200)
+        );
+    }
+
+    #[test]
+    fn initialize_advertises_supported_experimental_forms() {
+        let params = initialize_params();
+        assert_eq!(params["clientInfo"]["name"], "alera");
+        assert_eq!(params["capabilities"]["experimentalApi"], true);
+        assert_eq!(
+            params["capabilities"]["mcpServerOpenaiFormElicitation"],
+            true
         );
     }
 

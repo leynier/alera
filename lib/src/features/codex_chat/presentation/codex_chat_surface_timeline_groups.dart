@@ -25,8 +25,7 @@ class _CodexTimeline extends StatefulWidget {
   final ScrollController timeline;
   final Future<void> Function(
     CodexPendingRequest request, {
-    required bool accepted,
-    bool forSession,
+    required Object decision,
   })
   onApproval;
   final Future<void> Function(
