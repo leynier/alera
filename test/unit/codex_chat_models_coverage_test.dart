@@ -85,6 +85,18 @@ void main() {
       expect(elicitation.requestTitle, 'MCP Server Needs Input');
 
       expect(
+        request('mcpServer/elicitation/request', <String, Object?>{
+          'mode': 'openai/form',
+          'requestedSchema': <String, Object?>{
+            'properties': <String, Object?>{
+              'image': <String, Object?>{'type': 'openai/imagePicker'},
+            },
+          },
+        }).hasSupportedElicitationForm,
+        isFalse,
+      );
+
+      expect(
         request('other', <String, Object?>{'autoResolutionMs': 1}).isBlocking,
         isFalse,
       );

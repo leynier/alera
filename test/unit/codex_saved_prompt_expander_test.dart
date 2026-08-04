@@ -16,4 +16,11 @@ void main() {
   test('removes unresolved saved prompt placeholders', () {
     expect(expandCodexSavedPrompt(r'$1 $2 $MISSING', 'one'), 'one');
   });
+
+  test('preserves escaped whitespace and a trailing backslash', () {
+    expect(
+      expandCodexSavedPrompt(r'$1|$2', 'one\\ two tail\\'),
+      'one two|tail\\',
+    );
+  });
 }

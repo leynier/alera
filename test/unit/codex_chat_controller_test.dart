@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'codex_chat_controller_test_support.dart';
+part 'codex_chat_controller_request_test_cases.dart';
 
 void main() {
   test('loads dynamic catalogues and uses current model metadata', () async {
@@ -271,9 +272,46 @@ void main() {
       method: 'item/commandExecution/requestApproval',
       params: <String, Object?>{'command': 'git status'},
     );
-    await controller.respondApproval(request, accepted: true, forSession: true);
+    await controller.respondApproval(request, decision: 'acceptForSession');
     expect(client.requests.last.payload['result'], <String, Object?>{
       'decision': 'acceptForSession',
+    });
+    const restricted = CodexPendingRequest(
+      id: 8,
+      method: 'item/commandExecution/requestApproval',
+      params: <String, Object?>{
+        'availableDecisions': <Object?>['accept', 'cancel'],
+      },
+    );
+    expect(restricted.supportsApprovalDecision('accept'), isTrue);
+    expect(restricted.supportsApprovalDecision('acceptForSession'), isFalse);
+    expect(restricted.availableApprovalDecisions, <String>{'accept', 'cancel'});
+    const structured = CodexPendingRequest(
+      id: 9,
+      method: 'item/commandExecution/requestApproval',
+      params: <String, Object?>{
+        'availableDecisions': <Object?>[
+          <String, Object?>{
+            'acceptWithExecpolicyAmendment': <String, Object?>{
+              'execpolicy_amendment': <Object?>['prefix_rule'],
+            },
+          },
+        ],
+      },
+    );
+    final structuredDecision = structured.approvalDecisionValue(
+      'acceptWithExecpolicyAmendment',
+    );
+    expect(structured.availableApprovalDecisions, <String>{
+      'acceptWithExecpolicyAmendment',
+    });
+    expect(
+      structured.approvalDecisionName(structuredDecision),
+      'acceptWithExecpolicyAmendment',
+    );
+    await controller.respondApproval(structured, decision: structuredDecision);
+    expect(client.requests.last.payload['result'], <String, Object?>{
+      'decision': structuredDecision,
     });
   });
 
@@ -414,74 +452,5 @@ void main() {
     expect(turn.payload['collaborationMode'], isA<Map<String, Object?>>());
   });
 
-  test('uses current keyed question answers and permission subsets', () async {
-    final client = _FakeCodexRuntimeClient();
-    final container = ProviderContainer(
-      overrides: [
-        codexChatRuntimeClientProvider.overrideWithValue(client),
-        settingsControllerProvider.overrideWith(_TestSettingsController.new),
-      ],
-    );
-    addTearDown(() {
-      client.dispose();
-      container.dispose();
-    });
-    final provider = codexChatControllerProvider('tab-1');
-    final listener = container.listen(
-      provider,
-      (_, _) {},
-      fireImmediately: true,
-    );
-    addTearDown(listener.close);
-    container.read(provider);
-    await _settle();
-    final controller = container.read(provider.notifier);
-    const question = CodexPendingRequest(
-      id: 8,
-      method: 'item/tool/request_user_input',
-      params: <String, Object?>{
-        'questions': <Object?>[
-          <String, Object?>{'id': 'mode', 'question': 'Choose'},
-        ],
-      },
-    );
-    await controller.respondQuestion(question, <String, Object?>{
-      'mode': <String>['Careful'],
-    });
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'answers': <String, Object?>{
-        'mode': <String, Object?>{
-          'answers': <String>['Careful'],
-        },
-      },
-    });
-    const permissions = CodexPendingRequest(
-      id: 9,
-      method: 'item/permissions/requestApproval',
-      params: <String, Object?>{
-        'permissions': <String, Object?>{
-          'fileSystem': <String, Object?>{
-            'read': true,
-            'write': false,
-            'secret': 'ignored',
-          },
-          'network': <String, Object?>{'enabled': true, 'secret': 'ignored'},
-          'unknown': true,
-        },
-      },
-    );
-    await controller.respondApproval(permissions, accepted: true);
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'permissions': <String, Object?>{
-        'fileSystem': <String, Object?>{'read': true, 'write': false},
-        'network': <String, Object?>{'enabled': true},
-      },
-      'scope': 'turn',
-    });
-    await controller.respondApproval(permissions, accepted: false);
-    expect(client.requests.last.payload['result'], <String, Object?>{
-      'permissions': <String, Object?>{},
-      'scope': 'turn',
-    });
-  });
+  registerCodexChatControllerRequestTests();
 }

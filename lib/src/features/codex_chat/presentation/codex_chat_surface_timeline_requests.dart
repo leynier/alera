@@ -19,49 +19,6 @@ class _CodexPendingCard extends StatelessWidget {
   );
 }
 
-class _CodexApprovalCard extends StatelessWidget {
-  const _CodexApprovalCard({required this.request, required this.onApproval});
-
-  final CodexPendingRequest request;
-  final Future<void> Function(
-    CodexPendingRequest request, {
-    required bool accepted,
-    bool forSession,
-  })
-  onApproval;
-
-  @override
-  Widget build(BuildContext context) => _CodexRequestCard(
-    title: 'Approval Required',
-    bodyWidget: ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxHeight: AleraTokens.codexRequestMaxHeight,
-      ),
-      child: SingleChildScrollView(
-        child: SelectableText(
-          request.approvalDescription,
-          style: AleraTokens.monoStyle,
-        ),
-      ),
-    ),
-    actions: <Widget>[
-      FilledButton(
-        onPressed: () => unawaited(onApproval(request, accepted: true)),
-        child: const Text('Allow Once'),
-      ),
-      TextButton(
-        onPressed: () =>
-            unawaited(onApproval(request, accepted: true, forSession: true)),
-        child: const Text('Allow For Session'),
-      ),
-      TextButton(
-        onPressed: () => unawaited(onApproval(request, accepted: false)),
-        child: const Text('Decline'),
-      ),
-    ],
-  );
-}
-
 class _CodexQuestionCard extends StatefulWidget {
   const _CodexQuestionCard({required this.request, required this.onQuestion});
 
@@ -288,8 +245,24 @@ class _CodexElicitationCardState extends State<_CodexElicitationCard> {
   Widget build(BuildContext context) {
     final supported = widget.request.hasSupportedElicitationForm;
     final properties = supported
-        ? (widget.request.elicitationSchema['properties'] as Map)
-        : const <Object?, Object?>{};
+        ? Map<String, Object?>.from(
+            widget.request.elicitationSchema['properties'] as Map,
+          )
+        : const <String, Object?>{};
+    final required = widget.request.elicitationSchema['required'] is List
+        ? (widget.request.elicitationSchema['required'] as List)
+              .map((value) => value.toString())
+              .toSet()
+        : const <String>{};
+    final isValid = properties.entries.every(
+      (entry) =>
+          _codexElicitationError(
+            entry.value,
+            _fieldFor(entry.key, entry.value).text,
+            required: required.contains(entry.key),
+          ) ==
+          null,
+    );
     return _CodexRequestCard(
       title: 'MCP Server Needs Input',
       bodyWidget: Column(
@@ -302,11 +275,30 @@ class _CodexElicitationCardState extends State<_CodexElicitationCard> {
             ),
           for (final entry in properties.entries)
             TextField(
-              controller: _fields.putIfAbsent(
-                entry.key.toString(),
-                TextEditingController.new,
+              controller: _fieldFor(entry.key, entry.value),
+              keyboardType:
+                  _codexElicitationType(entry.value) == 'number' ||
+                      _codexElicitationType(entry.value) == 'integer'
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : TextInputType.text,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText:
+                    _codexElicitationSchemaValue(entry.value, 'title') ??
+                    entry.key,
+                helperText: _codexElicitationSchemaValue(
+                  entry.value,
+                  'description',
+                ),
+                hintText: _codexElicitationType(entry.value) == 'boolean'
+                    ? 'true or false'
+                    : null,
+                errorText: _codexElicitationError(
+                  entry.value,
+                  _fieldFor(entry.key, entry.value).text,
+                  required: required.contains(entry.key),
+                ),
               ),
-              decoration: InputDecoration(labelText: entry.key.toString()),
             ),
         ],
       ),
@@ -324,33 +316,72 @@ class _CodexElicitationCardState extends State<_CodexElicitationCard> {
         ),
         if (supported)
           FilledButton(
-            onPressed: () => unawaited(
-              widget.onElicitation(
-                widget.request,
-                action: 'accept',
-                content: <String, Object?>{
-                  for (final entry in _fields.entries)
-                    entry.key: _codexElicitationValue(
-                      properties[entry.key],
-                      entry.value.text,
+            onPressed: !isValid
+                ? null
+                : () => unawaited(
+                    widget.onElicitation(
+                      widget.request,
+                      action: 'accept',
+                      content: <String, Object?>{
+                        for (final entry in _fields.entries)
+                          if (entry.value.text.trim().isNotEmpty)
+                            entry.key: _codexElicitationValue(
+                              properties[entry.key],
+                              entry.value.text,
+                            ),
+                      },
                     ),
-                },
-              ),
-            ),
+                  ),
             child: const Text('Accept'),
           ),
       ],
     );
   }
+
+  TextEditingController _fieldFor(String key, Object? schema) =>
+      _fields.putIfAbsent(
+        key,
+        () => TextEditingController(
+          text: _codexElicitationSchemaValue(schema, 'default'),
+        ),
+      );
 }
 
 Object _codexElicitationValue(Object? schema, String value) {
-  final type = schema is Map ? schema['type']?.toString() : null;
+  final type = _codexElicitationType(schema);
   if (type == 'number') return double.tryParse(value) ?? 0;
   if (type == 'integer') return int.tryParse(value) ?? 0;
   if (type == 'boolean') return value.toLowerCase() == 'true';
   return value;
 }
+
+String? _codexElicitationError(
+  Object? schema,
+  String value, {
+  required bool required,
+}) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return required ? 'This field is required.' : null;
+  final type = _codexElicitationType(schema);
+  if (type == 'integer' && int.tryParse(trimmed) == null) {
+    return 'Enter a whole number.';
+  }
+  if (type == 'number' && double.tryParse(trimmed) == null) {
+    return 'Enter a number.';
+  }
+  if (type == 'boolean' && trimmed != 'true' && trimmed != 'false') {
+    return 'Enter true or false.';
+  }
+  return null;
+}
+
+String? _codexElicitationSchemaValue(Object? schema, String key) {
+  if (schema is! Map || schema[key] == null) return null;
+  return schema[key].toString();
+}
+
+String? _codexElicitationType(Object? schema) =>
+    _codexElicitationSchemaValue(schema, 'type');
 
 class _CodexRequestCard extends StatelessWidget {
   const _CodexRequestCard({

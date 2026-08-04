@@ -49,6 +49,7 @@ part 'codex_chat_surface_timeline_messages.dart';
 part 'codex_chat_surface_timeline_tool_details.dart';
 part 'codex_chat_surface_timeline_helpers.dart';
 part 'codex_chat_surface_timeline_groups.dart';
+part 'codex_chat_surface_timeline_approvals.dart';
 part 'codex_chat_surface_timeline_requests.dart';
 
 class CodexChatSurface extends ConsumerStatefulWidget {

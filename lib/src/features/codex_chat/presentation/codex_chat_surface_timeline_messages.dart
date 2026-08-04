@@ -75,7 +75,10 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                       ),
                       child: _raw
                           ? SelectableText(raw)
-                          : _CodexMarkdownText(text: rendered),
+                          : _CodexMarkdownText(
+                              text: rendered,
+                              workspacePath: widget.workspacePath,
+                            ),
                     ),
                   if (steering)
                     Padding(
@@ -105,9 +108,13 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
 }
 
 class _CodexAssistantMessage extends StatefulWidget {
-  const _CodexAssistantMessage({required this.cell});
+  const _CodexAssistantMessage({
+    required this.cell,
+    required this.workspacePath,
+  });
 
   final CodexTimelineCell cell;
+  final String workspacePath;
 
   @override
   State<_CodexAssistantMessage> createState() => _CodexAssistantMessageState();
@@ -133,7 +140,12 @@ class _CodexAssistantMessageState extends State<_CodexAssistantMessage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _raw ? SelectableText(raw) : _CodexMarkdownText(text: rendered),
+            _raw
+                ? SelectableText(raw)
+                : _CodexMarkdownText(
+                    text: rendered,
+                    workspacePath: widget.workspacePath,
+                  ),
             if (widget.cell.isStreaming)
               const Padding(
                 padding: EdgeInsets.only(top: AleraTokens.space6),
@@ -235,9 +247,10 @@ class _CodexMessageActions extends StatelessWidget {
 }
 
 class _CodexMarkdownText extends StatelessWidget {
-  const _CodexMarkdownText({required this.text});
+  const _CodexMarkdownText({required this.text, this.workspacePath});
 
   final String text;
+  final String? workspacePath;
 
   @override
   Widget build(BuildContext context) => GptMarkdownTheme(
@@ -260,13 +273,28 @@ class _CodexMarkdownText extends StatelessWidget {
               closed: closed,
             ),
         onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(url)),
-        imageBuilder: (context, source, width, height) => GestureDetector(
-          onTap: () => _showCodexImagePreview(context, source),
-          child: _buildCodexMarkdownImage(context, source, width, height),
-        ),
+        imageBuilder: (context, source, width, height) {
+          final resolved = _resolveCodexImageSource(source, workspacePath);
+          return GestureDetector(
+            onTap: () => _showCodexImagePreview(context, resolved),
+            child: _buildCodexMarkdownImage(context, resolved, width, height),
+          );
+        },
       ),
     ),
   );
+}
+
+String _resolveCodexImageSource(String source, String? workspacePath) {
+  final uri = Uri.tryParse(source);
+  if (workspacePath == null ||
+      workspacePath.isEmpty ||
+      uri == null ||
+      uri.scheme.isNotEmpty ||
+      p.isAbsolute(source)) {
+    return source;
+  }
+  return p.join(workspacePath, source);
 }
 
 Future<void> _openCodexMarkdownLink(String url) async {

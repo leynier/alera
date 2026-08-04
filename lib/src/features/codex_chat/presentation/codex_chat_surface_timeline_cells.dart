@@ -98,7 +98,10 @@ class _CodexCellView extends StatelessWidget {
       cell: cell,
       workspacePath: workspacePath,
     ),
-    CodexTimelineKind.assistantMessage => _CodexAssistantMessage(cell: cell),
+    CodexTimelineKind.assistantMessage => _CodexAssistantMessage(
+      cell: cell,
+      workspacePath: workspacePath,
+    ),
     CodexTimelineKind.progressText => _CodexProgressMessage(cell: cell),
     CodexTimelineKind.reasoning => _CodexReasoningCell(cell: cell),
     CodexTimelineKind.toolCall ||
