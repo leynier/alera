@@ -1,9 +1,13 @@
 part of 'codex_chat_surface.dart';
 
 class _CodexExploringCluster extends StatefulWidget {
-  const _CodexExploringCluster({required this.cells});
+  const _CodexExploringCluster({
+    required this.cells,
+    required this.workspacePath,
+  });
 
   final List<CodexTimelineCell> cells;
+  final String workspacePath;
 
   @override
   State<_CodexExploringCluster> createState() => _CodexExploringClusterState();
@@ -13,364 +17,100 @@ class _CodexExploringClusterState extends State<_CodexExploringCluster> {
   bool _collapsed = true;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: AleraTokens.surface,
-      border: Border.all(color: AleraTokens.borderSubtle),
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        ListTile(
-          dense: true,
-          title: Text('Exploring (${widget.cells.length})'),
-          trailing: AleraIconButton(
-            tooltip: _collapsed ? 'Expand Exploring' : 'Collapse Exploring',
-            icon: _collapsed ? AleraIcons.chevronDown : AleraIcons.chevronUp,
-            onPressed: () => setState(() => _collapsed = !_collapsed),
-          ),
-        ),
-        if (!_collapsed)
-          for (final cell in widget.cells) _CodexCellView(cell: cell),
-      ],
-    ),
-  );
-}
-
-class _CodexCellView extends StatefulWidget {
-  const _CodexCellView({required this.cell});
-
-  final CodexTimelineCell cell;
-
-  @override
-  State<_CodexCellView> createState() => _CodexCellViewState();
-}
-
-class _CodexCellViewState extends State<_CodexCellView> {
-  late bool _collapsed =
-      widget.cell.isCollapsed || _defaultCollapsed(widget.cell);
-  bool _hovered = false;
-
-  bool get _canCollapse => switch (widget.cell.kind) {
-    CodexTimelineKind.reasoning ||
-    CodexTimelineKind.toolCall ||
-    CodexTimelineKind.command ||
-    CodexTimelineKind.diff ||
-    CodexTimelineKind.subAgent ||
-    CodexTimelineKind.plan ||
-    CodexTimelineKind.questionAnswer => true,
-    _ => false,
-  };
-
-  @override
-  void didUpdateWidget(covariant _CodexCellView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.cell.id != widget.cell.id) {
-      _collapsed = widget.cell.isCollapsed || _defaultCollapsed(widget.cell);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final cell = widget.cell;
-    final text = _safeMarkdown(
-      cell.renderedMarkdownText ?? cell.markdownText ?? '',
+    final files = widget.cells.where(
+      (cell) => cell.kind == CodexTimelineKind.diff,
     );
-    final raw = cell.markdownText ?? cell.detailsText ?? cell.title ?? '';
-    if (cell.kind == CodexTimelineKind.turnSeparator) {
-      return const SizedBox.shrink();
-    }
-    if (cell.kind == CodexTimelineKind.userMessage) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AleraTokens.chatBubbleMaxWidth,
-          ),
+    final searches = widget.cells.where(
+      (cell) => cell.metadata['itemType']?.toString() == 'webSearch',
+    );
+    final streaming = widget.cells.any((cell) => cell.isStreaming);
+    final label = streaming
+        ? 'Exploring'
+        : 'Explored ${files.length} Files, ${searches.length} Searches';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        InkWell(
+          onTap: () => setState(() => _collapsed = !_collapsed),
+          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
           child: Padding(
-            padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AleraTokens.surfaceVariant,
-                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                child: _CodexMarkdownText(text: text.isEmpty ? raw : text),
-              ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space6,
+              vertical: AleraTokens.space4,
             ),
-          ),
-        ),
-      );
-    }
-    final isAssistant =
-        cell.kind == CodexTimelineKind.assistantMessage ||
-        cell.kind == CodexTimelineKind.progressText;
-    final color = _codexCellColor(cell);
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-        child: DecoratedBox(
-          decoration: isAssistant
-              ? const BoxDecoration()
-              : BoxDecoration(
-                  color: AleraTokens.surface,
-                  border: Border.all(color: AleraTokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-                ),
-          child: Padding(
-            padding: isAssistant
-                ? EdgeInsets.zero
-                : const EdgeInsets.all(AleraTokens.space12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        _codexCellLabel(cell),
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelSmall?.copyWith(color: color),
+                if (streaming)
+                  const Padding(
+                    padding: EdgeInsets.only(right: AleraTokens.space6),
+                    child: SizedBox.square(
+                      dimension: AleraTokens.iconXs,
+                      child: CircularProgressIndicator(
+                        strokeWidth: AleraTokens.strokeHairline,
                       ),
                     ),
-                    if (cell.isStreaming)
-                      const Padding(
-                        padding: EdgeInsets.only(right: AleraTokens.space8),
-                        child: SizedBox(
-                          width: AleraTokens.iconSm,
-                          height: AleraTokens.iconSm,
-                          child: CircularProgressIndicator(
-                            strokeWidth: AleraTokens.strokeSm,
-                          ),
-                        ),
-                      ),
-                    if (_canCollapse)
-                      AleraIconButton(
-                        tooltip: _collapsed ? 'Expand Item' : 'Collapse Item',
-                        icon: _collapsed
-                            ? AleraIcons.chevronDown
-                            : AleraIcons.chevronUp,
-                        onPressed: () =>
-                            setState(() => _collapsed = !_collapsed),
-                      ),
-                    if (_hovered || !kIsWeb)
-                      AleraIconButton(
-                        tooltip: 'Copy',
-                        icon: AleraIcons.copy,
-                        onPressed: raw.isEmpty
-                            ? null
-                            : () => unawaited(
-                                Clipboard.setData(ClipboardData(text: raw)),
-                              ),
-                      ),
-                  ],
+                  ),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
                 ),
-                if (!_collapsed) ...<Widget>[
-                  if (cell.subtitle case final String subtitle
-                      when subtitle.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AleraTokens.space4),
-                      child: Text(subtitle, style: AleraTokens.monoStyle),
-                    ),
-                  if (text.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AleraTokens.space8),
-                      child: _CodexMarkdownText(text: text),
-                    ),
-                  if (cell.detailsText case final String details
-                      when details.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AleraTokens.space8),
-                      child: SelectableText(
-                        details,
-                        style: AleraTokens.monoStyle,
-                      ),
-                    ),
-                  if (cell.status == CodexTimelineStatus.failed)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AleraTokens.space8),
-                      child: Text(
-                        'Codex could not complete this item.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.error,
-                        ),
-                      ),
-                    ),
-                ],
+                const SizedBox(width: AleraTokens.space4),
+                Icon(
+                  _collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
+                  size: AleraTokens.iconMd,
+                  color: AleraTokens.foregroundFaint,
+                ),
               ],
             ),
           ),
         ),
-      ),
+        if (!_collapsed)
+          Padding(
+            padding: const EdgeInsets.only(left: AleraTokens.space8),
+            child: Column(
+              children: <Widget>[
+                for (final cell in widget.cells)
+                  _CodexCellView(
+                    cell: cell,
+                    workspacePath: widget.workspacePath,
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _CodexMarkdownText extends StatelessWidget {
-  const _CodexMarkdownText({required this.text});
+class _CodexCellView extends StatelessWidget {
+  const _CodexCellView({required this.cell, required this.workspacePath});
 
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => DefaultTextStyle.merge(
-    style: Theme.of(context).textTheme.bodyMedium,
-    child: GptMarkdown(
-      text,
-      onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(url)),
-      imageBuilder: _buildCodexMarkdownImage,
-    ),
-  );
-}
-
-Future<void> _openCodexMarkdownLink(String url) async {
-  final uri = Uri.tryParse(url);
-  if (uri != null) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-Widget _buildCodexMarkdownImage(
-  BuildContext context,
-  String source,
-  double? width,
-  double? height,
-) {
-  final uri = Uri.tryParse(source);
-  final image = uri != null && (uri.scheme.isEmpty || uri.scheme == 'file')
-      ? Image.file(
-          File(uri.scheme == 'file' ? uri.toFilePath() : source),
-          fit: BoxFit.contain,
-          errorBuilder: _codexImageError,
-        )
-      : Image.network(
-          source,
-          fit: BoxFit.contain,
-          errorBuilder: _codexImageError,
-        );
-  return ConstrainedBox(
-    constraints: BoxConstraints(
-      maxWidth: width ?? AleraTokens.imageMaxWidth,
-      maxHeight: height ?? AleraTokens.imageMaxHeight,
-    ),
-    child: image,
-  );
-}
-
-Widget _codexImageError(
-  BuildContext context,
-  Object error,
-  StackTrace? stackTrace,
-) => const Icon(AleraIcons.imageError, color: AleraTokens.foregroundMuted);
-
-bool _defaultCollapsed(CodexTimelineCell cell) => switch (cell.kind) {
-  CodexTimelineKind.reasoning ||
-  CodexTimelineKind.toolCall ||
-  CodexTimelineKind.command ||
-  CodexTimelineKind.diff ||
-  CodexTimelineKind.subAgent ||
-  CodexTimelineKind.questionAnswer ||
-  CodexTimelineKind.plan => true,
-  _ => false,
-};
-
-class _WorkedForDivider extends StatelessWidget {
-  const _WorkedForDivider({
-    required this.label,
-    required this.expanded,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool expanded;
-  final VoidCallback onTap;
+  final CodexTimelineCell cell;
+  final String workspacePath;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-      child: Row(
-        children: <Widget>[
-          const Expanded(child: Divider()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
-            child: Text(
-              expanded ? '$label - Hide Details' : '$label - Show Details',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ),
-          const Expanded(child: Divider()),
-        ],
-      ),
+  Widget build(BuildContext context) => switch (cell.kind) {
+    CodexTimelineKind.userMessage => _CodexUserMessage(
+      cell: cell,
+      workspacePath: workspacePath,
     ),
-  );
+    CodexTimelineKind.assistantMessage => _CodexAssistantMessage(cell: cell),
+    CodexTimelineKind.progressText => _CodexProgressMessage(cell: cell),
+    CodexTimelineKind.reasoning => _CodexReasoningCell(cell: cell),
+    CodexTimelineKind.toolCall ||
+    CodexTimelineKind.command ||
+    CodexTimelineKind.diff => _CodexToolCell(cell: cell),
+    CodexTimelineKind.subAgent => _CodexSubAgentCell(cell: cell),
+    CodexTimelineKind.plan => _CodexPlanCell(cell: cell),
+    CodexTimelineKind.systemNotice => _CodexSystemNotice(cell: cell),
+    CodexTimelineKind.questionAnswer => _CodexQuestionAnswerCell(cell: cell),
+    CodexTimelineKind.turnSeparator => const SizedBox.shrink(),
+  };
 }
-
-String _workedFor(List<CodexTimelineCell> cells) {
-  if (cells.isEmpty) return 'Worked';
-  final started = cells
-      .map((cell) => cell.createdAt)
-      .reduce((a, b) => a.isBefore(b) ? a : b);
-  final finished = cells
-      .map((cell) => cell.updatedAt)
-      .reduce((a, b) => a.isAfter(b) ? a : b);
-  final seconds = finished.difference(started).inSeconds;
-  if (seconds < 60) return 'Worked for ${seconds}s';
-  return 'Worked for ${seconds ~/ 60}m ${seconds % 60}s';
-}
-
-List<List<CodexTimelineCell>> _secondaryRows(List<CodexTimelineCell> cells) {
-  final rows = <List<CodexTimelineCell>>[];
-  for (final cell in cells) {
-    final exploratory =
-        cell.kind == CodexTimelineKind.command ||
-        cell.kind == CodexTimelineKind.toolCall ||
-        cell.kind == CodexTimelineKind.diff;
-    if (exploratory && rows.isNotEmpty) {
-      final previous = rows.last;
-      if (previous.isNotEmpty &&
-          (previous.last.kind == CodexTimelineKind.command ||
-              previous.last.kind == CodexTimelineKind.toolCall ||
-              previous.last.kind == CodexTimelineKind.diff)) {
-        previous.add(cell);
-        continue;
-      }
-    }
-    rows.add(<CodexTimelineCell>[cell]);
-  }
-  return rows;
-}
-
-Color _codexCellColor(CodexTimelineCell cell) => switch (cell.kind) {
-  CodexTimelineKind.reasoning => AleraTokens.foregroundMuted,
-  CodexTimelineKind.toolCall ||
-  CodexTimelineKind.command => AleraTokens.warning,
-  CodexTimelineKind.diff => AleraTokens.success,
-  CodexTimelineKind.plan => AleraTokens.info,
-  CodexTimelineKind.subAgent => AleraTokens.accent,
-  CodexTimelineKind.systemNotice => AleraTokens.error,
-  _ => AleraTokens.foreground,
-};
-
-String _codexCellLabel(CodexTimelineCell cell) => switch (cell.kind) {
-  CodexTimelineKind.assistantMessage => 'Codex',
-  CodexTimelineKind.progressText => 'Progress',
-  CodexTimelineKind.reasoning => 'Reasoning',
-  CodexTimelineKind.toolCall => cell.title ?? 'Tool Call',
-  CodexTimelineKind.command => cell.title ?? 'Command',
-  CodexTimelineKind.diff => cell.title ?? 'File Changes',
-  CodexTimelineKind.subAgent => cell.title ?? 'Sub-Agent',
-  CodexTimelineKind.plan => 'Plan',
-  CodexTimelineKind.questionAnswer => 'Question Answer',
-  CodexTimelineKind.systemNotice => cell.title ?? 'Notice',
-  _ => cell.title ?? 'Codex Activity',
-};
 
 class _CodexRawEvent extends StatelessWidget {
   const _CodexRawEvent({required this.event});
@@ -399,31 +139,25 @@ class _CodexPlanPrompt extends StatelessWidget {
   final Future<void> Function(String refinement) onRefine;
 
   @override
-  Widget build(BuildContext context) => Card(
-    color: AleraTokens.surfaceElevated,
-    child: Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AleraTokens.space8,
-        runSpacing: AleraTokens.space8,
-        children: <Widget>[
-          const Text('Implement this plan?'),
-          FilledButton(
-            onPressed: () => unawaited(onImplement()),
-            child: const Text('Implement Plan'),
-          ),
-          TextButton(
-            onPressed: () => unawaited(onDecline()),
-            child: const Text('Decline'),
-          ),
-          OutlinedButton(
-            onPressed: () => unawaited(_refine(context)),
-            child: const Text('Refine Plan'),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => Center(
+    child: Wrap(
+      spacing: AleraTokens.space8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        const Text('Implement This Plan?'),
+        FilledButton(
+          onPressed: () => unawaited(onImplement()),
+          child: const Text('Implement Plan'),
+        ),
+        TextButton(
+          onPressed: () => unawaited(onDecline()),
+          child: const Text('Decline'),
+        ),
+        TextButton(
+          onPressed: () => unawaited(_refine(context)),
+          child: const Text('Refine Plan'),
+        ),
+      ],
     ),
   );
 

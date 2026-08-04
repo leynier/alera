@@ -5,6 +5,7 @@ use std::time::UNIX_EPOCH;
 
 use ignore::WalkBuilder;
 
+mod codex_prompts;
 mod editor_text;
 mod explorer_tree;
 mod quick_open;
@@ -156,6 +157,21 @@ pub struct WorkspaceQuickOpenMatch {
     pub score: i32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CodexSavedPromptScope {
+    User,
+    Repo,
+}
+
+#[derive(Debug, Clone)]
+pub struct CodexSavedPrompt {
+    pub name: String,
+    pub description: String,
+    pub argument_hint: Option<String>,
+    pub body: String,
+    pub scope: CodexSavedPromptScope,
+}
+
 impl WorkspaceFileError {
     fn new(kind: WorkspaceFileErrorKind, context: impl Into<String>) -> Self {
         Self {
@@ -231,6 +247,12 @@ pub fn search_workspace_quick_open_session(
 
 pub fn stop_workspace_quick_open_session(session: WorkspaceQuickOpenSession) {
     quick_open::stop_workspace_quick_open_session(session)
+}
+
+pub fn list_codex_saved_prompts(
+    workspace_path: String,
+) -> Result<Vec<CodexSavedPrompt>, WorkspaceFileError> {
+    codex_prompts::list_codex_saved_prompts(workspace_path)
 }
 
 pub fn project_workspace_explorer_tree(

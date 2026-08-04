@@ -5,32 +5,38 @@ final class _DebugContext {
 
   final _Options _options;
 
-  // Builds the Rust sidecar (rust/alera-cli) in release and stages its runtime
-  // bundle so ALERA_CLI_BUNDLE_DIR resolution finds every required asset.
-  Future<int> buildCli({String? outputDir, bool prepareNativeHelpers = true}) async {
-    final cargoExit = await _run(_options.cargoExecutable, const <String>[
+  // Builds the Rust sidecar (rust/alera-cli) and stages its runtime bundle so
+  // ALERA_CLI_BUNDLE_DIR resolution finds every required asset.
+  Future<int> buildCli({
+    String? outputDir,
+    bool release = true,
+    bool prepareNativeHelpers = true,
+  }) async {
+    final cargoExit = await _run(_options.cargoExecutable, <String>[
       'build',
       '--locked',
       '-p',
       'alera-cli',
-      '--release',
+      if (release) '--release',
     ], workingDirectory: _rustDir);
     if (cargoExit != 0) {
       return cargoExit;
     }
     return _stageCliBinary(
       outputDir ?? _options.bundleDir,
+      profile: release ? 'release' : 'debug',
       prepareNativeHelpers: prepareNativeHelpers,
     );
   }
 
+  Future<int> buildRuntimeDev() => buildCli(release: false);
+
   Future<int> _stageCliBinary(
     String outputDir, {
+    required String profile,
     required bool prepareNativeHelpers,
   }) async {
-    final source = File(
-      _join(_rustDir, 'target', 'release', _cliExecutableName),
-    );
+    final source = File(_join(_rustDir, 'target', profile, _cliExecutableName));
     if (!await source.exists()) {
       stderr.writeln('Built Alera CLI binary not found at ${source.path}.');
       return 1;
@@ -44,9 +50,21 @@ final class _DebugContext {
       }
     }
     final destination = File(_join(destinationDir.path, _cliExecutableName));
-    await source.copy(destination.path);
-    if (!Platform.isWindows) {
-      await _run('chmod', <String>['755', destination.path]);
+    final staged = File(
+      '${destination.path}.stage-$pid-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    try {
+      await source.copy(staged.path);
+      if (!Platform.isWindows) {
+        await _run('chmod', <String>['755', staged.path]);
+      } else if (await destination.exists()) {
+        await destination.delete();
+      }
+      await staged.rename(destination.path);
+    } finally {
+      if (await staged.exists()) {
+        await staged.delete();
+      }
     }
     return 0;
   }
@@ -594,6 +612,29 @@ final class _DebugContext {
     await _prepareFlavor();
     final buildOutputDir = await _appDebugBundledCliOutputDir();
     final buildExit = await buildCli(outputDir: buildOutputDir);
+    if (buildExit != 0) {
+      return buildExit;
+    }
+    final environment = _flutterEnvironment();
+    environment['ALERA_CLI_BUNDLE_DIR'] = _cliBundlePathFor(buildOutputDir);
+    return _run(
+      _options.flutterExecutable,
+      _flutterRunArguments(),
+      environment: environment,
+      forwardStdin: true,
+    );
+  }
+
+  Future<int> appDebugRuntimeDev() async {
+    if (_options.flavor != kAleraDevFlavor) {
+      stderr.writeln(
+        'The dev runtime can only be launched with the dev flavor.',
+      );
+      return 64;
+    }
+    await _prepareFlavor();
+    final buildOutputDir = await _appDebugBundledCliOutputDir();
+    final buildExit = await buildCli(outputDir: buildOutputDir, release: false);
     if (buildExit != 0) {
       return buildExit;
     }

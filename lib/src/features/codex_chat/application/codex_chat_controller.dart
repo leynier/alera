@@ -76,12 +76,12 @@ class CodexChatController extends _$CodexChatController {
       // Collaboration modes are optional on older app-server builds.
     }
     try {
-      skills = _items(await _host.listSkills(tabId));
+      skills = _skillItems(await _host.listSkills(tabId));
     } catch (_) {
       // Skills are optional on older app-server builds.
     }
     try {
-      apps = _items(await _host.listApps(tabId));
+      apps = _appItems(await _host.listApps(tabId));
     } catch (_) {
       // Apps are optional on older app-server builds.
     }
@@ -109,32 +109,17 @@ class CodexChatController extends _$CodexChatController {
     );
   }
 
-  Future<List<CodexModelOption>> _loadModels() async {
-    try {
-      final payload = await _host.listModels();
-      final items = _items(payload);
-      final models = <CodexModelOption>[
-        for (final item in items) CodexModelOption.fromJson(item),
-      ];
-      if (models.isNotEmpty) return models;
-    } catch (_) {
-      // Fall back below. The fallback is intentionally a current Codex set,
-      // never a persisted model snapshot from an older app.
-    }
-    return const <CodexModelOption>[
-      CodexModelOption(id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol'),
-    ];
-  }
-
   Future<void> send(
     String text, {
     List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+    List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty && draftItems.isEmpty) return;
     final message = CodexQueuedMessage(
       text: trimmed,
       attachments: List<CodexInputAttachment>.unmodifiable(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
       id: _newClientMessageId(),
     );
     if (state.busy) {
@@ -188,13 +173,28 @@ class CodexChatController extends _$CodexChatController {
     }
   }
 
-  Future<void> steer(String text) async {
+  Future<void> steer(
+    String text, {
+    List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+    List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
+  }) async {
     final turnId = state.snapshot.activeTurnId;
-    if (turnId == null || text.trim().isEmpty) return;
+    if (turnId == null ||
+        (text.trim().isEmpty && attachments.isEmpty && draftItems.isEmpty)) {
+      return;
+    }
     try {
-      await _host.steer(tabId, turnId, <Map<String, Object?>>[
-        <String, Object?>{'type': 'text', 'text': text.trim()},
-      ], clientUserMessageId: _newClientMessageId());
+      final message = CodexQueuedMessage(
+        text: text.trim(),
+        attachments: attachments,
+        draftItems: draftItems,
+      );
+      await _host.steer(
+        tabId,
+        turnId,
+        _buildInput(message, state),
+        clientUserMessageId: _newClientMessageId(),
+      );
     } catch (error) {
       state = state.copyWith(error: _safeError(error));
     }
@@ -426,6 +426,7 @@ class CodexChatController extends _$CodexChatController {
     int index, {
     required String text,
     List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+    List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
   }) {
     if (index < 0 || index >= state.queuedMessages.length) return;
     final next = <CodexQueuedMessage>[...state.queuedMessages];
@@ -433,8 +434,11 @@ class CodexChatController extends _$CodexChatController {
       id: next[index].id,
       text: text.trim(),
       attachments: List<CodexInputAttachment>.unmodifiable(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
     );
-    if (next[index].text.isEmpty && next[index].attachments.isEmpty) {
+    if (next[index].text.isEmpty &&
+        next[index].attachments.isEmpty &&
+        next[index].draftItems.isEmpty) {
       next.removeAt(index);
     }
     state = state.copyWith(queuedMessages: next);
@@ -445,6 +449,10 @@ class CodexChatController extends _$CodexChatController {
   }
 
   void _onRuntimeEvent(RuntimeHostEvent event) {
+    if (event.name == 'codexCatalogChanged') {
+      unawaited(_loadCatalogues());
+      return;
+    }
     if (event.name == 'codexServerChanged') {
       if (!ref.mounted) return;
       final status = event.payload['status']?.toString();

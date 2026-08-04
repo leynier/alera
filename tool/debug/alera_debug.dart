@@ -32,6 +32,7 @@ Future<void> main(List<String> arguments) async {
   final result = switch (command) {
     'cli-build' => await context.buildCli(),
     'cli-help' => await context.cliHelp(),
+    'runtime-dev-build' => await context.buildRuntimeDev(),
     'host-debug' => await context.hostDebugForeground(),
     'app-debug' => await context.appDebug(),
     'gpui-debug' => await context.gpuiDebug(),
@@ -41,6 +42,7 @@ Future<void> main(List<String> arguments) async {
     'freya-test' => await context.freyaTest(),
     'app-profile' => await context.appProfile(),
     'app-debug-bundled-cli' => await context.appDebugBundledCli(),
+    'app-debug-runtime-dev' => await context.appDebugRuntimeDev(),
     'debug-processes' => await context.debugProcesses(),
     'host-stop' => await context.hostStop(),
     _ => _unknownCommand(command),
@@ -62,6 +64,7 @@ Commands:
   help                      List available make/debug commands.
   cli-build                 Build the Rust alera CLI sidecar (cargo).
   cli-help                  Build the sidecar and print alera --help.
+  runtime-dev-build         Build an isolated dev-profile runtime host.
   host-debug                Run the Rust alera runtime-host in the foreground.
   app-debug                 Run the Flutter desktop app.
   gpui-debug                Build and run the experimental GPUI desktop app.
@@ -71,6 +74,7 @@ Commands:
   freya-test                Run the Freya desktop crate tests.
   app-profile               Run the Flutter desktop app in profile mode.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
+  app-debug-runtime-dev     Run Alera Dev against the dev runtime bundle.
   debug-processes           List likely Alera UI and host processes.
   host-stop                 Stop the current runtime host from host.json.
 

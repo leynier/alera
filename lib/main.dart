@@ -61,7 +61,10 @@ Future<void> _startApp() async {
             ref.onDispose(() async {
               await db.close();
             });
-            return Future.value(db);
+            // The desktop bootstrap already opened the database. Returning it
+            // synchronously keeps dependent providers out of AsyncLoading on
+            // their first build while preserving the FutureProvider contract.
+            return db;
           }),
       ],
       child: const AleraApp(),

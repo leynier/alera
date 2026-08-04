@@ -172,6 +172,80 @@ void main() {
     expect(cells.single.isStreaming, isFalse);
   });
 
+  test('turn completion records server duration on the separator', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('turn/started', <String, Object?>{
+        'turn': <String, Object?>{
+          'id': 'turn-1',
+          'startedAt': '2026-08-03T12:00:00Z',
+        },
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('turn/completed', <String, Object?>{
+        'turn': <String, Object?>{
+          'id': 'turn-1',
+          'completedAt': '2026-08-03T12:00:01.250Z',
+          'durationMs': 1250,
+        },
+      }),
+      now: now.add(const Duration(milliseconds: 1250)),
+    );
+    final separator = cells.singleWhere(
+      (cell) => cell.kind == CodexTimelineKind.turnSeparator,
+    );
+    expect(separator.metadata['computedDurationMs'], 1250);
+    expect(separator.metadata['completedAt'], '2026-08-03T12:00:01.250Z');
+  });
+
+  test('maps modern app-server item variants and rich metadata', () {
+    var cells = <CodexTimelineCell>[];
+    for (final item in <Map<String, Object?>>[
+      <String, Object?>{
+        'id': 'search',
+        'type': 'webSearch',
+        'query': 'Alera',
+        'action': <String, Object?>{'type': 'search', 'query': 'Alera'},
+      },
+      <String, Object?>{
+        'id': 'dynamic',
+        'type': 'dynamicToolCall',
+        'tool': 'inspect',
+        'arguments': <String, Object?>{'path': 'README.md'},
+        'contentItems': <Object?>[
+          <String, Object?>{'type': 'inputText', 'text': 'done'},
+        ],
+        'durationMs': 42,
+      },
+      <String, Object?>{'id': 'view', 'type': 'imageView', 'path': 'a.png'},
+      <String, Object?>{'id': 'compact', 'type': 'contextCompaction'},
+    ]) {
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/completed', <String, Object?>{
+          'turnId': 'turn-1',
+          'item': item,
+        }),
+        now: now,
+      );
+    }
+    expect(cells, hasLength(4));
+    expect(
+      cells.every((cell) => cell.kind == CodexTimelineKind.toolCall),
+      isTrue,
+    );
+    expect(cells[0].title, 'Web search');
+    expect(cells[0].metadata['query'], 'Alera');
+    expect(cells[1].title, 'inspect');
+    expect(cells[1].metadata['durationMs'], 42);
+    expect(cells[1].detailsText, contains('done'));
+    expect(cells[2].title, 'Viewed image');
+    expect(cells[3].title, 'Compacted context');
+  });
+
   test('maps standalone command and file streams to specific kinds', () {
     var cells = CodexTimelineReducer.reduce(
       <CodexTimelineCell>[],

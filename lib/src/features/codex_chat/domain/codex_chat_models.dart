@@ -65,18 +65,41 @@ class CodexModelOption {
 @immutable
 class CodexInputAttachment {
   const CodexInputAttachment({
+    this.id,
     required this.path,
     required this.isImage,
     this.mimeType,
     this.displayName,
+    this.sizeBytes,
     this.detail,
   });
 
+  final String? id;
   final String path;
   final bool isImage;
   final String? mimeType;
   final String? displayName;
+  final int? sizeBytes;
   final String? detail;
+}
+
+enum CodexDraftItemKind { skill, app, mention }
+
+@immutable
+class CodexDraftItem {
+  const CodexDraftItem({
+    required this.id,
+    required this.kind,
+    required this.name,
+    required this.path,
+    this.tokenText,
+  });
+
+  final String id;
+  final CodexDraftItemKind kind;
+  final String name;
+  final String path;
+  final String? tokenText;
 }
 
 @immutable
@@ -84,11 +107,13 @@ class CodexQueuedMessage {
   const CodexQueuedMessage({
     required this.text,
     this.attachments = const <CodexInputAttachment>[],
+    this.draftItems = const <CodexDraftItem>[],
     this.id,
   });
 
   final String text;
   final List<CodexInputAttachment> attachments;
+  final List<CodexDraftItem> draftItems;
   final String? id;
 }
 

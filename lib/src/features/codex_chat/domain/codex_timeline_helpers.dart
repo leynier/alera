@@ -92,6 +92,17 @@ CodexTimelineKind _kindFor(String type, String method) {
   if (type.contains('plan') || method.contains('/plan')) {
     return CodexTimelineKind.plan;
   }
+  if (type.contains('websearch') ||
+      type.contains('dynamictool') ||
+      type.contains('imageview') ||
+      type.contains('imagegeneration') ||
+      type.contains('sleep') ||
+      type.contains('contextcompaction') ||
+      type.contains('enteredreview') ||
+      type.contains('exitedreview') ||
+      type.contains('extension')) {
+    return CodexTimelineKind.toolCall;
+  }
   if (type.contains('tool') ||
       method.contains('tool') ||
       method.contains('outputdelta')) {
@@ -108,6 +119,7 @@ String _titleFor(
   final explicit = _firstString(<Object?>[
     item['title'],
     item['name'],
+    item['tool'],
     item['command'],
   ]);
   if (explicit.isNotEmpty) return explicit;
@@ -122,8 +134,91 @@ String _titleFor(
     return 'Sub-agent';
   }
   if (method.contains('review')) return 'Review';
+  if (type.contains('websearch')) return 'Web search';
+  if (type.contains('imageview')) return 'Viewed image';
+  if (type.contains('imagegeneration')) return 'Generated image';
+  if (type.contains('contextcompaction')) return 'Compacted context';
+  if (type.contains('enteredreview')) return 'Entered review mode';
+  if (type.contains('exitedreview')) return 'Exited review mode';
   if (type.contains('tool') || method.contains('tool')) return 'Tool call';
   return 'Codex activity';
+}
+
+List<CodexTimelineCell> _updateTurnSeparator(
+  List<CodexTimelineCell> cells,
+  String turnId,
+  Map<String, Object?> params,
+  DateTime completedAt,
+) {
+  if (turnId.isEmpty) return cells;
+  final turn = _map(params['turn']);
+  final index = cells.indexWhere(
+    (cell) =>
+        cell.kind == CodexTimelineKind.turnSeparator && cell.turnId == turnId,
+  );
+  if (index < 0) return cells;
+  final separator = cells[index];
+  final explicitDuration = turn['durationMs'];
+  final duration = explicitDuration is num
+      ? explicitDuration.toInt()
+      : completedAt
+            .difference(separator.createdAt)
+            .inMilliseconds
+            .clamp(0, 1 << 53);
+  final next = <CodexTimelineCell>[...cells];
+  next[index] = separator.copyWith(
+    updatedAt: completedAt,
+    metadata: <String, Object?>{
+      ...separator.metadata,
+      'startedAt': turn['startedAt'] ?? separator.metadata['startedAt'],
+      'completedAt': turn['completedAt'],
+      'computedDurationMs': duration,
+    },
+  );
+  return next;
+}
+
+String _itemMarkdown(Map<String, Object?> item) {
+  final direct = _firstString(<Object?>[item['text'], item['message']]);
+  if (direct.isNotEmpty) return direct;
+  for (final key in <String>['summary', 'content', 'fragments']) {
+    final values = item[key];
+    if (values is! List) continue;
+    final parts = <String>[];
+    for (final value in values) {
+      if (value is String && value.isNotEmpty) {
+        parts.add(value);
+      } else if (value is Map) {
+        final text = value['text'];
+        if (text is String && text.isNotEmpty) parts.add(text);
+      }
+    }
+    if (parts.isNotEmpty) return parts.join('\n');
+  }
+  return _firstString(<Object?>[item['review']]);
+}
+
+String _itemDetails(Map<String, Object?> item) {
+  for (final key in <String>[
+    'aggregatedOutput',
+    'output',
+    'result',
+    'error',
+    'diff',
+    'commandOutput',
+    'changes',
+    'contentItems',
+    'action',
+  ]) {
+    final value = item[key];
+    if (value == null) continue;
+    if (value is String) {
+      if (value.isNotEmpty) return value;
+    } else {
+      return value.toString();
+    }
+  }
+  return '';
 }
 
 Map<String, Object?> _map(Object? value) {
