@@ -39,6 +39,7 @@ enum ClaudeCredentialGap {
     /// A credential store holds something that could not be read. On macOS the
     /// usual cause is a keychain item whose access control has not been granted
     /// to this binary yet.
+    #[cfg(target_os = "macos")]
     Unreadable,
     /// Credentials were read but carry no `claudeAiOauth` entry, so the account
     /// authenticates some other way.
@@ -49,6 +50,7 @@ impl ClaudeCredentialGap {
     fn message(self) -> &'static str {
         match self {
             ClaudeCredentialGap::Absent => "Not signed in to Claude",
+            #[cfg(target_os = "macos")]
             ClaudeCredentialGap::Unreadable => {
                 "Claude credentials could not be read; allow Alera access to the Claude Code keychain item"
             }
