@@ -109,12 +109,17 @@ impl RuntimeStore {
         include_trashed: bool,
     ) -> Result<Vec<AutomationDefinition>> {
         let query = if include_trashed {
-            "SELECT state, revision, dataJson FROM automations ORDER BY name COLLATE NOCASE ASC"
+            "SELECT state, revision, dataJson FROM automations"
         } else {
-            "SELECT state, revision, dataJson FROM automations WHERE state <> 'trashed' ORDER BY name COLLATE NOCASE ASC"
+            "SELECT state, revision, dataJson FROM automations WHERE state <> 'trashed'"
         };
         let rows = sqlx::query(query).fetch_all(self.pool()).await?;
-        rows.into_iter().map(decode_definition).collect()
+        let mut definitions = rows
+            .into_iter()
+            .map(decode_definition)
+            .collect::<Result<Vec<_>>>()?;
+        definitions.sort_by_cached_key(|definition| definition.name.to_lowercase());
+        Ok(definitions)
     }
 
     pub async fn find_automation(&self, id: &str) -> Result<Option<AutomationDefinition>> {

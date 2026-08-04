@@ -61,6 +61,33 @@ fn definition() -> AutomationDefinition {
 }
 
 #[tokio::test]
+async fn list_automations_sorts_names_stored_in_definition_json() {
+    let directory = TempDir::new().unwrap();
+    let store = RuntimeStore::open(directory.path()).await.unwrap();
+    let actor = definition().created_by.clone();
+    let mut later = definition();
+    later.id = "automation-zebra".into();
+    later.slug = "zebra".into();
+    later.name = "zebra".into();
+    store.upsert_automation(later, actor.clone()).await.unwrap();
+    let mut earlier = definition();
+    earlier.id = "automation-alpha".into();
+    earlier.slug = "alpha".into();
+    earlier.name = "Alpha".into();
+    store.upsert_automation(earlier, actor).await.unwrap();
+
+    let listed = store.list_automations(false).await.unwrap();
+
+    assert_eq!(
+        listed
+            .into_iter()
+            .map(|automation| automation.name)
+            .collect::<Vec<_>>(),
+        vec!["Alpha", "zebra"]
+    );
+}
+
+#[tokio::test]
 async fn revisioned_upsert_invalidates_material_approval() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
