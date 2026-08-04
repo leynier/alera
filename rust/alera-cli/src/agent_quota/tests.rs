@@ -171,6 +171,65 @@ fn default_claude_profile_falls_back_to_legacy_keychain() {
 }
 
 #[test]
+fn each_credential_gap_says_something_different() {
+    // These collapsed into "Not signed in to Claude", which sent users to
+    // re-authenticate an account that was signed in the whole time.
+    let messages = [
+        ClaudeCredentialGap::Absent.message(),
+        ClaudeCredentialGap::Unreadable.message(),
+        ClaudeCredentialGap::NotOauth.message(),
+    ];
+    assert_eq!(
+        messages
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        3
+    );
+    assert_eq!(
+        ClaudeCredentialGap::Absent.message(),
+        "Not signed in to Claude"
+    );
+    assert!(ClaudeCredentialGap::Unreadable
+        .message()
+        .contains("keychain"));
+}
+
+#[test]
+fn a_quota_command_runs_with_the_shell_environment_and_the_callers_overrides() {
+    // The CLI is exec'd directly, so unlike a terminal tab nothing re-sources
+    // the user's rc files for it.
+    let environment = tui_command_environment(
+        Some(BTreeMap::from([
+            ("PATH".to_string(), "/opt/homebrew/bin".to_string()),
+            ("CCS_DIR".to_string(), "/home/user/.ccs".to_string()),
+            ("TERM".to_string(), "dumb".to_string()),
+        ])),
+        BTreeMap::from([(
+            "CLAUDE_CONFIG_DIR".to_string(),
+            "/home/user/.ccs/instances/work".to_string(),
+        )]),
+    )
+    .expect("hydrated environment");
+
+    assert_eq!(environment["PATH"], "/opt/homebrew/bin");
+    assert_eq!(environment["CCS_DIR"], "/home/user/.ccs");
+    assert_eq!(
+        environment["CLAUDE_CONFIG_DIR"],
+        "/home/user/.ccs/instances/work"
+    );
+    // The PTY is the reason this one is not negotiable.
+    assert_eq!(environment["TERM"], "xterm-256color");
+}
+
+#[test]
+fn a_quota_command_inherits_when_the_shell_cannot_be_probed() {
+    // Clearing the inherited environment on a failed probe would leave the
+    // child with nothing at all, which is worse than the minimal environment.
+    assert!(tui_command_environment(None, BTreeMap::new()).is_none());
+}
+
+#[test]
 fn preserves_gpt_acronym_and_uses_normal_hyphens() {
     let snapshot = parse_tui_snapshot(
         "antigravity",

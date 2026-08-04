@@ -7,9 +7,10 @@ async fn fetch_grok() -> QuotaSnapshot {
             "Home directory is unavailable",
         );
     };
-    let root = std::env::var("GROK_HOME")
+    let root = shell_environment_value("GROK_HOME")
+        .await
         .map(PathBuf::from)
-        .unwrap_or_else(|_| home.join(".grok"));
+        .unwrap_or_else(|| home.join(".grok"));
     let raw = match tokio::fs::read_to_string(root.join("auth.json")).await {
         Ok(value) => value,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -68,8 +69,8 @@ async fn fetch_grok() -> QuotaSnapshot {
             "Not signed in to Grok",
         );
     };
-    let base = std::env::var("GROK_CLI_CHAT_PROXY_BASE_URL")
-        .ok()
+    let base = shell_environment_value("GROK_CLI_CHAT_PROXY_BASE_URL")
+        .await
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "https://cli-chat-proxy.grok.com/v1".to_string());
     let client = reqwest::Client::new();

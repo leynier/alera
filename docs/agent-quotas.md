@@ -46,6 +46,22 @@ Alera stores only environment variable names, never API key values. Configure th
 
 The Kimi, MiniMax, and Z.ai variable names can be changed per host in settings. MiniMax chooses the global or China token-plan endpoint from the configured host.
 
+## Where The Host Reads Variables From
+
+Quota lookups for the local host run inside the `alera terminal-host` sidecar, which the app starts as a detached child. A GUI launch (Finder, Dock, Spotlight, a `.desktop` entry) starts the app with a minimal environment that contains none of the user's shell rc exports, so the sidecar would not see them either.
+
+The sidecar therefore resolves these variables through the user's login shell (`$SHELL -ilc`), cached for the process lifetime and refreshable through the `shellEnvironment.reload` request. A value already present in the sidecar's own environment always wins, so an explicit override is never masked. This covers `CCS_DIR`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CODEX_HOME`, `GROK_HOME`, `CURSOR_CONFIG_DIR`, `XDG_CONFIG_HOME`, the configurable Kimi / MiniMax / Z.ai names, and the base-URL overrides. The same environment is handed to the **Try With TUI** scrape, so the CLI it launches resolves on `PATH` and reads the same configuration it would in a terminal tab. Windows is unaffected: user and system variables already reach GUI processes there.
+
+Resolved values may be secrets. They are held in memory only, never logged and never written to disk.
+
+## Claude Credential States
+
+A Claude account with no usable OAuth credentials reports which of these it hit, because they need different things from the user:
+
+- **Not signed in to Claude** - no credential store holds anything for that config directory.
+- **Claude credentials could not be read** - a credential store holds an entry that could not be read. On macOS this is usually a Keychain item whose access control has not been granted yet; allowing the access prompt resolves it. The probe waits long enough for that prompt to be answered.
+- **Claude credentials are not OAuth credentials** - credentials were read but carry no `claudeAiOauth` entry, so the account authenticates some other way.
+
 ## Provider Data Sources
 
 - Claude prefers scoped Keychain or credential-file OAuth data and the official usage endpoint. A hidden PTY `/usage` scrape runs only when the user chooses **Try With TUI** for that profile.
