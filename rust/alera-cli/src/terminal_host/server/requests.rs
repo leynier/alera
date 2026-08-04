@@ -502,8 +502,12 @@ impl ServerActor {
             }
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
-                let path_count = crate::login_shell_environment::reload_login_shell_path().await;
-                Ok(json!({ "pathEntryCount": path_count }))
+                let (path_count, variable_count) =
+                    crate::login_shell_environment::reload_login_shell_environment().await;
+                Ok(json!({
+                    "pathEntryCount": path_count,
+                    "variableCount": variable_count,
+                }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;

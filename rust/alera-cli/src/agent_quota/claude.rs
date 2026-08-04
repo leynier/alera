@@ -1,32 +1,60 @@
 async fn fetch_claude(profile: Option<&ClaudeProfileRequest>) -> QuotaSnapshot {
-    let (account_id, display_name, config_dir, _env) = match resolve_claude_account(profile) {
+    let (account_id, display_name, config_dir, _env) = match resolve_claude_account(profile).await {
         Ok(value) => value,
         Err(snapshot) => return snapshot,
     };
-    let api_environment_present = anthropic_api_environment_present();
+    let api_environment_present = anthropic_api_environment_present().await;
     let oauth = match config_dir.as_deref() {
         Some(config_dir) => fetch_claude_oauth(&account_id, &display_name, config_dir)
             .await
             .unwrap_or(ClaudeOAuthFetch::FallbackRequired),
-        None => ClaudeOAuthFetch::CredentialsMissing,
+        None => ClaudeOAuthFetch::CredentialsMissing(ClaudeCredentialGap::Absent),
     };
     match oauth {
         ClaudeOAuthFetch::Snapshot(snapshot) => snapshot,
-        ClaudeOAuthFetch::CredentialsMissing if !api_environment_present => {
-            QuotaSnapshot::unavailable(
-                "claude",
-                &account_id,
-                &display_name,
-                "Not signed in to Claude",
-            )
+        ClaudeOAuthFetch::CredentialsMissing(gap) if !api_environment_present => {
+            QuotaSnapshot::unavailable("claude", &account_id, &display_name, gap.message())
         }
-        ClaudeOAuthFetch::CredentialsMissing | ClaudeOAuthFetch::FallbackRequired => {
+        ClaudeOAuthFetch::CredentialsMissing(_) | ClaudeOAuthFetch::FallbackRequired => {
             QuotaSnapshot::unavailable(
                 "claude",
                 &account_id,
                 &display_name,
                 "Claude OAuth usage is unavailable",
             )
+        }
+    }
+}
+
+/// Why an account has no usable OAuth credentials.
+///
+/// These collapsed into a single "not signed in" message, which is wrong for
+/// two of the three: an unreadable keychain item and a credential blob in an
+/// unexpected shape both belong to an account that *is* signed in, and each
+/// needs a different thing from the user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClaudeCredentialGap {
+    /// No credential store holds anything for this config directory.
+    Absent,
+    /// A credential store holds something that could not be read. On macOS the
+    /// usual cause is a keychain item whose access control has not been granted
+    /// to this binary yet.
+    #[cfg(target_os = "macos")]
+    Unreadable,
+    /// Credentials were read but carry no `claudeAiOauth` entry, so the account
+    /// authenticates some other way.
+    NotOauth,
+}
+
+impl ClaudeCredentialGap {
+    fn message(self) -> &'static str {
+        match self {
+            ClaudeCredentialGap::Absent => "Not signed in to Claude",
+            #[cfg(target_os = "macos")]
+            ClaudeCredentialGap::Unreadable => {
+                "Claude credentials could not be read; allow Alera access to the Claude Code keychain item"
+            }
+            ClaudeCredentialGap::NotOauth => "Claude credentials are not OAuth credentials",
         }
     }
 }
@@ -46,12 +74,12 @@ async fn fetch_claude_tui_snapshot(account_id: &str, display_name: &str) -> Quot
             profile: account_id.to_string(),
         })
     };
-    let (account_id, display_name, _config_dir, env) = match resolve_claude_account(profile.as_ref())
-    {
-        Ok(value) => value,
-        Err(snapshot) => return snapshot,
-    };
-    let api_environment_present = anthropic_api_environment_present();
+    let (account_id, display_name, _config_dir, env) =
+        match resolve_claude_account(profile.as_ref()).await {
+            Ok(value) => value,
+            Err(snapshot) => return snapshot,
+        };
+    let api_environment_present = anthropic_api_environment_present().await;
     if !api_environment_present && claude_auth_status(&env).await == Some(false) {
         return QuotaSnapshot::unavailable(
             "claude",
@@ -82,7 +110,7 @@ async fn fetch_claude_tui_snapshot(account_id: &str, display_name: &str) -> Quot
 type ClaudeAccountParts = (String, String, Option<PathBuf>, BTreeMap<String, String>);
 
 #[allow(clippy::result_large_err, clippy::type_complexity)]
-fn resolve_claude_account(
+async fn resolve_claude_account(
     profile: Option<&ClaudeProfileRequest>,
 ) -> Result<ClaudeAccountParts, QuotaSnapshot> {
     match profile {
@@ -104,9 +132,10 @@ fn resolve_claude_account(
                     "Home directory is unavailable",
                 ));
             };
-            let ccs_root = std::env::var("CCS_DIR")
+            let ccs_root = shell_environment_value("CCS_DIR")
+                .await
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| home.join(".ccs"));
+                .unwrap_or_else(|| home.join(".ccs"));
             let config_dir = ccs_root.join("instances").join(&profile.profile);
             if !config_dir.exists() {
                 return Err(QuotaSnapshot::unavailable(
@@ -129,22 +158,24 @@ fn resolve_claude_account(
     }
 }
 
-fn anthropic_api_environment_present() -> bool {
-    ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
-        .iter()
-        .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty()))
+async fn anthropic_api_environment_present() -> bool {
+    for name in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"] {
+        if shell_environment_value(name).await.is_some() {
+            return true;
+        }
+    }
+    false
 }
 
 async fn claude_auth_status(environment: &BTreeMap<String, String>) -> Option<bool> {
     let mut command = windowless_async_command("claude");
     command
         .args(["auth", "status", "--json"])
-        .envs(environment)
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    crate::login_shell_environment::apply_login_shell_path(&mut command).await;
-    let output = tokio::time::timeout(Duration::from_secs(3), command.output())
+    crate::login_shell_environment::apply_login_shell_environment(&mut command, environment).await;
+    let output = tokio::time::timeout(KEYCHAIN_TIMEOUT, command.output())
         .await
         .ok()?
         .ok()?;
@@ -160,7 +191,7 @@ fn parse_claude_auth_status(output: &[u8]) -> Option<bool> {
 
 enum ClaudeOAuthFetch {
     Snapshot(QuotaSnapshot),
-    CredentialsMissing,
+    CredentialsMissing(ClaudeCredentialGap),
     FallbackRequired,
 }
 
@@ -169,11 +200,16 @@ async fn fetch_claude_oauth(
     display_name: &str,
     config_dir: &std::path::Path,
 ) -> Result<ClaudeOAuthFetch> {
-    let Some(credentials) = read_claude_oauth_credentials(config_dir).await? else {
-        return Ok(ClaudeOAuthFetch::CredentialsMissing);
+    let credentials = match read_claude_oauth_credentials(config_dir).await? {
+        ClaudeCredentialRead::Credentials(credentials) => credentials,
+        ClaudeCredentialRead::Missing(gap) => {
+            return Ok(ClaudeOAuthFetch::CredentialsMissing(gap))
+        }
     };
     let Some(oauth) = credentials.get("claudeAiOauth") else {
-        return Ok(ClaudeOAuthFetch::CredentialsMissing);
+        return Ok(ClaudeOAuthFetch::CredentialsMissing(
+            ClaudeCredentialGap::NotOauth,
+        ));
     };
     let token = oauth
         .get("accessToken")
@@ -187,7 +223,7 @@ async fn fetch_claude_oauth(
         return Ok(if has_refresh_token {
             ClaudeOAuthFetch::FallbackRequired
         } else {
-            ClaudeOAuthFetch::CredentialsMissing
+            ClaudeOAuthFetch::CredentialsMissing(ClaudeCredentialGap::NotOauth)
         });
     };
     let response = reqwest::Client::new()
@@ -259,22 +295,45 @@ async fn fetch_claude_oauth(
     }
 }
 
-async fn read_claude_oauth_credentials(config_dir: &std::path::Path) -> Result<Option<Value>> {
+enum ClaudeCredentialRead {
+    Credentials(Value),
+    Missing(ClaudeCredentialGap),
+}
+
+async fn read_claude_oauth_credentials(
+    config_dir: &std::path::Path,
+) -> Result<ClaudeCredentialRead> {
+    #[allow(unused_mut)]
+    let mut gap = ClaudeCredentialGap::Absent;
+
     #[cfg(target_os = "macos")]
     for service in claude_keychain_services(config_dir) {
-        if let Some(raw) = read_macos_keychain_password(&service).await {
-            if let Ok(credentials) = serde_json::from_str::<Value>(&raw) {
-                return Ok(Some(credentials));
+        match read_macos_keychain_password(&service).await {
+            KeychainRead::Password(raw) => match serde_json::from_str::<Value>(&raw) {
+                Ok(credentials) => return Ok(ClaudeCredentialRead::Credentials(credentials)),
+                Err(_) => gap = ClaudeCredentialGap::NotOauth,
+            },
+            // The item is there but its access control has not been granted to
+            // this binary, so reporting "not signed in" would send the user to
+            // re-authenticate a session that is perfectly valid.
+            KeychainRead::Unreadable => {
+                tracing::warn!(service, "Claude keychain item could not be read");
+                gap = ClaudeCredentialGap::Unreadable;
             }
+            KeychainRead::Absent => {}
         }
     }
 
     let raw = match tokio::fs::read_to_string(config_dir.join(".credentials.json")).await {
         Ok(value) => value,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ClaudeCredentialRead::Missing(gap))
+        }
         Err(error) => return Err(error.into()),
     };
-    Ok(Some(serde_json::from_str(&raw)?))
+    Ok(ClaudeCredentialRead::Credentials(serde_json::from_str(
+        &raw,
+    )?))
 }
 
 #[cfg(target_os = "macos")]
@@ -289,11 +348,25 @@ fn claude_keychain_services(config_dir: &std::path::Path) -> Vec<String> {
     }
 }
 
+/// `security` exit code for an item that is not in the keychain at all.
 #[cfg(target_os = "macos")]
-async fn read_macos_keychain_password(service: &str) -> Option<String> {
-    let account = std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
-        .unwrap_or_else(|_| "user".to_string());
+const SECURITY_ITEM_NOT_FOUND: i32 = 44;
+
+#[cfg(target_os = "macos")]
+enum KeychainRead {
+    Password(String),
+    Absent,
+    Unreadable,
+}
+
+#[cfg(target_os = "macos")]
+async fn read_macos_keychain_password(service: &str) -> KeychainRead {
+    let account = match shell_environment_value("USER").await {
+        Some(account) => account,
+        None => shell_environment_value("USERNAME")
+            .await
+            .unwrap_or_else(|| "user".to_string()),
+    };
     let mut command = windowless_async_command("security");
     command
         .args([
@@ -307,15 +380,25 @@ async fn read_macos_keychain_password(service: &str) -> Option<String> {
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
-    let output = tokio::time::timeout(Duration::from_secs(3), command.output())
-        .await
-        .ok()?
-        .ok()?;
+    let output = match tokio::time::timeout(KEYCHAIN_TIMEOUT, command.output()).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(_)) | Err(_) => return KeychainRead::Unreadable,
+    };
     if !output.status.success() {
-        return None;
+        return if output.status.code() == Some(SECURITY_ITEM_NOT_FOUND) {
+            KeychainRead::Absent
+        } else {
+            KeychainRead::Unreadable
+        };
     }
-    let credentials = String::from_utf8(output.stdout).ok()?;
-    (!credentials.trim().is_empty()).then(|| credentials.trim().to_string())
+    let Ok(credentials) = String::from_utf8(output.stdout) else {
+        return KeychainRead::Unreadable;
+    };
+    if credentials.trim().is_empty() {
+        KeychainRead::Absent
+    } else {
+        KeychainRead::Password(credentials.trim().to_string())
+    }
 }
 
 fn map_claude_oauth_window(
