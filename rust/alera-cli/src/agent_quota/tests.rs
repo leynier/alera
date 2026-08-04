@@ -171,12 +171,11 @@ fn default_claude_profile_falls_back_to_legacy_keychain() {
 }
 
 #[test]
-fn each_credential_gap_says_something_different() {
+fn each_available_credential_gap_says_something_different() {
     // These collapsed into "Not signed in to Claude", which sent users to
     // re-authenticate an account that was signed in the whole time.
     let messages = [
         ClaudeCredentialGap::Absent.message(),
-        ClaudeCredentialGap::Unreadable.message(),
         ClaudeCredentialGap::NotOauth.message(),
     ];
     assert_eq!(
@@ -184,12 +183,17 @@ fn each_credential_gap_says_something_different() {
             .iter()
             .collect::<std::collections::HashSet<_>>()
             .len(),
-        3
+        2
     );
     assert_eq!(
         ClaudeCredentialGap::Absent.message(),
         "Not signed in to Claude"
     );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn unreadable_credential_gap_explains_keychain_access() {
     assert!(ClaudeCredentialGap::Unreadable
         .message()
         .contains("keychain"));
