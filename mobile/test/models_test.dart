@@ -158,7 +158,7 @@ Map<String, Object?> _offer({
         .toUtc()
         .add(const Duration(minutes: 5))
         .toIso8601String(),
-    if (endpointNetwork != null) 'endpointNetwork': endpointNetwork,
+    'endpointNetwork': ?endpointNetwork,
   };
 }
 
@@ -173,6 +173,6 @@ Map<String, Object?> _profile({
     'runtimeId': 'runtime-1',
     'deviceId': 'device-1',
     'pairedAt': DateTime.now().toUtc().toIso8601String(),
-    if (endpointNetwork != null) 'endpointNetwork': endpointNetwork,
+    'endpointNetwork': ?endpointNetwork,
   };
 }
