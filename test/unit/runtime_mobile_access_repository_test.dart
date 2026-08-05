@@ -64,32 +64,34 @@ void main() {
       expect(status.tailscale!.error, isNull);
     });
 
-    test('status parses netbird detection and self-hosted management',
-        () async {
-      final client = _FakeRuntimeHostClient();
-      final payload = _statusPayload();
-      (payload['settings']! as Map<String, Object?>)['endpointMode'] =
-          'netbird';
-      payload['netbird'] = <String, Object?>{
-        'detected': true,
-        'connected': true,
-        'netbirdIp': '100.121.195.4',
-        'profileName': 'default',
-        'managementKind': 'selfHosted',
-        'dnsHostname': 'laptop.netbird.cloud',
-        'interfaceName': 'wt0',
-      };
-      client.responses['mobile.status.get'] = payload;
-      final status = await RuntimeMobileAccessRepository(client).status();
+    test(
+      'status parses netbird detection and self-hosted management',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        final payload = _statusPayload();
+        (payload['settings']! as Map<String, Object?>)['endpointMode'] =
+            'netbird';
+        payload['netbird'] = <String, Object?>{
+          'detected': true,
+          'connected': true,
+          'netbirdIp': '100.121.195.4',
+          'profileName': 'default',
+          'managementKind': 'selfHosted',
+          'dnsHostname': 'laptop.netbird.cloud',
+          'interfaceName': 'wt0',
+        };
+        client.responses['mobile.status.get'] = payload;
+        final status = await RuntimeMobileAccessRepository(client).status();
 
-      expect(status.settings.endpointMode, MobileEndpointMode.netbird);
-      expect(status.netbird, isNotNull);
-      expect(status.netbird!.connected, isTrue);
-      expect(status.netbird!.netbirdIp, '100.121.195.4');
-      expect(status.netbird!.managementKind, 'selfHosted');
-      expect(status.netbird!.dnsHostname, 'laptop.netbird.cloud');
-      expect(status.netbird!.interfaceName, 'wt0');
-    });
+        expect(status.settings.endpointMode, MobileEndpointMode.netbird);
+        expect(status.netbird, isNotNull);
+        expect(status.netbird!.connected, isTrue);
+        expect(status.netbird!.netbirdIp, '100.121.195.4');
+        expect(status.netbird!.managementKind, 'selfHosted');
+        expect(status.netbird!.dnsHostname, 'laptop.netbird.cloud');
+        expect(status.netbird!.interfaceName, 'wt0');
+      },
+    );
 
     test('watchStatus coalesces a burst of mobile change events', () async {
       final client = _FakeRuntimeHostClient();
@@ -167,29 +169,31 @@ void main() {
       });
     });
 
-    test('updateSettings sends the NetBird endpoint source when provided',
-        () async {
-      final client = _FakeRuntimeHostClient();
-      client.responses['mobile.settings.update'] = <String, Object?>{
-        'enabled': true,
-        'bindHost': '100.121.195.4',
-        'port': 6768,
-        'endpointMode': 'netbird',
-        'netbirdEndpoint': 'dns',
-      };
-      final repository = RuntimeMobileAccessRepository(client);
+    test(
+      'updateSettings sends the NetBird endpoint source when provided',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        client.responses['mobile.settings.update'] = <String, Object?>{
+          'enabled': true,
+          'bindHost': '100.121.195.4',
+          'port': 6768,
+          'endpointMode': 'netbird',
+          'netbirdEndpoint': 'dns',
+        };
+        final repository = RuntimeMobileAccessRepository(client);
 
-      final settings = await repository.updateSettings(
-        endpointMode: MobileEndpointMode.netbird,
-        netbirdEndpoint: MobileNetbirdEndpoint.dns,
-      );
+        final settings = await repository.updateSettings(
+          endpointMode: MobileEndpointMode.netbird,
+          netbirdEndpoint: MobileNetbirdEndpoint.dns,
+        );
 
-      expect(settings.netbirdEndpoint, MobileNetbirdEndpoint.dns);
-      expect(client.payloads['mobile.settings.update']!.single, {
-        'endpointMode': 'netbird',
-        'netbirdEndpoint': 'dns',
-      });
-    });
+        expect(settings.netbirdEndpoint, MobileNetbirdEndpoint.dns);
+        expect(client.payloads['mobile.settings.update']!.single, {
+          'endpointMode': 'netbird',
+          'netbirdEndpoint': 'dns',
+        });
+      },
+    );
 
     test(
       'createPairingOffer returns a grant that round-trips the payload',

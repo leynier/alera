@@ -62,11 +62,10 @@ class MobileGatewaySettings {
       bindHost: bindHost,
       port: port.toInt(),
       endpointMode: MobileEndpointMode.fromWire(json['endpointMode']),
-      netbirdEndpoint: MobileNetbirdEndpoint.fromWire(
-        json['netbirdEndpoint'],
-      ),
-      serverPublicKeyB64:
-          publicKey is String && publicKey.trim().isNotEmpty ? publicKey : null,
+      netbirdEndpoint: MobileNetbirdEndpoint.fromWire(json['netbirdEndpoint']),
+      serverPublicKeyB64: publicKey is String && publicKey.trim().isNotEmpty
+          ? publicKey
+          : null,
     );
   }
 
@@ -92,8 +91,9 @@ class MobileTailscaleStatus {
     return MobileTailscaleStatus(
       detected: json['detected'] == true,
       running: json['running'] == true,
-      tailnetIp:
-          tailnetIp is String && tailnetIp.trim().isNotEmpty ? tailnetIp : null,
+      tailnetIp: tailnetIp is String && tailnetIp.trim().isNotEmpty
+          ? tailnetIp
+          : null,
       error: error is String && error.trim().isNotEmpty ? error : null,
     );
   }

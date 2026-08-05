@@ -248,7 +248,8 @@ pub async fn prepare_mobile_pairing_offer_settings_resolved(
     )
 }
 
-pub fn prepare_mobile_pairing_offer_settings(
+#[cfg(test)]
+fn prepare_mobile_pairing_offer_settings(
     settings: MobileAccessSettings,
     request: &MobilePairingCreateRequest,
 ) -> Result<(MobileAccessSettings, String)> {
@@ -561,11 +562,11 @@ fn validate_pairing_endpoint(
     if port == 0 {
         bail!("mobile pairing endpoint port must be between 1 and 65535");
     }
-    if parsed.scheme() == "ws"
-        && !is_loopback_endpoint_host(host)
-        && !is_private_overlay_endpoint_host(host)
-        && !(endpoint_network == Some("netbird") && is_dns_hostname(host))
-    {
+    let plaintext_allowed = parsed.scheme() != "ws"
+        || is_loopback_endpoint_host(host)
+        || is_private_overlay_endpoint_host(host)
+        || (endpoint_network == Some("netbird") && is_dns_hostname(host));
+    if !plaintext_allowed {
         bail!("mobile pairing endpoints outside loopback or a private overlay must use wss://");
     }
     Ok(ValidPairingEndpoint {

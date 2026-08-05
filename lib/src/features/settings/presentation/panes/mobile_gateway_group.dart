@@ -56,7 +56,8 @@ class MobileGatewayGroup extends StatelessWidget {
     final mode = displayedEndpointMode(settings);
     return AleraSettingsGroup(
       title: 'Mobile Gateway',
-      description: 'WebSocket listener the mobile companion app connects to. '
+      description:
+          'WebSocket listener the mobile companion app connects to. '
           'Applying changes restarts the gateway and disconnects '
           'connected devices.',
       children: <Widget>[
@@ -182,30 +183,30 @@ class MobileGatewayGroup extends StatelessWidget {
     final tailscale = status.tailscale;
     final (bool active, String label, String description) = switch (tailscale) {
       null => (
-          false,
-          'Unknown',
-          'The runtime does not report Tailscale - update the Alera CLI.',
-        ),
+        false,
+        'Unknown',
+        'The runtime does not report Tailscale - update the Alera CLI.',
+      ),
       MobileTailscaleStatus(detected: false) => (
-          false,
-          'Not detected',
-          'Install Tailscale on this machine to use this mode.',
-        ),
+        false,
+        'Not detected',
+        'Install Tailscale on this machine to use this mode.',
+      ),
       MobileTailscaleStatus(running: false) => (
-          false,
-          'Not running',
-          tailscale.error ?? 'Run "tailscale up" and sign in to your Tailnet.',
-        ),
+        false,
+        'Not running',
+        tailscale.error ?? 'Run "tailscale up" and sign in to your Tailnet.',
+      ),
       MobileTailscaleStatus(tailnetIp: final String ip) => (
-          true,
-          'Running · $ip',
-          'Devices signed in to the same Tailnet can pair and connect.',
-        ),
+        true,
+        'Running · $ip',
+        'Devices signed in to the same Tailnet can pair and connect.',
+      ),
       _ => (
-          false,
-          'No Tailnet IP',
-          'Tailscale is running but reported no Tailnet IPv4 address.',
-        ),
+        false,
+        'No Tailnet IP',
+        'Tailscale is running but reported no Tailnet IPv4 address.',
+      ),
     };
     return AleraSettingRow(
       title: 'Tailscale Status',
@@ -228,32 +229,32 @@ class MobileGatewayGroup extends StatelessWidget {
     final netbird = status.netbird;
     final (bool active, String label, String description) = switch (netbird) {
       null => (
-          false,
-          'Unknown',
-          'The runtime does not report NetBird - update the Alera CLI.',
-        ),
+        false,
+        'Unknown',
+        'The runtime does not report NetBird - update the Alera CLI.',
+      ),
       MobileNetbirdStatus(detected: false) => (
-          false,
-          'Not Detected',
-          'Install NetBird on this machine to use this mode.',
-        ),
+        false,
+        'Not Detected',
+        'Install NetBird on this machine to use this mode.',
+      ),
       MobileNetbirdStatus(connected: false) => (
-          false,
-          'Not Connected',
-          netbird.error ?? 'Run "netbird up" and sign in to your network.',
-        ),
+        false,
+        'Not Connected',
+        netbird.error ?? 'Run "netbird up" and sign in to your network.',
+      ),
       MobileNetbirdStatus(netbirdIp: final String ip) => (
-          true,
-          'Connected - $ip',
-          'Devices connected to the same NetBird network can pair and connect. '
-              'DNS: ${netbird.dnsHostname ?? 'unavailable'}; interface: '
-              '${netbird.interfaceName ?? 'unavailable'}.',
-        ),
+        true,
+        'Connected - $ip',
+        'Devices connected to the same NetBird network can pair and connect. '
+            'DNS: ${netbird.dnsHostname ?? 'unavailable'}; interface: '
+            '${netbird.interfaceName ?? 'unavailable'}.',
+      ),
       _ => (
-          false,
-          'No NetBird IP',
-          'NetBird is connected but reported no NetBird IPv4 address.',
-        ),
+        false,
+        'No NetBird IP',
+        'NetBird is connected but reported no NetBird IPv4 address.',
+      ),
     };
     return AleraSettingRow(
       title: 'NetBird Status',
