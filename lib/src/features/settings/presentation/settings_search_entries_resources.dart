@@ -34,68 +34,69 @@ const List<SettingsSearchEntry> remoteHostSearchEntries = <SettingsSearchEntry>[
 
 const List<SettingsSearchEntry> agentProfileSearchEntries =
     <SettingsSearchEntry>[
-  SettingsSearchEntry(
-    title: 'Agent Profiles',
-    description: 'Declare the agents and launch commands orchestration may '
-        'dispatch to.',
-    keywords: <String>[
-      'agent',
-      'profile',
-      'catalog',
-      'orchestration',
-      'adapter',
-      'command',
-      'model',
-      'quota group',
-      'fallback',
-    ],
-  ),
-];
+      SettingsSearchEntry(
+        title: 'Agent Profiles',
+        description:
+            'Declare the agents and launch commands orchestration may '
+            'dispatch to.',
+        keywords: <String>[
+          'agent',
+          'profile',
+          'catalog',
+          'orchestration',
+          'adapter',
+          'command',
+          'model',
+          'quota group',
+          'fallback',
+        ],
+      ),
+    ];
 
 const List<SettingsSearchEntry> mobileDeviceSearchEntries =
     <SettingsSearchEntry>[
-  SettingsSearchEntry(
-    title: 'Mobile Gateway',
-    description: 'Enable and configure the mobile companion gateway.',
-    keywords: <String>[
-      'mobile',
-      'gateway',
-      'bind',
-      'port',
-      'enable',
-      'wss',
-      'endpoint',
-      'tailscale',
-      'tailnet',
+      SettingsSearchEntry(
+        title: 'Mobile Gateway',
+        description: 'Enable and configure the mobile companion gateway.',
+        keywords: <String>[
+          'mobile',
+          'gateway',
+          'bind',
+          'port',
+          'enable',
+          'wss',
+          'endpoint',
+          'tailscale',
+          'tailnet',
           'netbird',
           'dns',
           'fqdn',
           'interface',
-      'self-hosted',
-      'private overlay',
-      'vpn',
-      'remote',
-    ],
-    groupId: 'gateway',
-  ),
-  SettingsSearchEntry(
-    title: 'Link Mobile Device',
-    description: 'Generate a pairing QR for the mobile companion app.',
-    keywords: <String>[
-      'qr',
-      'pair',
-      'pairing',
-      'scan',
-      'phone',
-      'companion',
-      'link',
-    ],
-    groupId: 'pairing',
-  ),
-  SettingsSearchEntry(
-    title: 'Paired Devices',
-    description: 'Rename, revoke, or delete paired mobile devices.',
-    keywords: <String>['revoke', 'rename', 'delete', 'device', 'token'],
-    groupId: 'devices',
-  ),
-];
+          'self-hosted',
+          'private overlay',
+          'vpn',
+          'remote',
+        ],
+        groupId: 'gateway',
+      ),
+      SettingsSearchEntry(
+        title: 'Link Mobile Device',
+        description: 'Generate a pairing QR for the mobile companion app.',
+        keywords: <String>[
+          'qr',
+          'pair',
+          'pairing',
+          'scan',
+          'phone',
+          'companion',
+          'link',
+        ],
+        groupId: 'pairing',
+      ),
+      SettingsSearchEntry(
+        title: 'Paired Devices',
+        description: 'Rename, revoke, or delete paired mobile devices.',
+        keywords: <String>['revoke', 'rename', 'delete', 'device', 'token'],
+        groupId: 'devices',
+      ),
+    ];

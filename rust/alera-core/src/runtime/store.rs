@@ -1804,7 +1804,7 @@ pub fn parse_timestamp(value: &str) -> DateTime<Utc> {
 }
 
 fn empty_to_none(value: Option<String>) -> Option<String> {
-    value.and_then(|v| if v.trim().is_empty() { None } else { Some(v) })
+    value.filter(|v| !v.trim().is_empty())
 }
 
 #[cfg(test)]

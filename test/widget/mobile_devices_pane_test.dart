@@ -365,8 +365,8 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
           bindHost = requestedMode == 'tailscale'
               ? '100.101.102.103'
               : requestedMode == 'netbird'
-                  ? '100.121.195.4'
-                  : '127.0.0.1';
+              ? '100.121.195.4'
+              : '127.0.0.1';
         }
         final requestedNetbirdEndpoint = payload['netbirdEndpoint'];
         if (requestedNetbirdEndpoint is String) {

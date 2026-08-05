@@ -29,18 +29,22 @@ bool _isDnsHostname(String host) {
       !normalized.contains(':') &&
       !normalized.startsWith('.') &&
       !normalized.endsWith('.') &&
-      normalized.split('.').every((label) =>
-          label.isNotEmpty &&
-          label.length <= 63 &&
-          !label.startsWith('-') &&
-          !label.endsWith('-') &&
-          label.codeUnits.every(
-            (code) =>
-                (code >= 48 && code <= 57) ||
-                (code >= 65 && code <= 90) ||
-                (code >= 97 && code <= 122) ||
-                code == 45,
-          ));
+      normalized
+          .split('.')
+          .every(
+            (label) =>
+                label.isNotEmpty &&
+                label.length <= 63 &&
+                !label.startsWith('-') &&
+                !label.endsWith('-') &&
+                label.codeUnits.every(
+                  (code) =>
+                      (code >= 48 && code <= 57) ||
+                      (code >= 65 && code <= 90) ||
+                      (code >= 97 && code <= 122) ||
+                      code == 45,
+                ),
+          );
 }
 
 bool _isLocalPairingHost(String host) {
