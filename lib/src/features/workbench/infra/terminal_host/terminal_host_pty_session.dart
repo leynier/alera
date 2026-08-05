@@ -28,7 +28,8 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   }
 }
 
-final class TerminalHostPtySession implements RecoverableTerminalPtySession {
+final class TerminalHostPtySession
+    implements RecoverableTerminalPtySession, DeferredEnterTerminalPtySession {
   factory TerminalHostPtySession({
     required TerminalHostClient client,
     required String sessionId,
@@ -75,6 +76,9 @@ final class TerminalHostPtySession implements RecoverableTerminalPtySession {
 
   @override
   bool get supportsRestart => _client.supportsTerminalRestart;
+
+  @override
+  bool get supportsDeferredEnter => _client.supportsDeferredInput;
 
   @override
   Future<void> start({
@@ -171,6 +175,17 @@ final class TerminalHostPtySession implements RecoverableTerminalPtySession {
   }
 
   @override
+  bool writeBytesWithDeferredEnter(List<int> bytes) {
+    if (_disposed || !_started) {
+      return false;
+    }
+    unawaited(
+      _writeBytes(bytes, deferredEnter: true).catchError(_emitHostError),
+    );
+    return true;
+  }
+
+  @override
   Future<bool> writeBytesAndWait(List<int> bytes) async {
     if (_disposed || !_started || bytes.isEmpty) {
       return false;
@@ -233,15 +248,26 @@ final class TerminalHostPtySession implements RecoverableTerminalPtySession {
     return next;
   }
 
-  Future<void> _writeBytes(List<int> bytes) async {
+  Future<void> _writeBytes(
+    List<int> bytes, {
+    bool deferredEnter = false,
+  }) async {
     try {
-      await _client.write(sessionId: _sessionId, bytes: bytes);
+      await _client.write(
+        sessionId: _sessionId,
+        bytes: bytes,
+        deferredEnter: deferredEnter,
+      );
     } catch (error) {
       if (!_isDefinitivelyNotAttached(error)) {
         rethrow;
       }
       await _reattach();
-      await _client.write(sessionId: _sessionId, bytes: bytes);
+      await _client.write(
+        sessionId: _sessionId,
+        bytes: bytes,
+        deferredEnter: deferredEnter,
+      );
     }
   }
 

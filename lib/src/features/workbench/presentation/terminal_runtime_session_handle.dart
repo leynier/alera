@@ -73,6 +73,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
   Timer? _selectionCopyTimer;
+  Timer? _deferredSubmitEnterTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
   @override
@@ -116,7 +117,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
 
   @override
   String get workspaceId => _workspace.id;
-
+  @override
   String get terminalSessionId => _tab.terminalSessionId;
 
   @override
@@ -615,6 +616,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     _pendingPtySize = null;
     _selectionCopyTimer?.cancel();
     _selectionCopyTimer = null;
+    _cancelDeferredSubmitEnter(this);
     final generation = _activePtyGeneration;
     if (suppressExit && generation != null) {
       _suppressedExitPtyGenerations.add(generation);
@@ -652,6 +654,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
 
   @override
   void pasteText(String text) => _pasteTerminalText(this, text);
+
+  @override
+  Future<bool> submitText(String text) async {
+    if (_disposed || text.trim().isEmpty) {
+      return false;
+    }
+    await ensureStarted();
+    if (_disposed || !_running || _ptySession == null) {
+      return false;
+    }
+    return _submitTerminalText(this, text);
+  }
 
   void _requestFocusNow() {
     if (_disposed || !_focusNode.canRequestFocus) {

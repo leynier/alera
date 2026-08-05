@@ -26,7 +26,7 @@ class TextActionsScope extends ConsumerStatefulWidget {
 }
 
 class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
-  final Set<EditableTextState> _runningFields = <EditableTextState>{};
+  final Set<Object> _runningTargets = <Object>{};
   var _runSequence = 0;
 
   @override
@@ -43,18 +43,25 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
         settings.textActions.enabledActions.isNotEmpty;
     return AleraTextActionsScope(
       enabled: enabled,
-      onOpen: (context, editableTextState) =>
-          _openMenu(context, editableTextState, activeWorkspacePath),
+      actions: <AleraTextActionMenuItem>[
+        for (final action in settings.textActions.enabledActions)
+          AleraTextActionMenuItem(id: action.id, label: action.name),
+      ],
+      onOpen: (context, target, globalAnchor) =>
+          _openMenu(context, target, globalAnchor, activeWorkspacePath),
+      onRun: (target, actionId) =>
+          unawaited(_runAction(target, actionId, activeWorkspacePath)),
       child: widget.child,
     );
   }
 
   Future<void> _openMenu(
     BuildContext context,
-    EditableTextState editableTextState,
+    AleraTextActionTarget target,
+    Offset globalAnchor,
     String? activeWorkspacePath,
   ) async {
-    if (_runningFields.contains(editableTextState)) {
+    if (_runningTargets.contains(target.identity)) {
       return;
     }
     final settings = ref.read(settingsControllerProvider);
@@ -70,8 +77,6 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     if (overlayBox is! RenderBox) {
       return;
     }
-    final anchors = editableTextState.contextMenuAnchors;
-    final globalAnchor = anchors.secondaryAnchor ?? anchors.primaryAnchor;
     final anchor = overlayBox.globalToLocal(globalAnchor);
     final position = RelativeRect.fromLTRB(
       anchor.dx,
@@ -95,21 +100,18 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     if (selectedAction == null || !mounted) {
       return;
     }
-    unawaited(
-      _runAction(editableTextState, selectedAction, activeWorkspacePath),
-    );
+    unawaited(_runAction(target, selectedAction.id, activeWorkspacePath));
   }
 
   Future<void> _runAction(
-    EditableTextState editableTextState,
-    TextAction action,
+    AleraTextActionTarget target,
+    String actionId,
     String? activeWorkspacePath,
   ) async {
-    if (!editableTextState.mounted ||
-        _runningFields.contains(editableTextState)) {
+    if (!target.isAvailable() || _runningTargets.contains(target.identity)) {
       return;
     }
-    final captured = editableTextState.textEditingValue;
+    final captured = target.readValue();
     final selection = captured.selection;
     if (!selection.isValid ||
         selection.isCollapsed ||
@@ -124,28 +126,39 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     if (selectedText.isEmpty) {
       return;
     }
-    _runningFields.add(editableTextState);
+    final settings = ref.read(settingsControllerProvider);
+    final action = settings.textActions.actions
+        .where((candidate) => candidate.id == actionId && candidate.enabled)
+        .firstOrNull;
+    if (action == null) {
+      return;
+    }
+    _runningTargets.add(target.identity);
     final runId = 'text-action-${++_runSequence}';
     AleraToast.publish(message: 'Running ${action.name}.');
     try {
-      final settings = ref.read(settingsControllerProvider);
-      final currentAction = settings.textActions.actions
+      final currentSettings = ref.read(settingsControllerProvider);
+      final currentAction = currentSettings.textActions.actions
           .where((candidate) => candidate.id == action.id)
           .firstOrNull;
       if (currentAction == null || !currentAction.enabled) {
         return;
       }
-      final agent = currentAction.effectiveAgent(settings.aiTextGeneration);
-      final model = currentAction.effectiveModel(settings.aiTextGeneration);
+      final agent = currentAction.effectiveAgent(
+        currentSettings.aiTextGeneration,
+      );
+      final model = currentAction.effectiveModel(
+        currentSettings.aiTextGeneration,
+      );
       final reasoning = currentAction.reasoningFor(
-        settings.aiTextGeneration,
+        currentSettings.aiTextGeneration,
         model: model,
       );
       final result = await ref
           .read(aiTextAgentRunnerProvider)
           .run(
             AiTextAgentRunRequest(
-              settings: settings.aiTextGeneration,
+              settings: currentSettings.aiTextGeneration,
               prompt: buildTextActionPrompt(
                 instruction: currentAction.prompt,
                 selectedText: selectedText,
@@ -157,10 +170,10 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
               reasoning: reasoning,
             ),
           );
-      if (!mounted || !editableTextState.mounted) {
+      if (!mounted || !target.isAvailable()) {
         return;
       }
-      final currentValue = editableTextState.textEditingValue;
+      final currentValue = target.readValue();
       if (currentValue != captured) {
         AleraToast.publish(
           message: 'Text changed while the action was running.',
@@ -178,21 +191,13 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
         );
         return;
       }
-      final editingContext = editableTextState.widget.focusNode.context;
-      if (editingContext == null || !editingContext.mounted) {
+      if (!target.applyReplacement(captured, result.text)) {
         AleraToast.publish(
           message: 'Text action could not update this field.',
           tone: AleraToastTone.error,
         );
         return;
       }
-      Actions.invoke(
-        editingContext,
-        buildTextActionReplacementIntent(
-          captured: captured,
-          replacement: result.text,
-        ),
-      );
       AleraToast.publish(
         message: 'Text action applied.',
         tone: AleraToastTone.success,
@@ -210,7 +215,7 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
         tone: AleraToastTone.error,
       );
     } finally {
-      _runningFields.remove(editableTextState);
+      _runningTargets.remove(target.identity);
     }
   }
 }

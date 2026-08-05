@@ -386,6 +386,11 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
         size: 12,
         color: color,
       ),
+      WorkspaceTabKind.codex => Icon(
+        AleraIcons.composer,
+        size: 12,
+        color: color,
+      ),
       WorkspaceTabKind.browser => Icon(
         AleraIcons.public,
         size: 12,
@@ -407,6 +412,7 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
     WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
+    WorkspaceTabKind.codex => 132,
     WorkspaceTabKind.mobileEmulator => 132,
   };
 }

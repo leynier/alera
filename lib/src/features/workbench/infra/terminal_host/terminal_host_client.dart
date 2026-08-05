@@ -96,6 +96,12 @@ final class SocketTerminalHostClient
       false;
 
   @override
+  bool get supportsDeferredInput =>
+      _terminalConnection?.supportsDeferredInput ??
+      _runtimeConnection?.supportsDeferredInput ??
+      false;
+
+  @override
   Stream<RuntimeHostEvent> get runtimeEvents => _runtimeEvents.stream;
 
   @override
@@ -178,13 +184,15 @@ final class SocketTerminalHostClient
   Future<void> write({
     required String sessionId,
     required List<int> bytes,
+    bool deferredEnter = false,
   }) async {
-    if (bytes.isEmpty) {
+    if (bytes.isEmpty && !deferredEnter) {
       return;
     }
     await _terminalRequest('write', <String, Object?>{
       'sessionId': sessionId,
       'dataBase64': encodeTerminalHostBytes(bytes),
+      if (deferredEnter) 'deferredEnter': true,
     });
   }
 
@@ -582,7 +590,10 @@ final class SocketTerminalHostClient
           'protocolVersion': aleraTerminalHostProtocolVersion,
           'token': control.token,
           'clientKind': 'app',
-          'supportedTabKinds': const <String>[aleraMobileEmulatorTabKind],
+          'supportedTabKinds': const <String>[
+            aleraMobileEmulatorTabKind,
+            aleraCodexTabKind,
+          ],
           if (control.supportsBinaryFrames) 'binaryFrames': true,
         },
       });

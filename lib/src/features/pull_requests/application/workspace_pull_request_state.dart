@@ -40,6 +40,8 @@ class WorkspacePullRequestState {
     this.canCloseReview = false,
     this.canChangeDraftStatus = false,
     this.canComment = false,
+    this.canEditComments = false,
+    this.savingCommentIds = const <String>{},
     this.action,
     this.errorMessage,
   });
@@ -75,6 +77,8 @@ class WorkspacePullRequestState {
   final bool canCloseReview;
   final bool canChangeDraftStatus;
   final bool canComment;
+  final bool canEditComments;
+  final Set<String> savingCommentIds;
   final PullRequestAction? action;
   final String? errorMessage;
 
@@ -109,6 +113,8 @@ class WorkspacePullRequestState {
     bool? canCloseReview,
     bool? canChangeDraftStatus,
     bool? canComment,
+    bool? canEditComments,
+    Set<String>? savingCommentIds,
     PullRequestAction? action,
     bool clearAction = false,
     String? errorMessage,
@@ -131,6 +137,8 @@ class WorkspacePullRequestState {
       canCloseReview: canCloseReview ?? this.canCloseReview,
       canChangeDraftStatus: canChangeDraftStatus ?? this.canChangeDraftStatus,
       canComment: canComment ?? this.canComment,
+      canEditComments: canEditComments ?? this.canEditComments,
+      savingCommentIds: savingCommentIds ?? this.savingCommentIds,
       action: clearAction ? null : (action ?? this.action),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -143,7 +151,7 @@ class WorkspacePullRequestState {
         .map((c) => '${c.name}:${c.status.name}:${c.conclusion.name}')
         .join('|');
     final commentPart = comments
-        .map((comment) => '${comment.id}:${comment.createdAt}')
+        .map((comment) => '${comment.id}:${comment.createdAt}:${comment.body}')
         .join('|');
     return '${review?.number}:${review?.state.name}:${review?.title}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'

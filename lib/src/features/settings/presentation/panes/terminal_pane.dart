@@ -237,6 +237,14 @@ class TerminalSettingsPane extends StatelessWidget {
                 onChanged: (value) =>
                     onChanged(settings.copyWith(allowOsc52Clipboard: value)),
               ),
+              SettingsSwitchRow(
+                title: 'Show Terminal Composer By Default',
+                description:
+                    'Open the prompt composer when a new terminal session starts.',
+                value: settings.showComposerByDefault,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(showComposerByDefault: value)),
+              ),
             ],
           ),
         ),

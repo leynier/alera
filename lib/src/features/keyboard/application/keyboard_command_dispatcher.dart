@@ -31,6 +31,8 @@ class KeyboardCommandDispatcher {
     switch (id) {
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
+      case KeyboardActionId.openAutomations:
+        unawaited(openAutomationsDialog(context));
       case KeyboardActionId.openQuickOpen:
         unawaited(showQuickOpenFlow(context, ref));
       case KeyboardActionId.openCommandPalette:
@@ -57,6 +59,8 @@ class KeyboardCommandDispatcher {
         _showContextPanel(WorkbenchContextPanelTab.search);
       case KeyboardActionId.findInTerminal:
         _openTerminalSearch();
+      case KeyboardActionId.toggleTerminalComposer:
+        _toggleTerminalComposer();
       case KeyboardActionId.replaceInFiles:
         _showContextPanel(WorkbenchContextPanelTab.search);
       case KeyboardActionId.saveFile:
@@ -148,6 +152,23 @@ class KeyboardCommandDispatcher {
       return;
     }
     ref.read(terminalRuntimeProvider).peekSession(tab.id)?.openSearch();
+  }
+
+  void _toggleTerminalComposer() {
+    final directSession = terminalSession;
+    if (directSession != null) {
+      directSession.composerController.toggle();
+      return;
+    }
+    final tab = ref.read(workbenchControllerProvider).activeWorkspaceTab;
+    if (tab == null || tab.kind != WorkspaceTabKind.terminal) {
+      return;
+    }
+    ref
+        .read(terminalRuntimeProvider)
+        .peekSession(tab.id)
+        ?.composerController
+        .toggle();
   }
 
   void _saveActiveEditor() {

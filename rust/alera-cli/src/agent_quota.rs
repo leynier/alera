@@ -18,6 +18,11 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
 use tokio::sync::Semaphore;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(12);
+/// Budget for a credential probe that macOS may answer with a keychain access
+/// dialog. Nothing here can dismiss that dialog, so a short timeout would kill
+/// the probe before the user could allow it and report a signed-in account as
+/// signed out.
+const KEYCHAIN_TIMEOUT: Duration = Duration::from_secs(15);
 const PTY_TIMEOUT: Duration = Duration::from_secs(18);
 const SESSION_WINDOW_MINUTES: i64 = 300;
 const WEEKLY_WINDOW_MINUTES: i64 = 10_080;
@@ -72,12 +77,15 @@ impl QuotaEnvironment {
         Self { overrides }
     }
 
-    fn value(&self, name: &str) -> Option<String> {
-        environment_secret(name).or_else(|| self.overrides.get(name).cloned())
+    async fn value(&self, name: &str) -> Option<String> {
+        match environment_secret(name).await {
+            Some(value) => Some(value),
+            None => self.overrides.get(name).cloned(),
+        }
     }
 
-    fn present(&self, name: &str) -> bool {
-        self.value(name).is_some()
+    async fn present(&self, name: &str) -> bool {
+        self.value(name).await.is_some()
     }
 }
 
@@ -390,28 +398,18 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             .then(left.account_id.cmp(&right.account_id))
     });
 
-    let environment = BTreeMap::from([
-        (
-            request.environment_names.kimi_api_key.clone(),
-            environment.present(&request.environment_names.kimi_api_key),
-        ),
-        (
-            request.environment_names.zai_api_key.clone(),
-            environment.present(&request.environment_names.zai_api_key),
-        ),
-        (
-            request.environment_names.zai_base_url.clone(),
-            environment.present(&request.environment_names.zai_base_url),
-        ),
-        (
-            request.environment_names.minimax_api_key.clone(),
-            environment.present(&request.environment_names.minimax_api_key),
-        ),
-        (
-            request.environment_names.minimax_api_host.clone(),
-            environment.present(&request.environment_names.minimax_api_host),
-        ),
-    ]);
+    let mut environment_presence = BTreeMap::new();
+    for name in [
+        &request.environment_names.kimi_api_key,
+        &request.environment_names.zai_api_key,
+        &request.environment_names.zai_base_url,
+        &request.environment_names.minimax_api_key,
+        &request.environment_names.minimax_api_host,
+    ] {
+        let present = environment.present(name).await;
+        environment_presence.insert(name.clone(), present);
+    }
+    let environment = environment_presence;
     Ok(json!({ "snapshots": snapshots, "environment": environment }))
 }
 
@@ -452,17 +450,27 @@ fn strip_terminal_sequences(value: &str) -> String {
         .to_string()
 }
 
-fn environment_secret(name: &str) -> Option<String> {
+async fn environment_secret(name: &str) -> Option<String> {
     if name.trim().is_empty() {
         return None;
     }
-    let value = std::env::var(name).ok()?;
+    let value = shell_environment_value(name).await?;
     let trimmed = value.trim();
     if trimmed.is_empty() {
         None
     } else {
         Some(trimmed.to_string())
     }
+}
+
+/// One variable as the user's shell sees it.
+///
+/// A quota lookup runs inside the sidecar, which a GUI launch starts with a
+/// minimal environment, so reading the process environment alone would miss
+/// every override the user exported from their shell rc files. A terminal tab
+/// in the same app sees them because the shell sources those files itself.
+async fn shell_environment_value(name: &str) -> Option<String> {
+    crate::login_shell_environment::login_shell_variable(name).await
 }
 
 fn home_dir() -> Option<PathBuf> {

@@ -7,6 +7,7 @@ import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_composer_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -14,6 +15,7 @@ import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_inject
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/terminal_osc52_clipboard.dart';
+import 'package:alera/src/features/workbench/domain/terminal_submit_payload.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
@@ -39,6 +41,7 @@ part 'terminal_runtime_output_batching.dart';
 part 'terminal_runtime_output_pipeline.dart';
 part 'terminal_runtime_pointer_synchronization.dart';
 part 'terminal_runtime_startup_delivery.dart';
+part 'terminal_runtime_submit_delivery.dart';
 part 'terminal_runtime_interactive_view.dart';
 part 'terminal_runtime_shell_launches.dart';
 part 'terminal_login_shell_launch.dart';
@@ -49,9 +52,16 @@ part 'terminal_runtime_restore_progress.dart';
 part 'terminal_runtime_testing.dart';
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
+  final TerminalComposerController composerController =
+      TerminalComposerController();
+
   String get tabId;
 
   String get workspaceId;
+
+  /// The runtime-host identity used to select the matching Agent Canvas.
+  /// Test and synthetic handles may omit it when they do not own a PTY.
+  String? get terminalSessionId => null;
 
   String get displayTitle;
 
@@ -120,6 +130,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   ///
   /// Default is a no-op so test doubles stay source-compatible.
   void pasteText(String text) {}
+
+  /// Pastes [text] into the foreground terminal process and presses Enter.
+  ///
+  /// Returns false when the PTY could not accept the prompt.
+  Future<bool> submitText(String text) async => false;
 
   /// The per-session terminal scrollback search model, when supported.
   TerminalSearchController? get searchController => null;
@@ -271,6 +286,15 @@ abstract interface class RecoverableTerminalPtySession
   Future<void> reconnect();
 
   Future<void> restartProcess();
+}
+
+/// A backend that can queue the submit CR as its own delayed write, kept
+/// adjacent to its payload so no other client can interleave between them.
+abstract interface class DeferredEnterTerminalPtySession
+    implements TerminalPtySession {
+  bool get supportsDeferredEnter;
+
+  bool writeBytesWithDeferredEnter(List<int> bytes);
 }
 
 sealed class TerminalPtySessionEvent {

@@ -78,7 +78,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   }) {
     return _sessions
         .putIfAbsent(tab.id, () {
-          return _XtermTerminalSessionHandle(
+          final handle = _XtermTerminalSessionHandle(
             workspace,
             tab,
             _ptySessionFactory,
@@ -94,6 +94,12 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _handleSessionExit,
             _handleVisibilityChanged,
           )..setAppForeground(_appForeground);
+          // Apply only at session creation so toggling the setting later does
+          // not reopen composers the user already closed.
+          if (_settings.showComposerByDefault) {
+            handle.composerController.show();
+          }
+          return handle;
         })
         .sync(workspace: workspace, tab: tab);
   }

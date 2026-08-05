@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
@@ -126,5 +128,159 @@ void main() {
         .value!;
     expect(state.comments, <ReviewComment>[existing]);
     expect(state.errorMessage, contains('permission denied'));
+  });
+
+  test(
+    'optimistically updates one comment and blocks only that comment',
+    () async {
+      final first = ReviewComment(
+        id: 'c1',
+        author: 'reviewer',
+        body: '- [ ] first',
+        createdAt: DateTime.utc(2026, 7, 16),
+        kind: ReviewCommentKind.conversation,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.conversation,
+          commentId: '1',
+        ),
+      );
+      final second = ReviewComment(
+        id: 'c2',
+        author: 'reviewer',
+        body: '- [ ] second',
+        createdAt: DateTime.utc(2026, 7, 16, 1),
+        kind: ReviewCommentKind.review,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.reviewThread,
+          commentId: '2',
+          parentId: 'thread-2',
+        ),
+      );
+      final release = Completer<void>();
+      final forge = FakeForgeProvider()
+        ..branchReview = _review
+        ..comments = <ReviewComment>[first, second]
+        ..updateCommentAction = (_, _) => release.future;
+      final container = _container(forge);
+      addTearDown(container.dispose);
+
+      await container.read(
+        workspacePullRequestControllerProvider(_scope).future,
+      );
+      final controller = container.read(
+        workspacePullRequestControllerProvider(_scope).notifier,
+      );
+      final firstSave = controller.toggleReviewCommentTask('c1', 0);
+      await Future<void>.delayed(Duration.zero);
+
+      var state = container
+          .read(workspacePullRequestControllerProvider(_scope))
+          .value!;
+      expect(state.canEditComments, isTrue);
+      expect(state.savingCommentIds, <String>{'c1'});
+      expect(state.comments.first.body, '- [x] first');
+      expect(state.savingCommentIds, <String>{'c1'});
+
+      await controller.toggleReviewCommentTask('c1', 0);
+      expect(forge.updateCommentCalls, 1);
+
+      final secondSave = controller.toggleReviewCommentTask('c2', 0);
+      await Future<void>.delayed(Duration.zero);
+      expect(forge.updateCommentCalls, 2);
+      expect(
+        container
+            .read(workspacePullRequestControllerProvider(_scope))
+            .value!
+            .savingCommentIds,
+        <String>{'c1', 'c2'},
+      );
+
+      release.complete();
+      await Future.wait(<Future<void>>[firstSave, secondSave]);
+      state = container
+          .read(workspacePullRequestControllerProvider(_scope))
+          .value!;
+      expect(state.comments[0].body, '- [x] first');
+      expect(state.comments[1].body, '- [x] second');
+      expect(state.savingCommentIds, isEmpty);
+      expect(state.errorMessage, isNull);
+      expect(forge.commentsCalls, greaterThan(2));
+    },
+  );
+
+  test(
+    'rolls back a rejected task update and surfaces the provider error',
+    () async {
+      final comment = ReviewComment(
+        id: 'c1',
+        author: 'reviewer',
+        body: '- [ ] first',
+        createdAt: DateTime.utc(2026, 7, 16),
+        kind: ReviewCommentKind.conversation,
+        locator: const ReviewCommentLocator(
+          source: ReviewCommentSource.conversation,
+          commentId: '1',
+        ),
+      );
+      final forge = FakeForgeProvider()
+        ..branchReview = _review
+        ..comments = <ReviewComment>[comment]
+        ..updateCommentError = StateError('permission denied');
+      final container = _container(forge);
+      addTearDown(container.dispose);
+
+      await container.read(
+        workspacePullRequestControllerProvider(_scope).future,
+      );
+      await container
+          .read(workspacePullRequestControllerProvider(_scope).notifier)
+          .toggleReviewCommentTask('c1', 0);
+
+      final state = container
+          .read(workspacePullRequestControllerProvider(_scope))
+          .value!;
+      expect(state.comments.single.body, '- [ ] first');
+      expect(state.savingCommentIds, isEmpty);
+      expect(state.errorMessage, contains('permission denied'));
+    },
+  );
+
+  test('keeps a successful change visible when refresh fails', () async {
+    final comment = ReviewComment(
+      id: 'c1',
+      author: 'reviewer',
+      body: '- [ ] first',
+      createdAt: DateTime.utc(2026, 7, 16),
+      kind: ReviewCommentKind.conversation,
+      locator: const ReviewCommentLocator(
+        source: ReviewCommentSource.conversation,
+        commentId: '1',
+      ),
+    );
+    var commentsLoads = 0;
+    final forge = FakeForgeProvider()
+      ..branchReview = _review
+      ..comments = <ReviewComment>[comment]
+      ..commentsLoader = () async {
+        commentsLoads++;
+        if (commentsLoads > 1) {
+          throw StateError('network unavailable');
+        }
+        return <ReviewComment>[comment];
+      };
+    final container = _container(forge);
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    await container
+        .read(workspacePullRequestControllerProvider(_scope).notifier)
+        .toggleReviewCommentTask('c1', 0);
+
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(state.comments.single.body, '- [x] first');
+    expect(state.savingCommentIds, isEmpty);
+    expect(state.errorMessage, contains('comments could not be refreshed'));
   });
 }

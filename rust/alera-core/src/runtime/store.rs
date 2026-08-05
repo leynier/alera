@@ -84,6 +84,9 @@ impl RuntimeStore {
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
+        for statement in super::agent_canvas_store::AGENT_CANVAS_SCHEMA {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
         self.set_metadata(
             "orchestration.schemaVersion",
             super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
@@ -138,6 +141,8 @@ impl RuntimeStore {
         )
         .await?;
         self.ensure_column("agentProfiles", "managedConfig", "TEXT")
+            .await?;
+        self.ensure_column("agentProfiles", "sortOrder", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_column("agentProfiles", "customPrompt", "TEXT NOT NULL DEFAULT ''")
             .await?;
@@ -698,6 +703,22 @@ impl RuntimeStore {
                 .bind(&workspace_id)
                 .execute(&mut *tx)
                 .await?;
+            sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
             sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
                 .bind(&workspace_id)
                 .execute(&mut *tx)
@@ -879,6 +900,22 @@ impl RuntimeStore {
                 .execute(&mut *tx)
                 .await?;
         }
+        sqlx::query("DELETE FROM agentCanvasRevisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM agentCanvasDecisions WHERE canvasId IN (SELECT id FROM agentCanvases WHERE workspaceId = ?)")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM agentCanvasEvents WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM agentCanvases WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
             .bind(workspace_id)
             .execute(&mut *tx)

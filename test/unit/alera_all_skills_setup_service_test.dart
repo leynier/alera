@@ -23,7 +23,7 @@ void main() {
     expect(hookReconciler.settings, hooks);
     expect(result.succeeded, isTrue);
     expect(result.needsAttention, isFalse);
-    expect(result.summary, 'All 4 Alera skills installed / updated');
+    expect(result.summary, 'All 5 Alera skills installed / updated');
     for (final skill in AleraAgentSkill.values) {
       expect(result.detail, contains(skill.name));
     }
@@ -41,8 +41,8 @@ void main() {
     expect(skillService.skills, AleraAgentSkill.values);
     expect(result.succeeded, isFalse);
     expect(result.needsAttention, isTrue);
-    expect(result.succeededCount, 3);
-    expect(result.summary, '3 of 4 Alera skills installed / updated');
+    expect(result.succeededCount, 4);
+    expect(result.summary, '4 of 5 Alera skills installed / updated');
     expect(result.detail, contains('computer-use'));
     expect(result.detail, contains('installer unavailable'));
     expect(result.detail, contains('alera-emulator'));

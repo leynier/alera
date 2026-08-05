@@ -92,6 +92,30 @@ void main() {
 
     expect(aleraKey, isNot(monokaiKey));
   });
+
+  test('offers Text Actions only for a valid editor selection', () {
+    expect(
+      workspaceEditorHasTextActionSelection(
+        text: 'Selected text',
+        selection: const TextSelection(baseOffset: 0, extentOffset: 8),
+      ),
+      isTrue,
+    );
+    expect(
+      workspaceEditorHasTextActionSelection(
+        text: 'Selected text',
+        selection: const TextSelection.collapsed(offset: 4),
+      ),
+      isFalse,
+    );
+    expect(
+      workspaceEditorHasTextActionSelection(
+        text: 'Selected text',
+        selection: const TextSelection(baseOffset: 0, extentOffset: 20),
+      ),
+      isFalse,
+    );
+  });
 }
 
 Workspace _workspace() {

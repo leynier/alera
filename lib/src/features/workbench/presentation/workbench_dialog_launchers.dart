@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
+import 'package:alera/src/features/automations/presentation/automations_dialog.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
@@ -39,6 +40,10 @@ Future<void> openSettingsDialog(
       initialProjectId: initialProjectId,
     ),
   );
+}
+
+Future<void> openAutomationsDialog(BuildContext context) {
+  return showAutomationsDialog(context);
 }
 
 /// Opens Quick Open for the active workspace and restores the prior focus when

@@ -81,6 +81,9 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
   bool get supportsTerminalRestart => false;
 
   @override
+  bool get supportsDeferredInput => false;
+
+  @override
   Stream<TerminalHostEvent> eventsForSession(String sessionId) =>
       const Stream<TerminalHostEvent>.empty();
 
@@ -162,6 +165,7 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
   Future<void> write({
     required String sessionId,
     required List<int> bytes,
+    bool deferredEnter = false,
   }) async {}
 }
 

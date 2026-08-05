@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use serde_json::Value;
 
@@ -6,7 +7,8 @@ use super::{ServerActor, ServerCommand};
 use crate::terminal_host::demand_driven_ticker::DemandDrivenTicker;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::resources::{
-    warming_snapshot, ResourceSampler, SessionPidRoot, RESOURCE_IDLE_STOP, RESOURCE_SAMPLE_INTERVAL,
+    clamp_resource_interval, resource_idle_stop_for, warming_snapshot, ResourceSampler,
+    SessionPidRoot, RESOURCE_IDLE_STOP, RESOURCE_SAMPLE_INTERVAL,
 };
 
 /// Resource sampling state, driven lazily: nothing sweeps the process table
@@ -19,6 +21,9 @@ pub(super) struct ResourceMonitorState {
     release_sampler_when_ready: bool,
     /// Pid of the app process to attribute, as reported by the last caller.
     app_pid: Option<u32>,
+    /// Cadence the ticker is currently running at, following what callers say
+    /// they poll at rather than a fixed value.
+    interval: Duration,
 }
 
 impl Default for ResourceMonitorState {
@@ -30,6 +35,7 @@ impl Default for ResourceMonitorState {
             sample_in_flight: false,
             release_sampler_when_ready: false,
             app_pid: None,
+            interval: RESOURCE_SAMPLE_INTERVAL,
         }
     }
 }
@@ -39,6 +45,7 @@ impl ResourceMonitorState {
         self.ticker.stop();
         self.last_snapshot = None;
         self.app_pid = None;
+        self.interval = RESOURCE_SAMPLE_INTERVAL;
         if self.sample_in_flight {
             self.release_sampler_when_ready = true;
         } else if let Ok(mut sampler) = self.sampler.lock() {
@@ -72,9 +79,15 @@ impl ServerActor {
         if app_pid.is_some() {
             self.resources.app_pid = app_pid;
         }
+        let interval = parse_sample_interval(payload)?.unwrap_or(RESOURCE_SAMPLE_INTERVAL);
+        self.resources
+            .ticker
+            .set_idle_stop(resource_idle_stop_for(interval));
         self.resources.ticker.note_request();
-        if !self.resources.ticker.is_running() {
-            self.start_resource_ticker();
+        let running = self.resources.ticker.is_running();
+        if !running || self.resources.interval != interval {
+            self.resources.interval = interval;
+            self.start_resource_ticker(!running);
         }
         Ok(self
             .resources
@@ -83,17 +96,24 @@ impl ServerActor {
             .unwrap_or_else(warming_snapshot))
     }
 
-    fn start_resource_ticker(&mut self) {
-        // The CPU numbers are deltas between refreshes. After an idle gap the
-        // next delta would describe minutes of history as if it were the last
-        // tick, so the baseline restarts with the ticker.
-        if let Ok(mut sampler) = self.resources.sampler.lock() {
-            sampler.reset_cpu_baseline();
+    /// (Re)start the ticker at the current cadence.
+    ///
+    /// `reset_baseline` is what distinguishes the two reasons to do this. The
+    /// CPU numbers are deltas between refreshes, so after an idle gap the next
+    /// delta would describe minutes of history as if it were the last tick and
+    /// the baseline has to restart with the ticker. A cadence change on a
+    /// ticker that never stopped has no such gap, and resetting there would put
+    /// the panel back into "measuring" every time the user hovers it.
+    fn start_resource_ticker(&mut self, reset_baseline: bool) {
+        if reset_baseline {
+            if let Ok(mut sampler) = self.resources.sampler.lock() {
+                sampler.reset_cpu_baseline();
+            }
         }
         let inbox = self.inbox.clone();
         self.resources
             .ticker
-            .start(RESOURCE_SAMPLE_INTERVAL, move || {
+            .start(self.resources.interval, move || {
                 inbox.send(ServerCommand::ResourceSampleTick).is_ok()
             });
     }
@@ -146,6 +166,21 @@ impl ServerActor {
 /// The app measures itself through the host because only the host runs the
 /// sampler. The pid travels per request rather than in `configure`: it belongs
 /// to one client, not to the host's shared configuration.
+/// The cadence the caller says it polls at, clamped to what the sampler serves.
+///
+/// Additive: a client that sends nothing gets the host's own default, which is
+/// what an app predating this expects.
+fn parse_sample_interval(payload: &Value) -> HostResult<Option<Duration>> {
+    match payload.get("intervalMs") {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => value
+            .as_u64()
+            .filter(|milliseconds| *milliseconds > 0)
+            .map(|milliseconds| Some(clamp_resource_interval(Duration::from_millis(milliseconds))))
+            .ok_or_else(|| HostError::state("intervalMs must be a positive integer.")),
+    }
+}
+
 fn parse_app_pid(payload: &Value) -> HostResult<Option<u32>> {
     match payload.get("appPid") {
         None | Some(Value::Null) => Ok(None),
@@ -182,6 +217,34 @@ mod tests {
         assert!(parse_app_pid(&json!({ "appPid": 0 })).is_err());
         assert!(parse_app_pid(&json!({ "appPid": -1 })).is_err());
         assert!(parse_app_pid(&json!({ "appPid": "one" })).is_err());
+    }
+
+    #[test]
+    fn an_absent_interval_leaves_the_host_default_in_place() {
+        assert_eq!(parse_sample_interval(&json!({})).unwrap(), None);
+        assert_eq!(
+            parse_sample_interval(&json!({ "intervalMs": null })).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn a_stated_interval_is_parsed_and_clamped() {
+        assert_eq!(
+            parse_sample_interval(&json!({ "intervalMs": 15_000 })).unwrap(),
+            Some(Duration::from_secs(15))
+        );
+        assert_eq!(
+            parse_sample_interval(&json!({ "intervalMs": 50 })).unwrap(),
+            Some(RESOURCE_SAMPLE_INTERVAL)
+        );
+    }
+
+    #[test]
+    fn a_nonsense_interval_is_rejected() {
+        assert!(parse_sample_interval(&json!({ "intervalMs": 0 })).is_err());
+        assert!(parse_sample_interval(&json!({ "intervalMs": -1 })).is_err());
+        assert!(parse_sample_interval(&json!({ "intervalMs": "fast" })).is_err());
     }
 
     #[test]

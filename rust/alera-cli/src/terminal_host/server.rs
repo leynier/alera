@@ -14,6 +14,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::Mutex;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver};
@@ -52,12 +53,23 @@ mod account_requests;
 mod account_requests_tests;
 #[cfg(test)]
 mod actor_test_harness;
+mod agent_canvas_requests;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_text_grok_plan;
 mod ai_text_requests;
 mod ai_text_workspace_identity;
+mod automation_actor;
+mod automation_catalog_requests;
+mod automation_definition_requests;
+mod automation_dispatch;
+mod automation_policy_requests;
+mod automation_request_authorization;
+mod automation_request_routes;
+mod automation_requests;
+mod automation_run_target_requests;
+mod automation_scheduler;
 mod browser_artifact_requests;
 mod browser_artifact_store;
 mod browser_broker;
@@ -71,11 +83,17 @@ mod browser_tab_rollback;
 mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
+mod codex_app_server;
+mod codex_events;
+mod codex_presence;
+mod codex_requests;
+mod codex_state;
 mod computer_request_payloads;
 mod computer_requests;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
+mod deferred_requests;
 mod emulator_request_payloads;
 mod emulator_request_queue;
 mod emulator_requests;
@@ -150,6 +168,7 @@ struct ClientState {
     authenticated: bool,
     binary_frames: bool,
     supports_mobile_emulator_tab_kind: bool,
+    supports_codex_tab_kind: bool,
     kind: ClientKind,
     local_role: client_delivery::LocalClientRole,
     mobile_device_id: Option<String>,
@@ -182,7 +201,10 @@ pub async fn run_terminal_host_server(
     prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    runtime_store.cleanup_agent_canvases().await?;
+    runtime_store.expire_agent_canvas_decisions().await?;
     runtime_store.ensure_default_browser_profile().await?;
+    crate::automation_autostart::reconcile_runtime_autostart(&runtime_store, &runtime_dir).await;
     let account_push =
         account_push_state::AccountPushState::new(runtime_dir.clone(), runtime_store.clone())
             .await?;
@@ -191,6 +213,12 @@ pub async fn run_terminal_host_server(
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+    let automation_wake = Arc::new(Notify::new());
+    let automation_ticker = automation_scheduler::spawn(
+        runtime_store.clone(),
+        inbox.clone(),
+        automation_wake.clone(),
+    );
     if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
         tracing::warn!("alera agent hook receiver unavailable: {error}");
     }
@@ -198,6 +226,8 @@ pub async fn run_terminal_host_server(
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
     tokio::spawn(async {
+        // Variables first: the PATH cache is filled from the same probe.
+        let _ = crate::login_shell_environment::login_shell_variables().await;
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
@@ -215,6 +245,8 @@ pub async fn run_terminal_host_server(
         config,
         store,
         runtime_store,
+        automation_wake,
+        automations_active: false,
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
@@ -233,12 +265,18 @@ pub async fn run_terminal_host_server(
         resources: ResourceMonitorState::default(),
         browser: BrowserBroker::default(),
         emulators,
+        codex: None,
+        codex_presence: HashMap::new(),
+        codex_presence_scheduled: false,
+        codex_pending_messages: HashMap::new(),
+        codex_flush_scheduled: HashSet::new(),
         inbox,
         next_client_id,
         mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
+    actor.reconcile_codex_presence().await;
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
@@ -264,6 +302,12 @@ pub async fn run_terminal_host_server(
     if let Some(directory) = actor.setup_script_directory() {
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
     }
+    actor.automations_active = actor.runtime_store.has_active_automations().await?
+        || !actor
+            .runtime_store
+            .list_active_automation_runs()
+            .await?
+            .is_empty();
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the
@@ -288,6 +332,8 @@ pub async fn run_terminal_host_server(
             break;
         }
     }
+    automation_ticker.abort();
+    let _ = automation_ticker.await;
     Ok(exit)
 }
 
@@ -298,6 +344,8 @@ struct ServerActor {
     config: TerminalHostConfig,
     store: TerminalHostHistoryStore,
     runtime_store: RuntimeStore,
+    automation_wake: Arc<Notify>,
+    automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
@@ -316,6 +364,11 @@ struct ServerActor {
     resources: ResourceMonitorState,
     browser: BrowserBroker,
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
+    codex: Option<codex_app_server::CodexAppServer>,
+    codex_presence: HashMap<String, Value>,
+    codex_presence_scheduled: bool,
+    codex_pending_messages: HashMap<String, Vec<Value>>,
+    codex_flush_scheduled: HashSet<String>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -487,6 +540,7 @@ impl ServerActor {
                         authenticated: false,
                         binary_frames: false,
                         supports_mobile_emulator_tab_kind: false,
+                        supports_codex_tab_kind: false,
                         kind,
                         local_role: client_delivery::LocalClientRole::Cli,
                         mobile_device_id: None,
@@ -664,9 +718,17 @@ impl ServerActor {
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)
             }
+            ServerCommand::AutomationTick => self.handle_automation_tick().await,
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
+            ServerCommand::CodexMessage { message } => self.handle_codex_message(message).await,
+            ServerCommand::CodexProcessExited { reason } => {
+                self.handle_codex_process_exited(reason).await
+            }
+            ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
+            ServerCommand::CodexPresenceTick => self.handle_codex_presence_tick(),
+            ServerCommand::CodexFlush { tab_id } => self.handle_codex_flush(&tab_id).await,
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1093,67 +1155,13 @@ impl ServerActor {
         });
     }
 
-    // --- Client lifecycle -------------------------------------------------
-
-    async fn dispose_client(&mut self, client_id: u64) {
-        let Some(client) = self.clients.get(&client_id) else {
-            return;
-        };
-        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
-        // Parked long-poll requests die with their connection.
-        self.orchestration_waiters.remove_client(client_id);
-        self.handle_browser_client_disconnect(client_id);
-        self.cancel_queued_emulator_requests(client_id);
-        // A vanished phone must not leave terminals locked at phone size.
-        self.release_mobile_driver_for_client(client_id);
-        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
-        for session_id in session_ids {
-            self.flush_all_output(&session_id);
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                session.detach(client_id);
-            }
-            self.immediate_checkpoint(&session_id).await;
-        }
-        // Dropping the handle ends the connection loop and closes the socket.
-        self.clients.remove(&client_id);
-        if release_emulator {
-            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
-    pub(super) async fn dispose_mobile_clients(&mut self) {
-        let client_ids = self
-            .clients
-            .iter()
-            .filter_map(|(id, client)| (client.kind == ClientKind::Mobile).then_some(*id))
-            .collect::<Vec<_>>();
-        for client_id in client_ids {
-            self.dispose_client(client_id).await;
-        }
-    }
-
-    pub(super) async fn dispose_mobile_clients_for_device(&mut self, device_id: &str) {
-        let client_ids = self
-            .clients
-            .iter()
-            .filter_map(|(id, client)| {
-                (client.kind == ClientKind::Mobile
-                    && client.mobile_device_id.as_deref() == Some(device_id))
-                .then_some(*id)
-            })
-            .collect::<Vec<_>>();
-        for client_id in client_ids {
-            self.dispose_client(client_id).await;
-        }
-    }
-
     async fn dispose(&mut self) {
         if self.disposed {
             return;
         }
         self.disposed = true;
         self.cancel_shutdown_timer();
+        self.codex = None;
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
         }
@@ -1211,6 +1219,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::from([(
                 "remote".to_string(),
@@ -1237,6 +1247,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1288,6 +1303,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1306,6 +1323,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1375,6 +1397,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1393,6 +1417,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1457,6 +1486,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1475,6 +1506,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1561,6 +1597,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1579,6 +1617,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1638,6 +1681,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1656,6 +1701,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1702,6 +1752,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store: runtime_store.clone(),
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -1724,6 +1776,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,

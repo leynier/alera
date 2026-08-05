@@ -76,6 +76,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (value) {
       case r'openSettings':
         return KeyboardActionId.openSettings;
+      case r'openAutomations':
+        return KeyboardActionId.openAutomations;
       case r'openQuickOpen':
         return KeyboardActionId.openQuickOpen;
       case r'openCommandPalette':
@@ -94,6 +96,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.findInFiles;
       case r'findInTerminal':
         return KeyboardActionId.findInTerminal;
+      case r'toggleTerminalComposer':
+        return KeyboardActionId.toggleTerminalComposer;
       case r'replaceInFiles':
         return KeyboardActionId.replaceInFiles;
       case r'saveFile':
@@ -142,6 +146,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
     switch (self) {
       case KeyboardActionId.openSettings:
         return r'openSettings';
+      case KeyboardActionId.openAutomations:
+        return r'openAutomations';
       case KeyboardActionId.openQuickOpen:
         return r'openQuickOpen';
       case KeyboardActionId.openCommandPalette:
@@ -160,6 +166,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'findInFiles';
       case KeyboardActionId.findInTerminal:
         return r'findInTerminal';
+      case KeyboardActionId.toggleTerminalComposer:
+        return r'toggleTerminalComposer';
       case KeyboardActionId.replaceInFiles:
         return r'replaceInFiles';
       case KeyboardActionId.saveFile:

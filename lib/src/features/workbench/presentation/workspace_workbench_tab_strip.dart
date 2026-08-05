@@ -16,6 +16,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
     required this.onRenameTab,
     required this.onCreateTab,
     required this.onCreateBrowserTab,
+    required this.onCreateCodexTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
     required this.onMoveTab,
@@ -35,6 +36,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
   final RenameWorkspaceTabCallback onRenameTab;
   final VoidCallback onCreateTab;
   final VoidCallback? onCreateBrowserTab;
+  final VoidCallback? onCreateCodexTab;
   final ValueChanged<WorkbenchDropZone> onSplitGroup;
   final VoidCallback onMergeGroup;
   final MoveWorkspaceTabCallback onMoveTab;
@@ -142,6 +144,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
       groupId: widget.groupId,
       onCreateTab: widget.onCreateTab,
       onCreateBrowserTab: widget.onCreateBrowserTab,
+      onCreateCodexTab: widget.onCreateCodexTab,
     );
     return ColoredBox(
       color: AleraTokens.surface,
@@ -369,18 +372,20 @@ class _SplitDirectionPainter extends CustomPainter {
   }
 }
 
-enum _NewTabMenuAction { terminal, browser, mobileEmulator }
+enum _NewTabMenuAction { terminal, codex, browser, mobileEmulator }
 
 class _NewTabButton extends StatelessWidget {
   const _NewTabButton({
     required this.groupId,
     required this.onCreateTab,
     required this.onCreateBrowserTab,
+    required this.onCreateCodexTab,
   });
 
   final String groupId;
   final VoidCallback onCreateTab;
   final VoidCallback? onCreateBrowserTab;
+  final VoidCallback? onCreateCodexTab;
 
   Future<void> _openMenu(BuildContext context) async {
     final onOpenMobileEmulator = _MobileEmulatorOpenScope.maybeOf(context);
@@ -411,6 +416,16 @@ class _NewTabButton extends StatelessWidget {
             color: AleraTokens.foregroundMuted,
           ),
         ),
+        if (onCreateCodexTab != null)
+          const AleraDropdownEntry<_NewTabMenuAction>(
+            value: _NewTabMenuAction.codex,
+            label: 'New Codex',
+            leading: Icon(
+              AleraIcons.composer,
+              size: 16,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
         if (onCreateBrowserTab != null)
           const AleraDropdownEntry<_NewTabMenuAction>(
             value: _NewTabMenuAction.browser,
@@ -441,6 +456,8 @@ class _NewTabButton extends StatelessWidget {
     switch (selected) {
       case _NewTabMenuAction.terminal:
         onCreateTab();
+      case _NewTabMenuAction.codex:
+        onCreateCodexTab?.call();
       case _NewTabMenuAction.browser:
         onCreateBrowserTab?.call();
       case _NewTabMenuAction.mobileEmulator:

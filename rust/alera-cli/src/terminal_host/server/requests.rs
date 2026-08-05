@@ -8,7 +8,6 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
-use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
@@ -23,10 +22,9 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-use super::mobile_terminal_requests::{mobile_request_allowed, MOBILE_HELLO_CAPABILITIES};
+pub(super) use super::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
-use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -46,6 +44,8 @@ struct MobileHelloRequest {
     device_token: String,
     #[serde(default)]
     cloud_device_id: Option<String>,
+    #[serde(default)]
+    supported_tab_kinds: Vec<String>,
 }
 
 impl ServerActor {
@@ -102,7 +102,10 @@ impl ServerActor {
                         }
                         return;
                     }
-                    match self.try_start_deferred_request(client_id, id, &request_type, &payload) {
+                    match self
+                        .try_start_deferred_request(client_id, id, &request_type, &payload)
+                        .await
+                    {
                         Ok(true) => return,
                         Ok(false) => {}
                         Err(error) => {
@@ -155,180 +158,6 @@ impl ServerActor {
         }
     }
 
-    fn try_start_deferred_request(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        request_type: &str,
-        payload: &Value,
-    ) -> HostResult<bool> {
-        if self.try_start_account_request(client_id, request_id, request_type, payload)? {
-            return Ok(true);
-        }
-        match request_type {
-            "aiText.workspaceIdentity.generate" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "workspace.createManaged" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
-                request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_create(client_id, request_id, request);
-                Ok(true)
-            }
-            "workspace.runSetup" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let copies_only = payload
-                    .get("copiesOnly")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                self.start_workspace_setup(client_id, request_id, workspace_id, copies_only);
-                Ok(true)
-            }
-            "workspace.removeManaged" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveManagedWorkspace { request },
-                );
-                Ok(true)
-            }
-            "project.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "id")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProject { project_id },
-                );
-                Ok(true)
-            }
-            "workspace.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let cascade_tabs = payload
-                    .get("cascadeTabs")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(true);
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspace {
-                        workspace_id,
-                        cascade_tabs,
-                    },
-                );
-                Ok(true)
-            }
-            "workspace.removeForProject" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProjectWorkspaces { project_id },
-                );
-                Ok(true)
-            }
-            "workspace.sleep" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::SleepWorkspace { workspace_id },
-                );
-                Ok(true)
-            }
-            "tab.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let tab_id = require_string_key(payload, "id")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveTab { tab_id },
-                );
-                Ok(true)
-            }
-            "tab.removeForWorkspace" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id },
-                );
-                Ok(true)
-            }
-            "write" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.queue_terminal_input(client_id, request_id, payload)
-            }
-            "agentQuota.snapshot" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "agentQuota.fetchClaudeTui" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_claude_tui_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "agentQuota.consumeCodexResetCredit" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_codex_reset_request(client_id, request_id, payload);
-                Ok(true)
-            }
-            "cliRegistration.status" | "cliRegistration.install" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_cli_registration_request(
-                    client_id,
-                    request_id,
-                    request_type.ends_with("install"),
-                );
-                Ok(true)
-            }
-            "agentSkill.install" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_skill_install_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            _ if request_type.starts_with("emulator.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_emulator_request(
-                    client_id,
-                    request_id,
-                    request_type.to_string(),
-                    payload.clone(),
-                );
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
     async fn handle_request(
         &mut self,
         client_id: u64,
@@ -369,6 +198,10 @@ impl ServerActor {
                     client.cloud_device_id = request
                         .cloud_device_id
                         .filter(|device_id| !device_id.trim().is_empty());
+                    client.supports_codex_tab_kind = request
+                        .supported_tab_kinds
+                        .iter()
+                        .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
                 }
                 self.cancel_shutdown_timer();
                 if binary_frames {
@@ -384,6 +217,7 @@ impl ServerActor {
                     "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
                     "authenticated": true,
                     "binaryFrames": binary_frames,
+                    "supportedTabKinds": request.supported_tab_kinds,
                     "device": device,
                 }))
             }
@@ -410,6 +244,10 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
+            request_type if request_type.starts_with("codex.") => {
+                self.handle_codex_request(client_id, request_type, payload)
+                    .await
+            }
             "configure" => {
                 self.require_auth(client_id)?;
                 // Crash reporting is a live switch rather than a start-up flag:
@@ -657,11 +495,19 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.handle_resource_snapshot(payload)
             }
+            ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
+            _ if request_type.starts_with("automation.") => {
+                self.handle_automation_request(client_id, request_type, payload)
+                    .await
+            }
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
-                let path_entry_count =
-                    crate::login_shell_environment::reload_login_shell_path().await;
-                Ok(json!({ "pathEntryCount": path_entry_count }))
+                let (path_count, variable_count) =
+                    crate::login_shell_environment::reload_login_shell_environment().await;
+                Ok(json!({
+                    "pathEntryCount": path_count,
+                    "variableCount": variable_count,
+                }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;
@@ -699,7 +545,7 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 7] = [
+                const ALLOWED: [&str; 8] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
@@ -707,6 +553,7 @@ impl ServerActor {
                     "agentStatusHooks",
                     "agentQuotas",
                     "mobilePushNotifications",
+                    "automation",
                 ];
                 if let Some(key) = payload
                     .as_object()
@@ -873,7 +720,9 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
                 if self.is_mobile_client(client_id) {
-                    Ok(self.mobile_workspace_tabs_payload(tabs))
+                    Ok(self.mobile_workspace_tabs_payload(
+                        self.workspace_tabs_for_client(client_id, tabs),
+                    ))
                 } else {
                     Ok(json!(self.workspace_tabs_for_client(client_id, tabs)))
                 }
@@ -1086,6 +935,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.agent_profile_upsert(payload).await
             }
+            "agentProfile.reorder" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.agent_profile_reorder(payload).await
+            }
             "agentProfile.remove" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_remove(payload).await
@@ -1232,24 +1085,6 @@ impl ServerActor {
         self.clients
             .get(&client_id)
             .is_some_and(|client| client.kind == ClientKind::Mobile)
-    }
-
-    pub(super) fn require_request_allowed(
-        &self,
-        client_id: u64,
-        request_type: &str,
-    ) -> HostResult<()> {
-        let Some(client) = self.clients.get(&client_id) else {
-            return Err(HostError::state(
-                "Terminal host client is not authenticated.",
-            ));
-        };
-        if client.kind == ClientKind::Local || mobile_request_allowed(request_type) {
-            return Ok(());
-        }
-        Err(HostError::state(format!(
-            "Mobile clients cannot call terminal host request: {request_type}"
-        )))
     }
 }
 

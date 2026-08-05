@@ -16,7 +16,9 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment_task_list.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -45,6 +47,9 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   Timer? _pollTimer;
   Duration _pollInterval = _minPollInterval;
   Future<void>? _refreshInFlight;
+  final Map<String, _PendingReviewCommentSave> _pendingCommentSaves =
+      <String, _PendingReviewCommentSave>{};
+  final Set<String> _savingCommentIds = <String>{};
   var _panelViewCount = 0;
   bool _visible = false;
   bool _disposed = false;
@@ -65,8 +70,10 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     ref.onDispose(() {
       _disposed = true;
       _pollTimer?.cancel();
+      _pendingCommentSaves.clear();
+      _savingCommentIds.clear();
     });
-    final initial = await _loader.load(scope);
+    final initial = _applyPendingCommentBodies(await _loader.load(scope));
     _schedulePoll(scope, snapshot: initial);
     return initial;
   }
@@ -109,7 +116,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     try {
       final loaded = await _loader.load(scope);
       if (!_disposed) {
-        state = AsyncData(loaded);
+        state = AsyncData(_applyPendingCommentBodies(loaded));
       }
     } catch (error, stackTrace) {
       if (!_disposed) {
@@ -217,6 +224,49 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     _schedulePoll(scope);
   }
 
+  WorkspacePullRequestState _applyPendingCommentBodies(
+    WorkspacePullRequestState loaded,
+  ) {
+    if (_pendingCommentSaves.isEmpty) {
+      return loaded;
+    }
+    final currentComments = state.value?.comments ?? const <ReviewComment>[];
+    final loadedIds = loaded.comments.map((comment) => comment.id).toSet();
+    final settledIds = <String>{};
+    for (final comment in loaded.comments) {
+      final pending = _pendingCommentSaves[comment.id];
+      if (pending != null &&
+          !_savingCommentIds.contains(comment.id) &&
+          comment.body == pending.optimisticBody) {
+        settledIds.add(comment.id);
+      }
+    }
+    for (final commentId in settledIds) {
+      _pendingCommentSaves.remove(commentId);
+    }
+    final comments = <ReviewComment>[
+      for (final comment in loaded.comments)
+        _pendingCommentSaves[comment.id] == null
+            ? comment
+            : comment.copyWith(
+                body: _pendingCommentSaves[comment.id]!.optimisticBody,
+              ),
+      for (final comment in currentComments)
+        if (!loadedIds.contains(comment.id) &&
+            _pendingCommentSaves.containsKey(comment.id))
+          comment.copyWith(
+            body: _pendingCommentSaves[comment.id]!.optimisticBody,
+          ),
+    ];
+    return loaded.copyWith(
+      comments: comments,
+      savingCommentIds: <String>{
+        ...loaded.savingCommentIds,
+        ..._savingCommentIds,
+      },
+    );
+  }
+
   /// Runs an action that mutates persisted state, then reloads.
   Future<void> _run({
     required WorkspacePullRequestScope scope,
@@ -230,7 +280,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       await body();
       final reloaded = await _loader.load(scope);
       if (!_disposed) {
-        state = AsyncData(reloaded);
+        state = AsyncData(_applyPendingCommentBodies(reloaded));
         _resetPollInterval();
       }
     } on _ActionError catch (error) {
@@ -305,17 +355,19 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         return;
       }
       final failed = reloaded.errorMessage != null;
+      final visibleReload = _applyPendingCommentBodies(reloaded);
       state = AsyncData(
         failed
             ? current.copyWith(
                 clearAction: true,
                 errorMessage: reloaded.errorMessage,
               )
-            : reloaded,
+            : visibleReload,
       );
       if (origin == _RefreshOrigin.poll) {
         _advancePollInterval(
-          changed: !failed && reloaded.pollSignature != current.pollSignature,
+          changed:
+              !failed && visibleReload.pollSignature != current.pollSignature,
         );
       }
     } catch (error) {
@@ -374,4 +426,14 @@ class _ActionError implements Exception {
   const _ActionError(this.message);
 
   final String message;
+}
+
+class _PendingReviewCommentSave {
+  const _PendingReviewCommentSave({
+    required this.originalBody,
+    required this.optimisticBody,
+  });
+
+  final String originalBody;
+  final String optimisticBody;
 }

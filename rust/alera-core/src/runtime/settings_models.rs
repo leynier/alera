@@ -22,6 +22,8 @@ pub struct RuntimeSettings {
     pub ai_text_generation: Option<RuntimeAiTextGenerationSettings>,
     #[serde(default)]
     pub text_actions: Option<RuntimeTextActionsSettings>,
+    #[serde(default)]
+    pub automation: RuntimeAutomationSettings,
 }
 
 impl Default for RuntimeSettings {
@@ -36,8 +38,45 @@ impl Default for RuntimeSettings {
             mobile_push_notifications: RuntimeMobilePushSettings::default(),
             ai_text_generation: None,
             text_actions: None,
+            automation: RuntimeAutomationSettings::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeAutomationSettings {
+    #[serde(default)]
+    pub autostart: bool,
+    #[serde(default = "default_run_retention_days")]
+    pub run_retention_days: i64,
+    #[serde(default = "default_audit_retention_days")]
+    pub audit_retention_days: i64,
+    #[serde(default = "default_trash_retention_days")]
+    pub trash_retention_days: i64,
+}
+
+impl Default for RuntimeAutomationSettings {
+    fn default() -> Self {
+        Self {
+            autostart: false,
+            run_retention_days: default_run_retention_days(),
+            audit_retention_days: default_audit_retention_days(),
+            trash_retention_days: default_trash_retention_days(),
+        }
+    }
+}
+
+fn default_run_retention_days() -> i64 {
+    30
+}
+
+fn default_audit_retention_days() -> i64 {
+    90
+}
+
+fn default_trash_retention_days() -> i64 {
+    30
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
-import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
@@ -16,6 +16,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/automations/presentation/automation_policy_sections.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -114,12 +115,24 @@ class _AgentProfilesSettingsPaneState
                   message:
                       'Declare a profile to let a run dispatch work to it.',
                 )
-              : SingleChildScrollView(
-                  child: AleraPanel(
-                    clipBehavior: Clip.antiAlias,
-                    children: <Widget>[
-                      for (final profile in profiles)
-                        AgentProfileListRow(
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AleraTokens.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    border: Border.all(color: AleraTokens.borderSubtle),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    child: ReorderableListView.builder(
+                      buildDefaultDragHandles: false,
+                      itemCount: profiles.length,
+                      onReorderItem: (oldIndex, newIndex) => unawaited(
+                        _reorderProfiles(profiles, oldIndex, newIndex),
+                      ),
+                      itemBuilder: (context, index) {
+                        final profile = profiles[index];
+                        return AgentProfileListRow(
+                          key: ValueKey<String>(profile.id),
                           profile: profile,
                           selected: profile.id == _selectedProfileId,
                           isDefault: profile.id == defaultAgentProfileId,
@@ -132,49 +145,69 @@ class _AgentProfilesSettingsPaneState
                               ? null
                               : () =>
                                     unawaited(_cloneProfile(profile, profiles)),
-                        ),
-                    ],
+                          dragHandle: ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(
+                              AleraIcons.dragHandle,
+                              size: 16,
+                              color: AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-          detail: AgentProfileEditor(
-            nameController: _nameController,
-            commandController: _commandController,
-            customPromptController: _customPromptController,
-            descriptionController: _descriptionController,
-            quotaGroupController: _quotaGroupController,
-            adapter: _adapter,
-            launchMode: _launchMode,
-            managedConfig: _managedConfig,
-            models: _modelsFor(_adapter),
-            personas: _personasFor(_adapter),
-            hasSelection: _selectedProfileId != null,
-            saving: _saving,
-            modelsLoading: _loadingModels.contains(_adapter),
-            personasLoading: _loadingPersonas.contains(_adapter),
-            discoveryError: _discoveryErrors[_adapter],
-            error: _error,
-            onAdapterChanged: _selectAdapter,
-            onLaunchModeChanged: (value) {
-              setState(() {
-                _launchMode = value;
-                _error = null;
-              });
-              if (value == AgentProfileLaunchMode.managed) {
-                _scheduleDiscovery(_adapter);
-              }
-            },
-            onManagedConfigChanged: _updateManagedConfig,
-            onRefreshModels: _canDiscoverModels(_adapter)
-                ? () => unawaited(_discoverModels(_adapter))
-                : null,
-            onRefreshPersonas: _canDiscoverPersonas(_adapter)
-                ? () => unawaited(_discoverPersonas(_adapter))
-                : null,
-            onSave: _saveProfile,
-            onRemove: selectedProfile == null
-                ? null
-                : () => _removeProfile(selectedProfile),
-            onTestCommand: () => unawaited(_testCommand()),
+          detail: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AgentProfileEditor(
+                  nameController: _nameController,
+                  commandController: _commandController,
+                  customPromptController: _customPromptController,
+                  descriptionController: _descriptionController,
+                  quotaGroupController: _quotaGroupController,
+                  adapter: _adapter,
+                  launchMode: _launchMode,
+                  managedConfig: _managedConfig,
+                  models: _modelsFor(_adapter),
+                  personas: _personasFor(_adapter),
+                  hasSelection: _selectedProfileId != null,
+                  saving: _saving,
+                  modelsLoading: _loadingModels.contains(_adapter),
+                  personasLoading: _loadingPersonas.contains(_adapter),
+                  discoveryError: _discoveryErrors[_adapter],
+                  error: _error,
+                  onAdapterChanged: _selectAdapter,
+                  onLaunchModeChanged: (value) {
+                    setState(() {
+                      _launchMode = value;
+                      _error = null;
+                    });
+                    if (value == AgentProfileLaunchMode.managed) {
+                      _scheduleDiscovery(_adapter);
+                    }
+                  },
+                  onManagedConfigChanged: _updateManagedConfig,
+                  onRefreshModels: _canDiscoverModels(_adapter)
+                      ? () => unawaited(_discoverModels(_adapter))
+                      : null,
+                  onRefreshPersonas: _canDiscoverPersonas(_adapter)
+                      ? () => unawaited(_discoverPersonas(_adapter))
+                      : null,
+                  onSave: _saveProfile,
+                  onRemove: selectedProfile == null
+                      ? null
+                      : () => _removeProfile(selectedProfile),
+                  onTestCommand: () => unawaited(_testCommand()),
+                ),
+                if (selectedProfile != null) ...<Widget>[
+                  const SizedBox(height: AleraTokens.space16),
+                  AutomationProfilePolicySection(profileId: selectedProfile.id),
+                ],
+              ],
+            ),
           ),
         );
       },

@@ -1,5 +1,5 @@
 use super::*;
-use crate::terminal_host::protocol::{MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
+use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND, PROTOCOL_VERSION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LocalClientRole {
@@ -15,6 +15,15 @@ impl ServerActor {
                 "Terminal host client is not authenticated.",
             )),
         }
+    }
+
+    pub(super) fn require_authenticated_local_request(
+        &self,
+        client_id: u64,
+        request_type: &str,
+    ) -> HostResult<()> {
+        self.require_auth(client_id)?;
+        self.require_request_allowed(client_id, request_type)
     }
 
     pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
@@ -50,10 +59,19 @@ impl ServerActor {
                     .iter()
                     .any(|kind| kind.as_str() == Some(MOBILE_EMULATOR_TAB_KIND))
             });
+        let supports_codex_tab_kind = payload
+            .get("supportedTabKinds")
+            .and_then(Value::as_array)
+            .is_some_and(|kinds| {
+                kinds
+                    .iter()
+                    .any(|kind| kind.as_str() == Some(CODEX_TAB_KIND))
+            });
         if let Some(client) = self.clients.get_mut(&client_id) {
             client.authenticated = true;
             client.binary_frames = binary_frames;
             client.supports_mobile_emulator_tab_kind = supports_mobile_emulator_tab_kind;
+            client.supports_codex_tab_kind = supports_codex_tab_kind;
             if client.kind == ClientKind::Local {
                 client.local_role = local_role;
             }
@@ -144,6 +162,56 @@ impl ServerActor {
             .inbox
             .send(ServerCommand::ClientDisconnected { id: client_id });
     }
+
+    pub(super) async fn dispose_client(&mut self, client_id: u64) {
+        let Some(client) = self.clients.get(&client_id) else {
+            return;
+        };
+        let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
+        self.orchestration_waiters.remove_client(client_id);
+        self.handle_browser_client_disconnect(client_id);
+        self.cancel_queued_emulator_requests(client_id);
+        self.release_mobile_driver_for_client(client_id);
+        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
+        for session_id in session_ids {
+            self.flush_all_output(&session_id);
+            if let Some(session) = self.sessions.get_mut(&session_id) {
+                session.detach(client_id);
+            }
+            self.immediate_checkpoint(&session_id).await;
+        }
+        self.clients.remove(&client_id);
+        if release_emulator {
+            self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
+    pub(super) async fn dispose_mobile_clients(&mut self) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| (client.kind == ClientKind::Mobile).then_some(*id))
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
+
+    pub(super) async fn dispose_mobile_clients_for_device(&mut self, device_id: &str) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| {
+                (client.kind == ClientKind::Mobile
+                    && client.mobile_device_id.as_deref() == Some(device_id))
+                .then_some(*id)
+            })
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
 }
 
 fn requested_local_role(payload: &Value) -> LocalClientRole {
@@ -201,6 +269,8 @@ mod tests {
             config: TerminalHostConfig::default(),
             store,
             runtime_store,
+            automation_wake: Arc::new(Notify::new()),
+            automations_active: false,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
@@ -215,6 +285,7 @@ mod tests {
                     authenticated: true,
                     binary_frames: false,
                     supports_mobile_emulator_tab_kind: false,
+                    supports_codex_tab_kind: false,
                     kind: ClientKind::Local,
                     local_role: LocalClientRole::Cli,
                     mobile_device_id: None,
@@ -232,6 +303,11 @@ mod tests {
             resources: ResourceMonitorState::default(),
             browser: BrowserBroker::default(),
             emulators: None,
+            codex: None,
+            codex_presence: HashMap::new(),
+            codex_presence_scheduled: false,
+            codex_pending_messages: HashMap::new(),
+            codex_flush_scheduled: HashSet::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,

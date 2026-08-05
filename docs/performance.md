@@ -49,6 +49,12 @@ Capture idle, a common workbench flow, a terminal-output burst, a quota refresh,
 
 The latest detailed macOS investigation and before/after results are recorded in [`performance-resource-profile-2026-07-19.md`](performance-resource-profile-2026-07-19.md).
 
+## Resource Sampling Cadence
+
+The sidecar's own process-table sweep is demand-driven: nothing samples until a client asks, and the ticker stops itself once they stop asking. The cadence is not fixed in the host. Each `resources.snapshot` request states the interval the caller polls at (`intervalMs`), and the host both samples at that interval and sizes its idle window around it. Closing the resource panel therefore makes the host proportionally cheaper rather than merely making the app ask less often.
+
+Deriving the idle window from the stated cadence is what keeps it correct. When it was a fixed constant it had to agree with a polling interval chosen in Dart, the two drifted, and the ticker stopped under a chip that was still polling on time - which is what made the panel appear to work only while hovered. A client that states nothing gets the host's own defaults, so an older app is unaffected.
+
 ## Where A Frame's CPU Goes On Linux
 
 Measured on a Wayland session with an Intel Arc GPU, Flutter 3.44.8, with `perf` at thread granularity against the installed release build while agents streamed into a visible terminal:

@@ -1,5 +1,14 @@
 part of 'workspace_editor_surface.dart';
 
+@visibleForTesting
+String workspaceEditorCodeForgeKey({
+  required String tabId,
+  required String filePath,
+  required String themeName,
+}) {
+  return 'workspace-editor-$tabId-$filePath-$themeName';
+}
+
 class _EditorFileBar extends StatelessWidget {
   const _EditorFileBar({
     required this.path,

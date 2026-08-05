@@ -71,6 +71,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.tuiScrollSensitivity = 1,
     this.clipboardOnSelect = false,
     this.allowOsc52Clipboard = false,
+    this.showComposerByDefault = false,
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
@@ -96,6 +97,9 @@ class TerminalSettings with TerminalSettingsMappable {
   final int tuiScrollSensitivity;
   final bool clipboardOnSelect;
   final bool allowOsc52Clipboard;
+
+  /// Whether new terminal sessions open the prompt composer immediately.
+  final bool showComposerByDefault;
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
@@ -137,6 +141,7 @@ class TerminalSettings with TerminalSettingsMappable {
     tuiScrollSensitivity: 1,
     clipboardOnSelect: false,
     allowOsc52Clipboard: false,
+    showComposerByDefault: false,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
@@ -391,6 +396,28 @@ class DiagnosticsSettings with DiagnosticsSettingsMappable {
       DiagnosticsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
+@MappableClass()
+class CodexChatSettings with CodexChatSettingsMappable {
+  const CodexChatSettings({
+    this.selectedModel,
+    this.reasoningEffort = 'medium',
+    this.speedMode = 'normal',
+    this.permissionMode = 'on-request',
+    this.planMode = false,
+  });
+
+  final String? selectedModel;
+  final String reasoningEffort;
+  final String speedMode;
+  final String permissionMode;
+  final bool planMode;
+
+  static const CodexChatSettings defaults = CodexChatSettings();
+
+  factory CodexChatSettings.fromJson(Map<String, Object?> json) =>
+      CodexChatSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
 @MappableClass(hook: _LegacyAgentSettingsHook())
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
@@ -400,6 +427,7 @@ class AleraSettings with AleraSettingsMappable {
     this.textActions = TextActionsSettings.defaults,
     this.editor = EditorSettings.defaults,
     this.diagnostics = DiagnosticsSettings.defaults,
+    this.codexChat = CodexChatSettings.defaults,
     required this.terminal,
     required this.keyboard,
   });
@@ -410,6 +438,7 @@ class AleraSettings with AleraSettingsMappable {
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
+  final CodexChatSettings codexChat;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
@@ -419,6 +448,7 @@ class AleraSettings with AleraSettingsMappable {
     aiTextGeneration: AiTextGenerationSettings.defaults,
     editor: EditorSettings.defaults,
     diagnostics: DiagnosticsSettings.defaults,
+    codexChat: CodexChatSettings.defaults,
     terminal: TerminalSettings.defaults,
     keyboard: KeyboardShortcutSettings.defaults,
   );

@@ -94,6 +94,7 @@ impl RemovalFixture {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )

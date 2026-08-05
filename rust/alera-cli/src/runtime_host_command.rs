@@ -1,6 +1,7 @@
+use std::fs;
 use std::path::PathBuf;
 
-use crate::cli::TerminalHostArgs;
+use crate::cli::{AutomationHostArgs, TerminalHostArgs};
 use crate::terminal_host::diagnostics;
 use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::{run_terminal_host_server, TerminalHostExit};
@@ -65,6 +66,49 @@ pub(crate) async fn run(args: TerminalHostArgs) -> i32 {
             1
         }
     }
+}
+
+pub(crate) async fn run_automation_host(args: AutomationHostArgs) -> i32 {
+    let runtime_dir = PathBuf::from(args.runtime_dir.trim());
+    if runtime_dir.as_os_str().is_empty() {
+        eprintln!("Missing required option --runtime-dir.");
+        return USAGE_EXIT_CODE;
+    }
+    if let Err(error) = fs::create_dir_all(&runtime_dir) {
+        eprintln!("Could not prepare automation runtime directory: {error}");
+        return 1;
+    }
+    let token_path = runtime_dir.join("automation-host.token");
+    let token = match fs::read_to_string(&token_path) {
+        Ok(token) if !token.trim().is_empty() => token.trim().to_string(),
+        _ => {
+            let token = uuid::Uuid::new_v4().to_string();
+            if let Err(error) = fs::write(&token_path, &token) {
+                eprintln!("Could not create automation host token: {error}");
+                return 1;
+            }
+            token
+        }
+    };
+    run(TerminalHostArgs {
+        runtime_dir: runtime_dir.to_string_lossy().into_owned(),
+        control_file: runtime_dir
+            .join("runtime-host.json")
+            .to_string_lossy()
+            .into_owned(),
+        token,
+        empty_shutdown_delay_seconds:
+            crate::terminal_host::protocol::DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
+        detached_session_shutdown_delay_seconds:
+            crate::terminal_host::protocol::DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS,
+        scrollback_bytes: crate::terminal_host::protocol::DEFAULT_SCROLLBACK_BYTES,
+        restore_snapshot_bytes: None,
+        login_shell: None,
+        persistent: true,
+        log_level: "info".to_string(),
+        crash_reporting: false,
+    })
+    .await
 }
 
 fn required_option_error(value: &str, name: &str) -> bool {

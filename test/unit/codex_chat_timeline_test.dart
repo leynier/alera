@@ -1,0 +1,497 @@
+import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_timeline.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+Map<String, Object?> _message(String method, Map<String, Object?> params) =>
+    <String, Object?>{'method': method, 'params': params};
+
+void main() {
+  final now = DateTime.utc(2026, 8, 2, 12);
+
+  test('coalesces progressive assistant deltas by item id', () {
+    var cells = <CodexTimelineCell>[];
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('turn/started', <String, Object?>{
+        'turn': <String, Object?>{'id': 'turn-1'},
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'answer-1',
+        'delta': 'Hello',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'answer-1',
+        'delta': ' world',
+      }),
+      now: now,
+    );
+    expect(cells, hasLength(2));
+    final answer = cells.singleWhere((cell) => cell.itemId == 'answer-1');
+    expect(answer.kind, CodexTimelineKind.assistantMessage);
+    expect(answer.markdownText, 'Hello world');
+    expect(answer.isStreaming, isTrue);
+  });
+
+  test(
+    'keeps commentary, reasoning, command output, diff, plan and subagent rows distinct',
+    () {
+      var cells = <CodexTimelineCell>[];
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/agentMessage/delta', <String, Object?>{
+          'turnId': 'turn-1',
+          'itemId': 'commentary-1',
+          'phase': 'commentary',
+          'delta': 'Inspecting files',
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/reasoning/textDelta', <String, Object?>{
+          'turnId': 'turn-1',
+          'itemId': 'reason-1',
+          'delta': 'Checking the plan',
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/started', <String, Object?>{
+          'turnId': 'turn-1',
+          'item': <String, Object?>{
+            'id': 'command-1',
+            'type': 'commandExecution',
+            'command': 'git status',
+          },
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/commandExecution/outputDelta', <String, Object?>{
+          'turnId': 'turn-1',
+          'itemId': 'command-1',
+          'delta': 'clean',
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('turn/diff/updated', <String, Object?>{
+          'turnId': 'turn-1',
+          'diff': 'diff --git a/file b/file',
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/started', <String, Object?>{
+          'turnId': 'turn-1',
+          'item': <String, Object?>{'id': 'plan-1', 'type': 'plan'},
+        }),
+        now: now,
+      );
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/started', <String, Object?>{
+          'turnId': 'turn-1',
+          'item': <String, Object?>{'id': 'agent-1', 'type': 'subAgent'},
+        }),
+        now: now,
+      );
+      expect(
+        cells.map((cell) => cell.kind),
+        containsAll(<CodexTimelineKind>[
+          CodexTimelineKind.progressText,
+          CodexTimelineKind.reasoning,
+          CodexTimelineKind.command,
+          CodexTimelineKind.diff,
+          CodexTimelineKind.plan,
+          CodexTimelineKind.subAgent,
+        ]),
+      );
+      expect(
+        cells.singleWhere((cell) => cell.itemId == 'command-1').detailsText,
+        'clean',
+      );
+    },
+  );
+
+  test('replaces full diff snapshots instead of appending them', () {
+    final first = CodexTimelineReducer.reduce(
+      const <CodexTimelineCell>[],
+      _message('turn/diff/updated', <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'first snapshot',
+      }),
+      now: now,
+    );
+    final second = CodexTimelineReducer.reduce(
+      first,
+      _message('turn/diff/updated', <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'second snapshot',
+      }),
+      now: now,
+    );
+    expect(
+      second.singleWhere((cell) => cell.id == 'diff-turn-1').detailsText,
+      'second snapshot',
+    );
+  });
+
+  test('turn completion closes every streaming cell and marks failures', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'answer-1',
+        'delta': 'partial',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('turn/failed', <String, Object?>{
+        'turn': <String, Object?>{'id': 'turn-1'},
+      }),
+      now: now,
+    );
+    expect(cells.single.status, CodexTimelineStatus.failed);
+    expect(cells.single.isStreaming, isFalse);
+  });
+
+  test('turn completion records server duration on the separator', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('turn/started', <String, Object?>{
+        'turn': <String, Object?>{
+          'id': 'turn-1',
+          'startedAt': '2026-08-03T12:00:00Z',
+        },
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('turn/completed', <String, Object?>{
+        'turn': <String, Object?>{
+          'id': 'turn-1',
+          'completedAt': '2026-08-03T12:00:01.250Z',
+          'durationMs': 1250,
+        },
+      }),
+      now: now.add(const Duration(milliseconds: 1250)),
+    );
+    final separator = cells.singleWhere(
+      (cell) => cell.kind == CodexTimelineKind.turnSeparator,
+    );
+    expect(separator.metadata['computedDurationMs'], 1250);
+    expect(separator.metadata['completedAt'], '2026-08-03T12:00:01.250Z');
+  });
+
+  test('maps modern app-server item variants and rich metadata', () {
+    var cells = <CodexTimelineCell>[];
+    for (final item in <Map<String, Object?>>[
+      <String, Object?>{
+        'id': 'search',
+        'type': 'webSearch',
+        'query': 'Alera',
+        'action': <String, Object?>{'type': 'search', 'query': 'Alera'},
+      },
+      <String, Object?>{
+        'id': 'dynamic',
+        'type': 'dynamicToolCall',
+        'tool': 'inspect',
+        'arguments': <String, Object?>{'path': 'README.md'},
+        'contentItems': <Object?>[
+          <String, Object?>{'type': 'inputText', 'text': 'done'},
+        ],
+        'durationMs': 42,
+      },
+      <String, Object?>{'id': 'view', 'type': 'imageView', 'path': 'a.png'},
+      <String, Object?>{'id': 'compact', 'type': 'contextCompaction'},
+    ]) {
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _message('item/completed', <String, Object?>{
+          'turnId': 'turn-1',
+          'item': item,
+        }),
+        now: now,
+      );
+    }
+    expect(cells, hasLength(4));
+    expect(
+      cells.every((cell) => cell.kind == CodexTimelineKind.toolCall),
+      isTrue,
+    );
+    expect(cells[0].title, 'Web search');
+    expect(cells[0].metadata['query'], 'Alera');
+    expect(cells[1].title, 'inspect');
+    expect(cells[1].metadata['durationMs'], 42);
+    expect(cells[1].detailsText, contains('done'));
+    expect(cells[2].title, 'Viewed image');
+    expect(cells[3].title, 'Compacted context');
+  });
+
+  test('maps standalone command and file streams to specific kinds', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('item/commandExecution/outputDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'command-1',
+        'delta': 'done',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/fileChange/outputDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'files-1',
+        'delta': 'diff',
+      }),
+      now: now,
+    );
+    expect(
+      cells.singleWhere((cell) => cell.itemId == 'command-1').kind,
+      CodexTimelineKind.command,
+    );
+    expect(
+      cells.singleWhere((cell) => cell.itemId == 'files-1').kind,
+      CodexTimelineKind.diff,
+    );
+  });
+
+  test('restores legacy item completion and task messages', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('codex/event/item_started', <String, Object?>{
+        'msg': <String, Object?>{
+          'turn_id': 'turn-1',
+          'item': <String, Object?>{'id': 'answer-1', 'type': 'agentMessage'},
+        },
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('codex/event/task_complete', <String, Object?>{
+        'msg': <String, Object?>{
+          'turn_id': 'turn-1',
+          'last_agent_message': 'done',
+        },
+      }),
+      now: now,
+    );
+    final answer = cells.singleWhere((cell) => cell.id == 'assistant-turn-1');
+    expect(answer.kind, CodexTimelineKind.assistantMessage);
+    expect(answer.markdownText, 'done');
+    expect(answer.isStreaming, isFalse);
+  });
+
+  test('preserves commentary phase and de-duplicates repeated output', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('codex/event/item_started', <String, Object?>{
+        'msg': <String, Object?>{
+          'turn_id': 'turn-1',
+          'item': <String, Object?>{
+            'id': 'commentary-1',
+            'type': 'AgentMessage',
+            'phase': 'commentary',
+          },
+        },
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'commentary-1',
+        'delta': 'Inspecting files',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/commandExecution/outputDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'command-1',
+        'delta': 'clean',
+      }),
+      now: now,
+    );
+    final repeated = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/commandExecution/outputDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'command-1',
+        'delta': 'clean',
+      }),
+      now: now,
+    );
+    expect(
+      repeated.singleWhere((cell) => cell.itemId == 'commentary-1').kind,
+      CodexTimelineKind.progressText,
+    );
+    expect(
+      repeated.singleWhere((cell) => cell.itemId == 'command-1').detailsText,
+      'clean',
+    );
+    expect(repeated, hasLength(cells.length));
+  });
+
+  test('parses structured questions and session approval actions', () {
+    final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
+      'pendingRequests': <Object?>[
+        <String, Object?>{
+          'id': 7,
+          'method': 'item/tool/request_user_input',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'mode',
+                'header': 'Mode',
+                'question': 'How should I proceed?',
+                'options': <Object?>[
+                  <String, Object?>{'label': 'Fast'},
+                  <String, Object?>{'label': 'Careful'},
+                ],
+              },
+            ],
+          },
+        },
+        <String, Object?>{
+          'id': 8,
+          'method': 'item/commandExecution/requestApproval',
+          'params': <String, Object?>{'command': 'git status'},
+        },
+      ],
+    });
+    expect(snapshot.pendingRequests[0].isQuestion, isTrue);
+    expect(snapshot.pendingRequests[0].questions.single.options, hasLength(2));
+    expect(snapshot.pendingRequests[1].isApproval, isTrue);
+    expect(snapshot.pendingRequests[1].approvalDescription, 'git status');
+  });
+
+  test('restores legacy raw events into durable timeline cells', () {
+    final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
+      'events': <Object?>[
+        _message('item/agentMessage/delta', <String, Object?>{
+          'turnId': 'turn-1',
+          'itemId': 'answer-1',
+          'delta': 'restored',
+        }),
+      ],
+    });
+    expect(snapshot.timelineCells.single.markdownText, 'restored');
+    expect(snapshot.toJson()['timelineCells'], isA<List<Object?>>());
+  });
+
+  test(
+    'model metadata preserves supported reasoning and fast-mode behavior',
+    () {
+      final model = CodexModelOption.fromJson(<String, Object?>{
+        'id': 'gpt-current',
+        'displayName': 'Current Codex',
+        'isDefault': true,
+        'contextWindowTokens': 128000,
+        'supportsFastMode': true,
+        'reasoningEfforts': <String>['medium', 'high'],
+      });
+      expect(model.isDefault, isTrue);
+      expect(model.contextWindowTokens, 128000);
+      expect(model.reasoningEfforts, <String>['medium', 'high']);
+      expect(model.supportsFastMode, isTrue);
+    },
+  );
+
+  test('shows only the latest actionable plan after the latest user turn', () {
+    CodexChatSnapshot snapshot(Object? pendingRequests) =>
+        CodexChatSnapshot.fromJson(<String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'old-user',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Old request',
+            },
+            <String, Object?>{
+              'id': 'old-plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Old plan',
+            },
+            <String, Object?>{
+              'id': 'latest-user',
+              'kind': 'userMessage',
+              'status': 'completed',
+              'markdownText': 'Latest request',
+            },
+            <String, Object?>{
+              'id': 'latest-plan',
+              'kind': 'plan',
+              'status': 'completed',
+              'markdownText': 'Latest plan',
+            },
+          ],
+          'pendingRequests': pendingRequests,
+        });
+
+    expect(snapshot(const <Object?>[]).shouldShowImplementPlan, isTrue);
+    expect(
+      snapshot(<Object?>[
+        <String, Object?>{
+          'id': 5,
+          'method': 'item/tool/request_user_input',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'plan',
+                'question': 'Implement this plan?',
+              },
+            ],
+          },
+        },
+      ]).shouldShowImplementPlan,
+      isFalse,
+    );
+  });
+
+  test('preserves reasoning order and structured fast service tiers', () {
+    final model = CodexModelOption.fromJson(<String, Object?>{
+      'id': 'gpt-5.6-sol',
+      'supportedReasoningEfforts': <Object?>[
+        <String, Object?>{'reasoningEffort': 'xhigh'},
+        <String, Object?>{'reasoningEffort': 'low'},
+      ],
+      'additionalSpeedTiers': <Object?>[
+        <String, Object?>{'id': 'fast', 'displayName': 'Fast'},
+      ],
+      'serviceTiers': <Object?>[
+        <String, Object?>{
+          'id': 'priority',
+          'options': <Object?>[
+            <String, Object?>{'name': 'fast'},
+          ],
+        },
+      ],
+    });
+    expect(model.reasoningEfforts, <String>['xhigh', 'low']);
+    expect(model.supportsFastMode, isTrue);
+  });
+}

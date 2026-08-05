@@ -187,10 +187,14 @@ class ResourceSnapshot {
 
   /// The state before any reading exists: a host that does not support the
   /// verb, a failed request, or the moment right after the panel opens.
+  ///
+  /// Only the last of those is warming. A host that could not answer is not
+  /// measuring anything, and reporting it as such tells the user to wait for a
+  /// number that is never coming.
   factory ResourceSnapshot.unavailable({String? error}) {
     return ResourceSnapshot(
       collectedAt: DateTime.now().toUtc(),
-      warming: true,
+      warming: error == null,
       host: ResourceHostMetrics.empty,
       hostProcess: null,
       appProcess: null,

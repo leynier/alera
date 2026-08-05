@@ -24,6 +24,7 @@ export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 part 'mobile_runtime_client_host_tools.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
+part 'mobile_runtime_codex_requests.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 
@@ -34,8 +35,9 @@ class MobileRuntimeClient
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeTerminalRequests,
-        MobileRuntimeTerminalOutputResync
-    implements MobileTerminalClient, MobileWorkspaceClient {
+        MobileRuntimeTerminalOutputResync,
+        MobileRuntimeCodexRequests
+    implements MobileTerminalClient, MobileWorkspaceClient, MobileCodexClient {
   MobileRuntimeClient._(
     this._channel, {
     this._requestTimeout = _defaultRequestTimeout,
@@ -159,6 +161,12 @@ class MobileRuntimeClient
   @override
   bool get supportsPromptImageUpload =>
       _runtimeCapabilities.contains(mobilePromptImageUploadCapability);
+  @override
+  bool get supportsCodexChat =>
+      _runtimeCapabilities.contains(codexChatTabCapability);
+
+  bool get supportsAutomations =>
+      _runtimeCapabilities.contains(automationsCapability);
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
@@ -174,6 +182,7 @@ class MobileRuntimeClient
       'deviceToken': deviceToken,
       'cloudDeviceId': ?cloudDeviceId,
       'binaryFrames': true,
+      'supportedTabKinds': const <String>['codex'],
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
     // The response decides, not the request: an older runtime simply omits it

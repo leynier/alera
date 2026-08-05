@@ -94,6 +94,36 @@ class AgentProfiles extends _$AgentProfiles {
     return saved;
   }
 
+  Future<List<AgentProfile>> reorder(List<String> profileIds) async {
+    final current = state.asData?.value ?? _mergeSnapshot(_latestSnapshot);
+    final byId = <String, AgentProfile>{
+      for (final profile in current) profile.id: profile,
+    };
+    final optimistic = <AgentProfile>[];
+    for (final profileId in profileIds) {
+      final profile = byId[profileId];
+      if (profile == null) {
+        return current;
+      }
+      optimistic.add(profile);
+    }
+    if (optimistic.length != current.length) {
+      return current;
+    }
+    state = AsyncData<List<AgentProfile>>(optimistic);
+    try {
+      final reordered = await _repository.reorder(profileIds);
+      _latestSnapshot = reordered;
+      _pendingUpserts.clear();
+      _pendingRemovals.clear();
+      state = AsyncData<List<AgentProfile>>(reordered);
+      return reordered;
+    } catch (_) {
+      state = AsyncData<List<AgentProfile>>(_mergeSnapshot(_latestSnapshot));
+      rethrow;
+    }
+  }
+
   Future<AgentProfile> clone(AgentProfile source, {required String name}) {
     return upsert(
       name: name,
@@ -137,14 +167,7 @@ class AgentProfiles extends _$AgentProfiles {
         if (!_pendingRemovals.contains(profile.id)) profile.id: profile,
       ..._pendingUpserts,
     };
-    final merged = mergedById.values.toList(growable: false)
-      ..sort((left, right) {
-        final byName = left.name.toLowerCase().compareTo(
-          right.name.toLowerCase(),
-        );
-        return byName != 0 ? byName : left.id.compareTo(right.id);
-      });
-    return merged;
+    return mergedById.values.toList(growable: false);
   }
 
   bool _sameProfile(AgentProfile left, AgentProfile right) {

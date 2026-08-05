@@ -1,6 +1,6 @@
 use alera_core::runtime::{
-    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeMobilePushSettings,
-    RuntimeTextActionsSettings,
+    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeAutomationSettings,
+    RuntimeMobilePushSettings, RuntimeTextActionsSettings,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -118,6 +118,32 @@ impl ServerActor {
                 0
             };
         }
+        if let Some(value) = payload.get("automation") {
+            let settings: RuntimeAutomationSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("automation settings are invalid."))?;
+            runtime_value(
+                self.runtime_store
+                    .set_automation_settings(settings.clone())
+                    .await,
+            )?;
+            let home = std::env::var_os("HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| self.runtime_dir.clone());
+            let app_data = std::env::var_os("APPDATA").map(std::path::PathBuf::from);
+            let xdg_config = std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from);
+            if let Ok(executable) = std::env::current_exe() {
+                let paths = crate::automation_autostart::build_autostart_paths(
+                    crate::automation_autostart::current_platform(),
+                    &home,
+                    app_data.as_deref(),
+                    xdg_config.as_deref(),
+                    &executable,
+                    &self.runtime_dir,
+                );
+                crate::automation_autostart::reconcile_autostart(&settings, &paths)
+                    .map_err(|error| HostError::state(error.to_string()))?;
+            }
+        }
         if refresh_push_subscriptions {
             self.start_push_subscription_sync(None);
         }
@@ -181,8 +207,9 @@ impl ServerActor {
         let operation_id = required_non_blank(payload, "operationId")?;
         let skill_name = required_non_blank(payload, "skill")?;
         let runner_name = required_non_blank(payload, "runner")?;
-        let skill = SkillKind::parse(&skill_name)
-            .ok_or_else(|| HostError::format("skill must be cli, emulator, or orchestration."))?;
+        let skill = SkillKind::parse(&skill_name).ok_or_else(|| {
+            HostError::format("skill must be cli, emulator, orchestration, or agent-canvas.")
+        })?;
         let runner = SkillRunner::parse(&runner_name)
             .ok_or_else(|| HostError::format("runner must be auto, npx, or bunx."))?;
         self.broadcast_authenticated(event(

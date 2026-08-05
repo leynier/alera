@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
@@ -48,7 +49,7 @@ class AgentsSettingsPane extends ConsumerWidget {
               AleraSettingRow(
                 title: 'All Alera Skills',
                 description:
-                    'Install or update CLI, orchestration, computer use, and emulator skills. Reapplies selected status hooks.',
+                    'Install or update CLI, orchestration, computer use, emulator, and Agent Canvas skills. Reapplies selected status hooks.',
                 controlWidth: 360,
                 child: AleraAllSkillsControl(),
               ),
@@ -58,6 +59,13 @@ class AgentsSettingsPane extends ConsumerWidget {
                     'Install the Codex skill that teaches agents to use the Alera CLI.',
                 controlWidth: 360,
                 child: AleraCliSkillControl(),
+              ),
+              AleraSettingRow(
+                title: 'Agent Canvas Skill',
+                description:
+                    'Install agent instructions for publishing structured updates and waiting for decisions in Agent Canvas.',
+                controlWidth: 360,
+                child: AleraAgentCanvasSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Orchestration Skill',

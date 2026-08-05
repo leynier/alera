@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_status/application/runtime_agent_status_sync.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
+import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
 import 'package:alera/src/features/resource_manager/presentation/resource_status_bar_control.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -16,6 +17,7 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scop
 import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_device_picker.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -28,11 +30,13 @@ import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart
 import 'package:alera/src/features/workbench/application/terminal_driver_presence_controller.dart';
 import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/settings/presentation/github_star_prompt_watch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'alera_shell_page_body.dart';
+part 'alera_shell_page_body_content.dart';
 
 class AleraShellPage extends ConsumerWidget {
   const AleraShellPage({super.key});

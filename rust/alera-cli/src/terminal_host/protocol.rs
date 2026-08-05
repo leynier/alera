@@ -50,6 +50,10 @@ pub const RUNTIME_HOST_CLOUD_PUSH_CAPABILITY: &str = "cloudPushNotificationsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
+/// Advertised once the runtime host persists and serves Agent Canvas state.
+/// This is additive so a new app can explain compatibility against an older
+/// live host without treating the existing terminal connection as unusable.
+pub const RUNTIME_HOST_AGENT_CANVAS_CAPABILITY: &str = "agentCanvasV1";
 pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
     "orchestrationTerminalInspectionV1";
 pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
@@ -60,6 +64,10 @@ pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrat
 // Purely additive: older hosts simply do not answer agentProfile.* verbs, so
 // callers negotiate this instead of comparing protocol versions.
 pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProfilesV1";
+// Advertised once the host persists the user-defined order of agent profiles.
+// This is additive so a newer app can remain attached to an older host.
+pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
+    "orchestrationAgentProfileOrderingV1";
 // Advertised once agent profiles may carry validated, adapter-specific launch
 // configuration. This is additive so a new app can fall back to Command when
 // attached to an older live host.
@@ -126,7 +134,12 @@ pub const RUNTIME_HOST_BROWSER_CERTIFICATE_TRUST_CAPABILITY: &str = "browserCert
 // Additive: older hosts remain usable, and clients feature-check before
 // sending emulator verbs.
 pub const RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY: &str = "mobileEmulatorV1";
+pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
 pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
+/// Native Codex chat tabs are additive. Clients advertise support for the tab
+/// kind separately so an older client never attempts to decode it.
+pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
+pub const CODEX_TAB_KIND: &str = "codex";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.
 pub const COMPUTER_USE_SKILL_VERSION: i64 = 1;

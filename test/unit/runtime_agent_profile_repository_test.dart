@@ -212,6 +212,57 @@ void main() {
       expect(payload['customPrompt'], 'Use The Team Conventions');
     });
 
+    test(
+      'reorder sends profile ids and unwraps the ordered response',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        client.responses['status.get'] = <String, Object?>{
+          'runtimeCapabilities': <String>[
+            aleraRuntimeHostAgentProfileOrderingCapability,
+          ],
+        };
+        client.responses['agentProfile.reorder'] = <String, Object?>{
+          'kind': 'agentProfiles',
+          'items': <Object?>[
+            _profilePayload('prof_2', 'Beta'),
+            _profilePayload('prof_1', 'Alpha'),
+          ],
+        };
+        final repository = RuntimeAgentProfileRepository(client);
+
+        final profiles = await repository.reorder(<String>['prof_2', 'prof_1']);
+
+        expect(profiles.map((profile) => profile.id), <String>[
+          'prof_2',
+          'prof_1',
+        ]);
+        expect(client.payloads['agentProfile.reorder']!.single['ids'], <String>[
+          'prof_2',
+          'prof_1',
+        ]);
+      },
+    );
+
+    test('reorder refuses an older live host', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['status.get'] = <String, Object?>{
+        'runtimeCapabilities': const <String>[],
+      };
+      final repository = RuntimeAgentProfileRepository(client);
+
+      await expectLater(
+        repository.reorder(<String>['prof_1']),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('newer runtime host'),
+          ),
+        ),
+      );
+      expect(client.payloads['agentProfile.reorder'], isNull);
+    });
+
     test('controller clone reuses all profile fields without its id', () async {
       final client = _FakeRuntimeHostClient();
       client.responses['agentProfile.upsert'] = <String, Object?>{
