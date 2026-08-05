@@ -72,10 +72,11 @@ The CLI starts or reuses a mobile-capable runtime host for enable and pairing cr
 
 ## Remote Access Modes
 
-The gateway has three endpoint modes, selectable from Settings > Mobile Devices in the desktop app (This Device / Tailscale / Manual) or persisted through the CLI:
+The gateway has four endpoint modes, selectable from Settings > Mobile Devices in the desktop app (This Device / Tailscale / NetBird / Manual) or persisted through the CLI:
 
 - **This Device (default)**: loopback bind. `ws://` pairing endpoints are accepted only for loopback/local development, and their explicit port must match the local gateway port. Run `alera mobile --json enable --port <port>` first when changing the local gateway port for loopback `ws://` pairing.
 - **Tailscale (recommended for remote access)**: run `alera mobile --json enable --tailscale` or pick the Tailscale mode in settings. The runtime verifies Tailscale is installed and running, binds the gateway to this machine's tailnet IPv4 (100.64.0.0/10), and emits pairing offers with `ws://<tailnet-ip>:<port>`. Plaintext `ws://` is acceptable here because traffic between tailnet devices rides Tailscale's WireGuard tunnel; the phone additionally refuses to store credentials when the pairing response's runtime id does not match the offer. The phone must have the Tailscale app installed and be signed in to the same tailnet. Tailscale is detected, never bundled: install it from https://tailscale.com/download on both devices.
+- **NetBird**: run `alera mobile --json enable --netbird` or pick NetBird in settings. The runtime reads `netbird status --json`, requires a connected NetBird peer, and supports three address sources: the NetBird IPv4 (`--netbird-endpoint ip`), the peer DNS/FQDN reported by status (`--netbird-endpoint dns`), or the private interface address resolved from the reported interface (normally `wt0`, `--netbird-endpoint interface`). The desktop exposes the same choices and shows the hostname and interface when available. This is supported on Windows, macOS, and Linux, and works with NetBird Cloud and self-hosted management servers. NetBird is detected, never bundled: install and sign in on both devices, and ensure the peer policy permits the gateway port.
 - **Manual (advanced)**: publish the gateway yourself through a TLS tunnel or proxy and create the pairing payload with an explicit `wss://<host-or-vpn-name>:<port>` endpoint; that public TLS port can differ from the local gateway port. When the gateway intentionally binds `0.0.0.0`, `pairing create` requires an explicit reachable `--endpoint` because phones cannot connect to a wildcard address.
 
 ### Tailscale Troubleshooting
@@ -85,6 +86,14 @@ The gateway has three endpoint modes, selectable from Settings > Mobile Devices 
 - The phone cannot connect on Windows: allow Alera through Windows Firewall for incoming connections on the gateway port (the settings pane shows a hint when the Tailscale mode is active on Windows).
 - The phone cannot connect anywhere: confirm the Tailscale app is connected on the phone, that both devices appear in the same tailnet, and that the tailnet's ACLs allow the connection.
 - After removing the machine from the tailnet, the gateway may fail to bind its stale tailnet IP on restart; re-run `alera mobile --json enable --tailscale` or switch modes in settings to re-resolve.
+
+### NetBird Troubleshooting
+
+- `netbird is not installed`: install NetBird on the desktop, or use the Manual mode with a `wss://` endpoint.
+- `netbird is installed but not connected`: run `netbird up`, sign in to NetBird Cloud or your self-hosted management server, then retry.
+- The phone cannot connect: confirm both peers are connected to the same NetBird network and that NetBird access policies allow the gateway port.
+- DNS hostname offers require NetBird DNS to be enabled and reachable from the phone; otherwise select the IP or interface address source.
+- If the interface option cannot bind, confirm the reported interface exists and has an IPv4 address. NetBird's default interface is `wt0`, but custom interface names are supported when the client reports them.
 
 ## Remaining Work
 

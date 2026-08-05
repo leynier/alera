@@ -21,6 +21,7 @@ pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
+pub const RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY: &str = "mobileNetBirdGatewayV1";
 // Advertised once mobile clients may call workspace mutations (pin, link,
 // create/remove managed, tab removal). Mobile apps feature-check this instead
 // of the strict-equality mobile protocol version.

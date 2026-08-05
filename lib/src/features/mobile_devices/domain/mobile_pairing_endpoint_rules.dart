@@ -18,10 +18,10 @@ bool isLoopbackEndpointHost(String host) {
   return _isLoopbackIpLiteral(normalized);
 }
 
-/// True when the host is an IP literal inside the Tailscale tailnet ranges
+/// True when the host is an IP literal inside the private overlay ranges
 /// (IPv4 100.64.0.0/10 or IPv6 fd7a:115c:a1e0::/48). Mirrors the Rust
-/// `is_tailscale_ip`.
-bool isTailscaleEndpointHost(String host) {
+/// overlay endpoint check.
+bool isPrivateOverlayEndpointHost(String host) {
   final normalized = _normalizeEndpointHost(host);
   try {
     final bytes = Uri.parseIPv4Address(normalized);
@@ -40,6 +40,11 @@ bool isTailscaleEndpointHost(String host) {
   } on FormatException {
     return false;
   }
+}
+
+/// Backwards-compatible alias for callers that specifically label Tailscale.
+bool isTailscaleEndpointHost(String host) {
+  return isPrivateOverlayEndpointHost(host);
 }
 
 String _normalizeEndpointHost(String host) {
@@ -152,8 +157,8 @@ String? validateMobilePairingEndpoint({
   }
   if (parts.scheme == 'ws' &&
       !isLoopbackEndpointHost(parts.host) &&
-      !isTailscaleEndpointHost(parts.host)) {
-    return 'Endpoints outside loopback or a Tailscale Tailnet must use wss://';
+      !isPrivateOverlayEndpointHost(parts.host)) {
+    return 'Endpoints outside loopback or a private overlay must use wss://';
   }
   if (parts.scheme == 'ws' && gatewayEnabled && parts.port != gatewayPort) {
     return 'ws:// endpoint port must match the enabled gateway port '
@@ -172,9 +177,9 @@ String? mobileGatewayBindHostHint({
     return 'Wildcard bind hosts require an explicit wss:// endpoint when '
         'linking (for example wss://<host-or-vpn-name>:$port)';
   }
-  if (isTailscaleEndpointHost(bindHost)) {
-    return 'Devices connect over your Tailnet - both devices must be signed '
-        'in to Tailscale';
+  if (isPrivateOverlayEndpointHost(bindHost)) {
+    return 'Devices connect over a private overlay network - both devices '
+        'must be connected to the same overlay';
   }
   if (!isLoopbackEndpointHost(bindHost)) {
     return 'Devices outside this machine must connect through wss:// - use a '
