@@ -65,6 +65,42 @@ void main() {
     expect(snapshot.windows.first.remainingPercent, 80);
   });
 
+  test('parses OpenCode estimated windows and spend amounts', () {
+    final snapshot = AgentQuotaSnapshot.fromJson(<String, Object?>{
+      'provider': 'opencode',
+      'accountId': 'zen',
+      'status': 'ok',
+      'dataQuality': 'estimated',
+      'scope': 'host',
+      'windows': <Object?>[
+        <String, Object?>{
+          'label': '5 Hour',
+          'usedPercent': 25,
+          'spentAmount': '3.50',
+          'currency': 'USD',
+        },
+      ],
+      'amounts': <Object?>[
+        <String, Object?>{
+          'label': 'Local Spend (30d)',
+          'currency': 'USD',
+          'spentAmount': 12.5,
+          'resetsAt': 1_700_000_000_000,
+          'resetDescription': 'Host-local estimate',
+        },
+      ],
+    });
+
+    expect(snapshot.provider, AgentQuotaProviderId.opencode);
+    expect(snapshot.dataQuality, 'estimated');
+    expect(snapshot.scope, 'host');
+    expect(snapshot.hasUsage, isTrue);
+    expect(snapshot.windows.single.spentAmount, 3.5);
+    expect(snapshot.windows.single.currency, 'USD');
+    expect(snapshot.amounts.single.spentAmount, 12.5);
+    expect(snapshot.amounts.single.resetsAt, isNotNull);
+  });
+
   test('parses Codex reset credits without exposing account identity', () {
     final snapshot = AgentQuotaSnapshot.fromJson(<String, Object?>{
       'provider': 'codex',
