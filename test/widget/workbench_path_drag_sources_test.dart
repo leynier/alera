@@ -60,7 +60,7 @@ void main() {
     final source = tester.getCenter(find.text('readme.md'));
     final target = tester.getCenter(find.text('src'));
     final gesture = await tester.startGesture(source);
-    // Immediate Draggable starts after touch slop, not after long-press.
+    // Path drag starts after horizontal touch slop, not after long-press.
     await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
     await tester.pump();
     await gesture.moveTo(target);

@@ -1,5 +1,6 @@
 import 'package:alera/src/features/workbench/domain/terminal_path_paste.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -28,11 +29,17 @@ class TerminalPathDragData implements TerminalPathDragPayload {
   final List<String> paths;
 }
 
-/// Immediate-path drag source for explorer and source control rows.
+/// Path drag source for explorer and source control rows.
 ///
-/// Uses [Draggable] rather than [LongPressDraggable] so desktop pointer drags
-/// start after touch slop instead of waiting for [kLongPressTimeout]. Long-press
-/// context menus on those rows stay on a separate gesture detector.
+/// Starts after horizontal touch slop rather than [kLongPressTimeout], matching
+/// desktop file-tree drag latency. Uses a horizontal multi-drag recognizer with
+/// [kTouchSlop] for every pointer kind so:
+/// - vertical pans still scroll the parent list
+/// - mouse clicks with a few pixels of drift still fire row [onTap] (plain
+///   [Draggable] uses [kPrecisePointerHitSlop] of 1px for mice and steals taps)
+///
+/// Explorer long-press / secondary-click context menus stay on a separate
+/// gesture detector outside this widget.
 class TerminalPathDraggable<T extends TerminalPathDragPayload>
     extends StatelessWidget {
   const TerminalPathDraggable({
@@ -48,12 +55,78 @@ class TerminalPathDraggable<T extends TerminalPathDragPayload>
 
   @override
   Widget build(BuildContext context) {
-    return Draggable<T>(
+    return _TerminalPathDragSource<T>(
       data: data,
       feedback: feedback,
       childWhenDragging: Opacity(opacity: 0.45, child: child),
       child: child,
     );
+  }
+}
+
+/// [Draggable] that recognizes path drags with horizontal [kTouchSlop].
+class _TerminalPathDragSource<T extends Object> extends Draggable<T> {
+  const _TerminalPathDragSource({
+    super.key,
+    required super.child,
+    required super.feedback,
+    super.data,
+    super.childWhenDragging,
+  }) : super(affinity: Axis.horizontal);
+
+  @override
+  MultiDragGestureRecognizer createRecognizer(
+    GestureMultiDragStartCallback onStart,
+  ) {
+    return _TerminalPathDragGestureRecognizer(
+      debugOwner: this,
+      allowedButtonsFilter: allowedButtonsFilter,
+    )..onStart = onStart;
+  }
+}
+
+/// Horizontal multi-drag that uses [kTouchSlop] for all pointer kinds.
+///
+/// [HorizontalMultiDragGestureRecognizer] still calls [computeHitSlop], which
+/// is 1px for mice. That is too tight next to row taps ([kTouchSlop] = 18).
+class _TerminalPathDragGestureRecognizer extends MultiDragGestureRecognizer {
+  _TerminalPathDragGestureRecognizer({
+    super.debugOwner,
+    super.allowedButtonsFilter,
+  });
+
+  @override
+  MultiDragPointerState createNewPointerState(PointerDownEvent event) {
+    return _TerminalPathDragPointerState(
+      event.position,
+      event.kind,
+      gestureSettings,
+    );
+  }
+
+  @override
+  String get debugDescription => 'terminal path drag';
+}
+
+class _TerminalPathDragPointerState extends MultiDragPointerState {
+  _TerminalPathDragPointerState(
+    super.initialPosition,
+    super.kind,
+    super.gestureSettings,
+  );
+
+  @override
+  void checkForResolutionAfterMove() {
+    assert(pendingDelta != null);
+    final slop = gestureSettings?.touchSlop ?? kTouchSlop;
+    if (pendingDelta!.dx.abs() > slop) {
+      resolve(GestureDisposition.accepted);
+    }
+  }
+
+  @override
+  void accepted(GestureMultiDragStartCallback starter) {
+    starter(initialPosition);
   }
 }
 
