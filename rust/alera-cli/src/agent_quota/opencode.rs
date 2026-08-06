@@ -6,6 +6,40 @@ const OPENCODE_GO_LIMITS: [(i64, f64, &str); 3] = [
     (30 * 24 * 60, 60.0, "Monthly"),
 ];
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QuotaAmount {
+    label: String,
+    currency: String,
+    spent_amount: Option<f64>,
+    remaining_amount: Option<f64>,
+    limit_amount: Option<f64>,
+    resets_at: Option<i64>,
+    reset_description: Option<String>,
+}
+
+fn estimated_snapshot(
+    account_id: &str,
+    display_name: &str,
+    windows: Vec<QuotaWindow>,
+    amounts: Vec<QuotaAmount>,
+) -> QuotaSnapshot {
+    QuotaSnapshot {
+        provider: "opencode".to_string(),
+        account_id: account_id.to_string(),
+        display_name: display_name.to_string(),
+        status: "ok".to_string(),
+        updated_at: now_millis(),
+        error: None,
+        windows,
+        buckets: Vec::new(),
+        amounts,
+        data_quality: Some("estimated".to_string()),
+        scope: Some("host".to_string()),
+        rate_limit_reset_credits: None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct OpenCodeUsageEntry {
     provider: String,
@@ -49,7 +83,7 @@ async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
         .collect::<Vec<_>>();
     if account == "go" {
         let windows = opencode_go_windows(&provider_entries, now_millis());
-        return QuotaSnapshot::estimated("opencode", account, display_name, windows, Vec::new());
+        return estimated_snapshot(account, display_name, windows, Vec::new());
     }
     let now = now_millis();
     let month_start = now - 30 * 24 * 60 * 60 * 1000;
@@ -59,8 +93,7 @@ async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
         .map(|entry| entry.cost)
         .sum::<f64>();
     let reset = next_local_month_reset(now);
-    QuotaSnapshot::estimated(
-        "opencode",
+    estimated_snapshot(
         account,
         display_name,
         Vec::new(),
