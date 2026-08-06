@@ -83,18 +83,19 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
 
 /// Windows then buckets, sorted by the desktop reading order.
 List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
-  final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets]
-    ..addAll(
-      snapshot.amounts.map(
-        (amount) => QuotaMeter(
-          label: amount.label,
-          usedPercent: 0,
-          resetsAt: amount.resetsAt,
-          resetDescription: amount.resetDescription,
-          displayValue: _amountDisplay(amount),
-        ),
+  final meters = <QuotaMeter>[
+    ...snapshot.windows,
+    ...snapshot.buckets,
+    ...snapshot.amounts.map(
+      (amount) => QuotaMeter(
+        label: amount.label,
+        usedPercent: 0,
+        resetsAt: amount.resetsAt,
+        resetDescription: amount.resetDescription,
+        displayValue: _amountDisplay(amount),
       ),
-    )
+    ),
+  ]
     ..sort(
       (left, right) => quotaMeterReadingOrder(
         snapshot.provider,
