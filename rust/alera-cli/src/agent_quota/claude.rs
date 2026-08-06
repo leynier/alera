@@ -189,6 +189,7 @@ fn parse_claude_auth_status(output: &[u8]) -> Option<bool> {
         .as_bool()
 }
 
+#[allow(clippy::large_enum_variant)]
 enum ClaudeOAuthFetch {
     Snapshot(QuotaSnapshot),
     CredentialsMissing(ClaudeCredentialGap),
