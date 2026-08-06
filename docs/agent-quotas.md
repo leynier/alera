@@ -14,6 +14,7 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 - Antigravity.
 - MiniMax Token Plan.
 - Z.ai.
+- OpenCode Go and OpenCode Zen.
 
 The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a 15-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. Automatic reads reuse that cache; the explicit refresh button bypasses it. For the local desktop host, Alera resolves configured variables missing from the GUI process through the user's login shell and sends their values directly to the runtime host in memory. Values are never persisted or returned in quota responses. Alera must be restarted after changing those shell exports because the resolver caches them for the app lifetime. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
 
@@ -37,6 +38,10 @@ Alera sets `CLAUDE_CONFIG_DIR` only for the quota query. On macOS it reads each 
 The default Claude account can be enabled or disabled independently from the Claude provider, so configured CCS profiles remain available without querying Default. When enabled, the status bar shows Default first, followed by every configured CCS profile in settings order using its configured alias. Quota queries do not change how terminals launch Claude.
 
 ## Environment-Based Plans
+
+## OpenCode Go And Zen
+
+OpenCode is enabled as one provider with separate **Go** and **Zen** snapshots. Alera reads the OpenCode local SQLite history on the target host, so the OpenCode CLI must have been used on that host. Go is displayed against the published $12 per 5-hour, $30 weekly, and $60 monthly plan limits. These values are host-local estimates because OpenCode does not currently expose an account usage endpoint. Zen is shown as local 30-day spend; authoritative Zen balance data is not currently exposed by the provider. Estimated rows are labeled **Estimated** and must not be treated as billing records.
 
 Alera stores only environment variable names, never API key values. Configure the values on every local or remote host where the provider is enabled:
 

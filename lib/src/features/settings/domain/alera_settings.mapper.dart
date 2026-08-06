@@ -147,6 +147,8 @@ class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
         return AgentQuotaProviderId.minimax;
       case r'zai':
         return AgentQuotaProviderId.zai;
+      case r'opencode':
+        return AgentQuotaProviderId.opencode;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -171,6 +173,8 @@ class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
         return r'minimax';
       case AgentQuotaProviderId.zai:
         return r'zai';
+      case AgentQuotaProviderId.opencode:
+        return r'opencode';
     }
   }
 }

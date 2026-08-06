@@ -221,7 +221,7 @@ class _HomeQuotaMeterRow extends StatelessWidget {
               ),
             ),
             Text(
-              '${remaining.toStringAsFixed(0)}% Remaining',
+              meter.displayValue ?? '${remaining.toStringAsFixed(0)}% Remaining',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: color,
                 fontWeight: FontWeight.w600,
@@ -230,7 +230,7 @@ class _HomeQuotaMeterRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.spaceSm),
-        ClipRRect(
+        if (meter.displayValue == null) ClipRRect(
           borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
           child: LinearProgressIndicator(
             value: remaining / 100,

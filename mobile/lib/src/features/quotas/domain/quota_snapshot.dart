@@ -37,6 +37,8 @@ class QuotaSnapshot {
     required this.windows,
     required this.buckets,
     this.rateLimitResetCredits,
+    this.dataQuality,
+    this.amounts = const <QuotaAmount>[],
   });
 
   factory QuotaSnapshot.fromJson(Map<String, Object?> json) {
@@ -64,6 +66,11 @@ class QuotaSnapshot {
         final Map value => CodexResetCredits.fromJson(asJsonMap(value)),
         _ => null,
       },
+      dataQuality: json['dataQuality'] as String?,
+      amounts: <QuotaAmount>[
+        for (final item in json.objectList('amounts'))
+          if (item is Map) QuotaAmount.fromJson(asJsonMap(item)),
+      ],
     );
   }
 
@@ -76,6 +83,8 @@ class QuotaSnapshot {
   final List<QuotaMeter> windows;
   final List<QuotaMeter> buckets;
   final CodexResetCredits? rateLimitResetCredits;
+  final String? dataQuality;
+  final List<QuotaAmount> amounts;
 }
 
 class CodexResetCredits {
@@ -140,6 +149,7 @@ class QuotaMeter {
     required this.usedPercent,
     required this.resetsAt,
     required this.resetDescription,
+    this.displayValue,
   });
 
   factory QuotaMeter.fromJson(
@@ -158,6 +168,7 @@ class QuotaMeter {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(resetMillis, isUtc: true),
       resetDescription: json['resetDescription'] as String?,
+      displayValue: null,
     );
   }
 
@@ -165,6 +176,47 @@ class QuotaMeter {
   final double usedPercent;
   final DateTime? resetsAt;
   final String? resetDescription;
+  final String? displayValue;
 
   double get remainingPercent => (100 - usedPercent).clamp(0, 100);
+}
+
+class QuotaAmount {
+  const QuotaAmount({
+    required this.label,
+    required this.currency,
+    required this.spentAmount,
+    required this.remainingAmount,
+    required this.limitAmount,
+    required this.resetsAt,
+    required this.resetDescription,
+  });
+
+  factory QuotaAmount.fromJson(Map<String, Object?> json) {
+    double? number(Object? value) => switch (value) {
+      final num n => n.toDouble(),
+      final String raw => double.tryParse(raw),
+      _ => null,
+    };
+    final reset = json['resetsAt'] as int?;
+    return QuotaAmount(
+      label: json['label'] as String? ?? 'Spend',
+      currency: json['currency'] as String? ?? 'USD',
+      spentAmount: number(json['spentAmount']),
+      remainingAmount: number(json['remainingAmount']),
+      limitAmount: number(json['limitAmount']),
+      resetsAt: reset == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(reset, isUtc: true),
+      resetDescription: json['resetDescription'] as String?,
+    );
+  }
+
+  final String label;
+  final String currency;
+  final double? spentAmount;
+  final double? remainingAmount;
+  final double? limitAmount;
+  final DateTime? resetsAt;
+  final String? resetDescription;
 }

@@ -386,11 +386,11 @@ class _QuotaMeterRow extends StatelessWidget {
             Expanded(
               child: Text(quotaMeterDisplayLabel(provider, meter.label)),
             ),
-            Text('${remaining.toStringAsFixed(0)}% Remaining'),
+            Text(meter.displayValue ?? '${remaining.toStringAsFixed(0)}% Remaining'),
           ],
         ),
         const SizedBox(height: AleraTokens.spaceSm),
-        ClipRRect(
+        if (meter.displayValue == null) ClipRRect(
           borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
           child: LinearProgressIndicator(
             value: remaining / 100,

@@ -8,6 +8,7 @@ class _QuotaReading {
     required this.fullLabel,
     required this.resetsAt,
     required this.resetDescription,
+    this.valueText,
   });
 
   final String label;
@@ -16,6 +17,7 @@ class _QuotaReading {
   final String fullLabel;
   final DateTime? resetsAt;
   final String? resetDescription;
+  final String? valueText;
 }
 
 class _QuotaReadingView extends StatelessWidget {
@@ -44,7 +46,7 @@ class _QuotaReadingView extends StatelessWidget {
         ),
         const SizedBox(width: AleraTokens.space2),
         Text(
-          '${reading.remainingPercent.round()}%',
+          reading.valueText ?? '${reading.remainingPercent.round()}%',
           style: AleraTokens.monoStyle.copyWith(
             fontSize: 10,
             fontWeight: FontWeight.w600,
@@ -67,6 +69,16 @@ List<_QuotaReading> _quotaReadings(AgentQuotaSnapshot snapshot) {
         resetsAt: window.resetsAt,
         resetDescription: window.resetDescription,
       ),
+    for (final amount in snapshot.amounts)
+      _QuotaReading(
+        label: _shortWindowLabel(amount.label),
+        remainingPercent: 100,
+        order: 20,
+        fullLabel: amount.label,
+        resetsAt: amount.resetsAt,
+        resetDescription: amount.resetDescription,
+        valueText: _formatQuotaAmount(amount),
+      ),
     for (final bucket in snapshot.buckets)
       _QuotaReading(
         label: _bucketReadingLabel(snapshot.provider, bucket),
@@ -79,6 +91,13 @@ List<_QuotaReading> _quotaReadings(AgentQuotaSnapshot snapshot) {
   ];
   readings.sort((left, right) => left.order.compareTo(right.order));
   return readings;
+}
+
+String _formatQuotaAmount(AgentQuotaAmount amount) {
+  final value =
+      amount.spentAmount ?? amount.remainingAmount ?? amount.limitAmount;
+  if (value == null) return 'n/a';
+  return '${amount.currency} ${value.toStringAsFixed(2)}';
 }
 
 String _windowReadingLabel(AgentQuotaProviderId provider, String label) {

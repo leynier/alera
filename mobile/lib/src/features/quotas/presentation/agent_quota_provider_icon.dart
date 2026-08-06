@@ -26,6 +26,7 @@ class AgentQuotaProviderIcon extends StatelessWidget {
       'grok' => 'grok',
       'cursor' => 'cursor',
       'antigravity' => 'agy',
+      'opencode' => 'opencode',
       _ => null,
     };
     if (agentType != null) {
