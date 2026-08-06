@@ -166,81 +166,6 @@ struct CodexResetCredits {
     can_consume: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct QuotaSnapshot {
-    provider: String,
-    account_id: String,
-    display_name: String,
-    status: String,
-    updated_at: i64,
-    error: Option<String>,
-    windows: Vec<QuotaWindow>,
-    buckets: Vec<QuotaBucket>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    rate_limit_reset_credits: Option<Box<CodexResetCredits>>,
-}
-
-impl QuotaSnapshot {
-    fn unavailable(
-        provider: &str,
-        account_id: &str,
-        display_name: &str,
-        error: impl Into<String>,
-    ) -> Self {
-        Self {
-            provider: provider.to_string(),
-            account_id: account_id.to_string(),
-            display_name: display_name.to_string(),
-            status: "unavailable".to_string(),
-            updated_at: now_millis(),
-            error: Some(error.into()),
-            windows: Vec::new(),
-            buckets: Vec::new(),
-            rate_limit_reset_credits: None,
-        }
-    }
-
-    fn error(
-        provider: &str,
-        account_id: &str,
-        display_name: &str,
-        error: impl Into<String>,
-    ) -> Self {
-        Self {
-            provider: provider.to_string(),
-            account_id: account_id.to_string(),
-            display_name: display_name.to_string(),
-            status: "error".to_string(),
-            updated_at: now_millis(),
-            error: Some(error.into()),
-            windows: Vec::new(),
-            buckets: Vec::new(),
-            rate_limit_reset_credits: None,
-        }
-    }
-
-    fn ok(
-        provider: &str,
-        account_id: &str,
-        display_name: &str,
-        windows: Vec<QuotaWindow>,
-        buckets: Vec<QuotaBucket>,
-    ) -> Self {
-        Self {
-            provider: provider.to_string(),
-            account_id: account_id.to_string(),
-            display_name: display_name.to_string(),
-            status: "ok".to_string(),
-            updated_at: now_millis(),
-            error: None,
-            windows,
-            buckets,
-            rate_limit_reset_credits: None,
-        }
-    }
-}
-
 pub(crate) async fn run_runtime_proxy() -> i32 {
     let store = RuntimeStore::open(&crate::runtime_dir(&crate::cli::RuntimeDirArgs {
         runtime_dir: None,
@@ -330,6 +255,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             "antigravity".to_string(),
             "minimax".to_string(),
             "zai".to_string(),
+            "opencode".to_string(),
         ]
     } else {
         request.providers.clone()
@@ -383,6 +309,10 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
                 let environment = environment.clone();
                 tasks.spawn(async move { fetch_zai(&names, &environment).await });
             }
+            "opencode" => {
+                tasks.spawn(async { fetch_opencode_snapshot("go").await });
+                tasks.spawn(async { fetch_opencode_snapshot("zen").await });
+            }
             _ => {}
         }
     }
@@ -421,6 +351,8 @@ include!("agent_quota/grok.rs");
 include!("agent_quota/cursor.rs");
 include!("agent_quota/kimi.rs");
 include!("agent_quota/plans.rs");
+include!("agent_quota/quota_snapshot.rs");
+include!("agent_quota/opencode.rs");
 
 fn numeric(value: &Value) -> Option<f64> {
     value

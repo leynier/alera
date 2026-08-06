@@ -65,6 +65,10 @@ String quotaSnapshotTitle({
   required String displayName,
 }) {
   final providerLabel = quotaProviderDisplayLabel(provider);
+  if (provider == 'opencode') {
+    final account = accountId == 'go' ? 'Go' : 'Zen';
+    return '$providerLabel - $account';
+  }
   if (provider != 'claude') {
     return providerLabel;
   }

@@ -47,6 +47,10 @@ class AgentQuotaWindow {
     required this.windowMinutes,
     required this.resetsAt,
     required this.resetDescription,
+    this.spentAmount,
+    this.remainingAmount,
+    this.limitAmount,
+    this.currency,
   });
 
   factory AgentQuotaWindow.fromJson(Map<String, Object?> json) {
@@ -56,6 +60,10 @@ class AgentQuotaWindow {
       windowMinutes: json['windowMinutes'] as int?,
       resetsAt: _dateFromMillis(json['resetsAt']),
       resetDescription: json['resetDescription'] as String?,
+      spentAmount: _amountValue(json['spentAmount']),
+      remainingAmount: _amountValue(json['remainingAmount']),
+      limitAmount: _amountValue(json['limitAmount']),
+      currency: json['currency'] as String?,
     );
   }
 
@@ -64,6 +72,10 @@ class AgentQuotaWindow {
   final int? windowMinutes;
   final DateTime? resetsAt;
   final String? resetDescription;
+  final double? spentAmount;
+  final double? remainingAmount;
+  final double? limitAmount;
+  final String? currency;
 
   double get remainingPercent => (100 - usedPercent).clamp(0, 100);
 }
@@ -75,6 +87,10 @@ class AgentQuotaBucket {
     required this.windowMinutes,
     required this.resetsAt,
     required this.resetDescription,
+    this.spentAmount,
+    this.remainingAmount,
+    this.limitAmount,
+    this.currency,
   });
 
   factory AgentQuotaBucket.fromJson(Map<String, Object?> json) {
@@ -84,6 +100,10 @@ class AgentQuotaBucket {
       windowMinutes: json['windowMinutes'] as int?,
       resetsAt: _dateFromMillis(json['resetsAt']),
       resetDescription: json['resetDescription'] as String?,
+      spentAmount: _amountValue(json['spentAmount']),
+      remainingAmount: _amountValue(json['remainingAmount']),
+      limitAmount: _amountValue(json['limitAmount']),
+      currency: json['currency'] as String?,
     );
   }
 
@@ -92,6 +112,10 @@ class AgentQuotaBucket {
   final int? windowMinutes;
   final DateTime? resetsAt;
   final String? resetDescription;
+  final double? spentAmount;
+  final double? remainingAmount;
+  final double? limitAmount;
+  final String? currency;
 
   double get remainingPercent => (100 - usedPercent).clamp(0, 100);
 }
@@ -107,6 +131,9 @@ class AgentQuotaSnapshot {
     required this.windows,
     required this.buckets,
     this.rateLimitResetCredits,
+    this.dataQuality,
+    this.scope,
+    this.amounts = const <AgentQuotaAmount>[],
   });
 
   factory AgentQuotaSnapshot.fromJson(Map<String, Object?> json) {
@@ -146,6 +173,11 @@ class AgentQuotaSnapshot {
         ),
         _ => null,
       },
+      dataQuality: json['dataQuality'] as String?,
+      scope: json['scope'] as String?,
+      amounts: _objectList(
+        json['amounts'],
+      ).map(AgentQuotaAmount.fromJson).toList(growable: false),
     );
   }
 
@@ -174,13 +206,17 @@ class AgentQuotaSnapshot {
   final List<AgentQuotaWindow> windows;
   final List<AgentQuotaBucket> buckets;
   final CodexResetCredits? rateLimitResetCredits;
+  final String? dataQuality;
+  final String? scope;
+  final List<AgentQuotaAmount> amounts;
 
   String get key => '${provider.name}:$accountId';
 
   String get pinKey =>
       AgentQuotaHostSettings.quotaPinKey(provider, claudeAccountId: accountId);
 
-  bool get hasUsage => windows.isNotEmpty || buckets.isNotEmpty;
+  bool get hasUsage =>
+      windows.isNotEmpty || buckets.isNotEmpty || amounts.isNotEmpty;
 
   double? get remainingPercent {
     final values = <double>[
@@ -205,8 +241,43 @@ class AgentQuotaSnapshot {
       windows: windows,
       buckets: buckets,
       rateLimitResetCredits: rateLimitResetCredits,
+      dataQuality: dataQuality,
+      scope: scope,
+      amounts: amounts,
     );
   }
+}
+
+class AgentQuotaAmount {
+  const AgentQuotaAmount({
+    required this.label,
+    required this.currency,
+    required this.spentAmount,
+    required this.remainingAmount,
+    required this.limitAmount,
+    required this.resetsAt,
+    required this.resetDescription,
+  });
+
+  factory AgentQuotaAmount.fromJson(Map<String, Object?> json) {
+    return AgentQuotaAmount(
+      label: json['label'] as String? ?? 'Spend',
+      currency: json['currency'] as String? ?? 'USD',
+      spentAmount: _amountValue(json['spentAmount']),
+      remainingAmount: _amountValue(json['remainingAmount']),
+      limitAmount: _amountValue(json['limitAmount']),
+      resetsAt: _dateFromMillis(json['resetsAt']),
+      resetDescription: json['resetDescription'] as String?,
+    );
+  }
+
+  final String label;
+  final String currency;
+  final double? spentAmount;
+  final double? remainingAmount;
+  final double? limitAmount;
+  final DateTime? resetsAt;
+  final String? resetDescription;
 }
 
 class CodexResetConsumeResult {
@@ -302,6 +373,14 @@ double _doubleValue(Object? value) {
     final num number => number.toDouble().clamp(0, 100),
     final String raw => (double.tryParse(raw) ?? 0).clamp(0, 100),
     _ => 0,
+  };
+}
+
+double? _amountValue(Object? value) {
+  return switch (value) {
+    final num number => number.toDouble(),
+    final String raw => double.tryParse(raw),
+    _ => null,
   };
 }
 
