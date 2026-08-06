@@ -21,6 +21,79 @@ void main() {
     expect(session.focusRequests, 1);
   });
 
+  testWidgets('vertical pans prefer scroll over path drag', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 120,
+            child: ListView(
+              children: <Widget>[
+                SizedBox(
+                  height: 80,
+                  child: Center(
+                    child: TerminalPathDraggable<TerminalPathDragData>(
+                      data: const TerminalPathDragData(
+                        paths: <String>['/tmp/foo'],
+                      ),
+                      feedback: const Material(child: Text('Dragging Paths')),
+                      child: const Text('Drag Paths'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 400, child: Text('Below')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Drag Paths')),
+    );
+    await gesture.moveBy(const Offset(0, -(kTouchSlop + 20)));
+    await tester.pump();
+    expect(find.text('Dragging Paths'), findsNothing);
+    await gesture.up();
+    await tester.pump();
+  });
+
+  testWidgets('sub-touch-slop mouse moves keep competing taps', (tester) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: GestureDetector(
+              onTap: () => taps += 1,
+              child: TerminalPathDraggable<TerminalPathDragData>(
+                data: const TerminalPathDragData(paths: <String>['/tmp/foo']),
+                feedback: const Material(child: Text('Dragging Paths')),
+                child: const Text('Drag Paths'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Use a mouse pointer so the test fails if we regress to ImmediateMultiDrag
+    // (kPrecisePointerHitSlop = 1px) instead of kTouchSlop.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Drag Paths')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(2, 0));
+    await tester.pump();
+    expect(find.text('Dragging Paths'), findsNothing);
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 1);
+  });
+
   testWidgets('terminal error state rejects in-app path drags', (tester) async {
     final session = _CapturingTerminalSessionHandle(error: 'unavailable');
 
@@ -117,7 +190,7 @@ Future<void> _dragSourceToTerminal(
   final gesture = await tester.startGesture(
     tester.getCenter(find.text('Drag Paths')),
   );
-  // Immediate Draggable starts after touch slop, not after long-press.
+  // Path drag starts after horizontal touch slop, not after long-press.
   await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
   await tester.pump();
   expect(find.text('Dragging Paths'), findsOneWidget);
