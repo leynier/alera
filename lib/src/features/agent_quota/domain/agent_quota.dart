@@ -175,9 +175,9 @@ class AgentQuotaSnapshot {
       },
       dataQuality: json['dataQuality'] as String?,
       scope: json['scope'] as String?,
-      amounts: _objectList(
-        json['amounts'],
-      ).map(AgentQuotaAmount.fromJson).toList(growable: false),
+      amounts: _objectList(json['amounts'])
+          .map(AgentQuotaAmount.fromJson)
+          .toList(growable: false),
     );
   }
 

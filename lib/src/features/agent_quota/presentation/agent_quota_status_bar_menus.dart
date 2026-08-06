@@ -112,7 +112,9 @@ class _CollapsedQuotaBar extends StatelessWidget {
               .map(
                 (snapshot) => _quotaTooltip(
                   snapshot,
-                  profileLabel: snapshot.provider == AgentQuotaProviderId.claude
+                  profileLabel:
+                      snapshot.provider == AgentQuotaProviderId.claude ||
+                          snapshot.provider == AgentQuotaProviderId.opencode
                       ? snapshot.displayName
                       : null,
                 ),
@@ -133,7 +135,8 @@ class _CollapsedQuotaBar extends StatelessWidget {
                 onTogglePinned: onTogglePinned,
                 profileLabels: <String, String>{
                   for (final snapshot in snapshots)
-                    if (snapshot.provider == AgentQuotaProviderId.claude)
+                    if (snapshot.provider == AgentQuotaProviderId.claude ||
+                        snapshot.provider == AgentQuotaProviderId.opencode)
                       snapshot.key: snapshot.displayName,
                 },
               ),

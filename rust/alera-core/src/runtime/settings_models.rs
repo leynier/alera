@@ -294,7 +294,7 @@ impl Default for RuntimeAgentQuotaSettings {
 
 impl RuntimeAgentQuotaSettings {
     pub fn normalized(mut self) -> Self {
-        const SUPPORTED: [&str; 8] = [
+        const SUPPORTED: [&str; 9] = [
             "claude",
             "codex",
             "kimi",
@@ -303,6 +303,7 @@ impl RuntimeAgentQuotaSettings {
             "antigravity",
             "minimax",
             "zai",
+            "opencode",
         ];
         let mut seen = std::collections::HashSet::new();
         self.enabled_providers.retain(|provider| {
@@ -388,6 +389,7 @@ fn default_quota_providers() -> Vec<String> {
         "antigravity",
         "minimax",
         "zai",
+        "opencode",
     ]
     .into_iter()
     .map(str::to_string)

@@ -246,12 +246,14 @@ class AgentQuotaStatusBarView extends StatelessWidget {
       if (candidates == null || candidates.isEmpty) {
         continue;
       }
-      if (provider == AgentQuotaProviderId.claude) {
+      if (provider == AgentQuotaProviderId.claude ||
+          provider == AgentQuotaProviderId.opencode) {
         final byAccount = <String, AgentQuotaSnapshot>{
           for (final snapshot in candidates) snapshot.accountId: snapshot,
         };
         final addedAccounts = <String>{};
-        if (settings.claudeDefaultEnabled) {
+        if (provider == AgentQuotaProviderId.opencode ||
+            settings.claudeDefaultEnabled) {
           final defaultSnapshot = byAccount['default'];
           if (defaultSnapshot != null) {
             visible.add(defaultSnapshot);
@@ -280,6 +282,9 @@ class AgentQuotaStatusBarView extends StatelessWidget {
   }
 
   String? _claudeProfileLabel(AgentQuotaSnapshot snapshot) {
+    if (snapshot.provider == AgentQuotaProviderId.opencode) {
+      return snapshot.accountId == 'go' ? 'Go' : 'Zen';
+    }
     if (snapshot.provider != AgentQuotaProviderId.claude) {
       return null;
     }

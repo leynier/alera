@@ -298,6 +298,14 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
         id: 'opencode/deepseek-v4-flash-free',
         label: 'OpenCode DeepSeek V4 Flash Free',
       ),
+      AiTextModel(
+        id: 'opencode-go/kimi-k2.5',
+        label: 'Kimi K2.5 (OpenCode Go)',
+      ),
+      AiTextModel(
+        id: 'opencode/claude-sonnet-4-5',
+        label: 'Claude Sonnet 4.5 (OpenCode Zen)',
+      ),
     ],
     defaultModelId: 'opencode/deepseek-v4-flash-free',
     buildArgs:

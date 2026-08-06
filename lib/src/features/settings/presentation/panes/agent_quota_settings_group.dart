@@ -340,6 +340,8 @@ String _providerDescription(AgentQuotaProviderId provider) {
       'Read MiniMax Token Plan usage with an API key from the host environment.',
     AgentQuotaProviderId.zai =>
       'Read Z.ai limits with an API key from the host environment.',
+    AgentQuotaProviderId.opencode =>
+      'Estimate OpenCode Go quota and local OpenCode Zen spend from the host database.',
   };
 }
 

@@ -10,6 +10,7 @@ enum AgentQuotaProviderId {
   antigravity,
   minimax,
   zai,
+  opencode,
 }
 
 extension AgentQuotaProviderIdLabel on AgentQuotaProviderId {
@@ -22,6 +23,7 @@ extension AgentQuotaProviderIdLabel on AgentQuotaProviderId {
     AgentQuotaProviderId.antigravity => 'Antigravity',
     AgentQuotaProviderId.minimax => 'MiniMax',
     AgentQuotaProviderId.zai => 'Z.ai',
+    AgentQuotaProviderId.opencode => 'OpenCode',
   };
 }
 
@@ -88,13 +90,14 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   static const AgentQuotaHostSettings defaults = AgentQuotaHostSettings();
 
   /// Stable pin key: provider name for single-account providers, and
-  /// `claude:<accountId>` for Claude, matching the status bar account keys.
+  /// `provider:<accountId>` for providers with multiple accounts.
   static String quotaPinKey(
     AgentQuotaProviderId provider, {
     String claudeAccountId = 'default',
   }) {
-    if (provider == AgentQuotaProviderId.claude) {
-      return 'claude:$claudeAccountId';
+    if (provider == AgentQuotaProviderId.claude ||
+        provider == AgentQuotaProviderId.opencode) {
+      return '${provider.name}:$claudeAccountId';
     }
     return provider.name;
   }

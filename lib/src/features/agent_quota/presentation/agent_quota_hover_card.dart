@@ -260,14 +260,14 @@ class _QuotaHoverReading extends StatelessWidget {
         const SizedBox(height: AleraTokens.space6),
         if (entry.valueText == null)
           LinearProgressIndicator(
-            value: entry.remainingPercent / 100,
-            minHeight: AleraTokens.space4,
-            color: color,
-            backgroundColor: AleraTokens.surfaceVariant,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
-            semanticsLabel: '$label Remaining',
-            semanticsValue: '${entry.remainingPercent.round()}%',
-          ),
+          value: entry.remainingPercent / 100,
+          minHeight: AleraTokens.space4,
+          color: color,
+          backgroundColor: AleraTokens.surfaceVariant,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+          semanticsLabel: '$label Remaining',
+          semanticsValue: '${entry.remainingPercent.round()}%',
+        ),
         const SizedBox(height: AleraTokens.space6),
         Text(
           reset,
