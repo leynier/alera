@@ -83,8 +83,8 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
 
 /// Windows then buckets, sorted by the desktop reading order.
 List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
-  // ignore: prefer_spread_collections
   final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets]
+    // ignore: prefer_spread_collections
     ..addAll(
       snapshot.amounts.map(
         (amount) => QuotaMeter(
