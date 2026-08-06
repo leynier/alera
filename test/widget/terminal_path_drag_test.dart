@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('long-press drag pastes paths and focuses the terminal', (
+  testWidgets('path drag pastes paths and focuses the terminal', (
     tester,
   ) async {
     final session = _CapturingTerminalSessionHandle();
@@ -94,7 +94,7 @@ Future<void> _pumpDragHarness(
             SizedBox(
               width: 200,
               child: Center(
-                child: TerminalPathLongPressDraggable<TerminalPathDragData>(
+                child: TerminalPathDraggable<TerminalPathDragData>(
                   data: TerminalPathDragData(paths: paths),
                   feedback: const Material(child: Text('Dragging Paths')),
                   child: const Text('Drag Paths'),
@@ -117,7 +117,9 @@ Future<void> _dragSourceToTerminal(
   final gesture = await tester.startGesture(
     tester.getCenter(find.text('Drag Paths')),
   );
-  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+  // Immediate Draggable starts after touch slop, not after long-press.
+  await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
+  await tester.pump();
   expect(find.text('Dragging Paths'), findsOneWidget);
 
   await gesture.moveTo(
