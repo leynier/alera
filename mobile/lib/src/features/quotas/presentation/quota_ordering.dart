@@ -105,8 +105,11 @@ List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
 }
 
 String _amountDisplay(QuotaAmount amount) {
-  final value = amount.spentAmount ?? amount.remainingAmount ?? amount.limitAmount;
-  return value == null ? 'n/a' : '${amount.currency} ${value.toStringAsFixed(2)}';
+  final value =
+      amount.spentAmount ?? amount.remainingAmount ?? amount.limitAmount;
+  return value == null
+      ? 'n/a'
+      : '${amount.currency} ${value.toStringAsFixed(2)}';
 }
 
 int quotaMeterReadingOrder(String provider, String label) {
