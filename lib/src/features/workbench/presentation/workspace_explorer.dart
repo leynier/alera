@@ -227,21 +227,17 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
           _canDrop(details.data, entry.relativePath),
       onAcceptWithDetails: (details) =>
           unawaited(_moveEntry(details.data.relativePath, entry.relativePath)),
-      builder: (context, _, _) =>
-          TerminalPathLongPressDraggable<_ExplorerDragData>(
-            data: _ExplorerDragData(
-              relativePath: entry.relativePath,
-              absolutePath: _absolutePath(entry.relativePath),
-            ),
-            feedback: Material(
-              color: Colors.transparent,
-              child: SizedBox(
-                width: AleraTokens.sidebarDefaultWidth,
-                child: child,
-              ),
-            ),
-            child: child,
-          ),
+      builder: (context, _, _) => TerminalPathDraggable<_ExplorerDragData>(
+        data: _ExplorerDragData(
+          relativePath: entry.relativePath,
+          absolutePath: _absolutePath(entry.relativePath),
+        ),
+        feedback: Material(
+          color: Colors.transparent,
+          child: SizedBox(width: AleraTokens.sidebarDefaultWidth, child: child),
+        ),
+        child: child,
+      ),
     );
   }
 

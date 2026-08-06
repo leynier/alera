@@ -22,7 +22,7 @@ class _GitPathDragRegion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TerminalPathLongPressDraggable<TerminalPathDragData>(
+    return TerminalPathDraggable<TerminalPathDragData>(
       data: TerminalPathDragData(paths: <String>[absolutePath]),
       feedback: _GitPathDragFeedback(label: label, isDirectory: isDirectory),
       child: child,

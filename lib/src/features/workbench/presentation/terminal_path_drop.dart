@@ -28,9 +28,14 @@ class TerminalPathDragData implements TerminalPathDragPayload {
   final List<String> paths;
 }
 
-class TerminalPathLongPressDraggable<T extends TerminalPathDragPayload>
+/// Immediate-path drag source for explorer and source control rows.
+///
+/// Uses [Draggable] rather than [LongPressDraggable] so desktop pointer drags
+/// start after touch slop instead of waiting for [kLongPressTimeout]. Long-press
+/// context menus on those rows stay on a separate gesture detector.
+class TerminalPathDraggable<T extends TerminalPathDragPayload>
     extends StatelessWidget {
-  const TerminalPathLongPressDraggable({
+  const TerminalPathDraggable({
     super.key,
     required this.data,
     required this.feedback,
@@ -43,7 +48,7 @@ class TerminalPathLongPressDraggable<T extends TerminalPathDragPayload>
 
   @override
   Widget build(BuildContext context) {
-    return LongPressDraggable<T>(
+    return Draggable<T>(
       data: data,
       feedback: feedback,
       childWhenDragging: Opacity(opacity: 0.45, child: child),
