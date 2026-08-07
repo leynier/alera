@@ -673,7 +673,6 @@ void main() {
     expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(find.byType(WorkspaceExplorer), findsOneWidget);
   });
-
 }
 
 Future<void> _pumpExplorer(
