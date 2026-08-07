@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/domain/terminal_path_paste.dart';
+import 'package:alera/src/features/workbench/domain/workspace_relative_path.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -130,12 +131,27 @@ class _TerminalPathDragPointerState extends MultiDragPointerState {
   }
 }
 
-/// Pastes absolute paths into [session] after an OS or in-app drop.
+/// Pastes paths into [session] after an OS or in-app drop.
+///
+/// Paths inside the session's workspace are pasted relative to the workspace
+/// root; anything else keeps its absolute form.
 void handleTerminalPathDrop({
   required TerminalSessionHandle session,
   required Iterable<String> paths,
 }) {
-  final text = formatPathsForTerminalPaste(paths);
+  final workspacePath = session.workspacePath;
+  final text = formatPathsForTerminalPaste(
+    workspacePath == null
+        ? paths
+        : paths.map(
+            (path) =>
+                workspaceRelativePath(
+                  workspacePath: workspacePath,
+                  filePath: path,
+                ) ??
+                path,
+          ),
+  );
   if (text.isEmpty) {
     return;
   }

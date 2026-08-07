@@ -128,6 +128,7 @@ class TerminalComposer extends StatelessWidget {
     final submission = buildTerminalComposerSubmission(
       prompt: prompt,
       attachments: attachments,
+      workspacePath: session.workspacePath,
     );
     composer.setSubmitting(true);
     try {
