@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_canvas/presentation/agent_canvas_panel.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
@@ -18,7 +19,6 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.workspace,
     required this.prefs,
     this.sourceControlScope,
-    this.sourceControlAvailable = true,
     this.focusedSourceControlRoot,
     required this.onToggleVisible,
     required this.onResize,
@@ -41,7 +41,6 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final Workspace workspace;
   final WorkbenchViewPrefs prefs;
   final WorkspaceSourceControlScope? sourceControlScope;
-  final bool sourceControlAvailable;
   final String? focusedSourceControlRoot;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
@@ -63,8 +62,8 @@ class WorkspaceContextSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sourceControlScope = _effectiveSourceControlScope;
-    final activeTab = _effectiveActiveTab;
+    final sourceControlScope = this.sourceControlScope;
+    final activeTab = prefs.activeContextPanelTab;
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AleraTokens.surfaceVariant,
@@ -78,7 +77,6 @@ class WorkspaceContextSidebar extends StatelessWidget {
                 children: <Widget>[
                   _ContextTabHeader(
                     activeTab: activeTab,
-                    sourceControlAvailable: sourceControlScope != null,
                     onSetActiveTab: onSetContextPanelTab,
                     onToggleVisible: onToggleVisible,
                   ),
@@ -101,26 +99,41 @@ class WorkspaceContextSidebar extends StatelessWidget {
                         workspace: workspace,
                         onOpenMatch: onOpenSearchMatch,
                       ),
-                      WorkbenchContextPanelTab.gitDiff => WorkspaceGitDiffPanel(
-                        workspace: workspace,
-                        sourceControlScope: sourceControlScope!,
-                        viewMode: prefs.gitDiffViewMode,
-                        onViewModeChanged: onSetGitDiffViewMode,
-                        onOpenGitDiff: onOpenGitDiff,
-                        onOpenGitCommitDiff: onOpenGitCommitDiff,
-                        onClearSourceControlRoot:
-                            sourceControlScope.isWorkspaceRoot
-                            ? null
-                            : onClearSourceControlRoot,
-                      ),
+                      WorkbenchContextPanelTab.gitDiff =>
+                        sourceControlScope == null
+                            ? const AleraEmptyState(
+                                icon: AleraIcons.gitBranch,
+                                title: 'Source Control Unavailable',
+                                message:
+                                    'This workspace is not connected to a Git repository, so there are no changes to show.',
+                              )
+                            : WorkspaceGitDiffPanel(
+                                workspace: workspace,
+                                sourceControlScope: sourceControlScope,
+                                viewMode: prefs.gitDiffViewMode,
+                                onViewModeChanged: onSetGitDiffViewMode,
+                                onOpenGitDiff: onOpenGitDiff,
+                                onOpenGitCommitDiff: onOpenGitCommitDiff,
+                                onClearSourceControlRoot:
+                                    sourceControlScope.isWorkspaceRoot
+                                    ? null
+                                    : onClearSourceControlRoot,
+                              ),
                       WorkbenchContextPanelTab.pullRequests =>
-                        WorkspacePullRequestsPanel(
-                          key: ValueKey<String>(
-                            'workspace-pull-requests:${workspace.id}:${sourceControlScope!.path}',
-                          ),
-                          workspace: workspace,
-                          repoPath: sourceControlScope.path,
-                        ),
+                        sourceControlScope == null
+                            ? const AleraEmptyState(
+                                icon: AleraIcons.gitPullRequest,
+                                title: 'Pull Request Unavailable',
+                                message:
+                                    'This workspace is not connected to a Git repository, so there are no Pull Requests to show.',
+                              )
+                            : WorkspacePullRequestsPanel(
+                                key: ValueKey<String>(
+                                  'workspace-pull-requests:${workspace.id}:${sourceControlScope.path}',
+                                ),
+                                workspace: workspace,
+                                repoPath: sourceControlScope.path,
+                              ),
                       WorkbenchContextPanelTab.agentCanvas => AgentCanvasPanel(
                         workspace: workspace,
                         onOpenFile: (relativePath) async {
@@ -152,37 +165,12 @@ class WorkspaceContextSidebar extends StatelessWidget {
             )
           : _CollapsedContextRail(
               activeTab: activeTab,
-              sourceControlAvailable: sourceControlScope != null,
               onOpenTab: (tab) {
                 onSetContextPanelTab(tab);
                 onToggleVisible();
               },
               onToggleVisible: onToggleVisible,
             ),
-    );
-  }
-
-  WorkbenchContextPanelTab get _effectiveActiveTab {
-    if (_effectiveSourceControlScope == null &&
-        (prefs.activeContextPanelTab == WorkbenchContextPanelTab.gitDiff ||
-            prefs.activeContextPanelTab ==
-                WorkbenchContextPanelTab.pullRequests)) {
-      return WorkbenchContextPanelTab.explorer;
-    }
-    return prefs.activeContextPanelTab;
-  }
-
-  WorkspaceSourceControlScope? get _effectiveSourceControlScope {
-    if (sourceControlScope != null) {
-      return sourceControlScope;
-    }
-    if (!sourceControlAvailable) {
-      return null;
-    }
-    return WorkspaceSourceControlScope(
-      workspaceId: workspace.id,
-      workspacePath: workspace.path,
-      path: workspace.path,
     );
   }
 }
@@ -236,13 +224,11 @@ class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
 class _CollapsedContextRail extends StatelessWidget {
   const _CollapsedContextRail({
     required this.activeTab,
-    required this.sourceControlAvailable,
     required this.onOpenTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
-  final bool sourceControlAvailable;
   final ValueChanged<WorkbenchContextPanelTab> onOpenTab;
   final VoidCallback onToggleVisible;
 
@@ -268,24 +254,22 @@ class _CollapsedContextRail extends StatelessWidget {
             icon: AleraIcons.search,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
           ),
-          if (sourceControlAvailable) ...<Widget>[
-            const SizedBox(height: AleraTokens.space6),
-            _ContextTabButton(
-              tab: WorkbenchContextPanelTab.gitDiff,
-              activeTab: activeTab,
-              tooltip: 'Source Control',
-              icon: AleraIcons.gitBranch,
-              onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
-            ),
-            const SizedBox(height: AleraTokens.space6),
-            _ContextTabButton(
-              tab: WorkbenchContextPanelTab.pullRequests,
-              activeTab: activeTab,
-              tooltip: 'Pull Request',
-              icon: AleraIcons.gitPullRequest,
-              onPressed: () => onOpenTab(WorkbenchContextPanelTab.pullRequests),
-            ),
-          ],
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.gitDiff,
+            activeTab: activeTab,
+            tooltip: 'Source Control',
+            icon: AleraIcons.gitBranch,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
+          ),
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.pullRequests,
+            activeTab: activeTab,
+            tooltip: 'Pull Request',
+            icon: AleraIcons.gitPullRequest,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.pullRequests),
+          ),
           const SizedBox(height: AleraTokens.space6),
           _ContextTabButton(
             tab: WorkbenchContextPanelTab.agentCanvas,
@@ -312,13 +296,11 @@ class _CollapsedContextRail extends StatelessWidget {
 class _ContextTabHeader extends StatelessWidget {
   const _ContextTabHeader({
     required this.activeTab,
-    required this.sourceControlAvailable,
     required this.onSetActiveTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
-  final bool sourceControlAvailable;
   final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab;
   final VoidCallback onToggleVisible;
 
@@ -352,26 +334,24 @@ class _ContextTabHeader extends StatelessWidget {
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.search),
               ),
-              if (sourceControlAvailable) ...<Widget>[
-                const SizedBox(width: AleraTokens.space6),
-                _ContextTabButton(
-                  tab: WorkbenchContextPanelTab.gitDiff,
-                  activeTab: activeTab,
-                  tooltip: 'Source Control',
-                  icon: AleraIcons.gitBranch,
-                  onPressed: () =>
-                      onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
-                ),
-                const SizedBox(width: AleraTokens.space6),
-                _ContextTabButton(
-                  tab: WorkbenchContextPanelTab.pullRequests,
-                  activeTab: activeTab,
-                  tooltip: 'Pull Request',
-                  icon: AleraIcons.gitPullRequest,
-                  onPressed: () =>
-                      onSetActiveTab(WorkbenchContextPanelTab.pullRequests),
-                ),
-              ],
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.gitDiff,
+                activeTab: activeTab,
+                tooltip: 'Source Control',
+                icon: AleraIcons.gitBranch,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.pullRequests,
+                activeTab: activeTab,
+                tooltip: 'Pull Request',
+                icon: AleraIcons.gitPullRequest,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.pullRequests),
+              ),
               const SizedBox(width: AleraTokens.space6),
               _ContextTabButton(
                 tab: WorkbenchContextPanelTab.agentCanvas,

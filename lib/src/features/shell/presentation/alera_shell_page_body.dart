@@ -110,7 +110,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             workspace: workspace,
                             prefs: shell.viewPrefs,
                             sourceControlScope: sourceControlScope,
-                            sourceControlAvailable: sourceControlScope != null,
                             focusedSourceControlRoot: canSelectSourceControlRoot
                                 ? shell
                                       .viewPrefs

@@ -209,13 +209,10 @@ void _registerWorkbenchControllerViewPrefsTests() {
   });
 
   test(
-    'selecting a folder workspace replaces source control with explorer',
+    'selecting a folder workspace preserves source control and pull request tabs',
     () async {
       await _controller.bootstrap();
-      _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
-      await _flush();
-      final saveCountBeforeFolderSelection =
-          _harness.viewPrefsRepository.saveCount;
+      final gitWorkspace = await _selectMainWorkspace(_controller, _harness);
       final folderPath = p.join(_harness.tempDir.path, 'notes');
       Directory(folderPath).createSync(recursive: true);
       final now = DateTime.utc(2026, 5, 22);
@@ -235,24 +232,31 @@ void _registerWorkbenchControllerViewPrefsTests() {
       final folderWorkspace = _controller.state
           .workspacesFor(folderProject.id)
           .single;
-      await _controller.selectWorkspace(
-        project: folderProject,
-        workspace: folderWorkspace,
-      );
-      await _flush();
 
-      expect(
-        _controller.state.viewPrefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.explorer,
-      );
-      expect(
-        _harness.viewPrefsRepository.prefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.explorer,
-      );
-      expect(
-        _harness.viewPrefsRepository.saveCount,
-        greaterThan(saveCountBeforeFolderSelection),
-      );
+      for (final tab in <WorkbenchContextPanelTab>[
+        WorkbenchContextPanelTab.gitDiff,
+        WorkbenchContextPanelTab.pullRequests,
+      ]) {
+        _controller.setContextPanelTab(tab);
+        await _flush();
+
+        await _controller.selectWorkspace(
+          project: folderProject,
+          workspace: folderWorkspace,
+        );
+        await _flush();
+
+        expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
+        expect(_harness.viewPrefsRepository.prefs.activeContextPanelTab, tab);
+
+        await _controller.selectWorkspace(
+          project: _harness.project,
+          workspace: gitWorkspace,
+        );
+        await _flush();
+
+        expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
+      }
     },
   );
 
@@ -338,7 +342,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       );
       expect(
         _controller.state.viewPrefs.activeContextPanelTab,
-        WorkbenchContextPanelTab.explorer,
+        WorkbenchContextPanelTab.gitDiff,
       );
     },
   );
