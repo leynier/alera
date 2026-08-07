@@ -3,6 +3,10 @@ use serde_json::Value;
 
 use crate::agent_status::prepare_launch_environment;
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
+use crate::terminal_host::orchestration::agent_startup_command::{
+    append_initial_prompt_argument, command_with_initial_prompt,
+};
 use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
@@ -11,7 +15,7 @@ use super::terminal_launch_defaults::default_terminal_launch;
 use super::terminal_startup_commands::{
     auto_close_setup_command, auto_closes_on_success, delivers_initial_command_once,
     delivers_initial_prompt_once, initial_command, initial_managed_agent_launch, initial_prompt,
-    pending_agent_type, terminal_session_id,
+    pending_agent_type, tab_agent_type, terminal_session_id,
 };
 use super::{ServerActor, ServerCommand};
 
@@ -122,12 +126,15 @@ impl ServerActor {
         )
         .await?;
         let managed_launch = initial_managed_agent_launch(tab)?;
+        let prompt = initial_prompt(tab);
+        // Which shape the prompt takes is the agent's business, and only the
+        // adapter knows it. An unknown agent type leaves the launch bare rather
+        // than guessing a flag the CLI would reject.
+        let adapter = tab_agent_type(tab).and_then(adapter_for);
+        let prompt_arguments = adapter.zip(prompt.as_deref());
         let command = if let Some(mut launch) = managed_launch {
-            if let Some(prompt) = initial_prompt(tab) {
-                crate::terminal_host::orchestration::agent_startup_command::append_codex_initial_prompt_argument(
-                    &mut launch.arguments,
-                    prompt,
-                );
+            if let Some((adapter, prompt)) = prompt_arguments {
+                append_initial_prompt_argument(adapter, &mut launch.arguments, prompt);
             }
             Some(
                 crate::terminal_host::orchestration::managed_launch_shell_rendering::render_managed_launch(
@@ -137,11 +144,12 @@ impl ServerActor {
             )
         } else {
             initial_command(tab).map(|command| {
-                let command = initial_prompt(tab)
-                    .map(|prompt| {
-                        crate::terminal_host::orchestration::agent_startup_command::codex_command_with_initial_prompt(
+                let command = prompt_arguments
+                    .map(|(adapter, prompt)| {
+                        command_with_initial_prompt(
+                            adapter,
                             &command,
-                            &prompt,
+                            prompt,
                             &default_launch.interactive_shell,
                         )
                     })
@@ -152,6 +160,14 @@ impl ServerActor {
                     command
                 }
             })
+        };
+        let command = match (prompt_arguments, command) {
+            (Some((adapter, prompt)), Some(command))
+                if adapter.startup_prompt == AgentStartupPrompt::StdinScript =>
+            {
+                Some(self.stdin_prompt_command(&session_id, &command, prompt))
+            }
+            (_, command) => command,
         };
         if let Some(command) = command {
             let instance_id = self
@@ -176,6 +192,33 @@ impl ServerActor {
             }
         }
         Ok(None)
+    }
+
+    /// Rewrites a launch so the agent reads its prompt from stdin.
+    ///
+    /// Falls back to the bare launch when the script cannot be written: a tab
+    /// holding an agent without its prompt is a far better outcome than a tab
+    /// holding no agent at all.
+    fn stdin_prompt_command(&self, session_id: &str, command: &str, prompt: &str) -> String {
+        let Some(directory) = self.setup_script_directory() else {
+            tracing::warn!(
+                session_id = %session_id,
+                "no runtime directory for the agent prompt script; launching without the prompt"
+            );
+            return command.to_string();
+        };
+        match crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
+            &directory, session_id, command, prompt,
+        ) {
+            Ok(script) => script.command,
+            Err(error) => {
+                tracing::error!(
+                    session_id = %session_id,
+                    "failed to write the agent prompt script; launching without the prompt: {error}"
+                );
+                command.to_string()
+            }
+        }
     }
 
     async fn clear_initial_command(

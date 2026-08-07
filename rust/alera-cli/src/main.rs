@@ -1,3 +1,4 @@
+mod agent_prompt_stdin_script;
 mod agent_quota;
 mod agent_status;
 mod automation_autostart;

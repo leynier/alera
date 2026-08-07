@@ -138,21 +138,6 @@ impl ServerActor {
             .ok()?
     }
 
-    /// The launch command for a task's stage profile, for adapters that get a
-    /// bare terminal and dispatch on readiness.
-    pub(super) async fn coordinator_profile_launch_for_task(
-        &mut self,
-        task: &alera_core::runtime::OrchestrationTask,
-    ) -> Option<(Option<String>, Option<ManagedAgentLaunch>)> {
-        let name = self.coordinator_profile_for_task(task).await?;
-        let profile = self
-            .runtime_store
-            .agent_profile_by_name(&name)
-            .await
-            .ok()??;
-        launch_for_profile(&profile).ok()
-    }
-
     pub(super) async fn coordinator_profile_prompt_for_task(
         &mut self,
         task: &OrchestrationTask,
