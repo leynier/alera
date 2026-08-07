@@ -4,44 +4,74 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('agent prompt delivery', () {
-    test('only Codex receives its prompt as a command argument', () {
+    test('every agent declares how its prompt reaches the launch', () {
       expect(
         <AgentType, AgentPromptDelivery>{
           for (final adapter in AgentType.values)
             adapter: agentPromptDeliveryFor(adapter),
         },
         <AgentType, AgentPromptDelivery>{
-          AgentType.codex: AgentPromptDelivery.initialPromptArgument,
-          AgentType.claude: AgentPromptDelivery.readinessInjection,
-          AgentType.copilot: AgentPromptDelivery.readinessInjection,
-          AgentType.cursor: AgentPromptDelivery.readinessInjection,
-          AgentType.agy: AgentPromptDelivery.readinessInjection,
-          AgentType.opencode: AgentPromptDelivery.readinessInjection,
-          AgentType.pi: AgentPromptDelivery.readinessInjection,
-          AgentType.amp: AgentPromptDelivery.readinessInjection,
-          AgentType.grok: AgentPromptDelivery.readinessInjection,
+          AgentType.codex: AgentPromptDelivery.positionalAfterTerminator,
+          AgentType.claude: AgentPromptDelivery.positionalAfterTerminator,
+          AgentType.copilot: AgentPromptDelivery.longOption,
+          AgentType.cursor: AgentPromptDelivery.positionalAfterTerminator,
+          AgentType.agy: AgentPromptDelivery.longOption,
+          AgentType.opencode: AgentPromptDelivery.longOption,
+          AgentType.pi: AgentPromptDelivery.positional,
+          AgentType.amp: AgentPromptDelivery.stdinScript,
+          // Hook-only, with no spawn adapter, so the default is what it gets.
+          AgentType.grok: AgentPromptDelivery.positionalAfterTerminator,
         },
       );
     });
 
-    test('describes both delivery paths in the user\'s terms', () {
+    test('describes every delivery path in the user\'s terms', () {
       expect(
         agentPromptDeliveryDescription(AgentType.codex),
-        contains('appends the dispatched prompt'),
+        contains('after --'),
       );
       expect(
-        agentPromptDeliveryDescription(AgentType.claude),
-        contains('types the dispatched prompt'),
+        agentPromptDeliveryDescription(AgentType.pi),
+        contains('does not accept an option terminator'),
+      );
+      expect(
+        agentPromptDeliveryDescription(AgentType.opencode),
+        contains('--prompt'),
+      );
+      expect(
+        agentPromptDeliveryDescription(AgentType.amp),
+        contains('standard input'),
       );
     });
 
-    test('previews the launch line only where the prompt is an argument', () {
+    test('previews the launch line in the shape each agent accepts', () {
       expect(
         agentPromptDeliveryPreview(AgentType.codex, '  codex --search  '),
         "codex --search -- 'Dispatched Prompt'",
       );
+      expect(
+        agentPromptDeliveryPreview(AgentType.claude, 'claude --model opus'),
+        "claude --model opus -- 'Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.copilot, 'copilot'),
+        "copilot '--interactive=Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.opencode, 'opencode'),
+        "opencode '--prompt=Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.agy, 'agy'),
+        "agy '--prompt-interactive=Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.pi, 'pi --thinking high'),
+        "pi --thinking high 'Dispatched Prompt'",
+      );
       expect(agentPromptDeliveryPreview(AgentType.codex, '   '), '');
-      expect(agentPromptDeliveryPreview(AgentType.claude, 'claude'), '');
+      // Amp's prompt never reaches the command line.
+      expect(agentPromptDeliveryPreview(AgentType.amp, 'amp'), '');
     });
   });
 }

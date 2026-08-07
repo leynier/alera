@@ -27,7 +27,7 @@ pub fn setup_script_path(directory: &Path, workspace_id: &str, windows: bool) ->
     let extension = if windows { "cmd" } else { "sh" };
     directory.join(format!(
         "{SETUP_SCRIPT_PREFIX}{}.{extension}",
-        sanitize_workspace_id(workspace_id)
+        sanitize_script_id(workspace_id)
     ))
 }
 
@@ -192,11 +192,10 @@ fn cmd_echo_marker(value: &str) -> String {
     escaped
 }
 
-/// Keeps a workspace id from steering the script anywhere but the target
+/// Keeps an id from steering a generated script anywhere but the target
 /// directory. Ids are uuids in practice, so this never rewrites a real one.
-fn sanitize_workspace_id(workspace_id: &str) -> String {
-    workspace_id
-        .chars()
+pub fn sanitize_script_id(id: &str) -> String {
+    id.chars()
         .map(|character| {
             if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
                 character
@@ -208,7 +207,7 @@ fn sanitize_workspace_id(workspace_id: &str) -> String {
 }
 
 #[cfg(unix)]
-fn make_executable(path: &Path) -> Result<()> {
+pub fn make_executable(path: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
 
     let mut permissions = std::fs::metadata(path)?.permissions();
@@ -218,7 +217,7 @@ fn make_executable(path: &Path) -> Result<()> {
 }
 
 #[cfg(not(unix))]
-fn make_executable(_path: &Path) -> Result<()> {
+pub fn make_executable(_path: &Path) -> Result<()> {
     Ok(())
 }
 

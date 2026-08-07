@@ -46,13 +46,6 @@ fn readiness_spawn_exits_consume_startup_budget_until_stalled() {
                     json!(if attempt == 3 { "stalled" } else { "ready" }),
                     "{shown}"
                 );
-                assert!(
-                    shown["task"]["result"]
-                        .as_str()
-                        .unwrap()
-                        .contains("terminal exited with code 7"),
-                    "{shown}"
-                );
                 break;
             }
             assert!(Instant::now() < deadline, "{shown}");
@@ -76,10 +69,21 @@ fn readiness_spawn_exits_consume_startup_budget_until_stalled() {
         json!({"task": task_id}),
     ));
     assert!(dispatch["active"].is_null(), "{dispatch}");
-    assert!(
-        dispatch["history"].as_array().unwrap().is_empty(),
-        "{dispatch}"
-    );
+    // One failed startup per attempt and nothing left holding the task: the
+    // exit reason lives on the dispatch, which is where the pre-dispatch path
+    // records it.
+    let history = dispatch["history"].as_array().unwrap();
+    assert_eq!(history.len(), 3, "{dispatch}");
+    for entry in history {
+        assert_eq!(entry["status"], json!("startup_failed"), "{dispatch}");
+        assert!(
+            entry["startup_error"]
+                .as_str()
+                .unwrap()
+                .contains("terminal exited with code 7"),
+            "{dispatch}"
+        );
+    }
 }
 
 #[test]

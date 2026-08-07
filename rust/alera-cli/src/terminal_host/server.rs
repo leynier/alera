@@ -307,9 +307,12 @@ pub async fn run_terminal_host_server(
         actor.start_push_subscription_sync(None);
     }
     // A deferred setup script deletes itself when it finishes, so anything
-    // still here outlived the host that wrote it and its terminal is gone.
+    // still here outlived the host that wrote it and its terminal is gone. An
+    // agent prompt script never deletes itself, so the same sweep is the only
+    // thing that clears one.
     if let Some(directory) = actor.setup_script_directory() {
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
+        crate::agent_prompt_stdin_script::remove_stale_agent_prompt_scripts(&directory);
     }
     actor.automations_active = actor.runtime_store.has_active_automations().await?
         || !actor
