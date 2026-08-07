@@ -24,9 +24,11 @@ import 'package:flutter_test/flutter_test.dart';
 import '../unit/fake_git_backend.dart';
 
 part 'workspace_explorer_cursor_cases.dart';
+part 'workspace_explorer_context_sidebar_cases.dart';
 part 'workspace_explorer_git_snapshot_cases.dart';
 
 void main() {
+  _registerWorkspaceExplorerContextSidebarTests();
   _registerWorkspaceExplorerGitSnapshotTests();
   _registerWorkspaceExplorerCursorTests();
 
@@ -670,102 +672,6 @@ void main() {
     expect(find.byTooltip('Collapse panel'), findsOneWidget);
     expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(find.byType(WorkspaceExplorer), findsOneWidget);
-  });
-
-  testWidgets('context sidebar hides source control when unavailable', (
-    tester,
-  ) async {
-    final service = _FakeWorkspaceFileService();
-
-    await tester.pumpWidget(
-      _withWorkspaceFiles(
-        service,
-        child: MaterialApp(
-          home: Scaffold(
-            body: WorkspaceContextSidebar(
-              workspace: _workspace(),
-              prefs: WorkbenchViewPrefs.defaults.copyWith(
-                activeContextPanelTab: WorkbenchContextPanelTab.gitDiff,
-              ),
-              sourceControlAvailable: false,
-              onToggleVisible: () {},
-              onResize: (_) {},
-              onSetContextPanelTab: (_) {},
-              onSetExplorerMode: (_) {},
-              onSetGitDiffViewMode: (_) {},
-              onOpenFile: (_) {},
-              onOpenGitDiff:
-                  ({relativePath, area, gitDiffRoot, required scope}) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                  }) async {},
-              onOpenSearchMatch: (_) {},
-              onPathMoved: (_, _) async {},
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('Explorer'), findsOneWidget);
-    expect(find.byTooltip('Search'), findsOneWidget);
-    expect(find.byTooltip('Source Control'), findsNothing);
-    expect(find.byIcon(AleraIcons.gitBranch), findsNothing);
-    expect(find.byType(WorkspaceExplorer), findsOneWidget);
-
-    await tester.pumpWidget(
-      _withWorkspaceFiles(
-        service,
-        child: MaterialApp(
-          home: Scaffold(
-            body: WorkspaceContextSidebar(
-              workspace: _workspace(),
-              prefs: WorkbenchViewPrefs.defaults.copyWith(
-                activeContextPanelTab: WorkbenchContextPanelTab.gitDiff,
-                rightSidebarVisible: false,
-              ),
-              sourceControlAvailable: false,
-              onToggleVisible: () {},
-              onResize: (_) {},
-              onSetContextPanelTab: (_) {},
-              onSetExplorerMode: (_) {},
-              onSetGitDiffViewMode: (_) {},
-              onOpenFile: (_) {},
-              onOpenGitDiff:
-                  ({relativePath, area, gitDiffRoot, required scope}) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                  }) async {},
-              onOpenSearchMatch: (_) {},
-              onPathMoved: (_, _) async {},
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byTooltip('Expand panel'), findsOneWidget);
-    expect(find.byTooltip('Source Control'), findsNothing);
-    expect(find.byIcon(AleraIcons.gitBranch), findsNothing);
   });
 }
 
