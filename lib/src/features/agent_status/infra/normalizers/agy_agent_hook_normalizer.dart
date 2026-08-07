@@ -5,6 +5,9 @@ AgentStatusState? _normalizeAgyState(
   String? toolName,
   Map<String, Object?> payload,
 ) {
+  // Alera never installs `PreToolUse`: Antigravity requires a `decision` there,
+  // and an observational hook has no value to return that leaves the user's
+  // permission policy alone. These branches only run for a hook the user wrote.
   if (eventName == 'PreToolUse' && _isAgyFeedbackTool(toolName)) {
     return AgentStatusState.waiting;
   }
