@@ -232,7 +232,6 @@ void _registerWorkbenchControllerViewPrefsTests() {
       final folderWorkspace = _controller.state
           .workspacesFor(folderProject.id)
           .single;
-
       for (final tab in <WorkbenchContextPanelTab>[
         WorkbenchContextPanelTab.gitDiff,
         WorkbenchContextPanelTab.pullRequests,
