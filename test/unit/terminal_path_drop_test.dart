@@ -47,6 +47,25 @@ void main() {
     expect(session.focusRequests, 1);
   });
 
+  test('pastes workspace files relative to the workspace root', () {
+    final session = _CapturingTerminalSessionHandle()
+      ..workspacePath = '/tmp/project';
+
+    handleTerminalPathDrop(
+      session: session,
+      paths: <String>[
+        '/tmp/project/packages/app/main.dart',
+        '/tmp/project/my file.txt',
+        '/tmp/other/absolute.txt',
+      ],
+    );
+
+    expect(session.pasted, <String>[
+      "packages/app/main.dart 'my file.txt' /tmp/other/absolute.txt ",
+    ]);
+    expect(session.focusRequests, 1);
+  });
+
   test('ignores empty path lists', () {
     final session = _CapturingTerminalSessionHandle();
 
@@ -61,6 +80,9 @@ class _CapturingTerminalSessionHandle extends TerminalSessionHandle {
   final List<String> pasted = <String>[];
   int focusRequests = 0;
   final ValueNotifier<String> _title = ValueNotifier<String>('Terminal');
+
+  @override
+  String? workspacePath;
 
   @override
   String get tabId => 'tab';

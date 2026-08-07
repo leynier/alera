@@ -118,6 +118,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   @override
   String get workspaceId => _workspace.id;
   @override
+  String get workspacePath => _workspace.path;
+  @override
   String get terminalSessionId => _tab.terminalSessionId;
 
   @override

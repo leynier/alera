@@ -1,7 +1,7 @@
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/domain/workspace_relative_path.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
-import 'package:path/path.dart' as p;
 
 Future<bool> openTerminalComposerWorkspaceAttachment({
   required String workspacePath,
@@ -44,13 +44,8 @@ String? terminalComposerWorkspaceRelativePath({
   required String workspacePath,
   required String filePath,
 }) {
-  if (!p.isAbsolute(filePath)) {
-    return null;
-  }
-  final normalizedWorkspacePath = p.normalize(workspacePath);
-  final normalizedFilePath = p.normalize(filePath);
-  if (!p.isWithin(normalizedWorkspacePath, normalizedFilePath)) {
-    return null;
-  }
-  return p.relative(normalizedFilePath, from: normalizedWorkspacePath);
+  return workspaceRelativePath(
+    workspacePath: workspacePath,
+    filePath: filePath,
+  );
 }
