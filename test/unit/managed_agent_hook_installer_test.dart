@@ -146,21 +146,50 @@ void main() {
     });
 
     test('reports malformed JSON configs as errors', () {
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
       File(configPath)
         ..createSync(recursive: true)
         ..writeAsStringSync('{not json');
+
+      final status = service.status(AgentType.copilot);
+      final install = service.install(AgentType.copilot);
+      final remove = service.remove(AgentType.copilot);
+
+      expect(status.state, ManagedAgentHookInstallState.error);
+      expect(install.state, ManagedAgentHookInstallState.error);
+      expect(remove.state, ManagedAgentHookInstallState.error);
+      expect(
+        status.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+      expect(
+        install.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+      expect(
+        remove.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+    });
+
+    test('never writes Cursor hooks into the user config', () {
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
 
       final status = service.status(AgentType.cursor);
       final install = service.install(AgentType.cursor);
       final remove = service.remove(AgentType.cursor);
 
-      expect(status.state, ManagedAgentHookInstallState.error);
-      expect(install.state, ManagedAgentHookInstallState.error);
-      expect(remove.state, ManagedAgentHookInstallState.error);
-      expect(status.detail, contains('Could not parse Cursor hooks.json.'));
-      expect(install.detail, contains('Could not parse Cursor hooks.json.'));
-      expect(remove.detail, contains('Could not parse Cursor hooks.json.'));
+      for (final result in <ManagedAgentHookInstallStatus>[
+        status,
+        install,
+        remove,
+      ]) {
+        expect(result.state, ManagedAgentHookInstallState.notInstalled);
+        expect(result.managedHooksPresent, isFalse);
+        expect(result.configPath, configPath);
+        expect(result.detail, contains('per-session plugin'));
+      }
+      expect(File(configPath).existsSync(), isFalse);
     });
 
     test('reports partial Copilot configs when disabled or missing events', () {
@@ -277,68 +306,6 @@ void main() {
       expect(_commandsFor(nextHooks, 'Stop'), <String>['echo user stop']);
     });
 
-    test('installs Cursor hooks with top-level commands', () {
-      final status = service.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final config = _readJson(configPath);
-      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(config['version'], 1);
-      expect(
-        hooks.keys,
-        containsAll(<String>[
-          'beforeSubmitPrompt',
-          'preToolUse',
-          'postToolUse',
-          'postToolUseFailure',
-          'beforeShellExecution',
-          'beforeMCPExecution',
-          'afterAgentResponse',
-          'stop',
-        ]),
-      );
-      final promptDefinitions =
-          hooks['beforeSubmitPrompt'] as List? ?? const <Object?>[];
-      expect(promptDefinitions.single, isA<Map>());
-      expect((promptDefinitions.single as Map)['bash'], isNull);
-      expect((promptDefinitions.single as Map)['powershell'], isNull);
-      expect(
-        _directCommandsFor(hooks, 'beforeSubmitPrompt').single,
-        contains('ALERA_CURSOR_HOOK_EVENT'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.sh'),
-        ).readAsStringSync(),
-        allOf(contains('/hook/cursor'), contains(r'payload=$(cat)')),
-      );
-    });
-
-    test('installs Cursor hooks with cmd scripts on Windows', () {
-      final windowsService = ManagedAgentHookInstallService(
-        homeDirectory: home.path,
-        platform: ManagedAgentHookPlatform.windows,
-        environment: <String, String>{'USERPROFILE': home.path},
-      );
-
-      final status = windowsService.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final hooks = _hooks(configPath);
-      final command = _directCommandsFor(hooks, 'beforeSubmitPrompt').single;
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(command, contains('ALERA_CURSOR_HOOK_EVENT'));
-      expect(command, contains('alera-cursor-hook.cmd'));
-      expect(command, isNot(contains('bash')));
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.cmd'),
-        ).readAsStringSync(),
-        allOf(contains('/hook/cursor'), contains('ALERA_AGENT_HOOK_ENDPOINT')),
-      );
-    });
-
     test('installs Copilot PowerShell hooks on Windows with quoted paths', () {
       final quotedHome = Directory(p.join(home.path, "quoted'home"))
         ..createSync(recursive: true);
@@ -362,28 +329,6 @@ void main() {
       expect(command, contains(r'$env:ALERA_COPILOT_HOOK_EVENT'));
       expect(command, contains("quoted''home"));
       expect(command, contains('alera-copilot-hook.ps1'));
-    });
-
-    test('removes only Alera-managed Cursor hooks', () {
-      service.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final config = _readJson(configPath);
-      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
-      hooks['preToolUse'] = <Object?>[
-        <String, Object?>{'command': 'echo user cursor hook'},
-        ...(hooks['preToolUse'] as List),
-      ];
-      config['hooks'] = hooks;
-      _writeJson(configPath, config);
-
-      final status = service.remove(AgentType.cursor);
-      final nextHooks = _hooks(configPath);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(_directCommandsFor(nextHooks, 'preToolUse'), <String>[
-        'echo user cursor hook',
-      ]);
-      expect(nextHooks['beforeSubmitPrompt'], isNull);
     });
 
     test('installs and removes the managed OpenCode status plugin', () {
