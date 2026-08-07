@@ -21,6 +21,29 @@ void main() {
     expect(session.focusRequests, 1);
   });
 
+  testWidgets('path drag pastes workspace files as relative paths', (
+    tester,
+  ) async {
+    final session = _CapturingTerminalSessionHandle(
+      workspacePath: '/tmp/project',
+    );
+
+    await _pumpDragHarness(
+      tester,
+      session,
+      paths: const <String>[
+        '/tmp/project/packages/app/main.dart',
+        '/tmp/other/absolute.txt',
+      ],
+    );
+    await _dragSourceToTerminal(tester);
+
+    expect(session.pasted, <String>[
+      'packages/app/main.dart /tmp/other/absolute.txt ',
+    ]);
+    expect(session.focusRequests, 1);
+  });
+
   testWidgets('vertical pans prefer scroll over path drag', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -204,12 +227,15 @@ Future<void> _dragSourceToTerminal(
 }
 
 class _CapturingTerminalSessionHandle extends TerminalSessionHandle {
-  _CapturingTerminalSessionHandle({this.error});
+  _CapturingTerminalSessionHandle({this.error, this.workspacePath});
 
   final String? error;
   final List<String> pasted = <String>[];
   int focusRequests = 0;
   final ValueNotifier<String> _title = ValueNotifier<String>('Terminal');
+
+  @override
+  final String? workspacePath;
 
   @override
   String get tabId => 'tab';
