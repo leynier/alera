@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver};
+use crate::agent_status::{start_agent_integrations, start_hook_receiver};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -280,7 +280,7 @@ pub async fn run_terminal_host_server(
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
-        reconcile_agent_integrations(&hook_runtime_dir, &hook_settings)
+        start_agent_integrations(&hook_runtime_dir, &hook_settings)
     })
     .await
     .unwrap_or_else(|error| vec![error.to_string()]);

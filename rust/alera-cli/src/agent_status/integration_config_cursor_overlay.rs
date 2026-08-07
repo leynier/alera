@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
-use super::{clean_managed_definitions, managed_command, object_field, path_string, sh_quote};
+use super::{clean_managed_definitions, managed_command, object_field};
+use super::{path_string, sh_quote};
 use super::{read_json_object, write_json_object};
 
 /// Events Alera registers with Cursor. `sessionStart` is deliberately absent:
@@ -39,9 +40,7 @@ pub(super) fn prepare_cursor(
     script: &Path,
     environment: &mut BTreeMap<String, String>,
 ) -> anyhow::Result<()> {
-    let overlay = runtime_dir
-        .join("agent-runtime-overlays/cursor")
-        .join(session_id);
+    let overlay = overlay_root(runtime_dir).join(session_id);
     let plugin_root = overlay.join("plugin");
     let wrapper_directory = overlay.join("bin");
     if overlay.exists() {
@@ -101,12 +100,32 @@ pub(super) fn prepare_cursor(
     Ok(())
 }
 
+fn overlay_root(runtime_dir: &Path) -> PathBuf {
+    runtime_dir.join("agent-runtime-overlays/cursor")
+}
+
+/// Startup housekeeping: drops every session overlay and strips the Alera
+/// definitions older versions left in the user's own `~/.cursor/hooks.json`.
+///
+/// Both belong to host start rather than to a terminal launch. The overlays are
+/// keyed by session id and the host owns no PTY yet, so every directory here is
+/// from a session that no longer exists; pruning anywhere else would have to
+/// guess which ones are still live. The hooks.json cleanup has to run even when
+/// every hook toggle is off, and start is the only point that always runs.
+pub(super) fn clear_stale_state(runtime_dir: &Path, home: &Path) -> anyhow::Result<()> {
+    let root = overlay_root(runtime_dir);
+    if root.exists() {
+        std::fs::remove_dir_all(&root)?;
+    }
+    cleanup_user_hooks(home)
+}
+
 /// Strips Alera-managed definitions from the user's `~/.cursor/hooks.json`.
 ///
 /// Older Alera versions installed the Cursor hooks globally. Those entries
 /// still fire, so leaving them behind would deliver every event twice once the
 /// plugin is in place. Definitions the user wrote are left untouched.
-pub(super) fn cleanup_user_hooks(home: &Path) -> anyhow::Result<()> {
+fn cleanup_user_hooks(home: &Path) -> anyhow::Result<()> {
     let path = home.join(".cursor/hooks.json");
     let Some(mut config) = read_json_object(&path)? else {
         return Ok(());

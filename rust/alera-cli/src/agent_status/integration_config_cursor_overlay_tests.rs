@@ -85,6 +85,20 @@ fn a_relaunch_replaces_the_previous_overlay_for_the_same_session() {
 }
 
 #[test]
+fn startup_drops_every_session_overlay() {
+    let runtime = tempfile::tempdir().unwrap();
+    let overlay = overlay_for(runtime.path(), "session-1");
+    let plugin_root = PathBuf::from(&overlay["ALERA_CURSOR_PLUGIN_DIR"]);
+    overlay_for(runtime.path(), "session-2");
+
+    // The host owns no PTY at start, so every session directory here is dead.
+    clear_stale_state(runtime.path(), &tempfile::tempdir().unwrap().keep()).unwrap();
+
+    assert!(!plugin_root.exists());
+    assert!(!overlay_root(runtime.path()).exists());
+}
+
+#[test]
 fn cleanup_removes_alera_definitions_and_keeps_the_users_own() {
     let home = tempfile::tempdir().unwrap();
     let path = home.path().join(".cursor/hooks.json");

@@ -5,7 +5,7 @@ use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
 
 use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
-use self::cursor_overlay::{cleanup_user_hooks, prepare_cursor};
+use self::cursor_overlay::prepare_cursor;
 use super::integration_hook_scripts::write_managed_script;
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
 
@@ -37,12 +37,6 @@ pub fn prepare_enabled_integrations(
     environment: &mut BTreeMap<String, String>,
 ) -> Vec<String> {
     let mut warnings = Vec::new();
-    // Older Alera versions registered the Cursor hooks in the user's own
-    // hooks.json. They still fire, so they have to go whatever the setting is
-    // or every event arrives twice once the session plugin is in place.
-    if let Err(error) = home_dir().and_then(|home| cleanup_user_hooks(&home)) {
-        warnings.push(format!("Cursor: {error}"));
-    }
     let script = match write_managed_script() {
         Ok(script) => script,
         Err(error) => {
@@ -90,6 +84,24 @@ pub fn prepare_enabled_integrations(
             warnings.push(error.to_string());
         }
     }
+    warnings
+}
+
+/// Host start: clear what a previous run left behind, then reconcile.
+///
+/// The clearing has to happen here and only here. The host owns no PTY yet, so
+/// this is the one moment a per-session leftover is provably dead, and it is
+/// also the only point that runs when every hook toggle is off.
+pub fn start_agent_integrations(
+    runtime_dir: &Path,
+    settings: &RuntimeAgentStatusHookSettings,
+) -> Vec<String> {
+    let mut warnings =
+        match home_dir().and_then(|home| cursor_overlay::clear_stale_state(runtime_dir, &home)) {
+            Ok(()) => Vec::new(),
+            Err(error) => vec![format!("Cursor: {error}")],
+        };
+    warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
     warnings
 }
 
