@@ -1,5 +1,6 @@
 mod hook_receiver;
 mod integration_config;
+mod integration_hook_scripts;
 mod integration_plugins;
 mod launch_environment;
 mod normalize;

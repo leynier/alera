@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 part 'managed_agent_hook_installer_test_harness.dart';
 part 'managed_agent_hook_installer_grok_test_cases.dart';
 part 'managed_agent_hook_installer_amp_test_cases.dart';
+part 'managed_agent_hook_installer_agy_test_cases.dart';
 
 void main() {
   group('ManagedAgentHookInstallService', () {
@@ -31,6 +32,7 @@ void main() {
     });
     _registerGrokHookInstallerTests(() => home, () => service);
     _registerAmpHookInstallerTests(() => home, () => service);
+    _registerAgyHookInstallerTests(() => home, () => service);
     test('does not install Codex hooks into the user config', () {
       final configPath = p.join(home.path, '.codex', 'hooks.json');
       _writeJson(configPath, <String, Object?>{
@@ -382,150 +384,6 @@ void main() {
         'echo user cursor hook',
       ]);
       expect(nextHooks['beforeSubmitPrompt'], isNull);
-    });
-
-    test('installs AGY hooks in the Gemini global hooks bundle', () {
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      _writeJson(configPath, <String, Object?>{
-        'user-hook': <String, Object?>{
-          'PreInvocation': <Object?>[
-            <String, Object?>{'type': 'command', 'command': 'echo user'},
-          ],
-        },
-        'alera-status': <String, Object?>{
-          'PreInvocation': <Object?>[
-            <String, Object?>{'type': 'command', 'command': 'echo alera-extra'},
-          ],
-          'PreToolUse': <Object?>[
-            <String, Object?>{
-              'matcher': '*',
-              'hooks': <Object?>[
-                <String, Object?>{
-                  'type': 'command',
-                  'command': '/tmp/agent-hooks/alera-agy-hook.sh',
-                },
-              ],
-            },
-          ],
-        },
-      });
-
-      final status = service.install(AgentType.agy);
-      final config = _readJson(configPath);
-      final bundle = Map<String, Object?>.from(config['alera-status'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(config['user-hook'], isNotNull);
-      expect(
-        bundle.keys,
-        containsAll(<String>[
-          'PreInvocation',
-          'PostInvocation',
-          'PostToolUse',
-          'Stop',
-        ]),
-      );
-      expect(bundle['PreToolUse'], isNull);
-      expect(
-        _commandsFor(bundle, 'PreInvocation'),
-        containsAll(<String>['echo alera-extra']),
-      );
-      expect(
-        _commandsFor(bundle, 'PreInvocation').last,
-        contains('ALERA_AGY_EVENT'),
-      );
-      // Lifecycle events must be flat `{ type, command }` (AGY does not run
-      // the nested Claude-style `{ hooks: [...] }` shape for PreInvocation).
-      final preInvocation = (bundle['PreInvocation'] as List).last as Map;
-      expect(preInvocation['type'], 'command');
-      expect(preInvocation['command'], contains('ALERA_AGY_EVENT'));
-      expect(preInvocation.containsKey('hooks'), isFalse);
-      expect(preInvocation['timeout'], 10);
-      final postToolUse = (bundle['PostToolUse'] as List).single as Map;
-      expect(postToolUse['matcher'], '*');
-      expect(postToolUse['hooks'], isA<List>());
-      expect(
-        _commandsFor(bundle, 'PostToolUse').single,
-        contains('alera-agy-hook.sh'),
-      );
-      final script = File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
-      ).readAsStringSync();
-      expect(script, contains('/hook/agy'));
-      expect(script, contains(r'case "$ALERA_AGY_EVENT" in'));
-      expect(script, contains("payload='{}'"));
-      expect(script, contains('payload@-'));
-      // Empty stdin must still post the lifecycle event name.
-      expect(script, isNot(contains('*)\n      exit 0')));
-    });
-
-    test('installs AGY wrapper scripts on Windows', () {
-      final windowsService = ManagedAgentHookInstallService(
-        homeDirectory: home.path,
-        platform: ManagedAgentHookPlatform.windows,
-        environment: <String, String>{'USERPROFILE': home.path},
-      );
-
-      final status = windowsService.install(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final bundle = Map<String, Object?>.from(
-        _readJson(configPath)['alera-status'] as Map,
-      );
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(
-        _commandsFor(bundle, 'Stop').single,
-        contains('alera-agy-stop.cmd'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'),
-        ).readAsStringSync(),
-        contains('ALERA_AGY_EVENT=Stop'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
-        ).readAsStringSync(),
-        allOf(
-          contains('/hook/agy'),
-          contains(
-            r'if ([string]::IsNullOrWhiteSpace($inputData)) { $payload=@{} }',
-          ),
-        ),
-      );
-    });
-
-    test('removes only Alera-managed AGY bundle entries', () {
-      service.install(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final config = _readJson(configPath);
-      final bundle = Map<String, Object?>.from(config['alera-status'] as Map);
-      bundle['PreInvocation'] = <Object?>[
-        <String, Object?>{'type': 'command', 'command': 'echo user'},
-        ...(bundle['PreInvocation'] as List),
-      ];
-      config['alera-status'] = bundle;
-      _writeJson(configPath, config);
-
-      final status = service.remove(AgentType.agy);
-      final next = _readJson(configPath);
-      final nextBundle = Map<String, Object?>.from(next['alera-status'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(_commandsFor(nextBundle, 'PreInvocation'), <String>['echo user']);
-      expect(nextBundle['Stop'], isNull);
-    });
-
-    test('removes empty AGY bundles after deleting managed commands', () {
-      service.install(AgentType.agy);
-
-      final status = service.remove(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final config = _readJson(configPath);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(config.containsKey('alera-status'), isFalse);
     });
 
     test('installs and removes the managed OpenCode status plugin', () {
