@@ -228,11 +228,7 @@ Future<Map<String, String>?> terminalLaunchEnvironmentFor({
   if (hookEnvironment != null) {
     environment.addAll(hookEnvironment);
   }
-  if (hooks.copilot ||
-      hooks.cursor ||
-      hooks.opencode ||
-      hooks.pi ||
-      hooks.amp) {
+  if (hooks.copilot || hooks.opencode || hooks.pi || hooks.amp) {
     try {
       await agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
     } on Object catch (error, stackTrace) {
@@ -261,13 +257,9 @@ Future<Map<String, String>?> terminalLaunchEnvironmentFor({
       )).environment;
     });
   }
-  if (hooks.cursor) {
-    await _addAgentHookEnvironment(environment, 'Cursor', () async {
-      return (await agentRuntimeOverlay.prepareCursorForTerminalLaunch(
-        terminalSessionId: terminalSessionId,
-      )).environment;
-    });
-  }
+  // Cursor is deliberately absent: the runtime host builds its per-session
+  // plugin and `cursor-agent` wrapper, because anything this side injects is
+  // stripped again by the host's launch-environment sanitisation.
   if (hooks.opencode) {
     await _addAgentHookEnvironment(environment, 'OpenCode', () async {
       return (await agentRuntimeOverlay.prepareOpenCodeForTerminalLaunch(

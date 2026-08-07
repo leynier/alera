@@ -399,7 +399,6 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         dir.path().join("agent-runtime-homes/codex/home/hooks.json"),
         claude_settings.clone(),
         test_home.join(".copilot/hooks/alera.json"),
-        test_home.join(".cursor/hooks.json"),
         test_home.join(".gemini/config/hooks.json"),
         grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
@@ -421,6 +420,14 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         }}),
     );
     assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
+
+    // Cursor is delivered as a per-session plugin the launch mints, never as an
+    // entry in the user's own hooks.json.
+    wait_for_path(
+        &dir.path()
+            .join("agent-runtime-overlays/cursor/hook-session/plugin/hooks/hooks.json"),
+    );
+    assert!(!test_home.join(".cursor/hooks.json").exists());
 
     for (index, (agent, event_name)) in [
         ("codex", "UserPromptSubmit"),

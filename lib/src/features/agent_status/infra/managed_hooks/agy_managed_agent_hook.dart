@@ -9,6 +9,8 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
     // - lifecycle events: flat `{ type, command }` entries
     // - tool events: matcher + nested `hooks` array
     // Using nestedCommand for lifecycle silently prevents AGY from running them.
+    // `PreToolUse` is deliberately absent: AGY requires a `decision` from it, so
+    // registering it would put this observational hook in the permission path.
     final events = const <_ManagedHookEvent>[
       _ManagedHookEvent(
         'PreInvocation',
@@ -47,6 +49,10 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       bundleName: 'alera-status',
       managedScriptFileNames: <String>[
         scriptFileName,
+        // The Rust runtime installs the same bundle with its own shared script.
+        // Without this the two would stack and every event would post twice.
+        'alera-runtime-agent-hook.sh',
+        'alera-runtime-agent-hook.cmd',
         if (_platform == ManagedAgentHookPlatform.windows)
           for (final event in events)
             p.basename(_agyWindowsWrapperPath(event.eventName)),

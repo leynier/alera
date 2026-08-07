@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
@@ -370,32 +369,16 @@ void main() {
       },
     );
 
-    test(
-      'falls back to empty Cursor and Amp overlays when setup fails',
-      () async {
-        final cursorSupportFile = File(p.join(home.path, 'cursor-support-file'))
-          ..writeAsStringSync('not a directory');
-        final cursorPreparation =
-            await service(
-              applicationSupportDirectory: () async =>
-                  Directory(cursorSupportFile.path),
-            ).prepareCursorForTerminalLaunch(
-              terminalSessionId: 'session-cursor-fail',
-            );
+    test('falls back to an empty Amp overlay when setup fails', () async {
+      final ampSupportFile = File(p.join(home.path, 'amp-support-file'))
+        ..writeAsStringSync('not a directory');
+      final ampPreparation = await service(
+        applicationSupportDirectory: () async => Directory(ampSupportFile.path),
+      ).prepareAmpForTerminalLaunch(terminalSessionId: 'session-amp-fail');
 
-        final ampSupportFile = File(p.join(home.path, 'amp-support-file'))
-          ..writeAsStringSync('not a directory');
-        final ampPreparation = await service(
-          applicationSupportDirectory: () async =>
-              Directory(ampSupportFile.path),
-        ).prepareAmpForTerminalLaunch(terminalSessionId: 'session-amp-fail');
-
-        expect(cursorPreparation.overlayPath, isNull);
-        expect(cursorPreparation.environment, isEmpty);
-        expect(ampPreparation.overlayPath, isNull);
-        expect(ampPreparation.environment, isEmpty);
-      },
-    );
+      expect(ampPreparation.overlayPath, isNull);
+      expect(ampPreparation.environment, isEmpty);
+    });
 
     test('mirrors Pi agent state and installs the status extension', () async {
       final piAgent = Directory(p.join(home.path, '.pi', 'agent'))
@@ -486,44 +469,6 @@ void main() {
         File(p.join(hooks.path, 'alera.json')).readAsStringSync(),
         '{"hooks":{"UserPromptSubmit":[{"command":"user-owned"}]}}\n',
       );
-    });
-
-    test('creates a Cursor plugin wrapper', () async {
-      final preparation = await service().prepareCursorForTerminalLaunch(
-        terminalSessionId: 'session-cursor',
-      );
-
-      final overlay = preparation.overlayPath!;
-      final pluginDir = preparation.environment['ALERA_CURSOR_PLUGIN_DIR']!;
-      final wrapperPath = preparation.environment['ALERA_AGENT_WRAPPER_PATH']!;
-      expect(Directory(pluginDir).existsSync(), isTrue);
-      expect(File(p.join(wrapperPath, 'cursor-agent')).existsSync(), isTrue);
-
-      final manifest =
-          jsonDecode(
-                File(
-                  p.join(pluginDir, '.cursor-plugin', 'plugin.json'),
-                ).readAsStringSync(),
-              )
-              as Map<String, Object?>;
-      expect(manifest['name'], 'alera-agent-status');
-      expect(manifest['hooks'], 'hooks/hooks.json');
-      final pluginHooks = File(
-        p.join(pluginDir, 'hooks', 'hooks.json'),
-      ).readAsStringSync();
-      expect(pluginHooks, contains('ALERA_CURSOR_HOOK_EVENT'));
-      expect(
-        File(
-          p.join(overlay, '.alera', 'agent-hooks', 'alera-cursor-hook.sh'),
-        ).readAsStringSync(),
-        contains('/hook/cursor'),
-      );
-      final wrapper = File(
-        p.join(wrapperPath, 'cursor-agent'),
-      ).readAsStringSync();
-      expect(wrapper, startsWith('#!/bin/sh'));
-      expect(wrapper, contains('--plugin-dir'));
-      expect(wrapper, contains(pluginDir));
     });
 
     test(
@@ -713,32 +658,16 @@ void main() {
         );
         final preparation = await overlayService
             .prepareOpenCodeForTerminalLaunch(terminalSessionId: 'session-5');
-        final cursorPreparation = await overlayService
-            .prepareCursorForTerminalLaunch(terminalSessionId: 'session-5');
         final ampPreparation = await overlayService.prepareAmpForTerminalLaunch(
           terminalSessionId: 'session-5',
         );
         expect(Directory(preparation.overlayPath!).existsSync(), isTrue);
-        expect(Directory(cursorPreparation.overlayPath!).existsSync(), isTrue);
         expect(Directory(ampPreparation.overlayPath!).existsSync(), isTrue);
-        expect(
-          Directory(
-            cursorPreparation.environment['ALERA_AGENT_WRAPPER_PATH']!,
-          ).existsSync(),
-          isTrue,
-        );
 
         await overlayService.clearTerminalOverlays('session-5');
 
         expect(Directory(preparation.overlayPath!).existsSync(), isFalse);
-        expect(Directory(cursorPreparation.overlayPath!).existsSync(), isFalse);
         expect(Directory(ampPreparation.overlayPath!).existsSync(), isFalse);
-        expect(
-          Directory(
-            cursorPreparation.environment['ALERA_AGENT_WRAPPER_PATH']!,
-          ).existsSync(),
-          isFalse,
-        );
         expect(
           File(p.join(userConfig.path, 'auth.json')).readAsStringSync(),
           'auth',
