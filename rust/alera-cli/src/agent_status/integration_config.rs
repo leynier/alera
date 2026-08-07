@@ -5,10 +5,13 @@ use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
 
 use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
+use self::cursor_overlay::{cleanup_user_hooks, prepare_cursor};
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
 
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
+#[path = "integration_config_cursor_overlay.rs"]
+mod cursor_overlay;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -25,10 +28,17 @@ const LEGACY_MANAGED_MARKERS: [&str; 9] = [
 
 pub fn prepare_enabled_integrations(
     runtime_dir: &Path,
+    session_id: Option<&str>,
     settings: &RuntimeAgentStatusHookSettings,
     environment: &mut BTreeMap<String, String>,
 ) -> Vec<String> {
     let mut warnings = Vec::new();
+    // Older Alera versions registered the Cursor hooks in the user's own
+    // hooks.json. They still fire, so they have to go whatever the setting is
+    // or every event arrives twice once the session plugin is in place.
+    if let Err(error) = home_dir().and_then(|home| cleanup_user_hooks(&home)) {
+        warnings.push(format!("Cursor: {error}"));
+    }
     let script = match write_managed_script() {
         Ok(script) => script,
         Err(error) => {
@@ -54,9 +64,15 @@ pub fn prepare_enabled_integrations(
             Err(error) => warnings.push(format!("Claude: {error}")),
         }
     }
+    // The Cursor plugin is per terminal session, so it can only be built when a
+    // session is being launched. `reconcile_agent_integrations` has none.
+    if let (true, Some(session_id)) = (settings.cursor, session_id) {
+        if let Err(error) = prepare_cursor(runtime_dir, session_id, &script, environment) {
+            warnings.push(format!("Cursor: {error}"));
+        }
+    }
     for result in [
         settings.copilot.then(|| install_copilot(&script)),
-        settings.cursor.then(|| install_cursor(&script)),
         settings.agy.then(|| install_agy(&script)),
         settings.grok.then(|| install_grok(&script)),
         settings.opencode.then(install_opencode_plugin),
@@ -78,7 +94,7 @@ pub fn reconcile_agent_integrations(
     settings: &RuntimeAgentStatusHookSettings,
 ) -> Vec<String> {
     let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    prepare_enabled_integrations(runtime_dir, settings, &mut environment)
+    prepare_enabled_integrations(runtime_dir, None, settings, &mut environment)
 }
 
 fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
@@ -219,28 +235,6 @@ fn install_copilot(script: &Path) -> anyhow::Result<()> {
             ("hooks".to_string(), Value::Object(hooks)),
         ]),
     )
-}
-
-fn install_cursor(script: &Path) -> anyhow::Result<()> {
-    let path = home_dir()?.join(".cursor/hooks.json");
-    let mut config = read_json_object(&path)?.unwrap_or_default();
-    config.insert("version".to_string(), json!(1));
-    let hooks = object_field(&mut config, "hooks");
-    for event in [
-        "beforeSubmitPrompt",
-        "stop",
-        "preToolUse",
-        "postToolUse",
-        "postToolUseFailure",
-        "beforeShellExecution",
-        "beforeMCPExecution",
-        "afterAgentResponse",
-    ] {
-        let mut definitions = clean_managed_definitions(hooks.remove(event));
-        definitions.push(json!({ "command": managed_command(script, "cursor", event) }));
-        hooks.insert(event.to_string(), Value::Array(definitions));
-    }
-    write_json_object(&path, &config)
 }
 
 fn install_grok(script: &Path) -> anyhow::Result<()> {
@@ -486,7 +480,7 @@ if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0
 if "%ALERA_TERMINAL_SESSION_ID%"=="" exit /b 0
 if "%ALERA_WORKSPACE_ID%"=="" exit /b 0
 if "%ALERA_TAB_ID%"=="" exit /b 0
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
 exit /b 0
 "#;
 

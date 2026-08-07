@@ -59,7 +59,11 @@ pub fn prepare_launch_environment(
         endpoint.to_string_lossy().into_owned(),
     );
     environment.insert("ALERA_AGENT_HOOK_VERSION".to_string(), "1".to_string());
-    let _ = prepare_enabled_integrations(runtime_dir, settings, environment);
+    let _ = prepare_enabled_integrations(runtime_dir, Some(session_id), settings, environment);
+    // Runs after the integrations because they are what mints the wrapper
+    // directory; the strip above only removes values inherited from a parent
+    // Alera terminal.
+    prepend_managed_wrapper_path(environment);
     Ok(())
 }
 
@@ -101,6 +105,26 @@ fn strip_managed_wrapper_path(environment: &mut BTreeMap<String, String>) {
     let entries = std::env::split_paths(path)
         .filter(|entry| !wrappers.iter().any(|wrapper| same_path(entry, wrapper)))
         .collect::<Vec<_>>();
+    if let Ok(path) = std::env::join_paths(entries) {
+        environment.insert("PATH".to_string(), path.to_string_lossy().into_owned());
+    }
+}
+
+fn prepend_managed_wrapper_path(environment: &mut BTreeMap<String, String>) {
+    let Some(wrapper_path) = environment.get("ALERA_AGENT_WRAPPER_PATH").cloned() else {
+        return;
+    };
+    let wrappers = std::env::split_paths(&wrapper_path).collect::<Vec<_>>();
+    if wrappers.is_empty() {
+        return;
+    }
+    let mut entries = wrappers.clone();
+    if let Some(current) = environment.get("PATH") {
+        entries.extend(
+            std::env::split_paths(current)
+                .filter(|entry| !wrappers.iter().any(|wrapper| same_path(entry, wrapper))),
+        );
+    }
     if let Ok(path) = std::env::join_paths(entries) {
         environment.insert("PATH".to_string(), path.to_string_lossy().into_owned());
     }
@@ -230,6 +254,57 @@ mod tests {
         let entries = std::env::split_paths(&environment["PATH"]).collect::<Vec<_>>();
         assert_eq!(entries.first(), Some(&executable_dir));
         assert!(entries.contains(&login_only));
+    }
+
+    // The strip above runs on every launch to clear values inherited from a
+    // parent Alera terminal. An integration that mints a wrapper for this
+    // launch does it afterwards, and its directory has to reach PATH or the
+    // wrapper is never the one that runs.
+    #[test]
+    fn a_wrapper_minted_for_this_launch_leads_the_path() {
+        let wrapper = std::env::temp_dir().join("alera-fresh-wrapper");
+        let existing = std::env::temp_dir().join("alera-existing-entry");
+        let mut environment = BTreeMap::from([
+            (
+                "PATH".to_string(),
+                std::env::join_paths([existing.clone()])
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            (
+                "ALERA_AGENT_WRAPPER_PATH".to_string(),
+                wrapper.to_string_lossy().into_owned(),
+            ),
+        ]);
+
+        prepend_managed_wrapper_path(&mut environment);
+
+        let entries = std::env::split_paths(&environment["PATH"]).collect::<Vec<_>>();
+        assert_eq!(entries, vec![wrapper, existing]);
+    }
+
+    #[test]
+    fn a_wrapper_already_on_the_path_is_not_duplicated() {
+        let wrapper = std::env::temp_dir().join("alera-fresh-wrapper");
+        let mut environment = BTreeMap::from([
+            (
+                "PATH".to_string(),
+                std::env::join_paths([wrapper.clone(), std::env::temp_dir()])
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            (
+                "ALERA_AGENT_WRAPPER_PATH".to_string(),
+                wrapper.to_string_lossy().into_owned(),
+            ),
+        ]);
+
+        prepend_managed_wrapper_path(&mut environment);
+
+        let entries = std::env::split_paths(&environment["PATH"]).collect::<Vec<_>>();
+        assert_eq!(entries, vec![wrapper, std::env::temp_dir()]);
     }
 
     #[test]

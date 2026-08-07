@@ -140,13 +140,6 @@ extension _AgentRuntimeOverlaySources on AgentRuntimeOverlayService {
     tmp.renameSync(path);
   }
 
-  void _writeJsonObject(String path, Map<String, Object?> value) {
-    _writeManagedFile(
-      path,
-      '${const JsonEncoder.withIndent('  ').convert(value)}\n',
-    );
-  }
-
   void _copyEntity(String sourcePath, String targetPath) {
     final type = FileSystemEntity.typeSync(sourcePath);
     if (type == FileSystemEntityType.directory) {

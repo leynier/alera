@@ -110,7 +110,12 @@ fn normalize_state(
         "cursor" => match name {
             "beforeSubmitPrompt" | "sessionStart" | "preToolUse" | "postToolUse"
             | "postToolUseFailure" => Some(AgentPresenceState::Working),
+            // Cursor fires these before every execution, approval prompt or
+            // not, and never tells the hook which it was. The matching `after`
+            // event is what ends the wait, so a long command does not sit
+            // marked as needing attention for its whole run.
             "beforeShellExecution" | "beforeMCPExecution" => Some(AgentPresenceState::Waiting),
+            "afterShellExecution" | "afterMCPExecution" => Some(AgentPresenceState::Working),
             "afterAgentResponse"
                 if previous.is_some_and(|entry| entry.state == AgentPresenceState::Done) =>
             {
