@@ -53,7 +53,7 @@ A managed Claude profile can also pass `--allow-dangerously-skip-permissions` th
 
 A managed Claude profile may also carry an optional `ccsProfile`. When it is set, the launch replaces the executable with `ccs` and passes the profile as its first positional argument, followed by the same Claude flags, because that is the switcher's own contract (`ccs <profile> [claude-args...]`). The value must be a single name that does not start with a dash: it is positional, so a dash-prefixed value would be read as an option of the switcher itself. Only the Claude adapter accepts the key; the host rejects it anywhere else. Note that `ccs` points `CLAUDE_CONFIG_DIR` at its own profile directory, which is where Alera installs the Claude agent-status hooks, so a session launched through a CCS profile reports status only if that profile inherits those hooks.
 
-Command mode also has to say where the dispatched prompt goes, because the user writes the whole launch line there. That follows the adapter's `startup_delivery`: Codex receives the prompt as one quoted argument after the option terminator, and every other adapter launches bare and has the prompt typed in once it reports readiness. The editor states which of the two applies and, for the argument form, previews the resulting line.
+Command mode also has to say where the dispatched prompt goes, because the user writes the whole launch line there. That follows the adapter's `startup_prompt`, which names the shape that agent's own CLI accepts for starting interactively with a prompt already submitted: a positional argument after the option terminator for Codex, Claude and Cursor; a bare positional for `pi`, which rejects the terminator and gets a leading space instead when the prompt opens with a dash; a single `--interactive=`, `--prompt-interactive=` or `--prompt=` token for Copilot, Antigravity and OpenCode; and standard input for Amp, which has no such option at all. The editor states which one applies and previews the resulting line wherever the prompt reaches the command line.
 
 The profile's Custom Prompt is added after the prompt supplied by New Workspace or `orchestration agent-spawn`, when it is non-empty. The project's `new_workspace.prompt_append` is added last, so every delivered prompt has the order user prompt, profile instructions, then project instructions, with blank lines between non-empty sections.
 
@@ -95,7 +95,7 @@ Decision gates are not reused for this: `orchestrationDecisionGates.task_id` is 
 
 ## Agent Spawn And Readiness
 
-`agent-spawn` creates or selects a terminal, starts the requested agent, delivers its bootstrap through the registered adapter, and waits for acceptance. Codex receives a short positional bootstrap after the host creates the dispatch and installs its context, so its first turn does not depend on a prior readiness hook. Other adapters retain hook-based readiness injection.
+`agent-spawn` creates or selects a terminal, starts the requested agent, delivers its bootstrap through the registered adapter, and waits for acceptance. Every adapter receives a short bootstrap after the host creates the dispatch and installs its context, so its first turn never depends on a prior readiness hook. It could not: a worker that has been asked nothing never reports that it finished anything, so an adapter that waited to be told the agent was idle would wait forever.
 
 ```bash
 alera orchestration agent-spawn --agent codex --task <task-id> --title "Review Tests" --timeout-ms 90000

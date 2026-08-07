@@ -1349,9 +1349,12 @@ fn coordinator_waits_for_spawned_worker_presence_before_creating_another() {
     ));
 }
 
+/// A coordinator-spawned Claude worker is dispatched at spawn, like every other
+/// agent. Waiting for it to announce itself first would wait forever: a worker
+/// that has been asked nothing never reports that it is idle.
 #[test]
 #[cfg(unix)]
-fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
+fn coordinator_dispatches_a_spawned_claude_worker_without_waiting_for_presence() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake_app(&mut writer, &mut reader, &host.token);
@@ -1428,8 +1431,18 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         "orchestration.dispatchShow",
         json!({"task": &task_id}),
     ));
-    assert!(show["active"].is_null(), "{show}");
+    assert_eq!(
+        show["active"]["status"],
+        json!("awaiting_acceptance"),
+        "{show}"
+    );
+    assert_eq!(
+        show["active"]["assignee_handle"],
+        json!(worker_handle),
+        "{show}"
+    );
 
+    // A presence report on an already dispatched worker changes nothing.
     expect_ok(request(
         &mut writer,
         &mut reader,
@@ -1451,11 +1464,7 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         json!("awaiting_acceptance"),
         "{show}"
     );
-    assert_eq!(
-        show["active"]["assignee_handle"],
-        json!(worker_handle),
-        "{show}"
-    );
+    assert_eq!(show["history"].as_array().unwrap().len(), 1, "{show}");
 
     expect_ok(request(
         &mut writer,

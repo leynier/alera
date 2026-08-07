@@ -119,6 +119,113 @@ fn auto_close_setup_tab_removes_success_and_keeps_failure() {
     assert_eq!(found["payload"]["payload"].get("initialCommand"), None);
 }
 
+/// The prompt reaches a non-Codex agent as the argument its own CLI accepts.
+#[test]
+#[cfg(unix)]
+fn a_long_option_agent_receives_its_initial_prompt_as_one_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join("arguments.txt");
+    let recorder = write_recorder(dir.path(), "record-args.sh", "printf '%s\\n' \"$@\"");
+    let token = "long-option-prompt-token";
+    let (_guard, port) = spawn_host(dir.path(), token);
+    let (mut writer, mut reader) = connect(port, token);
+
+    send(
+        &mut writer,
+        json!({"id": 1, "type": "workspace.upsert", "payload": workspace_payload("prompt-workspace", dir.path())}),
+    );
+    assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
+    send(
+        &mut writer,
+        json!({"id": 2, "type": "tab.upsert", "payload": {
+            "id": "opencode-tab", "workspaceId": "prompt-workspace", "kind": "terminal",
+            "title": "OpenCode", "createdAt": "2026-08-07T00:00:00Z",
+            "updatedAt": "2026-08-07T00:00:00Z", "payload": {
+                "terminalSessionId": "opencode-session",
+                "initialCommand": format!("{} > {}", recorder.display(), marker.display()),
+                "initialPrompt": "- Review the plan",
+                "initialPromptOnce": true,
+                "agentType": "opencode",
+                "spawnOnCreate": true
+            }
+        }}),
+    );
+    assert_eq!(read_response(&mut reader, 2)["ok"], json!(true));
+
+    let recorded = wait_for_file(&marker);
+    assert_eq!(recorded, "--prompt=- Review the plan\n", "{recorded}");
+    let found = wait_for_tab_state(&mut writer, &mut reader, 3, "opencode-tab", true);
+    assert_eq!(found["payload"]["payload"].get("initialPrompt"), None);
+}
+
+/// Amp has no argument for an initial prompt, so it reads one from stdin.
+#[test]
+#[cfg(unix)]
+fn amp_receives_its_initial_prompt_on_standard_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join("stdin.txt");
+    let recorder = write_recorder(dir.path(), "record-stdin.sh", "cat");
+    let token = "amp-stdin-prompt-token";
+    let (_guard, port) = spawn_host(dir.path(), token);
+    let (mut writer, mut reader) = connect(port, token);
+
+    send(
+        &mut writer,
+        json!({"id": 1, "type": "workspace.upsert", "payload": workspace_payload("amp-workspace", dir.path())}),
+    );
+    assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
+    send(
+        &mut writer,
+        json!({"id": 2, "type": "tab.upsert", "payload": {
+            "id": "amp-tab", "workspaceId": "amp-workspace", "kind": "terminal",
+            "title": "Amp", "createdAt": "2026-08-07T00:00:00Z",
+            "updatedAt": "2026-08-07T00:00:00Z", "payload": {
+                "terminalSessionId": "amp-session",
+                "initialCommand": format!("{} > {}", recorder.display(), marker.display()),
+                "initialPrompt": "- Review the plan\n- It's ready",
+                "initialPromptOnce": true,
+                "agentType": "amp",
+                "spawnOnCreate": true
+            }
+        }}),
+    );
+    assert_eq!(read_response(&mut reader, 2)["ok"], json!(true));
+
+    // Verbatim, with no shell quoting anywhere between the tab and the agent.
+    let recorded = wait_for_file(&marker);
+    assert_eq!(recorded, "- Review the plan\n- It's ready", "{recorded}");
+}
+
+#[cfg(unix)]
+fn write_recorder(directory: &std::path::Path, name: &str, body: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = directory.join(name);
+    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&path, permissions).unwrap();
+    path
+}
+
+#[cfg(unix)]
+fn wait_for_file(path: &std::path::Path) -> String {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Ok(contents) = std::fs::read_to_string(path) {
+            if !contents.is_empty() {
+                return contents;
+            }
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{} was never written",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
 #[cfg(unix)]
 fn wait_for_tab_state(
     writer: &mut std::net::TcpStream,

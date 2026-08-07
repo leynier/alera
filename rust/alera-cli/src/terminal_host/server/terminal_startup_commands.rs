@@ -84,6 +84,26 @@ pub(super) fn pending_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
         .filter(|value| !value.is_empty())
 }
 
+/// Which agent the tab launches, for deciding the shape of its initial prompt.
+///
+/// The fallbacks read tabs written by an older host, which named the agent only
+/// inside the payload it was going to deliver later. The app attaches to
+/// whichever sidecar is already running, so both spellings have to resolve.
+pub(super) fn tab_agent_type(tab: &WorkspaceTabRecord) -> Option<&str> {
+    [
+        "/agentType",
+        "/pendingAgentPrompt/agent",
+        "/orchestrationSpawn/agent",
+    ]
+    .into_iter()
+    .find_map(|pointer| {
+        tab.payload
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
