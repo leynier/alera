@@ -14,7 +14,6 @@ part 'managed_hooks/amp_managed_agent_hook.dart';
 part 'managed_hooks/claude_managed_agent_hook.dart';
 part 'managed_hooks/codex_managed_agent_hook.dart';
 part 'managed_hooks/copilot_managed_agent_hook.dart';
-part 'managed_hooks/cursor_managed_agent_hook.dart';
 part 'managed_hooks/grok_managed_agent_hook.dart';
 part 'managed_hooks/opencode_managed_agent_hook.dart';
 part 'managed_hooks/pi_managed_agent_hook.dart';
@@ -78,6 +77,9 @@ class ManagedAgentHookInstallService {
     }
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
+    }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
     }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
@@ -166,6 +168,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       final current = _managedArtifactStatus(artifact);
@@ -229,9 +234,6 @@ class ManagedAgentHookInstallService {
       config['version'] = 1;
       config.remove('disableAllHooks');
     }
-    if (descriptor.agentType == AgentType.cursor) {
-      config['version'] ??= 1;
-    }
     _writeManagedScript(
       descriptor.scriptPath,
       _managedScript(descriptor: descriptor),
@@ -249,6 +251,9 @@ class ManagedAgentHookInstallService {
     }
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
+    }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
     }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {

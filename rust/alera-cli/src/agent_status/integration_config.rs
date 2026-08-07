@@ -5,11 +5,14 @@ use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
 
 use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
+use self::cursor_overlay::prepare_cursor;
 use super::integration_hook_scripts::write_managed_script;
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
 
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
+#[path = "integration_config_cursor_overlay.rs"]
+mod cursor_overlay;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -29,6 +32,7 @@ const LEGACY_MANAGED_MARKERS: [&str; 9] = [
 
 pub fn prepare_enabled_integrations(
     runtime_dir: &Path,
+    session_id: Option<&str>,
     settings: &RuntimeAgentStatusHookSettings,
     environment: &mut BTreeMap<String, String>,
 ) -> Vec<String> {
@@ -58,9 +62,15 @@ pub fn prepare_enabled_integrations(
             Err(error) => warnings.push(format!("Claude: {error}")),
         }
     }
+    // The Cursor plugin is per terminal session, so it can only be built when a
+    // session is being launched. `reconcile_agent_integrations` has none.
+    if let (true, Some(session_id)) = (settings.cursor, session_id) {
+        if let Err(error) = prepare_cursor(runtime_dir, session_id, &script, environment) {
+            warnings.push(format!("Cursor: {error}"));
+        }
+    }
     for result in [
         settings.copilot.then(|| install_copilot(&script)),
-        settings.cursor.then(|| install_cursor(&script)),
         settings.agy.then(|| install_agy(&script)),
         settings.grok.then(|| install_grok(&script)),
         settings.opencode.then(install_opencode_plugin),
@@ -77,12 +87,30 @@ pub fn prepare_enabled_integrations(
     warnings
 }
 
+/// Host start: clear what a previous run left behind, then reconcile.
+///
+/// The clearing has to happen here and only here. The host owns no PTY yet, so
+/// this is the one moment a per-session leftover is provably dead, and it is
+/// also the only point that runs when every hook toggle is off.
+pub fn start_agent_integrations(
+    runtime_dir: &Path,
+    settings: &RuntimeAgentStatusHookSettings,
+) -> Vec<String> {
+    let mut warnings =
+        match home_dir().and_then(|home| cursor_overlay::clear_stale_state(runtime_dir, &home)) {
+            Ok(()) => Vec::new(),
+            Err(error) => vec![format!("Cursor: {error}")],
+        };
+    warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
+    warnings
+}
+
 pub fn reconcile_agent_integrations(
     runtime_dir: &Path,
     settings: &RuntimeAgentStatusHookSettings,
 ) -> Vec<String> {
     let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    prepare_enabled_integrations(runtime_dir, settings, &mut environment)
+    prepare_enabled_integrations(runtime_dir, None, settings, &mut environment)
 }
 
 fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
@@ -223,28 +251,6 @@ fn install_copilot(script: &Path) -> anyhow::Result<()> {
             ("hooks".to_string(), Value::Object(hooks)),
         ]),
     )
-}
-
-fn install_cursor(script: &Path) -> anyhow::Result<()> {
-    let path = home_dir()?.join(".cursor/hooks.json");
-    let mut config = read_json_object(&path)?.unwrap_or_default();
-    config.insert("version".to_string(), json!(1));
-    let hooks = object_field(&mut config, "hooks");
-    for event in [
-        "beforeSubmitPrompt",
-        "stop",
-        "preToolUse",
-        "postToolUse",
-        "postToolUseFailure",
-        "beforeShellExecution",
-        "beforeMCPExecution",
-        "afterAgentResponse",
-    ] {
-        let mut definitions = clean_managed_definitions(hooks.remove(event));
-        definitions.push(json!({ "command": managed_command(script, "cursor", event) }));
-        hooks.insert(event.to_string(), Value::Array(definitions));
-    }
-    write_json_object(&path, &config)
 }
 
 fn install_grok(script: &Path) -> anyhow::Result<()> {

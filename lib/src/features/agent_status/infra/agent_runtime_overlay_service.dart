@@ -160,50 +160,6 @@ final class AgentRuntimeOverlayService {
     );
   }
 
-  Future<AgentRuntimeOverlayPreparation> prepareCursorForTerminalLaunch({
-    required String terminalSessionId,
-  }) async {
-    final support = await _applicationSupportDirectory();
-    final root = _overlayRoot(support, 'cursor');
-    final overlay = _overlayDirectory(root, terminalSessionId);
-    final pluginRoot = Directory(p.join(overlay.path, 'plugin'));
-    try {
-      _safeRemoveOverlay(overlay.path, root);
-      overlay.createSync(recursive: true);
-      final status = ManagedAgentHookInstallService(
-        homeDirectory: overlay.path,
-        platform: _platform,
-        environment: <String, String>{..._environment, 'HOME': overlay.path},
-      ).install(AgentType.cursor);
-      if (status.state == ManagedAgentHookInstallState.error) {
-        // coverage:ignore-start
-        // Cursor hook files are generated into a fresh overlay; install status
-        // errors here are filesystem races and fall back through the catch path.
-        throw StateError(status.detail ?? 'Could not install Cursor hooks.');
-        // coverage:ignore-end
-      }
-      _writeCursorPlugin(pluginRoot);
-      final wrapperBin = _wrapperBinDirectory(support, terminalSessionId);
-      _writeAgentWrapper(
-        directory: wrapperBin,
-        executableName: 'cursor-agent',
-        source: _cursorAgentWrapperSource(pluginRoot.path, wrapperBin.path),
-      );
-      return AgentRuntimeOverlayPreparation(
-        overlayPath: overlay.path,
-        environment: <String, String>{
-          'ALERA_CURSOR_PLUGIN_DIR': pluginRoot.path,
-          'ALERA_AGENT_WRAPPER_PATH': wrapperBin.path,
-        },
-      );
-    } catch (_) {
-      _safeRemoveOverlay(overlay.path, root);
-      return const AgentRuntimeOverlayPreparation(
-        environment: <String, String>{},
-      );
-    }
-  }
-
   Future<AgentRuntimeOverlayPreparation> prepareAmpForTerminalLaunch({
     required String terminalSessionId,
   }) async {

@@ -1,32 +1,6 @@
 part of 'agent_runtime_overlay_service.dart';
 
 extension _AgentRuntimeOverlayWrappers on AgentRuntimeOverlayService {
-  void _writeCursorPlugin(Directory pluginRoot) {
-    final overlayPath = pluginRoot.parent.path;
-    final generatedHooks = File(p.join(overlayPath, '.cursor', 'hooks.json'));
-    if (!generatedHooks.existsSync()) {
-      // coverage:ignore-start
-      // ManagedAgentHookInstallService should create this file before plugin
-      // assembly; this remains as a guard against future installer regressions.
-      throw StateError('Cursor hooks.json was not generated.');
-      // coverage:ignore-end
-    }
-    final pluginHooks = File(p.join(pluginRoot.path, 'hooks', 'hooks.json'));
-    pluginHooks.parent.createSync(recursive: true);
-    _deleteEntity(pluginHooks.path);
-    generatedHooks.copySync(pluginHooks.path);
-    _writeJsonObject(
-      p.join(pluginRoot.path, '.cursor-plugin', 'plugin.json'),
-      <String, Object?>{
-        'name': 'alera-agent-status',
-        'displayName': 'Alera Agent Status',
-        'description': 'Alera terminal agent status hooks.',
-        'version': '0.1.0',
-        'hooks': 'hooks/hooks.json',
-      },
-    );
-  }
-
   Directory _wrapperBinDirectory(Directory support, String terminalSessionId) {
     final root = _overlayRoot(support, 'wrappers');
     return Directory(
@@ -55,22 +29,6 @@ extension _AgentRuntimeOverlayWrappers on AgentRuntimeOverlayService {
   // coverage:ignore-start
   // External command wrapper templates. Overlay tests verify they are selected
   // and written; their runtime behavior is shell/cmd integration coverage.
-  String _cursorAgentWrapperSource(String pluginRoot, String wrapperDirectory) {
-    if (_platform == ManagedAgentHookPlatform.windows) {
-      return _windowsCursorAgentWrapperSource(pluginRoot);
-    }
-    return '''#!/bin/sh
-${_posixStripWrapperPathPrelude(wrapperDirectory)}
-ALERA_PLUGIN_DIR=${_shQuote(pluginRoot)}
-ALERA_REAL_COMMAND=\$(command -v cursor-agent 2>/dev/null || true)
-if [ -z "\$ALERA_REAL_COMMAND" ]; then
-  echo "Alera Cursor wrapper could not find cursor-agent on PATH." >&2
-  exit 127
-fi
-exec "\$ALERA_REAL_COMMAND" --plugin-dir "\$ALERA_PLUGIN_DIR" "\$@"
-''';
-  }
-
   String _ampWrapperSource({
     required String xdgConfigHome,
     required String settingsFile,
@@ -114,23 +72,6 @@ done
 IFS=\$ALERA_OLD_IFS
 PATH=\$ALERA_STRIPPED_PATH
 export PATH
-''';
-  }
-
-  String _windowsCursorAgentWrapperSource(String pluginRoot) {
-    return '''@echo off
-setlocal
-set "ALERA_PLUGIN_DIR=${_cmdEnvValue(pluginRoot)}"
-set "ALERA_REAL_COMMAND="
-for /f "delims=" %%P in ('where cursor-agent 2^>nul') do (
-  if /I not "%%~fP"=="%~f0" if not defined ALERA_REAL_COMMAND set "ALERA_REAL_COMMAND=%%~fP"
-)
-if not defined ALERA_REAL_COMMAND (
-  echo Alera Cursor wrapper could not find cursor-agent on PATH. 1^>^&2
-  exit /b 127
-)
-"%ALERA_REAL_COMMAND%" --plugin-dir "%ALERA_PLUGIN_DIR%" %*
-exit /b %ERRORLEVEL%
 ''';
   }
 
