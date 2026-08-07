@@ -125,6 +125,9 @@ fn normalize_state(
             "stop" | "sessionEnd" => Some(AgentPresenceState::Done),
             _ => None,
         },
+        // Alera never installs `PreToolUse` for agy: Antigravity requires a
+        // `decision` there, which an observational hook cannot give without
+        // taking over the permission policy. Those arms serve user-written hooks.
         "agy" => match name {
             "PreInvocation" | "PostInvocation" | "PostToolUse" => Some(AgentPresenceState::Working),
             "PreToolUse" if human_input => Some(AgentPresenceState::Waiting),
@@ -338,7 +341,12 @@ fn is_human_input_tool(value: &str) -> bool {
     [
         "askuser",
         "askuserquestion",
+        "askquestion",
+        "askpermission",
+        "askapproval",
         "requestuserinput",
+        "requestpermission",
+        "requestapproval",
         "humaninput",
         "elicitation",
     ]
