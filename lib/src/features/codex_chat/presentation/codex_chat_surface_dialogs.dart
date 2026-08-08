@@ -12,13 +12,13 @@ extension _CodexSurfaceDialogs on _CodexChatSurfaceState {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Workspace: ${widget.workspace.path}'),
+          Text('Workspace: ${state.activeCwd ?? widget.workspace.path}'),
           Text('Thread: ${widget.tab.title}'),
           Text('Model: ${state.selectedModel ?? 'Default'}'),
           Text('Reasoning: ${_choiceLabel(state.reasoningEffort)}'),
           Text('Plan Mode: ${state.planMode ? 'On' : 'Off'}'),
           Text(
-            'Permissions: ${state.permissionMode == 'never' ? 'Full Access' : 'Ask First'}',
+            'Permissions: ${_codexPermissionModeLabel(state.permissionMode)}',
           ),
           Text('Queued Messages: ${state.queuedMessages.length}'),
         ],
@@ -35,12 +35,13 @@ extension _CodexSurfaceDialogs on _CodexChatSurfaceState {
   Future<void> _startReview(
     BuildContext context,
     CodexChatController controller,
+    CodexChatState state,
   ) async {
     var branches = const <String>[];
     try {
       branches = await ref
           .read(gitBackendProvider)
-          .listBranches(widget.workspace.path);
+          .listBranches(state.activeCwd ?? widget.workspace.path);
     } catch (_) {
       // A non-Git workspace can still use the other review targets.
     }

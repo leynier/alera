@@ -20,7 +20,12 @@ class _CodexPendingCard extends StatelessWidget {
 }
 
 class _CodexQuestionCard extends StatefulWidget {
-  const _CodexQuestionCard({required this.request, required this.onQuestion});
+  const _CodexQuestionCard({
+    super.key,
+    required this.request,
+    required this.onQuestion,
+    required this.onInteraction,
+  });
 
   final CodexPendingRequest request;
   final Future<void> Function(
@@ -28,6 +33,7 @@ class _CodexQuestionCard extends StatefulWidget {
     Map<String, List<String>> answers,
   )
   onQuestion;
+  final Future<void> Function(CodexPendingRequest request) onInteraction;
 
   @override
   State<_CodexQuestionCard> createState() => _CodexQuestionCardState();
@@ -38,6 +44,13 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
       <String, TextEditingController>{};
   final Map<String, Set<String>> _selected = <String, Set<String>>{};
   int _page = 0;
+  bool _interactionReported = false;
+
+  void _reportInteraction() {
+    if (_interactionReported) return;
+    _interactionReported = true;
+    unawaited(widget.onInteraction(widget.request));
+  }
 
   @override
   void dispose() {
@@ -114,6 +127,7 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
                     padding: const EdgeInsets.only(bottom: AleraTokens.space4),
                     child: InkWell(
                       onTap: () => setState(() {
+                        _reportInteraction();
                         if (!question.isMultiSelect) selected.clear();
                         if (!selected.add(option.label)) {
                           selected.remove(option.label);
@@ -154,6 +168,7 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
                     padding: const EdgeInsets.only(bottom: AleraTokens.space4),
                     child: InkWell(
                       onTap: () => setState(() {
+                        _reportInteraction();
                         if (!question.isMultiSelect) selected.clear();
                         if (!selected.add('__other__')) {
                           selected.remove('__other__');
@@ -182,7 +197,11 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
             TextField(
               controller: controller,
               obscureText: question.isSecret,
-              onChanged: (_) => setState(() {}),
+              onTap: _reportInteraction,
+              onChanged: (_) {
+                _reportInteraction();
+                setState(() {});
+              },
               decoration: const InputDecoration(hintText: 'Your Answer'),
             ),
         ],

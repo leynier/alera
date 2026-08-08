@@ -5,6 +5,26 @@ mixin _WorkbenchControllerNavigation
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerProjects {
+  Future<void> selectWorkspaceTab({
+    required String workspaceId,
+    required String tabId,
+  }) async {
+    final workspace = _workspaceById(state.workspacesByProject, workspaceId);
+    final project = workspace == null
+        ? null
+        : _projectById(state.projects, workspace.projectId);
+    if (workspace == null || project == null) return;
+    if (state.activeWorkspaceId != workspaceId) {
+      await selectWorkspace(project: project, workspace: workspace);
+    }
+    final groupId = state.layoutFor(workspaceId)?.groupIdForTab(tabId);
+    _setActiveTabInternal(
+      workspaceId: workspaceId,
+      tabId: tabId,
+      groupId: groupId,
+    );
+  }
+
   Future<void> goBack() async {
     _pruneWorktreeNavigationHistory();
     final target = _worktreeNavigationHistory.peekBack(

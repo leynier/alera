@@ -470,6 +470,30 @@ void main() {
       ]).shouldShowImplementPlan,
       isFalse,
     );
+
+    final reset = CodexChatSnapshot.fromJson(<String, Object?>{
+      'timelineCells': <Object?>[
+        <String, Object?>{
+          'id': 'user',
+          'kind': 'userMessage',
+          'status': 'completed',
+          'markdownText': 'Create a plan',
+        },
+        <String, Object?>{
+          'id': 'plan',
+          'kind': 'plan',
+          'status': 'completed',
+          'markdownText': 'Stale plan',
+        },
+        <String, Object?>{
+          'id': 'boundary',
+          'kind': 'systemNotice',
+          'status': 'info',
+          'metadata': <String, Object?>{'noticeType': 'threadBoundary'},
+        },
+      ],
+    });
+    expect(reset.latestActionablePlan, isNull);
   });
 
   test('preserves reasoning order and structured fast service tiers', () {

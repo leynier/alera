@@ -8,8 +8,11 @@ class _CodexTimeline extends StatefulWidget {
     required this.planMode,
     required this.showRawLogs,
     required this.timeline,
+    required this.historyNextCursor,
+    required this.onLoadHistory,
     required this.onApproval,
     required this.onQuestion,
+    required this.onQuestionInteraction,
     required this.onElicitation,
     required this.onReject,
     required this.onImplementPlan,
@@ -23,6 +26,8 @@ class _CodexTimeline extends StatefulWidget {
   final bool planMode;
   final bool showRawLogs;
   final ScrollController timeline;
+  final String? historyNextCursor;
+  final Future<void> Function({String? cursor}) onLoadHistory;
   final Future<void> Function(
     CodexPendingRequest request, {
     required Object decision,
@@ -33,6 +38,8 @@ class _CodexTimeline extends StatefulWidget {
     Map<String, List<String>> answers,
   )
   onQuestion;
+  final Future<void> Function(CodexPendingRequest request)
+  onQuestionInteraction;
   final Future<void> Function(
     CodexPendingRequest request, {
     required String action,
@@ -50,6 +57,9 @@ class _CodexTimeline extends StatefulWidget {
 
 class _CodexTimelineState extends State<_CodexTimeline> {
   final Set<String> _expandedWorkedTurns = <String>{};
+  List<CodexTimelineCell>? _cachedHistoryCells;
+  List<_CodexTimelineSection> _cachedHistorySections =
+      const <_CodexTimelineSection>[];
   bool _showScrollToBottom = false;
 
   @override
@@ -103,6 +113,7 @@ class _CodexTimelineState extends State<_CodexTimeline> {
     final snapshot = widget.snapshot;
     if (snapshot.timelineCells.isEmpty &&
         snapshot.pendingRequests.isEmpty &&
+        widget.historyNextCursor == null &&
         !widget.showRawLogs) {
       return Center(
         child: Column(
@@ -128,56 +139,52 @@ class _CodexTimelineState extends State<_CodexTimeline> {
         ),
       );
     }
+    final sections = _timelineSections(snapshot.timelineCells);
+    final hasHistoryAction = widget.historyNextCursor != null;
+    final rawEventCount = widget.showRawLogs ? snapshot.events.length : 0;
+    final showPlanPrompt = widget.planMode && snapshot.shouldShowImplementPlan;
+    final itemCount =
+        (hasHistoryAction ? 1 : 0) +
+        sections.length +
+        rawEventCount +
+        snapshot.pendingRequests.length +
+        (showPlanPrompt ? 1 : 0);
     return Stack(
       children: <Widget>[
         SelectionArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AleraTokens.codexConversationMaxWidth,
-              ),
-              child: ListView(
-                controller: widget.timeline,
+          child: CustomScrollView(
+            controller: widget.timeline,
+            slivers: <Widget>[
+              SliverPadding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space16,
                   vertical: AleraTokens.space24,
                 ),
-                children: <Widget>[
-                  ..._buildTimeline(snapshot.timelineCells),
-                  if (widget.showRawLogs)
-                    for (final event in snapshot.events)
-                      _CodexRawEvent(event: event),
-                  for (final request in snapshot.pendingRequests)
-                    if (request.isApproval)
-                      _CodexApprovalCard(
-                        request: request,
-                        onApproval: widget.onApproval,
-                      )
-                    else if (request.isQuestion)
-                      _CodexQuestionCard(
-                        request: request,
-                        onQuestion: widget.onQuestion,
-                      )
-                    else if (request.isElicitation)
-                      _CodexElicitationCard(
-                        request: request,
-                        onElicitation: widget.onElicitation,
-                      )
-                    else
-                      _CodexPendingCard(
-                        request: request,
-                        onReject: widget.onReject,
+                sliver: SliverList.builder(
+                  itemCount: itemCount,
+                  itemBuilder: (context, index) => Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AleraTokens.codexConversationMaxWidth,
                       ),
-                  if (widget.planMode && snapshot.shouldShowImplementPlan)
-                    _CodexPlanPrompt(
-                      onImplement: widget.onImplementPlan,
-                      onDecline: widget.onDeclinePlan,
-                      onRefine: widget.onRefinePlan,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AleraTokens.space16,
+                        ),
+                        child: _buildTimelineItem(
+                          index: index,
+                          sections: sections,
+                          snapshot: snapshot,
+                          hasHistoryAction: hasHistoryAction,
+                          rawEventCount: rawEventCount,
+                          showPlanPrompt: showPlanPrompt,
+                        ),
+                      ),
                     ),
-                ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
         if (_showScrollToBottom)
@@ -194,52 +201,189 @@ class _CodexTimelineState extends State<_CodexTimeline> {
     );
   }
 
-  List<Widget> _buildTimeline(List<CodexTimelineCell> cells) {
+  Widget _buildTimelineItem({
+    required int index,
+    required _CodexTimelineSections sections,
+    required CodexChatSnapshot snapshot,
+    required bool hasHistoryAction,
+    required int rawEventCount,
+    required bool showPlanPrompt,
+  }) {
+    var itemIndex = index;
+    if (hasHistoryAction) {
+      if (itemIndex == 0) {
+        final cursor = widget.historyNextCursor!;
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => unawaited(widget.onLoadHistory(cursor: cursor)),
+            child: const Text('Load Earlier Messages'),
+          ),
+        );
+      }
+      itemIndex -= 1;
+    }
+    if (itemIndex < sections.length) {
+      return _buildTimelineSection(sections[itemIndex]);
+    }
+    itemIndex -= sections.length;
+    if (itemIndex < rawEventCount) {
+      return _CodexRawEvent(event: snapshot.events[itemIndex]);
+    }
+    itemIndex -= rawEventCount;
+    if (itemIndex < snapshot.pendingRequests.length) {
+      return _buildPendingRequest(snapshot.pendingRequests[itemIndex]);
+    }
+    assert(showPlanPrompt && itemIndex == snapshot.pendingRequests.length);
+    return _CodexPlanPrompt(
+      onImplement: widget.onImplementPlan,
+      onDecline: widget.onDeclinePlan,
+      onRefine: widget.onRefinePlan,
+    );
+  }
+
+  Widget _buildTimelineSection(_CodexTimelineSection section) {
+    final cell = section.cell;
+    if (cell != null) {
+      return _CodexCellView(cell: cell, workspacePath: widget.workspacePath);
+    }
+    final turnId = section.turnId!;
+    return _CodexTurnSection(
+      key: ValueKey<String>('turn-$turnId'),
+      cells: section.cells,
+      workspacePath: widget.workspacePath,
+      workedExpanded: _expandedWorkedTurns.contains(turnId),
+      onToggleWorked: () => setState(() {
+        if (!_expandedWorkedTurns.add(turnId)) {
+          _expandedWorkedTurns.remove(turnId);
+        }
+      }),
+    );
+  }
+
+  Widget _buildPendingRequest(CodexPendingRequest request) {
+    if (request.isApproval) {
+      return _CodexApprovalCard(
+        request: request,
+        onApproval: widget.onApproval,
+      );
+    }
+    if (request.isQuestion) {
+      return _CodexQuestionCard(
+        key: ValueKey<Object>(request.id),
+        request: request,
+        onQuestion: widget.onQuestion,
+        onInteraction: widget.onQuestionInteraction,
+      );
+    }
+    if (request.isElicitation) {
+      return _CodexElicitationCard(
+        request: request,
+        onElicitation: widget.onElicitation,
+      );
+    }
+    return _CodexPendingCard(request: request, onReject: widget.onReject);
+  }
+
+  _CodexTimelineSections _timelineSections(List<CodexTimelineCell> cells) {
+    if (cells case final CodexTimelineCells segmented) {
+      if (!identical(_cachedHistoryCells, segmented.history)) {
+        _cachedHistoryCells = segmented.history;
+        _cachedHistorySections = _groupTimeline(segmented.history);
+      }
+      return _CodexTimelineSections(
+        history: _cachedHistorySections,
+        live: _groupTimeline(segmented.live),
+      );
+    }
+    return _CodexTimelineSections(
+      history: const <_CodexTimelineSection>[],
+      live: _groupTimeline(cells),
+    );
+  }
+
+  List<_CodexTimelineSection> _groupTimeline(List<CodexTimelineCell> cells) {
     final turnCells = <String, List<CodexTimelineCell>>{};
     final emittedTurns = <String>{};
-    final result = <Widget>[];
+    final order = <({CodexTimelineCell? cell, String? turnId})>[];
     for (final cell in cells) {
       final turnId = cell.turnId;
       if (turnId == null || turnId.isEmpty) {
         if (cell.kind != CodexTimelineKind.turnSeparator) {
-          result.add(
-            _CodexCellView(cell: cell, workspacePath: widget.workspacePath),
-          );
+          order.add((cell: cell, turnId: null));
         }
         continue;
       }
       turnCells.putIfAbsent(turnId, () => <CodexTimelineCell>[]).add(cell);
       if (emittedTurns.add(turnId)) {
-        result.add(
-          _CodexTurnSection(
-            key: ValueKey<String>('turn-$turnId'),
-            cells: turnCells[turnId]!,
-            workspacePath: widget.workspacePath,
-            workedExpanded: _expandedWorkedTurns.contains(turnId),
-            onToggleWorked: () => setState(() {
-              if (!_expandedWorkedTurns.add(turnId)) {
-                _expandedWorkedTurns.remove(turnId);
-              }
-            }),
-          ),
-        );
+        order.add((cell: null, turnId: turnId));
       }
     }
-    // A streaming snapshot can add cells after the keyed section was built.
-    // Rebuild sections from the complete map so no delta is lost.
-    return <Widget>[
-      for (final item in result)
-        if (item is _CodexTurnSection)
-          _CodexTurnSection(
-            key: item.key,
-            cells: turnCells[item.turnId] ?? item.cells,
-            workspacePath: item.workspacePath,
-            workedExpanded: item.workedExpanded,
-            onToggleWorked: item.onToggleWorked,
-          )
+    return <_CodexTimelineSection>[
+      for (final item in order)
+        if (item.cell case final cell?)
+          _CodexTimelineSection.cell(cell)
         else
-          item,
+          _CodexTimelineSection.turn(
+            item.turnId!,
+            List<CodexTimelineCell>.unmodifiable(turnCells[item.turnId]!),
+          ),
     ];
+  }
+}
+
+final class _CodexTimelineSection {
+  const _CodexTimelineSection.cell(this.cell)
+    : turnId = null,
+      cells = const <CodexTimelineCell>[];
+
+  const _CodexTimelineSection.turn(this.turnId, this.cells) : cell = null;
+
+  final CodexTimelineCell? cell;
+  final String? turnId;
+  final List<CodexTimelineCell> cells;
+}
+
+final class _CodexTimelineSections {
+  _CodexTimelineSections({required this.history, required this.live})
+    : _mergedBoundary = _mergeBoundary(history, live);
+
+  final List<_CodexTimelineSection> history;
+  final List<_CodexTimelineSection> live;
+  final _CodexTimelineSection? _mergedBoundary;
+
+  int get length =>
+      history.length + live.length - (_mergedBoundary == null ? 0 : 1);
+
+  _CodexTimelineSection operator [](int index) {
+    RangeError.checkValidIndex(index, this);
+    final mergedBoundary = _mergedBoundary;
+    if (mergedBoundary == null) {
+      return index < history.length
+          ? history[index]
+          : live[index - history.length];
+    }
+    final boundaryIndex = history.length - 1;
+    if (index < boundaryIndex) return history[index];
+    if (index == boundaryIndex) return mergedBoundary;
+    return live[index - boundaryIndex];
+  }
+
+  static _CodexTimelineSection? _mergeBoundary(
+    List<_CodexTimelineSection> history,
+    List<_CodexTimelineSection> live,
+  ) {
+    if (history.isEmpty || live.isEmpty) return null;
+    final before = history.last;
+    final after = live.first;
+    if (before.turnId == null || before.turnId != after.turnId) return null;
+    return _CodexTimelineSection.turn(
+      before.turnId,
+      List<CodexTimelineCell>.unmodifiable(<CodexTimelineCell>[
+        ...before.cells,
+        ...after.cells,
+      ]),
+    );
   }
 }
 

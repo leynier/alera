@@ -63,6 +63,7 @@ extension _CodexComposerQuickOpen on _CodexComposerState {
         _mentionFiles = const <String>[];
         _commands = codexComposerEntries(
           widget.savedPrompts,
+          supportsSessions: widget.state.supportsSessions,
         ).where((command) => command.matches(query)).toList(growable: false);
         _selectedIndex = 0;
       });

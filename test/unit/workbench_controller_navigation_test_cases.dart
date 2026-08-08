@@ -75,6 +75,34 @@ void _registerWorkbenchControllerNavigationTests() {
     expect(_controller.state.searchQuery, isEmpty);
   });
 
+  test(
+    'selectWorkspaceTab switches workspaces before focusing the tab',
+    () async {
+      await _controller.bootstrap();
+      final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
+      final otherWorkspace = (await _controller.createWorkspace(
+        project: _harness.project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/codex-resume-target',
+      )).workspace;
+      final targetTab = _controller.state.tabsFor(otherWorkspace.id).first;
+
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: mainWorkspace,
+      );
+      expect(_controller.state.activeWorkspaceId, mainWorkspace.id);
+
+      await _controller.selectWorkspaceTab(
+        workspaceId: otherWorkspace.id,
+        tabId: targetTab.id,
+      );
+
+      expect(_controller.state.activeWorkspaceId, otherWorkspace.id);
+      expect(_controller.state.activeWorkspaceTab?.id, targetTab.id);
+    },
+  );
+
   test('prunes navigation entries when their project is removed', () async {
     await _controller.bootstrap();
     await _selectMainWorkspace(_controller, _harness);

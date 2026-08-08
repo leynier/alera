@@ -106,6 +106,20 @@ void main() {
       },
     );
 
+    test('createCodexTab uses the Codex Chat title', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21),
+      );
+
+      final tab = await service.createCodexTab('workspace-1');
+
+      expect(tab.kind, WorkspaceTabKind.codex);
+      expect(tab.title, 'Codex Chat');
+      expect(repository.tabs.single.title, 'Codex Chat');
+    });
+
     test(
       'openOrCreateEditorTab creates an editor tab for a normalized path',
       () async {

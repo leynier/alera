@@ -232,12 +232,14 @@ Future<void> _showCodexImagePreview(BuildContext context, String source) {
 class _CodexQueueBar extends StatelessWidget {
   const _CodexQueueBar({
     required this.messages,
+    required this.canSteer,
     required this.onRemove,
     required this.onEdit,
     required this.onSteer,
   });
 
   final List<CodexQueuedMessage> messages;
+  final bool canSteer;
   final ValueChanged<int> onRemove;
   final void Function(int index, CodexQueuedMessage message) onEdit;
   final Future<void> Function(int index, CodexQueuedMessage message) onSteer;
@@ -292,7 +294,9 @@ class _CodexQueueBar extends StatelessWidget {
                       AleraIconButton(
                         tooltip: 'Steer Active Turn',
                         icon: AleraIcons.send,
-                        onPressed: () => unawaited(onSteer(index, message)),
+                        onPressed: canSteer
+                            ? () => unawaited(onSteer(index, message))
+                            : null,
                       ),
                       AleraIconButton(
                         tooltip: 'Edit Queued Message',
@@ -357,6 +361,28 @@ class _CodexInlineError extends StatelessWidget {
       TextButton(
         onPressed: () => unawaited(onRetry()),
         child: const Text('Retry'),
+      ),
+    ],
+  );
+}
+
+class _CodexRecoveryBanner extends StatelessWidget {
+  const _CodexRecoveryBanner({required this.message, required this.onContinue});
+
+  final String message;
+  final Future<void> Function() onContinue;
+
+  @override
+  Widget build(BuildContext context) => MaterialBanner(
+    key: const ValueKey<String>('codex-thread-recovery'),
+    content: Text(
+      '$message Earlier messages remain visible, but they are not part of the new model context.',
+    ),
+    leading: const Icon(AleraIcons.warning),
+    actions: <Widget>[
+      TextButton(
+        onPressed: () => unawaited(onContinue()),
+        child: const Text('Continue In New Thread'),
       ),
     ],
   );
