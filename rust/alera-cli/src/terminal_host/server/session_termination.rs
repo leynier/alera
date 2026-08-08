@@ -23,11 +23,51 @@ impl ServerActor {
         } = finished;
         let RuntimeMutationOutcome {
             result,
+            pending_codex_cleanup,
             ended_pointer_tab_ids,
             mut closed_session_tab_ids,
             committed_tab_ids,
             effect_on_error,
         } = outcome;
+        let mut pending_tab_ids = pending_codex_cleanup
+            .iter()
+            .map(|entry| entry.tab_id.clone())
+            .collect::<Vec<_>>();
+        pending_tab_ids.sort_unstable();
+        pending_tab_ids.dedup();
+        for tab_id in pending_tab_ids {
+            self.handle_codex_force_flush(&tab_id).await;
+        }
+        let cleanup_result = super::codex_runtime_cleanup::apply_cleanup_activity(
+            &self.runtime_store,
+            &pending_codex_cleanup,
+        )
+        .await;
+        let cleaned_codex_tab_ids = match &cleanup_result {
+            Ok(tab_ids) => tab_ids.clone(),
+            Err(error) => {
+                self.broadcast_codex_server_error(error.wire_message());
+                Vec::new()
+            }
+        };
+        let cleaned_codex_state = !cleaned_codex_tab_ids.is_empty();
+        for tab_id in cleaned_codex_tab_ids {
+            if let Ok(Some(tab)) = self.runtime_store.find_workspace_tab(&tab_id).await {
+                self.refresh_codex_presence(&tab);
+                self.broadcast_authenticated(event(
+                    "codexThreadChanged",
+                    json!({
+                        "tabId": tab.id,
+                        "workspaceId": tab.workspace_id,
+                        "threadId": super::codex_state::tab_thread_id(&tab),
+                        "snapshot": super::codex_state::snapshot(&tab),
+                    }),
+                ));
+            }
+        }
+        if cleaned_codex_state {
+            self.schedule_codex_presence_changed();
+        }
         for tab_id in ended_pointer_tab_ids {
             self.emulator_requests.active_pointers.remove(&tab_id);
         }
@@ -49,7 +89,11 @@ impl ServerActor {
                 self.apply_runtime_mutation_effect(completion.effect).await;
                 self.reconcile_codex_presence().await;
                 self.schedule_codex_presence_changed();
-                self.client_write(client_id, ok_response(request_id, completion.response));
+                if let Err(error) = cleanup_result {
+                    self.client_write(client_id, error_response(request_id, &error));
+                } else {
+                    self.client_write(client_id, ok_response(request_id, completion.response));
+                }
             }
             Err(error) => {
                 if let Some(effect) = effect_on_error {

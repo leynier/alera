@@ -286,7 +286,12 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     {
         let base_kind = kind_for(&item_type, &lower);
         let id = if base_kind == "userMessage" {
-            format!("user-{turn_id}")
+            let client_id = first_string(&[item.get("clientId"), item.get("client_id")]);
+            if client_id.is_empty() {
+                format!("user-{turn_id}")
+            } else {
+                format!("user-{client_id}")
+            }
         } else if item_id.is_empty() {
             format!("{}-{turn_id}", base_kind)
         } else {
@@ -315,7 +320,23 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
         } else {
             "inProgress"
         };
-        let text = item_markdown(&item);
+        let presentation_owned_text = base_kind == "userMessage"
+            && existing.is_some_and(|cell| {
+                cell.pointer("/metadata/clientUserMessageId").is_some()
+                    || cell
+                        .pointer("/metadata/attachments")
+                        .and_then(Value::as_array)
+                        .is_some()
+            });
+        let text = if presentation_owned_text {
+            existing
+                .and_then(|cell| cell.get("markdownText"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        } else {
+            item_markdown(&item)
+        };
         let details = item_details(&item);
         let title = first_string(&[
             item.get("title"),

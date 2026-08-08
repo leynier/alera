@@ -4,82 +4,26 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use alera_core::runtime::WorkspaceTabRecord;
+use alera_core::runtime::{Workspace, WorkspaceTabRecord};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
 use super::super::codex_state::{
-    active_turn_id, is_codex_tab, set_thread_and_snapshot, snapshot, tab_thread_id,
+    merge_resume_snapshot, persist_snapshot, set_thread_and_snapshot, snapshot, tab_thread_id,
+};
+use super::super::codex_tab_lifecycle::{
+    active_cwd, append_context_reset_notice, clear_stale_thread_activity, clear_thread_identity,
+    configuration, has_materialized_conversation, missing_rollout, normalize_configuration,
+    set_active_cwd, set_configuration,
 };
 use super::super::requests::require_string_key;
 use super::super::ServerActor;
+use super::codex_thread_sessions::{
+    allowed_cwd, ensure_thread_switch_allowed, thread_resume_params,
+};
 
 impl ServerActor {
-    pub(crate) async fn interrupt_codex_workspace_in_background(&self, workspace_id: String) {
-        let Some(server) = self.codex.as_ref().cloned() else {
-            return;
-        };
-        let Ok(tabs) = self.runtime_store.list_workspace_tabs(&workspace_id).await else {
-            return;
-        };
-        for tab in tabs.into_iter().filter(is_codex_tab) {
-            let Some(thread_id) = tab_thread_id(&tab) else {
-                continue;
-            };
-            let Some(turn_id) = active_turn_id(&snapshot(&tab)) else {
-                continue;
-            };
-            server.interrupt_in_background(thread_id, turn_id);
-        }
-    }
-
-    pub(crate) async fn interrupt_codex_project_in_background(&self, project_id: String) {
-        let Ok(workspaces) = self.runtime_store.list_workspaces(&project_id).await else {
-            return;
-        };
-        for workspace in workspaces {
-            self.interrupt_codex_workspace_in_background(workspace.id)
-                .await;
-        }
-    }
-
-    pub(crate) async fn close_codex_tab_before_removal(&mut self, tab_id: &str) -> HostResult<()> {
-        let Some(tab) = self
-            .runtime_store
-            .find_workspace_tab(tab_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-        else {
-            return Ok(());
-        };
-        if !is_codex_tab(&tab) {
-            return Ok(());
-        }
-        let Some(thread_id) = tab_thread_id(&tab) else {
-            return Ok(());
-        };
-        let workspace = self
-            .runtime_store
-            .find_workspace(&tab.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
-        let server = self.ensure_codex_server(Some(&workspace.path)).await?;
-        if let Some(turn_id) = active_turn_id(&snapshot(&tab)) {
-            let _ = server
-                .request(
-                    "turn/interrupt",
-                    json!({"threadId": thread_id, "turnId": turn_id}),
-                )
-                .await;
-        }
-        server
-            .request("thread/delete", json!({"threadId": thread_id}))
-            .await
-            .map(|_| ())
-    }
-
     pub(super) async fn create_codex_tab(&mut self, payload: &Value) -> HostResult<Value> {
         let workspace_id = require_string_key(payload, "workspaceId")?;
         let workspace = self
@@ -89,15 +33,19 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
         let now = Utc::now();
-        let tab = WorkspaceTabRecord {
+        let mut tab = WorkspaceTabRecord {
             id: Uuid::new_v4().to_string(),
             workspace_id: workspace.id.clone(),
             kind: CODEX_TAB_KIND.to_string(),
-            title: "Codex".to_string(),
+            title: "Codex Chat".to_string(),
             created_at: now,
             updated_at: now,
             payload: json!({}),
         };
+        if let Some(value) = payload.get("configuration") {
+            let normalized = normalize_configuration(value).map_err(HostError::format)?;
+            set_configuration(&mut tab, normalized);
+        }
         let tab = self
             .runtime_store
             .upsert_workspace_tab(tab)
@@ -119,15 +67,7 @@ impl ServerActor {
                 .ok_or_else(|| {
                     HostError::state(format!("Workspace not found: {}", tab.workspace_id))
                 })?;
-            if let Some(object) = params.as_object_mut() {
-                object.remove("tabId");
-                object
-                    .entry("cwds".to_string())
-                    .or_insert_with(|| json!([workspace.path]));
-                object
-                    .entry("forceReload".to_string())
-                    .or_insert(json!(false));
-            }
+            params = codex_skills_list_params(params, &tab, &workspace.path);
         }
         self.codex_server_request("skills/list", params).await
     }
@@ -173,16 +113,55 @@ impl ServerActor {
             .ok_or_else(|| {
                 HostError::state(format!("Workspace not found: {}", tab.workspace_id))
             })?;
-        let server = self.ensure_codex_server(Some(&workspace.path)).await?;
         let existing_thread = tab_thread_id(&tab);
-        let response = if let Some(thread_id) = existing_thread.as_deref() {
-            server
-                .request("thread/resume", json!({"threadId": thread_id}))
-                .await?
-        } else {
-            let mut params = json!({"cwd": workspace.path, "approvalPolicy": "on-request"});
-            copy_optional(payload, &mut params, "model");
-            server.request("thread/start", params).await?
+        let Some(thread_id) = existing_thread.as_deref() else {
+            return Ok(thread_open_response(&tab, None, None, None));
+        };
+        let supports_missing_rollout_recovery = payload
+            .get("supportsMissingRolloutRecovery")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let workspaces = self.codex_workspaces(None).await?;
+        let (cwd, cwd_changed) = resumable_codex_cwd(&tab, &workspace, &workspaces)?;
+        if cwd_changed {
+            set_active_cwd(&mut tab, &cwd);
+        }
+        let server = self.ensure_codex_server(Some(&cwd)).await?;
+        let response = match server
+            .request("thread/resume", thread_resume_params(thread_id, &cwd, 20))
+            .await
+        {
+            Ok(response) => response,
+            Err(error) if missing_rollout(&error.wire_message(), thread_id) => {
+                let (next_thread_id, recovery) =
+                    resolve_missing_rollout(&mut tab, thread_id, supports_missing_rollout_recovery);
+                let saved = self
+                    .runtime_store
+                    .upsert_workspace_tab(tab)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                self.refresh_codex_presence(&saved);
+                self.schedule_codex_presence_changed();
+                self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+                self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                    "codexThreadChanged",
+                    json!({
+                        "tabId": saved.id,
+                        "workspaceId": saved.workspace_id,
+                        "threadId": next_thread_id,
+                        "snapshot": snapshot(&saved),
+                        "configuration": configuration(&saved),
+                        "recovery": recovery,
+                    }),
+                ));
+                return Ok(thread_open_response(
+                    &saved,
+                    next_thread_id.as_deref(),
+                    recovery,
+                    None,
+                ));
+            }
+            Err(error) => return Err(error),
         };
         let thread_id = response
             .pointer("/thread/id")
@@ -190,11 +169,24 @@ impl ServerActor {
             .and_then(Value::as_str)
             .or(existing_thread.as_deref())
             .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?;
+        let stored_snapshot = snapshot(&tab);
+        let history_page = server
+            .project_resumed_thread_history(thread_id, &response, 20)
+            .await;
         let next_snapshot = response
             .get("snapshot")
             .filter(|value| value.is_object())
             .cloned()
-            .unwrap_or_else(|| snapshot(&tab));
+            .or_else(|| history_page.as_ref().map(|page| page.snapshot.clone()))
+            .map(|resumed| merge_resume_snapshot(&stored_snapshot, resumed))
+            .unwrap_or(stored_snapshot);
+        let response_cwd = response
+            .pointer("/thread/cwd")
+            .and_then(Value::as_str)
+            .or_else(|| response.get("cwd").and_then(Value::as_str))
+            .and_then(|value| allowed_cwd(value, &workspaces))
+            .unwrap_or(cwd);
+        set_active_cwd(&mut tab, &response_cwd);
         set_thread_and_snapshot(&mut tab, thread_id, next_snapshot);
         let saved = self
             .runtime_store
@@ -202,11 +194,71 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        Ok(thread_open_response(
+            &saved,
+            Some(thread_id),
+            None,
+            history_page.and_then(|page| page.next_cursor),
+        ))
+    }
+
+    pub(super) async fn configure_codex_tab(&mut self, payload: &Value) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let value = payload
+            .get("configuration")
+            .ok_or_else(|| HostError::format("Codex tab configuration is required."))?;
+        let normalized = normalize_configuration(value).map_err(HostError::format)?;
+        let mut tab = self.codex_tab(&tab_id).await?;
+        set_configuration(&mut tab, normalized.clone());
+        let saved = self
+            .runtime_store
+            .upsert_workspace_tab(tab)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "codexThreadChanged",
+            json!({
+                "tabId": saved.id,
+                "workspaceId": saved.workspace_id,
+                "threadId": tab_thread_id(&saved),
+                "snapshot": snapshot(&saved),
+                "configuration": normalized,
+            }),
+        ));
         Ok(json!({
-            "tab": saved,
-            "threadId": thread_id,
-            "snapshot": snapshot(&saved),
+            "tabId": saved.id,
+            "configuration": configuration(&saved),
         }))
+    }
+
+    pub(super) async fn recover_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let mut tab = self.codex_tab(&tab_id).await?;
+        ensure_recovery_matches(payload, &tab)?;
+        clear_thread_identity(&mut tab);
+        let mut next_snapshot = snapshot(&tab);
+        append_context_reset_notice(&mut next_snapshot);
+        persist_snapshot(&mut tab, next_snapshot);
+        let saved = self
+            .runtime_store
+            .upsert_workspace_tab(tab)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        self.refresh_codex_presence(&saved);
+        self.schedule_codex_presence_changed();
+        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "codexThreadChanged",
+            json!({
+                "tabId": saved.id,
+                "workspaceId": saved.workspace_id,
+                "threadId": null,
+                "snapshot": snapshot(&saved),
+                "configuration": configuration(&saved),
+                "recovery": null,
+            }),
+        ));
+        Ok(thread_open_response(&saved, None, None, None))
     }
 
     pub(super) async fn codex_thread_snapshot(&self, payload: &Value) -> HostResult<Value> {
@@ -216,14 +268,107 @@ impl ServerActor {
             "tabId": tab.id,
             "threadId": tab_thread_id(&tab),
             "snapshot": snapshot(&tab),
+            "configuration": configuration(&tab),
         }))
     }
 }
 
-fn copy_optional(payload: &Value, target: &mut Value, key: &str) {
-    if let Some(value) = payload.get(key) {
-        if let Some(object) = target.as_object_mut() {
-            object.insert(key.to_string(), value.clone());
+fn resolve_missing_rollout(
+    tab: &mut WorkspaceTabRecord,
+    thread_id: &str,
+    supports_explicit_recovery: bool,
+) -> (Option<String>, Option<Value>) {
+    let mut next_snapshot = snapshot(tab);
+    if has_materialized_conversation(&next_snapshot) && supports_explicit_recovery {
+        clear_stale_thread_activity(&mut next_snapshot);
+        persist_snapshot(tab, next_snapshot);
+        return (
+            Some(thread_id.to_string()),
+            Some(json!({
+                "kind": "missingRollout",
+                "threadId": thread_id,
+                "message": "The saved Codex context is no longer available.",
+            })),
+        );
+    }
+
+    let had_materialized_conversation = has_materialized_conversation(&next_snapshot);
+    clear_thread_identity(tab);
+    if had_materialized_conversation {
+        append_context_reset_notice(&mut next_snapshot);
+        persist_snapshot(tab, next_snapshot);
+    }
+    (None, None)
+}
+
+fn ensure_recovery_matches(payload: &Value, tab: &WorkspaceTabRecord) -> HostResult<()> {
+    let current_thread_id = tab_thread_id(tab)
+        .ok_or_else(|| HostError::state("The Codex conversation no longer needs recovery."))?;
+    if let Some(expected_thread_id) = payload
+        .get("expectedThreadId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if current_thread_id != expected_thread_id {
+            return Err(HostError::state(
+                "The Codex conversation changed before recovery. Review the current conversation and try again.",
+            ));
         }
     }
+    ensure_thread_switch_allowed(tab)
 }
+
+fn resumable_codex_cwd(
+    tab: &WorkspaceTabRecord,
+    workspace: &Workspace,
+    workspaces: &[Workspace],
+) -> HostResult<(String, bool)> {
+    let stored_cwd = active_cwd(tab);
+    let cwd = stored_cwd
+        .as_deref()
+        .and_then(|value| allowed_cwd(value, workspaces))
+        .or_else(|| allowed_cwd(&workspace.path, workspaces))
+        .ok_or_else(|| HostError::format("Codex cwd must be inside a known workspace."))?;
+    let changed = stored_cwd.as_deref() != Some(cwd.as_str());
+    Ok((cwd, changed))
+}
+
+fn thread_open_response(
+    tab: &WorkspaceTabRecord,
+    thread_id: Option<&str>,
+    recovery: Option<Value>,
+    history_next_cursor: Option<String>,
+) -> Value {
+    json!({
+        "tab": tab,
+        "threadId": thread_id,
+        "cwd": active_cwd(tab),
+        "snapshot": snapshot(tab),
+        "configuration": configuration(tab),
+        "recovery": recovery,
+        "historyNextCursor": history_next_cursor,
+    })
+}
+
+fn codex_skills_list_params(
+    mut params: Value,
+    tab: &WorkspaceTabRecord,
+    workspace_path: &str,
+) -> Value {
+    if let Some(object) = params.as_object_mut() {
+        object.remove("tabId");
+        let cwd = active_cwd(tab).unwrap_or_else(|| workspace_path.to_string());
+        object
+            .entry("cwds".to_string())
+            .or_insert_with(|| json!([cwd]));
+        object
+            .entry("forceReload".to_string())
+            .or_insert(json!(false));
+    }
+    params
+}
+
+#[cfg(test)]
+#[path = "codex_requests_catalogue_tests.rs"]
+mod tests;

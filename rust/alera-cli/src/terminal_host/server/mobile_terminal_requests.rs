@@ -12,9 +12,10 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
     RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -72,8 +73,10 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
     RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY,
+    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
 ];
 
@@ -388,7 +391,21 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "detach"
             | "terminate"
             | "codex.thread.open"
+            | "codex.thread.list"
+            | "codex.threads.list"
+            | "codex.session.list"
+            | "codex.thread.resume"
+            | "codex.session.resume"
+            | "codex.thread.history"
+            | "codex.thread.turns.list"
+            | "codex.session.history"
+            | "codex.thread.new"
+            | "codex.session.new"
+            | "codex.thread.clear"
+            | "codex.session.clear"
             | "codex.tab.create"
+            | "codex.tab.configure"
+            | "codex.thread.recover"
             | "codex.thread.snapshot"
             | "codex.thread.items.list"
             | "codex.model.list"
@@ -402,6 +419,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.thread.compact"
             | "codex.review.start"
             | "codex.response"
+            | "codex.request.snooze"
             | "automation.list"
             | "automation.show"
             | "automation.upsert"
@@ -436,6 +454,7 @@ mod mobile_codex_file_surface_tests {
     fn advertises_and_allows_mobile_codex_file_surfaces() {
         assert!(MOBILE_HELLO_CAPABILITIES
             .contains(&RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY));
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY));
         assert!(
             MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY)
         );

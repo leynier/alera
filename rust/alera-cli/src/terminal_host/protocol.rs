@@ -43,6 +43,8 @@ pub const RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY: &str = "mobileProm
 /// Codex prompts without receiving unrestricted host filesystem access.
 pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
     "mobileCodexWorkspaceFilesV1";
+/// A paired phone can list, resume, reset, clear, and rename Codex threads.
+pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSessionsV1";
 /// A paired phone can upload bounded general files into the runtime-owned
 /// prompt attachment store using the same offset-checked chunking as images.
 pub const RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY: &str = "mobilePromptFileUploadV1";
@@ -141,6 +143,12 @@ pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
 /// Native Codex chat tabs are additive. Clients advertise support for the tab
 /// kind separately so an older client never attempts to decode it.
 pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
+/// Native Codex session management is additive. Desktop clients negotiate it
+/// before exposing thread list, resume, new, and clear actions.
+pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";
+/// Codex turn requests accept the app-server's split approval reviewer and
+/// sandbox policy fields instead of relying on the legacy approval mode.
+pub const RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY: &str = "codexTurnPolicyV2";
 pub const CODEX_TAB_KIND: &str = "codex";
 /// Version of the computer-use skill guide this binary's command surface matches.
 /// Reported by `alera version` so a stale installed skill is detectable.

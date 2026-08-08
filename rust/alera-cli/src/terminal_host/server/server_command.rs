@@ -187,6 +187,12 @@ pub enum ServerCommand {
     CodexFlush {
         tab_id: String,
     },
+    CodexAutoResolve {
+        tab_id: String,
+        thread_id: String,
+        request_id: Value,
+        server_instance: std::sync::Arc<()>,
+    },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),
 }

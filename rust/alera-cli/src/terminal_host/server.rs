@@ -89,10 +89,18 @@ mod browser_url_privacy;
 mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
+mod codex_app_server_history;
+mod codex_event_routing;
 mod codex_events;
+mod codex_nonblocking_questions;
 mod codex_presence;
 mod codex_requests;
+mod codex_runtime_cleanup;
 mod codex_state;
+mod codex_tab_lifecycle;
+mod codex_thread_identity;
+mod codex_user_messages;
+mod codex_workspace_inputs;
 mod computer_request_payloads;
 mod computer_requests;
 mod coordinator_requests;
@@ -770,6 +778,15 @@ impl ServerActor {
             ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
             ServerCommand::CodexPresenceTick => self.handle_codex_presence_tick(),
             ServerCommand::CodexFlush { tab_id } => self.handle_codex_flush(&tab_id).await,
+            ServerCommand::CodexAutoResolve {
+                tab_id,
+                thread_id,
+                request_id,
+                server_instance,
+            } => {
+                self.handle_codex_auto_resolve(&tab_id, &thread_id, request_id, server_instance)
+                    .await
+            }
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
