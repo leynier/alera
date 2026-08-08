@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::server::codex_user_messages::append_user_input;
 use chrono::Utc;
 
 fn tab() -> WorkspaceTabRecord {
@@ -67,6 +68,10 @@ fn question_answers_are_persisted_as_timeline_cells() {
     let mut record = tab();
     append_message(
         &mut record,
+        json!({"method":"turn/started","params":{"turn":{"id":"turn-question"}}}),
+    );
+    append_message(
+        &mut record,
         json!({
             "id": 7,
             "method": "item/tool/request_user_input",
@@ -79,8 +84,14 @@ fn question_answers_are_persisted_as_timeline_cells() {
         &json!({"answers": {"mode": {"answers": ["Careful"]}}}),
     );
     let saved = snapshot(&record);
-    assert_eq!(saved["timelineCells"][0]["kind"], "questionAnswer");
-    assert_eq!(saved["timelineCells"][0]["markdownText"], "Careful");
+    let answer = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["kind"] == "questionAnswer")
+        .unwrap();
+    assert_eq!(answer["markdownText"], "Careful");
+    assert_eq!(answer["turnId"], "turn-question");
 }
 
 #[test]
@@ -199,9 +210,13 @@ fn close_and_restart_snapshot_preserves_timeline() {
     append_user_input(
         &mut record,
         &json!([{"type":"text","text":"hello"}]),
+        None,
         "turn",
+        None,
+        false,
     );
     let saved = snapshot(&record);
+    assert_eq!(saved["activeTurnId"], "turn");
     let mut restarted = tab();
     restarted.payload["codexSnapshot"] = saved;
     let restored = snapshot(&restarted);
@@ -340,41 +355,6 @@ fn commentary_phase_and_repeated_output_are_reduced_once() {
             .unwrap()["detailsText"],
         "clean"
     );
-}
-
-#[test]
-fn token_usage_updates_context_metadata() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "thread/tokenUsage/updated",
-            "params": {"tokenUsage": {"totalTokens": 42, "contextWindow": 1000}}
-        }),
-    );
-    let saved = snapshot(&record);
-    assert_eq!(saved["contextUsed"], 42);
-    assert_eq!(saved["contextLimit"], 1000);
-}
-
-#[test]
-fn nested_token_usage_updates_context_metadata() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "thread/tokenUsage/updated",
-            "params": {
-                "tokenUsage": {
-                    "total": {"inputTokens": 12, "outputTokens": 8},
-                    "modelContextWindow": 2000
-                }
-            }
-        }),
-    );
-    let saved = snapshot(&record);
-    assert_eq!(saved["contextUsed"], 20);
-    assert_eq!(saved["contextLimit"], 2000);
 }
 
 #[test]

@@ -11,6 +11,8 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
+#[path = "codex_history_projection.rs"]
+mod codex_history_projection;
 #[path = "codex_markdown.rs"]
 mod codex_markdown;
 #[path = "codex_state_snapshot.rs"]
@@ -25,13 +27,19 @@ mod codex_timeline_modern;
 mod codex_timeline_state;
 
 use codex_state_snapshot::{
-    bound_snapshot, ensure_payload_object, normalize_snapshot, persist_snapshot, trim_cells,
-    trim_events, update_context_usage,
+    bound_snapshot, ensure_payload_object, normalize_snapshot, trim_events, update_context_usage,
+};
+
+pub(super) use codex_state_snapshot::merge_resume_snapshot;
+pub(super) use codex_state_snapshot::snapshot_delta;
+
+pub(super) use codex_history_projection::{
+    latest_turn_page, older_turn_page, CodexTurnHistoryPage,
 };
 
 pub(super) const CODEX_SNAPSHOT_VERSION: i64 = 2;
 const MAX_SNAPSHOT_EVENTS: usize = 160;
-const MAX_SNAPSHOT_CELLS: usize = 240;
+pub(super) const MAX_SNAPSHOT_CELLS: usize = 240;
 const MAX_SNAPSHOT_BYTES: usize = 512 * 1024;
 
 pub(super) fn is_codex_tab(tab: &WorkspaceTabRecord) -> bool {
@@ -66,68 +74,28 @@ pub(super) fn set_thread_and_snapshot(
     thread_id: &str,
     next_snapshot: Value,
 ) {
+    let mut next_snapshot = normalize_snapshot(next_snapshot);
+    bound_snapshot(&mut next_snapshot);
     let payload = ensure_payload_object(&mut tab.payload);
     payload.insert(
         "codexThreadId".to_string(),
         Value::String(thread_id.to_string()),
     );
-    payload.insert(
-        "codexSnapshot".to_string(),
-        normalize_snapshot(next_snapshot),
-    );
+    payload.insert("codexSnapshot".to_string(), next_snapshot);
     payload.remove("codexActiveTurnId");
     tab.updated_at = Utc::now();
 }
 
-pub(super) fn append_user_input(
-    tab: &mut WorkspaceTabRecord,
-    input: &Value,
-    turn_id: &str,
-) -> Value {
-    let text = input
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|part| {
-            if part.get("type").and_then(Value::as_str) == Some("text") {
-                part.get("text").and_then(Value::as_str)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    let attachments = input
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|part| part.get("type").and_then(Value::as_str) != Some("text"))
-        .cloned()
-        .collect::<Vec<_>>();
-    let mut next = snapshot(tab);
-    let object = ensure_payload_object(&mut next);
-    let cells = object
-        .entry("timelineCells".to_string())
-        .or_insert_with(|| Value::Array(Vec::new()));
-    if let Value::Array(cells) = cells {
-        let now = Utc::now().to_rfc3339();
-        cells.push(json!({
-            "id": format!("user-{turn_id}"),
-            "turnId": turn_id,
-            "kind": "userMessage",
-            "status": "completed",
-            "createdAt": now,
-            "updatedAt": now,
-            "isStreaming": false,
-            "isCollapsed": false,
-            "markdownText": text,
-            "renderedMarkdownText": codex_markdown::render_markdown(&text),
-            "metadata": {"attachments": attachments},
-        }));
-        trim_cells(cells);
-    }
-    persist_snapshot(tab, next.clone());
-    next
+pub(super) fn render_markdown(text: &str) -> String {
+    codex_markdown::render_markdown(text)
+}
+
+pub(super) fn persist_snapshot(tab: &mut WorkspaceTabRecord, next: Value) {
+    codex_state_snapshot::persist_snapshot(tab, next);
+}
+
+pub(super) fn trim_cells(cells: &mut Vec<Value>) {
+    codex_state_snapshot::trim_cells(cells);
 }
 
 pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Value {
@@ -240,6 +208,7 @@ pub(super) fn append_question_answer(
     else {
         return;
     };
+    let answer_turn_id = request.get("turnId").cloned().unwrap_or(Value::Null);
     let answers = result.get("answers");
     let question_values = request
         .pointer("/params/questions")
@@ -309,6 +278,7 @@ pub(super) fn append_question_answer(
             .join(", ");
         cells.push(json!({
             "id": format!("qa-{}", request_id),
+            "turnId": answer_turn_id,
             "kind": "questionAnswer",
             "status": "completed",
             "createdAt": now,
@@ -389,7 +359,7 @@ fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     codex_timeline_state::reduce_timeline(snapshot, message);
 }
 
-fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
+pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
     let Some(object) = snapshot.as_object_mut() else {
         return;
     };
@@ -434,6 +404,12 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         }
     } else if let (Some(id), Some(method)) = (message.get("id"), message.get("method")) {
         if !id.is_null() {
+            let request_turn_id = turn_id_from_message(message).or_else(|| {
+                object
+                    .get("activeTurnId")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            });
             let requests = object
                 .entry("pendingRequests".to_string())
                 .or_insert_with(|| Value::Array(Vec::new()));
@@ -443,6 +419,7 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
                     "id": id,
                     "method": method,
                     "params": message.get("params").cloned().unwrap_or(Value::Null),
+                    "turnId": request_turn_id,
                 }));
                 if requests.len() > 32 {
                     let excess = requests.len() - 32;
@@ -456,3 +433,7 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
 #[cfg(test)]
 #[path = "codex_state_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "codex_state_snapshot_tests.rs"]
+mod snapshot_tests;

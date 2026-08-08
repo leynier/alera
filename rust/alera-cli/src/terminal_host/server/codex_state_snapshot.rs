@@ -1,6 +1,7 @@
 use alera_core::runtime::WorkspaceTabRecord;
 use chrono::Utc;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 
 use super::{
     active_turn_id, CODEX_SNAPSHOT_VERSION, MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CELLS,
@@ -12,8 +13,11 @@ pub(super) fn update_context_usage(object: &mut Map<String, Value>, message: &Va
         return;
     }
     let token_usage = message.pointer("/params/tokenUsage");
+    let last_usage = token_usage.and_then(|usage| usage.get("last"));
     let total_usage = token_usage.and_then(|usage| usage.get("total"));
     let candidates = [
+        last_usage.and_then(|usage| usage.get("totalTokens")),
+        last_usage.and_then(|usage| usage.get("total_tokens")),
         message.pointer("/params/tokenUsage/totalTokens"),
         message.pointer("/params/tokenUsage/total_tokens"),
         token_usage.and_then(|usage| usage.pointer("/total/totalTokens")),
@@ -23,28 +27,12 @@ pub(super) fn update_context_usage(object: &mut Map<String, Value>, message: &Va
         message.pointer("/params/total_tokens"),
         message.pointer("/params/msg/total_tokens"),
     ];
-    let component_total = [
-        "inputTokens",
-        "input_tokens",
-        "cachedInputTokens",
-        "cached_input_tokens",
-        "outputTokens",
-        "output_tokens",
-        "reasoningOutputTokens",
-        "reasoning_output_tokens",
-    ]
-    .into_iter()
-    .filter_map(|key| {
-        total_usage
-            .and_then(|usage| usage.get(key))
-            .and_then(Value::as_i64)
-    })
-    .sum::<i64>();
     if let Some(value) = candidates
         .into_iter()
         .flatten()
         .find_map(Value::as_i64)
-        .or_else(|| (component_total > 0).then_some(component_total))
+        .or_else(|| usage_component_total(last_usage))
+        .or_else(|| usage_component_total(total_usage))
     {
         object.insert("contextUsed".to_string(), Value::Number(value.into()));
     }
@@ -59,6 +47,22 @@ pub(super) fn update_context_usage(object: &mut Map<String, Value>, message: &Va
     if let Some(value) = limits.into_iter().flatten().find_map(Value::as_i64) {
         object.insert("contextLimit".to_string(), Value::Number(value.into()));
     }
+}
+
+fn usage_component_total(usage: Option<&Value>) -> Option<i64> {
+    let usage = usage?;
+    let input = usage
+        .get("inputTokens")
+        .or_else(|| usage.get("input_tokens"))
+        .and_then(Value::as_i64)
+        .unwrap_or_default();
+    let output = usage
+        .get("outputTokens")
+        .or_else(|| usage.get("output_tokens"))
+        .and_then(Value::as_i64)
+        .unwrap_or_default();
+    let total = input.saturating_add(output);
+    (total > 0).then_some(total)
 }
 
 pub(super) fn normalize_snapshot(mut value: Value) -> Value {
@@ -79,7 +83,268 @@ pub(super) fn normalize_snapshot(mut value: Value) -> Value {
     value
 }
 
+pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value]) -> Value {
+    let previous_cells = cells_by_id(previous);
+    let next_cells = next
+        .get("timelineCells")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let timeline_upserts = next_cells
+        .iter()
+        .filter(|cell| {
+            cell_id(cell).is_none_or(|id| previous_cells.get(id).copied() != Some(*cell))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    // Timeline reducers only append or upsert cells. A missing cell here is an
+    // eviction from the bounded live window, not a semantic deletion from a
+    // client's expanded history.
+    let timeline_removed_ids = Vec::new();
+    let mut delta = Map::from_iter([
+        (
+            "timelineUpserts".to_string(),
+            Value::Array(timeline_upserts),
+        ),
+        (
+            "timelineRemovedIds".to_string(),
+            Value::Array(timeline_removed_ids),
+        ),
+        ("eventsAppend".to_string(), Value::Array(messages.to_vec())),
+        (
+            "eventLimit".to_string(),
+            Value::Number(super::MAX_SNAPSHOT_EVENTS.into()),
+        ),
+    ]);
+    let mut expected_events = previous
+        .get("events")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    expected_events.extend_from_slice(messages);
+    trim_events(&mut expected_events);
+    let retained_events = next
+        .get("events")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if retained_events != expected_events {
+        delta.insert("eventsReplace".to_string(), Value::Array(retained_events));
+    }
+    for key in ["activeTurnId", "contextUsed", "contextLimit", "title"] {
+        delta.insert(
+            key.to_string(),
+            next.get(key).cloned().unwrap_or(Value::Null),
+        );
+    }
+    if previous.get("pendingRequests") != next.get("pendingRequests") {
+        delta.insert(
+            "pendingRequests".to_string(),
+            next.get("pendingRequests")
+                .cloned()
+                .unwrap_or_else(|| Value::Array(Vec::new())),
+        );
+    }
+    Value::Object(delta)
+}
+
+pub(in crate::terminal_host::server) fn merge_resume_snapshot(
+    stored: &Value,
+    resumed: Value,
+) -> Value {
+    let Some(stored_cells) = stored.get("timelineCells").and_then(Value::as_array) else {
+        return normalize_snapshot(resumed);
+    };
+    let mut next = normalize_snapshot(resumed);
+    let resumed_has_title = next
+        .get("title")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    if !resumed_has_title {
+        if let Some(title) = stored
+            .get("title")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+        {
+            next["title"] = Value::String(title.to_string());
+        }
+    }
+    let resumed_cells = next
+        .get_mut("timelineCells")
+        .and_then(Value::as_array_mut)
+        .expect("normalized snapshots contain timeline cells");
+    let merged = if let Some(boundary) = stored_cells.iter().rposition(is_context_boundary) {
+        let mut cells = stored_cells[..=boundary].to_vec();
+        cells.extend(merge_cells_in_resumed_order(
+            &stored_cells[boundary + 1..],
+            std::mem::take(resumed_cells),
+            false,
+        ));
+        cells
+    } else {
+        merge_cells_in_resumed_order(stored_cells, std::mem::take(resumed_cells), true)
+    };
+    *resumed_cells = merged;
+    bound_snapshot(&mut next);
+    next
+}
+
+fn merge_cells_in_resumed_order(
+    stored: &[Value],
+    resumed: Vec<Value>,
+    preserve_all_stored: bool,
+) -> Vec<Value> {
+    let stored_indexes = cell_indexes(stored);
+    let mut merged = Vec::new();
+    let mut stored_cursor = 0;
+    for cell in resumed {
+        let stored_index = matching_cell_index(&stored_indexes, &cell);
+        if let Some(index) = stored_index.filter(|index| *index >= stored_cursor) {
+            merged.extend(
+                stored[stored_cursor..index]
+                    .iter()
+                    .filter(|cell| preserve_all_stored || is_alera_owned_cell(cell))
+                    .cloned(),
+            );
+            merged.push(merge_resumed_cell(&stored[index], cell));
+            stored_cursor = index + 1;
+        } else if let Some(index) = stored_index {
+            merged.push(merge_resumed_cell(&stored[index], cell));
+        } else {
+            merged.push(cell);
+        }
+    }
+    merged.extend(
+        stored[stored_cursor..]
+            .iter()
+            .filter(|cell| preserve_all_stored || is_alera_owned_cell(cell))
+            .cloned(),
+    );
+    merged
+}
+
+fn cell_indexes(cells: &[Value]) -> HashMap<String, usize> {
+    let mut indexes = HashMap::new();
+    for (index, cell) in cells.iter().enumerate() {
+        index_cell(&mut indexes, cell, index);
+    }
+    indexes
+}
+
+fn index_cell(indexes: &mut HashMap<String, usize>, cell: &Value, index: usize) {
+    if let Some(id) = cell_id(cell) {
+        indexes.insert(format!("id:{id}"), index);
+    }
+    if let Some(turn_id) = legacy_user_message_turn_id(cell) {
+        indexes.insert(format!("legacy-user-turn:{turn_id}"), index);
+    }
+}
+
+fn matching_cell_index(indexes: &HashMap<String, usize>, cell: &Value) -> Option<usize> {
+    cell_id(cell)
+        .and_then(|id| indexes.get(&format!("id:{id}")).copied())
+        .or_else(|| {
+            user_message_turn_id(cell)
+                .and_then(|turn_id| indexes.get(&format!("legacy-user-turn:{turn_id}")).copied())
+        })
+}
+
+fn legacy_user_message_turn_id(cell: &Value) -> Option<&str> {
+    let turn_id = user_message_turn_id(cell)?;
+    cell_id(cell)
+        .and_then(|id| id.strip_prefix("user-"))
+        .is_some_and(|legacy_turn_id| legacy_turn_id == turn_id)
+        .then_some(turn_id)
+}
+
+fn user_message_turn_id(cell: &Value) -> Option<&str> {
+    (cell.get("kind").and_then(Value::as_str) == Some("userMessage"))
+        .then(|| cell.get("turnId").and_then(Value::as_str))
+        .flatten()
+}
+
+fn is_alera_owned_cell(cell: &Value) -> bool {
+    if cell.get("kind").and_then(Value::as_str) == Some("questionAnswer") {
+        return true;
+    }
+    cell.get("kind").and_then(Value::as_str) == Some("userMessage")
+        && cell.get("metadata").is_some_and(|metadata| {
+            metadata.get("clientUserMessageId").is_some()
+                || metadata
+                    .get("attachments")
+                    .and_then(Value::as_array)
+                    .is_some_and(|attachments| !attachments.is_empty())
+        })
+}
+
+fn merge_resumed_cell(stored: &Value, mut resumed: Value) -> Value {
+    let stores_user_presentation = stored.get("kind").and_then(Value::as_str)
+        == Some("userMessage")
+        && resumed.get("kind").and_then(Value::as_str) == Some("userMessage")
+        && stored.get("metadata").is_some_and(|metadata| {
+            metadata.get("clientUserMessageId").is_some()
+                || metadata
+                    .get("attachments")
+                    .and_then(Value::as_array)
+                    .is_some()
+        });
+    if !stores_user_presentation {
+        return resumed;
+    }
+    let Some(resumed_map) = resumed.as_object_mut() else {
+        return resumed;
+    };
+    for key in ["createdAt", "markdownText", "renderedMarkdownText"] {
+        if let Some(value) = stored.get(key) {
+            resumed_map.insert(key.to_string(), value.clone());
+        }
+    }
+    let mut metadata = resumed_map
+        .remove("metadata")
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+    if let Some(stored_metadata) = stored.get("metadata").and_then(Value::as_object) {
+        for key in ["attachments", "clientUserMessageId", "isSteering"] {
+            if let Some(value) = stored_metadata.get(key) {
+                metadata.insert(key.to_string(), value.clone());
+            }
+        }
+    }
+    resumed_map.insert("metadata".to_string(), Value::Object(metadata));
+    resumed
+}
+
+fn is_context_boundary(cell: &Value) -> bool {
+    matches!(
+        cell.pointer("/metadata/noticeType").and_then(Value::as_str),
+        Some("threadBoundary" | "contextReset")
+    )
+}
+
+fn cells_by_id(snapshot: &Value) -> HashMap<&str, &Value> {
+    snapshot
+        .get("timelineCells")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|cell| cell_id(cell).map(|id| (id, cell)))
+        .collect()
+}
+
+fn cell_id(cell: &Value) -> Option<&str> {
+    cell.get("id").and_then(Value::as_str)
+}
+
 pub(super) fn bound_snapshot(snapshot: &mut Value) {
+    if let Some(events) = snapshot.get_mut("events").and_then(Value::as_array_mut) {
+        trim_events(events);
+    }
+    if let Some(cells) = snapshot
+        .get_mut("timelineCells")
+        .and_then(Value::as_array_mut)
+    {
+        trim_cells(cells);
+    }
     loop {
         let too_large = serde_json::to_vec(snapshot)
             .map(|bytes| bytes.len() > MAX_SNAPSHOT_BYTES)
