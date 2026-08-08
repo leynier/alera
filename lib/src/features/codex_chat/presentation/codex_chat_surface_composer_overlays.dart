@@ -13,7 +13,8 @@ enum CodexComposerCommand {
   apps('apps', 'Attach an app'),
   status('status', 'Show thread status'),
   rename('rename', 'Rename this Codex thread'),
-  logs('logs', 'Toggle raw app-server events');
+  logs('logs', 'Toggle raw app-server events'),
+  resume('resume', 'Resume a previous Codex thread');
 
   const CodexComposerCommand(this.name, this.description);
 
@@ -50,10 +51,12 @@ class CodexComposerEntry {
 }
 
 List<CodexComposerEntry> codexComposerEntries(
-  List<native.CodexSavedPrompt> savedPrompts,
-) => <CodexComposerEntry>[
+  List<native.CodexSavedPrompt> savedPrompts, {
+  required bool supportsSessions,
+}) => <CodexComposerEntry>[
   for (final command in codexComposerCommands)
-    CodexComposerEntry.builtin(command),
+    if (supportsSessions || command != CodexComposerCommand.resume)
+      CodexComposerEntry.builtin(command),
   for (final prompt in savedPrompts) CodexComposerEntry.saved(prompt),
 ];
 

@@ -7,8 +7,11 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
+import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_attachment_types.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_composer_draft.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_file_reference.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_saved_prompt_expander.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_timeline.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -38,9 +41,11 @@ part 'codex_chat_surface_composer_context.dart';
 part 'codex_chat_surface_composer_menus.dart';
 part 'codex_chat_surface_composer_overlays.dart';
 part 'codex_chat_surface_composer_quick_open.dart';
+part 'codex_chat_resume_picker.dart';
 part 'codex_chat_surface_saved_prompts.dart';
 part 'codex_chat_surface_dialogs.dart';
 part 'codex_chat_surface_draft_actions.dart';
+part 'codex_chat_surface_session_actions.dart';
 part 'codex_chat_surface_markdown_code.dart';
 part 'codex_chat_surface_timeline.dart';
 part 'codex_chat_surface_timeline_cells.dart';
@@ -76,19 +81,30 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
   final List<CodexDraftItem> _draftItems = <CodexDraftItem>[];
   final TerminalClipboard _clipboard = const NativeTerminalClipboard();
   late final WorkspaceFileService _workspaceFiles;
+  late final CodexComposerDraftStore _draftStore;
   List<native.CodexSavedPrompt> _savedPrompts =
       const <native.CodexSavedPrompt>[];
+  int _savedPromptLoadGeneration = 0;
   bool _showRawLogs = false;
+  bool _restoringDraft = false;
 
-  void _setSurfaceState(VoidCallback callback) => setState(callback);
+  void _setSurfaceState(VoidCallback callback) {
+    setState(callback);
+    _persistCurrentDraft();
+  }
 
   @override
   void initState() {
     super.initState();
-    _composer = TextEditingController();
+    _draftStore = ref.read(codexComposerDraftStoreProvider);
+    final draft = _draftStore.read(widget.tab.id);
+    _composer = TextEditingController.fromValue(draft.value)
+      ..addListener(_persistCurrentDraft);
+    _attachments.addAll(draft.attachments);
+    _draftItems.addAll(draft.draftItems);
     _composerFocus = FocusNode();
     _workspaceFiles = ref.read(workspaceFileServiceProvider);
-    unawaited(_loadSavedPrompts());
+    unawaited(_loadSavedPrompts(widget.workspace.path));
     if (widget.autofocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _composerFocus.requestFocus();
@@ -99,17 +115,51 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
   @override
   void didUpdateWidget(covariant CodexChatSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.workspace.path != widget.workspace.path) {
-      unawaited(_loadSavedPrompts());
+    if (oldWidget.tab.id != widget.tab.id) {
+      _restoreDraft(widget.tab.id);
+      _savedPrompts = const <native.CodexSavedPrompt>[];
+      unawaited(_loadSavedPrompts(widget.workspace.path));
+    } else if (oldWidget.workspace.path != widget.workspace.path) {
+      unawaited(_loadSavedPrompts(widget.workspace.path));
     }
   }
 
   @override
   void dispose() {
+    _composer.removeListener(_persistCurrentDraft);
     _composer.dispose();
     _composerFocus.dispose();
     _timeline.dispose();
     super.dispose();
+  }
+
+  void _restoreDraft(String tabId) {
+    final draft = _draftStore.read(tabId);
+    _restoringDraft = true;
+    _composer.value = draft.value;
+    _attachments
+      ..clear()
+      ..addAll(draft.attachments);
+    _draftItems
+      ..clear()
+      ..addAll(draft.draftItems);
+    _restoringDraft = false;
+  }
+
+  void _persistCurrentDraft() {
+    if (_restoringDraft) return;
+    _persistDraft(widget.tab.id);
+  }
+
+  void _persistDraft(String tabId) {
+    _draftStore.write(
+      tabId,
+      CodexComposerDraft(
+        value: _composer.value,
+        attachments: List<CodexInputAttachment>.unmodifiable(_attachments),
+        draftItems: List<CodexDraftItem>.unmodifiable(_draftItems),
+      ),
+    );
   }
 
   @override
@@ -117,6 +167,14 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     final state = ref.watch(codexChatControllerProvider(widget.tab.id));
     final controller = ref.read(
       codexChatControllerProvider(widget.tab.id).notifier,
+    );
+    final activeWorkspacePath = state.activeCwd ?? widget.workspace.path;
+    ref.listen<String?>(
+      codexChatControllerProvider(
+        widget.tab.id,
+      ).select((value) => value.activeCwd),
+      (_, activeCwd) =>
+          unawaited(_loadSavedPrompts(activeCwd ?? widget.workspace.path)),
     );
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
@@ -135,13 +193,17 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                   )
                 : _CodexTimeline(
                     snapshot: state.snapshot,
-                    workspacePath: widget.workspace.path,
+                    workspacePath: activeWorkspacePath,
                     title: state.snapshot.title ?? widget.tab.title,
                     planMode: state.planMode,
                     showRawLogs: _showRawLogs,
                     timeline: _timeline,
+                    historyNextCursor: state.historyNextCursor,
+                    onLoadHistory: controller.loadHistory,
                     onApproval: controller.respondApproval,
                     onQuestion: controller.submitQuestions,
+                    onQuestionInteraction:
+                        controller.snoozeQuestionAutoResolution,
                     onElicitation: controller.respondElicitation,
                     onReject: controller.rejectRequest,
                     onImplementPlan: controller.implementPlan,
@@ -151,48 +213,55 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
           ),
           if (state.error != null)
             _CodexInlineError(message: state.error!, onRetry: controller.retry),
+          if (state.recovery != null)
+            _CodexRecoveryBanner(
+              message: state.recovery!.message,
+              onContinue: controller.recoverThread,
+            ),
           if (state.queuedMessages.isNotEmpty)
             _CodexQueueBar(
               messages: state.queuedMessages,
+              canSteer: controller.canSteer,
               onRemove: controller.removeQueuedMessage,
               onEdit: (index, message) =>
                   _editQueued(controller, index, message),
               onSteer: (index, message) async {
-                await controller.steer(
+                final sent = await controller.steer(
                   message.text,
                   attachments: message.attachments,
                   draftItems: message.draftItems,
                 );
-                controller.removeQueuedMessage(index);
+                if (sent) controller.removeQueuedMessage(index);
               },
             ),
-          _CodexComposer(
-            controller: _composer,
-            focusNode: _composerFocus,
-            busy: state.busy,
-            interrupting: state.interrupting,
-            attachments: _attachments,
-            draftItems: _draftItems,
-            savedPrompts: _savedPrompts,
-            state: state,
-            workspacePath: widget.workspace.path,
-            workspaceFiles: _workspaceFiles,
-            onModelChanged: controller.setModel,
-            onReasoningChanged: controller.setReasoning,
-            onSpeedChanged: controller.setSpeed,
-            onPermissionChanged: controller.setPermissionMode,
-            onPlanChanged: controller.setPlanMode,
-            onCollaborationChanged: controller.setCollaborationMode,
-            onDraftItemSelected: _addDraftItem,
-            onCommand: (command) =>
-                _runComposerCommand(context, controller, state, command),
-            onSend: () => _send(controller),
-            onStop: controller.stop,
-            onAddAttachment: _addAttachment,
-            onPaste: _paste,
-            onRemoveAttachment: _removeAttachment,
-            onRemoveDraftItem: _removeDraftItem,
-          ),
+          if (state.recovery == null)
+            _CodexComposer(
+              controller: _composer,
+              focusNode: _composerFocus,
+              busy: state.busy,
+              interrupting: state.interrupting,
+              attachments: _attachments,
+              draftItems: _draftItems,
+              savedPrompts: _savedPrompts,
+              state: state,
+              workspacePath: activeWorkspacePath,
+              workspaceFiles: _workspaceFiles,
+              onModelChanged: controller.setModel,
+              onReasoningChanged: controller.setReasoning,
+              onSpeedChanged: controller.setSpeed,
+              onPermissionChanged: controller.setPermissionMode,
+              onPlanChanged: controller.setPlanMode,
+              onCollaborationChanged: controller.setCollaborationMode,
+              onDraftItemSelected: _addDraftItem,
+              onCommand: (command) =>
+                  _runComposerCommand(context, controller, state, command),
+              onSend: () => _send(controller),
+              onStop: controller.stop,
+              onAddAttachment: _addAttachment,
+              onPaste: _paste,
+              onRemoveAttachment: _removeAttachment,
+              onRemoveDraftItem: _removeDraftItem,
+            ),
         ],
       ),
     );
@@ -202,7 +271,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     try {
       final paths = await _clipboard.readFilePaths();
       if (paths.isNotEmpty) {
-        setState(() {
+        _setSurfaceState(() {
           _attachments.addAll(
             paths.map(
               (path) => CodexInputAttachment(
@@ -220,7 +289,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     try {
       final imagePath = await _clipboard.saveImageAsTempFile();
       if (imagePath != null && imagePath.isNotEmpty && mounted) {
-        setState(() {
+        _setSurfaceState(() {
           _attachments.add(
             CodexInputAttachment(path: imagePath, isImage: true),
           );
@@ -248,7 +317,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
   }
 
   void _removeAttachment(CodexInputAttachment attachment) {
-    setState(() => _attachments.remove(attachment));
+    _setSurfaceState(() => _attachments.remove(attachment));
   }
 
   void _addDraftItem(CodexDraftItem item) {
@@ -257,7 +326,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     )) {
       return;
     }
-    setState(() => _draftItems.add(item));
+    var storedItem = item;
     if (item.kind == CodexDraftItemKind.app && item.tokenText != null) {
       final current = _composer.text;
       final prefix = current.isNotEmpty && !current.endsWith(' ') ? ' ' : '';
@@ -265,23 +334,30 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
       final selection = _composer.selection;
       final start = selection.start < 0 ? current.length : selection.start;
       final end = selection.end < 0 ? current.length : selection.end;
+      storedItem = item.copyWith(tokenStart: start + prefix.length);
       _composer.value = _composer.value.copyWith(
         text: current.replaceRange(start, end, token),
         selection: TextSelection.collapsed(offset: start + token.length),
         composing: TextRange.empty,
       );
     }
+    _setSurfaceState(() => _draftItems.add(storedItem));
     _composerFocus.requestFocus();
   }
 
   void _removeDraftItem(CodexDraftItem item) {
-    setState(() => _draftItems.removeWhere((value) => value.id == item.id));
+    _setSurfaceState(
+      () => _draftItems.removeWhere((value) => value.id == item.id),
+    );
     final token = item.tokenText;
     if (token != null && token.isNotEmpty) {
-      final updated = _composer.text
-          .replaceFirst('$token ', '')
-          .replaceFirst(token, '');
-      if (updated != _composer.text) {
+      final range = codexFileReferenceRange(
+        _composer.text,
+        token,
+        preferredStart: item.tokenStart,
+      );
+      if (range != null) {
+        final updated = _composer.text.replaceRange(range.start, range.end, '');
         _composer.value = TextEditingValue(
           text: updated,
           selection: TextSelection.collapsed(offset: updated.length),
@@ -311,89 +387,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
         ),
       );
     }
-    setState(() => _attachments.addAll(additions));
-  }
-
-  Future<void> _runComposerCommand(
-    BuildContext context,
-    CodexChatController controller,
-    CodexChatState state,
-    CodexComposerCommand command,
-  ) async {
-    switch (command) {
-      case CodexComposerCommand.newChat:
-      case CodexComposerCommand.clear:
-        await ref
-            .read(workbenchControllerProvider.notifier)
-            .createCodexTab(widget.workspace);
-      case CodexComposerCommand.compact:
-        await controller.compact();
-      case CodexComposerCommand.review:
-        await _startReview(context, controller);
-      case CodexComposerCommand.plan:
-        controller.setPlanMode(!state.planMode);
-      case CodexComposerCommand.model:
-        final model = await showDialog<String>(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: const Text('Select Model'),
-            children: <Widget>[
-              for (final option in state.models)
-                SimpleDialogOption(
-                  onPressed: () => Navigator.of(context).pop(option.id),
-                  child: Text(option.label),
-                ),
-            ],
-          ),
-        );
-        controller.setModel(model);
-      case CodexComposerCommand.permissions:
-        final mode = await showDialog<String>(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: const Text('Select Approval Mode'),
-            children: <Widget>[
-              SimpleDialogOption(
-                onPressed: () => Navigator.of(context).pop('on-request'),
-                child: const Text('Ask First'),
-              ),
-              SimpleDialogOption(
-                onPressed: () => Navigator.of(context).pop('never'),
-                child: const Text('Full Access'),
-              ),
-            ],
-          ),
-        );
-        if (mode != null) controller.setPermissionMode(mode);
-      case CodexComposerCommand.mention:
-        _insertAtCursor('@');
-      case CodexComposerCommand.skills:
-        await _pickCatalog(context, state.skills, skill: true);
-      case CodexComposerCommand.apps:
-        await _pickCatalog(context, state.apps, skill: false);
-      case CodexComposerCommand.status:
-        await _showStatus(context, state);
-      case CodexComposerCommand.rename:
-        await _rename(context, controller);
-      case CodexComposerCommand.logs:
-        setState(() => _showRawLogs = !_showRawLogs);
-    }
-    if (mounted) _composerFocus.requestFocus();
-  }
-
-  void _insertAtCursor(String text) {
-    final value = _composer.value;
-    final start = value.selection.start < 0
-        ? value.text.length
-        : value.selection.start;
-    final end = value.selection.end < 0
-        ? value.text.length
-        : value.selection.end;
-    _composer.value = value.copyWith(
-      text: value.text.replaceRange(start, end, text),
-      selection: TextSelection.collapsed(offset: start + text.length),
-      composing: TextRange.empty,
-    );
+    _setSurfaceState(() => _attachments.addAll(additions));
   }
 
   Future<void> _pickCatalog(

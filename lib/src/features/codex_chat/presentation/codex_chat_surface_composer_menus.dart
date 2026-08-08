@@ -43,15 +43,30 @@ class _CodexComposerControls extends StatelessWidget {
         PopupMenuButton<String>(
           tooltip: 'Add Photos And Files',
           onSelected: (value) => _handleAddAction(context, value),
-          itemBuilder: (context) => const <PopupMenuEntry<String>>[
-            PopupMenuItem(value: 'file', child: Text('Add Photos And Files')),
-            PopupMenuItem(value: 'paste', child: Text('Paste From Clipboard')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'skill', child: Text('Add Skill')),
-            PopupMenuItem(value: 'app', child: Text('Add App')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'review', child: Text('Start Review')),
-            PopupMenuItem(value: 'compact', child: Text('Compact Context')),
+          itemBuilder: (context) => <PopupMenuEntry<String>>[
+            const PopupMenuItem(
+              value: 'file',
+              child: Text('Add Photos And Files'),
+            ),
+            const PopupMenuItem(
+              value: 'paste',
+              child: Text('Paste From Clipboard'),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(value: 'skill', child: Text('Add Skill')),
+            const PopupMenuItem(value: 'app', child: Text('Add App')),
+            const PopupMenuDivider(),
+            const PopupMenuItem(value: 'review', child: Text('Start Review')),
+            const PopupMenuItem(
+              value: 'compact',
+              child: Text('Compact Context'),
+            ),
+            if (state.supportsSessions) ...const <PopupMenuEntry<String>>[
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'resume', child: Text('Resume Thread')),
+              PopupMenuItem(value: 'new', child: Text('Start New Chat')),
+              PopupMenuItem(value: 'clear', child: Text('Clear Chat')),
+            ],
           ],
           child: const Padding(
             padding: EdgeInsets.all(AleraTokens.space4),
@@ -128,9 +143,15 @@ class _CodexComposerControls extends StatelessWidget {
             _CodexMenuHeader('Select Approval Mode'),
             _CodexDropdownEntry<String>(
               value: 'on-request',
-              label: 'Ask First',
+              label: 'Ask For Approval',
               selected: state.permissionMode == 'on-request',
             ),
+            if (state.supportsAutoReview)
+              _CodexDropdownEntry<String>(
+                value: 'auto-review',
+                label: 'Approve For Me',
+                selected: state.permissionMode == 'auto-review',
+              ),
             _CodexDropdownEntry<String>(
               value: 'never',
               label: 'Full Access',
@@ -138,9 +159,7 @@ class _CodexComposerControls extends StatelessWidget {
             ),
           ],
           child: _CodexComposerChip(
-            label: state.permissionMode == 'never'
-                ? 'Full Access'
-                : 'Ask First',
+            label: _codexPermissionModeLabel(state.permissionMode),
             highlight: state.permissionMode == 'never',
           ),
         ),
@@ -187,6 +206,12 @@ class _CodexComposerControls extends StatelessWidget {
         onCommand(CodexComposerCommand.review);
       case 'compact':
         onCommand(CodexComposerCommand.compact);
+      case 'resume':
+        onCommand(CodexComposerCommand.resume);
+      case 'new':
+        onCommand(CodexComposerCommand.newChat);
+      case 'clear':
+        onCommand(CodexComposerCommand.clear);
     }
   }
 
@@ -370,3 +395,9 @@ String _choiceLabel(String value) => value
           part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}',
     )
     .join(' ');
+
+String _codexPermissionModeLabel(String mode) => switch (mode) {
+  'auto-review' => 'Approve For Me',
+  'never' => 'Full Access',
+  _ => 'Ask For Approval',
+};

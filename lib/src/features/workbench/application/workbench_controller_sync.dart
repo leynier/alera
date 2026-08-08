@@ -242,6 +242,7 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;

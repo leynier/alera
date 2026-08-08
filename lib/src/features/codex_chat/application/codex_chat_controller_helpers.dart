@@ -14,7 +14,7 @@ extension on CodexChatController {
       // never a persisted model snapshot from an older app.
     }
     return const <CodexModelOption>[
-      CodexModelOption(id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol'),
+      CodexModelOption(id: 'gpt-5.6-sol', label: '5.6 Sol'),
     ];
   }
 }
@@ -61,11 +61,54 @@ List<Map<String, Object?>> _appItems(Map<String, Object?> payload) =>
 String _supportedEffort(CodexModelOption? model, String requested) {
   final supported = model?.reasoningEfforts ?? const <String>[];
   if (supported.isEmpty || supported.contains(requested)) return requested;
+  final modelDefault = model?.defaultReasoningEffort;
+  if (modelDefault != null && supported.contains(modelDefault)) {
+    return modelDefault;
+  }
   for (final fallback in <String>['medium', 'high', 'low', 'xhigh']) {
     if (supported.contains(fallback)) return fallback;
   }
   return supported.first;
 }
+
+Map<String, Object?> _configurationPayload(CodexChatState state) =>
+    <String, Object?>{
+      'selectedModel': state.selectedModel,
+      'reasoningEffort': state.reasoningEffort,
+      'speedMode': state.speedMode,
+      'permissionMode': state.permissionMode,
+      'planMode': state.planMode,
+      'collaborationMode': state.collaborationMode,
+    };
+
+CodexChatState _applyConfiguration(CodexChatState state, Object? value) {
+  if (value is! Map) return state;
+  final json = Map<String, Object?>.from(value);
+  final selectedModel = _string(json['selectedModel']);
+  final reasoningEffort = _string(json['reasoningEffort']);
+  final speedMode = _string(json['speedMode']);
+  final permissionMode = _string(json['permissionMode']);
+  final collaborationMode = _string(json['collaborationMode']);
+  return state.copyWith(
+    selectedModel: json.containsKey('selectedModel')
+        ? selectedModel
+        : state.selectedModel,
+    reasoningEffort: reasoningEffort ?? state.reasoningEffort,
+    speedMode: speedMode == 'fast' ? 'fast' : 'normal',
+    permissionMode: permissionMode == null
+        ? state.permissionMode
+        : _supportedPermissionMode(permissionMode),
+    planMode: json['planMode'] is bool
+        ? json['planMode']! as bool
+        : state.planMode,
+    collaborationMode: collaborationMode,
+  );
+}
+
+String _supportedPermissionMode(String mode) => switch (mode) {
+  'auto-review' || 'never' => mode,
+  _ => 'on-request',
+};
 
 String? _string(Object? value) =>
     value is String && value.trim().isNotEmpty ? value : null;
@@ -84,46 +127,184 @@ List<Map<String, Object?>> _buildInput(
 ) {
   final skill = _skillInput(message.text, state.skills);
   final app = _appInput(message.text, state.apps);
-  return <Map<String, Object?>>[
-    for (final item in message.draftItems)
-      <String, Object?>{
-        'type': switch (item.kind) {
-          CodexDraftItemKind.skill => 'skill',
-          CodexDraftItemKind.app => 'mention',
-          CodexDraftItemKind.mention => 'workspaceFile',
-        },
+  final input = <Map<String, Object?>>[];
+  for (final item in message.draftItems) {
+    if (item.kind == CodexDraftItemKind.skill) {
+      input.add(<String, Object?>{
+        'type': 'skill',
         'name': item.name,
         'path': item.path,
-      },
-    if (skill != null) skill.$1,
-    if (app != null) app.$1,
-    if (skill != null) <String, Object?>{'type': 'text', 'text': skill.$2},
-    if (app != null) <String, Object?>{'type': 'text', 'text': app.$2},
-    if (message.text.isNotEmpty && skill == null && app == null)
-      <String, Object?>{'type': 'text', 'text': message.text},
-    for (final attachment in message.attachments)
-      if (attachment.isImage)
-        <String, Object?>{
-          'type': 'localImage',
-          'path': attachment.path,
-          if (attachment.detail != null) 'detail': attachment.detail,
-        }
-      else if (_isAudioInput(attachment.path, attachment.mimeType))
-        <String, Object?>{'type': 'localAudio', 'path': attachment.path}
-      else
-        <String, Object?>{
-          'type': 'localFile',
-          'name': attachment.displayName ?? _basename(attachment.path),
-          'path': attachment.path,
+      });
+    } else if (item.kind == CodexDraftItemKind.app) {
+      input.add(<String, Object?>{
+        'type': 'mention',
+        'name': item.name,
+        'path': item.path,
+      });
+    }
+  }
+  if (skill != null) input.add(skill.$1);
+  if (app != null) input.add(app.$1);
+
+  var hasText = false;
+  void addText(String text) {
+    input.add(<String, Object?>{'type': 'text', 'text': text});
+    hasText = true;
+  }
+
+  if (skill != null) {
+    addText(skill.$2);
+  } else if (app != null) {
+    addText(app.$2);
+  } else if (message.text.isNotEmpty) {
+    addText(message.text);
+  }
+
+  final references = <({String path, String name})>[];
+  final seenReferences = <String>{};
+  void addReference(String path, String name) {
+    final reference = codexFileReferenceText(path);
+    if (!seenReferences.add(path)) return;
+    for (final part in input) {
+      if (part['type'] != 'text') continue;
+      final text = part['text']?.toString() ?? '';
+      final characterStart = _completeReferenceStart(text, reference);
+      if (characterStart < 0) continue;
+      final start = utf8.encode(text.substring(0, characterStart)).length;
+      final elements =
+          part.putIfAbsent('text_elements', () => <Map<String, Object?>>[])
+              as List<Map<String, Object?>>;
+      elements.add(<String, Object?>{
+        'byteRange': <String, Object?>{
+          'start': start,
+          'end': start + utf8.encode(reference).length,
         },
-    ..._mentionInputs(
-      message.text,
-      excludedPaths: message.draftItems
-          .where((item) => item.kind == CodexDraftItemKind.mention)
-          .map((item) => item.path)
-          .toSet(),
-    ),
-  ];
+        'placeholder': name,
+      });
+      return;
+    }
+    references.add((path: path, name: name));
+  }
+
+  for (final item in message.draftItems) {
+    if (item.kind == CodexDraftItemKind.mention) {
+      addReference(item.path, item.name);
+    }
+  }
+  for (final attachment in message.attachments) {
+    if (attachment.isImage) {
+      input.add(<String, Object?>{
+        'type': 'localImage',
+        'path': attachment.path,
+        if (attachment.detail != null) 'detail': attachment.detail,
+      });
+    } else if (_isAudioInput(attachment.path, attachment.mimeType)) {
+      input.add(<String, Object?>{
+        'type': 'localAudio',
+        'path': attachment.path,
+      });
+    } else {
+      addReference(
+        attachment.path,
+        attachment.displayName ?? _fileName(attachment.path),
+      );
+    }
+  }
+  input.addAll(_fileReferenceInputs(references, followsText: hasText));
+  return input;
+}
+
+int _completeReferenceStart(String text, String reference) {
+  var offset = 0;
+  while (offset <= text.length - reference.length) {
+    final match = text.indexOf(reference, offset);
+    if (match < 0) return -1;
+    final before = match == 0 ? null : text[match - 1];
+    final end = match + reference.length;
+    final after = end == text.length ? null : text[end];
+    if (_isReferenceBoundary(before) && _isReferenceBoundary(after)) {
+      return match;
+    }
+    offset = match + 1;
+  }
+  return -1;
+}
+
+bool _isReferenceBoundary(String? character) =>
+    character == null || character.trim().isEmpty;
+
+List<Map<String, Object?>> _fileReferenceInputs(
+  List<({String path, String name})> references, {
+  required bool followsText,
+}) {
+  final result = <Map<String, Object?>>[];
+  for (var index = 0; index < references.length; index++) {
+    final reference = references[index];
+    final prefix = index == 0 ? (followsText ? '\n\n' : '') : '\n';
+    final path = codexFileReferenceText(reference.path);
+    final text = '$prefix$path';
+    final start = utf8.encode(prefix).length;
+    result.add(<String, Object?>{
+      'type': 'text',
+      'text': text,
+      'text_elements': <Map<String, Object?>>[
+        <String, Object?>{
+          'byteRange': <String, Object?>{
+            'start': start,
+            'end': start + utf8.encode(path).length,
+          },
+          'placeholder': reference.name,
+        },
+      ],
+    });
+  }
+  return result;
+}
+
+Map<String, Object?> _userMessagePresentation(CodexQueuedMessage message) {
+  final attachments = <Map<String, Object?>>[];
+  final seen = <String>{};
+  for (final attachment in message.attachments) {
+    if (!seen.add(attachment.path)) continue;
+    attachments.add(<String, Object?>{
+      'path': attachment.path,
+      'displayName': attachment.displayName ?? _fileName(attachment.path),
+      'kind': attachment.isDirectory
+          ? 'directory'
+          : attachment.isImage
+          ? 'image'
+          : 'file',
+      'origin': attachment.origin.name,
+      'isImage': attachment.isImage,
+      'isDirectory': attachment.isDirectory,
+      if (attachment.mimeType != null) 'mimeType': attachment.mimeType,
+      if (attachment.sizeBytes != null) 'sizeBytes': attachment.sizeBytes,
+      if (attachment.detail != null) 'detail': attachment.detail,
+    });
+  }
+  for (final item in message.draftItems) {
+    if (item.kind != CodexDraftItemKind.mention || !seen.add(item.path)) {
+      continue;
+    }
+    attachments.add(<String, Object?>{
+      'path': item.path,
+      'displayName': item.name,
+      'kind': 'file',
+      'origin': CodexInputAttachmentOrigin.mention.name,
+      'isImage': false,
+      'isDirectory': false,
+    });
+  }
+  return <String, Object?>{
+    'text': message.text,
+    if (attachments.isNotEmpty) 'attachments': attachments,
+  };
+}
+
+String _fileName(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  return slash < 0 ? normalized : normalized.substring(slash + 1);
 }
 
 bool _isAudioInput(String path, String? mimeType) {
@@ -168,37 +349,6 @@ bool _isAudioInput(String path, String? mimeType) {
     );
   }
   return null;
-}
-
-List<Map<String, Object?>> _mentionInputs(
-  String text, {
-  Set<String> excludedPaths = const <String>{},
-}) {
-  final mentions = <Map<String, Object?>>[];
-  final seen = <String>{};
-  for (final match in RegExp(r'@([^\s]+)').allMatches(text)) {
-    final path = match.group(1)?.trim() ?? '';
-    if (path.isEmpty ||
-        excludedPaths.any(
-          (excluded) => text.startsWith('@$excluded', match.start),
-        ) ||
-        !seen.add(path) ||
-        path.startsWith('@')) {
-      continue;
-    }
-    mentions.add(<String, Object?>{
-      'type': 'workspaceFile',
-      'name': _basename(path),
-      'path': path,
-    });
-  }
-  return mentions;
-}
-
-String _basename(String path) {
-  final normalized = path.replaceAll('\\', '/');
-  final slash = normalized.lastIndexOf('/');
-  return slash < 0 ? normalized : normalized.substring(slash + 1);
 }
 
 (Map<String, Object?>, String)? _skillInput(

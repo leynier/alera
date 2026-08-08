@@ -1,5 +1,53 @@
 part of 'codex_chat_models.dart';
 
+String codexModelDisplayLabel(String value) {
+  final trimmed = value.trim();
+  final match = RegExp(
+    r'^gpt-(\d+(?:\.\d+)*)(?:[- ](.+))?$',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (match == null) return trimmed;
+  final version = match.group(1)!;
+  final suffix = match.group(2);
+  if (suffix == null || suffix.trim().isEmpty) return version;
+  final words = suffix
+      .split(RegExp(r'[- ]+'))
+      .where((word) => word.isNotEmpty)
+      .map(
+        (word) =>
+            '${word.substring(0, 1).toUpperCase()}'
+            '${word.substring(1).toLowerCase()}',
+      )
+      .join(' ');
+  return '$version $words';
+}
+
+extension CodexQuestionOptionPresentation on CodexQuestionOption {
+  bool get isRecommended =>
+      label.trim().toLowerCase().endsWith('(recommended)');
+
+  String get displayLabel => isRecommended
+      ? label
+            .trim()
+            .substring(0, label.trim().length - '(recommended)'.length)
+            .trim()
+      : label;
+}
+
+extension CodexPendingRequestPlanQuestion on CodexPendingRequest {
+  bool get isImplementPlanQuestion {
+    if (!isQuestion) return false;
+    final text = <Object?>[
+      params['title'],
+      params['question'],
+      params['prompt'],
+      params['message'],
+      for (final question in questions) question.question,
+    ].join(' ').toLowerCase();
+    return text.contains('implement') && text.contains('plan');
+  }
+}
+
 Map<String, Object?> _map(Object? value) {
   if (value is Map<String, Object?>) return value;
   if (value is Map) {

@@ -319,10 +319,28 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   }
 
   void _setTabsForWorkspace(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;
     state = state.copyWith(tabsByWorkspace: nextTabs);
+  }
+
+  void _removeMissingCodexDrafts(
+    String workspaceId,
+    List<WorkspaceTabRecord> tabs,
+  ) {
+    final retainedIds = <String>{for (final tab in tabs) tab.id};
+    _removeCodexDrafts(
+      state.tabsFor(workspaceId).where((tab) => !retainedIds.contains(tab.id)),
+    );
+  }
+
+  void _removeCodexDrafts(Iterable<WorkspaceTabRecord> tabs) {
+    final draftStore = ref.read(codexComposerDraftStoreProvider);
+    for (final tab in tabs) {
+      if (tab.kind == WorkspaceTabKind.codex) draftStore.remove(tab.id);
+    }
   }
 
   String _newPaneGroupId() => 'pane-${_uuid.v4()}';

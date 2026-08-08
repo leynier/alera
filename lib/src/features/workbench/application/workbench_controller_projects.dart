@@ -72,6 +72,7 @@ mixin _WorkbenchControllerProjects
       _workspaceIdsWithClearedLayout.add(workspace.id);
       _tabFocusHistory.forget(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
+      _removeCodexDrafts(state.tabsFor(workspace.id));
 
       final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
         state.tabsByWorkspace,
@@ -114,10 +115,15 @@ mixin _WorkbenchControllerProjects
 
   Future<void> removeProject(String projectId) async {
     try {
+      final removedTabs = <WorkspaceTabRecord>[
+        for (final workspace in state.workspacesFor(projectId))
+          ...state.tabsFor(workspace.id),
+      ];
       for (final workspace in state.workspacesFor(projectId)) {
         _tabFocusHistory.forget(workspace.id);
       }
       await _projectsService.removeProject(projectId);
+      _removeCodexDrafts(removedTabs);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -131,6 +137,7 @@ mixin _WorkbenchControllerProjects
     bool deleteBranch = true,
   }) async {
     try {
+      final workspaceTabs = state.tabsFor(workspace.id);
       final terminalSessionIds = state
           .tabsFor(workspace.id)
           .where((tab) => tab.kind == WorkspaceTabKind.terminal)
@@ -142,6 +149,7 @@ mixin _WorkbenchControllerProjects
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      _removeCodexDrafts(workspaceTabs);
       _tabFocusHistory.forget(workspace.id);
       ref
           .read(workspaceActivityControllerProvider.notifier)

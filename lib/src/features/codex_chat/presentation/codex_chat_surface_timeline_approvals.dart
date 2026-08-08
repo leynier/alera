@@ -50,7 +50,7 @@ class _CodexApprovalCard extends StatelessWidget {
           onPressed: () => _respond('decline'),
           child: const Text('Decline'),
         ),
-      if (request.availableApprovalDecisions.contains('cancel'))
+      if (request.supportsApprovalDecision('cancel'))
         TextButton(
           onPressed: () => _respond('cancel'),
           child: const Text('Cancel Turn'),

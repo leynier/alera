@@ -147,12 +147,12 @@ class _CodexComposerState extends State<_CodexComposer> {
     return KeyEventResult.ignored;
   }
 
-  void _replaceActive(RegExp pattern, String replacement) {
+  TextRange? _replaceActive(RegExp pattern, String replacement) {
     final cursor = widget.controller.selection.baseOffset;
-    if (cursor < 0) return;
+    if (cursor < 0) return null;
     final before = widget.controller.text.substring(0, cursor);
     final match = pattern.firstMatch(before);
-    if (match == null) return;
+    if (match == null) return null;
     final after = widget.controller.text.substring(cursor);
     final next = '${before.substring(0, match.start)}$replacement$after';
     widget.controller.value = TextEditingValue(
@@ -161,11 +161,13 @@ class _CodexComposerState extends State<_CodexComposer> {
         offset: match.start + replacement.length,
       ),
     );
+    return TextRange(start: match.start, end: match.start + replacement.length);
   }
 
   void _selectMention(String path) {
-    final token = '@$path';
-    _replaceActive(RegExp(r'@\S*$'), '$token ');
+    final token = codexFileReferenceText(path);
+    final inserted = _replaceActive(RegExp(r'@\S*$'), '$token ');
+    if (inserted == null) return;
     widget.onDraftItemSelected(
       CodexDraftItem(
         id: 'mention-$path',
@@ -173,6 +175,7 @@ class _CodexComposerState extends State<_CodexComposer> {
         name: p.basename(path),
         path: path,
         tokenText: token,
+        tokenStart: inserted.start,
       ),
     );
     _clearOverlay();
