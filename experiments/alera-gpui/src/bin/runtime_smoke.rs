@@ -25,13 +25,60 @@ async fn run() -> anyhow::Result<()> {
     let workspaces = client
         .request("workspace.list", &json!({"projectId": project_id}))
         .await?;
+    let requested_workspace_id = std::env::var("ALERA_RUNTIME_SMOKE_WORKSPACE_ID").ok();
     let workspace = workspaces
         .as_array()
-        .and_then(|items| items.first())
+        .and_then(|items| {
+            requested_workspace_id
+                .as_deref()
+                .and_then(|requested| {
+                    items
+                        .iter()
+                        .find(|item| item.get("id").and_then(Value::as_str) == Some(requested))
+                })
+                .or_else(|| items.first())
+        })
         .ok_or_else(|| anyhow::anyhow!("first project has no workspaces"))?;
     let workspace_id = string_field(workspace, "id")?;
+    let workspace_path = string_field(workspace, "path")?;
+    let workspace_entries = client
+        .request(
+            "workspaceFiles.list",
+            &json!({
+                "workspacePath": workspace_path,
+                "relativePath": "",
+                "hideIgnored": true,
+            }),
+        )
+        .await?;
 
-    let requests = [
+    let mut requests = vec![
+        ("hostDirectory.list", json!({"path": workspace_path})),
+        (
+            "workspaceFiles.list",
+            json!({
+                "workspacePath": workspace_path,
+                "relativePath": "",
+                "hideIgnored": true,
+            }),
+        ),
+        (
+            "workspaceSearch.search",
+            json!({
+                "workspacePath": workspace_path,
+                "query": "a",
+                "caseSensitive": false,
+                "wholeWord": false,
+                "useRegex": false,
+                "includePattern": null,
+                "excludePattern": null,
+                "includeIgnored": false,
+            }),
+        ),
+        (
+            "workspaceGit.snapshot",
+            json!({"workspacePath": workspace_path}),
+        ),
         ("linkedReview.find", json!({"workspaceId": workspace_id})),
         (
             "workspace.repositoryWebUrl",
@@ -50,6 +97,8 @@ async fn run() -> anyhow::Result<()> {
             json!({"workspace": workspace_id}),
         ),
         ("workbenchViewPrefs.get", json!({})),
+        ("tab.list", json!({"workspaceId": workspace_id})),
+        ("layout.find", json!({"workspaceId": workspace_id})),
         ("projectConfig.effective", json!({"projectId": project_id})),
         ("mobile.status.get", json!({})),
         ("mobile.device.list", json!({})),
@@ -57,19 +106,54 @@ async fn run() -> anyhow::Result<()> {
         ("status.get", json!({})),
         ("cliRegistration.status", json!({})),
     ];
+    if let Some(relative_path) = workspace_entries
+        .as_array()
+        .and_then(|entries| {
+            entries
+                .iter()
+                .find(|entry| entry.get("kind").and_then(Value::as_str) == Some("file"))
+        })
+        .and_then(|entry| entry.get("relativePath"))
+        .and_then(Value::as_str)
+    {
+        requests.push((
+            "workspaceFiles.readEditor",
+            json!({
+                "workspacePath": workspace_path,
+                "relativePath": relative_path,
+                "tabSize": 4,
+            }),
+        ));
+    }
 
     let mut failed = false;
+    let dump_responses = std::env::var_os("ALERA_RUNTIME_SMOKE_DUMP").is_some();
     for (verb, payload) in requests {
         match client
             .request_with_timeout(verb, &payload, Duration::from_secs(30))
             .await
         {
-            Ok(_) => println!("ok {verb}"),
+            Ok(value) => {
+                println!("ok {verb}");
+                if dump_responses {
+                    println!("value {verb} {value}");
+                }
+            }
             Err(error) => {
                 failed = true;
                 println!("error {verb}: {error}");
             }
         }
+    }
+    if std::env::var_os("ALERA_RUNTIME_SMOKE_RESTART_HOST").is_some() {
+        client
+            .request_with_timeout(
+                "host.restart",
+                &json!({"force": true}),
+                Duration::from_secs(30),
+            )
+            .await?;
+        println!("ok host.restart");
     }
     client.close().await;
     if failed {

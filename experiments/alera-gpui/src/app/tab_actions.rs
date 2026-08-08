@@ -1,0 +1,767 @@
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::time::Duration;
+
+use gpui::{Context, Focusable as _, Timer, Window};
+use serde_json::json;
+
+use super::AleraApp;
+use crate::model::{
+    WorkbenchDropZone, WorkbenchLayout, WorkbenchLayoutNode, WorkbenchPaneGroup,
+    WorkbenchSplitDirection,
+};
+
+impl AleraApp {
+    pub(super) fn open_editor_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
+        if let Some(tab) = self.snapshot.tabs.iter().find(|tab| {
+            tab.kind == "editor"
+                && tab.payload.get("filePath").and_then(|value| value.as_str())
+                    == Some(relative_path.as_str())
+        }) {
+            self.activate_workspace_tab(tab.id.clone(), cx);
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-editor-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let title = Path::new(&relative_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Editor")
+            .to_string();
+        let bridge = self.bridge.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "editor",
+                        "title": title,
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {"filePath": relative_path},
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id =
+                            tab.get("id").and_then(|id| id.as_str()).map(str::to_string);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn open_git_diff_tab(
+        &mut self,
+        relative_path: Option<String>,
+        area: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(source_scope) = self.selected_source_control_scope() else {
+            return;
+        };
+        let source_relative_path = relative_path;
+        let workspace_relative_path = source_relative_path
+            .as_deref()
+            .and_then(|path| source_scope.to_workspace_relative_path(path));
+        let source_root = source_scope.relative_root.clone();
+        if let Some(tab) = self.snapshot.tabs.iter().find(|tab| {
+            tab.kind == "gitDiff"
+                && tab.payload.get("filePath").and_then(|value| value.as_str())
+                    == workspace_relative_path.as_deref()
+                && tab
+                    .payload
+                    .get("gitDiffArea")
+                    .and_then(|value| value.as_str())
+                    == area.as_deref()
+                && tab
+                    .payload
+                    .get("gitDiffRoot")
+                    .and_then(|value| value.as_str())
+                    == source_root.as_deref()
+        }) {
+            self.activate_workspace_tab(tab.id.clone(), cx);
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let workspace_path = source_scope.path;
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-git-diff-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let scope = if source_relative_path.is_some() {
+            "file"
+        } else {
+            "all"
+        };
+        let title = match (&source_relative_path, &area) {
+            (Some(path), Some(area)) => format!(
+                "{} {}",
+                Path::new(path)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or(path),
+                title_case_git_area(area),
+            ),
+            _ => "All Changes".to_owned(),
+        };
+        let payload = json!({
+            "gitDiffScope": scope,
+            "filePath": workspace_relative_path,
+            "gitDiffArea": area,
+            "gitDiffRoot": source_root,
+        });
+        let bridge = self.bridge.clone();
+        let service = self.workspace_service.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        self.tab_mutation_busy = true;
+        self.git_diff_loading_tab = Some(tab_id.clone());
+        let result_tab_id = tab_id.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "gitDiff",
+                        "title": title,
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": payload,
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let diff = if result.is_ok() {
+                service
+                    .git_diff(workspace_path, source_relative_path, area, None, None, None)
+                    .await
+            } else {
+                Err("Git Diff Tab Could Not Be Created.".to_owned())
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                this.git_diff_loading_tab = None;
+                match (result, diff) {
+                    (Ok(_), Ok(diff)) => {
+                        this.selected_tab_id = Some(result_tab_id.clone());
+                        this.git_diff = diff;
+                        this.git_diff_loaded_tab = Some(result_tab_id.clone());
+                        this.refresh(cx);
+                    }
+                    (Err(error), _) | (_, Err(error)) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn create_terminal_tab(&mut self, cx: &mut Context<Self>) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let ordinal =
+            next_terminal_ordinal(self.snapshot.tabs.iter().map(|tab| tab.title.as_str()));
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-tab-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let bridge = self.bridge.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "terminal",
+                        "title": format!("Terminal {ordinal}"),
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {
+                            "terminalSessionId": tab_id,
+                        },
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id =
+                            tab.get("id").and_then(|id| id.as_str()).map(str::to_string);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn split_pane_with_terminal(
+        &mut self,
+        group_id: String,
+        direction: WorkbenchSplitDirection,
+        cx: &mut Context<Self>,
+    ) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let mut layout = self.snapshot.layout.clone().unwrap_or_else(|| {
+            let tab_ids = self
+                .snapshot
+                .tabs
+                .iter()
+                .map(|tab| tab.id.clone())
+                .collect::<Vec<_>>();
+            let active_tab_id = self
+                .selected_tab_id
+                .clone()
+                .or_else(|| tab_ids.first().cloned());
+            let group = WorkbenchPaneGroup {
+                id: group_id.clone(),
+                tab_ids,
+                active_tab_id,
+            };
+            let mut groups = BTreeMap::new();
+            groups.insert(group_id.clone(), group);
+            WorkbenchLayout {
+                workspace_id: workspace_id.clone(),
+                root: WorkbenchLayoutNode::Leaf {
+                    group_id: group_id.clone(),
+                },
+                groups,
+                active_group_id: group_id.clone(),
+            }
+        });
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-tab-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let new_group_id = format!(
+            "gpui-pane-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_micros()
+        );
+        let ordinal =
+            next_terminal_ordinal(self.snapshot.tabs.iter().map(|tab| tab.title.as_str()));
+        layout.split_group(
+            &group_id,
+            direction,
+            WorkbenchPaneGroup {
+                id: new_group_id,
+                tab_ids: vec![tab_id.clone()],
+                active_tab_id: Some(tab_id.clone()),
+            },
+        );
+        let bridge = self.bridge.clone();
+        self.workbench_menu = None;
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "terminal",
+                        "title": format!("Terminal {ordinal}"),
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {"terminalSessionId": tab_id},
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, Some(layout)).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id =
+                            tab.get("id").and_then(|id| id.as_str()).map(str::to_string);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn merge_pane_group(&mut self, group_id: String, cx: &mut Context<Self>) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(mut layout) = self.snapshot.layout.clone() else {
+            return;
+        };
+        if layout.groups.len() <= 1 {
+            self.workbench_menu = None;
+            cx.notify();
+            return;
+        }
+        layout.merge_group_into_sibling(&group_id);
+        let bridge = self.bridge.clone();
+        self.workbench_menu = None;
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = persist_layout(&bridge, Some(layout)).await;
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(()) => this.refresh(cx),
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn request_close_tab(&mut self, tab_id: String, cx: &mut Context<Self>) {
+        self.request_close_tabs(vec![tab_id], cx);
+    }
+
+    pub(super) fn request_close_tabs(&mut self, tab_ids: Vec<String>, cx: &mut Context<Self>) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let tab_ids = tab_ids
+            .into_iter()
+            .filter(|tab_id| self.snapshot.tabs.iter().any(|tab| &tab.id == tab_id))
+            .collect::<Vec<_>>();
+        if tab_ids.is_empty() {
+            return;
+        }
+        let closing_open_editor = self.snapshot.tabs.iter().any(|tab| {
+            tab_ids.contains(&tab.id)
+                && matches!(tab.kind.as_str(), "editor" | "markdownViewer")
+                && tab.payload.get("filePath").and_then(|value| value.as_str())
+                    == self.opened_file_path.as_deref()
+        });
+        if closing_open_editor
+            && self.editor_dirty
+            && self.tab_close_armed.as_ref() != Some(&tab_ids)
+        {
+            self.tab_close_armed = Some(tab_ids);
+            cx.notify();
+            return;
+        }
+        // Presence is projected independently from the workbench snapshot.
+        // Remove the rows optimistically, then refresh after the host has
+        // terminated the matching terminal sessions so the sidebar cannot
+        // retain a closed agent until the next presence notification.
+        self.prune_presence_for_tabs(&tab_ids);
+        self.tab_close_armed = None;
+        self.tab_mutation_busy = true;
+        let bridge = self.bridge.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            for tab_id in &tab_ids {
+                layout.remove_tab(tab_id);
+            }
+        }
+        // Redraw immediately so closing an agent tab also removes its sidebar
+        // presence before the asynchronous host mutation completes.
+        cx.notify();
+        let next_selected_tab_id = layout
+            .as_ref()
+            .and_then(|layout| layout.groups.get(&layout.active_group_id))
+            .and_then(|group| group.active_tab_id.clone());
+        cx.spawn(async move |this, cx| {
+            let result = async {
+                for tab_id in &tab_ids {
+                    bridge.request("tab.remove", json!({"id": tab_id})).await?;
+                }
+                persist_layout(&bridge, layout).await
+            }
+            .await;
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(()) => {
+                        this.selected_tab_id = next_selected_tab_id;
+                        if closing_open_editor {
+                            this.editor_document = None;
+                            this.opened_file_path = None;
+                            this.editor_dirty = false;
+                        }
+                        this.refresh_presence_status(cx);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        this.refresh_presence_status(cx);
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn cancel_close_dirty_tab(&mut self, cx: &mut Context<Self>) {
+        self.tab_close_armed = None;
+        cx.notify();
+    }
+
+    pub(super) fn confirm_close_dirty_tab(&mut self, cx: &mut Context<Self>) {
+        let Some(tab_ids) = self.tab_close_armed.clone() else {
+            return;
+        };
+        self.request_close_tabs(tab_ids, cx);
+    }
+
+    pub(super) fn move_workspace_tab(
+        &mut self,
+        tab_id: String,
+        target_group_id: String,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.move_workspace_tab_to_drop(
+            tab_id,
+            target_group_id,
+            WorkbenchDropZone::Center,
+            Some(index),
+            cx,
+        );
+    }
+
+    pub(super) fn move_workspace_tab_to_drop(
+        &mut self,
+        tab_id: String,
+        target_group_id: String,
+        zone: WorkbenchDropZone,
+        index: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(mut layout) = self.snapshot.layout.clone() else {
+            return;
+        };
+        let new_group_id = format!("gpui-group-{}", uuid::Uuid::new_v4());
+        if !layout.move_tab_to_drop(&tab_id, &target_group_id, zone, &new_group_id, index) {
+            return;
+        }
+        let previous_layout = self.snapshot.layout.clone();
+        let optimistic_layout = layout.clone();
+        // Keep the layout responsive while the host persists the mutation.
+        // Waiting for a refresh here makes a successful drop look lost when a
+        // runtime change notification races the persistence request.
+        self.snapshot.layout = Some(optimistic_layout.clone());
+        self.selected_tab_id = Some(tab_id);
+        self.tab_drop_target = None;
+        self.pane_drop_target = None;
+        self.tab_mutation_busy = true;
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = persist_layout(&bridge, Some(optimistic_layout)).await;
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(()) => cx.notify(),
+                    Err(error) => {
+                        this.snapshot.layout = previous_layout;
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn open_tab_rename_dialog(
+        &mut self,
+        tab_id: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let title = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .map(|tab| tab.title.clone())
+            .unwrap_or_default();
+        self.selected_tab_id = Some(tab_id);
+        self.tab_rename_input
+            .update(cx, |input, cx| input.set_value(title, window, cx));
+        self.show_tab_rename_dialog = true;
+        self.tab_rename_input.focus_handle(cx).focus(window);
+        cx.notify();
+    }
+
+    pub(super) fn close_tab_rename_dialog(&mut self, cx: &mut Context<Self>) {
+        if !self.tab_mutation_busy {
+            self.show_tab_rename_dialog = false;
+            cx.notify();
+        }
+    }
+
+    pub(super) fn activate_workspace_tab(&mut self, tab_id: String, cx: &mut Context<Self>) {
+        let diff_payload = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id && tab.kind == "gitDiff")
+            .map(|tab| tab.payload.clone());
+        self.selected_tab_id = Some(tab_id.clone());
+        self.ensure_selected_terminal(cx);
+        if let Some(payload) = diff_payload {
+            self.load_git_diff_tab(tab_id.clone(), payload, cx);
+        }
+        let mut layout = self.snapshot.layout.clone();
+        let Some(layout) = layout.as_mut() else {
+            cx.notify();
+            return;
+        };
+        layout.activate_tab(&tab_id);
+        let bridge = self.bridge.clone();
+        let layout = layout.clone();
+        cx.spawn(async move |_, _| {
+            let _ = persist_layout(&bridge, Some(layout)).await;
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub(super) fn load_git_diff_tab(
+        &mut self,
+        tab_id: String,
+        payload: serde_json::Value,
+        cx: &mut Context<Self>,
+    ) {
+        if self.git_diff_loading_tab.as_deref() == Some(&tab_id) {
+            return;
+        }
+        let source_root = payload
+            .get("gitDiffRoot")
+            .and_then(serde_json::Value::as_str);
+        let Some(source_scope) = self.source_control_scope_for_root(source_root) else {
+            return;
+        };
+        let workspace_file_path = payload
+            .get("filePath")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let file_path = workspace_file_path
+            .as_deref()
+            .and_then(|path| source_scope.to_source_relative_path(path));
+        let area = payload
+            .get("gitDiffArea")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let commit_id = payload
+            .get("gitDiffCommitOid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let parent_id = payload
+            .get("gitDiffParentOid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let old_path = payload
+            .get("gitDiffOldPath")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|path| source_scope.to_source_relative_path(path));
+        let workspace_path = source_scope.path;
+        self.git_diff_loading_tab = Some(tab_id.clone());
+        let service = self.workspace_service.clone();
+        cx.spawn(async move |this, cx| {
+            let result = service
+                .git_diff(
+                    workspace_path,
+                    file_path,
+                    area,
+                    commit_id,
+                    parent_id,
+                    old_path,
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.git_diff_loading_tab.as_deref() != Some(&tab_id) {
+                    return;
+                }
+                this.git_diff_loading_tab = None;
+                match result {
+                    Ok(diff) => {
+                        this.git_diff = diff;
+                        this.git_diff_loaded_tab = Some(tab_id.clone());
+                    }
+                    Err(error) => this.local_message = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn rename_selected_tab(&mut self, cx: &mut Context<Self>) {
+        if self.tab_mutation_busy {
+            return;
+        }
+        let Some(tab_id) = self.selected_tab_id.clone() else {
+            return;
+        };
+        let title = self.tab_rename_input.read(cx).value().trim().to_string();
+        if title.is_empty() {
+            self.local_message = Some("Terminal Title Is Required".into());
+            cx.notify();
+            return;
+        }
+        let bridge = self.bridge.clone();
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request_with_timeout(
+                    "tab.rename",
+                    json!({"id": tab_id, "title": title}),
+                    Duration::from_secs(5),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(_) => {
+                        this.show_tab_rename_dialog = false;
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+}
+
+fn next_terminal_ordinal<'a>(titles: impl Iterator<Item = &'a str>) -> usize {
+    let used = titles
+        .filter_map(|title| title.strip_prefix("Terminal "))
+        .filter_map(|ordinal| ordinal.parse::<usize>().ok())
+        .collect::<std::collections::HashSet<_>>();
+    (1..).find(|ordinal| !used.contains(ordinal)).unwrap()
+}
+
+fn title_case_git_area(area: &str) -> &'static str {
+    match area.to_ascii_lowercase().as_str() {
+        "staged" => "Staged",
+        "untracked" => "Untracked",
+        _ => "Unstaged",
+    }
+}
+
+pub(super) async fn persist_layout(
+    bridge: &crate::runtime_bridge::RuntimeBridge,
+    layout: Option<crate::model::WorkbenchLayout>,
+) -> Result<(), String> {
+    let Some(layout) = layout else {
+        return Ok(());
+    };
+    let payload = json!({
+        "workspaceId": layout.workspace_id,
+        "data": layout.to_value(),
+    });
+    bridge.request("layout.upsert", payload.clone()).await?;
+    // Flutter and GPUI can observe the same runtime while parity is tested side by side.
+    // Reassert the explicit user mutation after both clients have processed the tab event.
+    Timer::after(Duration::from_millis(250)).await;
+    bridge.request("layout.upsert", payload).await.map(|_| ())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_terminal_ordinal;
+
+    #[test]
+    fn terminal_ordinal_reuses_the_first_available_number() {
+        let titles = ["Terminal 1", "README.md", "Terminal 3", "Terminal 4"];
+        assert_eq!(next_terminal_ordinal(titles.into_iter()), 2);
+    }
+
+    #[test]
+    fn terminal_ordinal_ignores_noncanonical_titles() {
+        let titles = ["Terminal", "Terminal Custom", "terminal 1"];
+        assert_eq!(next_terminal_ordinal(titles.into_iter()), 1);
+    }
+}

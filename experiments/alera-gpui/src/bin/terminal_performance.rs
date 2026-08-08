@@ -3,6 +3,9 @@
 mod terminal;
 #[path = "../terminal_palette.rs"]
 mod terminal_palette;
+#[allow(dead_code)]
+#[path = "../terminal_theme_catalog.rs"]
+mod terminal_theme_catalog;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -194,7 +197,7 @@ impl Render for TerminalBenchmark {
         self.render_count += 1;
         let lines = self
             .emulator
-            .visible_lines()
+            .visible_lines("Alera Dark")
             .into_iter()
             .map(|line| div().h(px(19.0)).line_height(px(19.0)).child(line.text))
             .collect::<Vec<_>>();

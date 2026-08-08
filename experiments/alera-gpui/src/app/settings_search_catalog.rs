@@ -1,0 +1,143 @@
+use crate::activity::SettingsPane;
+
+const APPLICATION: &[&str] = &[
+    "Workspace Directory worktree folder location path storage",
+    "Confirm Project Removal safety destructive remove delete",
+    "Confirm Workspace Removal safety destructive remove delete",
+    "Keep Runtime Open When App Quits host sidecar lifecycle shutdown",
+    "Empty Host Shutdown host sidecar lifetime timeout",
+    "Detached Session Shutdown host sidecar session timeout",
+    "Open Logs Folder diagnostics debug",
+    "Export Diagnostics logs bundle report zip",
+    "Log Level verbose debug diagnostics",
+    "Send Crash Reports sentry telemetry error",
+];
+const AGENTS: &[&str] = &[
+    "All Alera Skills install update computer use emulator orchestration",
+    "Alera CLI Skill codex workspace",
+    "Alera Orchestration Skill handoff task dispatch",
+    "Alera Computer Use Skill desktop accessibility click window",
+    "Codex Hooks agent status",
+    "Claude Code Hooks agent status",
+    "GitHub Copilot Hooks agent status",
+    "Cursor Hooks agent status cli",
+    "Antigravity Hooks agy agent status",
+    "OpenCode Hooks plugin agent status",
+    "Pi Hooks extension agent status",
+    "Amp Hooks plugin agent status",
+    "Grok Build Hooks xai agent status",
+    "Agent Status Notifications attention",
+    "Agent Finished Notifications done turn",
+    "Keep Computer Awake While Agents Are Working sleep power display",
+];
+const QUOTAS: &[&str] = &[
+    "Provider Quotas usage codex kimi grok antigravity minimax z.ai order pin status bar",
+    "Claude Code Quotas usage default CCS accounts",
+    "Claude Default Quotas account",
+    "Claude CCS Profiles alias profile pin",
+    "Kimi API Key Variable environment",
+    "Quota Credential Environment Kimi Z.ai MiniMax remote host",
+];
+const AI_TEXT: &[&str] = &[
+    "Enable AI Text generation source control pull requests",
+    "Agent CLI generated text",
+    "Model refresh discover",
+    "Thinking reasoning effort",
+    "Custom Command prompt stdin",
+    "Commit Messages Agent Model prompt override",
+    "Pull Request Details Agent Model prompt override",
+    "Workspace Identity Agent Model prompt override",
+    "Instructions optional prompt guidance",
+];
+const EDITOR: &[&str] = &[
+    "Editor Theme syntax colors appearance",
+    "Tab Size indentation spaces",
+];
+const TERMINAL: &[&str] = &[
+    "Font Family monospace jetbrains typeface",
+    "Font Size terminal text zoom",
+    "Font Weight terminal text bold",
+    "Line Height spacing rows",
+    "Cursor Shape caret block bar underline",
+    "Blinking Cursor caret blink",
+    "Cursor Opacity caret alpha",
+    "Theme Preset color appearance palette",
+    "Background Opacity transparent alpha",
+    "Horizontal Padding inset space",
+    "Vertical Padding inset space",
+    "Color Overrides foreground background selection cursor",
+    "TUI Scroll Speed mouse wheel opencode amp claude",
+    "Copy On Select clipboard selection mouse",
+    "Allow OSC 52 Clipboard Writes tui ssh tmux",
+    "Scrollback Lines history buffer",
+    "Host Scrollback Size memory host",
+    "Word Separators boundary selection double click",
+    "Terminal Memory Budget buffer advanced",
+    "Use Login Shell environment path",
+];
+const KEYBOARD: &[&str] = &[
+    "Keyboard Shortcuts key bindings remap",
+    "Terminal Shortcut Policy terminal first app first",
+    "Search Shortcuts",
+    "Record Binding conflict disable reset",
+];
+const PROJECTS: &[&str] = &[
+    "Project Worktree Setup repository workspace copy setup prompt append agent instructions alera.toml",
+];
+const MOBILE: &[&str] = &[
+    "Mobile Gateway bind port enable wss endpoint tailscale vpn remote",
+    "Link Mobile Device QR pair scan phone companion",
+    "Active Pairing Offers cancel copy",
+    "Paired Devices rename revoke delete token",
+];
+const AGENT_PROFILES: &[&str] = &[
+    "Agent Profiles catalog orchestration adapter command model quota group fallback",
+    "Managed Agent Profile discovery launch configuration",
+];
+
+pub(super) fn pane_matches(pane: SettingsPane, query: &str) -> bool {
+    query.is_empty()
+        || pane.label().to_lowercase().contains(query)
+        || pane_entries(pane)
+            .iter()
+            .any(|entry| entry.to_lowercase().contains(query))
+}
+
+pub(super) fn pane_match_count(pane: SettingsPane, query: &str) -> usize {
+    if query.is_empty() {
+        return 0;
+    }
+    pane_entries(pane)
+        .iter()
+        .filter(|entry| entry.to_lowercase().contains(query))
+        .count()
+}
+
+fn pane_entries(pane: SettingsPane) -> &'static [&'static str] {
+    match pane {
+        SettingsPane::Application => APPLICATION,
+        SettingsPane::Agents => AGENTS,
+        SettingsPane::Quotas => QUOTAS,
+        SettingsPane::AiText => AI_TEXT,
+        SettingsPane::Editor => EDITOR,
+        SettingsPane::Terminal => TERMINAL,
+        SettingsPane::Keyboard => KEYBOARD,
+        SettingsPane::Projects => PROJECTS,
+        SettingsPane::MobileDevices => MOBILE,
+        SettingsPane::AgentProfiles => AGENT_PROFILES,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pane_match_count, pane_matches};
+    use crate::activity::SettingsPane;
+
+    #[test]
+    fn search_matches_setting_keywords_and_counts_entries() {
+        assert!(pane_matches(SettingsPane::Terminal, "clipboard"));
+        assert_eq!(pane_match_count(SettingsPane::Terminal, "clipboard"), 2);
+        assert!(pane_matches(SettingsPane::Projects, "alera.toml"));
+        assert!(!pane_matches(SettingsPane::AiText, "scrollback"));
+    }
+}

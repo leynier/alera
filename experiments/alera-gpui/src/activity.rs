@@ -1,79 +1,119 @@
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Activity {
-    #[default]
-    Workbench,
+pub enum ContextPanel {
     Explorer,
     Search,
+    #[default]
     SourceControl,
-    PullRequests,
-    AiText,
-    Agents,
-    Resources,
-    Orchestration,
-    Settings,
-    Devices,
-    Diagnostics,
+    PullRequest,
 }
 
-impl Activity {
-    pub const ALL: [Self; 12] = [
-        Self::Workbench,
+impl ContextPanel {
+    pub const ALL: [Self; 4] = [
         Self::Explorer,
         Self::Search,
         Self::SourceControl,
-        Self::PullRequests,
-        Self::AiText,
+        Self::PullRequest,
+    ];
+
+    pub const fn icon(self) -> AleraIcon {
+        match self {
+            Self::Explorer => AleraIcon::Files,
+            Self::Search => AleraIcon::Search,
+            Self::SourceControl => AleraIcon::GitBranch,
+            Self::PullRequest => AleraIcon::GitPullRequest,
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Explorer => "Explorer",
+            Self::Search => "Search",
+            Self::SourceControl => "Source Control",
+            Self::PullRequest => "Pull Request",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum StatusPopover {
+    #[default]
+    None,
+    Quotas,
+    QuotaProvider(usize),
+    Resources,
+    Runtime,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SettingsPane {
+    #[default]
+    Application,
+    Agents,
+    Quotas,
+    AiText,
+    Editor,
+    Terminal,
+    Keyboard,
+    Projects,
+    MobileDevices,
+    AgentProfiles,
+}
+
+impl SettingsPane {
+    pub const ALL: [Self; 10] = [
+        Self::Application,
         Self::Agents,
-        Self::Resources,
-        Self::Orchestration,
-        Self::Settings,
-        Self::Devices,
-        Self::Diagnostics,
+        Self::Quotas,
+        Self::AiText,
+        Self::Editor,
+        Self::Terminal,
+        Self::Keyboard,
+        Self::Projects,
+        Self::MobileDevices,
+        Self::AgentProfiles,
     ];
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Workbench => "Workbench",
-            Self::Explorer => "Explorer",
-            Self::Search => "Search And Replace",
-            Self::SourceControl => "Source Control",
-            Self::PullRequests => "Pull Requests And CI",
+            Self::Application => "Application",
+            Self::Agents => "Agents",
+            Self::Quotas => "Quotas",
             Self::AiText => "AI Text",
-            Self::Agents => "Agents And Quotas",
-            Self::Resources => "Resource Manager",
-            Self::Orchestration => "Orchestration",
-            Self::Settings => "Settings",
-            Self::Devices => "Mobile Devices",
-            Self::Diagnostics => "Diagnostics",
+            Self::Editor => "Editor",
+            Self::Terminal => "Terminal",
+            Self::Keyboard => "Keyboard",
+            Self::Projects => "Projects",
+            Self::MobileDevices => "Mobile Devices",
+            Self::AgentProfiles => "Agent Profiles",
         }
     }
 
-    pub const fn icon(self) -> &'static str {
+    pub const fn section(self) -> &'static str {
         match self {
-            Self::Workbench => "⌂",
-            Self::Explorer => "▱",
-            Self::Search => "⌕",
-            Self::SourceControl => "⑂",
-            Self::PullRequests => "⑃",
-            Self::AiText => "AI",
-            Self::Agents => "◇",
-            Self::Resources => "▥",
-            Self::Orchestration => "⌘",
-            Self::Settings => "⚙",
-            Self::Devices => "▯",
-            Self::Diagnostics => "i",
+            Self::Application
+            | Self::Agents
+            | Self::Quotas
+            | Self::AiText
+            | Self::Editor
+            | Self::Terminal
+            | Self::Keyboard => "Preferences",
+            Self::Projects | Self::MobileDevices | Self::AgentProfiles => "Resources",
         }
     }
 
-    pub const fn uses_runtime_catalog(self) -> bool {
-        matches!(
-            self,
-            Self::Agents
-                | Self::Resources
-                | Self::Orchestration
-                | Self::Settings
-                | Self::Devices
-                | Self::Diagnostics
-        )
+    pub const fn icon(self) -> AleraIcon {
+        match self {
+            Self::Application => AleraIcon::Tune,
+            Self::Agents => AleraIcon::Agent,
+            Self::Quotas => AleraIcon::Quota,
+            Self::AiText => AleraIcon::Ai,
+            Self::Editor => AleraIcon::Code,
+            Self::Terminal => AleraIcon::Terminal,
+            Self::Keyboard => AleraIcon::Keyboard,
+            Self::Projects => AleraIcon::FolderSpecial,
+            Self::MobileDevices => AleraIcon::MobileDevice,
+            Self::AgentProfiles => AleraIcon::Agent,
+        }
     }
 }
+use crate::icons::AleraIcon;

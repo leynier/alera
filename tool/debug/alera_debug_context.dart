@@ -99,6 +99,222 @@ final class _DebugContext {
     );
   }
 
+  Future<int> gpuiDebug() async {
+    final manifest = _join(
+      _repoRoot,
+      'experiments',
+      'alera-gpui',
+      'Cargo.toml',
+    );
+    final environment = Map<String, String>.of(Platform.environment);
+    if (Platform.isMacOS) {
+      final toolchain = await _metalToolchainIdentifier();
+      if (toolchain == null) {
+        stderr.writeln(
+          'The optional Xcode Metal Toolchain is required. Run '
+          '`xcodebuild -downloadComponent MetalToolchain`.',
+        );
+        return 1;
+      }
+      environment['TOOLCHAINS'] = toolchain;
+    }
+    final buildExit = await _run(_options.cargoExecutable, <String>[
+      'build',
+      '--manifest-path',
+      manifest,
+      '--bin',
+      'alera-gpui',
+    ], environment: environment);
+    if (buildExit != 0) {
+      return buildExit;
+    }
+    final executable = _join(
+      _join(_repoRoot, 'experiments', 'alera-gpui', 'target'),
+      'debug',
+      Platform.isWindows ? 'alera-gpui.exe' : 'alera-gpui',
+    );
+    if (!Platform.isMacOS) {
+      return _run(executable, const <String>[], forwardStdin: true);
+    }
+    return _launchMacosGpuiBundle(executable, environment);
+  }
+
+  Future<String?> _metalToolchainIdentifier() async {
+    final result = await Process.run('xcodebuild', const <String>[
+      '-showComponent',
+      'MetalToolchain',
+    ], workingDirectory: _repoRoot);
+    if (result.exitCode != 0) {
+      return null;
+    }
+    final match = RegExp(
+      r'^Toolchain Identifier:\s*(\S+)\s*$',
+      multiLine: true,
+    ).firstMatch(result.stdout.toString());
+    return match?.group(1);
+  }
+
+  Future<int> _launchMacosGpuiBundle(
+    String executable,
+    Map<String, String> environment,
+  ) async {
+    final bundle = Directory(
+      _join(_repoRoot, '.dart_tool', 'alera_gpui', 'Alera GPUI.app'),
+    );
+    final bundledExecutable = _join(
+      bundle.path,
+      'Contents',
+      'MacOS',
+      'Alera GPUI',
+    );
+    final targetExecutable = File(executable).absolute.path;
+    await _stopRunningMacosGpui(targetExecutable);
+    if (await bundle.exists()) {
+      await bundle.delete(recursive: true);
+    }
+    final contents = Directory(_join(bundle.path, 'Contents'));
+    final macos = Directory(_join(contents.path, 'MacOS'));
+    await macos.create(recursive: true);
+    final runtimeDir =
+        environment['ALERA_RUNTIME_DIR'] ??
+        _join(_defaultAppSupportDir(_options.appId), 'terminal_host');
+    await File(_join(contents.path, 'Info.plist')).writeAsString(
+      _gpuiMacosInfoPlist(_options.appId, runtimeDir),
+      flush: true,
+    );
+    await File(targetExecutable).copy(bundledExecutable);
+    await _run('chmod', <String>['755', bundledExecutable]);
+    final signExit = await _run('codesign', <String>[
+      '--force',
+      '--deep',
+      '--sign',
+      '-',
+      bundle.path,
+    ]);
+    if (signExit != 0) {
+      return signExit;
+    }
+
+    final launch = await Process.run('open', <String>['-n', bundle.path]);
+    if (launch.exitCode != 0) {
+      stderr.write(launch.stderr);
+      return launch.exitCode;
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    var pids = <int>[];
+    while (pids.isEmpty && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      pids = await _macosGpuiPids(targetExecutable);
+    }
+    if (pids.length != 1) {
+      stderr.writeln(
+        'Expected one Alera GPUI process after launch, found ${pids.length}.',
+      );
+      return 1;
+    }
+    stdout.writeln(
+      'Started Alera GPUI pid ${pids.single} from ${bundle.path}.',
+    );
+    return 0;
+  }
+
+  Future<void> _stopRunningMacosGpui(String executable) async {
+    final pids = await _macosGpuiPids(executable);
+    for (final pid in pids) {
+      Process.killPid(pid);
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 3));
+    while (DateTime.now().isBefore(deadline)) {
+      if ((await _macosGpuiPids(executable)).isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    throw StateError('The previous Alera GPUI process did not exit.');
+  }
+
+  Future<List<int>> _macosGpuiPids(String executable) async {
+    final bundledExecutable = _join(
+      _join(_repoRoot, '.dart_tool', 'alera_gpui', 'Alera GPUI.app'),
+      'Contents',
+      'MacOS',
+      'Alera GPUI',
+    );
+    final pids = <int>{};
+    for (final candidate in <String>[executable, bundledExecutable]) {
+      final result = await Process.run('pgrep', <String>['-f', candidate]);
+      if (result.exitCode != 0) {
+        continue;
+      }
+      pids.addAll(
+        result.stdout.toString().split('\n').map(int.tryParse).whereType<int>(),
+      );
+    }
+    return pids.toList(growable: false);
+  }
+
+  static String _gpuiMacosInfoPlist(String appId, String runtimeDir) =>
+      '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>Alera GPUI</string>
+  <key>CFBundleExecutable</key>
+  <string>Alera GPUI</string>
+  <key>CFBundleIdentifier</key>
+  <string>${_gpuiBundleIdentifier(appId)}</string>
+  <key>CFBundleName</key>
+  <string>Alera GPUI</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>LSEnvironment</key>
+  <dict>
+    <key>ALERA_APP_ID</key>
+    <string>${_xmlEscape(appId)}</string>
+    <key>ALERA_RUNTIME_DIR</key>
+    <string>${_xmlEscape(runtimeDir)}</string>
+  </dict>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>Allow Alera To Open Workspaces Stored On Your Desktop.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Allow Alera To Open Workspaces Stored In Documents.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Allow Alera To Open Workspaces Stored In Downloads.</string>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>Allow Alera To Open Workspaces Stored On External Volumes.</string>
+</dict>
+</plist>
+''';
+
+  static String _xmlEscape(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;');
+
+  static String _gpuiBundleIdentifier(String appId) {
+    for (final suffix in const <String>['.dev', '.test']) {
+      if (appId.endsWith(suffix)) {
+        return '${appId.substring(0, appId.length - suffix.length)}.gpui$suffix';
+      }
+    }
+    return '$appId.gpui';
+  }
+
   Future<int> appProfile() async {
     await _prepareFlavor();
     return _run(

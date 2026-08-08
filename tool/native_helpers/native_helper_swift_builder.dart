@@ -135,36 +135,65 @@ final class NativeHelperSwiftBuilder {
 
       final scratch = Directory(p.join(work.path, 'swift-build'))
         ..createSync(recursive: true);
-      final arguments = <String>[
-        'swift',
-        'build',
-        '-c',
-        'release',
-        '--product',
-        derivation.product,
-        for (final architecture in derivation.architectures) ...<String>[
+      final architecturePayloads = <File>[];
+      for (final architecture in derivation.architectures) {
+        final architectureScratch = Directory(
+          p.join(scratch.path, architecture),
+        )..createSync(recursive: true);
+        final arguments = <String>[
+          'swift',
+          'build',
+          '-c',
+          'release',
+          '--product',
+          derivation.product,
           '--arch',
           architecture,
-        ],
-        '--build-path',
-        scratch.path,
-      ];
-      await _runStreamingProcess(
-        'xcrun',
-        arguments,
-        workingDirectory: p.join(
-          sourceRoot.path,
-          p.fromUri(derivation.packageDirectory),
-        ),
-      );
-      final payload = File(
-        p.join(scratch.path, p.fromUri(derivation.buildOutput)),
-      );
-      if (!payload.existsSync()) {
-        throw StateError(
-          '${asset.id} Swift build did not produce ${payload.path}.',
+          '--build-path',
+          architectureScratch.path,
+        ];
+        await _runStreamingProcess(
+          'xcrun',
+          arguments,
+          workingDirectory: p.join(
+            sourceRoot.path,
+            p.fromUri(derivation.packageDirectory),
+          ),
         );
+        final configuredPayload = File(
+          p.join(architectureScratch.path, p.fromUri(derivation.buildOutput)),
+        );
+        final nativeSwiftPmPayload = File(
+          p.join(
+            architectureScratch.path,
+            '$architecture-apple-macosx',
+            'release',
+            derivation.product,
+          ),
+        );
+        final architecturePayload = configuredPayload.existsSync()
+            ? configuredPayload
+            : nativeSwiftPmPayload;
+        if (!architecturePayload.existsSync()) {
+          throw StateError(
+            '${asset.id} Swift build did not produce '
+            '${architecturePayload.path}.',
+          );
+        }
+        architecturePayloads.add(architecturePayload);
       }
+
+      final payload = File(
+        p.join(scratch.path, 'universal', p.basename(derivation.buildOutput)),
+      );
+      await payload.parent.create(recursive: true);
+      await _runStreamingProcess('/usr/bin/lipo', <String>[
+        '-create',
+        for (final architecturePayload in architecturePayloads)
+          architecturePayload.path,
+        '-output',
+        payload.path,
+      ]);
       await _runStreamingProcess('/usr/bin/codesign', <String>[
         '--sign',
         '-',

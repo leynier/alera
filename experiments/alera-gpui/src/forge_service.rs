@@ -1,63 +1,87 @@
-use alera_native::api::{git, process};
+use alera_native::api::process;
 use serde_json::Value;
 
 pub use crate::forge_api::{
-    ForgeAction, ForgeCheck, ForgeComment, ForgeReview, ForgeService, ForgeSnapshot, MergeMethod,
+    ForgeAction, ForgeAuthStatus, ForgeCheck, ForgeComment, ForgeIdentity, ForgeReview,
+    ForgeService, ForgeSnapshot, ForgeUnavailableReason, MergeMethod,
 };
 
 const REVIEW_FIELDS: &str =
     "number,title,body,state,url,isDraft,mergeable,headRefName,baseRefName,author";
 const CHECK_FIELDS: &str = "name,state,bucket,link,description,workflow,startedAt,completedAt";
+const REVIEW_THREADS_QUERY: &str = r#"query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved comments(first:100){nodes{id body url createdAt path line author{login}}}}}}}}"#;
 
-#[derive(Clone, Debug)]
-struct GitHubIdentity {
-    host: String,
-    repo_slug: String,
-    branch: String,
-}
-
-pub(crate) fn load_snapshot(workspace_path: String) -> Result<ForgeSnapshot, String> {
-    let identity = github_identity(&workspace_path)?;
-    let authenticated = gh_authenticated(&workspace_path, &identity.host);
-    if !authenticated {
+pub(crate) fn load_snapshot(
+    _workspace_path: String,
+    identity: ForgeIdentity,
+    review_number: Option<u64>,
+    review_dismissed: bool,
+) -> Result<ForgeSnapshot, String> {
+    let base_branches = identity.base_branches.clone();
+    let suggested_base_branch = suggested_base_branch(&base_branches);
+    let auth_status = gh_auth_status(&identity.host);
+    if auth_status != ForgeAuthStatus::Authenticated {
         return Ok(ForgeSnapshot {
             provider: "GitHub".to_string(),
             host: identity.host,
             repo_slug: identity.repo_slug,
             branch: identity.branch,
-            authenticated: false,
+            auth_status,
+            unavailable_reason: None,
+            base_branches,
+            suggested_base_branch,
             review: None,
+            suggested_review: None,
             checks: Vec::new(),
             comments: Vec::new(),
         });
     }
-    let reviews = run_gh_json(
-        &workspace_path,
-        vec![
-            "pr".into(),
-            "list".into(),
-            "--repo".into(),
-            identity.repo_slug.clone(),
-            "--head".into(),
-            identity.branch.clone(),
-            "--state".into(),
-            "open".into(),
-            "--limit".into(),
-            "1".into(),
-            "--json".into(),
-            REVIEW_FIELDS.into(),
-        ],
-        false,
-    )?;
-    let review = reviews
-        .as_array()
-        .and_then(|items| items.first())
-        .map(parse_review)
-        .transpose()?;
+    let detected_review = if let Some(number) = review_number {
+        Some(parse_review(&run_gh_json(
+            vec![
+                "pr".into(),
+                "view".into(),
+                number.to_string(),
+                "--repo".into(),
+                identity.repo_slug.clone(),
+                "--json".into(),
+                REVIEW_FIELDS.into(),
+            ],
+            false,
+        )?)?)
+    } else {
+        let reviews = run_gh_json(
+            vec![
+                "pr".into(),
+                "list".into(),
+                "--repo".into(),
+                identity.repo_slug.clone(),
+                "--head".into(),
+                identity.branch.clone(),
+                "--state".into(),
+                "open".into(),
+                "--limit".into(),
+                "1".into(),
+                "--json".into(),
+                REVIEW_FIELDS.into(),
+            ],
+            false,
+        )?;
+        reviews
+            .as_array()
+            .and_then(|items| items.first())
+            .map(parse_review)
+            .transpose()?
+    };
+    let (review, suggested_review) = if review_dismissed {
+        (None, detected_review)
+    } else {
+        (detected_review, None)
+    };
     let (checks, comments) = if let Some(review) = &review {
         (
-            load_checks(&workspace_path, &identity.repo_slug, review.number)?,
-            load_comments(&workspace_path, &identity.repo_slug, review.number)?,
+            load_checks(&identity.repo_slug, review.number)?,
+            load_comments(&identity.repo_slug, review.number)?,
         )
     } else {
         (Vec::new(), Vec::new())
@@ -67,20 +91,38 @@ pub(crate) fn load_snapshot(workspace_path: String) -> Result<ForgeSnapshot, Str
         host: identity.host,
         repo_slug: identity.repo_slug,
         branch: identity.branch,
-        authenticated,
+        auth_status,
+        unavailable_reason: None,
+        base_branches,
+        suggested_base_branch,
         review,
+        suggested_review,
         checks,
         comments,
     })
 }
 
-fn load_checks(
-    workspace_path: &str,
-    repo_slug: &str,
-    number: u64,
-) -> Result<Vec<ForgeCheck>, String> {
+pub(crate) fn unavailable_snapshot(reason: ForgeUnavailableReason) -> ForgeSnapshot {
+    ForgeSnapshot {
+        unavailable_reason: Some(reason),
+        ..ForgeSnapshot::default()
+    }
+}
+
+fn suggested_base_branch(branches: &[String]) -> String {
+    for candidate in ["main", "master"] {
+        if branches.iter().any(|branch| branch == candidate) {
+            return candidate.to_string();
+        }
+    }
+    branches
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "main".to_string())
+}
+
+fn load_checks(repo_slug: &str, number: u64) -> Result<Vec<ForgeCheck>, String> {
     let output = run_gh(
-        workspace_path,
         vec![
             "pr".into(),
             "checks".into(),
@@ -103,7 +145,7 @@ fn load_checks(
         .flatten()
         .map(|item| ForgeCheck {
             name: string(item, "name"),
-            state: string(item, "state"),
+            _state: string(item, "state"),
             bucket: string(item, "bucket"),
             link: optional_string(item, "link"),
             description: optional_string(item, "description"),
@@ -112,28 +154,83 @@ fn load_checks(
         .collect())
 }
 
-fn load_comments(
-    workspace_path: &str,
-    repo_slug: &str,
-    number: u64,
-) -> Result<Vec<ForgeComment>, String> {
+fn load_comments(repo_slug: &str, number: u64) -> Result<Vec<ForgeComment>, String> {
+    let mut comments = Vec::new();
+    comments.extend(load_rest_comments(
+        &format!("repos/{repo_slug}/issues/{number}/comments?per_page=100"),
+        "created_at",
+    )?);
+    comments.extend(load_rest_comments(
+        &format!("repos/{repo_slug}/pulls/{number}/reviews?per_page=100"),
+        "submitted_at",
+    )?);
+    comments.extend(load_review_thread_comments(repo_slug, number)?);
+    comments.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    Ok(comments)
+}
+
+fn load_rest_comments(endpoint: &str, created_at_field: &str) -> Result<Vec<ForgeComment>, String> {
+    let value = run_gh_json(vec!["api".into(), endpoint.into()], false)?;
+    Ok(value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|item| {
+            let body = string(item, "body");
+            if body.trim().is_empty() {
+                return None;
+            }
+            Some(ForgeComment {
+                _id: item.get("id").map(Value::to_string).unwrap_or_default(),
+                author: item
+                    .get("user")
+                    .and_then(|user| user.get("login"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("Unknown")
+                    .to_string(),
+                body,
+                url: optional_string(item, "html_url"),
+                created_at: optional_string(item, created_at_field),
+                path: None,
+                line: None,
+                resolved: false,
+            })
+        })
+        .collect())
+}
+
+fn load_review_thread_comments(repo_slug: &str, number: u64) -> Result<Vec<ForgeComment>, String> {
+    let Some((owner, repo)) = repo_slug.split_once('/') else {
+        return Ok(Vec::new());
+    };
     let value = run_gh_json(
-        workspace_path,
         vec![
-            "pr".into(),
-            "view".into(),
-            number.to_string(),
-            "--repo".into(),
-            repo_slug.into(),
-            "--json".into(),
-            "comments,reviews".into(),
+            "api".into(),
+            "graphql".into(),
+            "-f".into(),
+            format!("query={REVIEW_THREADS_QUERY}"),
+            "-F".into(),
+            format!("owner={owner}"),
+            "-F".into(),
+            format!("repo={repo}"),
+            "-F".into(),
+            format!("number={number}"),
         ],
         false,
     )?;
+    let threads = value
+        .pointer("/data/repository/pullRequest/reviewThreads/nodes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten();
     let mut comments = Vec::new();
-    for key in ["comments", "reviews"] {
-        for item in value
-            .get(key)
+    for thread in threads {
+        let resolved = thread
+            .get("isResolved")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        for item in thread
+            .pointer("/comments/nodes")
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
@@ -143,6 +240,7 @@ fn load_comments(
                 continue;
             }
             comments.push(ForgeComment {
+                _id: string(item, "id"),
                 author: item
                     .get("author")
                     .and_then(|author| author.get("login"))
@@ -151,14 +249,21 @@ fn load_comments(
                     .to_string(),
                 body,
                 url: optional_string(item, "url"),
+                created_at: optional_string(item, "createdAt"),
+                path: optional_string(item, "path"),
+                line: item.get("line").and_then(Value::as_u64),
+                resolved,
             });
         }
     }
     Ok(comments)
 }
 
-pub(crate) fn run_action(workspace_path: String, action: ForgeAction) -> Result<String, String> {
-    let identity = github_identity(&workspace_path)?;
+pub(crate) fn run_action(
+    _workspace_path: String,
+    identity: ForgeIdentity,
+    action: ForgeAction,
+) -> Result<String, String> {
     let mut arguments = vec!["pr".to_string()];
     let success = match action {
         ForgeAction::Create {
@@ -257,24 +362,19 @@ pub(crate) fn run_action(workspace_path: String, action: ForgeAction) -> Result<
             "Comment Added"
         }
     };
-    run_gh(&workspace_path, arguments, false)?;
+    run_gh(arguments, false)?;
     Ok(success.to_string())
 }
 
-fn github_identity(workspace_path: &str) -> Result<GitHubIdentity, String> {
-    let branch = git::current_branch(workspace_path.to_string()).map_err(|error| error.context)?;
-    let remotes = git::list_remotes(workspace_path.to_string()).map_err(|error| error.context)?;
-    let remote = remotes
-        .iter()
-        .find(|remote| remote.name == "origin" && remote.url.is_some())
-        .or_else(|| remotes.iter().find(|remote| remote.url.is_some()))
-        .and_then(|remote| remote.url.clone())
-        .ok_or_else(|| "Repository has no readable Git remote.".to_string())?;
-    let (host, path) = split_remote(&remote)?;
+pub(crate) fn github_identity(
+    remote: &str,
+    branch: String,
+    mut base_branches: Vec<String>,
+) -> Result<ForgeIdentity, ForgeUnavailableReason> {
+    let (host, path) =
+        split_remote(remote).map_err(|_| ForgeUnavailableReason::ProviderNotDetected)?;
     if host != "github.com" {
-        return Err(format!(
-            "The interactive POC currently implements GitHub remotes, not {host}."
-        ));
+        return Err(ForgeUnavailableReason::UnsupportedProvider);
     }
     let segments = path
         .trim_matches('/')
@@ -282,12 +382,18 @@ fn github_identity(workspace_path: &str) -> Result<GitHubIdentity, String> {
         .split('/')
         .collect::<Vec<_>>();
     if segments.len() < 2 {
-        return Err("GitHub remote omitted owner or repository.".to_string());
+        return Err(ForgeUnavailableReason::ProviderNotDetected);
     }
-    Ok(GitHubIdentity {
+    if !branch.is_empty() {
+        base_branches.push(branch.clone());
+    }
+    base_branches.sort();
+    base_branches.dedup();
+    Ok(ForgeIdentity {
         host,
         repo_slug: format!("{}/{}", segments[0], segments[1]),
         branch,
+        base_branches,
     })
 }
 
@@ -312,27 +418,14 @@ fn split_remote(remote: &str) -> Result<(String, String), String> {
     Ok((host.to_ascii_lowercase(), path.to_string()))
 }
 
-fn run_gh_json(
-    workspace_path: &str,
-    arguments: Vec<String>,
-    allow_nonzero: bool,
-) -> Result<Value, String> {
-    let output = run_gh(workspace_path, arguments, allow_nonzero)?;
+fn run_gh_json(arguments: Vec<String>, allow_nonzero: bool) -> Result<Value, String> {
+    let output = run_gh(arguments, allow_nonzero)?;
     serde_json::from_str(output.trim()).map_err(|error| format!("Unexpected gh JSON: {error}"))
 }
 
-fn run_gh(
-    workspace_path: &str,
-    arguments: Vec<String>,
-    allow_nonzero: bool,
-) -> Result<String, String> {
-    let result = process::process_run(
-        "gh".to_string(),
-        arguments,
-        Some(workspace_path.to_string()),
-        None,
-    )
-    .map_err(|error| format!("Failed to run gh: {error}"))?;
+fn run_gh(arguments: Vec<String>, allow_nonzero: bool) -> Result<String, String> {
+    let result = process::process_run("gh".to_string(), arguments, None, None)
+        .map_err(|error| format!("Failed to run gh: {error}"))?;
     if result.exit_code != 0 && !allow_nonzero {
         return Err(if result.stderr.trim().is_empty() {
             format!("gh exited with code {}.", result.exit_code)
@@ -343,8 +436,8 @@ fn run_gh(
     Ok(result.stdout)
 }
 
-fn gh_authenticated(workspace_path: &str, host: &str) -> bool {
-    process::process_run(
+fn gh_auth_status(host: &str) -> ForgeAuthStatus {
+    match process::process_run(
         "gh".to_string(),
         vec![
             "auth".into(),
@@ -352,11 +445,13 @@ fn gh_authenticated(workspace_path: &str, host: &str) -> bool {
             "--hostname".into(),
             host.to_string(),
         ],
-        Some(workspace_path.to_string()),
         None,
-    )
-    .map(|result| result.exit_code == 0)
-    .unwrap_or(false)
+        None,
+    ) {
+        Ok(result) if result.exit_code == 0 => ForgeAuthStatus::Authenticated,
+        Ok(_) => ForgeAuthStatus::NotAuthenticated,
+        Err(_) => ForgeAuthStatus::CliMissing,
+    }
 }
 
 fn parse_review(value: &Value) -> Result<ForgeReview, String> {
@@ -403,7 +498,7 @@ fn optional_string(value: &Value, key: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::split_remote;
+    use super::{github_identity, split_remote, suggested_base_branch};
 
     #[test]
     fn parses_https_and_scp_github_remotes() {
@@ -417,6 +512,37 @@ mod tests {
         assert_eq!(
             split_remote("git@github.com:leynier/alera.git").unwrap(),
             ("github.com".to_string(), "leynier/alera.git".to_string())
+        );
+    }
+
+    #[test]
+    fn picks_the_same_default_base_branch_order_as_flutter() {
+        assert_eq!(
+            suggested_base_branch(&["feature".into(), "main".into()]),
+            "main"
+        );
+        assert_eq!(
+            suggested_base_branch(&["feature".into(), "master".into()]),
+            "master"
+        );
+        assert_eq!(suggested_base_branch(&["feature".into()]), "feature");
+        assert_eq!(suggested_base_branch(&[]), "main");
+    }
+
+    #[test]
+    fn builds_identity_without_reading_the_repository() {
+        let identity = github_identity(
+            "https://github.com/owner/repo.git",
+            "feature".into(),
+            vec!["main".into()],
+        )
+        .unwrap();
+        assert_eq!(identity.host, "github.com");
+        assert_eq!(identity.repo_slug, "owner/repo");
+        assert_eq!(identity.branch, "feature");
+        assert_eq!(
+            identity.base_branches,
+            vec!["feature".to_string(), "main".to_string()]
         );
     }
 }

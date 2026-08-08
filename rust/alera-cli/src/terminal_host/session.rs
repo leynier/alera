@@ -191,14 +191,14 @@ impl Session {
         for (key, value) in &launch.environment {
             command.env(key, value);
         }
+        // Keep the PTY process rooted in the workspace even when a client
+        // supplies a raw shell launch without its own `cd` wrapper.
+        command.cwd(&working_directory);
         // The orchestration identity: agents inside this PTY self-identify in
         // `alera orchestration` commands without an RPC round-trip. The handle
         // is the session id, which is also the key the app uses for agent
         // status entries.
         command.env("ALERA_TERMINAL_HANDLE", &id);
-        // The working directory is persisted as session metadata; shell startup
-        // preparation owns any cwd changes that should happen inside the PTY.
-
         let child = pair
             .slave
             .spawn_command(command)
@@ -380,6 +380,8 @@ impl Session {
             "running": self.running,
             "exitCode": self.exit_code,
             "driver": self.driver.payload(),
+            "cols": self.current_dims.0,
+            "rows": self.current_dims.1,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
         })
     }
@@ -389,6 +391,8 @@ impl Session {
     pub fn restore_payload(&self, restore_bytes: usize) -> Value {
         json!({
             "sessionId": self.id,
+            "cols": self.current_dims.0,
+            "rows": self.current_dims.1,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
             "resetInteractionModes": true,
         })

@@ -205,7 +205,12 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
-        let remote_url = core_git::repository_remote_url(&workspace.path)
+        let repository_path = payload
+            .get("workspacePath")
+            .and_then(Value::as_str)
+            .filter(|path| !path.trim().is_empty())
+            .unwrap_or(&workspace.path);
+        let remote_url = core_git::repository_remote_url(repository_path)
             .map_err(|error| HostError::state(error.to_string()))?;
         Ok(json!({"remoteUrl": remote_url}))
     }

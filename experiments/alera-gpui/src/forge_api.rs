@@ -12,14 +12,34 @@ pub struct ForgeService {
 enum Command {
     Snapshot {
         workspace_path: String,
+        identity: ForgeIdentity,
+        review_number: Option<u64>,
+        review_dismissed: bool,
         reply: Sender<Result<ForgeSnapshot, String>>,
     },
     Action {
         workspace_path: String,
+        identity: ForgeIdentity,
         action: ForgeAction,
         reply: Sender<Result<String, String>>,
     },
     Close,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ForgeAuthStatus {
+    #[default]
+    Unknown,
+    Authenticated,
+    CliMissing,
+    NotAuthenticated,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ForgeUnavailableReason {
+    NoRemote,
+    ProviderNotDetected,
+    UnsupportedProvider,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -28,10 +48,22 @@ pub struct ForgeSnapshot {
     pub host: String,
     pub repo_slug: String,
     pub branch: String,
-    pub authenticated: bool,
+    pub auth_status: ForgeAuthStatus,
+    pub unavailable_reason: Option<ForgeUnavailableReason>,
+    pub base_branches: Vec<String>,
+    pub suggested_base_branch: String,
     pub review: Option<ForgeReview>,
+    pub suggested_review: Option<ForgeReview>,
     pub checks: Vec<ForgeCheck>,
     pub comments: Vec<ForgeComment>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ForgeIdentity {
+    pub host: String,
+    pub repo_slug: String,
+    pub branch: String,
+    pub base_branches: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -51,7 +83,7 @@ pub struct ForgeReview {
 #[derive(Clone, Debug)]
 pub struct ForgeCheck {
     pub name: String,
-    pub state: String,
+    pub _state: String,
     pub bucket: String,
     pub link: Option<String>,
     pub description: Option<String>,
@@ -60,9 +92,14 @@ pub struct ForgeCheck {
 
 #[derive(Clone, Debug)]
 pub struct ForgeComment {
+    pub _id: String,
     pub author: String,
     pub body: String,
     pub url: Option<String>,
+    pub created_at: Option<String>,
+    pub path: Option<String>,
+    pub line: Option<u64>,
+    pub resolved: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -113,9 +150,18 @@ impl ForgeService {
         Self { commands }
     }
 
-    pub async fn snapshot(&self, workspace_path: String) -> Result<ForgeSnapshot, String> {
+    pub async fn snapshot(
+        &self,
+        workspace_path: String,
+        identity: ForgeIdentity,
+        review_number: Option<u64>,
+        review_dismissed: bool,
+    ) -> Result<ForgeSnapshot, String> {
         request(&self.commands, |reply| Command::Snapshot {
             workspace_path,
+            identity,
+            review_number,
+            review_dismissed,
             reply,
         })
         .await
@@ -124,10 +170,12 @@ impl ForgeService {
     pub async fn action(
         &self,
         workspace_path: String,
+        identity: ForgeIdentity,
         action: ForgeAction,
     ) -> Result<String, String> {
         request(&self.commands, |reply| Command::Action {
             workspace_path,
+            identity,
             action,
             reply,
         })
@@ -163,17 +211,29 @@ fn run(commands: Receiver<Command>) {
         match command {
             Command::Snapshot {
                 workspace_path,
+                identity,
+                review_number,
+                review_dismissed,
                 reply,
             } => {
-                let _ = reply.send_blocking(crate::forge_service::load_snapshot(workspace_path));
+                let _ = reply.send_blocking(crate::forge_service::load_snapshot(
+                    workspace_path,
+                    identity,
+                    review_number,
+                    review_dismissed,
+                ));
             }
             Command::Action {
                 workspace_path,
+                identity,
                 action,
                 reply,
             } => {
-                let _ =
-                    reply.send_blocking(crate::forge_service::run_action(workspace_path, action));
+                let _ = reply.send_blocking(crate::forge_service::run_action(
+                    workspace_path,
+                    identity,
+                    action,
+                ));
             }
             Command::Close => return,
         }

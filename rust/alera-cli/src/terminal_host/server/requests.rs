@@ -166,10 +166,34 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "agentProfile.personas.discover" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_agent_profile_persona_discovery(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiText.models.discover" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_text_model_discovery(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiText.commitMessage.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_text_commit_message(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "aiText.pullRequestDetails.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_text_pull_request(client_id, request_id, payload)?;
                 Ok(true)
             }
             "workspace.createManaged" => {
@@ -742,6 +766,86 @@ impl ServerActor {
             "hostDirectory.list" => {
                 self.require_auth(client_id)?;
                 self.host_directory_list_request(payload)
+            }
+            "workspaceFiles.list" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::list_workspace_files(payload).await
+            }
+            "workspaceFiles.metadata" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::workspace_file_metadata(payload).await
+            }
+            "workspaceFiles.readEditor" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::read_workspace_file(payload).await
+            }
+            "workspaceFiles.writeEditor" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::write_workspace_file(payload).await
+            }
+            "workspaceFiles.createFile" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::create_workspace_file_request(payload).await
+            }
+            "workspaceFiles.createDirectory" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::create_workspace_directory_request(payload).await
+            }
+            "workspaceFiles.rename" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::rename_workspace_file(payload).await
+            }
+            "workspaceFiles.copy" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::copy_workspace_file(payload).await
+            }
+            "workspaceFiles.move" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::move_workspace_file(payload).await
+            }
+            "workspaceFiles.delete" => {
+                self.require_auth(client_id)?;
+                super::workspace_file_requests::delete_workspace_file(payload).await
+            }
+            "workspaceGit.snapshot" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::snapshot(payload).await
+            }
+            "workspaceGit.action" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::action(payload).await
+            }
+            "workspaceGit.commitCompare" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::commit_compare(payload).await
+            }
+            "workspaceGit.diff" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::diff(payload).await
+            }
+            "workspaceSearch.search" => {
+                self.require_auth(client_id)?;
+                super::workspace_search_requests::search(payload).await
+            }
+            "workspaceSearch.previewReplace" => {
+                self.require_auth(client_id)?;
+                super::workspace_search_requests::preview_replace(payload).await
+            }
+            "workspaceSearch.replaceAll" => {
+                self.require_auth(client_id)?;
+                super::workspace_search_requests::replace_all(payload).await
+            }
+            "workspaceSearch.replaceMatches" => {
+                self.require_auth(client_id)?;
+                super::workspace_search_requests::replace_matches(payload).await
+            }
+            "workspacePreview.mermaid" => {
+                self.require_auth(client_id)?;
+                super::workspace_preview_requests::render_mermaid(payload).await
+            }
+            "workspacePreview.image" => {
+                self.require_auth(client_id)?;
+                super::workspace_preview_requests::read_image(payload).await
             }
             "project.register" => {
                 self.require_auth(client_id)?;

@@ -58,6 +58,7 @@ dependencies = [
  "alera-core",
  "alera-runtime-client",
  "alera-runtime-protocol",
+ "alera_native",
  "anyhow",
  "async-trait",
  "atspi",

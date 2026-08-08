@@ -1,0 +1,470 @@
+use std::time::Duration;
+
+use gpui::{Context, Entity, Window};
+use gpui_component::input::InputState;
+use serde_json::{json, Value};
+
+use super::workspace_prompt_dropdown::AgentProfileOption;
+use super::{AleraApp, NewWorkspaceMode, NewWorkspaceStep};
+
+impl AleraApp {
+    pub(super) fn open_new_workspace_dialog(&mut self, cx: &mut Context<Self>) {
+        if !self
+            .snapshot
+            .projects
+            .iter()
+            .any(|project| project.kind == "gitRepository")
+        {
+            self.error = Some("Add A Git Project Before Creating A Workspace".into());
+            cx.notify();
+            return;
+        }
+        let project = self
+            .selected_workspace_id
+            .as_deref()
+            .and_then(|workspace_id| self.snapshot.project_for_workspace(workspace_id))
+            .filter(|project| project.kind == "gitRepository")
+            .or_else(|| self.workspace_prompt_projects().into_iter().next());
+        self.selected_workspace_project_id = project.map(|project| project.id.clone());
+        self.selected_workspace_source_branch = Some("main".to_string());
+        self.workspace_source_branches.clear();
+        self.workspace_local_branches.clear();
+        self.workspace_branches_loading = false;
+        self.workspace_reuse_existing_branch = false;
+        self.workspace_synced_name = None;
+        self.new_workspace_mode = NewWorkspaceMode::FromPrompt;
+        self.new_workspace_step = NewWorkspaceStep::Entry;
+        self.workspace_prompt_dropdown = None;
+        self.workspace_selected_parent_id = self
+            .workspace_parent_options()
+            .into_iter()
+            .find_map(|(workspace_id, _)| workspace_id);
+        self.create_another_workspace = false;
+        self.workspace_prompt_phase = None;
+        self.workspace_prompt_active_operation_id = None;
+        self.workspace_prompt_created = None;
+        self.show_new_workspace_dialog = true;
+        self.error = None;
+        self.load_workspace_prompt_profiles(cx);
+        if let Some(project_id) = self.selected_workspace_project_id.clone() {
+            self.load_workspace_branches(project_id, cx);
+        }
+        cx.notify();
+    }
+
+    fn load_workspace_branches(&mut self, project_id: String, cx: &mut Context<Self>) {
+        self.workspace_branches_loading = true;
+        self.workspace_source_branches.clear();
+        self.workspace_local_branches.clear();
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request("project.branches.list", json!({"projectId": project_id}))
+                .await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                if this.selected_workspace_project_id.as_deref() != Some(project_id.as_str()) {
+                    return;
+                }
+                this.workspace_branches_loading = false;
+                match result {
+                    Ok(value) => {
+                        this.workspace_source_branches = string_array(&value, "branches");
+                        this.workspace_local_branches = string_array(&value, "localBranches");
+                        let candidates = if this.workspace_reuse_existing_branch {
+                            this.available_local_workspace_branches()
+                        } else {
+                            this.workspace_source_branches.clone()
+                        };
+                        this.selected_workspace_source_branch =
+                            preferred_workspace_branch(&candidates);
+                        this.error = None;
+                    }
+                    Err(error) => this.error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn load_workspace_prompt_profiles(&mut self, cx: &mut Context<Self>) {
+        self.workspace_profiles_loading = true;
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge.request("agentProfile.list", json!({})).await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.workspace_profiles_loading = false;
+                match result.and_then(parse_agent_profile_options) {
+                    Ok(profiles) => {
+                        let selected = this
+                            .workspace_selected_agent_profile_id
+                            .clone()
+                            .filter(|id| profiles.iter().any(|profile| &profile.id == id))
+                            .or_else(|| profiles.first().map(|profile| profile.id.clone()));
+                        this.workspace_agent_profiles = profiles;
+                        this.workspace_selected_agent_profile_id = selected;
+                    }
+                    Err(error) => this.error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn select_new_workspace_mode(
+        &mut self,
+        mode: NewWorkspaceMode,
+        cx: &mut Context<Self>,
+    ) {
+        self.new_workspace_mode = mode;
+        self.new_workspace_step = NewWorkspaceStep::Entry;
+        self.error = None;
+        cx.notify();
+    }
+
+    pub(super) fn continue_manual_workspace(&mut self, cx: &mut Context<Self>) {
+        self.new_workspace_mode = NewWorkspaceMode::Manual;
+        self.new_workspace_step = NewWorkspaceStep::ManualSelection;
+        self.workspace_selected_parent_id = None;
+        self.error = None;
+        cx.notify();
+    }
+
+    pub(super) fn continue_manual_workspace_settings(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.selected_workspace_source_branch.is_none() {
+            self.error = Some(if self.workspace_reuse_existing_branch {
+                "Existing Branch Is Required".into()
+            } else {
+                "Source Branch Is Required".into()
+            });
+            cx.notify();
+            return;
+        }
+        if self.workspace_reuse_existing_branch {
+            let branch = self
+                .selected_workspace_source_branch
+                .clone()
+                .unwrap_or_default();
+            self.workspace_branch_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_name_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_synced_name = Some(branch);
+        }
+        self.new_workspace_step = NewWorkspaceStep::ManualSettings;
+        self.error = None;
+        cx.notify();
+    }
+
+    pub(super) fn back_new_workspace(&mut self, cx: &mut Context<Self>) {
+        self.new_workspace_step = match self.new_workspace_step {
+            NewWorkspaceStep::ManualSettings => NewWorkspaceStep::ManualSelection,
+            NewWorkspaceStep::ManualSelection => NewWorkspaceStep::Entry,
+            NewWorkspaceStep::Entry => NewWorkspaceStep::Entry,
+        };
+        cx.notify();
+    }
+
+    pub(super) fn select_workspace_project(&mut self, project_id: String, cx: &mut Context<Self>) {
+        self.selected_workspace_project_id = Some(project_id.clone());
+        self.selected_workspace_source_branch = None;
+        self.workspace_selected_parent_id = self
+            .workspace_parent_options()
+            .into_iter()
+            .find_map(|(workspace_id, _)| workspace_id);
+        self.workspace_source_branches.clear();
+        self.workspace_local_branches.clear();
+        self.load_workspace_branches(project_id, cx);
+        cx.notify();
+    }
+
+    pub(super) fn select_workspace_source_branch(
+        &mut self,
+        branch: String,
+        cx: &mut Context<Self>,
+    ) {
+        self.selected_workspace_source_branch = Some(branch);
+        cx.notify();
+    }
+
+    pub(super) fn select_manual_workspace_source_branch(
+        &mut self,
+        branch: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.selected_workspace_source_branch = Some(branch.clone());
+        if self.workspace_reuse_existing_branch {
+            self.workspace_branch_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_name_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_synced_name = Some(branch);
+        }
+        cx.notify();
+    }
+
+    pub(super) fn set_workspace_reuse_existing_branch(
+        &mut self,
+        reuse: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.workspace_reuse_existing_branch == reuse {
+            return;
+        }
+        self.workspace_reuse_existing_branch = reuse;
+        let candidates = if reuse {
+            self.available_local_workspace_branches()
+        } else {
+            self.workspace_source_branches.clone()
+        };
+        self.selected_workspace_source_branch = preferred_workspace_branch(&candidates);
+        self.workspace_branch_search_input.update(cx, |input, cx| {
+            input.set_placeholder(
+                if reuse {
+                    "Search Existing Branches"
+                } else {
+                    "Search Source Branches"
+                },
+                window,
+                cx,
+            );
+            input.set_value("", window, cx);
+        });
+        if reuse {
+            let branch = self
+                .selected_workspace_source_branch
+                .clone()
+                .unwrap_or_default();
+            self.workspace_branch_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_name_input.update(cx, |input, cx| {
+                input.set_value(branch.clone(), window, cx);
+            });
+            self.workspace_synced_name = (!branch.is_empty()).then_some(branch);
+        } else {
+            self.workspace_branch_input.update(cx, |input, cx| {
+                input.set_value("", window, cx);
+            });
+            self.workspace_name_input.update(cx, |input, cx| {
+                input.set_value("", window, cx);
+            });
+            self.workspace_synced_name = None;
+        }
+        self.error = None;
+        cx.notify();
+    }
+
+    pub(super) fn available_local_workspace_branches(&self) -> Vec<String> {
+        let used = self
+            .selected_workspace_project()
+            .into_iter()
+            .flat_map(|project| &project.workspaces)
+            .filter_map(|workspace| workspace.branch.as_deref())
+            .filter(|branch| !branch.is_empty() && *branch != "HEAD")
+            .collect::<std::collections::BTreeSet<_>>();
+        self.workspace_local_branches
+            .iter()
+            .filter(|branch| !used.contains(branch.as_str()))
+            .cloned()
+            .collect()
+    }
+
+    pub(super) fn toggle_create_another_workspace(&mut self, cx: &mut Context<Self>) {
+        self.create_another_workspace = !self.create_another_workspace;
+        cx.notify();
+    }
+
+    pub(super) fn close_new_workspace_dialog(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {
+            return;
+        }
+        self.show_new_workspace_dialog = false;
+        cx.notify();
+    }
+
+    pub(super) fn create_workspace(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {
+            return;
+        }
+        let branch = if self.workspace_reuse_existing_branch {
+            self.selected_workspace_source_branch
+                .clone()
+                .unwrap_or_default()
+        } else {
+            input_value(&self.workspace_branch_input, cx)
+        };
+        if branch.is_empty() {
+            self.error = Some(if self.workspace_reuse_existing_branch {
+                "Existing Branch Is Required".into()
+            } else {
+                "New Branch Name Is Required".into()
+            });
+            cx.notify();
+            return;
+        }
+        if !self.workspace_reuse_existing_branch
+            && self
+                .workspace_source_branches
+                .iter()
+                .any(|item| item == &branch)
+        {
+            self.error = Some(format!("Branch \"{branch}\" Already Exists").into());
+            cx.notify();
+            return;
+        }
+        let project = self
+            .selected_workspace_project_id
+            .as_deref()
+            .and_then(|id| {
+                self.snapshot
+                    .projects
+                    .iter()
+                    .find(|project| project.id == id)
+            });
+        let Some(project) = project else {
+            self.error = Some("No Git Project Is Available".into());
+            cx.notify();
+            return;
+        };
+        let source_branch = self
+            .selected_workspace_source_branch
+            .clone()
+            .unwrap_or_else(|| "main".to_string());
+        let project_id = project.id.clone();
+        let workspace_name = optional_input_value(&self.workspace_name_input, cx);
+        let parent_workspace_id = self.workspace_selected_parent_id.clone();
+        let create_another = self.create_another_workspace;
+        let reuse_existing_branch = self.workspace_reuse_existing_branch;
+        let bridge = self.bridge.clone();
+        self.workspace_creation_busy = true;
+        self.error = None;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let mut request = json!({
+                "projectId": project_id,
+                "branch": branch,
+                "sourceBranch": source_branch,
+                "reuseExistingBranch": reuse_existing_branch,
+                "deferSetup": true,
+            });
+            if let (Some(object), Some(name)) = (request.as_object_mut(), workspace_name) {
+                object.insert("name".to_string(), Value::String(name));
+            }
+            if let (Some(object), Some(parent_workspace_id)) =
+                (request.as_object_mut(), parent_workspace_id)
+            {
+                object.insert(
+                    "parentWorkspaceId".to_string(),
+                    Value::String(parent_workspace_id),
+                );
+            }
+            let result = bridge
+                .request_with_timeout(
+                    "workspace.createManaged",
+                    request,
+                    Duration::from_secs(30 * 60),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.workspace_creation_busy = false;
+                match result {
+                    Ok(payload) => {
+                        this.show_new_workspace_dialog = create_another;
+                        this.new_workspace_step = NewWorkspaceStep::Entry;
+                        this.error = None;
+                        this.selected_workspace_id = workspace_id_from_payload(&payload);
+                        this.selected_tab_id = None;
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.error = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+}
+
+fn parse_agent_profile_options(value: Value) -> Result<Vec<AgentProfileOption>, String> {
+    value
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Agent Profile List Omitted Items".to_string())?
+        .iter()
+        .map(|profile| {
+            Ok(AgentProfileOption {
+                id: profile
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "Agent Profile Omitted Id".to_string())?
+                    .to_owned(),
+                name: profile
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "Agent Profile Omitted Name".to_string())?
+                    .to_owned(),
+            })
+        })
+        .collect()
+}
+
+fn input_value(input: &Entity<InputState>, cx: &Context<AleraApp>) -> String {
+    input.read(cx).value().trim().to_string()
+}
+
+fn optional_input_value(input: &Entity<InputState>, cx: &Context<AleraApp>) -> Option<String> {
+    let value = input_value(input, cx);
+    (!value.is_empty()).then_some(value)
+}
+
+fn workspace_id_from_payload(payload: &Value) -> Option<String> {
+    payload
+        .get("workspace")
+        .and_then(Value::as_object)
+        .and_then(|workspace| workspace.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn string_array(value: &Value, key: &str) -> Vec<String> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect()
+}
+
+fn preferred_workspace_branch(branches: &[String]) -> Option<String> {
+    ["main", "origin/main", "master", "origin/master"]
+        .into_iter()
+        .find(|preferred| branches.iter().any(|branch| branch == preferred))
+        .map(str::to_owned)
+        .or_else(|| branches.first().cloned())
+}
+
+#[cfg(test)]
+#[path = "workspace_actions_tests.rs"]
+mod tests;

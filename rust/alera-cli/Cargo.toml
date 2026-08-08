@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 alera-core = { path = "../alera-core", features = ["runtime"] }
+alera-native = { package = "alera_native", path = ".." }
 alera-runtime-client = { path = "../alera-runtime-client" }
 alera-runtime-protocol = { path = "../alera-runtime-protocol" }
 clap = { version = "4", features = ["derive"] }

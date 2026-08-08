@@ -5,7 +5,7 @@ PODS:
     - FlutterMacOS
   - code_forge (10.0.0):
     - FlutterMacOS
-  - cryptography_flutter_plus (0.2.0):
+  - desktop_drop (0.0.1):
     - FlutterMacOS
   - desktop_updater (0.0.1):
     - FlutterMacOS
@@ -19,6 +19,9 @@ PODS:
   - media_kit_video (0.0.1):
     - FlutterMacOS
   - package_info_plus (0.0.1):
+    - FlutterMacOS
+  - path_provider_foundation (0.0.1):
+    - Flutter
     - FlutterMacOS
   - pdfium_flutter (0.1.5):
     - Flutter
@@ -36,7 +39,7 @@ DEPENDENCIES:
   - alera_browser (from `Flutter/ephemeral/.symlinks/plugins/alera_browser/macos`)
   - alera_native (from `Flutter/ephemeral/.symlinks/plugins/alera_native/macos`)
   - code_forge (from `Flutter/ephemeral/.symlinks/plugins/code_forge/macos`)
-  - cryptography_flutter_plus (from `Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos`)
+  - desktop_drop (from `Flutter/ephemeral/.symlinks/plugins/desktop_drop/macos`)
   - desktop_updater (from `Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_local_notifications (from `Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos`)
@@ -44,6 +47,7 @@ DEPENDENCIES:
   - media_kit_libs_macos_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos`)
   - media_kit_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
+  - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - pdfium_flutter (from `Flutter/ephemeral/.symlinks/plugins/pdfium_flutter/darwin`)
   - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
@@ -57,8 +61,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/alera_native/macos
   code_forge:
     :path: Flutter/ephemeral/.symlinks/plugins/code_forge/macos
-  cryptography_flutter_plus:
-    :path: Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos
+  desktop_drop:
+    :path: Flutter/ephemeral/.symlinks/plugins/desktop_drop/macos
   desktop_updater:
     :path: Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos
   file_selector_macos:
@@ -73,6 +77,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
+  path_provider_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
   pdfium_flutter:
     :path: Flutter/ephemeral/.symlinks/plugins/pdfium_flutter/darwin
   screen_retriever_macos:
@@ -87,8 +93,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   alera_browser: 7a246164ceb674c079a7154bdbc989a789749174
   alera_native: 84fbb2a99bbe531726d9fa7ed491470d40dadb91
-  code_forge: 14bca13a0e26865b31e28c4041a5e6920631ebbc
-  cryptography_flutter_plus: b790cf76f050be15566d4ae320574b35cff72d1e
+  code_forge: 80bb2da320b632313812696666477ddee9a9f486
+  desktop_drop: 1eeeb9484299585770b6461e4f3d60950e99efa2
   desktop_updater: c6cadea9a19511e0b0630183a58e949ad8f99031
   file_selector_macos: 3e56eaea051180007b900eacb006686fd54da150
   flutter_local_notifications: 14e285ca39907db50704f7f46c9ab7a526bd7ead
@@ -96,8 +102,9 @@ SPEC CHECKSUMS:
   media_kit_libs_macos_video: b3e2bbec2eef97c285f2b1baa7963c67c753fb82
   media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
-  pdfium_flutter: 9e8e72bdbed9498f7b87a9e01eb8899fb36955b3
-  screen_retriever_macos: 776e0fa5d42c6163d2bf772d22478df4b302b161
+  path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
+  pdfium_flutter: 814416ae1e24618fc80353aacbf17c7229373559
+  screen_retriever_macos: 038d3f7b34a779b06f536842003e41e8ec1fb4b7
   url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d
   window_manager: e25faf20d88283a0d46e7b1a759d07261ca27575

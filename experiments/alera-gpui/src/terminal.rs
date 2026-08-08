@@ -1,14 +1,18 @@
+use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 
 use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::index::{Column, Point as GridPoint, Side};
+use alacritty_terminal::selection::{Selection, SelectionType};
+use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::test::TermSize;
-use alacritty_terminal::term::{Config, Term, TermMode};
+use alacritty_terminal::term::{viewport_to_point, Config, Term, TermMode};
 use alacritty_terminal::vte::ansi;
 use gpui::{FontStyle, FontWeight, HighlightStyle, SharedString, StyledText};
+use regex::Regex;
 
-use crate::terminal_palette::resolve_color;
+use crate::{terminal_palette::resolve_color, terminal_theme_catalog::terminal_theme_palette};
 
 const DEFAULT_COLUMNS: usize = 100;
 const DEFAULT_ROWS: usize = 30;
@@ -45,11 +49,39 @@ pub struct TerminalEmulator {
     terminal: Term<TerminalEventSink>,
     parser: ansi::Processor,
     event_sink: TerminalEventSink,
+    selection_anchor: Option<GridPoint>,
+    selection_kind: TerminalSelectionKind,
 }
 
 pub struct TerminalLine {
     pub text: StyledText,
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub plain_text: String,
+    pub cursor_column: Option<usize>,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerminalLink {
+    pub uri: String,
+    pub row: usize,
+    pub start_column: usize,
+    pub end_column: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TerminalPoint {
+    pub row: usize,
+    pub column: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminalSelectionKind {
+    Simple,
+    Semantic,
+    Lines,
+}
+
+const DEFAULT_WORD_SEPARATORS: &[char] = &['\0', ' ', '.', ':', '-', '\\', '"', '*', '+', '/'];
 
 pub struct TerminalSession {
     pub session_id: String,
@@ -77,6 +109,8 @@ impl TerminalEmulator {
             terminal,
             parser: ansi::Processor::new(),
             event_sink,
+            selection_anchor: None,
+            selection_kind: TerminalSelectionKind::Simple,
         }
     }
 
@@ -124,6 +158,7 @@ impl TerminalEmulator {
             } else {
                 b"\t".as_slice()
             }),
+            "space" => Some(b" ".as_slice()),
             "escape" => Some(b"\x1b".as_slice()),
             "up" => Some(cursor_sequence(b'A', mode.contains(TermMode::APP_CURSOR))),
             "down" => Some(cursor_sequence(b'B', mode.contains(TermMode::APP_CURSOR))),
@@ -168,22 +203,30 @@ impl TerminalEmulator {
         }
     }
 
-    pub fn visible_lines(&self) -> Vec<TerminalLine> {
+    pub fn visible_lines(&self, theme_name: &str) -> Vec<TerminalLine> {
+        let palette = terminal_theme_palette(theme_name);
         let rows = self.terminal.screen_lines();
         let columns = self.terminal.columns();
-        let mut cells = vec![Vec::with_capacity(columns); rows];
+        let mut cells = vec![vec![Cell::default(); columns]; rows];
         let content = self.terminal.renderable_content();
+        let display_offset = content.display_offset as i32;
+        let cursor = (display_offset == 0 && content.cursor.shape != ansi::CursorShape::Hidden)
+            .then_some(content.cursor.point);
         for indexed in content.display_iter {
-            let row = indexed.point.line.0;
+            let row = indexed.point.line.0 + display_offset;
             if row < 0 || row as usize >= rows {
                 continue;
             }
-            cells[row as usize].push(indexed.cell.clone());
+            let column = indexed.point.column.0;
+            if column < columns {
+                cells[row as usize][column] = indexed.cell.clone();
+            }
         }
 
         cells
             .into_iter()
-            .map(|row| {
+            .enumerate()
+            .map(|(row_index, row)| {
                 let mut text = String::with_capacity(columns);
                 let mut highlights = Vec::new();
                 for cell in row {
@@ -202,8 +245,11 @@ impl TerminalEmulator {
                     }
                     let end = text.len();
                     let style = HighlightStyle {
-                        color: resolve_color(cell.fg, false),
-                        background_color: resolve_color(cell.bg, true),
+                        color: resolve_color(cell.fg, palette),
+                        background_color: (cell.bg
+                            != ansi::Color::Named(ansi::NamedColor::Background))
+                        .then(|| resolve_color(cell.bg, palette))
+                        .flatten(),
                         font_weight: cell
                             .flags
                             .intersects(Flags::BOLD | Flags::BOLD_ITALIC)
@@ -217,10 +263,166 @@ impl TerminalEmulator {
                     highlights.push((start..end, style));
                 }
                 TerminalLine {
-                    text: StyledText::new(SharedString::from(text)).with_highlights(highlights),
+                    text: StyledText::new(SharedString::from(text.clone()))
+                        .with_highlights(highlights),
+                    plain_text: text,
+                    cursor_column: cursor
+                        .filter(|point| point.line.0 == row_index as i32)
+                        .map(|point| point.column.0),
                 }
             })
             .collect()
+    }
+
+    pub fn link_at(&self, point: TerminalPoint) -> Option<TerminalLink> {
+        let content = self.terminal.renderable_content();
+        let display_offset = content.display_offset as i32;
+        let mut row_cells = content
+            .display_iter
+            .filter_map(|indexed| {
+                let row = indexed.point.line.0 + display_offset;
+                (row == point.row as i32).then_some((indexed.point.column.0, indexed.cell.clone()))
+            })
+            .collect::<Vec<_>>();
+        row_cells.sort_by_key(|(column, _)| *column);
+
+        if let Some((_, cell)) = row_cells.iter().find(|(column, _)| *column == point.column) {
+            if let Some(hyperlink) = cell.hyperlink() {
+                let uri = hyperlink.uri();
+                if supports_web_uri(uri) {
+                    let start_column = row_cells
+                        .iter()
+                        .filter(|(_, candidate)| {
+                            candidate.hyperlink().is_some_and(|link| link.uri() == uri)
+                        })
+                        .map(|(column, _)| *column)
+                        .min()?;
+                    let end_column = row_cells
+                        .iter()
+                        .filter(|(_, candidate)| {
+                            candidate.hyperlink().is_some_and(|link| link.uri() == uri)
+                        })
+                        .map(|(column, cell)| {
+                            column + usize::from(!cell.flags.contains(Flags::WIDE_CHAR_SPACER))
+                        })
+                        .max()?;
+                    return Some(TerminalLink {
+                        uri: uri.to_owned(),
+                        row: point.row,
+                        start_column,
+                        end_column,
+                    });
+                }
+            }
+        }
+
+        let columns = self.terminal.columns();
+        let mut text = vec![' '; columns];
+        for (column, cell) in row_cells {
+            if column < columns && !cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                text[column] = if cell.flags.contains(Flags::HIDDEN) {
+                    ' '
+                } else {
+                    cell.c
+                };
+            }
+        }
+        let text = text.into_iter().collect::<String>();
+        visible_http_link_at(&text, point)
+    }
+
+    pub fn begin_selection(
+        &mut self,
+        point: TerminalPoint,
+        kind: TerminalSelectionKind,
+        configured_separators: Option<&str>,
+    ) {
+        if kind == TerminalSelectionKind::Semantic {
+            let separators = configured_separators
+                .filter(|value| !value.trim().is_empty())
+                .map(str::to_owned)
+                .unwrap_or_else(|| DEFAULT_WORD_SEPARATORS.iter().collect());
+            self.terminal.set_options(Config {
+                scrolling_history: SCROLLBACK_LINES,
+                semantic_escape_chars: separators,
+                ..Config::default()
+            });
+        }
+        let point = self.buffer_point(point);
+        let selection_type = match kind {
+            TerminalSelectionKind::Simple => SelectionType::Simple,
+            TerminalSelectionKind::Semantic => SelectionType::Semantic,
+            TerminalSelectionKind::Lines => SelectionType::Lines,
+        };
+        self.selection_anchor = Some(point);
+        self.selection_kind = kind;
+        self.terminal.selection = Some(Selection::new(selection_type, point, Side::Left));
+    }
+
+    pub fn update_selection(&mut self, point: TerminalPoint) {
+        let point = self.buffer_point(point);
+        let Some(anchor) = self.selection_anchor else {
+            return;
+        };
+        let selection_type = match self.selection_kind {
+            TerminalSelectionKind::Simple => SelectionType::Simple,
+            TerminalSelectionKind::Semantic => SelectionType::Semantic,
+            TerminalSelectionKind::Lines => SelectionType::Lines,
+        };
+        let (anchor_side, head_side) = if point < anchor {
+            (Side::Right, Side::Left)
+        } else {
+            (Side::Left, Side::Right)
+        };
+        let mut selection = Selection::new(selection_type, anchor, anchor_side);
+        selection.update(point, head_side);
+        self.terminal.selection = Some(selection);
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.terminal.selection = None;
+        self.selection_anchor = None;
+    }
+
+    pub fn selected_text(&self) -> Option<String> {
+        self.terminal
+            .selection_to_string()
+            .map(|text| text.strip_suffix('\n').unwrap_or(&text).to_owned())
+    }
+
+    pub fn selection_range_for_viewport_row(&self, row: usize) -> Option<(usize, usize)> {
+        let content = self.terminal.renderable_content();
+        let selection = content.selection?;
+        let point = |column| {
+            GridPoint::new(
+                alacritty_terminal::index::Line(row as i32 - content.display_offset as i32),
+                Column(column),
+            )
+        };
+        let start =
+            (0..self.terminal.columns()).find(|column| selection.contains(point(*column)))?;
+        let end = (start + 1..self.terminal.columns())
+            .take_while(|column| selection.contains(point(*column)))
+            .last()
+            .map(|column| column + 1)
+            .unwrap_or(start + 1);
+        Some((start, end))
+    }
+
+    fn buffer_point(&self, point: TerminalPoint) -> GridPoint {
+        viewport_to_point(
+            self.terminal.grid().display_offset(),
+            GridPoint::new(point.row, Column(point.column)),
+        )
+    }
+
+    pub fn scroll_metrics(&self) -> (usize, usize, usize) {
+        let history = self.terminal.grid().history_size();
+        (
+            self.terminal.renderable_content().display_offset,
+            history,
+            self.terminal.screen_lines(),
+        )
     }
 
     #[allow(dead_code)]
@@ -238,6 +440,86 @@ impl TerminalEmulator {
             })
             .collect()
     }
+}
+
+fn visible_http_link_at(text: &str, point: TerminalPoint) -> Option<TerminalLink> {
+    static URL_PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern =
+        URL_PATTERN.get_or_init(|| Regex::new(r"(?i)https?://[^\s]+").expect("valid URL regex"));
+    for matched in pattern.find_iter(text) {
+        let mut end = trim_visible_url_end(text, matched.start(), matched.end());
+        if end <= matched.start() {
+            continue;
+        }
+        let start_column = text[..matched.start()].chars().count();
+        let mut end_column = text[..end].chars().count();
+        while end > matched.start() && end_column <= start_column {
+            end -= 1;
+            end_column = text[..end].chars().count();
+        }
+        if point.column < start_column || point.column >= end_column {
+            continue;
+        }
+        let uri = &text[matched.start()..end];
+        if supports_web_uri(uri) {
+            return Some(TerminalLink {
+                uri: uri.to_owned(),
+                row: point.row,
+                start_column,
+                end_column,
+            });
+        }
+    }
+    None
+}
+
+fn supports_web_uri(uri: &str) -> bool {
+    let authority = uri
+        .strip_prefix("https://")
+        .or_else(|| uri.strip_prefix("http://"))
+        .or_else(|| uri.strip_prefix("HTTPS://"))
+        .or_else(|| uri.strip_prefix("HTTP://"));
+    authority.is_some_and(|authority| {
+        authority
+            .split(['/', '?', '#'])
+            .next()
+            .is_some_and(|host| !host.trim().is_empty())
+    })
+}
+
+fn trim_visible_url_end(text: &str, start: usize, mut end: usize) -> usize {
+    while end > start {
+        let Some(character) = text[..end].chars().next_back() else {
+            break;
+        };
+        if matches!(character, '.' | ',' | ';' | ':' | '!' | '?' | '"' | '\'') {
+            end -= character.len_utf8();
+            continue;
+        }
+        let unbalanced = match character {
+            ')' => {
+                count_character(&text[start..end], '(') < count_character(&text[start..end], ')')
+            }
+            ']' => {
+                count_character(&text[start..end], '[') < count_character(&text[start..end], ']')
+            }
+            '}' => {
+                count_character(&text[start..end], '{') < count_character(&text[start..end], '}')
+            }
+            _ => false,
+        };
+        if !unbalanced {
+            break;
+        }
+        end -= character.len_utf8();
+    }
+    end
+}
+
+fn count_character(text: &str, expected: char) -> usize {
+    text.chars()
+        .filter(|character| *character == expected)
+        .count()
 }
 
 impl Default for TerminalEmulator {
@@ -301,9 +583,10 @@ mod tests {
     fn vt_output_updates_visible_rows_and_styles() {
         let mut terminal = TerminalEmulator::new(20, 3);
         terminal.write(b"plain\r\n\x1b[31mred\x1b[0m");
-        let lines = terminal.visible_lines();
+        let lines = terminal.visible_lines("Alera Dark");
         assert_eq!(lines.len(), 3);
         assert!(terminal.visible_text().contains("plain"));
+        assert_eq!(lines[1].cursor_column, Some(3));
     }
 
     #[test]
@@ -324,6 +607,10 @@ mod tests {
             terminal.encode_key("up", None, KeyModifiers::default()),
             b"\x1b[A"
         );
+        assert_eq!(
+            terminal.encode_key("space", None, KeyModifiers::default()),
+            b" "
+        );
     }
 
     #[test]
@@ -334,5 +621,134 @@ mod tests {
             terminal.encode_paste("a\x1b[201~b"),
             b"\x1b[200~ab\x1b[201~"
         );
+    }
+
+    #[test]
+    fn terminal_selection_extracts_visible_text_in_both_directions() {
+        let mut terminal = TerminalEmulator::new(20, 3);
+        terminal.write(b"hello world\r\nsecond");
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 0 },
+            TerminalSelectionKind::Simple,
+            None,
+        );
+        terminal.update_selection(TerminalPoint { row: 0, column: 4 });
+        assert_eq!(terminal.selected_text().as_deref(), Some("hello"));
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 4 },
+            TerminalSelectionKind::Simple,
+            None,
+        );
+        terminal.update_selection(TerminalPoint { row: 0, column: 0 });
+        assert_eq!(terminal.selected_text().as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn terminal_selection_trims_row_padding_and_selects_words_like_xterm() {
+        let mut terminal = TerminalEmulator::new(20, 3);
+        terminal.write(b"hello-world\r\nsecond row");
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 0 },
+            TerminalSelectionKind::Simple,
+            None,
+        );
+        terminal.update_selection(TerminalPoint { row: 1, column: 5 });
+        assert_eq!(
+            terminal.selected_text().as_deref(),
+            Some("hello-world\nsecond")
+        );
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 7 },
+            TerminalSelectionKind::Semantic,
+            None,
+        );
+        assert_eq!(terminal.selected_text().as_deref(), Some("world"));
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 7 },
+            TerminalSelectionKind::Semantic,
+            Some("-"),
+        );
+        assert_eq!(terminal.selected_text().as_deref(), Some("world"));
+        terminal.begin_selection(
+            TerminalPoint { row: 1, column: 2 },
+            TerminalSelectionKind::Lines,
+            None,
+        );
+        assert_eq!(terminal.selected_text().as_deref(), Some("second row"));
+    }
+
+    #[test]
+    fn visible_lines_map_negative_scrollback_rows_into_the_viewport() {
+        let mut terminal = TerminalEmulator::new(8, 3);
+        terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\nfive\r\nsix");
+        terminal.scroll_display(2);
+        let lines = terminal.visible_lines("Alera Dark");
+        let text = lines
+            .iter()
+            .map(|line| line.plain_text.trim_end())
+            .collect::<Vec<_>>();
+        assert_eq!(text, ["two", "three", "four"]);
+        assert!(lines.iter().all(|line| line.cursor_column.is_none()));
+    }
+
+    #[test]
+    fn visible_lines_preserve_grid_columns_after_resize() {
+        let mut terminal = TerminalEmulator::new(12, 3);
+        terminal.write(b"\x1b[5Gright");
+        terminal.resize(18, 3);
+
+        let lines = terminal.visible_lines("Alera Dark");
+
+        assert!(lines[0].plain_text.starts_with("    right"));
+        assert_eq!(lines[0].plain_text.chars().count(), 18);
+    }
+
+    #[test]
+    fn selection_keeps_its_buffer_identity_while_the_viewport_moves() {
+        let mut terminal = TerminalEmulator::new(8, 3);
+        terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\nfive\r\nsix");
+        terminal.scroll_display(2);
+        terminal.begin_selection(
+            TerminalPoint { row: 0, column: 0 },
+            TerminalSelectionKind::Simple,
+            None,
+        );
+        terminal.update_selection(TerminalPoint { row: 0, column: 2 });
+
+        assert_eq!(terminal.selected_text().as_deref(), Some("two"));
+        assert_eq!(terminal.selection_range_for_viewport_row(0), Some((0, 3)));
+
+        terminal.scroll_display(-2);
+
+        assert_eq!(terminal.selected_text().as_deref(), Some("two"));
+        assert_eq!(terminal.selection_range_for_viewport_row(0), None);
+    }
+
+    #[test]
+    fn visible_http_links_trim_sentence_punctuation() {
+        let mut terminal = TerminalEmulator::new(80, 3);
+        terminal.write(b"Open https://example.com/docs?q=1.");
+
+        let link = terminal
+            .link_at(TerminalPoint { row: 0, column: 10 })
+            .expect("link");
+
+        assert_eq!(link.uri, "https://example.com/docs?q=1");
+        assert_eq!(link.start_column, 5);
+        assert_eq!(link.end_column, 33);
+    }
+
+    #[test]
+    fn osc8_links_take_precedence_over_visible_text() {
+        let mut terminal = TerminalEmulator::new(40, 3);
+        terminal.write(b"\x1b]8;;https://example.com/target\x1b\\Open Docs\x1b]8;;\x1b\\");
+
+        let link = terminal
+            .link_at(TerminalPoint { row: 0, column: 3 })
+            .expect("OSC 8 link");
+
+        assert_eq!(link.uri, "https://example.com/target");
+        assert_eq!(link.start_column, 0);
+        assert_eq!(link.end_column, 9);
     }
 }

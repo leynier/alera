@@ -1,310 +1,373 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::{Duration, Instant};
+
 use gpui::{
-    AppContext as _, Context, Entity, FocusHandle, SharedString, Subscription, Task, Window,
+    px, AppContext as _, Bounds, Context, Entity, FocusHandle, Pixels, Point, ScrollAnchor,
+    ScrollHandle, SharedString, Subscription, Task, Timer, Window,
 };
 use gpui_component::input::{InputEvent, InputState};
+use gpui_component::select::{SearchableVec, SelectEvent, SelectState};
+use gpui_component::IndexPath;
 use serde_json::Value;
 
-mod ai_text_surface;
+mod add_project_dialog;
+mod agent_profile_settings;
+mod agent_profile_settings_actions;
+mod agent_profile_settings_catalog;
+mod agent_profile_settings_confirmation;
+mod agent_profile_settings_controls;
+mod agent_profile_settings_discovery;
+mod agent_profile_settings_keyboard;
+mod agent_profile_settings_persistence;
+mod agent_profile_settings_render;
+mod ai_text_settings_catalog;
+mod app_helpers;
+mod app_init;
+mod app_lifecycle;
+mod claude_profile_dialog;
+mod context_pull_request;
+mod context_pull_request_ai;
+mod context_pull_request_composer;
+mod context_pull_request_review_actions;
+mod context_sidebar;
+mod context_source_control;
+mod context_source_control_actions;
+mod context_source_control_ai;
+mod context_source_control_dialog;
+mod context_source_control_groups;
+mod context_source_history;
+mod dialogs;
+mod editor_actions;
+mod explorer_actions;
+mod explorer_dialog;
+mod explorer_menu;
 mod forge_actions;
 mod forge_surface;
+mod git_diff_surface;
+mod git_diff_tab_actions;
 mod git_surface;
+mod keyboard_actions;
+mod keyboard_settings;
+mod keyboard_settings_actions;
+mod keyboard_settings_render;
+mod mobile_access;
+mod mobile_driver;
 mod preview_surface;
-mod runtime_actions;
-mod runtime_features;
+mod project_actions;
+mod project_config_settings;
+mod run_policy;
+mod run_policy_dialog;
 mod search_surface;
+mod search_surface_rows;
+mod settings_actions;
+mod settings_dialog;
+mod settings_panes;
+mod settings_search_catalog;
+mod settings_select_option;
+mod settings_state;
+mod settings_store;
 mod shell;
+mod sidebar_actions;
+mod sidebar_dialog;
+mod sidebar_listing;
+mod sidebar_rows;
+mod sidebar_view_options;
+mod sidebar_view_options_components;
+mod sidebar_view_prefs;
+mod sidebar_view_sort_menu;
+mod source_control_scope;
+mod source_history_graph;
+mod state_types;
+mod status_bar;
+mod status_data;
+mod status_quota;
+mod status_quota_provider;
+mod status_resource;
+mod status_resource_actions;
+mod status_resource_components;
+mod status_resource_dialog;
+mod status_runtime;
+mod tab_actions;
+mod tab_dialog;
+mod tab_menus;
+mod tab_strip;
+mod terminal_input;
 mod terminal_surface;
+mod toast;
+mod welcome_dashboard;
 mod workbench;
+mod workbench_layout;
+mod workspace_actions;
+mod workspace_manual_dialog;
+mod workspace_manual_rows;
+mod workspace_prompt_actions;
+mod workspace_prompt_dropdown;
 mod workspace_surface;
 
-use crate::activity::Activity;
+use crate::activity::{ContextPanel, SettingsPane, StatusPopover};
 use crate::forge_service::{ForgeService, ForgeSnapshot};
 use crate::model::WorkbenchSnapshot;
 use crate::runtime_bridge::{BridgeEvent, RuntimeBridge};
-use crate::terminal::TerminalSession;
-use crate::workspace_git::GitSnapshot;
+use crate::terminal::{TerminalLink, TerminalSession};
+use crate::workspace_git::{GitDiffResult, GitSnapshot};
 use crate::workspace_service::{EditorDocument, SearchResults, WorkspaceService};
-use runtime_features::RuntimeFeatureState;
+use agent_profile_settings::AgentProfileSettingsState;
+use keyboard_settings::KeyboardSettingsUiState;
+use mobile_access::MobileAccessState;
+use project_config_settings::ProjectConfigSettingsState;
+use run_policy::RunExecutionPolicy;
+use settings_select_option::SettingsSelectOption;
+use settings_state::SettingsState;
+use settings_store::SettingsStore;
+use state_types::*;
+use status_data::StatusData;
+use workspace_prompt_actions::PromptWorkspaceCreation;
+use workspace_prompt_dropdown::{AgentProfileOption, WorkspacePromptDropdown};
 use workspace_surface::{ExplorerRow, PreviewAsset};
+
+pub(crate) use keyboard_actions::register as register_keyboard_actions;
 
 pub struct AleraApp {
     bridge: RuntimeBridge,
     snapshot: WorkbenchSnapshot,
     selected_workspace_id: Option<String>,
+    pending_workspace_terminal_id: Option<String>,
     selected_tab_id: Option<String>,
+    tab_rename_input: Entity<InputState>,
+    show_tab_rename_dialog: bool,
+    tab_mutation_busy: bool,
+    tab_close_armed: Option<Vec<String>>,
+    workbench_menu: Option<WorkbenchMenu>,
+    tab_drop_target: Option<TabDropTarget>,
+    pane_drop_target: Option<PaneDropTarget>,
+    tab_pointer_drag: Option<(String, String)>,
+    tab_pointer_drag_generation: u64,
+    tab_bar_bounds: BTreeMap<String, Bounds<Pixels>>,
+    tab_chip_bounds: BTreeMap<(String, String), Bounds<Pixels>>,
+    pane_bounds: BTreeMap<String, Bounds<Pixels>>,
+    split_resize: Option<SplitResizeState>,
+    panel_resize: Option<PanelResizeState>,
+    resize_persist_generation: u64,
     connection_label: SharedString,
     error: Option<SharedString>,
     refresh_generation: u64,
-    terminal_generation: u64,
-    terminal_session: Option<TerminalSession>,
+    terminal_sessions: BTreeMap<String, TerminalSession>,
+    terminal_drivers: BTreeMap<String, mobile_driver::MobileTerminalDriver>,
+    terminal_driver_collapsed: BTreeSet<String>,
+    terminal_driver_reclaiming: BTreeSet<String>,
+    terminal_surface_bounds: BTreeMap<String, Bounds<Pixels>>,
     terminal_focus: FocusHandle,
-    activity: Activity,
-    runtime_feature: RuntimeFeatureState,
+    terminal_input_text: String,
+    terminal_marked_text: Option<String>,
+    terminal_scrollbar_drag: Option<String>,
+    terminal_hovered_link: Option<(String, TerminalLink)>,
+    terminal_restart_confirmation: Option<String>,
+    terminal_cursor_visible: bool,
+    terminal_cursor_last_activity: Instant,
+    sidebar_collapsed: bool,
+    sidebar_width: f32,
+    collapsed_project_ids: BTreeSet<String>,
+    sidebar_collapsed_parent_workspace_ids: BTreeSet<String>,
+    sidebar_expanded_workspace_ids: BTreeSet<String>,
+    sidebar_pinned_collapsed: bool,
+    sidebar_all_collapsed: bool,
+    show_sidebar_view_options: bool,
+    sidebar_group_by: SidebarGroupBy,
+    sidebar_project_sort: SidebarSortBy,
+    sidebar_workspace_sort: SidebarSortBy,
+    sidebar_selected_project_ids: BTreeSet<String>,
+    sidebar_view_selected_tag_ids: BTreeSet<String>,
+    sidebar_workspace_kind: SidebarWorkspaceKind,
+    sidebar_repeat_pinned: bool,
+    sidebar_sort_dropdown: Option<SidebarSortTarget>,
+    sidebar_menu: Option<SidebarMenu>,
+    sidebar_menu_position: Point<Pixels>,
+    sidebar_dialog: Option<SidebarDialog>,
+    sidebar_action_input: Entity<InputState>,
+    sidebar_tag_input: Entity<InputState>,
+    sidebar_parent_filter_input: Entity<InputState>,
+    sidebar_action_busy: bool,
+    sidebar_selected_tag_ids: BTreeSet<String>,
+    sidebar_selected_parent_id: Option<String>,
+    sidebar_tag_delete_armed: Option<String>,
+    sidebar_parent_dropdown_open: bool,
+    context_panel: ContextPanel,
+    context_sidebar_collapsed: bool,
+    context_sidebar_width: f32,
+    workbench_view_prefs_raw: Value,
+    status_popover: StatusPopover,
+    status_popover_pinned: bool,
+    status_popover_trigger_hovered: Option<StatusPopover>,
+    status_popover_panel_hovered: bool,
+    status_popover_hover_suppressed: Option<StatusPopover>,
+    status_popover_transition_generation: u64,
+    status_popover_anchor_x: f32,
+    status_data: StatusData,
+    codex_reset_offer_revision: Option<String>,
+    codex_reset_busy: bool,
+    quota_tui_busy_key: Option<String>,
+    resource_sort_column: String,
+    resource_collapsed_project_ids: BTreeSet<String>,
+    resource_close_confirmation: Option<ResourceCloseConfirmation>,
+    show_settings_dialog: bool,
+    settings_previous_focus: Option<FocusHandle>,
+    settings_pane: SettingsPane,
+    settings_scroll_handle: ScrollHandle,
+    settings_group_anchors: SettingsGroupAnchors,
+    settings_state: SettingsState,
+    settings_store: SettingsStore,
+    keyboard_settings: KeyboardSettingsUiState,
+    mobile_access: MobileAccessState,
+    project_config_settings: ProjectConfigSettingsState,
+    ai_model_discovery_busy: BTreeSet<String>,
+    ai_model_discovery_errors: BTreeMap<String, SharedString>,
+    ai_model_auto_discovered: BTreeSet<String>,
     workspace_service: WorkspaceService,
     explorer_rows: Vec<ExplorerRow>,
+    explorer_hide_ignored: bool,
+    explorer_name_input: Entity<InputState>,
+    explorer_create_directory: Option<bool>,
+    explorer_create_parent: String,
+    explorer_rename_path: Option<String>,
+    explorer_delete_path: Option<String>,
+    explorer_menu: Option<ExplorerMenuTarget>,
+    explorer_menu_position: Point<Pixels>,
+    explorer_selected_path: Option<String>,
+    explorer_clipboard: Option<ExplorerClipboard>,
+    explorer_action_busy: bool,
+    explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,
     opened_file_path: Option<String>,
+    editor_loading_path: Option<String>,
+    pending_editor_cursor: Option<(String, usize, usize, usize)>,
     preview_asset: Option<PreviewAsset>,
     show_preview: bool,
+    sidebar_filter_input: Entity<InputState>,
+    sidebar_project_filter_input: Entity<InputState>,
+    sidebar_view_tag_filter_input: Entity<InputState>,
+    local_project_path_input: Entity<InputState>,
+    clone_project_url_input: Entity<InputState>,
+    clone_project_destination_input: Entity<InputState>,
+    project_display_name_input: Entity<InputState>,
+    add_project_mode: AddProjectMode,
+    show_add_project_dialog: bool,
+    add_project_busy: bool,
+    workspace_prompt_input: Entity<InputState>,
+    workspace_dropdown_search_input: Entity<InputState>,
+    workspace_project_search_input: Entity<InputState>,
+    workspace_branch_search_input: Entity<InputState>,
+    workspace_branch_input: Entity<InputState>,
+    workspace_name_input: Entity<InputState>,
+    settings_search_input: Entity<InputState>,
+    workspace_directory_input: Entity<InputState>,
+    editor_theme_search_input: Entity<InputState>,
+    terminal_theme_search_input: Entity<InputState>,
+    settings_inputs: BTreeMap<String, Entity<InputState>>,
+    settings_selects: BTreeMap<String, Entity<SelectState<SearchableVec<SettingsSelectOption>>>>,
+    skill_runners: BTreeMap<String, String>,
+    claude_profile_alias_input: Entity<InputState>,
+    claude_profile_name_input: Entity<InputState>,
+    show_claude_profile_dialog: bool,
+    editing_claude_profile_index: Option<usize>,
+    claude_profile_error: Option<String>,
+    new_workspace_mode: NewWorkspaceMode,
+    new_workspace_step: NewWorkspaceStep,
+    selected_workspace_project_id: Option<String>,
+    selected_workspace_source_branch: Option<String>,
+    workspace_source_branches: Vec<String>,
+    workspace_local_branches: Vec<String>,
+    workspace_branches_loading: bool,
+    workspace_reuse_existing_branch: bool,
+    workspace_synced_name: Option<String>,
+    workspace_prompt_dropdown: Option<WorkspacePromptDropdown>,
+    workspace_selected_parent_id: Option<String>,
+    workspace_agent_profiles: Vec<AgentProfileOption>,
+    workspace_selected_agent_profile_id: Option<String>,
+    workspace_profiles_loading: bool,
+    agent_profile_settings: AgentProfileSettingsState,
+    create_another_workspace: bool,
+    show_new_workspace_dialog: bool,
+    workspace_creation_busy: bool,
+    workspace_prompt_phase: Option<&'static str>,
+    workspace_prompt_active_operation_id: Option<String>,
+    workspace_prompt_created: Option<PromptWorkspaceCreation>,
     editor_input: Entity<InputState>,
     editor_dirty: bool,
+    editor_conflict: bool,
     search_input: Entity<InputState>,
     replace_input: Entity<InputState>,
+    search_include_input: Entity<InputState>,
+    search_exclude_input: Entity<InputState>,
+    search_replace_expanded: bool,
+    search_details_expanded: bool,
+    search_case_sensitive: bool,
+    search_whole_word: bool,
+    search_use_regex: bool,
+    search_preserve_case: bool,
+    search_include_ignored: bool,
+    search_view_as_tree: bool,
+    search_collapsed_result_paths: BTreeSet<String>,
+    search_input_generation: u64,
     commit_input: Entity<InputState>,
+    source_amend_input: Entity<InputState>,
+    source_control_filter_input: Entity<InputState>,
+    source_control_filter_visible: bool,
+    source_control_tree_mode: bool,
+    source_control_menu_open: bool,
+    source_control_collapsed_sections: BTreeSet<String>,
+    source_control_collapsed_tree_nodes: BTreeSet<String>,
     forge_title_input: Entity<InputState>,
     forge_body_input: Entity<InputState>,
     forge_base_input: Entity<InputState>,
     forge_comment_input: Entity<InputState>,
-    ai_prompt_input: Entity<InputState>,
-    runtime_verb_input: Entity<InputState>,
-    runtime_payload_input: Entity<InputState>,
+    forge_link_input: Entity<InputState>,
+    run_policy_reason_input: Entity<InputState>,
+    show_execution_plans: bool,
+    run_policies: Vec<RunExecutionPolicy>,
+    run_policies_loading: bool,
+    run_policy_busy_id: Option<String>,
+    run_policy_error: Option<SharedString>,
     search_results: SearchResults,
     replace_confirmation: Option<(String, String, u32)>,
     git_snapshot: GitSnapshot,
+    git_diff: GitDiffResult,
+    git_diff_loading_tab: Option<String>,
+    git_diff_loaded_tab: Option<String>,
+    git_history_expanded: bool,
+    source_history_expanded_ids: BTreeSet<String>,
+    source_history_loading_ids: BTreeSet<String>,
+    source_history_action_menu: Option<context_source_history::SourceHistoryActionMenu>,
+    source_history_files: BTreeMap<String, Vec<crate::workspace_git::GitCommitChange>>,
+    source_control_dialog: Option<context_source_control_dialog::SourceControlDialog>,
     git_discard_armed: bool,
     git_discard_path_armed: Option<String>,
+    source_commit_ai_operation_id: Option<String>,
+    source_commit_ai_busy: bool,
     forge_service: ForgeService,
     forge_snapshot: ForgeSnapshot,
     forge_generation: u64,
     forge_busy: bool,
-    forge_danger_armed: Option<String>,
-    ai_generation: Option<Value>,
-    ai_operation_id: Option<String>,
-    ai_busy: bool,
-    runtime_action_output: Option<Value>,
+    forge_ai_operation_id: Option<String>,
+    forge_ai_busy: bool,
+    forge_review_action: Option<context_pull_request_review_actions::PullRequestReviewAction>,
+    forge_review_action_menu_open: bool,
+    forge_review_confirmation: Option<context_pull_request_review_actions::PullRequestConfirmation>,
+    forge_review_editing: bool,
+    forge_review_base_menu_open: bool,
+    forge_expanded_checks: BTreeSet<String>,
+    forge_collapsed_check_groups: BTreeSet<String>,
+    forge_base_menu_open: bool,
+    forge_create_menu_open: bool,
+    forge_create_draft: bool,
+    forge_link_form_open: bool,
+    forge_form_error: Option<SharedString>,
     runtime_action_busy: bool,
     runtime_action_armed: Option<String>,
+    runtime_restart_after_stop: bool,
     local_generation: u64,
     local_busy: bool,
     local_message: Option<SharedString>,
     _subscriptions: Vec<Subscription>,
     _event_task: Task<()>,
-}
-
-impl AleraApp {
-    pub fn new(bridge: RuntimeBridge, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let events = bridge.events();
-        let event_task = cx.spawn(async move |this, cx| {
-            while let Ok(event) = events.recv().await {
-                let Some(this) = this.upgrade() else {
-                    break;
-                };
-                let should_refresh = match &event {
-                    BridgeEvent::Connected => true,
-                    BridgeEvent::Notification { name, .. } => is_snapshot_event(name),
-                    _ => false,
-                };
-                let _ = this.update(cx, |this, cx| {
-                    match event {
-                        BridgeEvent::Connected => {
-                            this.connection_label = "Runtime Connected".into();
-                            this.error = None;
-                        }
-                        BridgeEvent::Unavailable => {
-                            this.connection_label = "Runtime Unavailable".into();
-                        }
-                        BridgeEvent::Disconnected { reason } => {
-                            this.connection_label = "Runtime Reconnecting".into();
-                            this.error = Some(reason.into());
-                        }
-                        BridgeEvent::Notification { name, payload } => {
-                            this.handle_terminal_notification(&name, &payload, cx);
-                        }
-                        BridgeEvent::TerminalOutput { session_id, data } => {
-                            this.handle_terminal_output(&session_id, &data, cx);
-                        }
-                    }
-                    if should_refresh {
-                        this.refresh(cx);
-                    }
-                    cx.notify();
-                });
-            }
-        });
-        let terminal_focus = cx.focus_handle();
-        let editor_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .code_editor("text")
-                .soft_wrap(false)
-        });
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search Workspace"));
-        let replace_input = cx.new(|cx| InputState::new(window, cx).placeholder("Replace With"));
-        let commit_input = cx.new(|cx| InputState::new(window, cx).placeholder("Commit Message"));
-        let forge_title_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Pull Request Title"));
-        let forge_body_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Pull Request Description")
-                .multi_line(true)
-                .soft_wrap(true)
-        });
-        let forge_base_input = cx.new(|cx| InputState::new(window, cx).placeholder("Base Branch"));
-        let forge_comment_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Add A Comment"));
-        let ai_prompt_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Describe The Workspace Identity To Generate")
-                .multi_line(true)
-                .soft_wrap(true)
-        });
-        let runtime_verb_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Runtime Verb"));
-        let runtime_payload_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("JSON Object Payload")
-                .multi_line(true)
-                .soft_wrap(true)
-        });
-        let subscriptions = vec![cx.subscribe_in(
-            &editor_input,
-            window,
-            |this, _, event: &InputEvent, _, cx| {
-                if matches!(event, InputEvent::Change) && this.editor_document.is_some() {
-                    this.editor_dirty = true;
-                    cx.notify();
-                }
-            },
-        )];
-        let mut app = Self {
-            bridge,
-            snapshot: WorkbenchSnapshot::default(),
-            selected_workspace_id: None,
-            selected_tab_id: None,
-            connection_label: "Runtime Connecting".into(),
-            error: None,
-            refresh_generation: 0,
-            terminal_generation: 0,
-            terminal_session: None,
-            terminal_focus,
-            activity: Activity::Workbench,
-            runtime_feature: RuntimeFeatureState::default(),
-            workspace_service: WorkspaceService::start(),
-            explorer_rows: Vec::new(),
-            editor_document: None,
-            opened_file_path: None,
-            preview_asset: None,
-            show_preview: false,
-            editor_input,
-            editor_dirty: false,
-            search_input,
-            replace_input,
-            commit_input,
-            forge_title_input,
-            forge_body_input,
-            forge_base_input,
-            forge_comment_input,
-            ai_prompt_input,
-            runtime_verb_input,
-            runtime_payload_input,
-            search_results: SearchResults::default(),
-            replace_confirmation: None,
-            git_snapshot: GitSnapshot::default(),
-            git_discard_armed: false,
-            git_discard_path_armed: None,
-            forge_service: ForgeService::start(),
-            forge_snapshot: ForgeSnapshot::default(),
-            forge_generation: 0,
-            forge_busy: false,
-            forge_danger_armed: None,
-            ai_generation: None,
-            ai_operation_id: None,
-            ai_busy: false,
-            runtime_action_output: None,
-            runtime_action_busy: false,
-            runtime_action_armed: None,
-            local_generation: 0,
-            local_busy: false,
-            local_message: None,
-            _subscriptions: subscriptions,
-            _event_task: event_task,
-        };
-        app.refresh(cx);
-        app
-    }
-
-    fn refresh(&mut self, cx: &mut Context<Self>) {
-        self.refresh_generation += 1;
-        let generation = self.refresh_generation;
-        let bridge = self.bridge.clone();
-        let selected_workspace_id = self.selected_workspace_id.clone();
-        cx.spawn(async move |this, cx| {
-            let snapshot = WorkbenchSnapshot::load(&bridge, selected_workspace_id.as_deref()).await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            let _ = this.update(cx, |this, cx| {
-                if generation != this.refresh_generation {
-                    return;
-                }
-                match snapshot {
-                    Ok(mut snapshot) => {
-                        let next_workspace_id = this
-                            .selected_workspace_id
-                            .clone()
-                            .filter(|id| snapshot.workspace(id).is_some())
-                            .or_else(|| snapshot.first_workspace_id().map(str::to_string));
-                        if this.selected_workspace_id != next_workspace_id {
-                            this.selected_workspace_id = next_workspace_id;
-                            this.selected_tab_id = None;
-                            this.snapshot = snapshot;
-                            this.refresh(cx);
-                            return;
-                        }
-                        this.selected_tab_id = this
-                            .selected_tab_id
-                            .clone()
-                            .filter(|id| snapshot.tabs.iter().any(|tab| &tab.id == id))
-                            .or_else(|| snapshot.tabs.first().map(|tab| tab.id.clone()));
-                        this.error = None;
-                        snapshot.projects.sort_by(|a, b| a.name.cmp(&b.name));
-                        this.snapshot = snapshot;
-                        this.ensure_selected_terminal(cx);
-                    }
-                    Err(error) => this.error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    pub(super) fn select_workspace(&mut self, workspace_id: String, cx: &mut Context<Self>) {
-        if self.selected_workspace_id.as_deref() == Some(&workspace_id) {
-            return;
-        }
-        self.selected_workspace_id = Some(workspace_id);
-        self.selected_tab_id = None;
-        self.ensure_selected_terminal(cx);
-        self.reset_local_workspace(cx);
-        self.refresh(cx);
-        cx.notify();
-    }
-
-    pub(super) fn select_activity(&mut self, activity: Activity, cx: &mut Context<Self>) {
-        if self.activity == activity {
-            if activity.uses_runtime_catalog() {
-                self.refresh_runtime_feature(cx);
-            }
-            return;
-        }
-        self.activity = activity;
-        if activity.uses_runtime_catalog() {
-            self.refresh_runtime_feature(cx);
-        } else {
-            self.refresh_local_activity(cx);
-        }
-        cx.notify();
-    }
-}
-
-fn is_snapshot_event(name: &str) -> bool {
-    matches!(
-        name,
-        "projectsChanged"
-            | "workspacesChanged"
-            | "workspaceTabsChanged"
-            | "workbenchLayoutsChanged"
-            | "workspaceTagsChanged"
-            | "workspaceRelationsChanged"
-    )
+    _cursor_blink_task: Task<()>,
 }

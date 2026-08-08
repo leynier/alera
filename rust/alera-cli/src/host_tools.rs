@@ -8,6 +8,7 @@ use serde::Serialize;
 use crate::login_shell_environment::setup_command_environment;
 
 const WRAPPER_MARKER: &str = "alera-managed-cli-wrapper-v1";
+const LEGACY_WRAPPER_MARKER: &str = "ALERA_CLI_WRAPPER=1";
 const SKILL_REPOSITORY: &str = "https://github.com/leynier/alera";
 
 #[derive(Debug, Clone, Serialize)]
@@ -87,7 +88,7 @@ pub(crate) async fn cli_registration_status(runtime_dir: &Path) -> CliRegistrati
             },
         );
     }
-    let managed = content.contains(WRAPPER_MARKER);
+    let managed = is_managed_wrapper(&content);
     status(
         if managed { "stale" } else { "conflict" },
         false,
@@ -119,6 +120,7 @@ pub(crate) async fn install_cli_registration(runtime_dir: &Path) -> Result<CliRe
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum SkillKind {
     Cli,
+    ComputerUse,
     Emulator,
     Orchestration,
 }
@@ -127,6 +129,7 @@ impl SkillKind {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "cli" => Some(Self::Cli),
+            "computer-use" => Some(Self::ComputerUse),
             "emulator" => Some(Self::Emulator),
             "orchestration" => Some(Self::Orchestration),
             _ => None,
@@ -136,6 +139,7 @@ impl SkillKind {
     fn package_name(self) -> &'static str {
         match self {
             Self::Cli => "alera-cli",
+            Self::ComputerUse => "computer-use",
             Self::Emulator => "alera-emulator",
             Self::Orchestration => "alera-orchestration",
         }
@@ -330,6 +334,10 @@ fn wrapper_source(runtime_dir: &Path, launcher: &Path) -> String {
     }
 }
 
+fn is_managed_wrapper(content: &str) -> bool {
+    content.contains(WRAPPER_MARKER) || content.contains(LEGACY_WRAPPER_MARKER)
+}
+
 fn sh_quote(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\"'\"'"))
 }
@@ -392,6 +400,13 @@ mod tests {
         assert!(wrapper.contains(WRAPPER_MARKER));
         assert!(wrapper.contains("ALERA_RUNTIME_DIR"));
         assert!(wrapper.contains("/opt/alera"));
+    }
+
+    #[test]
+    fn legacy_flutter_wrapper_is_still_managed() {
+        let wrapper =
+            "#!/bin/sh\n# ALERA_CLI_WRAPPER=1\nexec '/Applications/Alera.app/alera' \"$@\"\n";
+        assert!(is_managed_wrapper(wrapper));
     }
 
     #[test]

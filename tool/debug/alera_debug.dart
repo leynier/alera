@@ -34,6 +34,7 @@ Future<void> main(List<String> arguments) async {
     'cli-help' => await context.cliHelp(),
     'host-debug' => await context.hostDebugForeground(),
     'app-debug' => await context.appDebug(),
+    'gpui-debug' => await context.gpuiDebug(),
     'app-profile' => await context.appProfile(),
     'app-debug-bundled-cli' => await context.appDebugBundledCli(),
     'debug-processes' => await context.debugProcesses(),
@@ -59,6 +60,7 @@ Commands:
   cli-help                  Build the sidecar and print alera --help.
   host-debug                Run the Rust alera runtime-host in the foreground.
   app-debug                 Run the Flutter desktop app.
+  gpui-debug                Build and run the experimental GPUI desktop app.
   app-profile               Run the Flutter desktop app in profile mode.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
   debug-processes           List likely Alera UI and host processes.

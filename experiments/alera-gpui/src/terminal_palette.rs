@@ -1,11 +1,13 @@
 use alacritty_terminal::vte::ansi;
 use gpui::{rgb, Hsla};
 
-pub fn resolve_color(color: ansi::Color, _background: bool) -> Option<Hsla> {
+use crate::terminal_theme_catalog::TerminalThemePalette;
+
+pub fn resolve_color(color: ansi::Color, palette: TerminalThemePalette) -> Option<Hsla> {
     let resolved = match color {
         ansi::Color::Spec(value) => value,
-        ansi::Color::Indexed(index) => indexed_color(index),
-        ansi::Color::Named(named) => named_color(named),
+        ansi::Color::Indexed(index) => indexed_color(index, palette),
+        ansi::Color::Named(named) => named_color(named, palette),
     };
     Some(
         rgb((u32::from(resolved.r) << 16) | (u32::from(resolved.g) << 8) | u32::from(resolved.b))
@@ -13,59 +15,39 @@ pub fn resolve_color(color: ansi::Color, _background: bool) -> Option<Hsla> {
     )
 }
 
-fn named_color(named: ansi::NamedColor) -> ansi::Rgb {
+fn named_color(named: ansi::NamedColor, palette: TerminalThemePalette) -> ansi::Rgb {
     use ansi::NamedColor::*;
-    match named {
-        Black => rgb_value(40, 44, 52),
-        Red => rgb_value(224, 108, 117),
-        Green => rgb_value(152, 195, 121),
-        Yellow => rgb_value(229, 192, 123),
-        Blue => rgb_value(97, 175, 239),
-        Magenta => rgb_value(198, 120, 221),
-        Cyan => rgb_value(86, 182, 194),
-        White => rgb_value(171, 178, 191),
-        Background => rgb_value(15, 17, 21),
-        Foreground | BrightForeground | DimForeground => rgb_value(231, 233, 238),
-        Cursor => rgb_value(121, 167, 255),
-        BrightBlack => rgb_value(92, 99, 112),
-        BrightRed => rgb_value(248, 128, 137),
-        BrightGreen => rgb_value(180, 222, 149),
-        BrightYellow => rgb_value(255, 215, 150),
-        BrightBlue => rgb_value(126, 197, 255),
-        BrightMagenta => rgb_value(222, 148, 245),
-        BrightCyan => rgb_value(113, 211, 222),
-        BrightWhite => rgb_value(255, 255, 255),
-        DimBlack => rgb_value(28, 31, 37),
-        DimRed => rgb_value(156, 76, 82),
-        DimGreen => rgb_value(106, 137, 85),
-        DimYellow => rgb_value(160, 134, 86),
-        DimBlue => rgb_value(68, 122, 167),
-        DimMagenta => rgb_value(139, 84, 155),
-        DimCyan => rgb_value(60, 127, 136),
-        DimWhite => rgb_value(120, 125, 134),
-    }
+    let value = match named {
+        Black | DimBlack => palette.normal[0],
+        Red | DimRed => palette.normal[1],
+        Green | DimGreen => palette.normal[2],
+        Yellow | DimYellow => palette.normal[3],
+        Blue | DimBlue => palette.normal[4],
+        Magenta | DimMagenta => palette.normal[5],
+        Cyan | DimCyan => palette.normal[6],
+        White | DimWhite => palette.normal[7],
+        Background => palette.background,
+        Foreground | BrightForeground | DimForeground => palette.foreground,
+        Cursor => palette.cursor,
+        BrightBlack => palette.bright[0],
+        BrightRed => palette.bright[1],
+        BrightGreen => palette.bright[2],
+        BrightYellow => palette.bright[3],
+        BrightBlue => palette.bright[4],
+        BrightMagenta => palette.bright[5],
+        BrightCyan => palette.bright[6],
+        BrightWhite => palette.bright[7],
+    };
+    packed_rgb(value)
 }
 
-fn indexed_color(index: u8) -> ansi::Rgb {
+fn indexed_color(index: u8, palette: TerminalThemePalette) -> ansi::Rgb {
     if index < 16 {
-        return match index {
-            0 => named_color(ansi::NamedColor::Black),
-            1 => named_color(ansi::NamedColor::Red),
-            2 => named_color(ansi::NamedColor::Green),
-            3 => named_color(ansi::NamedColor::Yellow),
-            4 => named_color(ansi::NamedColor::Blue),
-            5 => named_color(ansi::NamedColor::Magenta),
-            6 => named_color(ansi::NamedColor::Cyan),
-            7 => named_color(ansi::NamedColor::White),
-            8 => named_color(ansi::NamedColor::BrightBlack),
-            9 => named_color(ansi::NamedColor::BrightRed),
-            10 => named_color(ansi::NamedColor::BrightGreen),
-            11 => named_color(ansi::NamedColor::BrightYellow),
-            12 => named_color(ansi::NamedColor::BrightBlue),
-            13 => named_color(ansi::NamedColor::BrightMagenta),
-            14 => named_color(ansi::NamedColor::BrightCyan),
-            _ => named_color(ansi::NamedColor::BrightWhite),
-        };
+        return packed_rgb(if index < 8 {
+            palette.normal[index as usize]
+        } else {
+            palette.bright[(index - 8) as usize]
+        });
     }
     if index < 232 {
         let index = index - 16;
@@ -82,4 +64,12 @@ fn indexed_color(index: u8) -> ansi::Rgb {
 
 fn rgb_value(r: u8, g: u8, b: u8) -> ansi::Rgb {
     ansi::Rgb { r, g, b }
+}
+
+fn packed_rgb(value: u32) -> ansi::Rgb {
+    rgb_value(
+        ((value >> 16) & 0xff) as u8,
+        ((value >> 8) & 0xff) as u8,
+        (value & 0xff) as u8,
+    )
 }
