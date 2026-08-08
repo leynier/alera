@@ -62,6 +62,8 @@ void main() {
                 sourceControlScope: _sourceControlScope(),
                 viewMode: GitDiffViewMode.flat,
                 onViewModeChanged: (_) {},
+                groupMode: GitDiffGroupMode.byArea,
+                onGroupModeChanged: (_) {},
                 onOpenGitDiff:
                     ({
                       area,
@@ -137,6 +139,8 @@ void main() {
                 sourceControlScope: _sourceControlScope(),
                 viewMode: GitDiffViewMode.flat,
                 onViewModeChanged: (_) {},
+                groupMode: GitDiffGroupMode.byArea,
+                onGroupModeChanged: (_) {},
                 onOpenGitDiff:
                     ({
                       area,
@@ -249,7 +253,7 @@ void main() {
 
     expect(find.textContaining('packages/app'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('All changes'));
+    await tester.tap(find.byTooltip('All Changes'));
     await tester.pumpAndSettle();
 
     expect(opened.single.relativePath, isNull);
@@ -1391,43 +1395,6 @@ void main() {
     );
   });
 
-  testWidgets('groups are ordered as staged unstaged and untracked', (
-    tester,
-  ) async {
-    final backend = FakeGitBackend()
-      ..gitStatusResult = const GitStatusResult(
-        entries: <GitChangeEntry>[
-          GitChangeEntry(
-            path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
-          ),
-          GitChangeEntry(
-            path: 'lib/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
-          ),
-          GitChangeEntry(
-            path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
-          ),
-        ],
-      );
-
-    await _pumpPanel(tester, backend: backend);
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getTopLeft(find.text('Staged')).dy,
-      lessThan(tester.getTopLeft(find.text('Unstaged')).dy),
-    );
-    expect(
-      tester.getTopLeft(find.text('Unstaged')).dy,
-      lessThan(tester.getTopLeft(find.text('Untracked')).dy),
-    );
-  });
-
   testWidgets('filter narrows visible files without flattening groups', (
     tester,
   ) async {
@@ -1452,7 +1419,7 @@ void main() {
 
     expect(_filterField(), findsNothing);
 
-    await tester.tap(find.byTooltip('Search files'));
+    await tester.tap(find.byTooltip('Search Files'));
     await tester.pumpAndSettle();
 
     await tester.enterText(_filterField(), 'visible');
@@ -1462,7 +1429,7 @@ void main() {
     expect(find.text('lib/visible.dart'), findsOneWidget);
     expect(find.text('test/hidden.dart'), findsNothing);
 
-    await tester.tap(find.byTooltip('Hide file filter'));
+    await tester.tap(find.byTooltip('Hide File Filter'));
     await tester.pumpAndSettle();
 
     expect(_filterField(), findsOneWidget);
@@ -1585,6 +1552,7 @@ Future<void> _pumpPanel(
   required FakeGitBackend backend,
   Workspace? workspace,
   GitDiffViewMode viewMode = GitDiffViewMode.flat,
+  GitDiffGroupMode groupMode = GitDiffGroupMode.byArea,
   WorkspaceSourceControlScope? sourceControlScope,
   FakeSourceControlWatcher? watcher,
   AiTextGenerationService? service,
@@ -1618,6 +1586,8 @@ Future<void> _pumpPanel(
                   sourceControlScope ?? _sourceControlScope(resolvedWorkspace),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
+              groupMode: groupMode,
+              onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   onOpenGitDiff ??
                   ({area, relativePath, gitDiffRoot, required scope}) async {},

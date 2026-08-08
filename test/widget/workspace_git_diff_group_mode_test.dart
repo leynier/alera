@@ -1,4 +1,3 @@
-import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
@@ -16,14 +15,10 @@ import '../unit/fake_git_backend.dart';
 import '../unit/fake_source_control_watcher.dart';
 
 void main() {
-  testWidgets('source control actions use VS Code Codicons', (tester) async {
+  testWidgets('groups are ordered as staged unstaged and untracked', (
+    tester,
+  ) async {
     final backend = FakeGitBackend()
-      ..gitRepositoryStateResult = const GitRepositoryState(
-        branch: 'main',
-        upstream: 'origin/main',
-        ahead: 1,
-        behind: 1,
-      )
       ..gitStatusResult = const GitStatusResult(
         entries: <GitChangeEntry>[
           GitChangeEntry(
@@ -42,60 +37,75 @@ void main() {
             status: GitChangeStatus.modified,
           ),
         ],
-      )
-      ..gitStashEntries = const <GitStashEntry>[
-        GitStashEntry(
-          index: 0,
-          reference: 'stash@{0}',
-          message: 'wip on main',
-          oid: 'abc123',
-        ),
-      ];
+      );
 
-    await _pumpPanel(tester, backend);
+    await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(AleraIcons.gitStage), findsWidgets);
-    expect(find.byIcon(AleraIcons.gitUnstage), findsWidgets);
-
-    final discardAction = find.byTooltip('Discard').last;
     expect(
-      find.descendant(
-        of: discardAction,
-        matching: find.byIcon(AleraIcons.gitDiscard),
-      ),
-      findsOneWidget,
+      tester.getTopLeft(find.text('Staged')).dy,
+      lessThan(tester.getTopLeft(find.text('Unstaged')).dy),
     );
     expect(
-      find.descendant(
-        of: discardAction,
-        matching: find.byIcon(AleraIcons.close),
-      ),
-      findsNothing,
+      tester.getTopLeft(find.text('Unstaged')).dy,
+      lessThan(tester.getTopLeft(find.text('Untracked')).dy),
     );
-
-    await tester.tap(find.byTooltip('Source Control Actions'));
-    await tester.pumpAndSettle();
-
-    for (final icon in <IconData>[
-      AleraIcons.gitCommit,
-      AleraIcons.gitSync,
-      AleraIcons.gitStage,
-      AleraIcons.gitUnstage,
-      AleraIcons.gitDiscard,
-      AleraIcons.gitFetch,
-      AleraIcons.gitPull,
-      AleraIcons.gitPush,
-      AleraIcons.gitPublish,
-      AleraIcons.gitStash,
-      AleraIcons.gitStashPop,
-    ]) {
-      expect(find.byIcon(icon), findsWidgets);
-    }
   });
+
+  testWidgets(
+    'unified group mode shows one changes section with area markers',
+    (tester) async {
+      final backend = FakeGitBackend()
+        ..gitStatusResult = const GitStatusResult(
+          entries: <GitChangeEntry>[
+            GitChangeEntry(
+              path: 'lib/new.dart',
+              area: GitChangeArea.untracked,
+              status: GitChangeStatus.untracked,
+            ),
+            GitChangeEntry(
+              path: 'lib/dirty.dart',
+              area: GitChangeArea.unstaged,
+              status: GitChangeStatus.modified,
+            ),
+            GitChangeEntry(
+              path: 'lib/staged.dart',
+              area: GitChangeArea.staged,
+              status: GitChangeStatus.modified,
+            ),
+            GitChangeEntry(
+              path: 'lib/dirty.dart',
+              area: GitChangeArea.staged,
+              status: GitChangeStatus.modified,
+            ),
+          ],
+        );
+
+      await _pumpPanel(
+        tester,
+        backend: backend,
+        groupMode: GitDiffGroupMode.unified,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Changes'), findsOneWidget);
+      expect(find.text('Staged'), findsNothing);
+      expect(find.text('Unstaged'), findsNothing);
+      expect(find.text('Untracked'), findsNothing);
+      expect(find.text('lib/new.dart'), findsOneWidget);
+      expect(find.text('lib/staged.dart'), findsOneWidget);
+      // Same path appears once staged and once unstaged.
+      expect(find.text('lib/dirty.dart'), findsNWidgets(2));
+      expect(find.text('S'), findsNWidgets(2));
+    },
+  );
 }
 
-Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
+Future<void> _pumpPanel(
+  WidgetTester tester, {
+  required FakeGitBackend backend,
+  GitDiffGroupMode groupMode = GitDiffGroupMode.byArea,
+}) {
   final workspace = _workspace();
   return tester.pumpWidget(
     ProviderScope(
@@ -105,7 +115,7 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
           FakeSourceControlWatcher(),
         ),
         settingsControllerProvider.overrideWith(
-          () => _PanelSettingsController(),
+          () => _PanelSettingsController(AleraSettings.defaults),
         ),
       ],
       child: MaterialApp(
@@ -122,7 +132,7 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
               ),
               viewMode: GitDiffViewMode.flat,
               onViewModeChanged: (_) {},
-              groupMode: GitDiffGroupMode.byArea,
+              groupMode: groupMode,
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
@@ -147,8 +157,12 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
 }
 
 class _PanelSettingsController extends SettingsController {
+  _PanelSettingsController(this._settings);
+
+  final AleraSettings _settings;
+
   @override
-  AleraSettings build() => AleraSettings.defaults;
+  AleraSettings build() => _settings;
 }
 
 Workspace _workspace() {

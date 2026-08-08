@@ -1,5 +1,6 @@
 part 'git_range_models.dart';
 part 'git_history_graph_models.dart';
+part 'git_history_models.dart';
 
 enum GitChangeArea {
   untracked('untracked'),
@@ -94,11 +95,18 @@ class GitChangeGroup {
     required this.area,
     required this.entries,
     required this.treeRows,
+    this.unified = false,
   });
 
   final GitChangeArea area;
   final List<GitChangeEntry> entries;
   final List<GitChangeTreeRow> treeRows;
+
+  /// When true, the group holds files from every area in one list. [area] is
+  /// only used as a collapse-key / bulk-action sentinel for the section.
+  final bool unified;
+
+  String get label => unified ? 'Changes' : area.label;
 
   static List<GitChangeGroup> fromEntries(List<GitChangeEntry> entries) {
     const orderedAreas = <GitChangeArea>[
@@ -121,6 +129,38 @@ class GitChangeGroup {
           ),
         ),
     ].where((group) => group.entries.isNotEmpty).toList(growable: false);
+  }
+
+  /// Single Changes section with every entry sorted by path, then area so a
+  /// staged and unstaged copy of the same file stay adjacent (staged first).
+  static List<GitChangeGroup> unifiedFromEntries(List<GitChangeEntry> entries) {
+    if (entries.isEmpty) {
+      return const <GitChangeGroup>[];
+    }
+    final sorted = List<GitChangeEntry>.of(entries)
+      ..sort((a, b) {
+        final byPath = a.path.compareTo(b.path);
+        if (byPath != 0) {
+          return byPath;
+        }
+        return _areaSortIndex(a.area).compareTo(_areaSortIndex(b.area));
+      });
+    return <GitChangeGroup>[
+      GitChangeGroup(
+        area: GitChangeArea.unstaged,
+        entries: sorted,
+        treeRows: _treeRows(sorted),
+        unified: true,
+      ),
+    ];
+  }
+
+  static int _areaSortIndex(GitChangeArea area) {
+    return switch (area) {
+      GitChangeArea.staged => 0,
+      GitChangeArea.unstaged => 1,
+      GitChangeArea.untracked => 2,
+    };
   }
 
   static List<GitChangeTreeRow> _treeRows(List<GitChangeEntry> entries) {
@@ -407,139 +447,4 @@ class GitDiffLine {
 
   final String text;
   final GitDiffLineKind kind;
-}
-
-enum GitHistoryRefCategory { branches, remoteBranches, tags, commits }
-
-enum GitCommitCompareStatus { ready, invalidCommit, error }
-
-class GitHistoryItemRef {
-  const GitHistoryItemRef({
-    required this.id,
-    required this.name,
-    this.revision,
-    this.category,
-    this.color,
-  });
-
-  final String id;
-  final String name;
-  final String? revision;
-  final GitHistoryRefCategory? category;
-  final GitHistoryGraphColorId? color;
-
-  GitHistoryItemRef copyWith({GitHistoryGraphColorId? color}) {
-    return GitHistoryItemRef(
-      id: id,
-      name: name,
-      revision: revision,
-      category: category,
-      color: color ?? this.color,
-    );
-  }
-}
-
-class GitHistoryItem {
-  const GitHistoryItem({
-    required this.id,
-    required this.parentIds,
-    required this.subject,
-    required this.message,
-    this.displayId,
-    this.author,
-    this.authorEmail,
-    this.timestamp,
-    this.references = const <GitHistoryItemRef>[],
-  });
-
-  final String id;
-  final List<String> parentIds;
-  final String subject;
-  final String message;
-  final String? displayId;
-  final String? author;
-  final String? authorEmail;
-  final DateTime? timestamp;
-  final List<GitHistoryItemRef> references;
-
-  GitHistoryItem copyWith({List<GitHistoryItemRef>? references}) {
-    return GitHistoryItem(
-      id: id,
-      parentIds: parentIds,
-      subject: subject,
-      message: message,
-      displayId: displayId,
-      author: author,
-      authorEmail: authorEmail,
-      timestamp: timestamp,
-      references: references ?? this.references,
-    );
-  }
-}
-
-class GitHistoryResult {
-  const GitHistoryResult({
-    required this.items,
-    required this.hasIncomingChanges,
-    required this.hasOutgoingChanges,
-    required this.hasMore,
-    required this.limit,
-    this.currentRef,
-    this.remoteRef,
-    this.baseRef,
-    this.mergeBase,
-  });
-
-  final List<GitHistoryItem> items;
-  final GitHistoryItemRef? currentRef;
-  final GitHistoryItemRef? remoteRef;
-  final GitHistoryItemRef? baseRef;
-  final String? mergeBase;
-  final bool hasIncomingChanges;
-  final bool hasOutgoingChanges;
-  final bool hasMore;
-  final int limit;
-}
-
-class GitCommitChangeEntry {
-  const GitCommitChangeEntry({
-    required this.path,
-    required this.status,
-    this.oldPath,
-    this.added,
-    this.removed,
-  });
-
-  final String path;
-  final String? oldPath;
-  final GitChangeStatus status;
-  final int? added;
-  final int? removed;
-}
-
-class GitCommitCompareSummary {
-  const GitCommitCompareSummary({
-    required this.commitOid,
-    required this.parentOid,
-    required this.compareRef,
-    required this.baseRef,
-    required this.changedFiles,
-    required this.status,
-    this.errorMessage,
-  });
-
-  final String commitOid;
-  final String? parentOid;
-  final String compareRef;
-  final String baseRef;
-  final int changedFiles;
-  final GitCommitCompareStatus status;
-  final String? errorMessage;
-}
-
-class GitCommitCompareResult {
-  const GitCommitCompareResult({required this.summary, required this.entries});
-
-  final GitCommitCompareSummary summary;
-  final List<GitCommitChangeEntry> entries;
 }

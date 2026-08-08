@@ -19,6 +19,9 @@ class _GitDiffGroups extends StatelessWidget {
     required this.onStageArea,
     required this.onUnstageArea,
     required this.onDiscardArea,
+    required this.onStagePath,
+    required this.onUnstagePath,
+    required this.onDiscardPath,
   });
 
   final List<GitChangeGroup> groups;
@@ -28,8 +31,8 @@ class _GitDiffGroups extends StatelessWidget {
   final Set<String> collapsedSections;
   final Set<String> collapsedTreeNodes;
   final Set<String> expandedSubmodules;
-  final ValueChanged<GitChangeArea> onToggleSection;
-  final void Function(GitChangeArea area, String path) onToggleTreeNode;
+  final ValueChanged<String> onToggleSection;
+  final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<GitChangeEntry> onStage;
@@ -38,6 +41,9 @@ class _GitDiffGroups extends StatelessWidget {
   final void Function(GitChangeArea area, String? filePath) onStageArea;
   final void Function(GitChangeArea area, String? filePath) onUnstageArea;
   final void Function(GitChangeArea area, String? filePath) onDiscardArea;
+  final ValueChanged<String?> onStagePath;
+  final ValueChanged<String?> onUnstagePath;
+  final ValueChanged<String?> onDiscardPath;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +56,7 @@ class _GitDiffGroups extends StatelessWidget {
             workspacePath: workspacePath,
             viewMode: viewMode,
             busy: busy,
-            collapsed: collapsedSections.contains('section:${group.area.key}'),
+            collapsed: collapsedSections.contains(_sectionKeyForGroup(group)),
             collapsedTreeNodes: collapsedTreeNodes,
             expandedSubmodules: expandedSubmodules,
             onToggleSection: onToggleSection,
@@ -63,6 +69,9 @@ class _GitDiffGroups extends StatelessWidget {
             onStageArea: onStageArea,
             onUnstageArea: onUnstageArea,
             onDiscardArea: onDiscardArea,
+            onStagePath: onStagePath,
+            onUnstagePath: onUnstagePath,
+            onDiscardPath: onDiscardPath,
           ),
       ],
     );
@@ -88,6 +97,9 @@ class _GitDiffGroup extends StatelessWidget {
     required this.onStageArea,
     required this.onUnstageArea,
     required this.onDiscardArea,
+    required this.onStagePath,
+    required this.onUnstagePath,
+    required this.onDiscardPath,
   });
 
   final GitChangeGroup group;
@@ -97,8 +109,8 @@ class _GitDiffGroup extends StatelessWidget {
   final bool collapsed;
   final Set<String> collapsedTreeNodes;
   final Set<String> expandedSubmodules;
-  final ValueChanged<GitChangeArea> onToggleSection;
-  final void Function(GitChangeArea area, String path) onToggleTreeNode;
+  final ValueChanged<String> onToggleSection;
+  final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<GitChangeEntry> onStage;
@@ -107,6 +119,9 @@ class _GitDiffGroup extends StatelessWidget {
   final void Function(GitChangeArea area, String? filePath) onStageArea;
   final void Function(GitChangeArea area, String? filePath) onUnstageArea;
   final void Function(GitChangeArea area, String? filePath) onDiscardArea;
+  final ValueChanged<String?> onStagePath;
+  final ValueChanged<String?> onUnstagePath;
+  final ValueChanged<String?> onDiscardPath;
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +137,17 @@ class _GitDiffGroup extends StatelessWidget {
             group: group,
             collapsed: collapsed,
             busy: busy,
-            onToggleCollapsed: () => onToggleSection(group.area),
-            onStage: () => onStageArea(group.area, null),
-            onUnstage: () => onUnstageArea(group.area, null),
-            onDiscard: () => onDiscardArea(group.area, null),
+            onToggleCollapsed: () =>
+                onToggleSection(_sectionKeyForGroup(group)),
+            onStage: () => group.unified
+                ? onStagePath(null)
+                : onStageArea(group.area, null),
+            onUnstage: () => group.unified
+                ? onUnstagePath(null)
+                : onUnstageArea(group.area, null),
+            onDiscard: () => group.unified
+                ? onDiscardPath(null)
+                : onDiscardArea(group.area, null),
             canStage: group.entries.any((entry) => entry.canStageFromParent),
             canUnstage: group.entries.any(
               (entry) => entry.canUnstageFromParent,
@@ -145,6 +167,7 @@ class _GitDiffGroup extends StatelessWidget {
                   ),
                   depth: 0,
                   showRelativePath: true,
+                  showAreaMarker: group.unified,
                   busy: busy,
                   onStage: onStage,
                   onUnstage: onUnstage,
@@ -188,12 +211,21 @@ class _GitDiffGroup extends StatelessWidget {
                 onStageArea: onStageArea,
                 onUnstageArea: onUnstageArea,
                 onDiscardArea: onDiscardArea,
+                showAreaMarker: group.unified,
+                unified: group.unified,
+                onStagePath: onStagePath,
+                onUnstagePath: onUnstagePath,
+                onDiscardPath: onDiscardPath,
               ),
           ],
         ],
       ),
     );
   }
+}
+
+String _sectionKeyForGroup(GitChangeGroup group) {
+  return group.unified ? 'section:unified' : 'section:${group.area.key}';
 }
 
 class _GitDiffGroupHeader extends StatelessWidget {
@@ -236,7 +268,7 @@ class _GitDiffGroupHeader extends StatelessWidget {
           const SizedBox(width: AleraTokens.space4),
           Expanded(
             child: Text(
-              group.area.label,
+              group.label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),

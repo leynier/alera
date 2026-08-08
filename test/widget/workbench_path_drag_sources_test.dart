@@ -182,6 +182,8 @@ Future<void> _pumpSourceControl(
               ),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
+              groupMode: GitDiffGroupMode.byArea,
+              onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
               onOpenGitCommitDiff:

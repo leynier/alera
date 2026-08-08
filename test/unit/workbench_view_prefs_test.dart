@@ -115,6 +115,17 @@ void main() {
       expect(restored.workspaceSort, WorkbenchSortBy.recent);
       expect(restored.workspaceKindFilter, WorkspaceKindFilter.all);
       expect(restored.showPinnedWorkspacesBelow, isTrue);
+      expect(restored.gitDiffGroupMode, GitDiffGroupMode.byArea);
+    });
+
+    test('round-trips the git diff group mode', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        gitDiffGroupMode: GitDiffGroupMode.unified,
+      );
+      final restored = WorkbenchViewPrefs.fromJson(
+        Map<String, Object?>.from(prefs.toMap()),
+      );
+      expect(restored.gitDiffGroupMode, GitDiffGroupMode.unified);
     });
 
     test('round-trips the workspace kind filter', () {
