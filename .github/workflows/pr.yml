@@ -13,6 +13,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   # Must match the number of shard entries in the test matrix below. Past four
   # the fixed per-shard setup costs more than the test time it buys back.
