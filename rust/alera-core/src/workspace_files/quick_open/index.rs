@@ -1,26 +1,30 @@
 use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
-use std::sync::Arc;
 
-use ignore::WalkBuilder;
-
-use super::super::{
-    is_protected_child_path, is_protected_relative_path, relative_string, workspace_root,
-    WorkspaceFileError, WorkspaceFileErrorKind,
-};
-
+#[derive(Debug)]
 pub(super) struct QuickOpenIndex {
     pub(super) files: Vec<QuickOpenFile>,
     pub(super) segment_prefixes: SegmentPrefixIndex,
     pub(super) character_index: CharacterIndex,
 }
 
+impl QuickOpenIndex {
+    pub(super) fn new(files: Vec<QuickOpenFile>) -> Self {
+        let segment_prefixes = SegmentPrefixIndex::build(&files);
+        let character_index = CharacterIndex::build(&files);
+        Self {
+            files,
+            segment_prefixes,
+            character_index,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub(super) struct CharacterIndex {
     entries: Vec<(u16, Vec<CharacterMatch>)>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct CharacterMatch {
     pub(super) file_index: usize,
     count: u8,
@@ -28,7 +32,7 @@ pub(super) struct CharacterMatch {
 
 impl CharacterIndex {
     fn build(files: &[QuickOpenFile]) -> Self {
-        let mut entries: HashMap<u16, Vec<CharacterMatch>> = HashMap::new();
+        let mut entries = HashMap::<u16, Vec<CharacterMatch>>::new();
         for (file_index, file) in files.iter().enumerate() {
             for &(code_unit, count) in &file.normalized_character_counts {
                 entries
@@ -72,17 +76,19 @@ impl CharacterIndex {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct SegmentPrefixIndex {
     nodes: Vec<SegmentPrefixNode>,
 }
 
+#[derive(Debug)]
 pub(super) struct SegmentPrefixNode {
-    pub(super) children: Vec<(u16, usize)>,
+    children: Vec<(u16, usize)>,
     pub(super) prefix_matches: Vec<SegmentMatch>,
     pub(super) exact_matches: Vec<SegmentMatch>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct SegmentMatch {
     pub(super) file_index: usize,
     pub(super) segment_index: usize,
@@ -103,12 +109,13 @@ impl SegmentPrefixIndex {
                 let segment = &file.normalized_path[start..end];
                 let mut node_index = 0;
                 for code_unit in segment.encode_utf16() {
-                    let child_index = index.nodes[node_index]
+                    let child = index.nodes[node_index]
                         .children
                         .iter()
-                        .position(|&(child_unit, _)| child_unit == code_unit);
-                    node_index = match child_index {
-                        Some(child_index) => index.nodes[node_index].children[child_index].1,
+                        .find(|(child_unit, _)| *child_unit == code_unit)
+                        .map(|(_, child_index)| *child_index);
+                    node_index = match child {
+                        Some(child_index) => child_index,
                         None => {
                             let child_index = index.nodes.len();
                             index.nodes.push(SegmentPrefixNode {
@@ -122,13 +129,10 @@ impl SegmentPrefixIndex {
                             child_index
                         }
                     };
-                    let matching_segment = SegmentMatch {
+                    index.nodes[node_index].prefix_matches.push(SegmentMatch {
                         file_index,
                         segment_index,
-                    };
-                    index.nodes[node_index]
-                        .prefix_matches
-                        .push(matching_segment);
+                    });
                 }
                 index.nodes[node_index].exact_matches.push(SegmentMatch {
                     file_index,
@@ -146,26 +150,23 @@ impl SegmentPrefixIndex {
     pub(super) fn lookup(&self, query: &[u16]) -> Option<&SegmentPrefixNode> {
         let mut node_index = 0;
         for &code_unit in query {
-            let child_index = self.nodes[node_index]
+            node_index = self.nodes[node_index]
                 .children
                 .iter()
-                .position(|&(child_unit, _)| child_unit == code_unit)?;
-            node_index = self.nodes[node_index].children[child_index].1;
+                .find(|(child_unit, _)| *child_unit == code_unit)
+                .map(|(_, child_index)| *child_index)?;
         }
         Some(&self.nodes[node_index])
     }
 }
 
 fn sort_and_deduplicate_matches(matches: &mut Vec<SegmentMatch>) {
-    matches.sort_unstable_by_key(|matching_segment| {
-        (matching_segment.file_index, matching_segment.segment_index)
-    });
-    matches.dedup_by_key(|matching_segment| matching_segment.file_index);
-    matches.sort_unstable_by_key(|matching_segment| {
-        (matching_segment.segment_index, matching_segment.file_index)
-    });
+    matches.sort_unstable_by_key(|matching| (matching.file_index, matching.segment_index));
+    matches.dedup_by_key(|matching| matching.file_index);
+    matches.sort_unstable_by_key(|matching| (matching.segment_index, matching.file_index));
 }
 
+#[derive(Debug)]
 pub(super) struct QuickOpenFile {
     pub(super) relative_path: String,
     pub(super) normalized_path: String,
@@ -175,7 +176,7 @@ pub(super) struct QuickOpenFile {
 }
 
 impl QuickOpenFile {
-    fn new(relative_path: String) -> Self {
+    pub(super) fn new(relative_path: String) -> Self {
         let normalized_path = relative_path.to_lowercase();
         let normalized_segment_ranges = segment_ranges(&normalized_path);
         let normalized_code_units = normalized_path.encode_utf16().collect::<Vec<_>>();
@@ -207,7 +208,7 @@ fn segment_ranges(path: &str) -> Vec<(usize, usize)> {
     ranges
 }
 
-fn character_counts(code_units: &[u16]) -> Vec<(u16, u8)> {
+pub(super) fn character_counts(code_units: &[u16]) -> Vec<(u16, u8)> {
     let mut sorted = code_units.to_vec();
     sorted.sort_unstable();
     let mut counts: Vec<(u16, u8)> = Vec::new();
@@ -220,79 +221,4 @@ fn character_counts(code_units: &[u16]) -> Vec<(u16, u8)> {
         }
     }
     counts
-}
-
-pub(super) fn build_index(workspace_path: &str) -> Result<Arc<QuickOpenIndex>, WorkspaceFileError> {
-    let root = workspace_root(workspace_path)?;
-    let filter_root = root.clone();
-    let walker = WalkBuilder::new(&root)
-        .hidden(false)
-        .parents(true)
-        .require_git(false)
-        .git_ignore(true)
-        .git_exclude(true)
-        .follow_links(false)
-        .filter_entry(move |entry| {
-            entry.path() == filter_root || !is_protected_child_path(entry.path())
-        })
-        .build();
-    let mut files = Vec::new();
-    for result in walker {
-        let entry = result.map_err(|error| {
-            WorkspaceFileError::new(WorkspaceFileErrorKind::Io, error.to_string())
-        })?;
-        if let Some(file) = quick_open_file(&root, entry.path())? {
-            files.push(QuickOpenFile::new(file));
-        }
-    }
-    files.sort_by(|left, right| {
-        left.normalized_path
-            .cmp(&right.normalized_path)
-            .then_with(|| left.relative_path.cmp(&right.relative_path))
-    });
-    let segment_prefixes = SegmentPrefixIndex::build(&files);
-    let character_index = CharacterIndex::build(&files);
-    Ok(Arc::new(QuickOpenIndex {
-        files,
-        segment_prefixes,
-        character_index,
-    }))
-}
-
-fn quick_open_file(root: &Path, path: &Path) -> Result<Option<String>, WorkspaceFileError> {
-    let relative_path = relative_string(root, path)?;
-    if relative_path.is_empty() || is_protected_relative_path(&relative_path) {
-        return Ok(None);
-    }
-
-    let link_metadata = fs::symlink_metadata(path)
-        .map_err(|error| WorkspaceFileError::from_io(error, path.to_string_lossy()))?;
-    let is_symlink = link_metadata.file_type().is_symlink();
-    if is_symlink {
-        let canonical = match fs::canonicalize(path) {
-            Ok(canonical) => canonical,
-            Err(_) => return Ok(None),
-        };
-        if !canonical.starts_with(root) {
-            return Ok(None);
-        }
-        let canonical_relative = relative_string(root, &canonical)?;
-        if is_protected_relative_path(&canonical_relative) {
-            return Ok(None);
-        }
-    }
-
-    let metadata = if is_symlink {
-        match fs::metadata(path) {
-            Ok(metadata) => metadata,
-            Err(_) => return Ok(None),
-        }
-    } else {
-        link_metadata
-    };
-    if !metadata.is_file() {
-        return Ok(None);
-    }
-
-    Ok(Some(relative_path))
 }

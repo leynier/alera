@@ -14,9 +14,13 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
     RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
@@ -65,6 +69,9 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
     RUNTIME_HOST_MOBILE_NETBIRD_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
@@ -337,6 +344,16 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.promptImage.chunk"
             | "mobile.promptImage.complete"
             | "mobile.promptImage.cancel"
+            | "mobile.workspaceQuickOpen.start"
+            | "mobile.workspaceQuickOpen.search"
+            | "mobile.workspaceQuickOpen.stop"
+            | "mobile.workspaceFile.read"
+            | "mobile.codexSavedPrompts.list"
+            | "mobile.promptFile.start"
+            | "mobile.promptFile.chunk"
+            | "mobile.promptFile.complete"
+            | "mobile.promptFile.cancel"
+            | "mobile.promptAttachment.read"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
@@ -409,4 +426,34 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "automation.import"
             | "automation.policy"
     )
+}
+
+#[cfg(test)]
+mod mobile_codex_file_surface_tests {
+    use super::*;
+
+    #[test]
+    fn advertises_and_allows_mobile_codex_file_surfaces() {
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY));
+        assert!(
+            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY)
+        );
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY));
+        for request in [
+            "mobile.workspaceQuickOpen.start",
+            "mobile.workspaceQuickOpen.search",
+            "mobile.workspaceQuickOpen.stop",
+            "mobile.workspaceFile.read",
+            "mobile.codexSavedPrompts.list",
+            "mobile.promptFile.start",
+            "mobile.promptFile.chunk",
+            "mobile.promptFile.complete",
+            "mobile.promptFile.cancel",
+            "mobile.promptAttachment.read",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+    }
 }

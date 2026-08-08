@@ -248,6 +248,7 @@ impl ServerActor {
                 self.handle_codex_request(client_id, request_type, payload)
                     .await
             }
+            "mobile.workspaceQuickOpen.stop" => self.stop_mobile_workspace_quick_open(payload),
             "configure" => {
                 self.require_auth(client_id)?;
                 // Crash reporting is a live switch rather than a start-up flag:

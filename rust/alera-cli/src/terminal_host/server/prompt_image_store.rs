@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
-mod fs;
+pub(super) mod fs;
 
 use self::fs::{create_private_exclusive, open_nofollow, restrict_to_owner};
 
-const PROMPT_IMAGE_DIRECTORY: &str = "prompt-images";
+pub(super) const PROMPT_IMAGE_DIRECTORY: &str = "prompt-images";
 const PARTIAL_SUFFIX: &str = ".partial";
 const METADATA_SUFFIX: &str = ".meta";
 const CLEANUP_MARKER: &str = ".last-cleanup";

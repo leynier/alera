@@ -108,6 +108,7 @@ mod host_status;
 mod lifecycle;
 mod managed_workspace_requests;
 mod mobile_terminal_requests;
+mod mobile_workspace_file_requests;
 mod orchestration_agent_spawn_requests;
 mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
@@ -120,6 +121,8 @@ mod output_delivery;
 #[cfg(test)]
 mod output_resume_tests;
 mod project_requests;
+mod prompt_file_requests;
+mod prompt_file_store;
 mod prompt_image_requests;
 mod prompt_image_store;
 mod pty_event_forwarder;
@@ -264,6 +267,7 @@ pub async fn run_terminal_host_server(
         agent_quota_cache: None,
         account_push,
         clients: HashMap::new(),
+        mobile_prompt_file_uploads: HashMap::new(),
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
@@ -366,6 +370,7 @@ struct ServerActor {
     agent_quota_cache: Option<(Instant, u64, Value)>,
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
+    mobile_prompt_file_uploads: HashMap<u64, HashSet<String>>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     agent_presence: AgentPresenceRegistry,
     orchestration_waiters: MessageWaiterRegistry,
@@ -627,6 +632,30 @@ impl ServerActor {
                 request_id,
                 result,
             } => self.handle_ai_text_generation_finished(client_id, request_id, result),
+            ServerCommand::MobileWorkspaceFileFinished {
+                client_id,
+                request_id,
+                request_type,
+                result,
+            } => self.handle_mobile_workspace_file_finished(
+                client_id,
+                request_id,
+                &request_type,
+                result,
+            ),
+            ServerCommand::MobilePromptFileFinished {
+                client_id,
+                request_id,
+                request_type,
+                upload_id,
+                result,
+            } => self.handle_mobile_prompt_file_finished(
+                client_id,
+                request_id,
+                &request_type,
+                upload_id.as_deref(),
+                result,
+            ),
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
@@ -1249,6 +1278,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1325,6 +1355,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1419,6 +1450,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1508,6 +1540,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1619,6 +1652,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1703,6 +1737,7 @@ mod tests {
             agent_quota_cache: None,
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1778,6 +1813,7 @@ mod tests {
                 (2, ClientState::local(second_app_handle, true)),
                 (3, ClientState::local(cli_handle, false)),
             ]),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),

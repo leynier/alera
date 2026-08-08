@@ -39,6 +39,15 @@ pub const RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY: &str = "mobileHostToolsV1";
 /// Advertised once authenticated mobile clients may stream prompt images into
 /// the runtime-owned image store for New Workspace From Prompt.
 pub const RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY: &str = "mobilePromptImageUploadV1";
+/// A paired phone can search and read bounded workspace files and list saved
+/// Codex prompts without receiving unrestricted host filesystem access.
+pub const RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY: &str =
+    "mobileCodexWorkspaceFilesV1";
+/// A paired phone can upload bounded general files into the runtime-owned
+/// prompt attachment store using the same offset-checked chunking as images.
+pub const RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY: &str = "mobilePromptFileUploadV1";
+pub const RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY: &str =
+    "mobilePromptAttachmentReadV1";
 /// Desktop account management backed by the Alera cloud identity service.
 /// Account verbs remain unavailable to paired mobile clients.
 pub const RUNTIME_HOST_ACCOUNT_CAPABILITY: &str = "aleraAccountV1";
