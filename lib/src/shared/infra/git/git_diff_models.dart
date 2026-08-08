@@ -94,11 +94,18 @@ class GitChangeGroup {
     required this.area,
     required this.entries,
     required this.treeRows,
+    this.unified = false,
   });
 
   final GitChangeArea area;
   final List<GitChangeEntry> entries;
   final List<GitChangeTreeRow> treeRows;
+
+  /// When true, the group holds files from every area in one list. [area] is
+  /// only used as a collapse-key / bulk-action sentinel for the section.
+  final bool unified;
+
+  String get label => unified ? 'Changes' : area.label;
 
   static List<GitChangeGroup> fromEntries(List<GitChangeEntry> entries) {
     const orderedAreas = <GitChangeArea>[
@@ -121,6 +128,38 @@ class GitChangeGroup {
           ),
         ),
     ].where((group) => group.entries.isNotEmpty).toList(growable: false);
+  }
+
+  /// Single Changes section with every entry sorted by path, then area so a
+  /// staged and unstaged copy of the same file stay adjacent (staged first).
+  static List<GitChangeGroup> unifiedFromEntries(List<GitChangeEntry> entries) {
+    if (entries.isEmpty) {
+      return const <GitChangeGroup>[];
+    }
+    final sorted = List<GitChangeEntry>.of(entries)
+      ..sort((a, b) {
+        final byPath = a.path.compareTo(b.path);
+        if (byPath != 0) {
+          return byPath;
+        }
+        return _areaSortIndex(a.area).compareTo(_areaSortIndex(b.area));
+      });
+    return <GitChangeGroup>[
+      GitChangeGroup(
+        area: GitChangeArea.unstaged,
+        entries: sorted,
+        treeRows: _treeRows(sorted),
+        unified: true,
+      ),
+    ];
+  }
+
+  static int _areaSortIndex(GitChangeArea area) {
+    return switch (area) {
+      GitChangeArea.staged => 0,
+      GitChangeArea.unstaged => 1,
+      GitChangeArea.untracked => 2,
+    };
   }
 
   static List<GitChangeTreeRow> _treeRows(List<GitChangeEntry> entries) {

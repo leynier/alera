@@ -25,6 +25,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.onSetContextPanelTab,
     required this.onSetExplorerMode,
     required this.onSetGitDiffViewMode,
+    required this.onSetGitDiffGroupMode,
     this.onFocusSourceControlFolder,
     this.onClearSourceControlRoot,
     required this.onOpenFile,
@@ -47,6 +48,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
   final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
+  final ValueChanged<GitDiffGroupMode> onSetGitDiffGroupMode;
   final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
   final VoidCallback? onClearSourceControlRoot;
   final ValueChanged<String> onOpenFile;
@@ -112,6 +114,8 @@ class WorkspaceContextSidebar extends StatelessWidget {
                                 sourceControlScope: sourceControlScope,
                                 viewMode: prefs.gitDiffViewMode,
                                 onViewModeChanged: onSetGitDiffViewMode,
+                                groupMode: prefs.gitDiffGroupMode,
+                                onGroupModeChanged: onSetGitDiffGroupMode,
                                 onOpenGitDiff: onOpenGitDiff,
                                 onOpenGitCommitDiff: onOpenGitCommitDiff,
                                 onClearSourceControlRoot:
