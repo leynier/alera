@@ -263,6 +263,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(gitDiffViewMode: mode));
   }
 
+  void setGitDiffGroupMode(GitDiffGroupMode mode) {
+    if (state.viewPrefs.gitDiffGroupMode == mode) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(gitDiffGroupMode: mode));
+  }
+
   void setPullRequestCreateAction(PullRequestCreateAction action) {
     if (state.viewPrefs.pullRequestCreateAction == action) {
       return;

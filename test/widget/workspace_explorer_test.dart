@@ -593,6 +593,7 @@ void main() {
               onSetContextPanelTab: (_) {},
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
+              onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
@@ -644,6 +645,7 @@ void main() {
               onSetContextPanelTab: (_) {},
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
+              onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
@@ -768,6 +770,7 @@ Widget _workspaceContextSidebar(Workspace workspace) {
     onSetContextPanelTab: (_) {},
     onSetExplorerMode: (_) {},
     onSetGitDiffViewMode: (_) {},
+    onSetGitDiffGroupMode: (_) {},
     onOpenFile: (_) {},
     onOpenGitDiff: ({relativePath, area, gitDiffRoot, required scope}) async {},
     onOpenGitCommitDiff:

@@ -122,6 +122,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             onSetContextPanelTab: controller.setContextPanelTab,
                             onSetExplorerMode: controller.setExplorerMode,
                             onSetGitDiffViewMode: controller.setGitDiffViewMode,
+                            onSetGitDiffGroupMode:
+                                controller.setGitDiffGroupMode,
                             onFocusSourceControlFolder:
                                 canSelectSourceControlRoot
                                 ? (relativePath) {

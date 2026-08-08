@@ -21,6 +21,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                 onSetContextPanelTab: (_) {},
                 onSetExplorerMode: (_) {},
                 onSetGitDiffViewMode: (_) {},
+                onSetGitDiffGroupMode: (_) {},
                 onOpenFile: (_) {},
                 onOpenGitDiff:
                     ({
@@ -79,6 +80,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                 onSetContextPanelTab: (_) {},
                 onSetExplorerMode: (_) {},
                 onSetGitDiffViewMode: (_) {},
+                onSetGitDiffGroupMode: (_) {},
                 onOpenFile: (_) {},
                 onOpenGitDiff:
                     ({
@@ -127,6 +129,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
                 onSetContextPanelTab: (_) {},
                 onSetExplorerMode: (_) {},
                 onSetGitDiffViewMode: (_) {},
+                onSetGitDiffGroupMode: (_) {},
                 onOpenFile: (_) {},
                 onOpenGitDiff:
                     ({

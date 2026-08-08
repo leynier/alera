@@ -17,6 +17,11 @@ class _GitDiffTree extends StatefulWidget {
     required this.onStageArea,
     required this.onUnstageArea,
     required this.onDiscardArea,
+    this.showAreaMarker = false,
+    this.unified = false,
+    this.onStagePath,
+    this.onUnstagePath,
+    this.onDiscardPath,
   });
 
   final String workspacePath;
@@ -25,7 +30,7 @@ class _GitDiffTree extends StatefulWidget {
   final bool busy;
   final Set<String> collapsedTreeNodes;
   final Set<String> expandedSubmodules;
-  final void Function(GitChangeArea area, String path) onToggleTreeNode;
+  final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<GitChangeEntry> onStage;
@@ -34,6 +39,11 @@ class _GitDiffTree extends StatefulWidget {
   final void Function(GitChangeArea area, String? filePath) onStageArea;
   final void Function(GitChangeArea area, String? filePath) onUnstageArea;
   final void Function(GitChangeArea area, String? filePath) onDiscardArea;
+  final bool showAreaMarker;
+  final bool unified;
+  final ValueChanged<String?>? onStagePath;
+  final ValueChanged<String?>? onUnstagePath;
+  final ValueChanged<String?>? onDiscardPath;
 
   @override
   State<_GitDiffTree> createState() => _GitDiffTreeState();
@@ -115,6 +125,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
           onStage: widget.onStage,
           onUnstage: widget.onUnstage,
           onDiscard: widget.onDiscard,
+          showAreaMarker: widget.showAreaMarker,
           submoduleExpanded: expanded,
           onToggleSubmodule: () => widget.onToggleSubmodule(entry),
           onTap: entry.isSubmoduleWorktreeOnly
@@ -150,10 +161,28 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
         canStage: capabilities?.canStage ?? false,
         canUnstage: capabilities?.canUnstage ?? false,
         canDiscard: capabilities?.canDiscard ?? false,
-        onTap: () => widget.onToggleTreeNode(widget.area, row.path),
-        onStage: () => widget.onStageArea(widget.area, row.path),
-        onUnstage: () => widget.onUnstageArea(widget.area, row.path),
-        onDiscard: () => widget.onDiscardArea(widget.area, row.path),
+        onTap: () => widget.onToggleTreeNode(_treeNodeKey(row.path)),
+        onStage: () {
+          if (widget.unified) {
+            widget.onStagePath?.call(row.path);
+            return;
+          }
+          widget.onStageArea(widget.area, row.path);
+        },
+        onUnstage: () {
+          if (widget.unified) {
+            widget.onUnstagePath?.call(row.path);
+            return;
+          }
+          widget.onUnstageArea(widget.area, row.path);
+        },
+        onDiscard: () {
+          if (widget.unified) {
+            widget.onDiscardPath?.call(row.path);
+            return;
+          }
+          widget.onDiscardArea(widget.area, row.path);
+        },
       ),
     ];
   }
@@ -162,7 +191,10 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
     return const <GitChangeTreeRow>[];
   }
 
-  String _treeNodeKey(String path) => 'folder:${widget.area.key}:$path';
+  String _treeNodeKey(String path) {
+    final areaKey = widget.unified ? 'unified' : widget.area.key;
+    return 'folder:$areaKey:$path';
+  }
 }
 
 class _GitDirectoryCapabilities {
@@ -278,6 +310,7 @@ class _GitDiffFileRow extends StatelessWidget {
     required this.onUnstage,
     required this.onDiscard,
     this.showRelativePath = false,
+    this.showAreaMarker = false,
     this.submoduleExpanded = false,
     this.onToggleSubmodule,
   });
@@ -291,6 +324,7 @@ class _GitDiffFileRow extends StatelessWidget {
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
   final bool showRelativePath;
+  final bool showAreaMarker;
   final bool submoduleExpanded;
   final VoidCallback? onToggleSubmodule;
 
@@ -359,7 +393,11 @@ class _GitDiffFileRow extends StatelessWidget {
             ),
           if (entry.isSubmoduleWorktreeOnly)
             const SizedBox(width: AleraTokens.space4),
-          _GitStatusLabel(status: entry.status),
+          _GitStatusLabel(
+            status: entry.status,
+            area: entry.area,
+            showAreaMarker: showAreaMarker,
+          ),
           const SizedBox(width: AleraTokens.space6),
           _LineStats(added: entry.added, removed: entry.removed),
           const SizedBox(width: AleraTokens.space4),

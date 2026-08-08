@@ -24,6 +24,11 @@ enum WorkspaceExplorerMode { hideIgnored, showAll }
 @MappableEnum()
 enum GitDiffViewMode { tree, flat }
 
+/// Whether Source Control lists files under Staged/Unstaged/Untracked headers
+/// or in a single Changes section.
+@MappableEnum()
+enum GitDiffGroupMode { byArea, unified }
+
 /// Preferred primary action for the Checks-panel create-PR split button.
 @MappableEnum()
 enum PullRequestCreateAction { publish, draft }
@@ -54,6 +59,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
     this.gitDiffViewMode = GitDiffViewMode.tree,
+    this.gitDiffGroupMode = GitDiffGroupMode.byArea,
     this.pullRequestCreateAction = PullRequestCreateAction.publish,
     this.workspaceKindFilter = WorkspaceKindFilter.all,
   });
@@ -108,6 +114,9 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final WorkspaceExplorerMode explorerMode;
   final GitDiffViewMode gitDiffViewMode;
 
+  /// Whether Source Control groups files by staged state or shows one list.
+  final GitDiffGroupMode gitDiffGroupMode;
+
   /// Sticky create-PR split-button action (publish vs draft). App-wide and
   /// persisted with the rest of the workbench view prefs.
   final PullRequestCreateAction pullRequestCreateAction;
@@ -135,6 +144,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,
     explorerMode: WorkspaceExplorerMode.hideIgnored,
     gitDiffViewMode: GitDiffViewMode.tree,
+    gitDiffGroupMode: GitDiffGroupMode.byArea,
     pullRequestCreateAction: PullRequestCreateAction.publish,
     workspaceKindFilter: WorkspaceKindFilter.all,
   );

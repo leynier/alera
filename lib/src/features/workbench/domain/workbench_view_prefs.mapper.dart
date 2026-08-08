@@ -259,6 +259,52 @@ extension GitDiffViewModeMapperExtension on GitDiffViewMode {
   }
 }
 
+class GitDiffGroupModeMapper extends EnumMapper<GitDiffGroupMode> {
+  GitDiffGroupModeMapper._();
+
+  static GitDiffGroupModeMapper? _instance;
+  static GitDiffGroupModeMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = GitDiffGroupModeMapper._());
+    }
+    return _instance!;
+  }
+
+  static GitDiffGroupMode fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  GitDiffGroupMode decode(dynamic value) {
+    switch (value) {
+      case r'byArea':
+        return GitDiffGroupMode.byArea;
+      case r'unified':
+        return GitDiffGroupMode.unified;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(GitDiffGroupMode self) {
+    switch (self) {
+      case GitDiffGroupMode.byArea:
+        return r'byArea';
+      case GitDiffGroupMode.unified:
+        return r'unified';
+    }
+  }
+}
+
+extension GitDiffGroupModeMapperExtension on GitDiffGroupMode {
+  String toValue() {
+    GitDiffGroupModeMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<GitDiffGroupMode>(this) as String;
+  }
+}
+
 class PullRequestCreateActionMapper
     extends EnumMapper<PullRequestCreateAction> {
   PullRequestCreateActionMapper._();
@@ -371,6 +417,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       WorkbenchContextPanelTabMapper.ensureInitialized();
       WorkspaceExplorerModeMapper.ensureInitialized();
       GitDiffViewModeMapper.ensureInitialized();
+      GitDiffGroupModeMapper.ensureInitialized();
       PullRequestCreateActionMapper.ensureInitialized();
       WorkspaceKindFilterMapper.ensureInitialized();
     }
@@ -507,6 +554,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: GitDiffViewMode.tree,
       );
+  static GitDiffGroupMode _$gitDiffGroupMode(WorkbenchViewPrefs v) =>
+      v.gitDiffGroupMode;
+  static const Field<WorkbenchViewPrefs, GitDiffGroupMode> _f$gitDiffGroupMode =
+      Field(
+        'gitDiffGroupMode',
+        _$gitDiffGroupMode,
+        opt: true,
+        def: GitDiffGroupMode.byArea,
+      );
   static PullRequestCreateAction _$pullRequestCreateAction(
     WorkbenchViewPrefs v,
   ) => v.pullRequestCreateAction;
@@ -547,6 +603,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
     #gitDiffViewMode: _f$gitDiffViewMode,
+    #gitDiffGroupMode: _f$gitDiffGroupMode,
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
   };
@@ -573,6 +630,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
       gitDiffViewMode: data.dec(_f$gitDiffViewMode),
+      gitDiffGroupMode: data.dec(_f$gitDiffGroupMode),
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
     );
@@ -670,6 +728,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
+    GitDiffGroupMode? gitDiffGroupMode,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
   });
@@ -713,6 +772,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
+    GitDiffGroupMode? gitDiffGroupMode,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
   }) => $apply(
@@ -744,6 +804,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #activeContextPanelTab: activeContextPanelTab,
       if (explorerMode != null) #explorerMode: explorerMode,
       if (gitDiffViewMode != null) #gitDiffViewMode: gitDiffViewMode,
+      if (gitDiffGroupMode != null) #gitDiffGroupMode: gitDiffGroupMode,
       if (pullRequestCreateAction != null)
         #pullRequestCreateAction: pullRequestCreateAction,
       if (workspaceKindFilter != null)
@@ -803,6 +864,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     ),
     explorerMode: data.get(#explorerMode, or: $value.explorerMode),
     gitDiffViewMode: data.get(#gitDiffViewMode, or: $value.gitDiffViewMode),
+    gitDiffGroupMode: data.get(#gitDiffGroupMode, or: $value.gitDiffGroupMode),
     pullRequestCreateAction: data.get(
       #pullRequestCreateAction,
       or: $value.pullRequestCreateAction,
