@@ -26,6 +26,30 @@ impl ServerActor {
                 self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "mobile.workspaceQuickOpen.start"
+            | "mobile.workspaceQuickOpen.search"
+            | "mobile.workspaceFile.read"
+            | "mobile.promptAttachment.read"
+            | "mobile.codexSavedPrompts.list" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_workspace_file_request(
+                    client_id,
+                    request_id,
+                    request_type,
+                    payload,
+                )?;
+                Ok(true)
+            }
+            "mobile.promptFile.start"
+            | "mobile.promptFile.chunk"
+            | "mobile.promptFile.complete"
+            | "mobile.promptFile.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_prompt_file_request(client_id, request_id, request_type, payload);
+                Ok(true)
+            }
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

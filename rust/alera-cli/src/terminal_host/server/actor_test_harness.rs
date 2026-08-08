@@ -103,6 +103,7 @@ pub(super) async fn test_actor(
         agent_quota_cache: None,
         account_push,
         clients,
+        mobile_prompt_file_uploads: HashMap::new(),
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),

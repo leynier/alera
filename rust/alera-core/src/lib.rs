@@ -3,3 +3,4 @@ pub mod git;
 pub mod git_cli;
 #[cfg(feature = "runtime")]
 pub mod runtime;
+pub mod workspace_files;

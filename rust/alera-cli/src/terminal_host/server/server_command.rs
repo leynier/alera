@@ -79,6 +79,19 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    MobileWorkspaceFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        result: HostResult<Value>,
+    },
+    MobilePromptFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        upload_id: Option<String>,
+        result: HostResult<Value>,
+    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,

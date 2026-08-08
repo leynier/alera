@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 use super::super::WorkspaceQuickOpenMatch;
-use super::index::{QuickOpenFile, QuickOpenIndex, SegmentMatch};
+use super::index::{character_counts, QuickOpenFile, QuickOpenIndex, SegmentMatch};
 
 pub(super) fn search(
     index: &QuickOpenIndex,
@@ -34,7 +34,7 @@ pub(super) fn search(
 
     let mut path_index = first_path_at_least(&index.files, &normalized_query);
     while path_index < index.files.len()
-        && index.files[path_index].normalized_path.as_str() == normalized_query
+        && index.files[path_index].normalized_path == normalized_query
     {
         append_indexed_match(
             &index.files,
@@ -93,14 +93,13 @@ pub(super) fn search(
         return into_matches(ranked);
     }
 
-    let lower_matches = search_lower(
+    ranked.extend(search_lower(
         index,
         &indexed_files,
         &normalized_query,
         &query_code_units,
         limit - ranked.len(),
-    );
-    ranked.extend(lower_matches);
+    ));
     into_matches(ranked)
 }
 
@@ -128,13 +127,13 @@ fn append_segment_matches<'a>(
     base_score: i32,
     limit: usize,
 ) {
-    for matching_segment in matches {
+    for matching in matches {
         append_indexed_match(
             files,
             indexed_files,
             ranked,
-            matching_segment.file_index,
-            base_score - matching_segment.segment_index as i32,
+            matching.file_index,
+            base_score - matching.segment_index as i32,
         );
         if ranked.len() == limit {
             break;
@@ -143,17 +142,7 @@ fn append_segment_matches<'a>(
 }
 
 fn first_path_at_least(files: &[QuickOpenFile], query: &str) -> usize {
-    let mut low = 0;
-    let mut high = files.len();
-    while low < high {
-        let middle = low + (high - low) / 2;
-        if files[middle].normalized_path.as_str() < query {
-            low = middle + 1;
-        } else {
-            high = middle;
-        }
-    }
-    low
+    files.partition_point(|file| file.normalized_path.as_str() < query)
 }
 
 fn search_lower<'a>(
@@ -206,17 +195,6 @@ fn into_matches(ranked: Vec<RankedFile<'_>>) -> Vec<WorkspaceQuickOpenMatch> {
             score: candidate.score,
         })
         .collect()
-}
-
-fn character_counts(code_units: &[u16]) -> Vec<(u16, u8)> {
-    let mut counts: Vec<(u16, u8)> = Vec::new();
-    for &code_unit in code_units {
-        match counts.binary_search_by_key(&code_unit, |(unit, _)| *unit) {
-            Ok(index) => counts[index].1 = counts[index].1.saturating_add(1),
-            Err(index) => counts.insert(index, (code_unit, 1)),
-        }
-    }
-    counts
 }
 
 fn has_required_characters(file: &QuickOpenFile, query: &[(u16, u8)]) -> bool {
