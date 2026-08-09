@@ -449,6 +449,13 @@ void registerCodexTimelineProgressTests() {
       find.byKey(const ValueKey<String>('codex-composer')),
       findsOneWidget,
     );
+    final questionBottom = tester.getBottomRight(
+      find.byKey(const ValueKey<String>('codex-question-card')),
+    );
+    final composerTop = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('codex-composer')),
+    );
+    expect(questionBottom.dy, lessThan(composerTop.dy));
   });
 
   testWidgets('fades only plan previews that overflow', (tester) async {

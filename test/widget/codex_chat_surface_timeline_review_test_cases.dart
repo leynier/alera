@@ -227,6 +227,39 @@ void registerCodexTimelineReviewTests() {
     expect(find.text('One'), findsOneWidget);
   });
 
+  testWidgets('docks blocking questions at the bottom of the chat', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[
+        <String, Object?>{
+          'id': 18,
+          'method': 'item/tool/requestUserInput',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'scope',
+                'question': 'Choose a scope',
+                'options': <Object?>[
+                  <String, Object?>{'label': 'Complete'},
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      timelineCells: const <Object?>[],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    final surfaceBottom = tester.getBottomRight(find.byType(CodexChatSurface));
+    final cardBottom = tester.getBottomRight(
+      find.byKey(const ValueKey<String>('codex-question-card')),
+    );
+    expect(surfaceBottom.dy - cardBottom.dy, AleraTokens.space12);
+  });
+
   testWidgets('resets local refinement when the actionable plan changes', (
     tester,
   ) async {
