@@ -245,11 +245,11 @@ class _CodexPromptInlineAnswerRowState
                   AleraTokens.space8 +
                       AleraTokens.space32 +
                       AleraTokens.space12,
-                  AleraTokens.space4,
+                  AleraTokens.space8,
                   AleraTokens.space8 +
                       AleraTokens.space48 +
                       AleraTokens.space24,
-                  AleraTokens.space4,
+                  AleraTokens.space8,
                 ),
                 child: ScrollConfiguration(
                   behavior: ScrollConfiguration.of(
@@ -309,22 +309,28 @@ class _CodexPromptInlineAnswerRowState
               ),
               Positioned(
                 right: AleraTokens.space8,
-                bottom: AleraTokens.space4,
-                child: hasText
-                    ? FilledButton(
-                        onPressed: widget.onSubmit,
-                        style: FilledButton.styleFrom(
-                          minimumSize: Size.zero,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AleraTokens.space12,
-                            vertical: AleraTokens.space6,
-                          ),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: const StadiumBorder(),
-                        ),
-                        child: Text(widget.actionLabel),
-                      )
-                    : _CodexSkipButton(onPressed: widget.onSkip),
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: SizedBox(
+                    height: AleraTokens.space32,
+                    child: hasText
+                        ? FilledButton(
+                            onPressed: widget.onSubmit,
+                            style: FilledButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AleraTokens.space12,
+                                vertical: AleraTokens.space6,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: const StadiumBorder(),
+                            ),
+                            child: Text(widget.actionLabel),
+                          )
+                        : _CodexSkipButton(onPressed: widget.onSkip),
+                  ),
+                ),
               ),
             ],
           ),
