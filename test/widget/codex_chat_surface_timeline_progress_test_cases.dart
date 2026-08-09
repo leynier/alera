@@ -84,6 +84,14 @@ void registerCodexTimelineProgressTests() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey<String>('codex-plan-progress-card')),
+          )
+          .width,
+      AleraTokens.codexPlanProgressCardWidth,
+    );
     final progressList = find.byKey(
       const ValueKey<String>('codex-plan-progress-list'),
     );
@@ -101,6 +109,51 @@ void registerCodexTimelineProgressTests() {
 
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Step 30 with enough detail'), findsOneWidget);
+  });
+
+  testWidgets('uses circular status icons in plan progress', (tester) async {
+    final client = _SurfaceRuntimeClient(
+      activeTurnId: 'turn-plan',
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'active-plan',
+          'turnId': 'turn-plan',
+          'kind': 'plan',
+          'status': 'inProgress',
+          'metadata': <String, Object?>{
+            'plan': <Object?>[
+              <String, Object?>{
+                'step': 'Completed step',
+                'status': 'completed',
+              },
+              <String, Object?>{'step': 'Active step', 'status': 'inProgress'},
+              <String, Object?>{'step': 'Pending step', 'status': 'pending'},
+            ],
+          },
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    final trigger = find.byKey(const ValueKey<String>('codex-plan-progress'));
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(pointer.removePointer);
+    await pointer.addPointer(location: tester.getCenter(trigger));
+    await pointer.moveTo(tester.getCenter(trigger));
+    await tester.pump(AleraTokens.durationFast);
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const ValueKey<String>('codex-plan-progress-card'));
+    expect(
+      find.descendant(of: card, matching: find.byIcon(AleraIcons.success)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.byIcon(AleraIcons.circle)),
+      findsNWidgets(2),
+    );
   });
 
   testWidgets('keeps one plan flight animation across streamed rebuilds', (

@@ -489,6 +489,11 @@ void registerCodexTimelineSegmentTests() {
       find.byKey(const ValueKey<String>('codex-message-timestamp')),
       findsOneWidget,
     );
+    final timestamp = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-message-timestamp')),
+    );
+    final copyButton = tester.getRect(find.byTooltip('Copy Message'));
+    expect(timestamp.center.dy, closeTo(copyButton.center.dy, 0.1));
   });
 
   testWidgets('hides unknown message timestamps', (tester) async {

@@ -158,8 +158,9 @@ class _CodexPlanProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+    key: const ValueKey<String>('codex-plan-progress-card'),
+    width: AleraTokens.codexPlanProgressCardWidth,
     constraints: const BoxConstraints(
-      maxWidth: AleraTokens.contextMenuWidth,
       maxHeight: AleraTokens.codexPlanProgressMaxHeight,
     ),
     padding: const EdgeInsets.all(AleraTokens.space12),
@@ -180,7 +181,7 @@ class _CodexPlanProgressCard extends StatelessWidget {
               children: <Widget>[
                 Icon(
                   status.toLowerCase() == 'completed'
-                      ? AleraIcons.check
+                      ? AleraIcons.success
                       : AleraIcons.circle,
                   size: AleraTokens.iconMd,
                   color: status.toLowerCase() == 'inprogress'

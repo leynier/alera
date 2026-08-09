@@ -38,6 +38,7 @@ abstract final class AleraTokens {
   static const double codexPlanPreviewMaxHeight = 200.0;
   static const double codexPlanPreviewFadeHeight = 96.0;
   static const double codexPlanProgressMaxHeight = 280.0;
+  static const double codexPlanProgressCardWidth = 320.0;
   static const double codexUserMessageLeftInset = 80.0;
   static const double codexComposerOverlayMaxHeight = 220.0;
   static const double codexRequestMaxHeight = 320.0;
