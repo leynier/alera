@@ -411,6 +411,24 @@ void registerCodexChatControllerInputTests() {
       'text': 'Implement plan',
     });
 
+    controller.setPlanMode(true);
+    await controller.declinePlan();
+    turn = client.requests.lastWhere(
+      (request) => request.type == 'codex.turn.start',
+    );
+    expect(container.read(provider).planMode, isTrue);
+    expect(turn.payload['collaborationMode'], <String, Object?>{
+      'mode': 'plan',
+      'settings': <String, Object?>{
+        'model': 'gpt-current',
+        'reasoning_effort': 'low',
+      },
+    });
+    expect((turn.payload['input'] as List).last, <String, Object?>{
+      'type': 'text',
+      'text': 'Do not implement the plan.',
+    });
+
     await controller.refinePlan('Add tests first');
     turn = client.requests.lastWhere(
       (request) => request.type == 'codex.turn.start',

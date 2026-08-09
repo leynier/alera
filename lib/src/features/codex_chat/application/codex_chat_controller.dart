@@ -330,7 +330,7 @@ class CodexChatController extends _$CodexChatController {
   /// implement-plan question. Keep the actions as ordinary user turns so the
   /// server remains the source of truth for plan execution.
   Future<void> declinePlan() async {
-    state = state.copyWith(planMode: false, collaborationMode: null);
+    state = state.copyWith(planMode: true, collaborationMode: 'plan');
     _persistConfiguration();
     await send('Do not implement the plan.');
   }
