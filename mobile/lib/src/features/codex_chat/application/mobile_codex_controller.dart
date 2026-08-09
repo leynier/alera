@@ -487,21 +487,4 @@ class MobileCodexController extends _$MobileCodexController
     'codex.thread.rename',
     <String, Object?>{'tabId': tabId, 'name': title.trim()},
   );
-
-  Future<void> implementPlan() async {
-    setPlanMode(false);
-    await send('Implement plan');
-  }
-
-  Future<void> declinePlan() async {
-    setPlanMode(false);
-    await send('Do not implement the plan.');
-  }
-
-  Future<void> refinePlan(String refinement) async {
-    final text = refinement.trim();
-    if (text.isEmpty) return;
-    setPlanMode(true);
-    await send(text);
-  }
 }

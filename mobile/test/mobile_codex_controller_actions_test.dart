@@ -449,6 +449,24 @@ void main() {
         <String, Object?>{'type': 'text', 'text': 'Implement plan'},
       );
 
+      controller.setPlanMode(true);
+      await controller.declinePlan();
+      final declineTurn = client.calls.lastWhere(
+        (call) => call.type == 'codex.turn.start',
+      );
+      expect(container.read(provider).value!.planMode, isTrue);
+      expect(declineTurn.payload['collaborationMode'], <String, Object?>{
+        'mode': 'plan',
+        'settings': <String, Object?>{
+          'model': 'gpt-current',
+          'reasoning_effort': 'low',
+        },
+      });
+      expect((declineTurn.payload['input'] as List).last, <String, Object?>{
+        'type': 'text',
+        'text': 'Do not implement the plan.',
+      });
+
       await controller.refinePlan('Add tests first');
       final refinementTurn = client.calls.lastWhere(
         (call) => call.type == 'codex.turn.start',

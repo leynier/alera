@@ -81,6 +81,23 @@ extension MobileCodexControllerOptions on MobileCodexController {
     _persistCurrentConfiguration();
   }
 
+  Future<void> implementPlan() async {
+    setPlanMode(false);
+    await send('Implement plan');
+  }
+
+  Future<void> declinePlan() async {
+    setPlanMode(true);
+    await send('Do not implement the plan.');
+  }
+
+  Future<void> refinePlan(String refinement) async {
+    final text = refinement.trim();
+    if (text.isEmpty) return;
+    setPlanMode(true);
+    await send(text);
+  }
+
   void clearError() => _update((current) => current.copyWith(error: null));
 
   Future<void> recoverThread() async {
