@@ -404,6 +404,9 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
   late final Set<String> _topNoticeKeys = <String>{
     for (final entry in topNotices) entry.key,
   };
+  late final Map<String, int> _indexesByKey = <String, int>{
+    for (var index = 0; index < length; index += 1) this[index].key: index,
+  };
 
   bool containsKey(String key) =>
       _topNoticeKeys.contains(key) ||
@@ -412,6 +415,8 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
       boundary?.key == key ||
       _rawEventKeys.contains(key) ||
       _requestKeys.contains(key);
+
+  int? indexOfKey(String key) => _indexesByKey[key];
 
   int get _historyEntryCount =>
       history.entries.length - (boundary == null ? 0 : 1);

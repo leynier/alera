@@ -3,6 +3,18 @@ part of 'mobile_codex_chat_screen.dart';
 // ignore_for_file: invalid_use_of_protected_member
 
 extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
+  int? _findTimelineRowIndex(List<MobileCodexPresentationRow> rows, Key key) {
+    if (key is! ValueKey<String>) return null;
+    if (!identical(_timelineRowIndexSource, rows)) {
+      _timelineRowIndexSource = rows;
+      _timelineRowIndexes = <String, int>{
+        for (var index = 0; index < rows.length; index += 1)
+          rows[index].id: index,
+      };
+    }
+    return _timelineRowIndexes[key.value];
+  }
+
   void _handleTimelineScroll() {
     if (!_timeline.hasClients) return;
     if (_timeline.position.pixels <= AleraTokens.space48 && !_loadingEarlier) {
@@ -17,6 +29,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
       }
     }
     final next = _timeline.position.extentAfter > AleraTokens.space48;
+    _timelinePinned = !next;
     if (next != _showScrollToBottom && mounted) {
       setState(() => _showScrollToBottom = next);
     }
@@ -132,16 +145,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
     }
   }
 
-  void _scrollToBottom() {
-    if (!_timeline.hasClients) return;
-    unawaited(
-      _timeline.animateTo(
-        _timeline.position.maxScrollExtent,
-        duration: AleraTokens.durationMid,
-        curve: Curves.easeOut,
-      ),
-    );
-  }
+  void _scrollToBottom() => _scheduleTimelinePin(animate: true);
 
   Future<void> _openPlan(MobileCodexTimelineCell cell) =>
       Navigator.of(context).push(
@@ -161,17 +165,53 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
         ),
       );
 
-  void _scheduleTimelinePin() {
-    if (_timelinePinScheduled || !_timeline.hasClients) return;
-    final position = _timeline.position;
-    final nearBottom =
-        position.maxScrollExtent - position.pixels <= AleraTokens.space48;
-    if (!nearBottom) return;
+  void _scheduleTimelinePin({bool animate = false}) {
+    if (!_timeline.hasClients) return;
+    _timelinePinned ??= _timeline.position.extentAfter <= AleraTokens.space48;
+    if (!animate && _timelinePinned != true) return;
+    _timelinePinRequested = true;
+    _animateTimelinePin = _animateTimelinePin || animate;
+    if (_timelinePinScheduled) return;
     _timelinePinScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _timelinePinScheduled = false;
-      if (!mounted || !_timeline.hasClients) return;
-      _timeline.jumpTo(_timeline.position.maxScrollExtent);
+      unawaited(_settleTimelinePin());
     });
+  }
+
+  Future<void> _settleTimelinePin() async {
+    try {
+      for (var attempt = 0; attempt < 6; attempt += 1) {
+        if (!mounted || !_timeline.hasClients) return;
+        final animate = _animateTimelinePin;
+        _animateTimelinePin = false;
+        _timelinePinRequested = false;
+        if (_timelinePinned != true && !animate) return;
+        final position = _timeline.position;
+        final target = position.maxScrollExtent;
+        if ((target - position.pixels).abs() >= AleraTokens.space2) {
+          if (animate) {
+            await _timeline.animateTo(
+              target,
+              duration: AleraTokens.durationMid,
+              curve: Curves.easeOut,
+            );
+          } else {
+            _timeline.jumpTo(target);
+          }
+        }
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || !_timeline.hasClients) return;
+        if (_timelinePinned != true) return;
+        if (!_timelinePinRequested &&
+            _timeline.position.extentAfter < AleraTokens.space2) {
+          return;
+        }
+      }
+    } finally {
+      _timelinePinScheduled = false;
+      if (mounted && _timelinePinRequested) {
+        _scheduleTimelinePin(animate: _animateTimelinePin);
+      }
+    }
   }
 }

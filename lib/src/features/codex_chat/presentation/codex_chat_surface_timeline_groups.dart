@@ -45,6 +45,7 @@ class _CodexTimeline extends StatefulWidget {
 class _CodexTimelineState extends State<_CodexTimeline>
     with SingleTickerProviderStateMixin {
   static const int _entryWidgetCacheLimit = 128;
+  static const String _entryKeyPrefix = 'codex-timeline-entry:';
 
   final Set<String> _expandedWorkedTurns = <String>{};
   final Set<String> _expandedToolGroups = <String>{};
@@ -67,6 +68,9 @@ class _CodexTimelineState extends State<_CodexTimeline>
   Rect? _planSourceRect;
   double? _planTimelineOffset;
   bool _showScrollToBottom = false;
+  bool _scrollToBottomScheduled = false;
+  bool _scrollToBottomRequested = false;
+  bool _animateScrollToBottom = false;
   String? _pinnedEntryKey;
 
   @override
@@ -146,13 +150,17 @@ class _CodexTimelineState extends State<_CodexTimeline>
         _flyingPlan = updatedPlan;
       }
     }
-    final newContent =
-        oldWidget.snapshot.timelineCells.length !=
-            widget.snapshot.timelineCells.length ||
-        oldWidget.snapshot.pendingRequests.length !=
-            widget.snapshot.pendingRequests.length;
-    if (newContent && !_showScrollToBottom) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    final timelineChanged =
+        !identical(
+          oldWidget.snapshot.timelineCells,
+          widget.snapshot.timelineCells,
+        ) ||
+        !identical(
+          oldWidget.snapshot.pendingRequests,
+          widget.snapshot.pendingRequests,
+        );
+    if (timelineChanged && !_showScrollToBottom) {
+      _scheduleScrollToBottom();
     }
   }
 
@@ -172,14 +180,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
     }
   }
 
-  void _scrollToBottom() {
-    if (!widget.timeline.hasClients) return;
-    widget.timeline.animateTo(
-      widget.timeline.position.maxScrollExtent,
-      duration: AleraTokens.durationMid,
-      curve: Curves.easeOut,
-    );
-  }
+  void _scrollToBottom() => _scheduleScrollToBottom(animate: true);
 
   void _restorePlan() {
     if (_flyingPlan == null || !mounted) return;
@@ -316,6 +317,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
     };
     final anchorKey = cached?.anchorKey ?? GlobalKey();
     final entryWidget = Center(
+      key: ValueKey<String>('$_entryKeyPrefix${entry.key}'),
       child: ConstrainedBox(
         key: anchorKey,
         constraints: const BoxConstraints(
@@ -341,6 +343,15 @@ class _CodexTimelineState extends State<_CodexTimeline>
       _entryWidgets.remove(evictionKey);
     }
     return entryWidget;
+  }
+
+  int? _findEntryIndex(Key key) {
+    if (key is! ValueKey<String> || !key.value.startsWith(_entryKeyPrefix)) {
+      return null;
+    }
+    return _projection.entries.indexOfKey(
+      key.value.substring(_entryKeyPrefix.length),
+    );
   }
 
   @override
@@ -393,6 +404,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
                   sliver: SliverList.builder(
                     itemCount: _projection.entries.length,
                     itemBuilder: _buildEntry,
+                    findChildIndexCallback: _findEntryIndex,
                   ),
                 ),
               ],

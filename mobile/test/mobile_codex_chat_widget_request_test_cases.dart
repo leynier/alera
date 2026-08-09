@@ -226,6 +226,106 @@ void _registerMobileCodexRequestTests() {
       scrollController.position.pixels,
       greaterThanOrEqualTo(scrollController.position.maxScrollExtent),
     );
+
+    client.emit(
+      MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-host-stream-pin',
+        'snapshotDelta': <String, Object?>{
+          'timelineUpserts': <Object?>[
+            <String, Object?>{
+              'id': 'stream-latest',
+              'kind': 'assistantMessage',
+              'status': 'inProgress',
+              'turnId': 'turn-stream',
+              'markdownText': List<String>.filled(
+                24,
+                'A streamed line that increases the final cell height.',
+              ).join('\n\n'),
+              'isStreaming': true,
+            },
+          ],
+          'timelineRemovedIds': const <Object?>[],
+          'eventsAppend': const <Object?>[],
+          'activeTurnId': 'turn-stream',
+        },
+      }),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(scrollController.position.extentAfter, lessThan(AleraTokens.space2));
+  });
+
+  testWidgets('mobile stops following after the user scrolls away', (
+    tester,
+  ) async {
+    final cells = <Object?>[
+      for (var index = 0; index < 40; index++)
+        <String, Object?>{
+          'id': 'interrupt-$index',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'turnId': 'turn-interrupt',
+          'markdownText': 'Timeline message $index with enough text to scroll.',
+        },
+      <String, Object?>{
+        'id': 'interrupt-latest',
+        'kind': 'assistantMessage',
+        'status': 'inProgress',
+        'turnId': 'turn-interrupt',
+        'markdownText': 'Short streaming response',
+        'isStreaming': true,
+      },
+    ];
+    final client = FakeMobileCodexClient(timelineCells: cells);
+    addTearDown(client.dispose);
+    await _pumpScreen(tester, client: client, hostId: 'host-stream-interrupt');
+
+    final scrollView = tester.widget<CustomScrollView>(
+      find.byType(CustomScrollView),
+    );
+    final scrollController = scrollView.controller!;
+    scrollController.jumpTo(scrollController.position.maxScrollExtent);
+    await tester.pump();
+
+    client.emit(
+      MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-host-stream-interrupt',
+        'snapshotDelta': <String, Object?>{
+          'timelineUpserts': <Object?>[
+            <String, Object?>{
+              'id': 'interrupt-latest',
+              'kind': 'assistantMessage',
+              'status': 'inProgress',
+              'turnId': 'turn-interrupt',
+              'markdownText': List<String>.filled(
+                48,
+                'A streamed line that increases the final cell height.',
+              ).join('\n\n'),
+              'isStreaming': true,
+            },
+          ],
+          'timelineRemovedIds': const <Object?>[],
+          'eventsAppend': const <Object?>[],
+          'activeTurnId': 'turn-interrupt',
+        },
+      }),
+    );
+    await tester.pump();
+
+    final userOffset = (scrollController.position.maxScrollExtent - 300).clamp(
+      scrollController.position.minScrollExtent,
+      scrollController.position.maxScrollExtent,
+    );
+    scrollController.jumpTo(userOffset);
+    await tester.pump();
+    await tester.pump();
+
+    expect(scrollController.position.pixels, closeTo(userOffset, 1));
+    expect(
+      scrollController.position.extentAfter,
+      greaterThan(AleraTokens.space48),
+    );
   });
 
   testWidgets('mobile renders generic attachments as timeline chips', (

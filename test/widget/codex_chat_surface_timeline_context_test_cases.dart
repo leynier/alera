@@ -193,4 +193,138 @@ void registerCodexTimelineContextTests() {
     historyGate.complete();
     await tester.pumpAndSettle();
   });
+
+  testWidgets('keeps following a streaming cell whose height grows', (
+    tester,
+  ) async {
+    List<Object?> messages(String latestText) => <Object?>[
+      for (var index = 0; index < 39; index += 1)
+        <String, Object?>{
+          'id': 'follow-$index',
+          'turnId': 'follow-turn-$index',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Earlier message $index with enough text to scroll.',
+        },
+      <String, Object?>{
+        'id': 'follow-latest',
+        'turnId': 'follow-turn-latest',
+        'kind': 'assistantMessage',
+        'status': 'inProgress',
+        'isStreaming': true,
+        'markdownText': latestText,
+      },
+    ];
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      activeTurnId: 'follow-turn-latest',
+      timelineCells: messages('Short streaming response'),
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(
+      tester,
+      client,
+      height: 400,
+      settle: false,
+    );
+
+    final timeline = tester.widget<CustomScrollView>(
+      find.byKey(const ValueKey<String>('codex-timeline-scroll-view')),
+    );
+    final controller = timeline.controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pump();
+    expect(controller.position.extentAfter, lessThan(AleraTokens.space2));
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': messages(
+            List<String>.filled(
+              24,
+              'A streamed line that increases the final cell height.',
+            ).join('\n\n'),
+          ),
+          'pendingRequests': const <Object?>[],
+          'activeTurnId': 'follow-turn-latest',
+        },
+      }),
+    );
+    await tester.pump();
+    await tester.pump(AleraTokens.durationMid);
+    await tester.pump();
+
+    expect(controller.position.extentAfter, lessThan(AleraTokens.space2));
+  });
+
+  testWidgets('stops following when the user scrolls during streaming', (
+    tester,
+  ) async {
+    List<Object?> messages(String latestText) => <Object?>[
+      for (var index = 0; index < 39; index += 1)
+        <String, Object?>{
+          'id': 'interrupt-$index',
+          'turnId': 'interrupt-turn-$index',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Earlier message $index with enough text to scroll.',
+        },
+      <String, Object?>{
+        'id': 'interrupt-latest',
+        'turnId': 'interrupt-turn-latest',
+        'kind': 'assistantMessage',
+        'status': 'inProgress',
+        'isStreaming': true,
+        'markdownText': latestText,
+      },
+    ];
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      activeTurnId: 'interrupt-turn-latest',
+      timelineCells: messages('Short streaming response'),
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(
+      tester,
+      client,
+      height: 400,
+      settle: false,
+    );
+
+    final timeline = tester.widget<CustomScrollView>(
+      find.byKey(const ValueKey<String>('codex-timeline-scroll-view')),
+    );
+    final controller = timeline.controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pump();
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': messages(
+            List<String>.filled(
+              48,
+              'A streamed line that increases the final cell height.',
+            ).join('\n\n'),
+          ),
+          'pendingRequests': const <Object?>[],
+          'activeTurnId': 'interrupt-turn-latest',
+        },
+      }),
+    );
+    await tester.pump();
+
+    final userOffset = (controller.position.maxScrollExtent - 300).clamp(
+      controller.position.minScrollExtent,
+      controller.position.maxScrollExtent,
+    );
+    controller.jumpTo(userOffset);
+    await tester.pump();
+    await tester.pump();
+
+    expect(controller.position.pixels, closeTo(userOffset, 1));
+    expect(controller.position.extentAfter, greaterThan(AleraTokens.space48));
+  });
 }
