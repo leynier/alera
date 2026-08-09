@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use alera_core::runtime::{RuntimeStore, Workspace, WorkspaceTabRecord};
 use serde_json::json;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -11,7 +12,7 @@ use super::codex_state::{active_turn_id, is_codex_tab, persist_snapshot, snapsho
 use super::codex_tab_lifecycle::{
     active_cwd, clear_stale_thread_activity, set_active_cwd, thread_owned_by_alera,
 };
-use super::ServerActor;
+use super::{ServerActor, ServerCommand};
 
 pub(crate) struct CodexCleanupPlan {
     pub(super) server: Option<CodexAppServer>,
@@ -27,8 +28,14 @@ pub(super) struct CodexCleanupEntry {
     pub(super) replacement_cwd: Option<String>,
 }
 
+pub(super) struct PreparedCodexCleanup {
+    server: Option<CodexAppServer>,
+    _cleanup_receiver: Option<UnboundedReceiver<ServerCommand>>,
+    entries: Vec<CodexCleanupEntry>,
+}
+
 impl CodexCleanupPlan {
-    pub(crate) async fn execute(self) -> HostResult<Vec<CodexCleanupEntry>> {
+    pub(crate) async fn prepare(self) -> HostResult<PreparedCodexCleanup> {
         let mut cleanup_receiver = None;
         let needs_server = self
             .entries
@@ -74,6 +81,16 @@ impl CodexCleanupPlan {
                 return Err(error);
             }
         }
+        Ok(PreparedCodexCleanup {
+            server,
+            _cleanup_receiver: cleanup_receiver,
+            entries: self.entries,
+        })
+    }
+}
+
+impl PreparedCodexCleanup {
+    pub(super) async fn delete_threads_after_commit(&self) {
         let mut deleted_threads = HashSet::new();
         for entry in self.entries.iter().filter(|entry| entry.delete_thread) {
             let Some(thread_id) = entry
@@ -83,7 +100,7 @@ impl CodexCleanupPlan {
             else {
                 continue;
             };
-            let Some(server) = server.as_ref() else {
+            let Some(server) = self.server.as_ref() else {
                 continue;
             };
             if let Err(error) = server
@@ -97,8 +114,10 @@ impl CodexCleanupPlan {
                 );
             }
         }
-        drop(cleanup_receiver);
-        Ok(self.entries)
+    }
+
+    pub(super) fn into_entries(self) -> Vec<CodexCleanupEntry> {
+        self.entries
     }
 }
 

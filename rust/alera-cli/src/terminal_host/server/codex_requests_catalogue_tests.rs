@@ -266,7 +266,7 @@ async fn workspace_cleanup_plans_idle_cross_workspace_cwd_repair() {
         Some(surviving_path.to_string_lossy().as_ref())
     );
 
-    let pending = plan.execute().await.unwrap();
+    let pending = plan.prepare().await.unwrap().into_entries();
     assert_eq!(
         apply_cleanup_activity(&actor.runtime_store, &pending)
             .await
