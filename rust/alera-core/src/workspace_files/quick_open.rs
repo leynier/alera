@@ -49,12 +49,26 @@ static INDEX_BUILD_GATE: OnceLock<Mutex<()>> = OnceLock::new();
 pub fn start_workspace_quick_open_session(
     workspace_path: String,
 ) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
+    start_workspace_quick_open_session_with_symlinks(workspace_path, true)
+}
+
+pub fn start_workspace_quick_open_session_without_symlinks(
+    workspace_path: String,
+) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
+    start_workspace_quick_open_session_with_symlinks(workspace_path, false)
+}
+
+fn start_workspace_quick_open_session_with_symlinks(
+    workspace_path: String,
+    include_internal_symlinks: bool,
+) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
     let root = workspace_root(&workspace_path)?;
     let mut files = with_quick_open_build_gate(|| {
         collect_quick_open_files(
             &root,
             MAX_QUICK_OPEN_INDEXED_FILES,
             MAX_QUICK_OPEN_INDEXED_PATH_BYTES,
+            include_internal_symlinks,
         )
     })?;
     files.sort_by(|left, right| {
@@ -104,6 +118,7 @@ fn collect_quick_open_files(
     root: &Path,
     max_files: usize,
     max_path_bytes: usize,
+    include_internal_symlinks: bool,
 ) -> Result<Vec<QuickOpenFile>, WorkspaceFileError> {
     let filter_root = root.to_path_buf();
     let walker = WalkBuilder::new(root)
@@ -129,7 +144,9 @@ fn collect_quick_open_files(
                 ));
             }
         };
-        if let Some(relative_path) = quick_open_relative_path(root, entry.path())? {
+        if let Some(relative_path) =
+            quick_open_relative_path(root, entry.path(), include_internal_symlinks)?
+        {
             if files.len() >= max_files {
                 break;
             }
@@ -189,6 +206,7 @@ pub fn stop_workspace_quick_open_session(session: WorkspaceQuickOpenSession) {
 fn quick_open_relative_path(
     root: &std::path::Path,
     path: &std::path::Path,
+    include_internal_symlinks: bool,
 ) -> Result<Option<String>, WorkspaceFileError> {
     let relative_path = relative_string(root, path)?;
     if relative_path.is_empty() || is_protected_workspace_path(std::path::Path::new(&relative_path))
@@ -197,10 +215,32 @@ fn quick_open_relative_path(
     }
     let link_metadata = fs::symlink_metadata(path)
         .map_err(|error| WorkspaceFileError::from_io(error, path.display().to_string()))?;
-    if link_metadata.file_type().is_symlink() {
-        return Ok(None);
+    let is_symlink = link_metadata.file_type().is_symlink();
+    if is_symlink {
+        if !include_internal_symlinks {
+            return Ok(None);
+        }
+        let canonical = match fs::canonicalize(path) {
+            Ok(canonical) => canonical,
+            Err(_) => return Ok(None),
+        };
+        if !canonical.starts_with(root) {
+            return Ok(None);
+        }
+        let canonical_relative = relative_string(root, &canonical)?;
+        if is_protected_workspace_path(std::path::Path::new(&canonical_relative)) {
+            return Ok(None);
+        }
     }
-    Ok(link_metadata.is_file().then_some(relative_path))
+    let metadata = if is_symlink {
+        match fs::metadata(path) {
+            Ok(metadata) => metadata,
+            Err(_) => return Ok(None),
+        }
+    } else {
+        link_metadata
+    };
+    Ok(metadata.is_file().then_some(relative_path))
 }
 
 fn protected_entry(path: &std::path::Path) -> bool {
