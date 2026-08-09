@@ -95,14 +95,13 @@ pub(super) async fn run_runtime_mutation(
     request: RuntimeMutationRequest,
     codex_cleanup: Option<CodexCleanupPlan>,
 ) -> RuntimeMutationOutcome {
-    let mut pending_codex_cleanup = Vec::new();
-    if let Some(cleanup) = codex_cleanup {
-        match cleanup.execute().await {
-            Ok(entries) => pending_codex_cleanup = entries,
+    let prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
+        match cleanup.prepare().await {
+            Ok(prepared) => Some(prepared),
             Err(error) => {
                 return RuntimeMutationOutcome {
                     result: Err(error),
-                    pending_codex_cleanup,
+                    pending_codex_cleanup: Vec::new(),
                     ended_pointer_tab_ids: Vec::new(),
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),
@@ -110,7 +109,9 @@ pub(super) async fn run_runtime_mutation(
                 };
             }
         }
-    }
+    } else {
+        None
+    };
     let mut manager = match emulators {
         Some(manager) => Some(manager.lock_owned().await),
         None => None,
@@ -315,6 +316,14 @@ pub(super) async fn run_runtime_mutation(
     ended_pointer_tab_ids.dedup();
     closed_session_tab_ids.sort_unstable();
     closed_session_tab_ids.dedup();
+    if result.is_ok() {
+        if let Some(cleanup) = prepared_codex_cleanup.as_ref() {
+            cleanup.delete_threads_after_commit().await;
+        }
+    }
+    let pending_codex_cleanup = prepared_codex_cleanup
+        .map(|cleanup| cleanup.into_entries())
+        .unwrap_or_default();
     RuntimeMutationOutcome {
         result,
         pending_codex_cleanup,
