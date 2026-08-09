@@ -90,8 +90,13 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   Set<String>? _historyOriginalCellIds;
   final GlobalKey _historyAnchorKey = GlobalKey();
   final Set<String> _expandedActivityGroups = <String>{};
+  List<MobileCodexPresentationRow>? _timelineRowIndexSource;
+  Map<String, int> _timelineRowIndexes = const <String, int>{};
   String? _historyAnchorCellId;
   bool _timelinePinScheduled = false;
+  bool _timelinePinRequested = false;
+  bool _animateTimelinePin = false;
+  bool? _timelinePinned;
   int _submissionRevision = 0;
   final Map<String, int> _pendingSubmissionCounts = <String, int>{};
   Future<void> _submissionTail = Future<void>.value();
@@ -150,6 +155,10 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
         widget.tabId,
         _handleRestoredDraft,
       );
+      _expandedActivityGroups.clear();
+      _timelineRowIndexSource = null;
+      _timelineRowIndexes = const <String, int>{};
+      _timelinePinned = null;
       _restoreDraft();
     }
   }
@@ -315,35 +324,35 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                                   itemCount: rows.length,
                                   itemBuilder: (context, index) {
                                     final row = rows[index];
-                                    final child = KeyedSubtree(
-                                      key: ValueKey<String>(row.id),
-                                      child: _MobileTimelineRow(
-                                        row: row,
-                                        onOpenPlan: _openPlan,
-                                        activityExpanded:
-                                            _expandedActivityGroups.contains(
+                                    final child = _MobileTimelineRow(
+                                      row: row,
+                                      onOpenPlan: _openPlan,
+                                      activityExpanded: _expandedActivityGroups
+                                          .contains(row.id),
+                                      onToggleActivity: () {
+                                        setState(() {
+                                          if (!_expandedActivityGroups.add(
+                                            row.id,
+                                          )) {
+                                            _expandedActivityGroups.remove(
                                               row.id,
-                                            ),
-                                        onToggleActivity: () {
-                                          setState(() {
-                                            if (!_expandedActivityGroups.add(
-                                              row.id,
-                                            )) {
-                                              _expandedActivityGroups.remove(
-                                                row.id,
-                                              );
-                                            }
-                                          });
-                                        },
-                                      ),
+                                            );
+                                          }
+                                        });
+                                      },
                                     );
-                                    return _historyRowContainsAnchor(row)
-                                        ? KeyedSubtree(
-                                            key: _historyAnchorKey,
-                                            child: child,
-                                          )
-                                        : child;
+                                    return KeyedSubtree(
+                                      key: ValueKey<String>(row.id),
+                                      child: _historyRowContainsAnchor(row)
+                                          ? KeyedSubtree(
+                                              key: _historyAnchorKey,
+                                              child: child,
+                                            )
+                                          : child,
+                                    );
                                   },
+                                  findChildIndexCallback: (key) =>
+                                      _findTimelineRowIndex(rows, key),
                                 ),
                         ),
                       ],

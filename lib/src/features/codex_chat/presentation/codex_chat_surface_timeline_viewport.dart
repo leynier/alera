@@ -8,6 +8,54 @@ class _CodexViewportAnchor {
 }
 
 extension _CodexTimelineViewport on _CodexTimelineState {
+  void _scheduleScrollToBottom({bool animate = false}) {
+    if (!mounted) return;
+    _scrollToBottomRequested = true;
+    _animateScrollToBottom = _animateScrollToBottom || animate;
+    if (_scrollToBottomScheduled) return;
+    _scrollToBottomScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_settleScrollToBottom());
+    });
+  }
+
+  Future<void> _settleScrollToBottom() async {
+    try {
+      for (var attempt = 0; attempt < 6; attempt += 1) {
+        if (!mounted || !widget.timeline.hasClients) return;
+        final animate = _animateScrollToBottom;
+        _animateScrollToBottom = false;
+        _scrollToBottomRequested = false;
+        if (_showScrollToBottom && !animate) return;
+        final position = widget.timeline.position;
+        final target = position.maxScrollExtent;
+        if ((target - position.pixels).abs() >= AleraTokens.dividerExtent) {
+          if (animate) {
+            await widget.timeline.animateTo(
+              target,
+              duration: AleraTokens.durationMid,
+              curve: Curves.easeOut,
+            );
+          } else {
+            widget.timeline.jumpTo(target);
+          }
+        }
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || !widget.timeline.hasClients) return;
+        if (_showScrollToBottom) return;
+        if (!_scrollToBottomRequested &&
+            widget.timeline.position.extentAfter < AleraTokens.space2) {
+          return;
+        }
+      }
+    } finally {
+      _scrollToBottomScheduled = false;
+      if (mounted && _scrollToBottomRequested) {
+        _scheduleScrollToBottom(animate: _animateScrollToBottom);
+      }
+    }
+  }
+
   _CodexViewportAnchor? captureViewportAnchor() {
     final viewport =
         _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
