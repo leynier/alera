@@ -1,5 +1,14 @@
 part of 'codex_chat_surface.dart';
 
+bool _isCodexTopNotice(CodexTimelineCell cell) {
+  if (cell.metadata['itemType'] == 'mcpServerStartup') return true;
+  final noticeType = cell.metadata['noticeType']?.toString();
+  return noticeType == 'warning' ||
+      noticeType == 'guardianWarning' ||
+      noticeType == 'configWarning' ||
+      noticeType == 'deprecationNotice';
+}
+
 class _CodexSystemNotice extends StatelessWidget {
   const _CodexSystemNotice({required this.cell});
 

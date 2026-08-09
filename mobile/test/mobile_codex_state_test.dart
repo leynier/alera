@@ -242,9 +242,18 @@ void mobileCodexStateTests() {
             'status': 'warning',
             'markdownText': 'Context warning',
           },
+          <String, Object?>{
+            'id': 'mcp-startup',
+            'kind': 'toolCall',
+            'status': 'completed',
+            'turnId': 'turn-2',
+            'title': 'Docs MCP server',
+            'metadata': <String, Object?>{'itemType': 'mcpServerStartup'},
+          },
         ],
       });
       expect(state.presentationRows.first.cell?.id, 'warning');
+      expect(state.presentationRows[1].cell?.id, 'mcp-startup');
       expect(
         state.presentationRows.where(
           (row) => row.kind == MobileCodexPresentationKind.activity,

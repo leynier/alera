@@ -164,7 +164,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Answer from Codex'), findsOneWidget);
-    expect(find.text('Thinking'), findsOneWidget);
+    expect(find.text('Thinking'), findsNothing);
     expect(find.textContaining('Current Codex'), findsOneWidget);
     expect(find.text('Ask For Approval'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsWidgets);

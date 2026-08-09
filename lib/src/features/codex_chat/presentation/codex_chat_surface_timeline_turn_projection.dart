@@ -37,7 +37,7 @@ class _CodexTurnProjection {
     final outside = <CodexTimelineCell>[];
     for (final cell in cells) {
       switch (cell.kind) {
-        case CodexTimelineKind.turnSeparator:
+        case CodexTimelineKind.turnSeparator || CodexTimelineKind.reasoning:
           break;
         case CodexTimelineKind.userMessage:
           if (cell.metadata[CodexTimelineMetadata.isSteering] == true) {
@@ -56,8 +56,7 @@ class _CodexTurnProjection {
           } else if ((cell.markdownText ?? '').trim().isNotEmpty) {
             secondary.add(cell);
           }
-        case CodexTimelineKind.reasoning ||
-            CodexTimelineKind.toolCall ||
+        case CodexTimelineKind.toolCall ||
             CodexTimelineKind.command ||
             CodexTimelineKind.diff ||
             CodexTimelineKind.subAgent ||
