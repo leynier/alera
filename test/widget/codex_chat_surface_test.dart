@@ -318,9 +318,26 @@ void main() {
   });
 
   testWidgets('opens the combined model configuration menu', (tester) async {
-    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      collaborationModes: const <Map<String, Object?>>[
+        <String, Object?>{'mode': 'default'},
+        <String, Object?>{'mode': 'plan'},
+      ],
+    );
     addTearDown(client.dispose);
     await _pumpComposerSurface(tester, client);
+
+    final composerShell = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-composer-shell')),
+    );
+    final sendButton = tester.getRect(
+      find.byKey(const ValueKey<String>('composer-action-button')),
+    );
+    expect(
+      composerShell.right - sendButton.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
 
     await tester.tap(
       find.byKey(const ValueKey<String>('codex-model-configuration')),
@@ -330,6 +347,7 @@ void main() {
     expect(find.text('Model'), findsOneWidget);
     expect(find.text('Effort'), findsOneWidget);
     expect(find.text('Speed'), findsOneWidget);
+    expect(find.text('Mode'), findsNothing);
   });
 
   testWidgets('long model labels remain responsive in a narrow pane', (
@@ -355,6 +373,7 @@ void main() {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],
       collaborationModes: const <Map<String, Object?>>[
+        <String, Object?>{'mode': 'default'},
         <String, Object?>{'mode': 'plan'},
         <String, Object?>{'mode': 'pair'},
       ],
@@ -370,6 +389,7 @@ void main() {
     expect(find.text('Mode'), findsOneWidget);
     await tester.tap(find.text('Mode'));
     await tester.pumpAndSettle();
+    expect(find.text('Default'), findsNWidgets(2));
     expect(find.text('Pair'), findsOneWidget);
     await tester.tap(find.text('Pair'));
     await tester.pumpAndSettle();

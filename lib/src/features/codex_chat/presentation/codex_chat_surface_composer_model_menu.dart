@@ -31,12 +31,14 @@ class _CodexModelConfigurationControlState
     final efforts = model?.reasoningEfforts.isNotEmpty == true
         ? model!.reasoningEfforts
         : const <String>['low', 'medium', 'high', 'xhigh'];
-    final collaborationModes = <String>[
+    final collaborationModes = <String>{
       for (final entry in state.collaborationModes)
         if (entry['mode']?.toString().trim() case final String mode
-            when mode.isNotEmpty && mode != 'plan')
+            when mode.isNotEmpty &&
+                mode.toLowerCase() != 'default' &&
+                mode.toLowerCase() != 'plan')
           mode,
-    ];
+    }.toList(growable: false);
     final selectedCollaboration =
         state.collaborationMode == null || state.collaborationMode == 'plan'
         ? 'default'

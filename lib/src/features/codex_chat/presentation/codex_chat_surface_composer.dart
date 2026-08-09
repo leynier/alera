@@ -310,14 +310,17 @@ class _CodexComposerState extends State<_CodexComposer> {
                                   ],
                                   Flexible(
                                     fit: FlexFit.loose,
-                                    child: _CodexModelConfigurationControl(
-                                      state: widget.state,
-                                      onModelChanged: widget.onModelChanged,
-                                      onReasoningChanged:
-                                          widget.onReasoningChanged,
-                                      onSpeedChanged: widget.onSpeedChanged,
-                                      onCollaborationChanged:
-                                          widget.onCollaborationChanged,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: _CodexModelConfigurationControl(
+                                        state: widget.state,
+                                        onModelChanged: widget.onModelChanged,
+                                        onReasoningChanged:
+                                            widget.onReasoningChanged,
+                                        onSpeedChanged: widget.onSpeedChanged,
+                                        onCollaborationChanged:
+                                            widget.onCollaborationChanged,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: AleraTokens.space2),
