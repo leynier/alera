@@ -119,7 +119,7 @@ fn create_file_symlink(source: &Path, link: &Path) -> io::Result<()> {
 }
 
 #[test]
-fn includes_local_file_symlinks_but_never_external_targets() {
+fn excludes_file_symlinks_that_workspace_reads_will_reject() {
     let workspace = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();
     let local = workspace.path().join("local.txt");
@@ -134,7 +134,7 @@ fn includes_local_file_symlinks_but_never_external_targets() {
     let session = start(&workspace);
     let indexed = paths(&session, "", 20);
     assert!(indexed.contains(&"local.txt".to_string()));
-    assert!(indexed.contains(&"local-link.txt".to_string()));
+    assert!(!indexed.contains(&"local-link.txt".to_string()));
     assert!(!indexed.contains(&"external-link.txt".to_string()));
     stop_workspace_quick_open_session(session);
 }

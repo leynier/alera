@@ -197,29 +197,10 @@ fn quick_open_relative_path(
     }
     let link_metadata = fs::symlink_metadata(path)
         .map_err(|error| WorkspaceFileError::from_io(error, path.display().to_string()))?;
-    let is_symlink = link_metadata.file_type().is_symlink();
-    if is_symlink {
-        let canonical = match fs::canonicalize(path) {
-            Ok(canonical) => canonical,
-            Err(_) => return Ok(None),
-        };
-        if !canonical.starts_with(root) {
-            return Ok(None);
-        }
-        let canonical_relative = relative_string(root, &canonical)?;
-        if is_protected_workspace_path(std::path::Path::new(&canonical_relative)) {
-            return Ok(None);
-        }
+    if link_metadata.file_type().is_symlink() {
+        return Ok(None);
     }
-    let metadata = if is_symlink {
-        match fs::metadata(path) {
-            Ok(metadata) => metadata,
-            Err(_) => return Ok(None),
-        }
-    } else {
-        link_metadata
-    };
-    Ok(metadata.is_file().then_some(relative_path))
+    Ok(link_metadata.is_file().then_some(relative_path))
 }
 
 fn protected_entry(path: &std::path::Path) -> bool {

@@ -110,6 +110,7 @@ dependencies = [
  "git2",
  "ignore",
  "libc",
+ "same-file",
  "serde",
  "serde_json",
  "sqlx",

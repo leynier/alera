@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptions, OpenOptionsFollowExt};
 use cap_std::{ambient_authority, fs::Dir};
+use same_file::Handle;
 
 mod prompts;
 mod quick_open;
@@ -67,8 +68,58 @@ pub struct WorkspaceFileRange {
     pub is_text: bool,
 }
 
+pub struct WorkspaceFileRoot {
+    directory: Dir,
+    canonical_path: PathBuf,
+}
+
+impl WorkspaceFileRoot {
+    pub fn canonical_path(&self) -> &Path {
+        &self.canonical_path
+    }
+}
+
+pub fn open_workspace_file_root(
+    workspace_path: &str,
+) -> Result<WorkspaceFileRoot, WorkspaceFileError> {
+    let directory = Dir::open_ambient_dir(workspace_path, ambient_authority())
+        .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?;
+    let canonical_path = fs::canonicalize(workspace_path)
+        .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?;
+    // Authorization uses this path, so prove it still names the held directory.
+    let opened_handle = Handle::from_file(
+        directory
+            .try_clone()
+            .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?
+            .into_std_file(),
+    )
+    .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?;
+    let canonical_handle = Handle::from_path(&canonical_path)
+        .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?;
+    if opened_handle != canonical_handle {
+        return Err(WorkspaceFileError::new(
+            WorkspaceFileErrorKind::InvalidPath,
+            format!("Workspace root changed while it was being opened: {workspace_path}"),
+        ));
+    }
+    Ok(WorkspaceFileRoot {
+        directory,
+        canonical_path,
+    })
+}
+
 pub fn read_workspace_file_range(
     workspace_path: &str,
+    relative_path: &str,
+    offset: u64,
+    length: u64,
+) -> Result<WorkspaceFileRange, WorkspaceFileError> {
+    let root = open_workspace_file_root(workspace_path)?;
+    read_workspace_file_range_from_root(&root, relative_path, offset, length)
+}
+
+pub fn read_workspace_file_range_from_root(
+    root: &WorkspaceFileRoot,
     relative_path: &str,
     offset: u64,
     length: u64,
@@ -79,9 +130,8 @@ pub fn read_workspace_file_range(
             format!("Read length must be between 1 and {MAX_REMOTE_READ_BYTES} bytes"),
         ));
     }
-    let root = workspace_root(workspace_path)?;
     let (mut file, normalized_relative) =
-        open_workspace_file_without_symlinks(&root, relative_path)?;
+        open_workspace_file_without_symlinks(root, relative_path)?;
     let metadata = file
         .metadata()
         .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
@@ -121,7 +171,7 @@ pub fn read_workspace_file_range(
 }
 
 fn open_workspace_file_without_symlinks(
-    root: &Path,
+    root: &WorkspaceFileRoot,
     relative_path: &str,
 ) -> Result<(fs::File, PathBuf), WorkspaceFileError> {
     let relative = Path::new(relative_path);
@@ -155,8 +205,9 @@ fn open_workspace_file_without_symlinks(
     for component in &components {
         normalized_relative.push(component);
     }
-    let mut directory = Dir::open_ambient_dir(root, ambient_authority())
-        .map_err(|error| WorkspaceFileError::from_io(error, root.display().to_string()))?;
+    let mut directory = root.directory.try_clone().map_err(|error| {
+        WorkspaceFileError::from_io(error, root.canonical_path.display().to_string())
+    })?;
     for component in directory_components {
         reject_workspace_symlink(&directory, component, relative_path)?;
         directory = directory
@@ -344,6 +395,27 @@ mod tests {
         let result = read_workspace_file_range(&root, "inside.txt", 1, 3).unwrap();
         assert_eq!(result.bytes, b"ell");
         assert_eq!(result.next_offset, 4);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn opened_root_stays_pinned_when_workspace_path_is_replaced() {
+        let parent = tempfile::tempdir().unwrap();
+        let workspace = parent.path().join("workspace");
+        let moved_workspace = parent.path().join("workspace-moved");
+        let replacement = parent.path().join("replacement");
+        fs::create_dir(&workspace).unwrap();
+        fs::create_dir(&replacement).unwrap();
+        fs::write(workspace.join("inside.txt"), "inside").unwrap();
+        fs::write(replacement.join("config"), "secret").unwrap();
+        let root = open_workspace_file_root(&workspace.to_string_lossy()).unwrap();
+
+        fs::rename(&workspace, &moved_workspace).unwrap();
+        std::os::unix::fs::symlink(&replacement, &workspace).unwrap();
+
+        let inside = read_workspace_file_range_from_root(&root, "inside.txt", 0, 10).unwrap();
+        assert_eq!(inside.bytes, b"inside");
+        assert!(read_workspace_file_range_from_root(&root, "config", 0, 10).is_err());
     }
 
     #[test]

@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{RuntimeStore, Workspace};
 use alera_core::workspace_files::{
-    is_protected_workspace_path, list_codex_saved_prompts, read_workspace_file_range,
-    search_workspace_quick_open_session, start_workspace_quick_open_session,
-    stop_workspace_quick_open_session, CodexSavedPromptScope, WorkspaceQuickOpenSession,
+    is_protected_workspace_path, list_codex_saved_prompts, open_workspace_file_root,
+    read_workspace_file_range_from_root, search_workspace_quick_open_session,
+    start_workspace_quick_open_session, stop_workspace_quick_open_session, CodexSavedPromptScope,
+    WorkspaceFileRoot, WorkspaceQuickOpenSession,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -174,24 +175,26 @@ async fn read_mobile_workspace_file(
 ) -> HostResult<Value> {
     let workspace = workspace_for_mobile_file_request(runtime_store, payload).await?;
     let requested_path = require_string_key(payload, "relativePath")?;
-    let (root, relative_path) = if Path::new(&requested_path).is_absolute() {
-        absolute_mobile_workspace_file_target(runtime_store, requested_path).await?
-    } else {
-        (
-            mobile_workspace_file_root(runtime_store, payload, &workspace).await?,
-            requested_path,
-        )
-    };
+    let candidate_root =
+        optional_string_key(payload, "cwd").unwrap_or_else(|| workspace.path.clone());
+    let known_roots = known_workspace_paths(runtime_store).await?;
     let offset = payload.get("offset").and_then(Value::as_u64).unwrap_or(0);
     let length = payload
         .get("length")
         .and_then(Value::as_u64)
         .unwrap_or(alera_core::workspace_files::MAX_REMOTE_READ_BYTES);
-    let response_path = relative_path.clone();
     spawn_blocking_workspace("Workspace file read", move || {
-        let range = read_workspace_file_range(&root, &relative_path, offset, length)
+        let (root, relative_path) = if Path::new(&requested_path).is_absolute() {
+            absolute_workspace_file_target(&requested_path, known_roots)?
+        } else {
+            (
+                open_validated_mobile_workspace_root(&candidate_root, known_roots)?,
+                requested_path,
+            )
+        };
+        let range = read_workspace_file_range_from_root(&root, &relative_path, offset, length)
             .map_err(workspace_file_error)?;
-        Ok(workspace_range_response(response_path, range))
+        Ok(workspace_range_response(relative_path, range))
     })
     .await
 }
@@ -207,16 +210,17 @@ async fn read_mobile_prompt_attachment(runtime_dir: PathBuf, payload: &Value) ->
         let canonical_path = fs::canonicalize(&requested_path)
             .map_err(|_| HostError::state("Prompt attachment is unavailable."))?;
         let root = prompt_attachment_root(&runtime_dir, &canonical_path)?;
+        let root =
+            open_workspace_file_root(&root.to_string_lossy()).map_err(workspace_file_error)?;
         let relative_path = canonical_path
-            .strip_prefix(&root)
+            .strip_prefix(root.canonical_path())
             .ok()
             .and_then(|path| path.to_str())
             .filter(|path| !path.is_empty())
             .ok_or_else(|| HostError::state("Prompt attachment path is invalid."))?
             .to_string();
-        let range =
-            read_workspace_file_range(&root.to_string_lossy(), &relative_path, offset, length)
-                .map_err(workspace_file_error)?;
+        let range = read_workspace_file_range_from_root(&root, &relative_path, offset, length)
+            .map_err(workspace_file_error)?;
         Ok(workspace_range_response(relative_path, range))
     })
     .await
@@ -305,25 +309,6 @@ async fn mobile_workspace_file_root(
     .await
 }
 
-async fn absolute_mobile_workspace_file_target(
-    runtime_store: &RuntimeStore,
-    requested: String,
-) -> HostResult<(String, String)> {
-    let roots = known_workspace_paths(runtime_store).await?;
-    spawn_blocking_workspace("Workspace file validation", move || {
-        let candidate = fs::canonicalize(requested)
-            .map_err(|_| HostError::state("Workspace file is unavailable."))?;
-        absolute_workspace_file_target(
-            &candidate,
-            roots
-                .iter()
-                .filter_map(|path| fs::canonicalize(path).ok())
-                .collect(),
-        )
-    })
-    .await
-}
-
 async fn known_workspace_paths(runtime_store: &RuntimeStore) -> HostResult<Vec<String>> {
     Ok(runtime_store
         .list_all_workspaces()
@@ -344,21 +329,45 @@ async fn spawn_blocking_workspace<T: Send + 'static>(
 }
 
 fn absolute_workspace_file_target(
-    candidate: &Path,
-    roots: Vec<PathBuf>,
-) -> HostResult<(String, String)> {
+    requested: &str,
+    roots: Vec<String>,
+) -> HostResult<(WorkspaceFileRoot, String)> {
+    let candidate = fs::canonicalize(requested)
+        .map_err(|_| HostError::state("Workspace file is unavailable."))?;
     let root = roots
         .into_iter()
-        .filter(|root| candidate.starts_with(root))
-        .max_by_key(|root| root.components().count())
+        .filter_map(|root| open_workspace_file_root(&root).ok())
+        .filter(|root| candidate.starts_with(root.canonical_path()))
+        .max_by_key(|root| root.canonical_path().components().count())
         .ok_or_else(|| HostError::state("Workspace file is outside known workspaces."))?;
     let relative = candidate
-        .strip_prefix(&root)
+        .strip_prefix(root.canonical_path())
         .ok()
         .and_then(|path| path.to_str())
         .filter(|path| !path.is_empty())
         .ok_or_else(|| HostError::state("Workspace file path is invalid."))?;
-    Ok((root.to_string_lossy().into_owned(), relative.to_string()))
+    Ok((root, relative.to_string()))
+}
+
+fn open_validated_mobile_workspace_root(
+    candidate: &str,
+    roots: Vec<String>,
+) -> HostResult<WorkspaceFileRoot> {
+    let candidate_root = open_workspace_file_root(candidate).map_err(workspace_file_error)?;
+    let known_roots = roots
+        .into_iter()
+        .filter_map(|root| open_workspace_file_root(&root).ok())
+        .map(|root| root.canonical_path().to_path_buf())
+        .collect();
+    validated_mobile_workspace_root(candidate_root.canonical_path(), known_roots).map_err(
+        |error| {
+            HostError::state(format!(
+                "Codex working directory is unavailable: {} ({error})",
+                Path::new(candidate).display()
+            ))
+        },
+    )?;
+    Ok(candidate_root)
 }
 
 fn validated_mobile_workspace_root(candidate: &Path, roots: Vec<PathBuf>) -> HostResult<String> {
@@ -442,14 +451,18 @@ mod tests {
         let file = nested.join("lib/main.dart");
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(&file, b"void main() {}").unwrap();
-        let parent = std::fs::canonicalize(parent).unwrap();
-        let nested = std::fs::canonicalize(nested).unwrap();
-        let file = std::fs::canonicalize(file).unwrap();
+        let nested_canonical = std::fs::canonicalize(&nested).unwrap();
 
-        let (root, relative) =
-            absolute_workspace_file_target(&file, vec![parent, nested.clone()]).unwrap();
+        let (root, relative) = absolute_workspace_file_target(
+            &file.to_string_lossy(),
+            vec![
+                parent.to_string_lossy().into_owned(),
+                nested.to_string_lossy().into_owned(),
+            ],
+        )
+        .unwrap();
 
-        assert_eq!(Path::new(&root), nested);
+        assert_eq!(root.canonical_path(), nested_canonical);
         assert_eq!(relative, Path::new("lib/main.dart").to_string_lossy());
     }
 
@@ -462,8 +475,8 @@ mod tests {
         std::fs::write(&outside, b"outside").unwrap();
 
         let result = absolute_workspace_file_target(
-            &std::fs::canonicalize(outside).unwrap(),
-            vec![std::fs::canonicalize(workspace).unwrap()],
+            &outside.to_string_lossy(),
+            vec![workspace.to_string_lossy().into_owned()],
         );
 
         assert!(result.is_err());
