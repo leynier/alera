@@ -132,6 +132,7 @@ extension MobileCodexControllerSessions on MobileCodexController {
   }
 
   void _beginMobileSessionTransition() {
+    _threadGeneration += 1;
     final firstTransition = _sessionTransitionCount == 0;
     _sessionTransitionCount += 1;
     if (firstTransition) {

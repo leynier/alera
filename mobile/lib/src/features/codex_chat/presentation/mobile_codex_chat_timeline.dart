@@ -1,9 +1,35 @@
 part of 'mobile_codex_chat_screen.dart';
 
+class _MobileTimelineRow extends StatelessWidget {
+  const _MobileTimelineRow({required this.row, required this.onOpenPlan});
+
+  final MobileCodexPresentationRow row;
+  final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
+
+  @override
+  Widget build(BuildContext context) => switch (row.kind) {
+    MobileCodexPresentationKind.cell => _MobileTimelineCell(
+      cell: row.cell!,
+      isPreviousPlan: row.isPreviousPlan,
+      onOpenPlan: onOpenPlan,
+    ),
+    MobileCodexPresentationKind.activity => _MobileActivityGroup(
+      cells: row.activityCells,
+    ),
+    MobileCodexPresentationKind.working => const _MobileWorkingRow(),
+  };
+}
+
 class _MobileTimelineCell extends StatefulWidget {
-  const _MobileTimelineCell({required this.cell});
+  const _MobileTimelineCell({
+    required this.cell,
+    required this.onOpenPlan,
+    this.isPreviousPlan = false,
+  });
 
   final MobileCodexTimelineCell cell;
+  final bool isPreviousPlan;
+  final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
 
   @override
   State<_MobileTimelineCell> createState() => _MobileTimelineCellState();
@@ -12,6 +38,7 @@ class _MobileTimelineCell extends StatefulWidget {
 class _MobileTimelineCellState extends State<_MobileTimelineCell> {
   late bool _collapsed =
       widget.cell.isCollapsed || _mobileDefaultCollapsed(widget.cell);
+  bool _raw = false;
 
   @override
   void didUpdateWidget(covariant _MobileTimelineCell oldWidget) {
@@ -19,76 +46,97 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
     if (oldWidget.cell.id != widget.cell.id) {
       _collapsed =
           widget.cell.isCollapsed || _mobileDefaultCollapsed(widget.cell);
+      _raw = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final cell = widget.cell;
-    if (cell.kind == 'turnSeparator') {
-      return const Divider(height: AleraTokens.space24);
+    if (cell.kind == 'turnSeparator') return _MobileWorkedRow(cell: cell);
+    if (cell.kind == 'plan') {
+      return _MobilePlanCard(
+        cell: cell,
+        previous: widget.isPreviousPlan,
+        onOpen: () => widget.onOpenPlan(cell),
+      );
     }
-    final color = cell.isUser
-        ? AleraTokens.info
-        : cell.isReasoning
-        ? AleraTokens.foregroundMuted
-        : cell.kind == 'command' || cell.kind == 'toolCall'
-        ? AleraTokens.warning
-        : cell.kind == 'diff'
-        ? AleraTokens.success
-        : AleraTokens.foreground;
-    final collapseable =
-        cell.kind == 'reasoning' ||
-        cell.kind == 'toolCall' ||
-        cell.kind == 'command' ||
-        cell.kind == 'diff' ||
-        cell.kind == 'subAgent' ||
-        cell.kind == 'plan' ||
-        cell.kind == 'questionAnswer';
-    final body = _MobileCodexMarkdown(text: cell.displayText);
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                _mobileCellLabel(cell),
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(color: color),
-              ),
-            ),
-            if (cell.isStreaming)
-              const SizedBox(
-                width: AleraTokens.iconSm,
-                height: AleraTokens.iconSm,
-                child: CircularProgressIndicator(
-                  strokeWidth: AleraTokens.strokeSm,
+    if (cell.isUser || cell.isAssistant) return _message(context, cell);
+    if (_isMcpStatus(cell)) return _MobileMcpStatus(cell: cell);
+    if (_isWarning(cell)) return _MobileWarningNotice(cell: cell);
+    if (cell.kind == 'progressText') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
+        child: _MobileCodexMarkdown(text: cell.displayText),
+      );
+    }
+    final collapseable = cell.kind != 'command';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: Material(
+        color: AleraTokens.surface,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          onTap: collapseable
+              ? () => setState(() => _collapsed = !_collapsed)
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(AleraTokens.space12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      _mobileCellIcon(cell),
+                      size: AleraTokens.space16,
+                      color: _mobileCellColor(cell),
+                    ),
+                    const SizedBox(width: AleraTokens.space8),
+                    Expanded(
+                      child: cell.isStreaming
+                          ? _MobileCodexShimmerText(
+                              text: _mobileCellLabel(cell),
+                              style: Theme.of(context).textTheme.labelMedium,
+                            )
+                          : Text(
+                              _mobileCellLabel(cell),
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                    ),
+                    if (collapseable)
+                      Icon(
+                        _collapsed ? Icons.chevron_right : Icons.expand_more,
+                        size: AleraTokens.space16,
+                      ),
+                  ],
                 ),
-              ),
-            if (collapseable)
-              IconButton(
-                tooltip: _collapsed ? 'Expand Item' : 'Collapse Item',
-                onPressed: () => setState(() => _collapsed = !_collapsed),
-                icon: Icon(_collapsed ? Icons.expand_more : Icons.expand_less),
-              ),
-          ],
-        ),
-        if (!_collapsed) ...<Widget>[
-          if (cell.subtitle != null)
-            Text(cell.subtitle!, style: AleraTokens.monoStyle),
-          const SizedBox(height: AleraTokens.space6),
-          body,
-          if (cell.status == 'failed')
-            Text(
-              'Codex could not complete this item.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                if (!_collapsed) ...<Widget>[
+                  if (cell.subtitle?.isNotEmpty == true) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space6),
+                    Text(cell.subtitle!, style: AleraTokens.monoStyle),
+                  ],
+                  const SizedBox(height: AleraTokens.space8),
+                  _MobileCodexMarkdown(text: cell.displayText),
+                ],
+              ],
             ),
-        ],
-      ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _message(BuildContext context, MobileCodexTimelineCell cell) {
+    final raw = cell.markdownText ?? cell.displayText;
+    final body = _raw
+        ? SelectableText(raw)
+        : _MobileCodexMarkdown(text: cell.displayText);
+    final actions = _MobileMessageActions(
+      cell: cell,
+      raw: _raw,
+      onToggleRaw: () => setState(() => _raw = !_raw),
     );
     if (cell.isUser) {
       return Align(
@@ -97,394 +145,177 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
           constraints: const BoxConstraints(
             maxWidth: AleraTokens.chatBubbleMaxWidth,
           ),
-          child: Card(
-            color: AleraTokens.surfaceVariant,
-            margin: const EdgeInsets.only(bottom: AleraTokens.space12),
-            child: Padding(
-              padding: const EdgeInsets.all(AleraTokens.space12),
-              child: body,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                _MobileMessageAttachments(cell: cell),
+                if (raw.trim().isNotEmpty)
+                  Material(
+                    color: AleraTokens.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AleraTokens.space12),
+                      child: body,
+                    ),
+                  ),
+                const SizedBox(height: AleraTokens.space8),
+                actions,
+              ],
             ),
           ),
         ),
       );
     }
-    final assistant = cell.isAssistant || cell.kind == 'progressText';
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-      child: assistant
-          ? content
-          : Card(
-              color: AleraTokens.surface,
-              child: Padding(
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                child: content,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          body,
+          if (cell.isStreaming)
+            Padding(
+              padding: const EdgeInsets.only(top: AleraTokens.space6),
+              child: _MobileCodexShimmerText(
+                text: 'Streaming',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
+            )
+          else ...<Widget>[const SizedBox(height: AleraTokens.space8), actions],
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileMessageActions extends StatelessWidget {
+  const _MobileMessageActions({
+    required this.cell,
+    required this.raw,
+    required this.onToggleRaw,
+  });
+
+  final MobileCodexTimelineCell cell;
+  final bool raw;
+  final VoidCallback onToggleRaw;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      IconButton(
+        tooltip: 'Copy Message',
+        visualDensity: VisualDensity.compact,
+        onPressed: () => unawaited(
+          Clipboard.setData(
+            ClipboardData(text: cell.markdownText ?? cell.displayText),
+          ),
+        ),
+        icon: const Icon(Icons.copy_outlined, size: AleraTokens.space16),
+      ),
+      IconButton(
+        tooltip: raw ? 'Show Markdown' : 'Show Source',
+        visualDensity: VisualDensity.compact,
+        onPressed: onToggleRaw,
+        icon: const Icon(Icons.code, size: AleraTokens.space16),
+      ),
+      if (cell.createdAt != null)
+        Text(
+          _mobileTimestamp(cell.createdAt!),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundFaint),
+        ),
+    ],
+  );
+}
+
+class _MobileMessageAttachments extends StatelessWidget {
+  const _MobileMessageAttachments({required this.cell});
+
+  final MobileCodexTimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = cell.metadata['attachments'];
+    if (raw is! List || raw.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+      child: Wrap(
+        spacing: AleraTokens.space6,
+        runSpacing: AleraTokens.space6,
+        alignment: WrapAlignment.end,
+        children: <Widget>[
+          for (final value in raw)
+            if (value is Map)
+              ActionChip(
+                avatar: Icon(
+                  value['isDirectory'] == true
+                      ? Icons.folder_outlined
+                      : _mobileFileIcon(value['path']?.toString() ?? ''),
+                  size: AleraTokens.space16,
+                ),
+                label: Text(
+                  value['displayName']?.toString() ??
+                      value['name']?.toString() ??
+                      _mobileBaseName(value['path']?.toString() ?? ''),
+                ),
+                onPressed: value['isDirectory'] == true
+                    ? null
+                    : () => unawaited(
+                        _openMobileCodexPath(
+                          context,
+                          value['path']?.toString() ?? '',
+                          displayName:
+                              value['displayName']?.toString() ??
+                              value['name']?.toString(),
+                        ),
+                      ),
+              ),
+        ],
+      ),
     );
   }
 }
 
 bool _mobileDefaultCollapsed(MobileCodexTimelineCell cell) =>
     switch (cell.kind) {
-      'reasoning' ||
-      'toolCall' ||
-      'command' ||
-      'diff' ||
-      'subAgent' ||
-      'questionAnswer' ||
-      'plan' => true,
+      'toolCall' || 'diff' || 'subAgent' || 'questionAnswer' => true,
       _ => false,
     };
 
-class _MobileApprovalCard extends StatelessWidget {
-  const _MobileApprovalCard({required this.request, required this.controller});
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexController controller;
-
-  @override
-  Widget build(BuildContext context) => _MobileRequestCard(
-    title: 'Codex Needs Approval',
-    body: request.description,
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => unawaited(
-          controller.respondApproval(
-            request,
-            decision: request.approvalDecisionValue('decline'),
-          ),
-        ),
-        child: const Text('Decline'),
-      ),
-      FilledButton(
-        onPressed: () => unawaited(
-          controller.respondApproval(
-            request,
-            decision: request.approvalDecisionValue('accept'),
-          ),
-        ),
-        child: const Text('Approve'),
-      ),
-      TextButton(
-        onPressed: () => unawaited(
-          controller.respondApproval(
-            request,
-            decision: request.approvalDecisionValue('acceptForSession'),
-          ),
-        ),
-        child: const Text('Approve For Session'),
-      ),
-    ],
-  );
-}
-
-class _MobileQuestionCard extends StatefulWidget {
-  const _MobileQuestionCard({required this.request, required this.controller});
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexController controller;
-
-  @override
-  State<_MobileQuestionCard> createState() => _MobileQuestionCardState();
-}
-
-class _MobileQuestionCardState extends State<_MobileQuestionCard> {
-  final Map<String, TextEditingController> _text =
-      <String, TextEditingController>{};
-  final Map<String, Set<String>> _selected = <String, Set<String>>{};
-
-  @override
-  void dispose() {
-    for (final controller in _text.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final questions = widget.request.questions;
-    return _MobileRequestCard(
-      title: 'Codex Needs Your Input',
-      bodyWidget: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(
-            widget.request.isBlocking
-                ? 'Response required.'
-                : 'Response optional.',
-          ),
-          for (final question in questions) _question(question),
-        ],
-      ),
-      actions: <Widget>[
-        FilledButton(
-          onPressed: () => unawaited(
-            widget.controller.respondQuestion(
-              widget.request,
-              <String, List<String>>{
-                for (final question in questions)
-                  question.id:
-                      question.isOther &&
-                          (_text[question.id]?.text.trim().isNotEmpty ?? false)
-                      ? <String>[_text[question.id]!.text.trim()]
-                      : _selected[question.id]?.isNotEmpty == true
-                      ? _selected[question.id]!.toList(growable: false)
-                      : <String>[_text[question.id]?.text.trim() ?? ''],
-              },
-            ),
-          ),
-          child: const Text('Submit Answers'),
-        ),
-      ],
-    );
-  }
-
-  Widget _question(MobileCodexQuestion question) {
-    final text = _text.putIfAbsent(question.id, TextEditingController.new);
-    final selected = _selected.putIfAbsent(question.id, () => <String>{});
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(
-            question.header ?? question.question,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          if (question.header != null) Text(question.question),
-          if (question.options.isNotEmpty)
-            Wrap(
-              spacing: AleraTokens.space4,
-              children: <Widget>[
-                for (final option in question.options)
-                  ChoiceChip(
-                    label: Text(option.label),
-                    selected: selected.contains(option.label),
-                    onSelected: (value) => setState(() {
-                      if (!question.isMultiSelect) selected.clear();
-                      if (value) {
-                        selected.add(option.label);
-                      } else {
-                        selected.remove(option.label);
-                      }
-                    }),
-                  ),
-              ],
-            ),
-          if (question.options.isEmpty || question.isOther)
-            TextField(
-              controller: text,
-              obscureText: question.isSecret,
-              decoration: const InputDecoration(hintText: 'Your Answer'),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MobileElicitationCard extends StatefulWidget {
-  const _MobileElicitationCard({
-    required this.request,
-    required this.controller,
-  });
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexController controller;
-
-  @override
-  State<_MobileElicitationCard> createState() => _MobileElicitationCardState();
-}
-
-class _MobileElicitationCardState extends State<_MobileElicitationCard> {
-  final Map<String, TextEditingController> _fields =
-      <String, TextEditingController>{};
-
-  @override
-  void dispose() {
-    for (final field in _fields.values) {
-      field.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final request = widget.request;
-    final properties = request.elicitationSchema['properties'];
-    final isSupported =
-        request.hasSupportedElicitationForm && properties is Map;
-    return _MobileRequestCard(
-      title: 'MCP Server Needs Input',
-      bodyWidget: isSupported
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final entry in Map<Object?, Object?>.from(
-                  properties,
-                ).entries)
-                  _field(entry.key.toString(), entry.value),
-              ],
-            )
-          : const Text('This MCP input form is not supported on mobile.'),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => unawaited(
-            widget.controller.respondElicitation(request, action: 'cancel'),
-          ),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => unawaited(
-            widget.controller.respondElicitation(request, action: 'decline'),
-          ),
-          child: const Text('Decline'),
-        ),
-        if (isSupported)
-          FilledButton(
-            onPressed: () => unawaited(
-              widget.controller.respondElicitation(
-                request,
-                action: 'accept',
-                content: <String, Object?>{
-                  for (final entry in _fields.entries)
-                    entry.key: _elicitationValue(
-                      properties[entry.key],
-                      entry.value.text,
-                    ),
-                },
-              ),
-            ),
-            child: const Text('Accept'),
-          ),
-      ],
-    );
-  }
-
-  Widget _field(String name, Object? schema) {
-    final controller = _fields.putIfAbsent(name, TextEditingController.new);
-    final schemaMap = schema is Map
-        ? Map<Object?, Object?>.from(schema)
-        : const <Object?, Object?>{};
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: name,
-          hintText: schemaMap['description']?.toString(),
-        ),
-        obscureText: schemaMap['format'] == 'password',
-      ),
-    );
-  }
-}
-
-Object _elicitationValue(Object? schema, String value) {
-  final type = schema is Map ? schema['type']?.toString() : null;
-  if (type == 'number') return double.tryParse(value) ?? 0;
-  if (type == 'integer') return int.tryParse(value) ?? 0;
-  if (type == 'boolean') return value.toLowerCase() == 'true';
-  return value;
-}
-
-class _MobileError extends StatelessWidget {
-  const _MobileError({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: AleraTokens.contentPadding,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: AleraTokens.space12),
-          FilledButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      ),
-    ),
-  );
-}
-
 String _mobileCellLabel(MobileCodexTimelineCell cell) {
-  if (cell.isUser) return 'You';
-  if (cell.isAssistant) return 'Codex';
-  if (cell.isReasoning) return 'Reasoning';
-  if (cell.kind == 'command') return cell.title ?? 'Command';
+  if (cell.kind == 'questionAnswer') {
+    final count = cell.metadata['questionCount'];
+    return 'Asked ${count is int ? count : 1} Questions';
+  }
+  if (cell.kind == 'command') return cell.title ?? 'Ran Command';
   if (cell.kind == 'toolCall') return cell.title ?? 'Tool Call';
-  if (cell.kind == 'diff') return cell.title ?? 'File Changes';
-  if (cell.kind == 'plan') return 'Plan';
+  if (cell.kind == 'diff') return cell.title ?? 'Edited Files';
   if (cell.kind == 'subAgent') return cell.title ?? 'Sub-Agent';
   return cell.title ?? 'Codex Activity';
 }
 
-class _MobilePlanPrompt extends StatelessWidget {
-  const _MobilePlanPrompt({required this.controller});
+Color _mobileCellColor(MobileCodexTimelineCell cell) => switch (cell.status) {
+  'failed' => AleraTokens.error,
+  'warning' => AleraTokens.warning,
+  _ => AleraTokens.foregroundMuted,
+};
 
-  final MobileCodexController controller;
+IconData _mobileCellIcon(MobileCodexTimelineCell cell) => switch (cell.kind) {
+  'questionAnswer' => Icons.help_outline,
+  'diff' => Icons.edit_outlined,
+  'command' => Icons.terminal,
+  'subAgent' => Icons.account_tree_outlined,
+  'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.viewImage =>
+    AleraIcons.viewImage,
+  _ => Icons.info_outline,
+};
 
-  @override
-  Widget build(BuildContext context) => Card(
-    color: AleraTokens.surfaceElevated,
-    child: Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: AleraTokens.space8,
-        runSpacing: AleraTokens.space8,
-        children: <Widget>[
-          const Text('Implement this plan?'),
-          FilledButton(
-            onPressed: () => unawaited(controller.implementPlan()),
-            child: const Text('Implement Plan'),
-          ),
-          TextButton(
-            onPressed: () => unawaited(controller.declinePlan()),
-            child: const Text('Decline'),
-          ),
-          OutlinedButton(
-            onPressed: () => unawaited(_refine(context)),
-            child: const Text('Refine Plan'),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Future<void> _refine(BuildContext context) async {
-    final input = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Refine Plan'),
-        content: TextField(
-          controller: input,
-          autofocus: true,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Tell Codex what to change.',
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(input.text),
-            child: const Text('Send Refinement'),
-          ),
-        ],
-      ),
-    );
-    input.dispose();
-    if (value != null && value.trim().isNotEmpty) {
-      await controller.refinePlan(value);
-    }
-  }
+String _mobileTimestamp(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute ${local.hour < 12 ? 'AM' : 'PM'}';
 }

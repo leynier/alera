@@ -49,7 +49,7 @@ void main() {
         tabsControllerProvider('host-1', 'workspace-1').future,
       );
 
-      await notifier.closeTab(client.tabs.single);
+      expect(await notifier.closeTab(client.tabs.single), isTrue);
 
       expect(
         client.calls.where(
@@ -77,11 +77,38 @@ void main() {
       tabsControllerProvider('host-1', 'workspace-1').future,
     );
 
-    await notifier.closeTab(client.tabs.single);
+    expect(await notifier.closeTab(client.tabs.single), isTrue);
 
     expect(client.calls, contains('removeTab codex-1'));
     expect(client.calls.where((call) => call.startsWith('terminate')), isEmpty);
   });
+
+  test(
+    'Closing reports failure when its provider is disposed in flight',
+    () async {
+      final termination = Completer<void>();
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..terminateCompletion = termination.future;
+      final container = _container(client);
+      final notifier = container.read(
+        tabsControllerProvider('host-1', 'workspace-1').notifier,
+      );
+      await container.read(
+        tabsControllerProvider('host-1', 'workspace-1').future,
+      );
+
+      final closing = notifier.closeTab(client.tabs.single);
+      await Future<void>.delayed(Duration.zero);
+      container.dispose();
+      termination.complete();
+
+      expect(await closing, isFalse);
+      expect(client.calls, isNot(contains('removeTab tab-1')));
+    },
+  );
 
   test('Renames terminal and non-terminal tabs through the runtime', () async {
     final client = FakeTerminalClient()

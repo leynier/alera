@@ -73,7 +73,7 @@ extension MobileCodexControllerOptions on MobileCodexController {
   }
 
   void setCollaborationMode(String? mode) {
-    if (mode == null || mode.isEmpty) return;
+    if (mode?.isEmpty == true) return;
     _update(
       (current) =>
           current.copyWith(collaborationMode: mode, planMode: mode == 'plan'),
@@ -143,10 +143,28 @@ extension MobileCodexControllerOptions on MobileCodexController {
     return current.copyWith(queuedMessages: next);
   });
 
-  void editQueuedMessage(int index, String text) => _update((current) {
+  void editQueuedMessage(
+    int index,
+    String text, {
+    List<Map<String, Object?>>? catalogSelections,
+  }) => _update((current) {
     if (index < 0 || index >= current.queuedMessages.length) return current;
     final next = <Map<String, Object?>>[...current.queuedMessages];
-    next[index] = <String, Object?>{...next[index], 'text': text.trim()};
+    final editedText = text.trim();
+    final message = next[index];
+    final selections =
+        catalogSelections ??
+        (message['catalogSelections'] is List
+            ? <Map<String, Object?>>[
+                for (final value in message['catalogSelections']! as List)
+                  if (value is Map) Map<String, Object?>.from(value),
+              ]
+            : const <Map<String, Object?>>[]);
+    next[index] = <String, Object?>{
+      ...message,
+      'text': editedText,
+      'catalogSelections': mobileCodexTrimCatalogSelections(text, selections),
+    };
     return current.copyWith(queuedMessages: next);
   });
 }
