@@ -340,9 +340,7 @@ void registerCodexTimelineProgressTests() {
     expect(find.text('Keep this partial answer'), findsOneWidget);
   });
 
-  testWidgets('keeps later warnings in chronological timeline order', (
-    tester,
-  ) async {
+  testWidgets('hoists warnings above conversation messages', (tester) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],
       timelineCells: const <Object?>[
@@ -373,8 +371,50 @@ void registerCodexTimelineProgressTests() {
     final before = tester.getTopLeft(find.text('Before warning')).dy;
     final warning = tester.getTopLeft(find.text('Later warning')).dy;
     final after = tester.getTopLeft(find.text('After warning')).dy;
-    expect(before, lessThan(warning));
-    expect(warning, lessThan(after));
+    expect(warning, lessThan(before));
+    expect(before, lessThan(after));
+  });
+
+  testWidgets('keeps live warnings above history loaded later', (tester) async {
+    final client = _SurfaceRuntimeClient(
+      supportsSessions: true,
+      historyNextCursor: 'older',
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'live-warning',
+          'kind': 'systemNotice',
+          'status': 'info',
+          'markdownText': 'Live warning',
+          'metadata': <String, Object?>{'noticeType': 'warning'},
+        },
+        <String, Object?>{
+          'id': 'live-message',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Live message',
+        },
+      ],
+      historyTimelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'history-message',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'History message',
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    await tester.tap(find.text('Load Earlier Messages'));
+    await tester.pumpAndSettle();
+
+    final warning = tester.getTopLeft(find.text('Live warning')).dy;
+    final history = tester.getTopLeft(find.text('History message')).dy;
+    final live = tester.getTopLeft(find.text('Live message')).dy;
+    expect(warning, lessThan(history));
+    expect(history, lessThan(live));
   });
 
   testWidgets('keeps the composer available for optional questions', (

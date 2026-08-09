@@ -1,11 +1,12 @@
 part of 'codex_chat_surface_test.dart';
 
 void registerCodexTimelineReviewTests() {
-  testWidgets('keeps completed reasoning cells in the timeline', (
+  testWidgets('keeps reasoning transient and shows Working instead', (
     tester,
   ) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],
+      activeTurnId: 'turn-reasoning',
       timelineCells: const <Object?>[
         <String, Object?>{
           'id': 'request',
@@ -34,8 +35,12 @@ void registerCodexTimelineReviewTests() {
     addTearDown(client.dispose);
     await _pumpTimelineSegmentSurface(tester, client);
 
-    expect(find.text('Turn Reasoning'), findsOneWidget);
-    expect(find.text('Standalone Reasoning'), findsOneWidget);
+    expect(find.text('Turn Reasoning'), findsNothing);
+    expect(find.text('Standalone Reasoning'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('codex-working-indicator')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('focusing a free-text question snoozes auto-resolution', (

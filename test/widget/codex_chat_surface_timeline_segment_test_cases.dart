@@ -28,6 +28,118 @@ void registerCodexTimelineSegmentTests() {
     expect(find.byIcon(AleraIcons.warning), findsOneWidget);
   });
 
+  testWidgets('keeps MCP startup status above conversation messages', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'before-mcp',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Message before startup status',
+        },
+        <String, Object?>{
+          'id': 'mcp-startup-docs',
+          'turnId': 'turn-later',
+          'kind': 'toolCall',
+          'status': 'completed',
+          'title': 'Docs MCP server',
+          'subtitle': 'ready',
+          'metadata': <String, Object?>{
+            'itemType': 'mcpServerStartup',
+            'status': 'ready',
+          },
+        },
+        <String, Object?>{
+          'id': 'after-mcp',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Message after startup status',
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    final status = tester.getTopLeft(find.text('Docs MCP server')).dy;
+    final before = tester
+        .getTopLeft(find.text('Message before startup status'))
+        .dy;
+    final after = tester
+        .getTopLeft(find.text('Message after startup status'))
+        .dy;
+    expect(status, lessThan(before));
+    expect(before, lessThan(after));
+  });
+
+  testWidgets('shows Worked only after the active turn completes', (
+    tester,
+  ) async {
+    List<Object?> cells() => const <Object?>[
+      <String, Object?>{
+        'id': 'request-worked',
+        'turnId': 'turn-worked',
+        'kind': 'userMessage',
+        'status': 'completed',
+        'markdownText': 'Inspect the files',
+      },
+      <String, Object?>{
+        'id': 'read-worked',
+        'turnId': 'turn-worked',
+        'kind': 'command',
+        'status': 'completed',
+        'title': 'Read file',
+        'metadata': <String, Object?>{
+          'commandActions': <Object?>[
+            <String, Object?>{'type': 'read', 'path': '/repo/one.dart'},
+          ],
+        },
+      },
+      <String, Object?>{
+        'id': 'search-worked',
+        'turnId': 'turn-worked',
+        'kind': 'command',
+        'status': 'completed',
+        'title': 'Search files',
+        'metadata': <String, Object?>{
+          'commandActions': <Object?>[
+            <String, Object?>{'type': 'search', 'query': 'needle'},
+          ],
+        },
+      },
+    ];
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      activeTurnId: 'turn-worked',
+      timelineCells: cells(),
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client, settle: false);
+
+    expect(find.byKey(const ValueKey<String>('worked-divider')), findsNothing);
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': cells(),
+          'pendingRequests': const <Object?>[],
+          'activeTurnId': null,
+        },
+      }),
+    );
+    await tester.pump();
+    await tester.pump(AleraTokens.durationFast);
+
+    expect(
+      find.byKey(const ValueKey<String>('worked-divider')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Worked for'), findsOneWidget);
+  });
+
   testWidgets('streams plan content inside the plan card', (tester) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],

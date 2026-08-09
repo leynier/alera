@@ -49,18 +49,16 @@ abstract final class MobileCodexTimelineProjection {
     required String? activeTurnId,
   }) {
     final rows = <MobileCodexPresentationRow>[];
-    final warnings = <MobileCodexTimelineCell>[];
+    final topNotices = <MobileCodexTimelineCell>[];
     final content = <MobileCodexTimelineCell>[];
     for (final cell in cells) {
-      if (cell.kind == 'systemNotice' &&
-          (cell.status == 'warning' ||
-              cell.metadata['severity'] == 'warning')) {
-        warnings.add(cell);
+      if (_isTopNotice(cell)) {
+        topNotices.add(cell);
       } else {
         content.add(cell);
       }
     }
-    rows.addAll(warnings.map(MobileCodexPresentationRow.cell));
+    rows.addAll(topNotices.map(MobileCodexPresentationRow.cell));
     final latestPlanIndex = content.lastIndexWhere(
       (cell) => cell.kind == 'plan',
     );
@@ -110,6 +108,18 @@ abstract final class MobileCodexTimelineProjection {
       cell.kind == 'command' ||
       cell.kind == 'toolCall' ||
       cell.kind == 'diff';
+
+  static bool _isTopNotice(MobileCodexTimelineCell cell) =>
+      cell.metadata['itemType'] == 'mcpServerStartup' ||
+      (cell.kind == 'systemNotice' &&
+          (cell.status == 'warning' ||
+              cell.metadata['severity'] == 'warning' ||
+              const <String>{
+                'warning',
+                'guardianWarning',
+                'configWarning',
+                'deprecationNotice',
+              }.contains(cell.metadata['noticeType'])));
 
   static bool _hasVisibleStreamingTail(List<MobileCodexPresentationRow> rows) {
     if (rows.isEmpty) return false;

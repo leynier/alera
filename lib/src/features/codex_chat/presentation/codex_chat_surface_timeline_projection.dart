@@ -255,7 +255,12 @@ class _CodexTimelineProjection {
       for (final request in snapshot.pendingRequests)
         if (!request.isQuestion) _CodexTimelineEntry.request(request),
     ];
+    final topNotices = <String, _CodexTimelineEntry>{
+      for (final entry in history.topNotices) entry.key: entry,
+      for (final entry in live.topNotices) entry.key: entry,
+    }.values.toList(growable: false);
     final entries = _CodexTimelineEntries(
+      topNotices: topNotices,
       history: history,
       live: live,
       boundary: boundary,
@@ -279,6 +284,7 @@ class _CodexTimelineProjection {
 class _CodexTimelineSegmentProjection {
   const _CodexTimelineSegmentProjection({
     required this.sourceCells,
+    required this.topNotices,
     required this.entries,
     required this.entryKeys,
     required this.latestPlanId,
@@ -286,6 +292,7 @@ class _CodexTimelineSegmentProjection {
 
   static const empty = _CodexTimelineSegmentProjection(
     sourceCells: <CodexTimelineCell>[],
+    topNotices: <_CodexTimelineEntry>[],
     entries: <_CodexTimelineEntry>[],
     entryKeys: <String>{},
     latestPlanId: null,
@@ -298,11 +305,17 @@ class _CodexTimelineSegmentProjection {
   }) {
     final turns = <String, List<CodexTimelineCell>>{};
     final order = <Object>[];
+    final topNotices = <_CodexTimelineEntry>[];
     final seenTurns = <String>{};
     for (final cell in cells) {
+      if (_isCodexTopNotice(cell)) {
+        topNotices.add(_CodexTimelineEntry.cell(cell));
+        continue;
+      }
       final turnId = cell.turnId;
       if (turnId == null || turnId.isEmpty) {
-        if (cell.kind != CodexTimelineKind.turnSeparator) {
+        if (cell.kind != CodexTimelineKind.turnSeparator &&
+            cell.kind != CodexTimelineKind.reasoning) {
           order.add(cell);
         }
         continue;
@@ -330,6 +343,7 @@ class _CodexTimelineSegmentProjection {
         ]);
     return _CodexTimelineSegmentProjection(
       sourceCells: cells,
+      topNotices: List<_CodexTimelineEntry>.unmodifiable(topNotices),
       entries: entries,
       entryKeys: Set<String>.unmodifiable(<String>{
         for (final entry in entries) entry.key,
@@ -339,6 +353,7 @@ class _CodexTimelineSegmentProjection {
   }
 
   final List<CodexTimelineCell> sourceCells;
+  final List<_CodexTimelineEntry> topNotices;
   final List<_CodexTimelineEntry> entries;
   final Set<String> entryKeys;
   final String? latestPlanId;
@@ -365,6 +380,7 @@ _CodexTimelineEntry? _mergeCodexTimelineBoundary(
 
 class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
   _CodexTimelineEntries({
+    required this.topNotices,
     required this.history,
     required this.live,
     required this.boundary,
@@ -372,6 +388,7 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
     required this.requests,
   });
 
+  final List<_CodexTimelineEntry> topNotices;
   final _CodexTimelineSegmentProjection history;
   final _CodexTimelineSegmentProjection live;
   final _CodexTimelineEntry? boundary;
@@ -384,8 +401,12 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
   late final Set<String> _requestKeys = <String>{
     for (final entry in requests) entry.key,
   };
+  late final Set<String> _topNoticeKeys = <String>{
+    for (final entry in topNotices) entry.key,
+  };
 
   bool containsKey(String key) =>
+      _topNoticeKeys.contains(key) ||
       history.entryKeys.contains(key) ||
       live.entryKeys.contains(key) ||
       boundary?.key == key ||
@@ -398,6 +419,7 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
 
   @override
   int get length =>
+      topNotices.length +
       _historyEntryCount +
       (boundary == null ? 0 : 1) +
       _liveEntryCount +
@@ -412,6 +434,8 @@ class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
   _CodexTimelineEntry operator [](int index) {
     RangeError.checkValidIndex(index, this);
     var offset = index;
+    if (offset < topNotices.length) return topNotices[offset];
+    offset -= topNotices.length;
     if (offset < _historyEntryCount) return history.entries[offset];
     offset -= _historyEntryCount;
     if (boundary case final boundary?) {
