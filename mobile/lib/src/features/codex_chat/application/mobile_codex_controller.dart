@@ -13,6 +13,7 @@ import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'mobile_codex_controller.g.dart';
+part 'mobile_codex_controller_configuration_helpers.dart';
 part 'mobile_codex_controller_helpers.dart';
 part 'mobile_codex_controller_lifecycle.dart';
 part 'mobile_codex_controller_workspace.dart';
