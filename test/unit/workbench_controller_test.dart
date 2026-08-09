@@ -55,6 +55,7 @@ part 'workbench_controller_watcher_recovery_test_cases.dart';
 part 'workbench_controller_navigation_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
+part 'workbench_controller_selection_test_cases.dart';
 
 late _WorkbenchHarness _harness;
 late WorkbenchController _controller;
