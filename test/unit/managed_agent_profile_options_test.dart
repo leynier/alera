@@ -396,6 +396,18 @@ void main() {
         'opencode --model gpt --agent build --auto',
       );
       expect(
+        managedAgentCommandPreview(
+          AgentType.opencode2,
+          const <String, Object?>{
+            'model': 'gpt',
+            'agent': 'build',
+            'autoApprove': true,
+          },
+        ),
+        // Interactive opencode2 only accepts --auto on the default TUI.
+        'opencode2 --auto',
+      );
+      expect(
         managedAgentCommandPreview(AgentType.pi, const <String, Object?>{
           'model': 'pi-model',
           'thinking': 'xhigh',
