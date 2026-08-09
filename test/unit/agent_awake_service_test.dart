@@ -260,6 +260,7 @@ AgentStatusHookSettings _settingsFor(AgentType agentType) {
     AgentType.cursor => const AgentStatusHookSettings(cursor: true),
     AgentType.agy => const AgentStatusHookSettings(agy: true),
     AgentType.opencode => const AgentStatusHookSettings(opencode: true),
+    AgentType.opencode2 => const AgentStatusHookSettings(opencode2: true),
     AgentType.pi => const AgentStatusHookSettings(pi: true),
     AgentType.amp => const AgentStatusHookSettings(amp: true),
     AgentType.grok => const AgentStatusHookSettings(grok: true),

@@ -58,7 +58,22 @@ final class AgentRuntimeOverlayService {
 
   Future<AgentRuntimeOverlayPreparation> prepareOpenCodeForTerminalLaunch({
     required String terminalSessionId,
+    bool includeV1Plugin = true,
+    bool includeV2Plugin = false,
   }) {
+    // v1 and v2 share OPENCODE_CONFIG_DIR. Write only the plugins the user
+    // enabled so auto-discovery in either binary does not load the other API.
+    final managedFiles = <String, String>{
+      if (includeV1Plugin)
+        'alera-agent-status.js': aleraOpenCodeStatusPluginSource(),
+      if (includeV2Plugin)
+        'alera-agent-status-v2.js': aleraOpenCode2StatusPluginSource(),
+    };
+    if (managedFiles.isEmpty) {
+      return Future<AgentRuntimeOverlayPreparation>.value(
+        const AgentRuntimeOverlayPreparation(environment: <String, String>{}),
+      );
+    }
     return _prepareOverlay(
       agentKey: 'opencode',
       terminalSessionId: terminalSessionId,
@@ -67,8 +82,7 @@ final class AgentRuntimeOverlayService {
       sourceEnvKey: 'ALERA_OPENCODE_SOURCE_CONFIG_DIR',
       defaultSourcePath: _defaultOpenCodeConfigDir(),
       managedSubdirectory: 'plugins',
-      managedFileName: 'alera-agent-status.js',
-      managedFileContent: aleraOpenCodeStatusPluginSource(),
+      managedFiles: managedFiles,
     );
   }
 
@@ -83,8 +97,9 @@ final class AgentRuntimeOverlayService {
       sourceEnvKey: 'ALERA_PI_SOURCE_AGENT_DIR',
       defaultSourcePath: p.join(_homeDirectory, '.pi', 'agent'),
       managedSubdirectory: 'extensions',
-      managedFileName: 'alera-agent-status.ts',
-      managedFileContent: aleraPiStatusExtensionSource(),
+      managedFiles: <String, String>{
+        'alera-agent-status.ts': aleraPiStatusExtensionSource(),
+      },
     );
   }
 
@@ -115,7 +130,7 @@ final class AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: overlay.path,
           managedSubdirectory: 'hooks',
-          managedFileName: 'alera.json',
+          managedFileNames: const <String>{'alera.json'},
         );
       }
       final status = ManagedAgentHookInstallService(
@@ -177,7 +192,7 @@ final class AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: ampConfigDir,
           managedSubdirectory: 'plugins',
-          managedFileName: 'alera-agent-status.ts',
+          managedFileNames: const <String>{'alera-agent-status.ts'},
         );
       }
       _writeManagedFile(

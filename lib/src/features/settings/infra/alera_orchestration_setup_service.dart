@@ -184,6 +184,7 @@ String _agentTypeLabel(AgentType agentType) {
     AgentType.cursor => 'Cursor',
     AgentType.agy => 'Antigravity',
     AgentType.opencode => 'OpenCode',
+    AgentType.opencode2 => 'OpenCode 2',
     AgentType.pi => 'Pi',
     AgentType.amp => 'Amp',
     AgentType.grok => 'Grok Build',

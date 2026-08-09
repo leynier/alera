@@ -20,8 +20,8 @@ use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
-const SUPPORTED_AGENTS: [&str; 10] = [
-    "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+const SUPPORTED_AGENTS: [&str; 11] = [
+    "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "custom",
 ];
 
 static ACTIVE_GENERATIONS: OnceLock<Mutex<HashMap<String, oneshot::Sender<()>>>> = OnceLock::new();
@@ -295,6 +295,27 @@ fn plan_command(
             Some(prompt.to_string()),
             "OpenCode",
         ),
+        "opencode2" => (
+            "opencode2",
+            vec![
+                "run".to_string(),
+                "--model".to_string(),
+                model.to_string(),
+                "--agent".to_string(),
+                "build".to_string(),
+                "--format".to_string(),
+                "default".to_string(),
+            ]
+            .into_iter()
+            .chain(
+                thinking
+                    .map(|value| vec!["--variant".to_string(), value.to_string()])
+                    .unwrap_or_default(),
+            )
+            .collect(),
+            Some(prompt.to_string()),
+            "OpenCode 2",
+        ),
         "pi" => (
             "pi",
             vec![
@@ -486,7 +507,7 @@ fn default_model(agent: &str) -> &'static str {
         "cursor" => "auto",
         // An empty model lets AGY use its own configured/default model.
         "agy" => "",
-        "opencode" => "opencode/deepseek-v4-flash-free",
+        "opencode" | "opencode2" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
         "grok" => "grok-4.5",

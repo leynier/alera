@@ -141,7 +141,7 @@ fn normalize_state(
             "Stop" => Some(AgentPresenceState::Done),
             _ => None,
         },
-        "opencode" => match name {
+        "opencode" | "opencode2" => match name {
             "SessionBusy" | "MessagePart" => Some(AgentPresenceState::Working),
             "PermissionRequest" | "AskUserQuestion" => Some(AgentPresenceState::Waiting),
             "SessionIdle" => Some(AgentPresenceState::Done),
@@ -293,7 +293,9 @@ fn normalized_event_name(event: &AgentHookEvent) -> Option<String> {
 fn assistant_message(event: &AgentHookEvent, name: &str) -> Option<String> {
     if matches!(
         (event.agent_type.as_str(), name),
-        ("opencode", "MessagePart") | ("pi", "message_end")
+        ("opencode", "MessagePart")
+            | ("opencode2", "MessagePart")
+            | ("pi", "message_end")
     ) && first_string(&event.payload, &["role"]).as_deref() == Some("assistant")
     {
         return first_string(&event.payload, &["text"]);

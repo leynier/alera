@@ -317,6 +317,36 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
           if (thinkingLevel != null) ...<String>['--variant', thinkingLevel],
         ],
   ),
+  AiTextGenerationAgent.opencode2: AiTextAgentSpec(
+    agent: AiTextGenerationAgent.opencode2,
+    binary: 'opencode2',
+    promptDelivery: AiPromptDelivery.stdin,
+    modelsCommand: const <String>['models'],
+    parseModels: parseLineModels,
+    models: const <AiTextModel>[
+      AiTextModel(
+        id: 'opencode/deepseek-v4-flash-free',
+        label: 'OpenCode DeepSeek V4 Flash Free',
+      ),
+    ],
+    defaultModelId: 'opencode/deepseek-v4-flash-free',
+    buildArgs:
+        ({
+          required prompt,
+          required model,
+          thinkingLevel,
+          required timeoutSeconds,
+        }) => <String>[
+          'run',
+          '--model',
+          model,
+          '--agent',
+          'build',
+          '--format',
+          'default',
+          if (thinkingLevel != null) ...<String>['--variant', thinkingLevel],
+        ],
+  ),
   AiTextGenerationAgent.pi: AiTextAgentSpec(
     agent: AiTextGenerationAgent.pi,
     binary: 'pi',

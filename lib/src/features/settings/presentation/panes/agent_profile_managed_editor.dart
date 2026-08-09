@@ -244,7 +244,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
           keyName: 'sandbox',
         ),
       ],
-      AgentType.opencode => <Widget>[
+      AgentType.opencode || AgentType.opencode2 => <Widget>[
         _boolRow(
           title: 'Auto Approve',
           description: 'Approve OpenCode actions automatically.',

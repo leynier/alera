@@ -297,8 +297,8 @@ impl ServerActor {
 fn validate_ai_text_generation_settings(
     settings: &RuntimeAiTextGenerationSettings,
 ) -> HostResult<()> {
-    const AGENTS: [&str; 10] = [
-        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+    const AGENTS: [&str; 11] = [
+        "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "custom",
     ];
     if !AGENTS.contains(&settings.agent.trim()) {
         return Err(HostError::format("aiTextGeneration.agent is unsupported."));
@@ -337,8 +337,8 @@ fn validate_ai_text_generation_settings(
 }
 
 fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> HostResult<()> {
-    const AGENTS: [&str; 10] = [
-        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+    const AGENTS: [&str; 11] = [
+        "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "custom",
     ];
     let mut ids = std::collections::HashSet::new();
     let mut names = std::collections::HashSet::new();

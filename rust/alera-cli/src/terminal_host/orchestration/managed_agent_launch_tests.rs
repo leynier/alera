@@ -68,6 +68,11 @@ fn every_adapter_builds_its_native_session_flags() {
             vec!["--agent", "build", "--auto"],
         ),
         (
+            "opencode2",
+            json!({"agent": "build", "model": "opencode/deepseek", "autoApprove": true}),
+            vec!["--auto"],
+        ),
+        (
             "pi",
             json!({"thinking": "xhigh", "projectTrust": "ignore"}),
             vec!["--thinking", "xhigh", "--no-approve"],

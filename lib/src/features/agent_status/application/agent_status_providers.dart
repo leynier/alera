@@ -228,7 +228,11 @@ Future<Map<String, String>?> terminalLaunchEnvironmentFor({
   if (hookEnvironment != null) {
     environment.addAll(hookEnvironment);
   }
-  if (hooks.copilot || hooks.opencode || hooks.pi || hooks.amp) {
+  if (hooks.copilot ||
+      hooks.opencode ||
+      hooks.opencode2 ||
+      hooks.pi ||
+      hooks.amp) {
     try {
       await agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
     } on Object catch (error, stackTrace) {
@@ -260,10 +264,12 @@ Future<Map<String, String>?> terminalLaunchEnvironmentFor({
   // Cursor is deliberately absent: the runtime host builds its per-session
   // plugin and `cursor-agent` wrapper, because anything this side injects is
   // stripped again by the host's launch-environment sanitisation.
-  if (hooks.opencode) {
+  if (hooks.opencode || hooks.opencode2) {
     await _addAgentHookEnvironment(environment, 'OpenCode', () async {
       return (await agentRuntimeOverlay.prepareOpenCodeForTerminalLaunch(
         terminalSessionId: terminalSessionId,
+        includeV1Plugin: hooks.opencode,
+        includeV2Plugin: hooks.opencode2,
       )).environment;
     });
   }
@@ -321,6 +327,7 @@ bool isAgentStatusHookEnabled(
     AgentType.cursor => settings.cursor,
     AgentType.agy => settings.agy,
     AgentType.opencode => settings.opencode,
+    AgentType.opencode2 => settings.opencode2,
     AgentType.pi => settings.pi,
     AgentType.amp => settings.amp,
     AgentType.grok => settings.grok,

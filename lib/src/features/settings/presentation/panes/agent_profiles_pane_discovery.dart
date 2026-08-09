@@ -19,7 +19,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
       return discovered;
     }
     return switch (adapter) {
-      AgentType.opencode => const <ManagedAgentOption>[
+      AgentType.opencode || AgentType.opencode2 => const <ManagedAgentOption>[
         ManagedAgentOption('build', 'Build'),
       ],
       _ => const <ManagedAgentOption>[],
@@ -31,7 +31,9 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
   }
 
   bool _canDiscoverPersonas(AgentType adapter) {
-    return adapter == AgentType.agy || adapter == AgentType.opencode;
+    return adapter == AgentType.agy ||
+        adapter == AgentType.opencode ||
+        adapter == AgentType.opencode2;
   }
 
   void _scheduleDiscovery(AgentType adapter) {
