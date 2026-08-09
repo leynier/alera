@@ -119,7 +119,7 @@ fn create_file_symlink(source: &Path, link: &Path) -> io::Result<()> {
 }
 
 #[test]
-fn excludes_file_symlinks_that_workspace_reads_will_reject() {
+fn includes_local_file_symlinks_but_never_external_targets() {
     let workspace = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();
     let local = workspace.path().join("local.txt");
@@ -134,8 +134,26 @@ fn excludes_file_symlinks_that_workspace_reads_will_reject() {
     let session = start(&workspace);
     let indexed = paths(&session, "", 20);
     assert!(indexed.contains(&"local.txt".to_string()));
-    assert!(!indexed.contains(&"local-link.txt".to_string()));
+    assert!(indexed.contains(&"local-link.txt".to_string()));
     assert!(!indexed.contains(&"external-link.txt".to_string()));
+    stop_workspace_quick_open_session(session);
+}
+
+#[test]
+fn strict_sessions_exclude_all_file_symlinks() {
+    let workspace = tempfile::tempdir().unwrap();
+    let local = workspace.path().join("local.txt");
+    fs::write(&local, "local").unwrap();
+    if create_file_symlink(&local, &workspace.path().join("local-link.txt")).is_err() {
+        return;
+    }
+    let session = start_workspace_quick_open_session_without_symlinks(
+        workspace.path().to_string_lossy().into_owned(),
+    )
+    .expect("start strict session");
+    let indexed = paths(&session, "", 20);
+    assert!(indexed.contains(&"local.txt".to_string()));
+    assert!(!indexed.contains(&"local-link.txt".to_string()));
     stop_workspace_quick_open_session(session);
 }
 
@@ -238,7 +256,7 @@ fn returns_a_bounded_partial_index_when_budgets_are_exhausted() {
         fs::write(workspace.path().join(relative), relative).unwrap();
     }
 
-    let files = collect_quick_open_files(workspace.path(), 2, usize::MAX).unwrap();
+    let files = collect_quick_open_files(workspace.path(), 2, usize::MAX, true).unwrap();
     assert_eq!(
         files
             .iter()
@@ -247,7 +265,7 @@ fn returns_a_bounded_partial_index_when_budgets_are_exhausted() {
         ["one.txt", "three.txt"]
     );
 
-    let files = collect_quick_open_files(workspace.path(), usize::MAX, 8).unwrap();
+    let files = collect_quick_open_files(workspace.path(), usize::MAX, 8, true).unwrap();
     assert!(files.len() <= 1);
     assert!(files.iter().all(|file| file.relative_path.len() <= 8));
 }
@@ -296,7 +314,7 @@ fn keeps_accessible_files_when_a_nested_directory_is_unreadable() {
     fs::write(denied.join("hidden.txt"), "hidden").unwrap();
     fs::set_permissions(&denied, fs::Permissions::from_mode(0o0)).unwrap();
 
-    let result = collect_quick_open_files(workspace.path(), usize::MAX, usize::MAX);
+    let result = collect_quick_open_files(workspace.path(), usize::MAX, usize::MAX, true);
 
     fs::set_permissions(&denied, fs::Permissions::from_mode(0o700)).unwrap();
     let files = result.unwrap();
