@@ -69,7 +69,8 @@ class _CodexQuestionDock extends StatelessWidget {
       AleraTokens.space24,
       AleraTokens.space12,
     ),
-    child: Center(
+    child: Align(
+      alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: AleraTokens.codexQuestionCardMaxWidth,

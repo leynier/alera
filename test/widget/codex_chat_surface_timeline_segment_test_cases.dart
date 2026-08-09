@@ -210,6 +210,22 @@ void registerCodexTimelineSegmentTests() {
       find.byKey(const ValueKey<String>('codex-model-configuration')),
       findsOneWidget,
     );
+    final cardBottom = tester.getBottomRight(
+      find.byKey(const ValueKey<String>('codex-plan-question-card')),
+    );
+    final modelTop = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+    );
+    final modelBottom = tester.getBottomRight(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+    );
+    final surfaceBottom = tester.getBottomRight(find.byType(CodexChatSurface));
+    expect(cardBottom.dy, lessThan(modelTop.dy));
+    expect(surfaceBottom.dy - modelBottom.dy, greaterThanOrEqualTo(0));
+    expect(
+      surfaceBottom.dy - modelBottom.dy,
+      lessThanOrEqualTo(AleraTokens.space24),
+    );
   });
 
   testWidgets('groups tool activity with singular and plural counts', (
