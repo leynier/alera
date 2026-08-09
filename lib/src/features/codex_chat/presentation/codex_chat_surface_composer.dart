@@ -314,7 +314,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                                               ),
                                             ),
                                             const SizedBox(
-                                              width: AleraTokens.space6,
+                                              width: AleraTokens.space2,
                                             ),
                                           ],
                                           Flexible(

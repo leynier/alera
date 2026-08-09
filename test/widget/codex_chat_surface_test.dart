@@ -348,7 +348,7 @@ void main() {
     );
     expect(
       modelConfiguration.left - contextIndicator.right,
-      lessThanOrEqualTo(AleraTokens.space8),
+      lessThanOrEqualTo(AleraTokens.space4),
     );
     expect(contextIndicator.right, lessThan(modelConfiguration.right));
 
