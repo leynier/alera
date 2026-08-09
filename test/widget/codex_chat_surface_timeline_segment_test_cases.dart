@@ -140,6 +140,79 @@ void registerCodexTimelineSegmentTests() {
     expect(find.textContaining('Worked for'), findsOneWidget);
   });
 
+  testWidgets('keeps an expanded tool group open when earlier activity lands', (
+    tester,
+  ) async {
+    const readOne = <String, Object?>{
+      'id': 'read-one',
+      'turnId': 'turn-tools',
+      'kind': 'command',
+      'status': 'completed',
+      'title': 'Read first file',
+      'detailsText': 'First file output',
+      'metadata': <String, Object?>{
+        'commandActions': <Object?>[
+          <String, Object?>{'type': 'read', 'path': '/repo/one.dart'},
+        ],
+      },
+    };
+    const readTwo = <String, Object?>{
+      'id': 'read-two',
+      'turnId': 'turn-tools',
+      'kind': 'command',
+      'status': 'completed',
+      'title': 'Read second file',
+      'detailsText': 'Second file output',
+      'metadata': <String, Object?>{
+        'commandActions': <Object?>[
+          <String, Object?>{'type': 'read', 'path': '/repo/two.dart'},
+        ],
+      },
+    };
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      activeTurnId: 'turn-tools',
+      timelineCells: const <Object?>[readOne, readTwo],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client, settle: false);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('worked-action-group-read-one')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('worked-action-read-one')),
+    );
+    await tester.pump();
+    expect(find.text('First file output'), findsOneWidget);
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': const <String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'progress-before-tools',
+              'turnId': 'turn-tools',
+              'kind': 'progressText',
+              'status': 'completed',
+              'markdownText': 'Inspecting the workspace',
+            },
+            readOne,
+            readTwo,
+          ],
+          'pendingRequests': <Object?>[],
+          'activeTurnId': 'turn-tools',
+        },
+      }),
+    );
+    await tester.pump();
+    await tester.pump(AleraTokens.durationFast);
+
+    expect(find.text('First file output'), findsOneWidget);
+  });
+
   testWidgets('streams plan content inside the plan card', (tester) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],

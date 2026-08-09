@@ -288,6 +288,55 @@ void mobileCodexStateTests() {
     expect(stopwatch.elapsed, lessThan(const Duration(seconds: 5)));
   });
 
+  test('mobile keeps an activity row identity while tools stream into it', () {
+    const readOne = MobileCodexTimelineCell(
+      id: 'read-one',
+      kind: 'command',
+      status: 'completed',
+      turnId: 'turn-tools',
+      title: 'Read one file',
+    );
+    const readTwo = MobileCodexTimelineCell(
+      id: 'read-two',
+      kind: 'command',
+      status: 'completed',
+      turnId: 'turn-tools',
+      title: 'Read another file',
+    );
+    const readThree = MobileCodexTimelineCell(
+      id: 'read-three',
+      kind: 'command',
+      status: 'completed',
+      turnId: 'turn-tools',
+      title: 'Read a third file',
+    );
+    const reasoning = MobileCodexTimelineCell(
+      id: 'reasoning-before-tools',
+      kind: 'reasoning',
+      status: 'completed',
+      turnId: 'turn-tools',
+      markdownText: 'Inspecting the workspace',
+    );
+
+    final initial = MobileCodexTimelineProjection.project(
+      const <MobileCodexTimelineCell>[readOne, readTwo],
+      activeTurnId: 'turn-tools',
+    );
+    final updated = MobileCodexTimelineProjection.project(
+      const <MobileCodexTimelineCell>[reasoning, readOne, readTwo, readThree],
+      activeTurnId: 'turn-tools',
+    );
+
+    final initialActivity = initial.singleWhere(
+      (row) => row.kind == MobileCodexPresentationKind.activity,
+    );
+    final updatedActivity = updated.singleWhere(
+      (row) => row.kind == MobileCodexPresentationKind.activity,
+    );
+    expect(initialActivity.id, 'activity-read-one');
+    expect(updatedActivity.id, initialActivity.id);
+  });
+
   test('mobile Codex preferences keep every safe permission mode', () {
     for (final mode in const <String>[
       'untrusted',

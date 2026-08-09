@@ -6,6 +6,10 @@ class _CodexTurnSection extends StatelessWidget {
     required this.workspacePath,
     required this.workedExpanded,
     required this.onToggleWorked,
+    required this.expandedToolGroups,
+    required this.expandedToolActions,
+    required this.onToggleToolGroup,
+    required this.onToggleToolAction,
     required this.onOpenAttachment,
   });
 
@@ -13,6 +17,10 @@ class _CodexTurnSection extends StatelessWidget {
   final String workspacePath;
   final bool workedExpanded;
   final VoidCallback onToggleWorked;
+  final Set<String> expandedToolGroups;
+  final Set<String> expandedToolActions;
+  final ValueChanged<String> onToggleToolGroup;
+  final ValueChanged<String> onToggleToolAction;
   final Future<void> Function(String path, {required bool isImage})
   onOpenAttachment;
 
@@ -21,7 +29,16 @@ class _CodexTurnSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget secondaryRow(int index) => _CodexSecondaryRow(
+      key: ValueKey<String>(
+        'codex-secondary-${projection.secondaryRows[index].key}',
+      ),
       projection: projection.secondaryRows[index],
+      groupExpanded: expandedToolGroups.contains(
+        projection.secondaryRows[index].key,
+      ),
+      expandedToolActions: expandedToolActions,
+      onToggleGroup: onToggleToolGroup,
+      onToggleAction: onToggleToolAction,
       workspacePath: workspacePath,
       onOpenAttachment: onOpenAttachment,
     );

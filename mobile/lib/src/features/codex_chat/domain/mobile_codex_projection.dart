@@ -80,7 +80,7 @@ abstract final class MobileCodexTimelineProjection {
         } else if (visible.isNotEmpty) {
           rows.add(
             MobileCodexPresentationRow.activity(
-              id: 'activity-${activity.first.id}-${activity.last.id}',
+              id: 'activity-${visible.first.id}',
               activityCells: List<MobileCodexTimelineCell>.unmodifiable(
                 activity,
               ),

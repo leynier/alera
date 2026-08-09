@@ -89,6 +89,7 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   List<MobileCodexPresentationRow>? _historyRowsOverride;
   Set<String>? _historyOriginalCellIds;
   final GlobalKey _historyAnchorKey = GlobalKey();
+  final Set<String> _expandedActivityGroups = <String>{};
   String? _historyAnchorCellId;
   bool _timelinePinScheduled = false;
   int _submissionRevision = 0;
@@ -319,6 +320,21 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                                       child: _MobileTimelineRow(
                                         row: row,
                                         onOpenPlan: _openPlan,
+                                        activityExpanded:
+                                            _expandedActivityGroups.contains(
+                                              row.id,
+                                            ),
+                                        onToggleActivity: () {
+                                          setState(() {
+                                            if (!_expandedActivityGroups.add(
+                                              row.id,
+                                            )) {
+                                              _expandedActivityGroups.remove(
+                                                row.id,
+                                              );
+                                            }
+                                          });
+                                        },
                                       ),
                                     );
                                     return _historyRowContainsAnchor(row)
