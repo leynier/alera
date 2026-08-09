@@ -463,10 +463,23 @@ void main() {
       find.byKey(const ValueKey<String>('codex-composer-overlay-scroll')),
     );
     final origin = tester.getRect(find.text('Personal'));
+    final type = tester.widget<Text>(find.text('Skill'));
     expect(
       overlay.right - origin.right,
       lessThanOrEqualTo(AleraTokens.space16),
     );
+    expect(type.textAlign, TextAlign.right);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('codex-composer-text-field')),
+      '/',
+    );
+    await tester.pumpAndSettle();
+
+    final commandDescription = tester.widget<Text>(
+      find.text('Start a new Codex chat'),
+    );
+    expect(commandDescription.textAlign, TextAlign.left);
   });
 
   testWidgets('an immediately sent dropped path stays with that prompt', (
