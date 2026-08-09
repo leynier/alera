@@ -18,6 +18,10 @@ part 'codex_chat_controller_queue_test_cases.dart';
 part 'codex_chat_controller_request_test_cases.dart';
 part 'codex_chat_controller_session_test_cases.dart';
 
+part 'codex_chat_controller_transition_test_cases.dart';
+
+part 'codex_chat_controller_history_session_test_cases.dart';
+
 void main() {
   registerCodexChatControllerSessionTests();
   registerCodexChatControllerHistoryTests();

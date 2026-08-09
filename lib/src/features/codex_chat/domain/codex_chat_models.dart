@@ -8,6 +8,7 @@ part 'codex_chat_state.dart';
 part 'codex_chat_models_helpers.dart';
 part 'codex_thread_models.dart';
 part 'codex_chat_snapshot_models.dart';
+part 'codex_timeline_event.dart';
 
 @immutable
 class CodexModelOption {

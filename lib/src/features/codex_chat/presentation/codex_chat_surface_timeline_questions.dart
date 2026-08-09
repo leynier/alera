@@ -63,6 +63,7 @@ class _CodexQuestionDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
+    key: const ValueKey<String>('codex-question-dock'),
     padding: const EdgeInsets.fromLTRB(
       AleraTokens.space24,
       AleraTokens.space8,
@@ -84,6 +85,7 @@ class _CodexQuestionDock extends StatelessWidget {
             if (showModelSelector) ...<Widget>[
               const SizedBox(height: AleraTokens.space6),
               Padding(
+                key: const ValueKey<String>('codex-question-model-selector'),
                 padding: const EdgeInsets.symmetric(
                   horizontal: AleraTokens.space16,
                 ),

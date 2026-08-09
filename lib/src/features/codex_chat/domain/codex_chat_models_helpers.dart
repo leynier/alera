@@ -37,15 +37,32 @@ extension CodexQuestionOptionPresentation on CodexQuestionOption {
 extension CodexPendingRequestPlanQuestion on CodexPendingRequest {
   bool get isImplementPlanQuestion {
     if (!isQuestion) return false;
-    final text = <Object?>[
+    final candidates = <Object?>[
       params['title'],
       params['question'],
       params['prompt'],
       params['message'],
       for (final question in questions) question.question,
-    ].join(' ').toLowerCase();
-    return text.contains('implement') && text.contains('plan');
+    ];
+    final text = candidates
+        .whereType<String>()
+        .map((candidate) => candidate.trim())
+        .where((candidate) => candidate.isNotEmpty)
+        .toList(growable: false);
+    return text.any(_isPlanImplementationDecision) ||
+        _isPlanImplementationDecision(text.join(' '));
   }
+}
+
+bool _isPlanImplementationDecision(String value) {
+  final normalized = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  return RegExp(
+    r'^(?:(?:do|would) you (?:want|like) (?:(?:me|codex|us) )?to |should (?:i|we|codex) |shall (?:i|we) )?implement (?:this|the) plan(?: now)?$',
+  ).hasMatch(normalized);
 }
 
 Map<String, Object?> _map(Object? value) {
