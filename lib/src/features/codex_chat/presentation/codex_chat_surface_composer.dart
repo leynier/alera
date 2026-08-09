@@ -295,31 +295,43 @@ class _CodexComposerState extends State<_CodexComposer> {
                                     ),
                                   ),
                                   const SizedBox(width: AleraTokens.space6),
-                                  if (contextUsed != null &&
-                                      contextLimit != null &&
-                                      contextUsed > 0 &&
-                                      contextLimit > 0) ...<Widget>[
-                                    _CodexContextUsageIndicator(
-                                      used: contextUsed,
-                                      limit: contextLimit,
-                                      onCompact: () => widget.onCommand(
-                                        CodexComposerCommand.compact,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AleraTokens.space2),
-                                  ],
                                   Flexible(
                                     fit: FlexFit.loose,
                                     child: Align(
                                       alignment: Alignment.centerRight,
-                                      child: _CodexModelConfigurationControl(
-                                        state: widget.state,
-                                        onModelChanged: widget.onModelChanged,
-                                        onReasoningChanged:
-                                            widget.onReasoningChanged,
-                                        onSpeedChanged: widget.onSpeedChanged,
-                                        onCollaborationChanged:
-                                            widget.onCollaborationChanged,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          if (contextUsed != null &&
+                                              contextLimit != null &&
+                                              contextUsed > 0 &&
+                                              contextLimit > 0) ...<Widget>[
+                                            _CodexContextUsageIndicator(
+                                              used: contextUsed,
+                                              limit: contextLimit,
+                                              onCompact: () => widget.onCommand(
+                                                CodexComposerCommand.compact,
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                              width: AleraTokens.space6,
+                                            ),
+                                          ],
+                                          Flexible(
+                                            child:
+                                                _CodexModelConfigurationControl(
+                                                  state: widget.state,
+                                                  onModelChanged:
+                                                      widget.onModelChanged,
+                                                  onReasoningChanged:
+                                                      widget.onReasoningChanged,
+                                                  onSpeedChanged:
+                                                      widget.onSpeedChanged,
+                                                  onCollaborationChanged: widget
+                                                      .onCollaborationChanged,
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
