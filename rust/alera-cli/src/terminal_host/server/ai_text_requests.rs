@@ -21,7 +21,17 @@ use super::{ServerActor, ServerCommand};
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 const SUPPORTED_AGENTS: [&str; 11] = [
-    "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "custom",
+    "codex",
+    "claude",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
+    "grok",
+    "custom",
 ];
 
 static ACTIVE_GENERATIONS: OnceLock<Mutex<HashMap<String, oneshot::Sender<()>>>> = OnceLock::new();

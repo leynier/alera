@@ -3,7 +3,15 @@ use super::agent_presence::AgentPresenceRegistry;
 /// Agent-name groups matched against the presence registry's agent type
 /// (reported by the app's agent-status hooks), not terminal titles.
 const AGENT_NAME_GROUPS: &[&str] = &[
-    "claude", "codex", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp",
+    "claude",
+    "codex",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
 ];
 
 /// A live terminal candidate for group resolution.
