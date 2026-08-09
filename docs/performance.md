@@ -100,6 +100,18 @@ flutter test integration_test/quick_open_benchmark.dart -d linux
 
 The harness creates 40,000 files, starts one snapshot index, verifies that every eligible file was indexed, and sends 100 FRB queries. It reports the scan duration and query p50/p95. The query path measures native indexing and ranking plus the FRB call, while the dialog itself is covered by `test/widget/quick_open_dialog_test.dart`; compare results on the same machine and Flutter revision. The working tree is temporary and is removed after the run.
 
+## Codex Chat Timeline Harness
+
+Run the non-gating long-thread benchmark on Linux:
+
+```bash
+flutter test integration_test/codex_chat_timeline_benchmark.dart -d linux
+```
+
+The harness mounts a 240-turn Codex thread, verifies that slivers build only the visible subset, then delivers 120 incremental assistant updates through the runtime event path. It reports initial mount time and p50/p95 build and raster durations. Compare results on the same machine and Flutter revision; timing is informational because display composition and debug/profile mode materially affect the result. Widget and Rust tests separately enforce delta identity preservation and snapshot-delta correctness.
+
+On the Linux development machine on 2026-08-04, the focused optimization run built 5 of 240 timeline turns. Reusing unchanged entry widgets reduced Debug build duration from 29.22 ms p50 and 41.38 ms p95 to 2.35 ms p50 and 5.45 ms p95; raster duration remained within noise at 0.63 ms p50 and 1.50 ms p95. These values are a same-machine comparison, not a portable budget.
+
 ## Measurement Rules
 
 - Compare before and after on the same machine, Flutter revision, build mode, display setup, and power mode.
