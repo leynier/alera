@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
-use crate::terminal_host::host_error::HostResult;
+use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::request_payloads::parse_payload;
 use super::requests::require_string_key;
@@ -103,6 +103,12 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
+                crate::managed_workspace::validate_managed_workspace_removal(
+                    &self.runtime_store,
+                    &request,
+                )
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
                 let cleanup = self.plan_codex_workspace_cleanup(&request.id).await?;
                 self.start_runtime_mutation_after_codex_cleanup(
                     client_id,

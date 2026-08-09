@@ -12,6 +12,7 @@ runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:se
 
 [dependencies]
 anyhow = { version = "1", optional = true }
+cap-fs-ext = "4.0.2"
 cap-std = "4.0.2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"], optional = true }
 chrono-tz = { version = "0.10", optional = true }

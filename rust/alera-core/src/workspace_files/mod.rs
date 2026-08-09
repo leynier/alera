@@ -2,6 +2,7 @@ use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 
+use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptions, OpenOptionsFollowExt};
 use cap_std::{ambient_authority, fs::Dir};
 
 mod prompts;
@@ -79,26 +80,8 @@ pub fn read_workspace_file_range(
         ));
     }
     let root = workspace_root(workspace_path)?;
-    if is_protected_workspace_path(Path::new(relative_path)) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            relative_path,
-        ));
-    }
-    let path = resolve_existing(&root, relative_path)?;
-    let canonical_relative = PathBuf::from(relative_string(&root, &path)?);
-    if is_protected_workspace_path(&canonical_relative) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            relative_path,
-        ));
-    }
-    let directory = Dir::open_ambient_dir(&root, ambient_authority())
-        .map_err(|error| WorkspaceFileError::from_io(error, workspace_path))?;
-    let mut file = directory
-        .open(&canonical_relative)
-        .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?
-        .into_std();
+    let (mut file, normalized_relative) =
+        open_workspace_file_without_symlinks(&root, relative_path)?;
     let metadata = file
         .metadata()
         .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
@@ -117,7 +100,7 @@ pub fn read_workspace_file_range(
     let count = length.min(metadata.len().saturating_sub(offset));
     let is_text = file_is_probably_utf8(
         &mut file,
-        &canonical_relative,
+        &normalized_relative,
         metadata.len(),
         relative_path,
     )?;
@@ -126,7 +109,7 @@ pub fn read_workspace_file_range(
     let mut bytes = vec![0_u8; usize::try_from(count).unwrap_or(0)];
     file.read_exact(&mut bytes)
         .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
-    let mime_type = mime_type_for_path(&canonical_relative, is_text).to_string();
+    let mime_type = mime_type_for_path(&normalized_relative, is_text).to_string();
     Ok(WorkspaceFileRange {
         next_offset: offset.saturating_add(count),
         bytes,
@@ -135,6 +118,76 @@ pub fn read_workspace_file_range(
         mime_type,
         is_text,
     })
+}
+
+fn open_workspace_file_without_symlinks(
+    root: &Path,
+    relative_path: &str,
+) -> Result<(fs::File, PathBuf), WorkspaceFileError> {
+    let relative = Path::new(relative_path);
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
+        || is_protected_workspace_path(relative)
+    {
+        return Err(WorkspaceFileError::new(
+            WorkspaceFileErrorKind::InvalidPath,
+            relative_path,
+        ));
+    }
+    let components = relative
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(value) => Some(value.to_os_string()),
+            Component::CurDir => None,
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let Some((file_name, directory_components)) = components.split_last() else {
+        return Err(WorkspaceFileError::new(
+            WorkspaceFileErrorKind::InvalidPath,
+            relative_path,
+        ));
+    };
+    let mut normalized_relative = PathBuf::new();
+    for component in &components {
+        normalized_relative.push(component);
+    }
+    let mut directory = Dir::open_ambient_dir(root, ambient_authority())
+        .map_err(|error| WorkspaceFileError::from_io(error, root.display().to_string()))?;
+    for component in directory_components {
+        reject_workspace_symlink(&directory, component, relative_path)?;
+        directory = directory
+            .open_dir_nofollow(component)
+            .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
+    }
+    reject_workspace_symlink(&directory, file_name, relative_path)?;
+    let mut options = OpenOptions::new();
+    options.read(true).follow(FollowSymlinks::No);
+    let file = directory
+        .open_with(file_name, &options)
+        .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?
+        .into_std();
+    Ok((file, normalized_relative))
+}
+
+fn reject_workspace_symlink(
+    directory: &Dir,
+    component: &std::ffi::OsStr,
+    context: &str,
+) -> Result<(), WorkspaceFileError> {
+    let metadata = directory
+        .symlink_metadata(component)
+        .map_err(|error| WorkspaceFileError::from_io(error, context))?;
+    if metadata.file_type().is_symlink() {
+        return Err(WorkspaceFileError::new(
+            WorkspaceFileErrorKind::InvalidPath,
+            context,
+        ));
+    }
+    Ok(())
 }
 
 fn file_is_probably_utf8(
@@ -184,33 +237,6 @@ pub(super) fn workspace_root(value: &str) -> Result<PathBuf, WorkspaceFileError>
         ));
     }
     Ok(root)
-}
-
-pub(super) fn resolve_existing(
-    root: &Path,
-    relative_path: &str,
-) -> Result<PathBuf, WorkspaceFileError> {
-    let relative = Path::new(relative_path);
-    if relative.as_os_str().is_empty()
-        || relative.is_absolute()
-        || relative
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
-    {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::InvalidPath,
-            relative_path,
-        ));
-    }
-    let candidate = fs::canonicalize(root.join(relative))
-        .map_err(|error| WorkspaceFileError::from_io(error, relative_path))?;
-    if !candidate.starts_with(root) {
-        return Err(WorkspaceFileError::new(
-            WorkspaceFileErrorKind::OutsideWorkspace,
-            relative_path,
-        ));
-    }
-    Ok(candidate)
 }
 
 pub(super) fn relative_string(root: &Path, path: &Path) -> Result<String, WorkspaceFileError> {
@@ -293,6 +319,17 @@ mod tests {
             .unwrap();
             assert_eq!(
                 read_workspace_file_range(&root, "config-link", 0, 10)
+                    .unwrap_err()
+                    .kind,
+                WorkspaceFileErrorKind::InvalidPath
+            );
+            std::os::unix::fs::symlink(
+                workspace.path().join(".git"),
+                workspace.path().join("metadata-link"),
+            )
+            .unwrap();
+            assert_eq!(
+                read_workspace_file_range(&root, "metadata-link/config", 0, 10)
                     .unwrap_err()
                     .kind,
                 WorkspaceFileErrorKind::InvalidPath
