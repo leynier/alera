@@ -38,7 +38,7 @@ extension _CodexMarkdownLinkActions on _CodexChatSurfaceState {
       _showMarkdownLinkError();
       return;
     }
-    if (_isCodexExternalLink(uri, value)) {
+    if (codexShouldLaunchExternalUri(value, uri)) {
       await _launchMarkdownUri(uri!);
       return;
     }
@@ -69,12 +69,19 @@ bool _isCodexWebLink(Uri? uri) =>
     uri.host.trim().isNotEmpty &&
     (uri.scheme.toLowerCase() == 'http' || uri.scheme.toLowerCase() == 'https');
 
-bool _isCodexExternalLink(Uri? uri, String rawLink) =>
-    uri != null &&
-    uri.scheme.isNotEmpty &&
-    uri.scheme.toLowerCase() != 'file' &&
-    !_isWindowsAbsoluteCodexPath(rawLink) &&
-    !p.isAbsolute(rawLink);
+@visibleForTesting
+bool codexShouldLaunchExternalUri(String rawLink, Uri? uri) {
+  if (uri == null ||
+      _isWindowsAbsoluteCodexPath(rawLink) ||
+      p.isAbsolute(rawLink)) {
+    return false;
+  }
+  return switch (uri.scheme.toLowerCase()) {
+    'http' || 'https' => uri.host.trim().isNotEmpty,
+    'mailto' || 'tel' || 'sms' => true,
+    _ => false,
+  };
+}
 
 @visibleForTesting
 String? resolveCodexMarkdownFilePath({

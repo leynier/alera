@@ -34,6 +34,26 @@ part 'codex_chat_surface_timeline_context_test_cases.dart';
 part 'codex_chat_surface_timeline_question_answer_test_cases.dart';
 
 void main() {
+  test('allows only standard external URI schemes', () {
+    for (final value in <String>[
+      'https://example.com/path',
+      'http://example.com/path',
+      'mailto:user@example.com',
+      'tel:+1234',
+      'sms:+1234',
+    ]) {
+      expect(codexShouldLaunchExternalUri(value, Uri.parse(value)), isTrue);
+    }
+    for (final value in <String>[
+      'file:///repo/readme.md',
+      'vscode://file/repo/readme.md',
+      'custom-handler://run/action',
+      r'C:\repo\readme.md',
+    ]) {
+      expect(codexShouldLaunchExternalUri(value, Uri.parse(value)), isFalse);
+    }
+  });
+
   test('resolves compact Markdown file line references', () {
     final target = resolveCodexMarkdownFileTarget(
       workspacePath: '/repo/workspace',
