@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';

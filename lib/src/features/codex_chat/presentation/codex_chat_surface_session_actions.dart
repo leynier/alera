@@ -121,9 +121,18 @@ extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
             title: const Text('Select Model'),
             children: <Widget>[
               for (final option in state.models)
-                SimpleDialogOption(
-                  onPressed: () => Navigator.of(context).pop(option.id),
-                  child: Text(option.label),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space8,
+                  ),
+                  child: AleraDropdownMenuItem(
+                    key: ValueKey<String>(
+                      'codex-model-dialog-option-${option.id}',
+                    ),
+                    label: option.label,
+                    selected: option.id == state.selectedModel,
+                    onTap: () => Navigator.of(context).pop(option.id),
+                  ),
                 ),
             ],
           ),
@@ -135,18 +144,47 @@ extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
           builder: (context) => SimpleDialog(
             title: const Text('Select Approval Mode'),
             children: <Widget>[
-              SimpleDialogOption(
-                onPressed: () => Navigator.of(context).pop('on-request'),
-                child: const Text('Ask For Approval'),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space8,
+                ),
+                child: AleraDropdownMenuItem(
+                  key: const ValueKey<String>(
+                    'codex-permissions-dialog-option-on-request',
+                  ),
+                  label: 'Ask For Approval',
+                  selected:
+                      state.permissionMode == 'on-request' ||
+                      state.permissionMode == 'untrusted',
+                  onTap: () => Navigator.of(context).pop('on-request'),
+                ),
               ),
               if (state.supportsAutoReview)
-                SimpleDialogOption(
-                  onPressed: () => Navigator.of(context).pop('auto-review'),
-                  child: const Text('Approve For Me'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space8,
+                  ),
+                  child: AleraDropdownMenuItem(
+                    key: const ValueKey<String>(
+                      'codex-permissions-dialog-option-auto-review',
+                    ),
+                    label: 'Approve For Me',
+                    selected: state.permissionMode == 'auto-review',
+                    onTap: () => Navigator.of(context).pop('auto-review'),
+                  ),
                 ),
-              SimpleDialogOption(
-                onPressed: () => Navigator.of(context).pop('never'),
-                child: const Text('Full Access'),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space8,
+                ),
+                child: AleraDropdownMenuItem(
+                  key: const ValueKey<String>(
+                    'codex-permissions-dialog-option-never',
+                  ),
+                  label: 'Full Access',
+                  selected: state.permissionMode == 'never',
+                  onTap: () => Navigator.of(context).pop('never'),
+                ),
               ),
             ],
           ),

@@ -20,6 +20,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dar
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,6 +63,35 @@ void main() {
 
     expect(target?.path, p.join('/repo/workspace', 'readme.md'));
     expect(target?.line, 44);
+  });
+
+  testWidgets('Markdown links expose a click cursor', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: GptMarkdown('[**README**](https://example.com)')),
+      ),
+    );
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 11,
+    );
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    final formattedLink = find.byWidgetPredicate(
+      (widget) =>
+          widget is RichText && widget.text.toPlainText().contains('README'),
+    );
+    expect(formattedLink, findsOneWidget);
+    await mouse.moveTo(tester.getCenter(formattedLink));
+    await tester.pump();
+    expect(
+      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+      SystemMouseCursors.click,
+    );
+    expect(
+      _containsBoldSpan(tester.widget<RichText>(formattedLink).text),
+      isTrue,
+    );
   });
 
   test('resolves extensionless compact Markdown file line references', () {
