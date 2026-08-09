@@ -1,8 +1,11 @@
 use alera_core::runtime::WorkspaceTabRecord;
 use chrono::Utc;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use super::codex_resume_identity::{
+    complete_history_turn_ids, is_assistant_message, message_identity_key, message_turn_id,
+};
 use super::{
     active_turn_id, CODEX_SNAPSHOT_VERSION, MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CELLS,
     MAX_SNAPSHOT_EVENTS,
@@ -156,6 +159,7 @@ pub(in crate::terminal_host::server) fn merge_resume_snapshot(
         return normalize_snapshot(resumed);
     };
     let mut next = normalize_snapshot(resumed);
+    let complete_history_turns = complete_history_turn_ids(&next);
     let resumed_has_title = next
         .get("title")
         .and_then(Value::as_str)
@@ -179,10 +183,16 @@ pub(in crate::terminal_host::server) fn merge_resume_snapshot(
             &stored_cells[boundary + 1..],
             std::mem::take(resumed_cells),
             false,
+            &complete_history_turns,
         ));
         cells
     } else {
-        merge_cells_in_resumed_order(stored_cells, std::mem::take(resumed_cells), true)
+        merge_cells_in_resumed_order(
+            stored_cells,
+            std::mem::take(resumed_cells),
+            true,
+            &complete_history_turns,
+        )
     };
     *resumed_cells = merged;
     bound_snapshot(&mut next);
@@ -193,17 +203,47 @@ fn merge_cells_in_resumed_order(
     stored: &[Value],
     resumed: Vec<Value>,
     preserve_all_stored: bool,
+    complete_history_turns: &HashSet<String>,
 ) -> Vec<Value> {
     let stored_indexes = cell_indexes(stored);
+    let mut claimed_stored = HashSet::new();
+    let mut matches = Vec::with_capacity(resumed.len());
+    for cell in &resumed {
+        let index = matching_cell_index(&stored_indexes, &claimed_stored, cell);
+        if let Some(index) = index {
+            claimed_stored.insert(index);
+        }
+        matches.push(index);
+    }
+    for cell in &resumed {
+        if let Some(id) = cell_id(cell) {
+            if let Some(indexes) = stored_indexes.get(&format!("id:{id}")) {
+                claimed_stored.extend(indexes);
+            }
+        }
+        if is_assistant_message(cell)
+            && message_turn_id(cell).is_some_and(|turn_id| complete_history_turns.contains(turn_id))
+        {
+            if let Some(key) = message_identity_key(cell) {
+                if let Some(indexes) = stored_indexes.get(&key) {
+                    claimed_stored.extend(indexes);
+                }
+            }
+        }
+    }
     let mut merged = Vec::new();
     let mut stored_cursor = 0;
-    for cell in resumed {
-        let stored_index = matching_cell_index(&stored_indexes, &cell);
+    for (cell, stored_index) in resumed.into_iter().zip(matches) {
         if let Some(index) = stored_index.filter(|index| *index >= stored_cursor) {
             merged.extend(
                 stored[stored_cursor..index]
                     .iter()
-                    .filter(|cell| preserve_all_stored || is_alera_owned_cell(cell))
+                    .enumerate()
+                    .filter(|(offset, cell)| {
+                        !claimed_stored.contains(&(stored_cursor + offset))
+                            && (preserve_all_stored || is_alera_owned_cell(cell))
+                    })
+                    .map(|(_, cell)| cell)
                     .cloned(),
             );
             merged.push(merge_resumed_cell(&stored[index], cell));
@@ -217,13 +257,18 @@ fn merge_cells_in_resumed_order(
     merged.extend(
         stored[stored_cursor..]
             .iter()
-            .filter(|cell| preserve_all_stored || is_alera_owned_cell(cell))
+            .enumerate()
+            .filter(|(offset, cell)| {
+                !claimed_stored.contains(&(stored_cursor + offset))
+                    && (preserve_all_stored || is_alera_owned_cell(cell))
+            })
+            .map(|(_, cell)| cell)
             .cloned(),
     );
     merged
 }
 
-fn cell_indexes(cells: &[Value]) -> HashMap<String, usize> {
+fn cell_indexes(cells: &[Value]) -> HashMap<String, Vec<usize>> {
     let mut indexes = HashMap::new();
     for (index, cell) in cells.iter().enumerate() {
         index_cell(&mut indexes, cell, index);
@@ -231,22 +276,48 @@ fn cell_indexes(cells: &[Value]) -> HashMap<String, usize> {
     indexes
 }
 
-fn index_cell(indexes: &mut HashMap<String, usize>, cell: &Value, index: usize) {
+fn index_cell(indexes: &mut HashMap<String, Vec<usize>>, cell: &Value, index: usize) {
     if let Some(id) = cell_id(cell) {
-        indexes.insert(format!("id:{id}"), index);
+        indexes.entry(format!("id:{id}")).or_default().push(index);
     }
     if let Some(turn_id) = legacy_user_message_turn_id(cell) {
-        indexes.insert(format!("legacy-user-turn:{turn_id}"), index);
+        indexes
+            .entry(format!("legacy-user-turn:{turn_id}"))
+            .or_default()
+            .push(index);
+    }
+    if let Some(key) = message_identity_key(cell) {
+        indexes.entry(key).or_default().push(index);
     }
 }
 
-fn matching_cell_index(indexes: &HashMap<String, usize>, cell: &Value) -> Option<usize> {
-    cell_id(cell)
-        .and_then(|id| indexes.get(&format!("id:{id}")).copied())
-        .or_else(|| {
-            user_message_turn_id(cell)
-                .and_then(|turn_id| indexes.get(&format!("legacy-user-turn:{turn_id}")).copied())
-        })
+fn matching_cell_index(
+    indexes: &HashMap<String, Vec<usize>>,
+    claimed: &HashSet<usize>,
+    cell: &Value,
+) -> Option<usize> {
+    let candidates = [
+        cell_id(cell).map(|id| format!("id:{id}")),
+        user_message_turn_id(cell).map(|turn_id| format!("legacy-user-turn:{turn_id}")),
+        message_identity_key(cell),
+    ];
+    candidates
+        .into_iter()
+        .flatten()
+        .find_map(|key| first_unclaimed_index(indexes, claimed, &key))
+}
+
+fn first_unclaimed_index(
+    indexes: &HashMap<String, Vec<usize>>,
+    claimed: &HashSet<usize>,
+    key: &str,
+) -> Option<usize> {
+    indexes
+        .get(key)
+        .into_iter()
+        .flatten()
+        .copied()
+        .find(|index| !claimed.contains(index))
 }
 
 fn legacy_user_message_turn_id(cell: &Value) -> Option<&str> {

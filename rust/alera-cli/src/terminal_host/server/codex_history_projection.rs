@@ -1,8 +1,11 @@
 //! Projection of persisted app-server turns into Alera's bounded timeline.
 
-use chrono::{SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
+use super::codex_history_metadata::{
+    apply_persisted_turn_timestamps, public_history_turn, record_history_completeness,
+    HISTORY_ITEMS_COMPLETE,
+};
 use super::{bound_snapshot, normalize_snapshot, trim_events};
 
 const HISTORY_CURSOR_PREFIX: &str = "turn-before:";
@@ -132,7 +135,7 @@ fn turn_page(
     }
     Ok(CodexTurnHistoryPage {
         snapshot: page_snapshot,
-        turns: page_turns,
+        turns: page_turns.into_iter().map(public_history_turn).collect(),
         next_cursor,
     })
 }
@@ -197,6 +200,7 @@ fn turn_has_projectable_status(turn: &Value) -> bool {
 
 fn turn_with_item_range(turn: &Value, start: usize, end: usize) -> Value {
     let mut selected = turn.clone();
+    let item_count = turn_item_count(turn);
     let items = turn
         .get("items")
         .and_then(Value::as_array)
@@ -204,6 +208,10 @@ fn turn_with_item_range(turn: &Value, start: usize, end: usize) -> Value {
         .unwrap_or_default();
     if let Some(object) = selected.as_object_mut() {
         object.insert("items".to_string(), Value::Array(items));
+        object.insert(
+            HISTORY_ITEMS_COMPLETE.to_string(),
+            Value::Bool(start == 0 && end == item_count),
+        );
     }
     selected
 }
@@ -374,13 +382,15 @@ fn project_turn(snapshot: &mut Value, turn: &Value) {
     if turn_id.trim().is_empty() {
         return;
     }
+    record_history_completeness(snapshot, turn_id, turn);
+    let turn = public_history_turn(turn.clone());
     append_event(
         snapshot,
         json!({
             "method": "turn/started",
             "params": {
                 "turnId": turn_id,
-                "turn": turn,
+                "turn": &turn,
             },
         }),
     );
@@ -416,7 +426,7 @@ fn project_turn(snapshot: &mut Value, turn: &Value) {
                 "method": "error",
                 "params": {
                     "turnId": turn_id,
-                    "message": persisted_turn_failure_message(turn),
+                    "message": persisted_turn_failure_message(&turn),
                 },
             }),
         );
@@ -433,7 +443,7 @@ fn project_turn(snapshot: &mut Value, turn: &Value) {
             }),
         );
     }
-    apply_persisted_turn_timestamps(snapshot, turn_id, turn);
+    apply_persisted_turn_timestamps(snapshot, turn_id, &turn);
 }
 
 fn persisted_turn_failure_message(turn: &Value) -> &str {
@@ -449,41 +459,6 @@ fn projected_item_method(item: &Value) -> &'static str {
         Some("inProgress" | "pending" | "running") => "item/started",
         _ => "item/completed",
     }
-}
-
-fn apply_persisted_turn_timestamps(snapshot: &mut Value, turn_id: &str, turn: &Value) {
-    let started_at = turn_timestamp(turn, "startedAt");
-    let completed_at = turn_timestamp(turn, "completedAt");
-    if started_at.is_none() && completed_at.is_none() {
-        return;
-    }
-    let Some(cells) = snapshot
-        .get_mut("timelineCells")
-        .and_then(Value::as_array_mut)
-    else {
-        return;
-    };
-    for cell in cells
-        .iter_mut()
-        .filter(|cell| cell.get("turnId").and_then(Value::as_str) == Some(turn_id))
-    {
-        let Some(cell) = cell.as_object_mut() else {
-            continue;
-        };
-        if let Some(started_at) = started_at.as_ref() {
-            cell.insert("createdAt".to_string(), Value::String(started_at.clone()));
-        }
-        if let Some(updated_at) = completed_at.as_ref().or(started_at.as_ref()) {
-            cell.insert("updatedAt".to_string(), Value::String(updated_at.clone()));
-        }
-    }
-}
-
-fn turn_timestamp(turn: &Value, key: &str) -> Option<String> {
-    let seconds = turn.get(key)?.as_i64()?;
-    Utc.timestamp_opt(seconds, 0)
-        .single()
-        .map(|value| value.to_rfc3339_opts(SecondsFormat::Secs, true))
 }
 
 fn terminal_turn_method(status: &str) -> Option<&'static str> {
