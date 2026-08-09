@@ -179,6 +179,106 @@ void registerCodexTimelineInteractionTests() {
     expect(find.text(description), findsOneWidget);
   });
 
+  testWidgets('keeps timeline content visible above a blocking question', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[
+        <String, Object?>{
+          'id': 19,
+          'method': 'item/tool/requestUserInput',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{
+                'id': 'scope',
+                'question': 'Choose a scope',
+                'options': <Object?>[
+                  <String, Object?>{'label': 'Complete'},
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'visible-message',
+          'turnId': 'visible-turn',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Timeline remains visible',
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    final messageBottom = tester.getBottomRight(
+      find.text('Timeline remains visible'),
+    );
+    final cardTop = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('codex-question-card')),
+    );
+    expect(messageBottom.dy, lessThan(cardTop.dy));
+  });
+
+  testWidgets('centers plan refinement text and fills the single-line action', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'request',
+          'turnId': 'turn-plan',
+          'kind': 'userMessage',
+          'status': 'completed',
+          'markdownText': 'Create a plan',
+        },
+        <String, Object?>{
+          'id': 'plan',
+          'turnId': 'turn-plan',
+          'kind': 'plan',
+          'status': 'completed',
+          'markdownText': '# Ready plan',
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client, planMode: true);
+
+    final planBottom = tester.getBottomRight(
+      find.text('Ready plan', findRichText: true),
+    );
+    final planQuestionTop = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('codex-plan-question-card')),
+    );
+    expect(planBottom.dy, lessThan(planQuestionTop.dy));
+
+    await tester.tap(find.text('No, and tell Codex what to do differently'));
+    await tester.pump();
+    final row = find.byKey(const ValueKey<String>('codex-inline-answer-row'));
+    final rowRect = tester.getRect(row);
+    final skipRect = tester.getRect(
+      find.widgetWithText(OutlinedButton, 'Skip'),
+    );
+    final hintRect = tester.getRect(
+      find.text('Tell Codex what to do differently'),
+    );
+    expect(skipRect.height, closeTo(AleraTokens.space32, 0.1));
+    expect(skipRect.center.dy, closeTo(rowRect.center.dy, 0.1));
+    expect(hintRect.center.dy, closeTo(rowRect.center.dy, AleraTokens.space2));
+
+    final input = find.descendant(of: row, matching: find.byType(TextField));
+    await tester.enterText(input, 'Use a smaller scope');
+    await tester.pump();
+    final submitRect = tester.getRect(
+      find.widgetWithText(FilledButton, 'Submit'),
+    );
+    expect(submitRect.height, closeTo(AleraTokens.space32, 0.1));
+    expect(submitRect.center.dy, closeTo(rowRect.center.dy, 0.1));
+  });
+
   testWidgets('masks secret custom question answers', (tester) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[
