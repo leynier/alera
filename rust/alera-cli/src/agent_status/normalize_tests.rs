@@ -22,6 +22,7 @@ fn every_supported_agent_reports_working() {
         ("cursor", "beforeSubmitPrompt"),
         ("agy", "PreInvocation"),
         ("opencode", "SessionBusy"),
+        ("opencode2", "SessionBusy"),
         ("pi", "agent_start"),
         ("amp", "session.start"),
         ("grok", "UserPromptSubmit"),

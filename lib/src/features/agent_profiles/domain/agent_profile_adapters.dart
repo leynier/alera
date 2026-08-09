@@ -18,6 +18,7 @@ const List<AgentType> spawnableAgentProfileAdapters = <AgentType>[
   AgentType.cursor,
   AgentType.agy,
   AgentType.opencode,
+  AgentType.opencode2,
   AgentType.pi,
   AgentType.amp,
 ];
@@ -31,6 +32,7 @@ const Map<AgentType, String> agentProfileDefaultCommands = <AgentType, String>{
   AgentType.cursor: 'cursor-agent',
   AgentType.agy: 'agy',
   AgentType.opencode: 'opencode',
+  AgentType.opencode2: 'opencode2',
   AgentType.pi: 'pi',
   AgentType.amp: 'amp',
 };

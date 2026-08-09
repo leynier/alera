@@ -256,6 +256,7 @@ fn agent_label(agent_type: &str) -> &'static str {
         "cursor" => "Cursor",
         "agy" => "Antigravity",
         "opencode" => "OpenCode",
+        "opencode2" => "OpenCode 2",
         "pi" => "Pi",
         "amp" => "Amp",
         "grok" => "Grok Build",

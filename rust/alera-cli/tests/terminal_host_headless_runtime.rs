@@ -380,6 +380,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
                 cursor: true,
                 agy: true,
                 opencode: true,
+                opencode2: true,
                 pi: true,
                 amp: true,
                 grok: true,
@@ -402,6 +403,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         test_home.join(".gemini/config/hooks.json"),
         grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
+        test_home.join(".config/opencode/plugins/alera-agent-status-v2.js"),
         test_home.join(".pi/agent/extensions/alera-agent-status.ts"),
         test_home.join(".config/amp/plugins/alera-agent-status.ts"),
     ] {
@@ -436,6 +438,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         ("cursor", "beforeSubmitPrompt"),
         ("agy", "PreInvocation"),
         ("opencode", "SessionBusy"),
+        ("opencode2", "SessionBusy"),
         ("pi", "agent_start"),
         ("amp", "session.start"),
         ("grok", "UserPromptSubmit"),

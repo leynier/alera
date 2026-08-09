@@ -17,6 +17,7 @@ void main() {
           AgentType.cursor: AgentPromptDelivery.positionalAfterTerminator,
           AgentType.agy: AgentPromptDelivery.longOption,
           AgentType.opencode: AgentPromptDelivery.longOption,
+          AgentType.opencode2: AgentPromptDelivery.longOption,
           AgentType.pi: AgentPromptDelivery.positional,
           AgentType.amp: AgentPromptDelivery.stdinScript,
           // Hook-only, with no spawn adapter, so the default is what it gets.

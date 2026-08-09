@@ -107,6 +107,7 @@ pub fn start_agent_hook_receiver(
             .route("/hook/cursor", post(handle_cursor))
             .route("/hook/agy", post(handle_agy))
             .route("/hook/opencode", post(handle_opencode))
+            .route("/hook/opencode2", post(handle_opencode2))
             .route("/hook/pi", post(handle_pi))
             .route("/hook/amp", post(handle_amp))
             .route("/hook/grok", post(handle_grok))
@@ -185,6 +186,13 @@ async fn handle_opencode(
     request: Request<Body>,
 ) -> impl IntoResponse {
     handle_hook_request(state, request, "opencode").await
+}
+
+async fn handle_opencode2(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> impl IntoResponse {
+    handle_hook_request(state, request, "opencode2").await
 }
 
 async fn handle_pi(State(state): State<AppState>, request: Request<Body>) -> impl IntoResponse {

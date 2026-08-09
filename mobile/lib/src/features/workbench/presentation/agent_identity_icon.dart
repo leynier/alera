@@ -62,6 +62,7 @@ String agentDisplayName(String agentType) => switch (agentType) {
   'cursor' => 'Cursor',
   'agy' => 'Antigravity',
   'opencode' => 'OpenCode',
+  'opencode2' => 'OpenCode 2',
   'pi' => 'Pi',
   'amp' => 'Amp',
   'grok' => 'Grok Build',
@@ -80,7 +81,7 @@ _AgentIconAsset? _agentAsset(String agentType) => switch (agentType) {
     raster: true,
   ),
   'agy' => const _AgentIconAsset(path: 'assets/agents/agy.png', raster: true),
-  'opencode' => const _AgentIconAsset(
+  'opencode' || 'opencode2' => const _AgentIconAsset(
     path: 'assets/agents/opencode.png',
     raster: true,
   ),

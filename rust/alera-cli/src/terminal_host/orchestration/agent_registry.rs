@@ -82,6 +82,14 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
     },
     AgentAdapter {
+        // OpenCode 2 installs as `opencode2` beside v1's `opencode`.
+        agent_type: "opencode2",
+        default_command: "opencode2",
+        force_submit: true,
+        interrupt_bytes: CTRL_C,
+        startup_prompt: AgentStartupPrompt::LongOption("--prompt"),
+    },
+    AgentAdapter {
         agent_type: "pi",
         default_command: "pi",
         force_submit: true,
@@ -115,7 +123,17 @@ mod tests {
             .collect();
         assert_eq!(
             types,
-            ["codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp"]
+            [
+                "codex",
+                "claude",
+                "copilot",
+                "cursor",
+                "agy",
+                "opencode",
+                "opencode2",
+                "pi",
+                "amp"
+            ]
         );
         assert!(AGENT_ADAPTERS
             .iter()
@@ -140,6 +158,7 @@ mod tests {
                     AgentStartupPrompt::LongOption("--prompt-interactive")
                 ),
                 ("opencode", AgentStartupPrompt::LongOption("--prompt")),
+                ("opencode2", AgentStartupPrompt::LongOption("--prompt")),
                 ("pi", AgentStartupPrompt::Positional),
                 ("amp", AgentStartupPrompt::StdinScript),
             ]

@@ -543,6 +543,7 @@ void _registerSettingsDialogCoreTests() {
       'Cursor Hooks',
       'Antigravity Hooks',
       'OpenCode Hooks',
+      'OpenCode 2 Hooks',
       'Pi Hooks',
       'Amp Hooks',
       'Grok Build Hooks',
@@ -565,9 +566,10 @@ void _registerSettingsDialogCoreTests() {
       (label: 'Cursor Hooks', switchIndex: 3),
       (label: 'Antigravity Hooks', switchIndex: 4),
       (label: 'OpenCode Hooks', switchIndex: 5),
-      (label: 'Pi Hooks', switchIndex: 6),
-      (label: 'Amp Hooks', switchIndex: 7),
-      (label: 'Grok Build Hooks', switchIndex: 8),
+      (label: 'OpenCode 2 Hooks', switchIndex: 6),
+      (label: 'Pi Hooks', switchIndex: 7),
+      (label: 'Amp Hooks', switchIndex: 8),
+      (label: 'Grok Build Hooks', switchIndex: 9),
     ]) {
       await tester.ensureVisible(find.text(entry.label));
       await tester.pump();
@@ -576,17 +578,17 @@ void _registerSettingsDialogCoreTests() {
     }
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(9));
+    await tester.tap(find.byType(Switch).at(10));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(find.text('Agent Finished Notifications'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(10));
+    await tester.tap(find.byType(Switch).at(11));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(11));
+    await tester.tap(find.byType(Switch).at(12));
     await tester.pump(const Duration(milliseconds: 50));
 
     final hooks = container
@@ -600,6 +602,7 @@ void _registerSettingsDialogCoreTests() {
       hooks.cursor,
       hooks.agy,
       hooks.opencode,
+      hooks.opencode2,
       hooks.pi,
       hooks.amp,
       hooks.grok,

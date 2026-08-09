@@ -103,7 +103,7 @@ final class ResourceSnapshotProvider
   }
 }
 
-String _$resourceSnapshotHash() => r'f41238a4739e9ae38c3b0c9cecb1ad76ec9ccd10';
+String _$resourceSnapshotHash() => r'b74754ca34b1932f0fd34ac9807087a72def940b';
 
 /// The snapshot projected onto the workbench tree, ready to render.
 

@@ -19,6 +19,7 @@ void main() {
     expect(AiTextGenerationAgent.cursor.agentType, AgentType.cursor);
     expect(AiTextGenerationAgent.agy.agentType, AgentType.agy);
     expect(AiTextGenerationAgent.opencode.agentType, AgentType.opencode);
+    expect(AiTextGenerationAgent.opencode2.agentType, AgentType.opencode2);
     expect(AiTextGenerationAgent.pi.agentType, AgentType.pi);
     expect(AiTextGenerationAgent.amp.agentType, AgentType.amp);
     expect(AiTextGenerationAgent.grok.agentType, AgentType.grok);
@@ -32,6 +33,7 @@ void main() {
         'Cursor',
         'Antigravity',
         'OpenCode',
+        'OpenCode 2',
         'Pi',
         'Amp',
         'Grok Build',

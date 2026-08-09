@@ -34,6 +34,10 @@ class AgentProfilePersonaDiscovery {
         executable: 'opencode',
         arguments: const <String>['agent', 'list'],
       ),
+      AgentType.opencode2 => (
+        executable: 'opencode2',
+        arguments: const <String>['agent', 'list'],
+      ),
       _ => null,
     };
     if (command == null) {
@@ -70,7 +74,8 @@ class AgentProfilePersonaDiscovery {
       }
       final personas = switch (adapter) {
         AgentType.agy => _parseAgy(output.stdout),
-        AgentType.opencode => _parseOpenCode(output.stdout),
+        AgentType.opencode ||
+        AgentType.opencode2 => _parseOpenCode(output.stdout),
         _ => const <String>[],
       };
       return AgentProfilePersonaDiscoveryResult(personas: personas);

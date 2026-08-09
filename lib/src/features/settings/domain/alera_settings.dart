@@ -193,6 +193,7 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
     this.cursor = false,
     this.agy = false,
     this.opencode = false,
+    this.opencode2 = false,
     this.pi = false,
     this.amp = false,
     this.grok = false,
@@ -204,6 +205,7 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
   final bool cursor;
   final bool agy;
   final bool opencode;
+  final bool opencode2;
   final bool pi;
   final bool amp;
   final bool grok;
@@ -215,6 +217,7 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
       cursor ||
       agy ||
       opencode ||
+      opencode2 ||
       pi ||
       amp ||
       grok;

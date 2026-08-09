@@ -157,6 +157,16 @@ class AgentsSettingsPane extends ConsumerWidget {
                 ),
               ),
               SettingsSwitchRow(
+                title: 'OpenCode 2 Hooks',
+                description:
+                    'Use an Alera-managed OpenCode 2 config overlay with the v2 status plugin.',
+                value: agents.agentStatusHooks.opencode2,
+                onChanged: (value) => controller.setAgentStatusHookEnabled(
+                  AgentType.opencode2,
+                  value,
+                ),
+              ),
+              SettingsSwitchRow(
                 title: 'Pi Hooks',
                 description:
                     'Use an Alera-managed Pi agent overlay with status extension.',
