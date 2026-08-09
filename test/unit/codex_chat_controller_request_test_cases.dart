@@ -1,6 +1,33 @@
 part of 'codex_chat_controller_test.dart';
 
 void registerCodexChatControllerRequestTests() {
+  test('serializes every commit review field for the app server', () async {
+    final client = _FakeCodexRuntimeClient();
+    addTearDown(client.dispose);
+    final host = CodexChatHostClient(client);
+
+    await host.review(
+      'tab-review',
+      target: 'commit',
+      argument: 'abc1234',
+      commitTitle: 'Fix the parser',
+      delivery: 'detached',
+    );
+
+    final request = client.requests.singleWhere(
+      (request) => request.type == 'codex.review.start',
+    );
+    expect(request.payload, <String, Object?>{
+      'tabId': 'tab-review',
+      'target': <String, Object?>{
+        'type': 'commit',
+        'sha': 'abc1234',
+        'title': 'Fix the parser',
+      },
+      'delivery': 'detached',
+    });
+  });
+
   test('retries capability discovery after a transient failure', () async {
     var statusAttempts = 0;
     final client = _FakeCodexRuntimeClient(

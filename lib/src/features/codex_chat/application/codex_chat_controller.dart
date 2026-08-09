@@ -306,6 +306,7 @@ class CodexChatController extends _$CodexChatController {
   Future<void> startReview({
     String target = 'uncommittedChanges',
     String? argument,
+    String? commitTitle,
     String? delivery,
   }) async {
     try {
@@ -313,6 +314,7 @@ class CodexChatController extends _$CodexChatController {
         tabId,
         target: target,
         argument: argument,
+        commitTitle: commitTitle,
         delivery: delivery,
       );
     } catch (error) {
