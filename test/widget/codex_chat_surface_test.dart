@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
@@ -26,6 +27,11 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:path/path.dart' as p;
 
 part 'codex_chat_surface_session_test_cases.dart';
+part 'codex_chat_surface_timeline_segment_test_cases.dart';
+part 'codex_chat_surface_timeline_review_test_cases.dart';
+part 'codex_chat_surface_timeline_progress_test_cases.dart';
+part 'codex_chat_surface_timeline_context_test_cases.dart';
+part 'codex_chat_surface_timeline_question_answer_test_cases.dart';
 
 void main() {
   test('resolves compact Markdown file line references', () {
@@ -46,6 +52,16 @@ void main() {
 
     expect(target?.path, p.join('/repo/workspace', 'Makefile'));
     expect(target?.line, 42);
+  });
+
+  test('decodes compact Markdown file line references', () {
+    final target = resolveCodexMarkdownFileTarget(
+      workspacePath: '/repo/workspace',
+      rawLink: 'release%20notes.md:44',
+    );
+
+    expect(target?.path, p.join('/repo/workspace', 'release notes.md'));
+    expect(target?.line, 44);
   });
 
   test(
@@ -170,7 +186,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Continue In New Thread'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    final composer = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('codex-composer-text-field')),
+    );
+    expect(composer.enabled, isFalse);
 
     await tester.tap(find.text('Continue In New Thread'));
     await tester.pump();
@@ -300,6 +319,9 @@ void main() {
 
     expect(find.text('Mode'), findsOneWidget);
     await tester.tap(find.text('Mode'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pair'), findsOneWidget);
+    await tester.tap(find.text('Pair'));
     await tester.pumpAndSettle();
     expect(find.text('Pair'), findsOneWidget);
   });
@@ -587,6 +609,11 @@ void main() {
     );
   });
 
+  registerCodexTimelineSegmentTests();
+  registerCodexTimelineReviewTests();
+  registerCodexTimelineProgressTests();
+  registerCodexTimelineContextTests();
+  registerCodexTimelineQuestionAnswerTests();
   registerCodexChatSurfaceSessionTests();
 }
 
@@ -656,10 +683,13 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     this.supportsSessions = false,
     this.supportsTurnPolicy = true,
     this.historyNextCursor,
+    this.historyTimelineCells = const <Object?>[],
+    this.historyGate,
     this.pendingRequests,
     this.threadListResponse,
     this.permissionMode,
     this.timelineCells,
+    this.activeTurnId,
     this.modelDisplayName = 'Current Codex',
     this.skills = const <String, Object?>{'data': <Object?>[]},
     this.collaborationModes = const <Map<String, Object?>>[
@@ -673,15 +703,19 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final bool supportsSessions;
   final bool supportsTurnPolicy;
   final String? historyNextCursor;
+  final List<Object?> historyTimelineCells;
+  final Completer<void>? historyGate;
   final List<Object?>? pendingRequests;
   final Map<String, Object?>? threadListResponse;
   final String? permissionMode;
   final List<Object?>? timelineCells;
+  final String? activeTurnId;
   final String modelDisplayName;
   final Map<String, Object?> skills;
   final List<Map<String, Object?>> collaborationModes;
   final List<String> requestTypes = <String>[];
   final List<Map<String, Object?>> startTurnPayloads = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> responsePayloads = <Map<String, Object?>>[];
   int recoveryRequests = 0;
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -772,6 +806,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               ],
           'contextUsed': 1000,
           'contextLimit': 10000,
+          'activeTurnId': activeTurnId,
           'pendingRequests':
               pendingRequests ??
               <Object?>[
@@ -805,10 +840,11 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
       };
     }
     if (type == 'codex.thread.history') {
-      return const <String, Object?>{
+      await historyGate?.future;
+      return <String, Object?>{
         'snapshot': <String, Object?>{
-          'timelineCells': <Object?>[],
-          'pendingRequests': <Object?>[],
+          'timelineCells': historyTimelineCells,
+          'pendingRequests': const <Object?>[],
         },
       };
     }
@@ -824,6 +860,10 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     }
     if (type == 'codex.turn.start') {
       startTurnPayloads.add(payload);
+      return const <String, Object?>{};
+    }
+    if (type == 'codex.response') {
+      responsePayloads.add(payload);
       return const <String, Object?>{};
     }
     if (type == 'codex.model.list') {

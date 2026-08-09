@@ -40,6 +40,8 @@ class CodexChatController extends _$CodexChatController {
 
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
 
+  String? get threadId => _threadId;
+
   bool get canSteer =>
       !state.loading &&
       !state.interrupting &&

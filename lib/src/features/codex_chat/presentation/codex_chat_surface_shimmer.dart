@@ -100,10 +100,18 @@ class _CodexShimmerPhase extends InheritedWidget {
 }
 
 class _CodexShimmerText extends StatefulWidget {
-  const _CodexShimmerText({required this.text, this.style});
+  const _CodexShimmerText({
+    super.key,
+    required this.text,
+    this.style,
+    this.maxLines,
+    this.overflow,
+  });
 
   final String text;
   final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   @override
   State<_CodexShimmerText> createState() => _CodexShimmerTextState();
@@ -130,7 +138,12 @@ class _CodexShimmerTextState extends State<_CodexShimmerText> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Text(widget.text, style: widget.style);
+    final text = Text(
+      widget.text,
+      style: widget.style,
+      maxLines: widget.maxLines,
+      overflow: widget.overflow,
+    );
     final phase = _scope?.phase;
     if (phase == null ||
         (MediaQuery.maybeOf(context)?.disableAnimations ?? false)) {

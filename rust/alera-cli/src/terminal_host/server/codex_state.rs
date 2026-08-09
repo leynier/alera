@@ -215,52 +215,61 @@ pub(super) fn append_question_answer(
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let mut answered = Vec::new();
+    let mut question_answers = Vec::new();
+    let mut has_answer = false;
     for (index, question) in question_values.iter().enumerate() {
+        let question_text = question
+            .get("question")
+            .or_else(|| question.get("prompt"))
+            .and_then(Value::as_str)
+            .unwrap_or("Codex question");
         let question_id = question
             .get("id")
             .or_else(|| question.get("key"))
             .and_then(Value::as_str)
             .unwrap_or(if index == 0 { "question-0" } else { "" });
-        let Some(raw_answer) = answers.and_then(|answers| {
+        let raw_answer = answers.and_then(|answers| {
             answers
                 .as_object()
                 .and_then(|values| values.get(question_id))
                 .or_else(|| answers.as_array().and_then(|values| values.get(index)))
-        }) else {
-            continue;
-        };
+        });
         let answer = raw_answer
-            .get("answers")
-            .and_then(Value::as_array)
-            .map(|values| {
-                values
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+            .map(|raw_answer| {
+                raw_answer
+                    .get("answers")
+                    .and_then(Value::as_array)
+                    .map(|values| {
+                        values
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .or_else(|| {
+                        raw_answer.as_array().map(|values| {
+                            values
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        })
+                    })
+                    .or_else(|| raw_answer.as_str().map(str::to_string))
+                    .unwrap_or_else(|| raw_answer.to_string())
             })
-            .or_else(|| {
-                raw_answer.as_array().map(|values| {
-                    values
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-            })
-            .or_else(|| raw_answer.as_str().map(str::to_string))
-            .unwrap_or_else(|| raw_answer.to_string());
+            .unwrap_or_default();
         if !answer.trim().is_empty() && answer != "null" {
-            let question_text = question
-                .get("question")
-                .or_else(|| question.get("prompt"))
-                .and_then(Value::as_str)
-                .unwrap_or("Codex question");
-            answered.push(json!({"question": question_text, "answer": answer}));
+            has_answer = true;
+            question_answers.push(json!({"question": question_text, "answer": answer}));
+        } else {
+            question_answers.push(json!({
+                "question": question_text,
+                "answer": "No answer provided",
+            }));
         }
     }
-    if answered.is_empty() {
+    if !has_answer {
         return;
     }
     let mut next = saved_snapshot;
@@ -270,9 +279,10 @@ pub(super) fn append_question_answer(
         .or_insert_with(|| Value::Array(Vec::new()));
     if let Value::Array(cells) = cells {
         let now = Utc::now().to_rfc3339();
-        let summary = answered
+        let summary = question_answers
             .iter()
             .filter_map(|answer| answer.get("answer").and_then(Value::as_str))
+            .filter(|answer| *answer != "No answer provided")
             .map(str::to_string)
             .collect::<Vec<_>>()
             .join(", ");
@@ -288,7 +298,10 @@ pub(super) fn append_question_answer(
             "title": "Question Answer",
             "markdownText": summary,
             "renderedMarkdownText": codex_markdown::render_markdown(&summary),
-            "metadata": {"questions": answered},
+            "metadata": {
+                "questions": question_answers,
+                "questionCount": question_values.len(),
+            },
         }));
         trim_cells(cells);
     }

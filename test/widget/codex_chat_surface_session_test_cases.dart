@@ -143,6 +143,24 @@ void registerCodexChatSurfaceSessionTests() {
       supportsSessions: true,
       historyNextCursor: 'older',
       pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'current',
+          'turnId': 'turn-shared',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Current history',
+        },
+      ],
+      historyTimelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'older',
+          'turnId': 'turn-shared',
+          'kind': 'assistantMessage',
+          'status': 'completed',
+          'markdownText': 'Older history',
+        },
+      ],
       threadListResponse: const <String, Object?>{
         'data': <Object?>[
           <String, Object?>{
@@ -159,6 +177,8 @@ void registerCodexChatSurfaceSessionTests() {
     await tester.tap(find.text('Load Earlier Messages'));
     await tester.pump();
     expect(client.requestTypes, contains('codex.thread.history'));
+    expect(find.text('Older history'), findsOneWidget);
+    expect(find.text('Current history'), findsOneWidget);
 
     final composer = find.byType(TextField).last;
     await _selectSlashCommand(tester, composer, '/resume');

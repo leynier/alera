@@ -93,8 +93,25 @@ CodexMarkdownFileTarget? resolveCodexMarkdownFileTarget({
   final value = rawLink.trim();
   if (value.isEmpty) return null;
   final uri = Uri.tryParse(value);
-  if (uri == null) return null;
   if (_isCodexWebLink(uri)) return null;
+  final compactLineReference = RegExp(
+    r'^([^/\\:]+):(\d+)(?::\d+)?$',
+  ).firstMatch(value);
+  if (compactLineReference != null) {
+    String decodedReference;
+    try {
+      decodedReference = Uri.decodeComponent(value);
+    } on FormatException {
+      return null;
+    }
+    final target = _codexMarkdownTargetFromPath(decodedReference);
+    if (target == null) return null;
+    return CodexMarkdownFileTarget(
+      path: p.normalize(p.join(workspacePath, target.path)),
+      line: target.line,
+    );
+  }
+  if (uri == null) return null;
   if (uri.scheme.toLowerCase() == 'file') {
     try {
       final fragment = uri.fragment;
@@ -129,17 +146,6 @@ CodexMarkdownFileTarget? resolveCodexMarkdownFileTarget({
     if (target == null) return null;
     return CodexMarkdownFileTarget(
       path: p.windows.normalize(target.path),
-      line: target.line,
-    );
-  }
-  final compactLineReference = RegExp(
-    r'^([^/\\:]+):(\d+)(?::\d+)?$',
-  ).firstMatch(value);
-  if (compactLineReference != null) {
-    final target = _codexMarkdownTargetFromPath(value);
-    if (target == null) return null;
-    return CodexMarkdownFileTarget(
-      path: p.normalize(p.join(workspacePath, target.path)),
       line: target.line,
     );
   }

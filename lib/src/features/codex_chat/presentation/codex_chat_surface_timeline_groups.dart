@@ -2,44 +2,32 @@ part of 'codex_chat_surface.dart';
 
 class _CodexTimeline extends StatefulWidget {
   const _CodexTimeline({
+    super.key,
     required this.snapshot,
     required this.workspacePath,
     required this.title,
-    required this.planMode,
     required this.showRawLogs,
     required this.timeline,
-    required this.historyNextCursor,
-    required this.onLoadHistory,
+    required this.loadingEarlier,
+    required this.planDecisionRevision,
     required this.onApproval,
-    required this.onQuestion,
-    required this.onQuestionInteraction,
     required this.onElicitation,
     required this.onReject,
-    required this.onImplementPlan,
-    required this.onDeclinePlan,
-    required this.onRefinePlan,
+    required this.onOpenAttachment,
   });
 
   final CodexChatSnapshot snapshot;
   final String workspacePath;
   final String title;
-  final bool planMode;
   final bool showRawLogs;
   final ScrollController timeline;
-  final String? historyNextCursor;
-  final Future<void> Function({String? cursor}) onLoadHistory;
+  final bool loadingEarlier;
+  final ValueNotifier<int> planDecisionRevision;
   final Future<void> Function(
     CodexPendingRequest request, {
     required Object decision,
   })
   onApproval;
-  final Future<void> Function(
-    CodexPendingRequest request,
-    Map<String, List<String>> answers,
-  )
-  onQuestion;
-  final Future<void> Function(CodexPendingRequest request)
-  onQuestionInteraction;
   final Future<void> Function(
     CodexPendingRequest request, {
     required String action,
@@ -47,33 +35,114 @@ class _CodexTimeline extends StatefulWidget {
   })
   onElicitation;
   final Future<void> Function(CodexPendingRequest request) onReject;
-  final Future<void> Function() onImplementPlan;
-  final Future<void> Function() onDeclinePlan;
-  final Future<void> Function(String refinement) onRefinePlan;
+  final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment;
 
   @override
   State<_CodexTimeline> createState() => _CodexTimelineState();
 }
 
-class _CodexTimelineState extends State<_CodexTimeline> {
+class _CodexTimelineState extends State<_CodexTimeline>
+    with SingleTickerProviderStateMixin {
+  static const int _entryWidgetCacheLimit = 128;
+
   final Set<String> _expandedWorkedTurns = <String>{};
-  List<CodexTimelineCell>? _cachedHistoryCells;
-  List<_CodexTimelineSection> _cachedHistorySections =
-      const <_CodexTimelineSection>[];
+  final LinkedHashMap<
+    String,
+    ({Object source, Widget widget, GlobalKey anchorKey})
+  >
+  _entryWidgets =
+      LinkedHashMap<
+        String,
+        ({Object source, Widget widget, GlobalKey anchorKey})
+      >();
+  final GlobalKey _timelineViewportKey = GlobalKey();
+  late final AnimationController _planFlight;
+  late _CodexTimelineProjection _projection;
+  List<CodexTimelineCell>? _frozenHistoryLiveCells;
+  CodexTimelineCell? _flyingPlan;
+  BuildContext? _planSourceContext;
+  Rect? _planSourceRect;
+  double? _planTimelineOffset;
   bool _showScrollToBottom = false;
+  String? _pinnedEntryKey;
 
   @override
   void initState() {
     super.initState();
+    _projection = _CodexTimelineProjection.fromSnapshot(
+      widget.snapshot,
+      showRawLogs: widget.showRawLogs,
+    );
+    _planFlight = AnimationController(
+      vsync: this,
+      duration: AleraTokens.codexPlanFlightDuration,
+      reverseDuration: AleraTokens.codexPlanFlightDuration,
+    )..addStatusListener(_handlePlanFlightStatus);
     widget.timeline.addListener(_handleScroll);
+    widget.planDecisionRevision.addListener(_restorePlan);
   }
 
   @override
   void didUpdateWidget(covariant _CodexTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!oldWidget.loadingEarlier && widget.loadingEarlier) {
+      _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiable(
+        _projection.live.sourceCells,
+      );
+    }
+    if (!identical(oldWidget.snapshot, widget.snapshot) ||
+        oldWidget.showRawLogs != widget.showRawLogs ||
+        oldWidget.loadingEarlier != widget.loadingEarlier) {
+      _projection = _CodexTimelineProjection.fromSnapshot(
+        widget.snapshot,
+        showRawLogs: widget.showRawLogs,
+        previous: _projection,
+        liveCellsOverride: widget.loadingEarlier
+            ? _frozenHistoryLiveCells
+            : null,
+      );
+      _entryWidgets.removeWhere(
+        (key, _) => !_projection.entries.containsKey(key),
+      );
+    }
+    if (oldWidget.loadingEarlier && !widget.loadingEarlier) {
+      _frozenHistoryLiveCells = null;
+    }
+    if (oldWidget.workspacePath != widget.workspacePath ||
+        oldWidget.onOpenAttachment != widget.onOpenAttachment ||
+        oldWidget.onApproval != widget.onApproval ||
+        oldWidget.onElicitation != widget.onElicitation ||
+        oldWidget.onReject != widget.onReject) {
+      _entryWidgets.clear();
+    }
     if (oldWidget.timeline != widget.timeline) {
       oldWidget.timeline.removeListener(_handleScroll);
       widget.timeline.addListener(_handleScroll);
+    }
+    if (oldWidget.planDecisionRevision != widget.planDecisionRevision) {
+      oldWidget.planDecisionRevision.removeListener(_restorePlan);
+      widget.planDecisionRevision.addListener(_restorePlan);
+    }
+    final flyingPlanId = _flyingPlan?.id;
+    if (flyingPlanId != null) {
+      CodexTimelineCell? updatedPlan;
+      for (final cell in widget.snapshot.timelineCells.reversed) {
+        if (cell.id == flyingPlanId) {
+          updatedPlan = cell;
+          break;
+        }
+      }
+      if (updatedPlan == null) {
+        _planFlight.stop();
+        _flyingPlan = null;
+        _planSourceContext = null;
+        _planSourceRect = null;
+        _planTimelineOffset = null;
+        _planFlight.value = 0;
+      } else {
+        _flyingPlan = updatedPlan;
+      }
     }
     final newContent =
         oldWidget.snapshot.timelineCells.length !=
@@ -88,6 +157,8 @@ class _CodexTimelineState extends State<_CodexTimeline> {
   @override
   void dispose() {
     widget.timeline.removeListener(_handleScroll);
+    widget.planDecisionRevision.removeListener(_restorePlan);
+    _planFlight.dispose();
     super.dispose();
   }
 
@@ -108,12 +179,149 @@ class _CodexTimelineState extends State<_CodexTimeline> {
     );
   }
 
+  void _restorePlan() {
+    if (_flyingPlan == null || !mounted) return;
+    unawaited(_planFlight.reverse());
+  }
+
+  void _toggleWorkedTurn(String turnId) {
+    setState(() {
+      _entryWidgets.remove('turn-$turnId');
+      if (!_expandedWorkedTurns.add(turnId)) {
+        _expandedWorkedTurns.remove(turnId);
+      }
+    });
+  }
+
+  void _maximizePlan(CodexTimelineCell cell, BuildContext sourceContext) {
+    final viewport =
+        _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
+    final source = sourceContext.findRenderObject() as RenderBox?;
+    if (viewport == null || source == null || !viewport.hasSize) return;
+    final sourceOrigin = source.localToGlobal(Offset.zero, ancestor: viewport);
+    _planTimelineOffset = widget.timeline.hasClients
+        ? widget.timeline.position.pixels
+        : null;
+    setState(() {
+      _flyingPlan = cell;
+      _planSourceContext = sourceContext;
+      _planSourceRect = sourceOrigin & source.size;
+    });
+    unawaited(_planFlight.forward(from: 0));
+  }
+
+  Rect? _currentPlanSourceRect() {
+    final viewport =
+        _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
+    final sourceContext = _planSourceContext;
+    if (sourceContext == null || !sourceContext.mounted) return null;
+    final source = sourceContext.findRenderObject() as RenderBox?;
+    if (viewport == null ||
+        source == null ||
+        !viewport.attached ||
+        !source.attached ||
+        !source.hasSize) {
+      return null;
+    }
+    return source.localToGlobal(Offset.zero, ancestor: viewport) & source.size;
+  }
+
+  void _handlePlanFlightStatus(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed ||
+        _flyingPlan == null ||
+        !mounted) {
+      return;
+    }
+    setState(() {
+      _flyingPlan = null;
+      _planSourceContext = null;
+      _planSourceRect = null;
+    });
+    final target = _planTimelineOffset;
+    _planTimelineOffset = null;
+    if (target == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.timeline.hasClients) return;
+      widget.timeline.jumpTo(
+        target.clamp(
+          widget.timeline.position.minScrollExtent,
+          widget.timeline.position.maxScrollExtent,
+        ),
+      );
+    });
+  }
+
+  Widget _buildEntry(BuildContext context, int index) {
+    final entry = _projection.entries[index];
+    final cached = _entryWidgets.remove(entry.key);
+    if (cached != null && identical(cached.source, entry.source)) {
+      _entryWidgets[entry.key] = cached;
+      return cached.widget;
+    }
+    final Widget child = switch (entry.kind) {
+      _CodexTimelineEntryKind.cell => _CodexCellView(
+        cell: entry.cell!,
+        workspacePath: widget.workspacePath,
+        onOpenAttachment: widget.onOpenAttachment,
+      ),
+      _CodexTimelineEntryKind.turn => _CodexTurnSection(
+        projection: entry.turn!,
+        workspacePath: widget.workspacePath,
+        workedExpanded: _expandedWorkedTurns.contains(entry.turn!.turnId),
+        onToggleWorked: () => _toggleWorkedTurn(entry.turn!.turnId),
+        onOpenAttachment: widget.onOpenAttachment,
+      ),
+      _CodexTimelineEntryKind.event => _CodexRawEvent(event: entry.event!),
+      _CodexTimelineEntryKind.request =>
+        entry.request!.isApproval
+            ? _CodexApprovalCard(
+                request: entry.request!,
+                onApproval: widget.onApproval,
+              )
+            : entry.request!.isElicitation
+            ? _CodexElicitationCard(
+                request: entry.request!,
+                onElicitation: widget.onElicitation,
+              )
+            : _CodexPendingCard(
+                request: entry.request!,
+                onReject: widget.onReject,
+              ),
+    };
+    final anchorKey = cached?.anchorKey ?? GlobalKey();
+    final entryWidget = Center(
+      child: ConstrainedBox(
+        key: anchorKey,
+        constraints: const BoxConstraints(
+          maxWidth: AleraTokens.codexConversationMaxWidth,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space16),
+          child: SizedBox(width: double.infinity, child: child),
+        ),
+      ),
+    );
+    _entryWidgets[entry.key] = (
+      source: entry.source,
+      widget: entryWidget,
+      anchorKey: anchorKey,
+    );
+    while (_entryWidgets.length > _entryWidgetCacheLimit) {
+      final evictionKey = _entryWidgets.keys.firstWhere(
+        (key) => key != _pinnedEntryKey,
+        orElse: () => '',
+      );
+      if (evictionKey.isEmpty) break;
+      _entryWidgets.remove(evictionKey);
+    }
+    return entryWidget;
+  }
+
   @override
   Widget build(BuildContext context) {
     final snapshot = widget.snapshot;
     if (snapshot.timelineCells.isEmpty &&
         snapshot.pendingRequests.isEmpty &&
-        widget.historyNextCursor == null &&
         !widget.showRawLogs) {
       return Center(
         child: Column(
@@ -139,367 +347,74 @@ class _CodexTimelineState extends State<_CodexTimeline> {
         ),
       );
     }
-    final sections = _timelineSections(snapshot.timelineCells);
-    final hasHistoryAction = widget.historyNextCursor != null;
-    final rawEventCount = widget.showRawLogs ? snapshot.events.length : 0;
-    final showPlanPrompt = widget.planMode && snapshot.shouldShowImplementPlan;
-    final itemCount =
-        (hasHistoryAction ? 1 : 0) +
-        sections.length +
-        rawEventCount +
-        snapshot.pendingRequests.length +
-        (showPlanPrompt ? 1 : 0);
-    return Stack(
-      children: <Widget>[
-        SelectionArea(
-          child: CustomScrollView(
-            controller: widget.timeline,
-            slivers: <Widget>[
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AleraTokens.space24,
+    return _CodexPlanViewScope(
+      onMaximize: _maximizePlan,
+      flyingPlanId: _flyingPlan?.id,
+      latestPlanId: _projection.latestPlanId,
+      child: Stack(
+        key: _timelineViewportKey,
+        clipBehavior: Clip.hardEdge,
+        children: <Widget>[
+          SelectionArea(
+            child: CustomScrollView(
+              key: const ValueKey<String>('codex-timeline-scroll-view'),
+              controller: widget.timeline,
+              slivers: <Widget>[
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AleraTokens.space24,
+                  ),
+                  sliver: SliverList.builder(
+                    itemCount: _projection.entries.length,
+                    itemBuilder: _buildEntry,
+                  ),
                 ),
-                sliver: SliverList.builder(
-                  itemCount: itemCount,
-                  itemBuilder: (context, index) => Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AleraTokens.codexConversationMaxWidth,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AleraTokens.space16,
-                        ),
-                        child: _buildTimelineItem(
-                          index: index,
-                          sections: sections,
-                          snapshot: snapshot,
-                          hasHistoryAction: hasHistoryAction,
-                          rawEventCount: rawEventCount,
-                          showPlanPrompt: showPlanPrompt,
-                        ),
-                      ),
+              ],
+            ),
+          ),
+          if (_showScrollToBottom && _flyingPlan == null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: AleraTokens.space12,
+              child: Center(
+                child: IconButton(
+                  key: const ValueKey<String>('scroll-to-bottom-button'),
+                  tooltip: 'Scroll To Bottom',
+                  onPressed: _scrollToBottom,
+                  mouseCursor: SystemMouseCursors.click,
+                  constraints: const BoxConstraints(
+                    minWidth: AleraTokens.space32,
+                    minHeight: AleraTokens.space32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AleraTokens.bg,
+                    foregroundColor: AleraTokens.foreground,
+                    side: const BorderSide(
+                      color: AleraTokens.border,
+                      width: AleraTokens.dividerExtent,
                     ),
+                    shape: const CircleBorder(),
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_downward,
+                    size: AleraTokens.iconLg,
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        if (_showScrollToBottom)
-          Positioned(
-            right: AleraTokens.space16,
-            bottom: AleraTokens.space12,
-            child: AleraIconButton(
-              tooltip: 'Scroll To Bottom',
-              icon: AleraIcons.arrowDown,
-              onPressed: _scrollToBottom,
             ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTimelineItem({
-    required int index,
-    required _CodexTimelineSections sections,
-    required CodexChatSnapshot snapshot,
-    required bool hasHistoryAction,
-    required int rawEventCount,
-    required bool showPlanPrompt,
-  }) {
-    var itemIndex = index;
-    if (hasHistoryAction) {
-      if (itemIndex == 0) {
-        final cursor = widget.historyNextCursor!;
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => unawaited(widget.onLoadHistory(cursor: cursor)),
-            child: const Text('Load Earlier Messages'),
-          ),
-        );
-      }
-      itemIndex -= 1;
-    }
-    if (itemIndex < sections.length) {
-      return _buildTimelineSection(sections[itemIndex]);
-    }
-    itemIndex -= sections.length;
-    if (itemIndex < rawEventCount) {
-      return _CodexRawEvent(event: snapshot.events[itemIndex]);
-    }
-    itemIndex -= rawEventCount;
-    if (itemIndex < snapshot.pendingRequests.length) {
-      return _buildPendingRequest(snapshot.pendingRequests[itemIndex]);
-    }
-    assert(showPlanPrompt && itemIndex == snapshot.pendingRequests.length);
-    return _CodexPlanPrompt(
-      onImplement: widget.onImplementPlan,
-      onDecline: widget.onDeclinePlan,
-      onRefine: widget.onRefinePlan,
-    );
-  }
-
-  Widget _buildTimelineSection(_CodexTimelineSection section) {
-    final cell = section.cell;
-    if (cell != null) {
-      return _CodexCellView(cell: cell, workspacePath: widget.workspacePath);
-    }
-    final turnId = section.turnId!;
-    return _CodexTurnSection(
-      key: ValueKey<String>('turn-$turnId'),
-      cells: section.cells,
-      workspacePath: widget.workspacePath,
-      workedExpanded: _expandedWorkedTurns.contains(turnId),
-      onToggleWorked: () => setState(() {
-        if (!_expandedWorkedTurns.add(turnId)) {
-          _expandedWorkedTurns.remove(turnId);
-        }
-      }),
-    );
-  }
-
-  Widget _buildPendingRequest(CodexPendingRequest request) {
-    if (request.isApproval) {
-      return _CodexApprovalCard(
-        request: request,
-        onApproval: widget.onApproval,
-      );
-    }
-    if (request.isQuestion) {
-      return _CodexQuestionCard(
-        key: ValueKey<Object>(request.id),
-        request: request,
-        onQuestion: widget.onQuestion,
-        onInteraction: widget.onQuestionInteraction,
-      );
-    }
-    if (request.isElicitation) {
-      return _CodexElicitationCard(
-        request: request,
-        onElicitation: widget.onElicitation,
-      );
-    }
-    return _CodexPendingCard(request: request, onReject: widget.onReject);
-  }
-
-  _CodexTimelineSections _timelineSections(List<CodexTimelineCell> cells) {
-    if (cells case final CodexTimelineCells segmented) {
-      if (!identical(_cachedHistoryCells, segmented.history)) {
-        _cachedHistoryCells = segmented.history;
-        _cachedHistorySections = _groupTimeline(segmented.history);
-      }
-      return _CodexTimelineSections(
-        history: _cachedHistorySections,
-        live: _groupTimeline(segmented.live),
-      );
-    }
-    return _CodexTimelineSections(
-      history: const <_CodexTimelineSection>[],
-      live: _groupTimeline(cells),
-    );
-  }
-
-  List<_CodexTimelineSection> _groupTimeline(List<CodexTimelineCell> cells) {
-    final turnCells = <String, List<CodexTimelineCell>>{};
-    final emittedTurns = <String>{};
-    final order = <({CodexTimelineCell? cell, String? turnId})>[];
-    for (final cell in cells) {
-      final turnId = cell.turnId;
-      if (turnId == null || turnId.isEmpty) {
-        if (cell.kind != CodexTimelineKind.turnSeparator) {
-          order.add((cell: cell, turnId: null));
-        }
-        continue;
-      }
-      turnCells.putIfAbsent(turnId, () => <CodexTimelineCell>[]).add(cell);
-      if (emittedTurns.add(turnId)) {
-        order.add((cell: null, turnId: turnId));
-      }
-    }
-    return <_CodexTimelineSection>[
-      for (final item in order)
-        if (item.cell case final cell?)
-          _CodexTimelineSection.cell(cell)
-        else
-          _CodexTimelineSection.turn(
-            item.turnId!,
-            List<CodexTimelineCell>.unmodifiable(turnCells[item.turnId]!),
-          ),
-    ];
-  }
-}
-
-final class _CodexTimelineSection {
-  const _CodexTimelineSection.cell(this.cell)
-    : turnId = null,
-      cells = const <CodexTimelineCell>[];
-
-  const _CodexTimelineSection.turn(this.turnId, this.cells) : cell = null;
-
-  final CodexTimelineCell? cell;
-  final String? turnId;
-  final List<CodexTimelineCell> cells;
-}
-
-final class _CodexTimelineSections {
-  _CodexTimelineSections({required this.history, required this.live})
-    : _mergedBoundary = _mergeBoundary(history, live);
-
-  final List<_CodexTimelineSection> history;
-  final List<_CodexTimelineSection> live;
-  final _CodexTimelineSection? _mergedBoundary;
-
-  int get length =>
-      history.length + live.length - (_mergedBoundary == null ? 0 : 1);
-
-  _CodexTimelineSection operator [](int index) {
-    RangeError.checkValidIndex(index, this);
-    final mergedBoundary = _mergedBoundary;
-    if (mergedBoundary == null) {
-      return index < history.length
-          ? history[index]
-          : live[index - history.length];
-    }
-    final boundaryIndex = history.length - 1;
-    if (index < boundaryIndex) return history[index];
-    if (index == boundaryIndex) return mergedBoundary;
-    return live[index - boundaryIndex];
-  }
-
-  static _CodexTimelineSection? _mergeBoundary(
-    List<_CodexTimelineSection> history,
-    List<_CodexTimelineSection> live,
-  ) {
-    if (history.isEmpty || live.isEmpty) return null;
-    final before = history.last;
-    final after = live.first;
-    if (before.turnId == null || before.turnId != after.turnId) return null;
-    return _CodexTimelineSection.turn(
-      before.turnId,
-      List<CodexTimelineCell>.unmodifiable(<CodexTimelineCell>[
-        ...before.cells,
-        ...after.cells,
-      ]),
-    );
-  }
-}
-
-class _CodexTurnSection extends StatelessWidget {
-  const _CodexTurnSection({
-    super.key,
-    required this.cells,
-    required this.workspacePath,
-    required this.workedExpanded,
-    required this.onToggleWorked,
-  });
-
-  final List<CodexTimelineCell> cells;
-  final String workspacePath;
-  final bool workedExpanded;
-  final VoidCallback onToggleWorked;
-
-  String get turnId => cells.first.turnId ?? cells.first.id;
-
-  @override
-  Widget build(BuildContext context) {
-    final users = <CodexTimelineCell>[];
-    final assistants = <CodexTimelineCell>[];
-    final secondary = <CodexTimelineCell>[];
-    final outside = <CodexTimelineCell>[];
-    for (final cell in cells) {
-      switch (cell.kind) {
-        case CodexTimelineKind.turnSeparator:
-          break;
-        case CodexTimelineKind.userMessage:
-          if (cell.metadata[CodexTimelineMetadata.isSteering] == true) {
-            assistants.add(cell);
-          } else {
-            users.add(cell);
-          }
-        case CodexTimelineKind.assistantMessage || CodexTimelineKind.plan:
-          assistants.add(cell);
-        case CodexTimelineKind.progressText:
-          if (cell.metadata[CodexTimelineMetadata.uiPlacement] ==
-              CodexTimelineMetadata.outsideWorked) {
-            outside.add(cell);
-          } else if ((cell.markdownText ?? '').trim().isNotEmpty) {
-            secondary.add(cell);
-          }
-        case CodexTimelineKind.reasoning ||
-            CodexTimelineKind.toolCall ||
-            CodexTimelineKind.command ||
-            CodexTimelineKind.diff ||
-            CodexTimelineKind.subAgent ||
-            CodexTimelineKind.questionAnswer:
-          secondary.add(cell);
-        case CodexTimelineKind.systemNotice:
-          secondary.add(cell);
-      }
-    }
-    final rows = _secondaryRows(secondary);
-    final children = <Widget>[
-      for (final cell in users)
-        _CodexCellView(cell: cell, workspacePath: workspacePath),
-    ];
-    if (rows.length > 1) {
-      children.add(
-        _WorkedForDivider(
-          expanded: workedExpanded,
-          label: _workedFor(cells),
-          onTap: onToggleWorked,
-        ),
-      );
-      if (workedExpanded) {
-        children.addAll(
-          rows
-              .map(
-                (row) =>
-                    _CodexSecondaryRow(row: row, workspacePath: workspacePath),
-              )
-              .toList(),
-        );
-      }
-    } else {
-      children.addAll(
-        rows.map(
-          (row) => _CodexSecondaryRow(row: row, workspacePath: workspacePath),
-        ),
-      );
-    }
-    children.addAll(
-      assistants.map(
-        (cell) => _CodexCellView(cell: cell, workspacePath: workspacePath),
+          if (_flyingPlan case final CodexTimelineCell plan
+              when _planSourceRect != null)
+            _CodexPlanFlight(
+              plan: plan,
+              animation: _planFlight,
+              sourceRect: _planSourceRect!,
+              currentSourceRect: _currentPlanSourceRect,
+              onRestore: _restorePlan,
+            ),
+        ],
       ),
     );
-    children.addAll(
-      outside.map(
-        (cell) => _CodexCellView(cell: cell, workspacePath: workspacePath),
-      ),
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
-    );
-  }
-}
-
-class _CodexSecondaryRow extends StatelessWidget {
-  const _CodexSecondaryRow({required this.row, required this.workspacePath});
-
-  final List<CodexTimelineCell> row;
-  final String workspacePath;
-
-  @override
-  Widget build(BuildContext context) {
-    if (row.length > 1) {
-      return _CodexExploringCluster(cells: row, workspacePath: workspacePath);
-    }
-    return _CodexCellView(cell: row.single, workspacePath: workspacePath);
   }
 }
