@@ -1,0 +1,120 @@
+part of 'mobile_codex_state.dart';
+
+enum MobileCodexPresentationKind { cell, activity, working }
+
+@immutable
+class MobileCodexPresentationRow {
+  factory MobileCodexPresentationRow.cell(
+    MobileCodexTimelineCell value, {
+    bool isPreviousPlan = false,
+  }) => MobileCodexPresentationRow._(
+    id: 'cell-${value.id}',
+    kind: MobileCodexPresentationKind.cell,
+    cell: value,
+    activityCells: const <MobileCodexTimelineCell>[],
+    isPreviousPlan: isPreviousPlan,
+  );
+
+  const MobileCodexPresentationRow.activity({
+    required this.id,
+    required this.activityCells,
+  }) : kind = MobileCodexPresentationKind.activity,
+       cell = null,
+       isPreviousPlan = false;
+
+  const MobileCodexPresentationRow.working({required this.id})
+    : kind = MobileCodexPresentationKind.working,
+      cell = null,
+      activityCells = const <MobileCodexTimelineCell>[],
+      isPreviousPlan = false;
+
+  const MobileCodexPresentationRow._({
+    required this.id,
+    required this.kind,
+    required this.cell,
+    required this.activityCells,
+    required this.isPreviousPlan,
+  });
+
+  final String id;
+  final MobileCodexPresentationKind kind;
+  final MobileCodexTimelineCell? cell;
+  final List<MobileCodexTimelineCell> activityCells;
+  final bool isPreviousPlan;
+}
+
+abstract final class MobileCodexTimelineProjection {
+  static List<MobileCodexPresentationRow> project(
+    List<MobileCodexTimelineCell> cells, {
+    required String? activeTurnId,
+  }) {
+    final rows = <MobileCodexPresentationRow>[];
+    final warnings = <MobileCodexTimelineCell>[];
+    final content = <MobileCodexTimelineCell>[];
+    for (final cell in cells) {
+      if (cell.kind == 'systemNotice' &&
+          (cell.status == 'warning' ||
+              cell.metadata['severity'] == 'warning')) {
+        warnings.add(cell);
+      } else {
+        content.add(cell);
+      }
+    }
+    rows.addAll(warnings.map(MobileCodexPresentationRow.cell));
+    final latestPlanIndex = content.lastIndexWhere(
+      (cell) => cell.kind == 'plan',
+    );
+    var index = 0;
+    while (index < content.length) {
+      final cell = content[index];
+      if (_isActivity(cell)) {
+        final activity = <MobileCodexTimelineCell>[];
+        final turnId = cell.turnId;
+        while (index < content.length &&
+            _isActivity(content[index]) &&
+            content[index].turnId == turnId) {
+          activity.add(content[index]);
+          index++;
+        }
+        final visible = activity.where((item) => !item.isReasoning).toList();
+        if (visible.length == 1) {
+          rows.add(MobileCodexPresentationRow.cell(visible.single));
+        } else if (visible.isNotEmpty) {
+          rows.add(
+            MobileCodexPresentationRow.activity(
+              id: 'activity-${activity.first.id}-${activity.last.id}',
+              activityCells: List<MobileCodexTimelineCell>.unmodifiable(
+                activity,
+              ),
+            ),
+          );
+        }
+        continue;
+      }
+      rows.add(
+        MobileCodexPresentationRow.cell(
+          cell,
+          isPreviousPlan: cell.kind == 'plan' && index != latestPlanIndex,
+        ),
+      );
+      index++;
+    }
+    if (activeTurnId != null && !_hasVisibleStreamingTail(rows)) {
+      rows.add(MobileCodexPresentationRow.working(id: 'working-$activeTurnId'));
+    }
+    return List<MobileCodexPresentationRow>.unmodifiable(rows);
+  }
+
+  static bool _isActivity(MobileCodexTimelineCell cell) =>
+      cell.isReasoning ||
+      cell.kind == 'command' ||
+      cell.kind == 'toolCall' ||
+      cell.kind == 'diff';
+
+  static bool _hasVisibleStreamingTail(List<MobileCodexPresentationRow> rows) {
+    if (rows.isEmpty) return false;
+    final tail = rows.last;
+    if (tail.cell?.isStreaming == true) return true;
+    return tail.activityCells.any((cell) => cell.isStreaming);
+  }
+}

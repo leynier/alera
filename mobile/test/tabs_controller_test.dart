@@ -124,10 +124,23 @@ void main() {
       runtimeTitle: 'Ignored Runtime Title',
       manualTitle: true,
     );
+    final manualCodex = fakeTab(
+      id: 'codex-1',
+      title: 'Renamed Chat',
+      kind: 'codex',
+      manualTitle: true,
+    );
+    final automaticCodex = fakeTab(
+      id: 'codex-2',
+      title: 'Codex',
+      kind: 'codex',
+    );
 
     expect(automatic.displayTitle, 'Review Tests');
     expect(generic.displayTitle, 'Terminal 2');
     expect(manual.displayTitle, 'Pinned Title');
+    expect(manualCodex.displayTitle, 'Renamed Chat');
+    expect(automaticCodex.displayTitle, 'Codex Chat');
   });
 
   test('Loads the current runtime title from the initial tab list', () async {

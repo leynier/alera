@@ -148,18 +148,29 @@ class _MobileApprovalCard extends StatelessWidget {
     body: request.description,
     actions: <Widget>[
       TextButton(
-        onPressed: () =>
-            unawaited(controller.respondApproval(request, accepted: false)),
+        onPressed: () => unawaited(
+          controller.respondApproval(
+            request,
+            decision: request.approvalDecisionValue('decline'),
+          ),
+        ),
         child: const Text('Decline'),
       ),
       FilledButton(
-        onPressed: () =>
-            unawaited(controller.respondApproval(request, accepted: true)),
+        onPressed: () => unawaited(
+          controller.respondApproval(
+            request,
+            decision: request.approvalDecisionValue('accept'),
+          ),
+        ),
         child: const Text('Approve'),
       ),
       TextButton(
         onPressed: () => unawaited(
-          controller.respondApproval(request, accepted: true, forSession: true),
+          controller.respondApproval(
+            request,
+            decision: request.approvalDecisionValue('acceptForSession'),
+          ),
         ),
         child: const Text('Approve For Session'),
       ),
