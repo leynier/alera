@@ -31,6 +31,24 @@ void registerCodexChatSurfaceSessionTests() {
     expect(find.text('Approve For Me'), findsNothing);
   });
 
+  testWidgets('slash permissions confirms full access before applying it', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    addTearDown(client.dispose);
+    await _pumpSessionSurface(tester, client);
+
+    await _selectSlashCommand(
+      tester,
+      find.byType(TextField).last,
+      '/permissions',
+    );
+    await tester.tap(find.text('Full Access'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Turn On Full Access?'), findsOneWidget);
+  });
+
   testWidgets('session commands stay in the current Codex tab', (tester) async {
     final client = _SurfaceRuntimeClient(
       supportsSessions: true,
@@ -66,6 +84,56 @@ void registerCodexChatSurfaceSessionTests() {
     expect(find.text('/new'), findsOneWidget);
     expect(find.text('/clear'), findsOneWidget);
     expect(find.text('/resume'), findsNothing);
+  });
+
+  testWidgets('saved prompts take precedence over colliding session commands', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      supportsSessions: true,
+      pendingRequests: const <Object?>[],
+    );
+    final workspaceFiles = _RecordingWorkspaceFileService(
+      savedPrompts: const <native.CodexSavedPrompt>[
+        native.CodexSavedPrompt(
+          name: 'new',
+          description: 'Draft a feature',
+          body: r'Draft $1',
+          scope: native.CodexSavedPromptScope.repo,
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpSessionSurface(tester, client, workspaceFiles: workspaceFiles);
+
+    final composer = find.byType(TextField).last;
+    await tester.enterText(composer, '/new feature');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(client.requestTypes, isNot(contains('codex.thread.new')));
+    expect(client.startTurnPayloads, hasLength(1));
+    final input = client.startTurnPayloads.single['input']! as List<Object?>;
+    expect(input.whereType<Map>().single['text'], 'Draft feature');
+  });
+
+  testWidgets('unsupported typed resume falls through as a prompt', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    addTearDown(client.dispose);
+    await _pumpSessionSurface(tester, client);
+
+    final composer = find.byType(TextField).last;
+    await tester.enterText(composer, '/resume old');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(client.startTurnPayloads, hasLength(1));
+    final input = client.startTurnPayloads.single['input']! as List<Object?>;
+    expect(input.whereType<Map>().single['text'], '/resume old');
   });
 
   testWidgets('resume and earlier history are reachable from the surface', (
@@ -414,13 +482,16 @@ void registerCodexChatSurfaceSessionTests() {
 
 Future<void> _pumpSessionSurface(
   WidgetTester tester,
-  _SurfaceRuntimeClient client,
-) async {
+  _SurfaceRuntimeClient client, {
+  WorkspaceFileService? workspaceFiles,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         codexChatRuntimeClientProvider.overrideWithValue(client),
         settingsControllerProvider.overrideWith(_SurfaceSettings.new),
+        if (workspaceFiles != null)
+          workspaceFileServiceProvider.overrideWithValue(workspaceFiles),
       ],
       child: MaterialApp(
         home: Scaffold(

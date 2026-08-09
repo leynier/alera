@@ -35,6 +35,7 @@ class AleraHoverCard extends StatefulWidget {
     this.pinOnTap = true,
     this.controller,
     this.onVisibilityChanged,
+    this.mouseCursor = MouseCursor.defer,
   });
 
   final String semanticsLabel;
@@ -49,6 +50,7 @@ class AleraHoverCard extends StatefulWidget {
   /// Fires on each visibility edge, so an owner can start and stop work that
   /// only matters while the card is on screen.
   final ValueChanged<bool>? onVisibilityChanged;
+  final MouseCursor mouseCursor;
 
   @override
   State<AleraHoverCard> createState() => _AleraHoverCardState();
@@ -268,6 +270,7 @@ class _AleraHoverCardState extends State<AleraHoverCard>
       child: widget.child,
     );
     trigger = MouseRegion(
+      cursor: widget.mouseCursor,
       onEnter: _handleTriggerEnter,
       onExit: _handleTriggerExit,
       hitTestBehavior: HitTestBehavior.opaque,

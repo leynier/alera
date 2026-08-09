@@ -1,36 +1,38 @@
 part of 'codex_chat_surface.dart';
 
 extension _CodexSurfaceDialogs on _CodexChatSurfaceState {
-  Future<void> _showStatus(
-    BuildContext context,
-    CodexChatState state,
-  ) => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Codex Status'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Workspace: ${state.activeCwd ?? widget.workspace.path}'),
-          Text('Thread: ${widget.tab.title}'),
-          Text('Model: ${state.selectedModel ?? 'Default'}'),
-          Text('Reasoning: ${_choiceLabel(state.reasoningEffort)}'),
-          Text('Plan Mode: ${state.planMode ? 'On' : 'Off'}'),
-          Text(
-            'Permissions: ${_codexPermissionModeLabel(state.permissionMode)}',
+  Future<void> _showStatus(BuildContext context, CodexChatState state) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Codex Status'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Workspace: ${state.activeCwd ?? widget.workspace.path}'),
+              Text('Thread: ${widget.tab.title}'),
+              Text('Model: ${state.selectedModel ?? 'Default'}'),
+              Text('Reasoning: ${_choiceLabel(state.reasoningEffort)}'),
+              Text('Plan Mode: ${state.planMode ? 'On' : 'Off'}'),
+              Text(
+                'Permissions: ${switch (state.permissionMode) {
+                  'never' => 'Full Access',
+                  'auto-review' => 'Approve For Me',
+                  _ => 'Ask First',
+                }}',
+              ),
+              Text('Queued Messages: ${state.queuedMessages.length}'),
+            ],
           ),
-          Text('Queued Messages: ${state.queuedMessages.length}'),
-        ],
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 
   Future<void> _startReview(
     BuildContext context,

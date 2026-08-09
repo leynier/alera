@@ -35,6 +35,9 @@ class AleraIconButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
+      mouseCursor: onPressed == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
       icon: Icon(icon, size: iconSize, color: iconColor),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,

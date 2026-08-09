@@ -391,10 +391,12 @@ class CodexChatController extends _$CodexChatController {
 
   void setCollaborationMode(String? mode) {
     final normalized = mode?.trim();
-    if (normalized == null || normalized.isEmpty) return;
+    final nextMode = normalized == null || normalized.isEmpty
+        ? null
+        : normalized;
     state = state.copyWith(
-      collaborationMode: normalized,
-      planMode: normalized == 'plan',
+      collaborationMode: nextMode,
+      planMode: nextMode == 'plan',
     );
     _persistConfiguration();
   }

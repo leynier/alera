@@ -70,7 +70,13 @@ extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
             ],
           ),
         );
-        if (mode != null) controller.setPermissionMode(mode);
+        if (mode != null && context.mounted) {
+          await _applyCodexPermissionSelection(
+            context,
+            mode,
+            controller.setPermissionMode,
+          );
+        }
       case CodexComposerCommand.mention:
         _insertAtCursor('@');
       case CodexComposerCommand.skills:
