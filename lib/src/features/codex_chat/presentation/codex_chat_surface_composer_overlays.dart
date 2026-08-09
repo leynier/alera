@@ -167,6 +167,7 @@ class _CodexCatalogOverlay extends StatelessWidget {
               : _CodexCatalogAppIcon(url: item.iconUrl),
           title: item.name,
           subtitle: item.kind == CodexDraftItemKind.skill ? 'Skill' : 'App',
+          subtitleTextAlign: TextAlign.right,
           trailing: item.kind == CodexDraftItemKind.skill ? 'Personal' : 'App',
           onTap: () => onSelected(item),
         );
@@ -283,6 +284,7 @@ class _CodexOverlayRow extends StatelessWidget {
     this.icon,
     this.leading,
     this.subtitle,
+    this.subtitleTextAlign = TextAlign.left,
     this.trailing,
   }) : assert(icon != null || leading != null);
 
@@ -291,6 +293,7 @@ class _CodexOverlayRow extends StatelessWidget {
   final Widget? leading;
   final String title;
   final String? subtitle;
+  final TextAlign subtitleTextAlign;
   final String? trailing;
   final VoidCallback onTap;
 
@@ -334,6 +337,7 @@ class _CodexOverlayRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   subtitle!,
+                  textAlign: subtitleTextAlign,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
