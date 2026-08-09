@@ -292,7 +292,7 @@ void main() {
     },
   );
 
-  testWidgets('mobile screen renders rich timeline and approval actions', (
+  testWidgets('mobile screen renders rich timeline and the current request', (
     tester,
   ) async {
     final client = _FakeMobileCodexClient();
@@ -306,7 +306,11 @@ void main() {
         ],
         child: const MaterialApp(
           home: Scaffold(
-            body: MobileCodexChatScreen(hostId: 'host-1', tabId: 'tab-1'),
+            body: MobileCodexChatScreen(
+              hostId: 'host-1',
+              tabId: 'tab-1',
+              workspaceId: 'workspace-1',
+            ),
           ),
         ),
       ),
@@ -314,18 +318,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 30));
     expect(find.text('Answer from Codex'), findsOneWidget);
-    expect(find.text('Codex Needs Approval'), findsOneWidget);
-    expect(find.text('Approve For Session'), findsOneWidget);
+    expect(find.text('Choose a mode'), findsOneWidget);
+    expect(find.text('Fast'), findsOneWidget);
+    expect(find.text('Careful'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('MCP Server Needs Input'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('MCP Server Needs Input'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Current Codex'), findsOneWidget);
-    expect(find.text('Message Codex'), findsOneWidget);
+    expect(find.textContaining('Current Codex'), findsOneWidget);
+    expect(find.textContaining('Ask Codex anything'), findsOneWidget);
   });
 }
 

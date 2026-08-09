@@ -38,6 +38,7 @@ abstract final class AleraIcons {
   static const IconData theme = LucideIcons.moon;
   static const IconData workspaces = LucideIcons.folders;
   static const IconData listView = LucideIcons.list;
+  static const IconData viewImage = LucideIcons.image;
   static const IconData folder = LucideIcons.folder;
   static const IconData folderOpen = LucideIcons.folderOpen;
   static const IconData cloudOff = LucideIcons.cloudOff;

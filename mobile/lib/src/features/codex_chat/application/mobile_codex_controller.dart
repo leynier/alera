@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_file_reference.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
@@ -50,6 +51,10 @@ class MobileCodexController extends _$MobileCodexController
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
 
   bool get supportsSessions => _client?.supportsCodexSessions == true;
+
+  bool get supportsTurnPolicy => _client?.supportsCodexTurnPolicy == true;
+
+  int get threadGeneration => _threadGeneration;
 
   @override
   Timer? get _interruptSafetyTimerValue => _interruptSafetyTimer;
@@ -144,7 +149,10 @@ class MobileCodexController extends _$MobileCodexController
       'id': _newClientMessageId(),
       'text': trimmed,
       'attachments': attachments,
-      'catalogSelections': catalogSelections,
+      'catalogSelections': mobileCodexTrimCatalogSelections(
+        text,
+        catalogSelections,
+      ),
     };
     final current = state.value ?? const MobileCodexState();
     if (current.busy || _sessionTransitionInProgress) {
@@ -179,7 +187,10 @@ class MobileCodexController extends _$MobileCodexController
         'clientUserMessageId':
             message['id']?.toString() ?? _newClientMessageId(),
         'input': _input(message, current),
-        'userMessage': _userMessagePresentation(message),
+        'userMessage': _userMessagePresentation(
+          message,
+          cwd: current.activeCwd,
+        ),
         'model': current.selectedModel,
         'reasoning': <String, Object?>{'effort': current.reasoningEffort},
         'effort': current.reasoningEffort,
@@ -270,7 +281,10 @@ class MobileCodexController extends _$MobileCodexController
     final message = <String, Object?>{
       'text': text.trim(),
       'attachments': attachments,
-      'catalogSelections': catalogSelections,
+      'catalogSelections': mobileCodexTrimCatalogSelections(
+        text,
+        catalogSelections,
+      ),
     };
     try {
       await client.codexRequest('codex.turn.steer', <String, Object?>{
@@ -278,7 +292,10 @@ class MobileCodexController extends _$MobileCodexController
         'turnId': current!.activeTurnId,
         'clientUserMessageId': _newClientMessageId(),
         'input': _input(message, current),
-        'userMessage': _userMessagePresentation(message),
+        'userMessage': _userMessagePresentation(
+          message,
+          cwd: current.activeCwd,
+        ),
       });
     } catch (error, stackTrace) {
       _setError(error, stackTrace);

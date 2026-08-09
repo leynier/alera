@@ -16,6 +16,7 @@ final class FakeMobileCodexClient
     this.workspaceQuickOpenStart,
     this.workspaceQuickOpenStarter,
     this.workspaceQuickOpenSearcher,
+    this.workspaceQuickOpenStopper,
     this.savedPrompts = const <MobileCodexSavedPrompt>[],
     this.savedPromptsLoader,
     this.workspaceFileReader,
@@ -50,6 +51,8 @@ final class FakeMobileCodexClient
     int limit,
   )?
   workspaceQuickOpenSearcher;
+  final Future<void> Function(MobileWorkspaceQuickOpenSession session)?
+  workspaceQuickOpenStopper;
   final List<MobileCodexSavedPrompt> savedPrompts;
   final Future<List<MobileCodexSavedPrompt>> Function(
     String workspaceId,
@@ -232,7 +235,11 @@ final class FakeMobileCodexClient
   @override
   Future<void> stopWorkspaceQuickOpen(
     MobileWorkspaceQuickOpenSession session,
-  ) async => stoppedQuickOpenSessions.add(session);
+  ) async {
+    final stopper = workspaceQuickOpenStopper;
+    if (stopper != null) return stopper(session);
+    stoppedQuickOpenSessions.add(session);
+  }
 
   @override
   Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(

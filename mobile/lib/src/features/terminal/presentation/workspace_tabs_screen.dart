@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/codex_chat/presentation/mobile_codex_chat_screen.dart';
+import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_composer_draft_store.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
@@ -10,6 +13,9 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_vie
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+
+part 'workspace_tab_strip.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
 /// tab visible at a time. Splits stay a desktop concept.
@@ -33,6 +39,7 @@ class WorkspaceTabsScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
+  static final Logger _logger = Logger('WorkspaceTabsScreen');
   String? _selectedTabId;
   bool _creating = false;
 
@@ -60,7 +67,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           _selectedTabId = tabId;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not create terminal tab.', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -85,7 +93,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           )
           .createCodexTab();
       if (mounted) setState(() => _selectedTabId = tabId);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not create Codex tab.', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not create Codex tab: $error')),
@@ -93,6 +102,48 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       }
     } finally {
       if (mounted) setState(() => _creating = false);
+    }
+  }
+
+  Future<void> _focusBoundCodexTab(String workspaceId, String tabId) async {
+    if (workspaceId == widget.workspace.id) {
+      if (mounted) setState(() => _selectedTabId = tabId);
+      return;
+    }
+    try {
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      final workspaces = await client.listWorkspaces();
+      WorkspaceSummary? workspace;
+      for (final candidate in workspaces) {
+        if (candidate.id == workspaceId) {
+          workspace = candidate;
+          break;
+        }
+      }
+      if (workspace == null) {
+        throw StateError('The workspace for this Codex chat is unavailable.');
+      }
+      final targetWorkspace = workspace;
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WorkspaceTabsScreen(
+            hostId: widget.hostId,
+            workspace: targetWorkspace,
+            initialTabId: tabId,
+            selectFallbackTab: false,
+          ),
+        ),
+      );
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not focus bound Codex tab.', error, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open the Codex chat: $error')),
+        );
+      }
     }
   }
 
@@ -117,18 +168,21 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     if (confirmed != true || !mounted) {
       return;
     }
+    final tabsController = ref.read(
+      tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+    );
+    final draftStore = ref.read(mobileCodexComposerDraftStoreProvider);
     try {
-      await ref
-          .read(
-            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-          )
-          .closeTab(tab);
+      final closed = await tabsController.closeTab(tab);
+      if (!closed) return;
+      draftStore.remove(widget.hostId, tab.id);
       if (mounted && _selectedTabId == tab.id) {
         setState(() {
           _selectedTabId = null;
         });
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not close workspace tab.', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -153,7 +207,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
           )
           .renameTab(tab, title);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Could not rename workspace tab.', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -213,9 +268,23 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = ref.watch(
-      tabsControllerProvider(widget.hostId, widget.workspace.id),
+    final tabsProvider = tabsControllerProvider(
+      widget.hostId,
+      widget.workspace.id,
     );
+    ref.listen(tabsProvider, (previous, next) {
+      final previousTabs = previous?.value;
+      final currentTabs = next.value;
+      if (previousTabs == null || currentTabs == null) return;
+      final currentTabIds = <String>{for (final tab in currentTabs) tab.id};
+      final drafts = ref.read(mobileCodexComposerDraftStoreProvider);
+      for (final tab in previousTabs) {
+        if (tab.isCodex && !currentTabIds.contains(tab.id)) {
+          drafts.remove(widget.hostId, tab.id);
+        }
+      }
+    });
+    final tabs = ref.watch(tabsProvider);
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
     final canRename =
         ref
@@ -223,22 +292,22 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             .value
             ?.supportsTabRename ==
         true;
-    if (selectedTab != null) {
+    if (selectedTab case final WorkspaceTabSummary tab when tab.isTerminal) {
       // The desktop taking the viewport back sends this phone to the
       // workspace list; re-entering the tab simply claims again.
-      ref.listen(
-        terminalSessionControllerProvider(widget.hostId, selectedTab.id),
-        (previous, next) {
-          if (next case AsyncError(
-            :final error,
-          ) when error is DesktopReclaimedTerminal) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Desktop took back the terminal')),
-            );
-            Navigator.of(context).pop();
-          }
-        },
-      );
+      ref.listen(terminalSessionControllerProvider(widget.hostId, tab.id), (
+        previous,
+        next,
+      ) {
+        if (next case AsyncError(
+          :final error,
+        ) when error is DesktopReclaimedTerminal) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Desktop took back the terminal')),
+          );
+          Navigator.of(context).pop();
+        }
+      });
     }
     return Scaffold(
       appBar: AppBar(
@@ -272,8 +341,10 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                     });
                   },
                   onClose: _closeTab,
-                  onActions: (tab) =>
-                      _showTabActions(tab, canRename: canRename),
+                  onActions: (tab) => _showTabActions(
+                    tab,
+                    canRename: canRename && !tab.isCodex,
+                  ),
                   onCreate: _createTab,
                   onCreateCodex: _createCodexTab,
                 ),
@@ -288,6 +359,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                 key: ValueKey<String>(tab.id),
                 hostId: widget.hostId,
                 tabId: tab.id,
+                workspaceId: tab.workspaceId,
+                onFocusBoundTab: (workspaceId, tabId) =>
+                    unawaited(_focusBoundCodexTab(workspaceId, tabId)),
               ),
             final WorkspaceTabSummary tab => TerminalTabView(
               key: ValueKey<String>(tab.id),
@@ -309,150 +383,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           ),
           _ => const Center(child: CircularProgressIndicator()),
         },
-      ),
-    );
-  }
-}
-
-class _TabStrip extends StatelessWidget {
-  const _TabStrip({
-    required this.tabs,
-    required this.selectedTabId,
-    required this.creating,
-    required this.onSelect,
-    required this.onClose,
-    required this.onActions,
-    required this.onCreate,
-    required this.onCreateCodex,
-  });
-
-  final List<WorkspaceTabSummary> tabs;
-  final String? selectedTabId;
-  final bool creating;
-  final ValueChanged<WorkspaceTabSummary> onSelect;
-  final ValueChanged<WorkspaceTabSummary> onClose;
-  final ValueChanged<WorkspaceTabSummary> onActions;
-  final VoidCallback onCreate;
-  final VoidCallback onCreateCodex;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: AleraTokens.tabStripHeight,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.spaceLg,
-          vertical: AleraTokens.spaceSm,
-        ),
-        children: <Widget>[
-          for (final tab in tabs) ...<Widget>[
-            GestureDetector(
-              onLongPress: () => onActions(tab),
-              child: InputChip(
-                label: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: _tabTitleMaxWidth(tab.kind),
-                  ),
-                  child: Text(
-                    tab.displayTitle,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                selected: tab.id == selectedTabId,
-                // Non-terminal tabs remain disabled content surfaces, while
-                // their metadata actions stay available through long press.
-                onSelected: (tab.isTerminal || tab.isCodex)
-                    ? (_) => onSelect(tab)
-                    : null,
-                onDeleted: (tab.isTerminal || tab.isCodex)
-                    ? () => onClose(tab)
-                    : null,
-                deleteButtonTooltipMessage: 'Close Tab',
-              ),
-            ),
-            const SizedBox(width: AleraTokens.spaceSm),
-          ],
-          IconButton.filledTonal(
-            tooltip: 'New Terminal Tab',
-            onPressed: creating ? null : onCreate,
-            icon: creating
-                ? const SizedBox.square(
-                    dimension: AleraTokens.spaceLg,
-                    child: CircularProgressIndicator(
-                      strokeWidth: AleraTokens.strokeSm,
-                    ),
-                  )
-                : const Icon(Icons.add),
-          ),
-          IconButton.filledTonal(
-            tooltip: 'New Codex Tab',
-            onPressed: creating ? null : onCreateCodex,
-            icon: const Icon(Icons.forum_outlined),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-double _tabTitleMaxWidth(String kind) {
-  return switch (kind) {
-    'editor' ||
-    'markdownViewer' ||
-    'pdf' ||
-    'gitDiff' => AleraTokens.tabTitleMaxWidthEditor,
-    'terminal' || 'browser' => AleraTokens.tabTitleMaxWidthTerminal,
-    _ => AleraTokens.tabTitleMaxWidthTerminal,
-  };
-}
-
-class _EmptyTabs extends StatelessWidget {
-  const _EmptyTabs({
-    required this.creating,
-    required this.onCreate,
-    this.targetUnavailable = false,
-  });
-
-  final bool creating;
-  final VoidCallback onCreate;
-  final bool targetUnavailable;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              Icons.terminal,
-              size: AleraTokens.emptyIcon,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AleraTokens.spaceLg),
-            Text(
-              targetUnavailable ? 'Terminal unavailable' : 'No tabs yet',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (targetUnavailable) ...<Widget>[
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Choose another terminal above.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: AleraTokens.spaceMd),
-            FilledButton.icon(
-              onPressed: creating ? null : onCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('Create Terminal'),
-            ),
-          ],
-        ),
       ),
     );
   }

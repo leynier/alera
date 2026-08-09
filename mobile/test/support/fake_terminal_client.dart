@@ -50,6 +50,8 @@ class FakeTerminalClient
   final List<({String tabId, int cols, int rows})> attachments =
       <({String tabId, int cols, int rows})>[];
   Future<void>? attachCompletion;
+  Future<void>? removeTabCompletion;
+  Future<void>? terminateCompletion;
   List<int> attachmentSnapshot = const <int>[];
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   List<String> projectBranches = const <String>[];
@@ -277,6 +279,7 @@ class FakeTerminalClient
   @override
   Future<void> terminateSession(String sessionId) async {
     calls.add('terminate $sessionId');
+    await terminateCompletion;
   }
 
   @override
@@ -418,6 +421,7 @@ class FakeTerminalClient
   @override
   Future<void> removeTab(String tabId) async {
     calls.add('removeTab $tabId');
+    await removeTabCompletion;
     tabs = <WorkspaceTabSummary>[
       for (final tab in tabs)
         if (tab.id != tabId) tab,

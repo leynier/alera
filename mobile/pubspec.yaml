@@ -34,6 +34,7 @@ dependencies:
   cupertino_icons: ^1.0.9
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
+  file_selector: ^1.1.0
   flutter_local_notifications: ^21.0.0
   flutter_riverpod: ^3.3.2
   flutter_secure_storage: ^10.3.1

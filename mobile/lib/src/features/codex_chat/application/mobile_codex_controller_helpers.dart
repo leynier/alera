@@ -22,26 +22,35 @@ List<Map<String, Object?>> _input(
       : const <Map<String, Object?>>[];
   final skill = _skillInput(text, state.skills);
   final app = _appInput(text, state.apps);
-  final selectedCatalog = message['catalogSelections'] is List
+  final selectedCatalogCandidates = message['catalogSelections'] is List
       ? <Map<String, Object?>>[
           for (final value in message['catalogSelections']! as List)
             if (value is Map) Map<String, Object?>.from(value),
         ]
       : const <Map<String, Object?>>[];
+  final selectedCatalog = mobileCodexActiveCatalogSelections(
+    text,
+    selectedCatalogCandidates,
+  );
   final selectedNames = <String>{
     for (final selection in selectedCatalog)
       if (selection['name'] case final String name) name,
   };
+  final selectedTokenStarts = _selectedCatalogTokenStarts(
+    text,
+    selectedCatalog,
+  );
   final catalog = _catalogInputs(
     text,
     state.skills,
     state.apps,
     excludedNames: selectedNames,
+    excludedTokenStarts: selectedTokenStarts,
   );
   final input = <Map<String, Object?>>[
     if (skill != null) skill.$1,
     if (app != null) app.$1,
-    ...selectedCatalog,
+    ...selectedCatalog.map(mobileCodexCatalogWireSelection),
     ...catalog,
   ];
   final modelText = skill != null
@@ -49,17 +58,25 @@ List<Map<String, Object?>> _input(
       : app != null
       ? app.$2
       : text;
+  Map<String, Object?>? modelTextInput;
   var hasText = false;
   if (modelText.isNotEmpty) {
-    input.add(<String, Object?>{'type': 'text', 'text': modelText});
+    modelTextInput = <String, Object?>{'type': 'text', 'text': modelText};
+    input.add(modelTextInput);
     hasText = true;
   }
   final references = <({String path, String name})>[];
+  final inlineReferences =
+      <({int start, String source, String wire, String name})>[];
   final seenReferences = <String>{};
-  final inlineElements = <Map<String, Object?>>[];
+  final sourceSearchOffsets = <String, int>{};
   for (final attachment in attachments) {
-    final path = attachment['path']?.toString() ?? '';
-    if (path.isEmpty) continue;
+    final sourcePath = attachment['path']?.toString() ?? '';
+    if (sourcePath.isEmpty) continue;
+    final path = _presentationAttachmentPath(
+      attachment,
+      fallbackCwd: state.activeCwd,
+    );
     if (attachment['type'] == 'localImage') {
       input.add(<String, Object?>{
         'type': 'localImage',
@@ -73,34 +90,83 @@ List<Map<String, Object?>> _input(
           attachment['displayName']?.toString() ??
           attachment['name']?.toString() ??
           _basename(path);
-      final referenceText = mobileCodexFileReferenceText(path);
-      final characterStart = modelText.indexOf(referenceText);
+      final sourceReference = mobileCodexFileReferenceText(sourcePath);
+      final wireReference = mobileCodexFileReferenceText(path);
+      final characterStart = _mobileCompleteReferenceStart(
+        modelText,
+        sourceReference,
+        start: sourceSearchOffsets[sourceReference] ?? 0,
+      );
       if (characterStart >= 0) {
-        final start = utf8
-            .encode(modelText.substring(0, characterStart))
-            .length;
-        inlineElements.add(<String, Object?>{
-          'byteRange': <String, Object?>{
-            'start': start,
-            'end': start + utf8.encode(referenceText).length,
-          },
-          'placeholder': name,
-        });
+        sourceSearchOffsets[sourceReference] =
+            characterStart + sourceReference.length;
+        inlineReferences.add((
+          start: characterStart,
+          source: sourceReference,
+          wire: wireReference,
+          name: name,
+        ));
       } else {
         references.add((path: path, name: name));
       }
     }
   }
-  if (inlineElements.isNotEmpty) {
-    for (final part in input) {
-      if (part['type'] == 'text' && part['text'] == modelText) {
-        part['text_elements'] = inlineElements;
-        break;
-      }
+  if (modelTextInput != null && inlineReferences.isNotEmpty) {
+    var wireText = modelText;
+    for (final reference
+        in inlineReferences.toList()
+          ..sort((left, right) => right.start.compareTo(left.start))) {
+      wireText = wireText.replaceRange(
+        reference.start,
+        reference.start + reference.source.length,
+        reference.wire,
+      );
     }
+    modelTextInput['text'] = wireText;
+    final elements = <Map<String, Object?>>[];
+    for (final reference in inlineReferences) {
+      final precedingShift = inlineReferences
+          .where((candidate) => candidate.start < reference.start)
+          .fold<int>(
+            0,
+            (shift, candidate) =>
+                shift + candidate.wire.length - candidate.source.length,
+          );
+      final characterStart = reference.start + precedingShift;
+      final start = utf8.encode(wireText.substring(0, characterStart)).length;
+      elements.add(<String, Object?>{
+        'byteRange': <String, Object?>{
+          'start': start,
+          'end': start + utf8.encode(reference.wire).length,
+        },
+        'placeholder': reference.name,
+      });
+    }
+    modelTextInput['text_elements'] = elements;
   }
   input.addAll(_mobileFileReferenceInputs(references, followsText: hasText));
   return input;
+}
+
+int _mobileCompleteReferenceStart(
+  String text,
+  String reference, {
+  required int start,
+}) {
+  var offset = start;
+  while (offset <= text.length - reference.length) {
+    final match = text.indexOf(reference, offset);
+    if (match < 0) return -1;
+    final before = match == 0 ? null : text[match - 1];
+    final end = match + reference.length;
+    final after = end == text.length ? null : text[end];
+    if ((before == null || before.trim().isEmpty) &&
+        (after == null || after.trim().isEmpty)) {
+      return match;
+    }
+    offset = match + 1;
+  }
+  return -1;
 }
 
 List<Map<String, Object?>> _mobileFileReferenceInputs(
@@ -131,7 +197,10 @@ List<Map<String, Object?>> _mobileFileReferenceInputs(
   return result;
 }
 
-Map<String, Object?> _userMessagePresentation(Map<String, Object?> message) {
+Map<String, Object?> _userMessagePresentation(
+  Map<String, Object?> message, {
+  String? cwd,
+}) {
   final rawAttachments = message['attachments'];
   final attachments = <Map<String, Object?>>[];
   final seen = <String>{};
@@ -139,7 +208,7 @@ Map<String, Object?> _userMessagePresentation(Map<String, Object?> message) {
     for (final value in rawAttachments) {
       if (value is! Map) continue;
       final attachment = Map<String, Object?>.from(value);
-      final path = attachment['path']?.toString() ?? '';
+      final path = _presentationAttachmentPath(attachment, fallbackCwd: cwd);
       if (path.isEmpty || !seen.add(path)) continue;
       final type = attachment['type']?.toString() ?? 'file';
       final isDirectory = attachment['isDirectory'] == true;
@@ -170,15 +239,47 @@ Map<String, Object?> _userMessagePresentation(Map<String, Object?> message) {
   };
 }
 
+String _presentationAttachmentPath(
+  Map<String, Object?> attachment, {
+  required String? fallbackCwd,
+}) {
+  final path = attachment['path']?.toString() ?? '';
+  if (attachment['origin'] != 'mention' || _isAbsolutePresentationPath(path)) {
+    return path;
+  }
+  final sourceCwd =
+      attachment['cwd']?.toString().trim() ?? fallbackCwd?.trim() ?? '';
+  if (sourceCwd.isEmpty || !_isAbsolutePresentationPath(sourceCwd)) {
+    return path;
+  }
+  final normalizedCwd = sourceCwd.replaceAll('\\', '/');
+  var normalizedPath = path.replaceAll('\\', '/');
+  if (normalizedPath.startsWith('./')) {
+    normalizedPath = normalizedPath.substring(2);
+  }
+  final prefix = normalizedCwd.endsWith('/')
+      ? normalizedCwd
+      : '$normalizedCwd/';
+  return '$prefix$normalizedPath';
+}
+
+bool _isAbsolutePresentationPath(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  return normalized.startsWith('/') ||
+      RegExp(r'^[A-Za-z]:/').hasMatch(normalized);
+}
+
 List<Map<String, Object?>> _catalogInputs(
   String text,
   List<Map<String, Object?>> skills,
   List<Map<String, Object?>> apps, {
   Set<String> excludedNames = const <String>{},
+  Set<int> excludedTokenStarts = const <int>{},
 }) {
   final result = <Map<String, Object?>>[];
   final seen = <String>{};
   for (final match in RegExp(r'\$([^\s]+)').allMatches(text)) {
+    if (excludedTokenStarts.contains(match.start)) continue;
     final token = match.group(1)?.trim() ?? '';
     if (token.isEmpty || excludedNames.contains(token) || !seen.add(token)) {
       continue;
@@ -206,6 +307,27 @@ List<Map<String, Object?>> _catalogInputs(
     }
   }
   return result;
+}
+
+Set<int> _selectedCatalogTokenStarts(
+  String text,
+  List<Map<String, Object?>> selectedCatalog,
+) {
+  final starts = <int>{};
+  for (final selection in selectedCatalog) {
+    final name = selection['name'];
+    if (name is! String || name.trim().isEmpty) continue;
+    final pattern = RegExp(
+      '(?:^|\\s)(\\\$${RegExp.escape(name.trim())})(?=\\s|\$)',
+    );
+    for (final match in pattern.allMatches(text)) {
+      final token = match.group(1);
+      if (token != null) {
+        starts.add(match.start + match.group(0)!.indexOf(token));
+      }
+    }
+  }
+  return starts;
 }
 
 String _newClientMessageId() =>
