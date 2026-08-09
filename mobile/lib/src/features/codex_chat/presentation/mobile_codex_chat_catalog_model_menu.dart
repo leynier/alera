@@ -51,12 +51,14 @@ class _MobileModelMenuButton extends StatelessWidget {
     var selectedEffort = state.reasoningEffort;
     var selectedSpeed = state.speedMode;
     var selectedCollaboration = state.collaborationMode;
-    final collaborationModes = <String>[
+    final collaborationModes = <String>{
       for (final mode in state.collaborationModes)
         if (mode['mode']?.toString().trim() case final String value
-            when value.isNotEmpty && value != 'plan')
+            when value.isNotEmpty &&
+                value.toLowerCase() != 'default' &&
+                value.toLowerCase() != 'plan')
           value,
-    ];
+    }.toList(growable: false);
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,

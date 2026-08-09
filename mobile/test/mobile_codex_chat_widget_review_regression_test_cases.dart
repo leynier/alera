@@ -377,6 +377,7 @@ void _registerMobileCodexReviewRegressionTests() {
       responses: const <String, Map<String, Object?>>{
         'codex.collaborationModes.list': <String, Object?>{
           'data': <Object?>[
+            <String, Object?>{'mode': 'default'},
             <String, Object?>{'mode': 'plan'},
             <String, Object?>{'mode': 'pair-programming'},
           ],
@@ -390,6 +391,7 @@ void _registerMobileCodexReviewRegressionTests() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pumpAndSettle();
+    expect(find.text('Default'), findsOneWidget);
     await tester.tap(find.text('Pair programming'));
     await tester.pump();
 
