@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
 import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
@@ -12,6 +15,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -19,10 +23,54 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:path/path.dart' as p;
 
 part 'codex_chat_surface_session_test_cases.dart';
 
 void main() {
+  test('resolves compact Markdown file line references', () {
+    final target = resolveCodexMarkdownFileTarget(
+      workspacePath: '/repo/workspace',
+      rawLink: 'readme.md:44',
+    );
+
+    expect(target?.path, p.join('/repo/workspace', 'readme.md'));
+    expect(target?.line, 44);
+  });
+
+  test('resolves extensionless compact Markdown file line references', () {
+    final target = resolveCodexMarkdownFileTarget(
+      workspacePath: '/repo/workspace',
+      rawLink: 'Makefile:42',
+    );
+
+    expect(target?.path, p.join('/repo/workspace', 'Makefile'));
+    expect(target?.line, 42);
+  });
+
+  test(
+    'resolves fragmented file URIs without passing the fragment to Dart',
+    () {
+      final filePath = Platform.isWindows
+          ? r'C:\repo\workspace\readme.md'
+          : '/repo/workspace/readme.md';
+      final uri = Uri.file(
+        filePath,
+        windows: Platform.isWindows,
+      ).replace(fragment: 'L42');
+
+      final target = resolveCodexMarkdownFileTarget(
+        workspacePath: Platform.isWindows
+            ? r'C:\repo\workspace'
+            : '/repo/workspace',
+        rawLink: uri.toString(),
+      );
+
+      expect(target?.path, filePath);
+      expect(target?.line, 42);
+    },
+  );
+
   testWidgets('renders rich timeline cells and structured approval controls', (
     tester,
   ) async {
@@ -51,7 +99,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.textContaining('Answer from Codex'), findsOneWidget);
     expect(find.text('Thinking'), findsOneWidget);
-    expect(find.text('Current Codex'), findsOneWidget);
+    expect(find.textContaining('Current Codex'), findsOneWidget);
     expect(find.text('Ask For Approval'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsWidgets);
     expect(find.text('dart'), findsOneWidget);
@@ -200,7 +248,375 @@ void main() {
     );
   });
 
+  testWidgets('opens the combined model configuration menu', (tester) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Model'), findsOneWidget);
+    expect(find.text('Effort'), findsOneWidget);
+    expect(find.text('Speed'), findsOneWidget);
+  });
+
+  testWidgets('long model labels remain responsive in a narrow pane', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      modelDisplayName: 'GPT-5.6-Sol-With-An-Intentionally-Long-Display-Name',
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client, width: 320);
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('keeps non-plan collaboration modes in advanced configuration', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      collaborationModes: const <Map<String, Object?>>[
+        <String, Object?>{'mode': 'plan'},
+        <String, Object?>{'mode': 'pair'},
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mode'), findsOneWidget);
+    await tester.tap(find.text('Mode'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pair'), findsOneWidget);
+  });
+
+  testWidgets('adds dropped workspace paths as file attachments', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+
+    final target = tester.widget<DragTarget<TerminalPathDragPayload>>(
+      find.byType(DragTarget<TerminalPathDragPayload>),
+    );
+    target.onAcceptWithDetails!(
+      DragTargetDetails<TerminalPathDragPayload>(
+        data: const TerminalPathDragData(paths: <String>['/tmp/notes.md']),
+        offset: Offset.zero,
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('codex-attached-file-/tmp/notes.md')),
+      findsOneWidget,
+    );
+    expect(find.byType(AleraFileIcon), findsWidgets);
+  });
+
+  testWidgets('an immediately sent dropped path stays with that prompt', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+    final composer = find.byType(TextField).last;
+    await tester.enterText(composer, 'Inspect this file');
+    await tester.pump();
+
+    final target = tester.widget<DragTarget<TerminalPathDragPayload>>(
+      find.byType(DragTarget<TerminalPathDragPayload>),
+    );
+    target.onAcceptWithDetails!(
+      DragTargetDetails<TerminalPathDragPayload>(
+        data: const TerminalPathDragData(paths: <String>['/tmp/notes.md']),
+        offset: Offset.zero,
+      ),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('composer-action-button')),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+
+    expect(client.startTurnPayloads, hasLength(1));
+    final input = client.startTurnPayloads.single['input']! as List<Object?>;
+    expect(
+      input.whereType<Map>().any(
+        (part) => part['text']?.toString().contains('/tmp/notes.md') == true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('classifies local directories for dropped attachments', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-codex-directory-attachment-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+
+    expect(await codexAttachmentPathIsDirectory(directory.path), isTrue);
+  });
+
+  test('arrow up preserves drafts that can be soft wrapped', () {
+    const draft =
+        'This draft is intentionally long enough to wrap across several visual lines in a narrow composer.';
+    expect(
+      codexCanNavigatePromptHistory(
+        key: LogicalKeyboardKey.arrowUp,
+        value: const TextEditingValue(
+          text: draft,
+          selection: TextSelection.collapsed(offset: draft.length),
+        ),
+        browsingHistory: false,
+      ),
+      isFalse,
+    );
+    expect(
+      codexCanNavigatePromptHistory(
+        key: LogicalKeyboardKey.arrowUp,
+        value: const TextEditingValue(
+          selection: TextSelection.collapsed(offset: 0),
+        ),
+        browsingHistory: false,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('stale mention results do not add an attachment', (tester) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    final workspaceFiles = _RecordingWorkspaceFileService(
+      quickOpenMatches: const <native.WorkspaceQuickOpenMatch>[
+        native.WorkspaceQuickOpenMatch(
+          relativePath: 'assets/logo.png',
+          score: 0,
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client, workspaceFiles: workspaceFiles);
+    final composer = find.byType(TextField).last;
+
+    await tester.enterText(composer, '@logo');
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('assets/logo.png'), findsOneWidget);
+
+    await tester.enterText(composer, 'different text');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('codex-composer-file-bar')),
+      findsNothing,
+    );
+    expect(
+      tester.widget<TextField>(composer).controller?.text,
+      'different text',
+    );
+  });
+
+  testWidgets('catalog input invalidates an in-flight mention search', (
+    tester,
+  ) async {
+    final search = Completer<List<native.WorkspaceQuickOpenMatch>>();
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    final workspaceFiles = _RecordingWorkspaceFileService(
+      quickOpenSearch: search,
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client, workspaceFiles: workspaceFiles);
+    final composer = find.byType(TextField).last;
+
+    await tester.enterText(composer, '@logo');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.enterText(composer, r'$');
+    await tester.pump(const Duration(milliseconds: 250));
+
+    search.complete(const <native.WorkspaceQuickOpenMatch>[
+      native.WorkspaceQuickOpenMatch(
+        relativePath: 'assets/stale.png',
+        score: 0,
+      ),
+    ]);
+    await tester.pump();
+
+    expect(find.text('assets/stale.png'), findsNothing);
+  });
+
+  testWidgets('skill removal targets the selected token occurrence', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      skills: const <String, Object?>{
+        'data': <Object?>[
+          <String, Object?>{
+            'name': 'review',
+            'path': '/skills/review/SKILL.md',
+          },
+        ],
+      },
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+    final composer = find.byType(TextField).last;
+
+    await tester.enterText(composer, r'$review before $rev');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('review'));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(composer).controller?.text,
+      r'$review before $review ',
+    );
+    await tester.enterText(composer, r'$review before $review $rev');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('review'));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(composer).controller?.text,
+      r'$review before $review ',
+    );
+    await tester.tap(find.byIcon(AleraIcons.close));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(composer).controller?.text,
+      r'$review before ',
+    );
+  });
+
+  testWidgets('removing an image mention also removes its composer token', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    final workspaceFiles = _RecordingWorkspaceFileService(
+      quickOpenMatches: const <native.WorkspaceQuickOpenMatch>[
+        native.WorkspaceQuickOpenMatch(
+          relativePath: 'assets/logo.png',
+          score: 0,
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client, workspaceFiles: workspaceFiles);
+    final composer = find.byType(TextField).last;
+
+    await tester.enterText(composer, '@logo');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('assets/logo.png'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+
+    const attachmentKey = ValueKey<String>(
+      'codex-attached-file-/repo/workspace/assets/logo.png',
+    );
+    expect(find.byKey(attachmentKey), findsOneWidget);
+    expect(
+      tester.widget<TextField>(composer).controller?.text,
+      'assets/logo.png ',
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(attachmentKey),
+        matching: find.byIcon(AleraIcons.close),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(attachmentKey), findsNothing);
+    expect(tester.widget<TextField>(composer).controller?.text, isEmpty);
+  });
+
+  testWidgets('selecting an existing mention still resolves its query', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(pendingRequests: const <Object?>[]);
+    final workspaceFiles = _RecordingWorkspaceFileService(
+      quickOpenMatches: const <native.WorkspaceQuickOpenMatch>[
+        native.WorkspaceQuickOpenMatch(relativePath: 'readme.md', score: 0),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client, workspaceFiles: workspaceFiles);
+    final composer = find.byType(TextField).last;
+
+    await tester.enterText(composer, '@read');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(tester.widget<TextField>(composer).controller?.text, 'readme.md ');
+
+    await tester.enterText(composer, 'readme.md @read');
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(tester.widget<TextField>(composer).controller?.text, 'readme.md ');
+    expect(
+      find.byKey(
+        const ValueKey<String>('codex-mentioned-file-mention-readme.md'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   registerCodexChatSurfaceSessionTests();
+}
+
+Future<void> _pumpComposerSurface(
+  WidgetTester tester,
+  _SurfaceRuntimeClient client, {
+  WorkspaceFileService? workspaceFiles,
+  double width = 1000,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_SurfaceSettings.new),
+        if (workspaceFiles != null)
+          workspaceFileServiceProvider.overrideWithValue(workspaceFiles),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: width,
+            height: 800,
+            child: CodexChatSurface(workspace: _workspace(), tab: _tab()),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 30));
 }
 
 Workspace _workspace() {
@@ -244,6 +660,11 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     this.threadListResponse,
     this.permissionMode,
     this.timelineCells,
+    this.modelDisplayName = 'Current Codex',
+    this.skills = const <String, Object?>{'data': <Object?>[]},
+    this.collaborationModes = const <Map<String, Object?>>[
+      <String, Object?>{'mode': 'plan'},
+    ],
   });
 
   final Map<String, Object?>? recovery;
@@ -256,7 +677,11 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final Map<String, Object?>? threadListResponse;
   final String? permissionMode;
   final List<Object?>? timelineCells;
+  final String modelDisplayName;
+  final Map<String, Object?> skills;
+  final List<Map<String, Object?>> collaborationModes;
   final List<String> requestTypes = <String>[];
+  final List<Map<String, Object?>> startTurnPayloads = <Map<String, Object?>>[];
   int recoveryRequests = 0;
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -397,24 +822,26 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
         },
       };
     }
+    if (type == 'codex.turn.start') {
+      startTurnPayloads.add(payload);
+      return const <String, Object?>{};
+    }
     if (type == 'codex.model.list') {
       return <String, Object?>{
         'data': <Object?>[
           <String, Object?>{
             'id': 'gpt-current',
-            'displayName': 'Current Codex',
+            'displayName': modelDisplayName,
             'isDefault': true,
+            'supportsFastMode': true,
           },
         ],
       };
     }
     if (type == 'codex.collaborationModes.list') {
-      return <String, Object?>{
-        'data': <Object?>[
-          <String, Object?>{'mode': 'plan'},
-        ],
-      };
+      return <String, Object?>{'data': collaborationModes};
     }
+    if (type == 'codex.skills.list') return skills;
     return <String, Object?>{'data': const <Object?>[]};
   }
 
@@ -429,6 +856,15 @@ final class _SurfaceSettings extends SettingsController {
 }
 
 final class _RecordingWorkspaceFileService extends WorkspaceFileService {
+  _RecordingWorkspaceFileService({
+    this.quickOpenMatches = const <native.WorkspaceQuickOpenMatch>[],
+    this.quickOpenSearch,
+    this.savedPrompts = const <native.CodexSavedPrompt>[],
+  });
+
+  final List<native.WorkspaceQuickOpenMatch> quickOpenMatches;
+  final Completer<List<native.WorkspaceQuickOpenMatch>>? quickOpenSearch;
+  final List<native.CodexSavedPrompt> savedPrompts;
   String? startedWorkspacePath;
   final List<String> savedPromptWorkspacePaths = <String>[];
 
@@ -437,7 +873,7 @@ final class _RecordingWorkspaceFileService extends WorkspaceFileService {
     required String workspacePath,
   }) async {
     savedPromptWorkspacePaths.add(workspacePath);
-    return const <native.CodexSavedPrompt>[];
+    return savedPrompts;
   }
 
   @override
@@ -456,7 +892,7 @@ final class _RecordingWorkspaceFileService extends WorkspaceFileService {
     required native.WorkspaceQuickOpenSession session,
     required String query,
     int limit = 50,
-  }) async => const <native.WorkspaceQuickOpenMatch>[];
+  }) async => quickOpenSearch?.future ?? quickOpenMatches;
 
   @override
   Future<void> stopQuickOpenSession({

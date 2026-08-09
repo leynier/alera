@@ -1,14 +1,22 @@
 part of 'codex_chat_surface.dart';
 
 class _CodexDraftItemBar extends StatelessWidget {
-  const _CodexDraftItemBar({required this.items, required this.onRemove});
+  const _CodexDraftItemBar({
+    required this.items,
+    required this.onRemove,
+    required this.onOpen,
+  });
 
   final List<CodexDraftItem> items;
   final ValueChanged<CodexDraftItem> onRemove;
+  final Future<void> Function(CodexDraftItem item) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    final visibleItems = items
+        .where((item) => item.kind != CodexDraftItemKind.mention)
+        .toList(growable: false);
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AleraTokens.space8,
@@ -20,11 +28,17 @@ class _CodexDraftItemBar extends StatelessWidget {
         height: AleraTokens.codexDraftChipHeight,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          itemCount: items.length,
+          itemCount: visibleItems.length,
           separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
-            final item = items[index];
-            return _CodexDraftChip(item: item, onRemove: () => onRemove(item));
+            final item = visibleItems[index];
+            return _CodexDraftChip(
+              item: item,
+              onRemove: () => onRemove(item),
+              onOpen: item.kind == CodexDraftItemKind.mention
+                  ? () => onOpen(item)
+                  : null,
+            );
           },
         ),
       ),
@@ -33,10 +47,15 @@ class _CodexDraftItemBar extends StatelessWidget {
 }
 
 class _CodexDraftChip extends StatelessWidget {
-  const _CodexDraftChip({required this.item, required this.onRemove});
+  const _CodexDraftChip({
+    required this.item,
+    required this.onRemove,
+    required this.onOpen,
+  });
 
   final CodexDraftItem item;
   final VoidCallback onRemove;
+  final Future<void> Function()? onOpen;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -47,31 +66,46 @@ class _CodexDraftChip extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(left: AleraTokens.space8),
-          child: Icon(
-            switch (item.kind) {
-              CodexDraftItemKind.skill => AleraIcons.agent,
-              CodexDraftItemKind.app => AleraIcons.link,
-              CodexDraftItemKind.mention => AleraIcons.fileGeneric,
-            },
-            size: AleraTokens.iconMd,
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
-          child: Text(
-            item.tokenText ?? item.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+        InkWell(
+          onTap: onOpen == null ? null : () => unawaited(onOpen!()),
+          mouseCursor: onOpen == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(left: AleraTokens.space8),
+                child: Icon(
+                  switch (item.kind) {
+                    CodexDraftItemKind.skill => AleraIcons.agent,
+                    CodexDraftItemKind.app => AleraIcons.link,
+                    CodexDraftItemKind.mention => AleraIcons.fileGeneric,
+                  },
+                  size: AleraTokens.iconMd,
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                ),
+                child: Text(
+                  item.tokenText ?? item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         InkWell(
           onTap: onRemove,
+          mouseCursor: SystemMouseCursors.click,
           borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
           child: const Padding(
             padding: EdgeInsets.all(AleraTokens.space4),
@@ -90,15 +124,26 @@ class _CodexDraftChip extends StatelessWidget {
 class _CodexAttachmentBar extends StatelessWidget {
   const _CodexAttachmentBar({
     required this.attachments,
-    required this.onRemove,
+    required this.draftItems,
+    required this.onRemoveAttachment,
+    required this.onRemoveDraftItem,
+    required this.onOpen,
   });
 
   final List<CodexInputAttachment> attachments;
-  final ValueChanged<CodexInputAttachment> onRemove;
+  final List<CodexDraftItem> draftItems;
+  final ValueChanged<CodexInputAttachment> onRemoveAttachment;
+  final ValueChanged<CodexDraftItem> onRemoveDraftItem;
+  final Future<void> Function(String path, {required bool isImage}) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    if (attachments.isEmpty) return const SizedBox.shrink();
+    final mentionedFiles = draftItems
+        .where((item) => item.kind == CodexDraftItemKind.mention)
+        .toList(growable: false);
+    if (attachments.isEmpty && mentionedFiles.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final ordered = <CodexInputAttachment>[
       ...attachments.where((attachment) => attachment.isImage),
       ...attachments.where((attachment) => !attachment.isImage),
@@ -111,16 +156,36 @@ class _CodexAttachmentBar extends StatelessWidget {
         0,
       ),
       child: SizedBox(
+        key: const ValueKey<String>('codex-composer-file-bar'),
         height: AleraTokens.codexAttachmentRowHeight,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          itemCount: ordered.length,
+          itemCount: mentionedFiles.length + ordered.length,
           separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
-            final attachment = ordered[index];
-            return _CodexAttachmentChip(
-              attachment: attachment,
-              onRemove: () => onRemove(attachment),
+            if (index < mentionedFiles.length) {
+              final item = mentionedFiles[index];
+              return _CodexFileChip(
+                key: ValueKey<String>('codex-mentioned-file-${item.id}'),
+                path: item.path,
+                displayName: item.name,
+                isImage: false,
+                isDirectory: false,
+                onRemove: () => onRemoveDraftItem(item),
+                onOpen: () => onOpen(item.path, isImage: false),
+              );
+            }
+            final attachment = ordered[index - mentionedFiles.length];
+            return _CodexFileChip(
+              key: ValueKey<String>('codex-attached-file-${attachment.path}'),
+              path: attachment.path,
+              displayName:
+                  attachment.displayName ?? p.basename(attachment.path),
+              isImage: attachment.isImage,
+              isDirectory: attachment.isDirectory,
+              onRemove: () => onRemoveAttachment(attachment),
+              onOpen: () =>
+                  onOpen(attachment.path, isImage: attachment.isImage),
             );
           },
         ),
@@ -129,14 +194,23 @@ class _CodexAttachmentBar extends StatelessWidget {
   }
 }
 
-class _CodexAttachmentChip extends StatelessWidget {
-  const _CodexAttachmentChip({
-    required this.attachment,
+class _CodexFileChip extends StatelessWidget {
+  const _CodexFileChip({
+    super.key,
+    required this.path,
+    required this.displayName,
+    required this.isImage,
+    required this.isDirectory,
     required this.onRemove,
+    required this.onOpen,
   });
 
-  final CodexInputAttachment attachment;
+  final String path;
+  final String displayName;
+  final bool isImage;
+  final bool isDirectory;
   final VoidCallback onRemove;
+  final Future<void> Function() onOpen;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -150,42 +224,56 @@ class _CodexAttachmentChip extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        InkWell(
-          onTap: attachment.isImage
-              ? () => _showCodexImagePreview(context, attachment.path)
-              : () => unawaited(launchUrl(Uri.file(attachment.path))),
-          child: Padding(
-            padding: const EdgeInsets.only(left: AleraTokens.space4),
-            child: attachment.isImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                    child: Image.file(
-                      File(attachment.path),
-                      width: AleraTokens.codexAttachmentPreviewSize,
-                      height: AleraTokens.codexAttachmentPreviewSize,
-                      fit: BoxFit.cover,
-                      errorBuilder: _codexImageError,
-                    ),
-                  )
-                : Icon(
-                    AleraIcons.fileGeneric,
-                    size: AleraTokens.iconLg,
-                    color: AleraTokens.foregroundMuted,
-                  ),
-          ),
-        ),
         Flexible(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
-            child: Text(
-              attachment.displayName ?? p.basename(attachment.path),
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall,
+          child: InkWell(
+            onTap: () => unawaited(onOpen()),
+            mouseCursor: SystemMouseCursors.click,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space4,
+                AleraTokens.space4,
+                AleraTokens.space6,
+                AleraTokens.space4,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (isImage)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                      child: Image.file(
+                        File(path),
+                        width: AleraTokens.codexAttachmentPreviewSize,
+                        height: AleraTokens.codexAttachmentPreviewSize,
+                        fit: BoxFit.cover,
+                        errorBuilder: _codexImageError,
+                      ),
+                    )
+                  else
+                    AleraFileIcon(
+                      pathOrName: path,
+                      kind: isDirectory
+                          ? AleraFileIconKind.folder
+                          : AleraFileIconKind.file,
+                      size: AleraTokens.iconLg,
+                    ),
+                  const SizedBox(width: AleraTokens.space6),
+                  Flexible(
+                    child: Text(
+                      displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
         InkWell(
           onTap: onRemove,
+          mouseCursor: SystemMouseCursors.click,
           child: const Padding(
             padding: EdgeInsets.all(AleraTokens.space6),
             child: Icon(
@@ -273,6 +361,7 @@ class _CodexQueueBar extends StatelessWidget {
             for (final (index, message) in messages.indexed)
               InkWell(
                 onTap: () => onEdit(index, message),
+                mouseCursor: SystemMouseCursors.click,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: AleraTokens.space4,

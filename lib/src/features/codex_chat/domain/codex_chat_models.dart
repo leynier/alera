@@ -78,6 +78,8 @@ class CodexInputAttachment {
     this.detail,
     this.isDirectory = false,
     this.origin = CodexInputAttachmentOrigin.attachment,
+    this.tokenText,
+    this.tokenStart,
   });
 
   final String? id;
@@ -89,6 +91,23 @@ class CodexInputAttachment {
   final String? detail;
   final bool isDirectory;
   final CodexInputAttachmentOrigin origin;
+  final String? tokenText;
+  final int? tokenStart;
+
+  CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
+      CodexInputAttachment(
+        id: id,
+        path: path,
+        isImage: isImage,
+        mimeType: mimeType,
+        displayName: displayName,
+        sizeBytes: sizeBytes ?? this.sizeBytes,
+        detail: detail,
+        isDirectory: isDirectory ?? this.isDirectory,
+        origin: origin,
+        tokenText: tokenText,
+        tokenStart: tokenStart,
+      );
 }
 
 enum CodexInputAttachmentOrigin { attachment, mention }

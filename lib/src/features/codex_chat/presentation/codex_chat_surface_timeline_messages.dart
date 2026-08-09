@@ -272,7 +272,14 @@ class _CodexMarkdownText extends StatelessWidget {
               code: code,
               closed: closed,
             ),
-        onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(url)),
+        onLinkTap: (url, _) {
+          final scoped = _CodexLinkScope.maybeOf(context);
+          unawaited(
+            scoped == null
+                ? _openCodexMarkdownLink(url)
+                : scoped.onOpenLink(url),
+          );
+        },
         imageBuilder: (context, source, width, height) {
           final resolved = _resolveCodexImageSource(source, workspacePath);
           return GestureDetector(
