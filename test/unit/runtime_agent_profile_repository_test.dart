@@ -118,7 +118,7 @@ void main() {
   });
 
   group('spawnableAgentProfileAdapters', () {
-    test('matches the eight adapters the host registry supports', () {
+    test('matches the nine adapters the host registry supports', () {
       expect(
         spawnableAgentProfileAdapters.map((adapter) => adapter.key).toList(),
         <String>[
@@ -128,6 +128,7 @@ void main() {
           'cursor',
           'agy',
           'opencode',
+          'opencode2',
           'pi',
           'amp',
         ],
