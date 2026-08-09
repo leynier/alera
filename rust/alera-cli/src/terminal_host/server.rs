@@ -58,6 +58,7 @@ mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_text_grok_plan;
+mod ai_text_open_code;
 mod ai_text_requests;
 mod ai_text_workspace_identity;
 mod automation_actor;

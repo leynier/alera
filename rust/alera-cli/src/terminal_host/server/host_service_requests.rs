@@ -294,30 +294,31 @@ impl ServerActor {
     }
 }
 
+const AI_TEXT_AGENTS: [&str; 11] = [
+    "codex",
+    "claude",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
+    "grok",
+    "custom",
+];
+
 fn validate_ai_text_generation_settings(
     settings: &RuntimeAiTextGenerationSettings,
 ) -> HostResult<()> {
-    const AGENTS: [&str; 11] = [
-        "codex",
-        "claude",
-        "copilot",
-        "cursor",
-        "agy",
-        "opencode",
-        "opencode2",
-        "pi",
-        "amp",
-        "grok",
-        "custom",
-    ];
-    if !AGENTS.contains(&settings.agent.trim()) {
+    if !AI_TEXT_AGENTS.contains(&settings.agent.trim()) {
         return Err(HostError::format("aiTextGeneration.agent is unsupported."));
     }
     if settings
         .prompt_settings_by_operation
         .values()
         .filter_map(|prompt| prompt.agent.as_deref())
-        .any(|agent| !AGENTS.contains(&agent.trim()))
+        .any(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
     {
         return Err(HostError::format(
             "aiTextGeneration prompt agent is unsupported.",
@@ -347,19 +348,6 @@ fn validate_ai_text_generation_settings(
 }
 
 fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> HostResult<()> {
-    const AGENTS: [&str; 11] = [
-        "codex",
-        "claude",
-        "copilot",
-        "cursor",
-        "agy",
-        "opencode",
-        "opencode2",
-        "pi",
-        "amp",
-        "grok",
-        "custom",
-    ];
     let mut ids = std::collections::HashSet::new();
     let mut names = std::collections::HashSet::new();
     for action in &settings.actions {
@@ -382,7 +370,7 @@ fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> Host
         if action
             .agent_override
             .as_deref()
-            .is_some_and(|agent| !AGENTS.contains(&agent.trim()))
+            .is_some_and(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
         {
             return Err(HostError::format(
                 "textActions contains an unsupported agent.",

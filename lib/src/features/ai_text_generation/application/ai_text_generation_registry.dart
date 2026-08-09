@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 
 part 'grok_ai_text_generation.dart';
+part 'opencode_ai_text_generation.dart';
 part 'ai_text_generation_model_labels.dart';
 
 enum AiPromptDelivery { argv, stdin, promptFile }
@@ -287,65 +288,13 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
           if (model.trim().isNotEmpty) ...<String>['--model', model],
         ],
   ),
-  AiTextGenerationAgent.opencode: AiTextAgentSpec(
+  AiTextGenerationAgent.opencode: openCodeAiTextSpec(
     agent: AiTextGenerationAgent.opencode,
     binary: 'opencode',
-    promptDelivery: AiPromptDelivery.stdin,
-    modelsCommand: const <String>['models'],
-    parseModels: parseLineModels,
-    models: const <AiTextModel>[
-      AiTextModel(
-        id: 'opencode/deepseek-v4-flash-free',
-        label: 'OpenCode DeepSeek V4 Flash Free',
-      ),
-    ],
-    defaultModelId: 'opencode/deepseek-v4-flash-free',
-    buildArgs:
-        ({
-          required prompt,
-          required model,
-          thinkingLevel,
-          required timeoutSeconds,
-        }) => <String>[
-          'run',
-          '--model',
-          model,
-          '--agent',
-          'build',
-          '--format',
-          'default',
-          if (thinkingLevel != null) ...<String>['--variant', thinkingLevel],
-        ],
   ),
-  AiTextGenerationAgent.opencode2: AiTextAgentSpec(
+  AiTextGenerationAgent.opencode2: openCodeAiTextSpec(
     agent: AiTextGenerationAgent.opencode2,
     binary: 'opencode2',
-    promptDelivery: AiPromptDelivery.stdin,
-    modelsCommand: const <String>['models'],
-    parseModels: parseLineModels,
-    models: const <AiTextModel>[
-      AiTextModel(
-        id: 'opencode/deepseek-v4-flash-free',
-        label: 'OpenCode DeepSeek V4 Flash Free',
-      ),
-    ],
-    defaultModelId: 'opencode/deepseek-v4-flash-free',
-    buildArgs:
-        ({
-          required prompt,
-          required model,
-          thinkingLevel,
-          required timeoutSeconds,
-        }) => <String>[
-          'run',
-          '--model',
-          model,
-          '--agent',
-          'build',
-          '--format',
-          'default',
-          if (thinkingLevel != null) ...<String>['--variant', thinkingLevel],
-        ],
   ),
   AiTextGenerationAgent.pi: AiTextAgentSpec(
     agent: AiTextGenerationAgent.pi,
