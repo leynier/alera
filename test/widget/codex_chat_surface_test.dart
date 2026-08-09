@@ -424,6 +424,38 @@ void main() {
     expect(find.byType(AleraFileIcon), findsWidgets);
   });
 
+  testWidgets('aligns catalog origins to the overlay edge', (tester) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      skills: const <String, Object?>{
+        'data': <Object?>[
+          <String, Object?>{
+            'name': 'Agent Canvas',
+            'path': '/skills/agent-canvas',
+            'description': 'Publish structured canvas updates.',
+          },
+        ],
+      },
+    );
+    addTearDown(client.dispose);
+    await _pumpComposerSurface(tester, client);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('codex-composer-text-field')),
+      r'$',
+    );
+    await tester.pumpAndSettle();
+
+    final overlay = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-composer-overlay-scroll')),
+    );
+    final origin = tester.getRect(find.text('Personal'));
+    expect(
+      overlay.right - origin.right,
+      lessThanOrEqualTo(AleraTokens.space16),
+    );
+  });
+
   testWidgets('an immediately sent dropped path stays with that prompt', (
     tester,
   ) async {

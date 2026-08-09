@@ -319,7 +319,7 @@ class _CodexOverlayRow extends StatelessWidget {
                       : AleraTokens.foregroundMuted,
                 ),
             const SizedBox(width: AleraTokens.space8),
-            Flexible(
+            Expanded(
               child: Text(
                 title,
                 maxLines: 1,
@@ -341,15 +341,16 @@ class _CodexOverlayRow extends StatelessWidget {
                   ),
                 ),
               ),
-            ] else
-              const Spacer(),
-            if (trailing != null)
+            ],
+            if (trailing != null) ...<Widget>[
+              const SizedBox(width: AleraTokens.space8),
               Text(
                 trailing!,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: AleraTokens.foregroundFaint,
                 ),
               ),
+            ],
           ],
         ),
       ),
