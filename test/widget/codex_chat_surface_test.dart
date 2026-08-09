@@ -18,6 +18,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -26,6 +27,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:path/path.dart' as p;
+import '../unit/fake_git_backend.dart';
 
 part 'codex_chat_surface_session_test_cases.dart';
 part 'codex_chat_surface_timeline_segment_test_cases.dart';
@@ -34,16 +36,12 @@ part 'codex_chat_surface_timeline_review_test_cases.dart';
 part 'codex_chat_surface_timeline_progress_test_cases.dart';
 part 'codex_chat_surface_timeline_context_test_cases.dart';
 part 'codex_chat_surface_timeline_question_answer_test_cases.dart';
-
 part 'codex_chat_surface_foundation_test_cases.dart';
-
 part 'codex_chat_surface_test_support.dart';
-
 part 'codex_chat_surface_timeline_review_state_test_cases.dart';
-
 part 'codex_chat_surface_session_state_test_cases.dart';
-
 part 'codex_chat_surface_timeline_request_test_cases.dart';
+part 'codex_chat_surface_review_dialog_test_cases.dart';
 
 void main() {
   test('allows only standard external URI schemes', () {
@@ -494,4 +492,5 @@ void main() {
   });
 
   registerCodexComposerFoundationTests();
+  registerCodexReviewDialogTests();
 }

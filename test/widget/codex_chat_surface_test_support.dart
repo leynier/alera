@@ -4,6 +4,7 @@ Future<void> _pumpComposerSurface(
   WidgetTester tester,
   _SurfaceRuntimeClient client, {
   WorkspaceFileService? workspaceFiles,
+  FakeGitBackend? gitBackend,
   double width = 1000,
 }) async {
   await tester.pumpWidget(
@@ -13,6 +14,8 @@ Future<void> _pumpComposerSurface(
         settingsControllerProvider.overrideWith(_SurfaceSettings.new),
         if (workspaceFiles != null)
           workspaceFileServiceProvider.overrideWithValue(workspaceFiles),
+        if (gitBackend != null)
+          gitBackendProvider.overrideWithValue(gitBackend),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -99,6 +102,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final List<String> requestTypes = <String>[];
   final List<Map<String, Object?>> startTurnPayloads = <Map<String, Object?>>[];
   final List<Map<String, Object?>> responsePayloads = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> reviewPayloads = <Map<String, Object?>>[];
   int recoveryRequests = 0;
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -247,6 +251,10 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     }
     if (type == 'codex.response') {
       responsePayloads.add(payload);
+      return const <String, Object?>{};
+    }
+    if (type == 'codex.review.start') {
+      reviewPayloads.add(payload);
       return const <String, Object?>{};
     }
     if (type == 'codex.model.list') {

@@ -249,6 +249,7 @@ class CodexChatHostClient {
     String tabId, {
     String target = 'uncommittedChanges',
     String? argument,
+    String? commitTitle,
     String? delivery,
   }) {
     final targetPayload = <String, Object?>{'type': target};
@@ -260,6 +261,9 @@ class CodexChatHostClient {
         _ => null,
       };
       if (key != null) targetPayload[key] = argument.trim();
+    }
+    if (target == 'commit' && commitTitle?.trim().isNotEmpty == true) {
+      targetPayload['title'] = commitTitle!.trim();
     }
     return request('codex.review.start', <String, Object?>{
       'tabId': tabId,
