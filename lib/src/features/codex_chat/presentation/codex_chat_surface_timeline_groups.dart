@@ -48,6 +48,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
   static const String _entryKeyPrefix = 'codex-timeline-entry:';
 
   final Set<String> _expandedWorkedTurns = <String>{};
+  final Set<String> _collapsedWorkingTurns = <String>{};
   final Set<String> _expandedToolGroups = <String>{};
   final Set<String> _expandedToolActions = <String>{};
   final LinkedHashMap<
@@ -110,6 +111,9 @@ class _CodexTimelineState extends State<_CodexTimeline>
       );
       _entryWidgets.removeWhere(
         (key, _) => !_projection.entries.containsKey(key),
+      );
+      _collapsedWorkingTurns.retainWhere(
+        (turnId) => turnId == widget.snapshot.activeTurnId,
       );
     }
     if (oldWidget.loadingEarlier && !widget.loadingEarlier) {
@@ -187,11 +191,12 @@ class _CodexTimelineState extends State<_CodexTimeline>
     unawaited(_planFlight.reverse());
   }
 
-  void _toggleWorkedTurn(String turnId) {
+  void _toggleWorkedTurn(String turnId, {required bool working}) {
     setState(() {
       _entryWidgets.remove('turn-$turnId');
-      if (!_expandedWorkedTurns.add(turnId)) {
-        _expandedWorkedTurns.remove(turnId);
+      final turns = working ? _collapsedWorkingTurns : _expandedWorkedTurns;
+      if (!turns.add(turnId)) {
+        turns.remove(turnId);
       }
     });
   }
@@ -285,19 +290,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
         workspacePath: widget.workspacePath,
         onOpenAttachment: widget.onOpenAttachment,
       ),
-      _CodexTimelineEntryKind.turn => _CodexTurnSection(
-        projection: entry.turn!,
-        workspacePath: widget.workspacePath,
-        workedExpanded: _expandedWorkedTurns.contains(entry.turn!.turnId),
-        onToggleWorked: () => _toggleWorkedTurn(entry.turn!.turnId),
-        expandedToolGroups: _expandedToolGroups,
-        expandedToolActions: _expandedToolActions,
-        onToggleToolGroup: (groupId) =>
-            _toggleToolGroup(entry.turn!.turnId, groupId),
-        onToggleToolAction: (actionId) =>
-            _toggleToolAction(entry.turn!.turnId, actionId),
-        onOpenAttachment: widget.onOpenAttachment,
-      ),
+      _CodexTimelineEntryKind.turn => _buildTurnEntry(entry.turn!),
       _CodexTimelineEntryKind.event => _CodexRawEvent(event: entry.event!),
       _CodexTimelineEntryKind.request =>
         entry.request!.isApproval
@@ -344,6 +337,21 @@ class _CodexTimelineState extends State<_CodexTimeline>
     }
     return entryWidget;
   }
+
+  Widget _buildTurnEntry(_CodexTurnProjection turn) => _CodexTurnSection(
+    projection: turn,
+    workspacePath: widget.workspacePath,
+    workedExpanded: turn.working
+        ? !_collapsedWorkingTurns.contains(turn.turnId)
+        : !turn.collapsesSecondaryRows ||
+              _expandedWorkedTurns.contains(turn.turnId),
+    onToggleWorked: () => _toggleWorkedTurn(turn.turnId, working: turn.working),
+    expandedToolGroups: _expandedToolGroups,
+    expandedToolActions: _expandedToolActions,
+    onToggleToolGroup: (groupId) => _toggleToolGroup(turn.turnId, groupId),
+    onToggleToolAction: (actionId) => _toggleToolAction(turn.turnId, actionId),
+    onOpenAttachment: widget.onOpenAttachment,
+  );
 
   int? _findEntryIndex(Key key) {
     if (key is! ValueKey<String> || !key.value.startsWith(_entryKeyPrefix)) {

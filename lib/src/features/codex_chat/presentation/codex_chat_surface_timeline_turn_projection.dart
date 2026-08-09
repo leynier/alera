@@ -8,9 +8,8 @@ class _CodexTurnProjection {
     required this.secondaryRows,
     required this.outside,
     required this.working,
-    required this.showWorking,
-    required this.collapseWorked,
     required this.workedLabel,
+    required this.startedAt,
     required this.sourceCells,
   });
 
@@ -87,10 +86,8 @@ class _CodexTurnProjection {
       secondaryRows: List<_CodexSecondaryRowProjection>.unmodifiable(rows),
       outside: List<CodexTimelineCell>.unmodifiable(outside),
       working: working,
-      showWorking:
-          working && secondary.isEmpty && assistants.isEmpty && outside.isEmpty,
-      collapseWorked: !working && secondary.length > 1,
       workedLabel: _workedFor(cells),
+      startedAt: _codexTurnStartedAt(cells),
       sourceCells: List<CodexTimelineCell>.unmodifiable(cells),
     );
   }
@@ -101,10 +98,19 @@ class _CodexTurnProjection {
   final List<_CodexSecondaryRowProjection> secondaryRows;
   final List<CodexTimelineCell> outside;
   final bool working;
-  final bool showWorking;
-  final bool collapseWorked;
   final String workedLabel;
+  final DateTime? startedAt;
   final List<CodexTimelineCell> sourceCells;
+
+  bool get hasSecondaryRows => secondaryRows.isNotEmpty;
+  bool get collapsesSecondaryRows =>
+      secondaryRows.fold<int>(
+        0,
+        (count, row) => count + (row.actions.isEmpty ? 1 : row.actions.length),
+      ) >
+      1;
+  bool get canToggleWorked =>
+      working ? hasSecondaryRows : collapsesSecondaryRows;
 }
 
 class _CodexSecondaryRowProjection {

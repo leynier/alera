@@ -123,6 +123,7 @@ abstract final class AleraTokens {
   static const Duration codexPlanFlightDuration = Duration(milliseconds: 360);
   static const Duration codexShimmerDuration = Duration(milliseconds: 1400);
   static const Duration codexShimmerFrameInterval = Duration(milliseconds: 50);
+  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
 
   /// Full-turn period for continuously rotating progress indicators.
   static const Duration durationSpin = Duration(milliseconds: 1200);
