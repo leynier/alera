@@ -37,6 +37,7 @@ abstract final class AleraTokens {
   // Keeps the inline plan at roughly ten body lines; maximize reveals it all.
   static const double codexPlanPreviewMaxHeight = 200.0;
   static const double codexPlanPreviewFadeHeight = 96.0;
+  static const double codexPlanProgressMaxHeight = 280.0;
   static const double codexUserMessageLeftInset = 80.0;
   static const double codexComposerOverlayMaxHeight = 220.0;
   static const double codexRequestMaxHeight = 320.0;

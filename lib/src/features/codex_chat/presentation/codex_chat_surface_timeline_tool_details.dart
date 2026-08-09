@@ -1,40 +1,51 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexToolDetails extends StatelessWidget {
+class _CodexToolDetails extends StatefulWidget {
   const _CodexToolDetails({required this.cell});
 
   final CodexTimelineCell cell;
 
   @override
+  State<_CodexToolDetails> createState() => _CodexToolDetailsState();
+}
+
+class _CodexToolDetailsState extends State<_CodexToolDetails> {
+  late _CodexToolDetailsProjection _projection;
+
+  @override
+  void initState() {
+    super.initState();
+    _projection = _CodexToolDetailsProjection.fromCell(widget.cell);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CodexToolDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.cell, widget.cell)) {
+      _projection = _CodexToolDetailsProjection.fromCell(widget.cell);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final details = cell.detailsText ?? cell.markdownText ?? '';
-    final metadata = cell.metadata;
-    final fields = <(String, Object?)>[
-      ('Query', metadata['query']),
-      ('Action', metadata['action']),
-      ('URL', metadata['url']),
-      ('Duration', _codexDurationLabel(metadata['durationMs'])),
-      ('Changes', metadata['changes']),
-      ('Arguments', metadata['arguments']),
-      ('Command Actions', metadata['commandActions']),
-      ('Result', metadata['result']),
-    ].where((entry) => !_emptyCodexDetail(entry.$2)).toList(growable: false);
-    final images = _codexDetailImages(<Object?>[details, ...metadata.values]);
+    final projection = _projection;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (fields.isNotEmpty)
-          for (final (label, value) in fields)
-            _CodexToolField(label: label, value: value!),
-        if (images.isNotEmpty) ...<Widget>[
-          if (fields.isNotEmpty) const SizedBox(height: AleraTokens.space8),
+        if (projection.fields.isNotEmpty)
+          for (final (label, value) in projection.fields)
+            _CodexToolField(label: label, value: value),
+        if (projection.images.isNotEmpty) ...<Widget>[
+          if (projection.fields.isNotEmpty)
+            const SizedBox(height: AleraTokens.space8),
           Wrap(
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
             children: <Widget>[
-              for (final source in images)
+              for (final source in projection.images)
                 InkWell(
                   onTap: () => _showCodexImagePreview(context, source),
+                  mouseCursor: SystemMouseCursors.click,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
                     child: SizedBox(
@@ -52,32 +63,85 @@ class _CodexToolDetails extends StatelessWidget {
             ],
           ),
         ],
-        if (details.trim().isNotEmpty &&
-            !fields.any(
-              (field) => _sameCodexDetail(field.$2, details),
-            )) ...<Widget>[
-          if (fields.isNotEmpty || images.isNotEmpty)
+        if (projection.showDetails) ...<Widget>[
+          if (projection.fields.isNotEmpty || projection.images.isNotEmpty)
             const SizedBox(height: AleraTokens.space8),
-          if (cell.kind == CodexTimelineKind.diff || _looksLikeDiff(details))
-            _CodexDiffDetails(diff: details)
+          if (projection.isDiff)
+            _CodexDiffDetails(
+              diff: projection.details,
+              lines: projection.diffLines,
+            )
           else
-            _CodexToolPayload(label: 'Output', value: details),
+            _CodexToolPayload(label: 'Output', value: projection.details),
         ],
       ],
     );
   }
 }
 
+class _CodexToolDetailsProjection {
+  const _CodexToolDetailsProjection({
+    required this.fields,
+    required this.images,
+    required this.details,
+    required this.showDetails,
+    required this.isDiff,
+    required this.diffLines,
+  });
+
+  factory _CodexToolDetailsProjection.fromCell(CodexTimelineCell cell) {
+    final details = cell.detailsText ?? cell.markdownText ?? '';
+    final metadata = cell.metadata;
+    final rawFields = <(String, Object?)>[
+      ('Query', metadata['query']),
+      ('Action', metadata['action']),
+      ('URL', metadata['url']),
+      ('Duration', _codexDurationLabel(metadata['durationMs'])),
+      ('Changes', metadata['changes']),
+      ('Arguments', metadata['arguments']),
+      ('Command Actions', metadata['commandActions']),
+      ('Result', metadata['result']),
+    ];
+    final fields = <(String, String)>[
+      for (final (label, value) in rawFields)
+        if (!_emptyCodexDetail(value)) (label, _prettyCodexValue(value!)),
+    ];
+    final images = _codexDetailImages(<Object?>[details, ...metadata.values]);
+    final prettyDetails = _prettyCodexValue(details);
+    final isDiff =
+        cell.kind == CodexTimelineKind.diff || _looksLikeDiff(details);
+    return _CodexToolDetailsProjection(
+      fields: List<(String, String)>.unmodifiable(fields),
+      images: List<String>.unmodifiable(images),
+      details: details,
+      showDetails:
+          details.trim().isNotEmpty &&
+          !fields.any((field) => field.$2 == prettyDetails),
+      isDiff: isDiff,
+      diffLines: isDiff
+          ? List<String>.unmodifiable(details.split('\n'))
+          : const <String>[],
+    );
+  }
+
+  final List<(String, String)> fields;
+  final List<String> images;
+  final String details;
+  final bool showDetails;
+  final bool isDiff;
+  final List<String> diffLines;
+}
+
 class _CodexToolField extends StatelessWidget {
   const _CodexToolField({required this.label, required this.value});
 
   final String label;
-  final Object value;
+  final String value;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-    child: _CodexToolPayload(label: label, value: _prettyCodexValue(value)),
+    child: _CodexToolPayload(label: label, value: value),
   );
 }
 
@@ -114,9 +178,10 @@ class _CodexToolPayload extends StatelessWidget {
 }
 
 class _CodexDiffDetails extends StatelessWidget {
-  const _CodexDiffDetails({required this.diff});
+  const _CodexDiffDetails({required this.diff, required this.lines});
 
   final String diff;
+  final List<String> lines;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -144,7 +209,7 @@ class _CodexDiffDetails extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            for (final line in diff.split('\n')) _CodexDiffLine(text: line),
+            for (final line in lines) _CodexDiffLine(text: line),
           ],
         ),
       ),
@@ -194,9 +259,6 @@ class _CodexDiffLine extends StatelessWidget {
 bool _emptyCodexDetail(Object? value) =>
     value == null || value is String && value.trim().isEmpty;
 
-bool _sameCodexDetail(Object? value, String details) =>
-    _prettyCodexValue(value ?? '') == _prettyCodexValue(details);
-
 String _prettyCodexValue(Object value) {
   if (value is! String) {
     return const JsonEncoder.withIndent('  ').convert(value);
@@ -240,7 +302,9 @@ List<String> _codexDetailImages(Iterable<Object?> roots) {
     for (final match in candidates) {
       final source = match.group(0)!;
       if (source.startsWith('data:image/') ||
-          isCodexImagePath(Uri.decodeFull(source).split('?').first)) {
+          isCodexImagePath(
+            _decodeCodexImageCandidate(source).split('?').first,
+          )) {
         images.add(source);
       }
     }
@@ -248,6 +312,16 @@ List<String> _codexDetailImages(Iterable<Object?> roots) {
 
   roots.forEach(collect);
   return images.take(8).toList(growable: false);
+}
+
+String _decodeCodexImageCandidate(String source) {
+  try {
+    return Uri.decodeFull(source);
+  } on FormatException {
+    return source;
+  } on ArgumentError {
+    return source;
+  }
 }
 
 Future<void> _copyCodexText(

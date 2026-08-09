@@ -92,6 +92,42 @@ fn question_answers_are_persisted_as_timeline_cells() {
         .unwrap();
     assert_eq!(answer["markdownText"], "Careful");
     assert_eq!(answer["turnId"], "turn-question");
+    assert_eq!(answer["metadata"]["questionCount"], 1);
+}
+
+#[test]
+fn question_answer_cells_preserve_the_original_question_count() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "id": 7,
+            "method": "item/tool/request_user_input",
+            "params": {
+                "questions": [
+                    {"id": "scope", "question": "Choose a scope"},
+                    {"id": "validation", "question": "Choose validation"}
+                ]
+            }
+        }),
+    );
+    append_question_answer(
+        &mut record,
+        &json!(7),
+        &json!({"answers": {"scope": {"answers": ["Core"]}}}),
+    );
+
+    let saved = snapshot(&record);
+    let answer = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["kind"] == "questionAnswer")
+        .unwrap();
+    assert_eq!(answer["metadata"]["questionCount"], 2);
+    let questions = answer["metadata"]["questions"].as_array().unwrap();
+    assert_eq!(questions.len(), 2);
+    assert_eq!(questions[1]["answer"], "No answer provided");
 }
 
 #[test]

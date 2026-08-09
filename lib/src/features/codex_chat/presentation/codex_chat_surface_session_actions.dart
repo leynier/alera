@@ -4,6 +4,87 @@ part of 'codex_chat_surface.dart';
 // ignore_for_file: invalid_use_of_protected_member
 
 extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
+  void _loadEarlierHistory() {
+    if (!_timeline.hasClients ||
+        _timeline.position.pixels > AleraTokens.space48 ||
+        _loadingEarlier) {
+      return;
+    }
+    final provider = codexChatControllerProvider(widget.tab.id);
+    final cursor = ref.read(provider).historyNextCursor;
+    if (cursor == null || cursor.isEmpty) return;
+    final originatingTabId = widget.tab.id;
+    final generation = ++_historyLoadGeneration;
+    setState(() => _loadingEarlier = true);
+    unawaited(
+      _loadEarlierHistoryPreservingViewport(
+        provider,
+        cursor: cursor,
+        originatingTabId: originatingTabId,
+        generation: generation,
+      ),
+    );
+  }
+
+  Future<void> _loadEarlierHistoryPreservingViewport(
+    CodexChatControllerProvider provider, {
+    required String cursor,
+    required String originatingTabId,
+    required int generation,
+  }) async {
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted ||
+          _historyLoadGeneration != generation ||
+          widget.tab.id != originatingTabId ||
+          !_timeline.hasClients) {
+        return;
+      }
+      final viewportAnchor = _timelineViewKey.currentState
+          ?.captureViewportAnchor();
+      final previousMaxScrollExtent = _timeline.position.maxScrollExtent;
+      await ref.read(provider.notifier).loadHistory(cursor: cursor);
+      if (!mounted ||
+          _historyLoadGeneration != generation ||
+          widget.tab.id != originatingTabId) {
+        return;
+      }
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted ||
+          _historyLoadGeneration != generation ||
+          widget.tab.id != originatingTabId ||
+          !_timeline.hasClients) {
+        return;
+      }
+      final position = _timeline.position;
+      final prependedExtent =
+          position.maxScrollExtent - previousMaxScrollExtent;
+      if (prependedExtent <= 0) return;
+      _timeline.jumpTo(
+        (position.pixels + prependedExtent).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        ),
+      );
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted ||
+          _historyLoadGeneration != generation ||
+          widget.tab.id != originatingTabId) {
+        return;
+      }
+      _timelineViewKey.currentState?.restoreViewportAnchor(viewportAnchor);
+    } finally {
+      if (_historyLoadGeneration == generation) {
+        _timelineViewKey.currentState?.releaseViewportAnchor();
+        if (mounted && widget.tab.id == originatingTabId) {
+          setState(() => _loadingEarlier = false);
+        } else {
+          _loadingEarlier = false;
+        }
+      }
+    }
+  }
+
   Future<void> _runComposerCommand(
     BuildContext context,
     CodexChatController controller,
