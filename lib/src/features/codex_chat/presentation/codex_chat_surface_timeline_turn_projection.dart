@@ -57,11 +57,18 @@ class _CodexTurnProjection {
           }
         case CodexTimelineKind.toolCall ||
             CodexTimelineKind.command ||
-            CodexTimelineKind.diff ||
             CodexTimelineKind.subAgent ||
             CodexTimelineKind.questionAnswer ||
             CodexTimelineKind.systemNotice:
           secondary.add(cell);
+        case CodexTimelineKind.diff:
+          final details = cell.detailsText ?? cell.markdownText ?? '';
+          if (cell.status != CodexTimelineStatus.completed ||
+              cell.isStreaming ||
+              _hasCodexDiffDetails(details) ||
+              _codexChanges(cell.metadata['changes']).isNotEmpty) {
+            secondary.add(cell);
+          }
       }
     }
     final grouped = _secondaryRows(secondary);

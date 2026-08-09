@@ -51,6 +51,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
   final Set<String> _collapsedWorkingTurns = <String>{};
   final Set<String> _expandedToolGroups = <String>{};
   final Set<String> _expandedToolActions = <String>{};
+  Set<String> _overflowingPlanPreviewIds = <String>{};
   final LinkedHashMap<
     String,
     ({Object source, Widget widget, GlobalKey anchorKey})
@@ -61,6 +62,10 @@ class _CodexTimelineState extends State<_CodexTimeline>
         ({Object source, Widget widget, GlobalKey anchorKey})
       >();
   final GlobalKey _timelineViewportKey = GlobalKey();
+  final GlobalKey<SelectionAreaState> _timelineSelectionAreaKey =
+      GlobalKey<SelectionAreaState>();
+  final GlobalKey<SelectionAreaState> _planSelectionAreaKey =
+      GlobalKey<SelectionAreaState>();
   late final AnimationController _planFlight;
   late _CodexTimelineProjection _projection;
   List<CodexTimelineCell>? _frozenHistoryLiveCells;
@@ -68,6 +73,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
   BuildContext? _planSourceContext;
   Rect? _planSourceRect;
   double? _planTimelineOffset;
+  Future<void>? _planRestoreInFlight;
   bool _showScrollToBottom = false;
   bool _scrollToBottomScheduled = false;
   bool _scrollToBottomRequested = false;
@@ -114,6 +120,13 @@ class _CodexTimelineState extends State<_CodexTimeline>
       );
       _collapsedWorkingTurns.retainWhere(
         (turnId) => turnId == widget.snapshot.activeTurnId,
+      );
+      final planIds = widget.snapshot.timelineCells
+          .where((cell) => cell.kind == CodexTimelineKind.plan)
+          .map((cell) => cell.id)
+          .toSet();
+      _overflowingPlanPreviewIds = _overflowingPlanPreviewIds.intersection(
+        planIds,
       );
     }
     if (oldWidget.loadingEarlier && !widget.loadingEarlier) {
@@ -186,9 +199,28 @@ class _CodexTimelineState extends State<_CodexTimeline>
 
   void _scrollToBottom() => _scheduleScrollToBottom(animate: true);
 
-  void _restorePlan() {
+  void _restorePlan() => unawaited(restorePlanAndWait());
+
+  Future<void> restorePlanAndWait() =>
+      _planRestoreInFlight ??= _restorePlanSerialized();
+
+  Future<void> _restorePlanSerialized() async {
+    try {
+      await _performPlanRestore();
+    } finally {
+      _planRestoreInFlight = null;
+    }
+  }
+
+  Future<void> _performPlanRestore() async {
     if (_flyingPlan == null || !mounted) return;
-    unawaited(_planFlight.reverse());
+    _timelineSelectionAreaKey.currentState?.selectableRegion.clearSelection();
+    _planSelectionAreaKey.currentState?.selectableRegion.clearSelection();
+    try {
+      await _planFlight.reverse().orCancel;
+    } on TickerCanceled {
+      // The timeline can be disposed while the plan is returning to its card.
+    }
   }
 
   void _toggleWorkedTurn(String turnId, {required bool working}) {
@@ -217,6 +249,12 @@ class _CodexTimelineState extends State<_CodexTimeline>
         _expandedToolActions.remove(actionId);
       }
     });
+  }
+
+  void _handlePlanPreviewOverflow(String planId, {required bool overflowing}) {
+    final next = Set<String>.of(_overflowingPlanPreviewIds);
+    if (overflowing ? !next.add(planId) : !next.remove(planId)) return;
+    setState(() => _overflowingPlanPreviewIds = next);
   }
 
   void _maximizePlan(CodexTimelineCell cell, BuildContext sourceContext) {
@@ -396,11 +434,14 @@ class _CodexTimelineState extends State<_CodexTimeline>
       onMaximize: _maximizePlan,
       flyingPlanId: _flyingPlan?.id,
       latestPlanId: _projection.latestPlanId,
+      overflowingPreviewIds: _overflowingPlanPreviewIds,
+      onPreviewOverflowChanged: _handlePlanPreviewOverflow,
       child: Stack(
         key: _timelineViewportKey,
         clipBehavior: Clip.hardEdge,
         children: <Widget>[
           SelectionArea(
+            key: _timelineSelectionAreaKey,
             child: CustomScrollView(
               key: const ValueKey<String>('codex-timeline-scroll-view'),
               controller: widget.timeline,
@@ -455,6 +496,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
             _CodexPlanFlight(
               plan: plan,
               animation: _planFlight,
+              selectionAreaKey: _planSelectionAreaKey,
               sourceRect: _planSourceRect!,
               currentSourceRect: _currentPlanSourceRect,
               onRestore: _restorePlan,

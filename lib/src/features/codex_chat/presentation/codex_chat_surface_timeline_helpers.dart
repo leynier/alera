@@ -234,6 +234,7 @@ bool _isWorkedActionCell(CodexTimelineCell cell) =>
 
 CodexTimelineCell? _latestCodexTurnActivity(List<CodexTimelineCell> cells) {
   for (final cell in cells.reversed) {
+    if (_isEmptyCompletedDiffPlaceholder(cell)) continue;
     switch (cell.kind) {
       case CodexTimelineKind.userMessage ||
           CodexTimelineKind.reasoning ||
@@ -254,4 +255,20 @@ CodexTimelineCell? _latestCodexTurnActivity(List<CodexTimelineCell> cells) {
     }
   }
   return null;
+}
+
+bool _isEmptyCompletedDiffPlaceholder(CodexTimelineCell cell) {
+  if (cell.kind != CodexTimelineKind.diff ||
+      cell.status != CodexTimelineStatus.completed ||
+      cell.isStreaming) {
+    return false;
+  }
+  final details = cell.detailsText ?? cell.markdownText ?? '';
+  return !_hasCodexDiffDetails(details) &&
+      _codexChanges(cell.metadata['changes']).isEmpty;
+}
+
+bool _hasCodexDiffDetails(String details) {
+  final normalized = details.trim();
+  return normalized.isNotEmpty && normalized != '[]';
 }

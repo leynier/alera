@@ -219,17 +219,21 @@ void registerCodexTimelineRequestTests() {
     expect(questionBottom.dy, lessThan(composerTop.dy));
   });
 
-  testWidgets('fades only plan previews that overflow', (tester) async {
-    Map<String, Object?> plan(String markdown) => <String, Object?>{
-      'id': 'plan-preview',
-      'kind': 'plan',
-      'status': 'completed',
-      'markdownText': markdown,
-    };
+  testWidgets('keeps a streamed plan fade stable until completion', (
+    tester,
+  ) async {
+    Map<String, Object?> plan(String markdown, {required String status}) =>
+        <String, Object?>{
+          'id': 'plan-preview',
+          'kind': 'plan',
+          'status': status,
+          'isStreaming': status == 'inProgress',
+          'markdownText': markdown,
+        };
 
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],
-      timelineCells: <Object?>[plan('# Short plan')],
+      timelineCells: <Object?>[plan('# Short plan', status: 'inProgress')],
     );
     addTearDown(client.dispose);
     await _pumpTimelineSegmentSurface(tester, client);
@@ -244,7 +248,10 @@ void registerCodexTimelineRequestTests() {
         'tabId': 'codex-tab',
         'snapshot': <String, Object?>{
           'timelineCells': <Object?>[
-            plan(List<String>.filled(40, 'Long plan line').join('\n\n')),
+            plan(
+              List<String>.filled(40, 'Long plan line').join('\n\n'),
+              status: 'inProgress',
+            ),
           ],
           'pendingRequests': const <Object?>[],
         },
@@ -256,6 +263,40 @@ void registerCodexTimelineRequestTests() {
     expect(
       find.byKey(const ValueKey<String>('codex-plan-preview-fade')),
       findsOneWidget,
+    );
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': <Object?>[
+            plan('# Short transient render', status: 'inProgress'),
+          ],
+          'pendingRequests': const <Object?>[],
+        },
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('codex-plan-preview-fade')),
+      findsOneWidget,
+    );
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': <Object?>[
+            plan('# Short final plan', status: 'completed'),
+          ],
+          'pendingRequests': const <Object?>[],
+        },
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('codex-plan-preview-fade')),
+      findsNothing,
     );
   });
 

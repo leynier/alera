@@ -5,6 +5,8 @@ class _CodexPlanViewScope extends InheritedWidget {
     required this.onMaximize,
     required this.flyingPlanId,
     required this.latestPlanId,
+    required this.overflowingPreviewIds,
+    required this.onPreviewOverflowChanged,
     required super.child,
   });
 
@@ -12,6 +14,9 @@ class _CodexPlanViewScope extends InheritedWidget {
   onMaximize;
   final String? flyingPlanId;
   final String? latestPlanId;
+  final Set<String> overflowingPreviewIds;
+  final void Function(String planId, {required bool overflowing})
+  onPreviewOverflowChanged;
 
   static _CodexPlanViewScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CodexPlanViewScope>();
@@ -20,7 +25,8 @@ class _CodexPlanViewScope extends InheritedWidget {
   bool updateShouldNotify(_CodexPlanViewScope oldWidget) =>
       onMaximize != oldWidget.onMaximize ||
       flyingPlanId != oldWidget.flyingPlanId ||
-      latestPlanId != oldWidget.latestPlanId;
+      latestPlanId != oldWidget.latestPlanId ||
+      overflowingPreviewIds != oldWidget.overflowingPreviewIds;
 }
 
 class _CodexPlanCell extends StatelessWidget {
@@ -96,7 +102,19 @@ class _CodexPlanCell extends StatelessWidget {
                 if (maximized)
                   Expanded(child: SingleChildScrollView(child: content))
                 else
-                  _CodexPlanPreview(content: content),
+                  _CodexPlanPreview(
+                    key: ValueKey<String>('codex-plan-preview-${cell.id}'),
+                    initiallyOverflowing:
+                        planScope?.overflowingPreviewIds.contains(cell.id) ==
+                        true,
+                    preserveOverflow: cell.isStreaming,
+                    onOverflowChanged: (overflowing) =>
+                        planScope?.onPreviewOverflowChanged(
+                          cell.id,
+                          overflowing: overflowing,
+                        ),
+                    content: content,
+                  ),
             ],
           ),
         ),
@@ -106,8 +124,17 @@ class _CodexPlanCell extends StatelessWidget {
 }
 
 class _CodexPlanPreview extends StatefulWidget {
-  const _CodexPlanPreview({required this.content});
+  const _CodexPlanPreview({
+    super.key,
+    required this.initiallyOverflowing,
+    required this.preserveOverflow,
+    required this.onOverflowChanged,
+    required this.content,
+  });
 
+  final bool initiallyOverflowing;
+  final bool preserveOverflow;
+  final ValueChanged<bool> onOverflowChanged;
   final Widget content;
 
   @override
@@ -116,7 +143,7 @@ class _CodexPlanPreview extends StatefulWidget {
 
 class _CodexPlanPreviewState extends State<_CodexPlanPreview> {
   final ScrollController _controller = ScrollController();
-  bool _overflowing = false;
+  late bool _overflowing = widget.initiallyOverflowing;
 
   @override
   void dispose() {
@@ -128,8 +155,10 @@ class _CodexPlanPreviewState extends State<_CodexPlanPreview> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_controller.hasClients) return;
       final overflowing = _controller.position.maxScrollExtent > 0;
+      if (!overflowing && widget.preserveOverflow && _overflowing) return;
       if (overflowing != _overflowing) {
         setState(() => _overflowing = overflowing);
+        widget.onOverflowChanged(overflowing);
       }
     });
   }
@@ -260,6 +289,7 @@ class _CodexPlanFlight extends StatefulWidget {
   const _CodexPlanFlight({
     required this.plan,
     required this.animation,
+    required this.selectionAreaKey,
     required this.sourceRect,
     required this.currentSourceRect,
     required this.onRestore,
@@ -267,6 +297,7 @@ class _CodexPlanFlight extends StatefulWidget {
 
   final CodexTimelineCell plan;
   final AnimationController animation;
+  final GlobalKey<SelectionAreaState> selectionAreaKey;
   final Rect sourceRect;
   final Rect? Function() currentSourceRect;
   final VoidCallback onRestore;
@@ -339,6 +370,7 @@ class _CodexPlanFlightState extends State<_CodexPlanFlight> {
                   animation: _curved,
                   child: RepaintBoundary(
                     child: SelectionArea(
+                      key: widget.selectionAreaKey,
                       child: _CodexPlanCell(
                         cell: widget.plan,
                         maximized: true,
