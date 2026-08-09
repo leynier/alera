@@ -47,6 +47,8 @@ class _CodexTimelineState extends State<_CodexTimeline>
   static const int _entryWidgetCacheLimit = 128;
 
   final Set<String> _expandedWorkedTurns = <String>{};
+  final Set<String> _expandedToolGroups = <String>{};
+  final Set<String> _expandedToolActions = <String>{};
   final LinkedHashMap<
     String,
     ({Object source, Widget widget, GlobalKey anchorKey})
@@ -193,6 +195,24 @@ class _CodexTimelineState extends State<_CodexTimeline>
     });
   }
 
+  void _toggleToolGroup(String turnId, String groupId) {
+    setState(() {
+      _entryWidgets.remove('turn-$turnId');
+      if (!_expandedToolGroups.add(groupId)) {
+        _expandedToolGroups.remove(groupId);
+      }
+    });
+  }
+
+  void _toggleToolAction(String turnId, String actionId) {
+    setState(() {
+      _entryWidgets.remove('turn-$turnId');
+      if (!_expandedToolActions.add(actionId)) {
+        _expandedToolActions.remove(actionId);
+      }
+    });
+  }
+
   void _maximizePlan(CodexTimelineCell cell, BuildContext sourceContext) {
     final viewport =
         _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
@@ -269,6 +289,12 @@ class _CodexTimelineState extends State<_CodexTimeline>
         workspacePath: widget.workspacePath,
         workedExpanded: _expandedWorkedTurns.contains(entry.turn!.turnId),
         onToggleWorked: () => _toggleWorkedTurn(entry.turn!.turnId),
+        expandedToolGroups: _expandedToolGroups,
+        expandedToolActions: _expandedToolActions,
+        onToggleToolGroup: (groupId) =>
+            _toggleToolGroup(entry.turn!.turnId, groupId),
+        onToggleToolAction: (actionId) =>
+            _toggleToolAction(entry.turn!.turnId, actionId),
         onOpenAttachment: widget.onOpenAttachment,
       ),
       _CodexTimelineEntryKind.event => _CodexRawEvent(event: entry.event!),

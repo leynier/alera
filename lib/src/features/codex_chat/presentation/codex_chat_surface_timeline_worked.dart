@@ -39,22 +39,24 @@ class _CodexWorkedAction {
 final Expando<_CodexWorkedAction> _codexWorkedActionCache =
     Expando<_CodexWorkedAction>('codex worked action');
 
-class _CodexWorkedActionGroup extends StatefulWidget {
-  const _CodexWorkedActionGroup({required this.projection});
+class _CodexWorkedActionGroup extends StatelessWidget {
+  const _CodexWorkedActionGroup({
+    required this.projection,
+    required this.expanded,
+    required this.expandedActions,
+    required this.onToggle,
+    required this.onToggleAction,
+  });
 
   final _CodexSecondaryRowProjection projection;
-
-  @override
-  State<_CodexWorkedActionGroup> createState() =>
-      _CodexWorkedActionGroupState();
-}
-
-class _CodexWorkedActionGroupState extends State<_CodexWorkedActionGroup> {
-  bool _collapsed = true;
+  final bool expanded;
+  final Set<String> expandedActions;
+  final VoidCallback onToggle;
+  final ValueChanged<String> onToggleAction;
 
   @override
   Widget build(BuildContext context) {
-    final projection = widget.projection;
+    final projection = this.projection;
     final actions = projection.actions;
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space4),
@@ -65,7 +67,7 @@ class _CodexWorkedActionGroupState extends State<_CodexWorkedActionGroup> {
             key: ValueKey<String>(
               'worked-action-group-${actions.first.cell.id}',
             ),
-            onTap: () => setState(() => _collapsed = !_collapsed),
+            onTap: onToggle,
             mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Padding(
@@ -104,9 +106,7 @@ class _CodexWorkedActionGroupState extends State<_CodexWorkedActionGroup> {
                   ),
                   const SizedBox(width: AleraTokens.space4),
                   Icon(
-                    _collapsed
-                        ? AleraIcons.chevronRight
-                        : AleraIcons.chevronDown,
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
                     size: AleraTokens.iconMd,
                     color: AleraTokens.foregroundFaint,
                   ),
@@ -114,14 +114,21 @@ class _CodexWorkedActionGroupState extends State<_CodexWorkedActionGroup> {
               ),
             ),
           ),
-          if (!_collapsed)
+          if (expanded)
             Padding(
               padding: const EdgeInsets.only(left: AleraTokens.space8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   for (final action in actions)
-                    _CodexWorkedActionRow(action: action),
+                    _CodexWorkedActionRow(
+                      key: ValueKey<String>(
+                        'codex-worked-row-${action.cell.id}',
+                      ),
+                      action: action,
+                      expanded: expandedActions.contains(action.cell.id),
+                      onToggle: () => onToggleAction(action.cell.id),
+                    ),
                   if (projection.waiting) const _CodexWorkedWaitingRow(),
                 ],
               ),
@@ -161,21 +168,21 @@ class _CodexWorkedWaitingRow extends StatelessWidget {
   );
 }
 
-class _CodexWorkedActionRow extends StatefulWidget {
-  const _CodexWorkedActionRow({required this.action});
+class _CodexWorkedActionRow extends StatelessWidget {
+  const _CodexWorkedActionRow({
+    super.key,
+    required this.action,
+    required this.expanded,
+    required this.onToggle,
+  });
 
   final _CodexWorkedAction action;
-
-  @override
-  State<_CodexWorkedActionRow> createState() => _CodexWorkedActionRowState();
-}
-
-class _CodexWorkedActionRowState extends State<_CodexWorkedActionRow> {
-  bool _expanded = false;
+  final bool expanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final action = widget.action;
+    final action = this.action;
     final hasDetails = action.hasDetails;
     final color = action.cell.status == CodexTimelineStatus.failed
         ? AleraTokens.error
@@ -185,9 +192,7 @@ class _CodexWorkedActionRowState extends State<_CodexWorkedActionRow> {
       children: <Widget>[
         InkWell(
           key: ValueKey<String>('worked-action-${action.cell.id}'),
-          onTap: hasDetails
-              ? () => setState(() => _expanded = !_expanded)
-              : null,
+          onTap: hasDetails ? onToggle : null,
           mouseCursor: hasDetails
               ? SystemMouseCursors.click
               : SystemMouseCursors.basic,
@@ -220,9 +225,7 @@ class _CodexWorkedActionRowState extends State<_CodexWorkedActionRow> {
                 ),
                 if (!action.cell.isStreaming && hasDetails)
                   Icon(
-                    _expanded
-                        ? AleraIcons.chevronDown
-                        : AleraIcons.chevronRight,
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
                     size: AleraTokens.iconMd,
                     color: AleraTokens.foregroundFaint,
                   ),
@@ -230,7 +233,7 @@ class _CodexWorkedActionRowState extends State<_CodexWorkedActionRow> {
             ),
           ),
         ),
-        if (_expanded && hasDetails)
+        if (expanded && hasDetails)
           Container(
             margin: const EdgeInsets.only(
               left: AleraTokens.space24,

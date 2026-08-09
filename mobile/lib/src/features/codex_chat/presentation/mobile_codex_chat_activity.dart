@@ -16,22 +16,21 @@ class _MobileWorkingRow extends StatelessWidget {
   );
 }
 
-class _MobileActivityGroup extends StatefulWidget {
-  const _MobileActivityGroup({required this.cells});
+class _MobileActivityGroup extends StatelessWidget {
+  const _MobileActivityGroup({
+    required this.cells,
+    required this.expanded,
+    required this.onToggle,
+  });
 
   final List<MobileCodexTimelineCell> cells;
-
-  @override
-  State<_MobileActivityGroup> createState() => _MobileActivityGroupState();
-}
-
-class _MobileActivityGroupState extends State<_MobileActivityGroup> {
-  bool _expanded = false;
+  final bool expanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final visible = widget.cells.where((cell) => !cell.isReasoning).toList();
-    final streaming = widget.cells.any((cell) => cell.isStreaming);
+    final visible = cells.where((cell) => !cell.isReasoning).toList();
+    final streaming = cells.any((cell) => cell.isStreaming);
     final failed = visible.any((cell) => cell.status == 'failed');
     final summary =
         '${_mobileActivitySummary(visible)}${failed ? ' · Failed' : ''}';
@@ -43,7 +42,7 @@ class _MobileActivityGroupState extends State<_MobileActivityGroup> {
         children: <Widget>[
           InkWell(
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: onToggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
               child: Row(
@@ -70,14 +69,14 @@ class _MobileActivityGroupState extends State<_MobileActivityGroup> {
                           ),
                   ),
                   Icon(
-                    _expanded ? Icons.expand_more : Icons.chevron_right,
+                    expanded ? Icons.expand_more : Icons.chevron_right,
                     size: AleraTokens.space16,
                   ),
                 ],
               ),
             ),
           ),
-          if (_expanded)
+          if (expanded)
             Padding(
               padding: const EdgeInsets.only(left: AleraTokens.space12),
               child: Column(

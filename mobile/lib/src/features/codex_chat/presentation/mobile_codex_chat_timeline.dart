@@ -1,10 +1,17 @@
 part of 'mobile_codex_chat_screen.dart';
 
 class _MobileTimelineRow extends StatelessWidget {
-  const _MobileTimelineRow({required this.row, required this.onOpenPlan});
+  const _MobileTimelineRow({
+    required this.row,
+    required this.onOpenPlan,
+    required this.activityExpanded,
+    required this.onToggleActivity,
+  });
 
   final MobileCodexPresentationRow row;
   final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
+  final bool activityExpanded;
+  final VoidCallback onToggleActivity;
 
   @override
   Widget build(BuildContext context) => switch (row.kind) {
@@ -15,6 +22,8 @@ class _MobileTimelineRow extends StatelessWidget {
     ),
     MobileCodexPresentationKind.activity => _MobileActivityGroup(
       cells: row.activityCells,
+      expanded: activityExpanded,
+      onToggle: onToggleActivity,
     ),
     MobileCodexPresentationKind.working => const _MobileWorkingRow(),
   };
