@@ -1,24 +1,30 @@
 part of 'codex_chat_surface.dart';
 
 extension _CodexPlanActions on _CodexChatSurfaceState {
-  void _notifyPlanDecision() => _planDecisionRevision.value++;
+  Future<void> _preparePlanDecision() async {
+    await _timelineViewKey.currentState?.restorePlanAndWait();
+    if (!mounted) return;
+    _planDecisionRevision.value++;
+  }
+
+  void _notifyPlanDecision() => unawaited(_preparePlanDecision());
 
   Future<void> _submitQuestions(
     CodexChatController controller,
     CodexPendingRequest request,
     Map<String, List<String>> answers,
   ) async {
-    if (request.isImplementPlanQuestion) _notifyPlanDecision();
+    if (request.isImplementPlanQuestion) await _preparePlanDecision();
     await controller.submitQuestions(request, answers);
   }
 
   Future<void> _implementPlan(CodexChatController controller) async {
-    _notifyPlanDecision();
+    await _preparePlanDecision();
     await controller.implementPlan();
   }
 
   Future<void> _declinePlan(CodexChatController controller) async {
-    _notifyPlanDecision();
+    await _preparePlanDecision();
     await controller.declinePlan();
   }
 
@@ -26,7 +32,7 @@ extension _CodexPlanActions on _CodexChatSurfaceState {
     CodexChatController controller,
     String refinement,
   ) async {
-    _notifyPlanDecision();
+    await _preparePlanDecision();
     await controller.refinePlan(refinement);
   }
 }

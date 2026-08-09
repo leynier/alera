@@ -207,6 +207,104 @@ void registerCodexTimelineProgressTests() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('restores and clears a selected maximized plan before acting', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'request',
+          'turnId': 'turn-plan',
+          'kind': 'userMessage',
+          'status': 'completed',
+          'markdownText': 'Create a plan',
+        },
+        <String, Object?>{
+          'id': 'plan',
+          'turnId': 'turn-plan',
+          'kind': 'plan',
+          'status': 'completed',
+          'markdownText': '# Ready plan\n\nImplement this safely.',
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client, planMode: true);
+
+    await tester.tap(find.byTooltip('Maximize Plan'));
+    await tester.pumpAndSettle();
+    final selectionAreas = tester
+        .stateList<SelectionAreaState>(find.byType(SelectionArea))
+        .toList(growable: false);
+    selectionAreas.last.selectableRegion.selectAll();
+    await tester.pump();
+
+    await tester.tap(find.text('Yes, implement this plan'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey<String>('codex-plan-card-maximized')),
+      findsNothing,
+    );
+    expect(client.startTurnPayloads.single['input'], isNotEmpty);
+  });
+
+  testWidgets(
+    'restores a maximized plan before answering its server question',
+    (tester) async {
+      final client = _SurfaceRuntimeClient(
+        pendingRequests: const <Object?>[
+          <String, Object?>{
+            'id': 77,
+            'method': 'item/tool/requestUserInput',
+            'params': <String, Object?>{
+              'questions': <Object?>[
+                <String, Object?>{
+                  'id': 'implement',
+                  'question': 'Implement this plan?',
+                  'options': <Object?>[
+                    <String, Object?>{'label': 'Yes, implement this plan'},
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        timelineCells: const <Object?>[
+          <String, Object?>{
+            'id': 'plan',
+            'turnId': 'turn-plan',
+            'kind': 'plan',
+            'status': 'completed',
+            'markdownText': '# Ready plan\n\nImplement this safely.',
+          },
+        ],
+      );
+      addTearDown(client.dispose);
+      await _pumpTimelineSegmentSurface(tester, client, planMode: true);
+
+      await tester.tap(find.byTooltip('Maximize Plan'));
+      await tester.pumpAndSettle();
+      final selectionAreas = tester
+          .stateList<SelectionAreaState>(find.byType(SelectionArea))
+          .toList(growable: false);
+      selectionAreas.last.selectableRegion.selectAll();
+      await tester.pump();
+
+      await tester.tap(find.text('Yes, implement this plan'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey<String>('codex-plan-card-maximized')),
+        findsNothing,
+      );
+      expect(client.responsePayloads, hasLength(1));
+    },
+  );
+
   testWidgets('counts every file represented by an aggregated diff cell', (
     tester,
   ) async {
