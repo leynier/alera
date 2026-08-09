@@ -27,7 +27,7 @@ This document defines contributor and agent governance only. It does not change 
 
 - Riverpod providers MUST use code generation (`riverpod_generator`) rather than hand-written provider declarations.
 - This repository does NOT use a `build_runner` watcher. Agents MUST NOT run `build_runner watch` or keep any background code-generation process alive.
-- When a planned batch of edits touches Riverpod, Drift, or `dart_mappable` generated surfaces, agents MUST finish the planned edits first and then regenerate code once for the whole batch with `dart run build_runner build -d`. Do not regenerate after every individual edit.
+- When a planned batch of edits touches Riverpod, Drift, or `dart_mappable` generated surfaces, agents MUST finish the planned edits first and then regenerate code once for the whole batch with `dart run build_runner build`. Do not regenerate after every individual edit.
 - The one-shot generation MUST run before `dart format`, `flutter analyze`, and tests, so formatting, static analysis, and test runs always see the final generated code.
 - Agents MUST verify the regenerated files are included alongside the source changes that produced them.
 
