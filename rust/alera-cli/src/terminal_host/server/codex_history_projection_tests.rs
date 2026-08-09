@@ -230,6 +230,14 @@ fn pages_supported_thread_read_results_in_chronological_order() {
         .map(|cell| cell["markdownText"].as_str().unwrap_or_default())
         .collect::<Vec<_>>();
     assert_eq!(messages, vec!["Middle", "New"]);
+    assert!(latest
+        .turns
+        .iter()
+        .all(|turn| turn.get("aleraHistoryItemsComplete").is_none()));
+    assert_eq!(
+        latest.snapshot["completeHistoryTurnIds"],
+        json!(["turn-middle", "turn-new"])
+    );
 
     let older = older_turn_page(&response, "turn-before:turn-middle", 2).unwrap();
     assert!(older.next_cursor.is_none());
@@ -265,6 +273,8 @@ fn dense_turn_pages_do_not_skip_trimmed_items() {
     });
 
     let mut page = latest_turn_page(&response, 20).unwrap();
+    assert!(page.turns[0].get("aleraHistoryItemsComplete").is_none());
+    assert!(page.snapshot["completeHistoryTurnIds"].is_null());
     let mut ids = page.snapshot["timelineCells"]
         .as_array()
         .unwrap()

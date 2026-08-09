@@ -11,10 +11,14 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
+#[path = "codex_history_metadata.rs"]
+mod codex_history_metadata;
 #[path = "codex_history_projection.rs"]
 mod codex_history_projection;
 #[path = "codex_markdown.rs"]
 mod codex_markdown;
+#[path = "codex_resume_identity.rs"]
+mod codex_resume_identity;
 #[path = "codex_state_snapshot.rs"]
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
@@ -450,3 +454,7 @@ mod tests;
 #[cfg(test)]
 #[path = "codex_state_snapshot_tests.rs"]
 mod snapshot_tests;
+
+#[cfg(test)]
+#[path = "codex_state_snapshot_resume_tests.rs"]
+mod snapshot_resume_tests;
