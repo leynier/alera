@@ -29,6 +29,7 @@ import 'package:path/path.dart' as p;
 
 part 'codex_chat_surface_session_test_cases.dart';
 part 'codex_chat_surface_timeline_segment_test_cases.dart';
+part 'codex_chat_surface_timeline_interaction_test_cases.dart';
 part 'codex_chat_surface_timeline_review_test_cases.dart';
 part 'codex_chat_surface_timeline_progress_test_cases.dart';
 part 'codex_chat_surface_timeline_context_test_cases.dart';
@@ -738,6 +739,7 @@ void main() {
   });
 
   registerCodexTimelineSegmentTests();
+  registerCodexTimelineInteractionTests();
   registerCodexTimelineReviewTests();
   registerCodexTimelineProgressTests();
   registerCodexTimelineContextTests();

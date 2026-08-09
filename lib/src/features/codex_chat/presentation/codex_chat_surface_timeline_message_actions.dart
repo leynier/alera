@@ -52,7 +52,7 @@ class _CodexMessageActions extends StatelessWidget {
               ? WrapAlignment.end
               : WrapAlignment.start,
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: AleraTokens.space12,
+          spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space4,
           children: timestampFirst
               ? <Widget>[?timestampWidget, buttons]

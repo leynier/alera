@@ -1,32 +1,5 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexWorkingIndicator extends StatelessWidget {
-  const _CodexWorkingIndicator();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    key: const ValueKey<String>('codex-working-indicator'),
-    padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-    child: Row(
-      children: <Widget>[
-        _CodexShimmerText(
-          text: 'Working',
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundMuted),
-        ),
-        const SizedBox(width: AleraTokens.space12),
-        const Expanded(
-          child: Divider(
-            color: AleraTokens.borderSubtle,
-            height: AleraTokens.dividerExtent,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 class _CodexPlanProgressIndicator extends StatelessWidget {
   const _CodexPlanProgressIndicator({required this.progress});
 

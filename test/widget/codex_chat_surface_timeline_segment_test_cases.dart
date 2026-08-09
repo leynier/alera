@@ -1,33 +1,6 @@
 part of 'codex_chat_surface_test.dart';
 
 void registerCodexTimelineSegmentTests() {
-  testWidgets('renders warning notices with the warning tone', (tester) async {
-    const warningText =
-        'Skill descriptions were shortened to fit the skills context budget.';
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      timelineCells: const <Object?>[
-        <String, Object?>{
-          'id': 'skills-warning',
-          'kind': 'systemNotice',
-          'status': 'info',
-          'markdownText': warningText,
-          'metadata': <String, Object?>{'noticeType': 'warning'},
-        },
-      ],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    final warning = tester.widget<Text>(find.text(warningText));
-    expect(warning.style?.color, AleraTokens.warning);
-    expect(
-      find.byKey(const ValueKey<String>('codex-warning-notice-skills-warning')),
-      findsOneWidget,
-    );
-    expect(find.byIcon(AleraIcons.warning), findsOneWidget);
-  });
-
   testWidgets('keeps MCP startup status above conversation messages', (
     tester,
   ) async {
@@ -74,15 +47,21 @@ void registerCodexTimelineSegmentTests() {
     expect(before, lessThan(after));
   });
 
-  testWidgets('shows Worked only after the active turn completes', (
+  testWidgets('keeps Working visible and collapses activity on completion', (
     tester,
   ) async {
-    List<Object?> cells() => const <Object?>[
+    final startedAt = DateTime.now()
+        .subtract(const Duration(seconds: 3))
+        .toUtc()
+        .toIso8601String();
+    List<Object?> cells({bool assistantStreaming = false}) => <Object?>[
       <String, Object?>{
         'id': 'request-worked',
         'turnId': 'turn-worked',
         'kind': 'userMessage',
         'status': 'completed',
+        'createdAt': startedAt,
+        'updatedAt': startedAt,
         'markdownText': 'Inspect the files',
       },
       <String, Object?>{
@@ -90,6 +69,8 @@ void registerCodexTimelineSegmentTests() {
         'turnId': 'turn-worked',
         'kind': 'command',
         'status': 'completed',
+        'createdAt': startedAt,
+        'updatedAt': startedAt,
         'title': 'Read file',
         'metadata': <String, Object?>{
           'commandActions': <Object?>[
@@ -102,6 +83,8 @@ void registerCodexTimelineSegmentTests() {
         'turnId': 'turn-worked',
         'kind': 'command',
         'status': 'completed',
+        'createdAt': startedAt,
+        'updatedAt': startedAt,
         'title': 'Search files',
         'metadata': <String, Object?>{
           'commandActions': <Object?>[
@@ -109,6 +92,17 @@ void registerCodexTimelineSegmentTests() {
           ],
         },
       },
+      if (assistantStreaming)
+        <String, Object?>{
+          'id': 'assistant-worked',
+          'turnId': 'turn-worked',
+          'kind': 'assistantMessage',
+          'status': 'inProgress',
+          'isStreaming': true,
+          'createdAt': startedAt,
+          'updatedAt': startedAt,
+          'markdownText': 'The first streamed response',
+        },
     ];
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],
@@ -118,7 +112,44 @@ void registerCodexTimelineSegmentTests() {
     addTearDown(client.dispose);
     await _pumpTimelineSegmentSurface(tester, client, settle: false);
 
-    expect(find.byKey(const ValueKey<String>('worked-divider')), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('codex-working-indicator')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Working for'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('worked-action-group-read-worked')),
+      findsOneWidget,
+    );
+
+    client.emit(
+      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'codex-tab',
+        'snapshot': <String, Object?>{
+          'timelineCells': cells(assistantStreaming: true),
+          'pendingRequests': const <Object?>[],
+          'activeTurnId': 'turn-worked',
+        },
+      }),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('codex-working-indicator')),
+      findsOneWidget,
+    );
+    expect(find.text('The first streamed response'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('worked-action-group-read-worked')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('codex-working-indicator')),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('worked-action-group-read-worked')),
+      findsNothing,
+    );
 
     client.emit(
       RuntimeHostEvent('codexThreadChanged', <String, Object?>{
@@ -138,6 +169,10 @@ void registerCodexTimelineSegmentTests() {
       findsOneWidget,
     );
     expect(find.textContaining('Worked for'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('worked-action-group-read-worked')),
+      findsNothing,
+    );
   });
 
   testWidgets('keeps an expanded tool group open when earlier activity lands', (
@@ -410,286 +445,6 @@ void registerCodexTimelineSegmentTests() {
     );
     expect(find.text('Viewed image · /repo/image.png'), findsOneWidget);
   });
-
-  testWidgets('renders generic attachments separately from message text', (
-    tester,
-  ) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      timelineCells: const <Object?>[
-        <String, Object?>{
-          'id': 'user-file',
-          'turnId': 'turn-file',
-          'kind': 'userMessage',
-          'status': 'completed',
-          'markdownText': 'Inspect this',
-          'metadata': <String, Object?>{
-            'attachments': <Object?>[
-              <String, Object?>{
-                'path': '/tmp/data.csv',
-                'displayName': 'data.csv',
-                'kind': 'file',
-              },
-            ],
-          },
-        },
-      ],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    expect(find.text('Inspect this'), findsOneWidget);
-    expect(find.text('data.csv'), findsOneWidget);
-    expect(find.textContaining('Attachments Files:'), findsNothing);
-    expect(find.text('/tmp/data.csv'), findsNothing);
-  });
-
-  testWidgets('shows assistant actions only after streaming completes', (
-    tester,
-  ) async {
-    Map<String, Object?> assistant({required bool streaming}) =>
-        <String, Object?>{
-          'id': 'assistant',
-          'turnId': 'turn-stream',
-          'kind': 'assistantMessage',
-          'status': streaming ? 'inProgress' : 'completed',
-          'isStreaming': streaming,
-          'createdAt': '2026-08-02T12:00:00Z',
-          'markdownText': 'Streaming response',
-        };
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      activeTurnId: 'turn-stream',
-      timelineCells: <Object?>[assistant(streaming: true)],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client, settle: false);
-
-    expect(find.byTooltip('Copy Message'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('codex-message-timestamp')),
-      findsNothing,
-    );
-
-    client.emit(
-      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
-        'tabId': 'codex-tab',
-        'snapshot': <String, Object?>{
-          'timelineCells': <Object?>[assistant(streaming: false)],
-          'pendingRequests': const <Object?>[],
-          'activeTurnId': null,
-        },
-      }),
-    );
-    await tester.pump();
-    await tester.pump(AleraTokens.durationFast);
-
-    expect(find.byTooltip('Copy Message'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('codex-message-timestamp')),
-      findsOneWidget,
-    );
-    final timestamp = tester.getRect(
-      find.byKey(const ValueKey<String>('codex-message-timestamp')),
-    );
-    final copyButton = tester.getRect(find.byTooltip('Copy Message'));
-    expect(timestamp.center.dy, closeTo(copyButton.center.dy, 0.1));
-  });
-
-  testWidgets('hides unknown message timestamps', (tester) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      timelineCells: const <Object?>[
-        <String, Object?>{
-          'id': 'legacy-assistant',
-          'turnId': 'legacy-turn',
-          'kind': 'assistantMessage',
-          'status': 'completed',
-          'markdownText': 'Legacy response',
-        },
-      ],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    expect(find.byTooltip('Copy Message'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('codex-message-timestamp')),
-      findsNothing,
-    );
-  });
-
-  testWidgets('shows question option descriptions without truncating them', (
-    tester,
-  ) async {
-    const description =
-        'Includes behavior, empty states, errors, and compatibility details.';
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[
-        <String, Object?>{
-          'id': 9,
-          'method': 'item/tool/requestUserInput',
-          'params': <String, Object?>{
-            'questions': <Object?>[
-              <String, Object?>{
-                'id': 'scope',
-                'question': 'Choose a scope',
-                'options': <Object?>[
-                  <String, Object?>{
-                    'label': 'Complete Flow',
-                    'description': description,
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      ],
-      timelineCells: const <Object?>[],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    expect(find.text('Choose a scope'), findsOneWidget);
-    expect(find.text('Complete Flow'), findsOneWidget);
-    expect(find.text(description), findsOneWidget);
-  });
-
-  testWidgets('masks secret custom question answers', (tester) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[
-        <String, Object?>{
-          'id': 10,
-          'method': 'item/tool/requestUserInput',
-          'params': <String, Object?>{
-            'questions': <Object?>[
-              <String, Object?>{
-                'id': 'secret',
-                'question': 'Enter a secret',
-                'isOther': true,
-                'isSecret': true,
-                'options': <Object?>[
-                  <String, Object?>{'label': 'Use Existing'},
-                ],
-              },
-            ],
-          },
-        },
-      ],
-      timelineCells: const <Object?>[],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    await tester.tap(find.text('No, and tell Codex what to do differently'));
-    await tester.pump();
-
-    final field = tester.widget<TextField>(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('codex-inline-answer-row')),
-        matching: find.byType(TextField),
-      ),
-    );
-    expect(field.obscureText, isTrue);
-  });
-
-  testWidgets('submits multi-select choices together with a custom answer', (
-    tester,
-  ) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[
-        <String, Object?>{
-          'id': 11,
-          'method': 'item/tool/requestUserInput',
-          'params': <String, Object?>{
-            'questions': <Object?>[
-              <String, Object?>{
-                'id': 'scope',
-                'question': 'Choose scopes',
-                'isOther': true,
-                'isMultiSelect': true,
-                'options': <Object?>[
-                  <String, Object?>{'label': 'Core'},
-                ],
-              },
-            ],
-          },
-        },
-      ],
-      timelineCells: const <Object?>[],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    await tester.tap(find.text('Core'));
-    await tester.pump();
-    await tester.tap(find.text('No, and tell Codex what to do differently'));
-    await tester.pump();
-    final field = find.descendant(
-      of: find.byKey(const ValueKey<String>('codex-inline-answer-row')),
-      matching: find.byType(TextField),
-    );
-    await tester.enterText(field, 'Documentation');
-    await tester.pump();
-    await tester.tap(find.text('Submit'));
-    await tester.pump();
-
-    final result = client.responsePayloads.single['result']! as Map;
-    final answers = result['answers']! as Map;
-    final scope = answers['scope']! as Map;
-    expect(scope['answers'], <String>['Core', 'Documentation']);
-  });
-
-  testWidgets('dismisses a maximized plan removed by a new snapshot', (
-    tester,
-  ) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      timelineCells: const <Object?>[
-        <String, Object?>{
-          'id': 'request',
-          'turnId': 'turn-plan',
-          'kind': 'userMessage',
-          'status': 'completed',
-          'markdownText': 'Create a plan',
-        },
-        <String, Object?>{
-          'id': 'plan',
-          'turnId': 'turn-plan',
-          'kind': 'plan',
-          'status': 'completed',
-          'markdownText': '# Ready plan',
-        },
-      ],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    await tester.tap(find.byTooltip('Maximize Plan'));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('codex-plan-card-maximized')),
-      findsOneWidget,
-    );
-
-    client.emit(
-      RuntimeHostEvent('codexThreadChanged', <String, Object?>{
-        'tabId': 'codex-tab',
-        'snapshot': const <String, Object?>{
-          'timelineCells': <Object?>[],
-          'pendingRequests': <Object?>[],
-          'activeTurnId': null,
-        },
-      }),
-    );
-    await tester.pump();
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey<String>('codex-plan-card-maximized')),
-      findsNothing,
-    );
-  });
 }
 
 Future<void> _pumpTimelineSegmentSurface(
@@ -721,15 +476,4 @@ Future<void> _pumpTimelineSegmentSurface(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 30));
   if (settle) await tester.pumpAndSettle();
-}
-
-final class _TimelineSegmentSettings extends SettingsController {
-  _TimelineSegmentSettings({required this.planMode});
-
-  final bool planMode;
-
-  @override
-  AleraSettings build() => AleraSettings.defaults.copyWith(
-    codexChat: CodexChatSettings(planMode: planMode),
-  );
 }

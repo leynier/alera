@@ -1,23 +1,92 @@
 part of 'codex_chat_surface.dart';
 
-class _WorkedForDivider extends StatelessWidget {
+class _WorkedForDivider extends StatefulWidget {
   const _WorkedForDivider({
     required this.label,
     required this.expanded,
+    required this.working,
+    required this.startedAt,
+    required this.canToggle,
     required this.onTap,
   });
 
   final String label;
   final bool expanded;
+  final bool working;
+  final DateTime? startedAt;
+  final bool canToggle;
   final VoidCallback onTap;
+
+  @override
+  State<_WorkedForDivider> createState() => _WorkedForDividerState();
+}
+
+class _WorkedForDividerState extends State<_WorkedForDivider>
+    with WidgetsBindingObserver {
+  Timer? _elapsedTimer;
+  bool _tickerEnabled = false;
+  bool _applicationActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncElapsedTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _syncElapsedTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _applicationActive = state == AppLifecycleState.resumed;
+    _syncElapsedTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkedForDivider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.working != widget.working ||
+        oldWidget.startedAt != widget.startedAt) {
+      _syncElapsedTimer();
+    }
+  }
+
+  void _syncElapsedTimer() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer =
+        widget.working &&
+            widget.startedAt != null &&
+            _tickerEnabled &&
+            _applicationActive
+        ? Timer.periodic(AleraTokens.codexElapsedTimeRefreshInterval, (_) {
+            if (mounted) setState(() {});
+          })
+        : null;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _elapsedTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space12),
     child: InkWell(
-      key: const ValueKey<String>('worked-divider'),
-      onTap: onTap,
-      mouseCursor: SystemMouseCursors.click,
+      key: ValueKey<String>(
+        widget.working ? 'codex-working-indicator' : 'worked-divider',
+      ),
+      onTap: widget.canToggle ? widget.onTap : null,
+      mouseCursor: widget.canToggle
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
       child: Row(
         children: <Widget>[
@@ -26,18 +95,32 @@ class _WorkedForDivider extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
+                if (widget.working)
+                  _CodexShimmerText(
+                    text: widget.startedAt == null
+                        ? 'Working'
+                        : _workingFor(widget.startedAt!, DateTime.now()),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  )
+                else
+                  Text(
+                    widget.label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AleraTokens.space6),
-                Icon(
-                  expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-                  size: AleraTokens.iconMd,
-                  color: AleraTokens.foregroundFaint,
-                ),
+                if (widget.canToggle) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space6),
+                  Icon(
+                    widget.expanded
+                        ? AleraIcons.chevronDown
+                        : AleraIcons.chevronRight,
+                    size: AleraTokens.iconMd,
+                    color: AleraTokens.foregroundFaint,
+                  ),
+                ],
               ],
             ),
           ),
@@ -66,22 +149,56 @@ String _workedFor(List<CodexTimelineCell> cells) {
     'durationMs',
     'duration_ms',
   ]);
-  final milliseconds = duration?.round() ?? _cellDuration(cells).inMilliseconds;
-  final seconds = (milliseconds / 1000).round();
-  if (seconds < 60) return 'Worked for ${seconds}s';
-  final minutes = seconds ~/ 60;
-  if (minutes < 60) return 'Worked for ${minutes}m ${seconds % 60}s';
-  return 'Worked for ${minutes ~/ 60}h ${minutes % 60}m';
+  final cellDuration = _cellDuration(cells);
+  final milliseconds = duration != null && duration.isFinite && duration >= 0
+      ? duration.round()
+      : cellDuration?.inMilliseconds;
+  if (milliseconds == null) return 'Worked';
+  return 'Worked for ${_codexDurationText(milliseconds)}';
 }
 
-Duration _cellDuration(List<CodexTimelineCell> cells) {
-  if (cells.isEmpty) return Duration.zero;
-  final started = cells
+String _workingFor(DateTime startedAt, DateTime now) {
+  final milliseconds = now
+      .difference(startedAt)
+      .inMilliseconds
+      .clamp(0, 1 << 31);
+  return 'Working for ${_codexDurationText(milliseconds)}';
+}
+
+String _codexDurationText(int milliseconds) {
+  final seconds = (milliseconds / 1000).round();
+  if (seconds < 60) return '${seconds}s';
+  final minutes = seconds ~/ 60;
+  if (minutes < 60) return '${minutes}m ${seconds % 60}s';
+  return '${minutes ~/ 60}h ${minutes % 60}m';
+}
+
+DateTime? _codexTurnStartedAt(List<CodexTimelineCell> cells) {
+  final timestamps = cells
       .map((cell) => cell.createdAt)
-      .reduce((left, right) => left.isBefore(right) ? left : right);
-  final finished = cells
+      .where((value) => value.millisecondsSinceEpoch > 0);
+  if (timestamps.isEmpty) return null;
+  return timestamps.reduce(
+    (left, right) => left.isBefore(right) ? left : right,
+  );
+}
+
+Duration? _cellDuration(List<CodexTimelineCell> cells) {
+  if (cells.isEmpty) return null;
+  final created = cells
+      .map((cell) => cell.createdAt)
+      .where((value) => value.millisecondsSinceEpoch > 0);
+  final updated = cells
       .map((cell) => cell.updatedAt)
-      .reduce((left, right) => left.isAfter(right) ? left : right);
+      .where((value) => value.millisecondsSinceEpoch > 0);
+  if (created.isEmpty || updated.isEmpty) return null;
+  final started = created.reduce(
+    (left, right) => left.isBefore(right) ? left : right,
+  );
+  final finished = updated.reduce(
+    (left, right) => left.isAfter(right) ? left : right,
+  );
+  if (finished.isBefore(started)) return null;
   return finished.difference(started);
 }
 

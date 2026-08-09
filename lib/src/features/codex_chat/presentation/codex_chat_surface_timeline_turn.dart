@@ -50,28 +50,17 @@ class _CodexTurnSection extends StatelessWidget {
           onOpenAttachment: onOpenAttachment,
         ),
     ];
-    if (projection.showWorking) {
-      children.add(const _CodexWorkingIndicator());
-    }
-    if (projection.collapseWorked) {
-      children.add(
-        _WorkedForDivider(
-          expanded: workedExpanded,
-          label: projection.workedLabel,
-          onTap: onToggleWorked,
-        ),
-      );
-      if (workedExpanded) {
-        children.addAll(<Widget>[
-          for (
-            var index = 0;
-            index < projection.secondaryRows.length;
-            index += 1
-          )
-            secondaryRow(index),
-        ]);
-      }
-    } else {
+    children.add(
+      _WorkedForDivider(
+        expanded: workedExpanded,
+        label: projection.workedLabel,
+        working: projection.working,
+        startedAt: projection.startedAt,
+        canToggle: projection.canToggleWorked,
+        onTap: onToggleWorked,
+      ),
+    );
+    if (workedExpanded) {
       children.addAll(<Widget>[
         for (var index = 0; index < projection.secondaryRows.length; index += 1)
           secondaryRow(index),
