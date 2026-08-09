@@ -1,14 +1,23 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_file_reference.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
+import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
+import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_preferences_repository.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'mobile_codex_controller.g.dart';
 part 'mobile_codex_controller_helpers.dart';
 part 'mobile_codex_controller_lifecycle.dart';
+part 'mobile_codex_controller_workspace.dart';
+part 'mobile_codex_controller_options.dart';
+part 'mobile_codex_controller_sessions.dart';
+part 'mobile_codex_controller_catalogues.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
@@ -23,9 +32,31 @@ class MobileCodexController extends _$MobileCodexController
   MobileCodexClient? _client;
   StreamSubscription<MobileRuntimeEvent>? _events;
   Timer? _interruptSafetyTimer;
+  @override
+  final List<MobileRuntimeEvent> _deferredThreadEvents = <MobileRuntimeEvent>[];
+  @override
+  Timer? _deferredThreadEventTimer;
+  bool _historyLoading = false;
+  int _sessionTransitionCount = 0;
+  List<Map<String, Object?>> _suspendedSessionQueue =
+      const <Map<String, Object?>>[];
+  bool _sessionTransitionSucceeded = false;
+  @override
+  String? _threadId;
+  @override
+  int _threadGeneration = 0;
+
+  @override
+  bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
+
+  bool get supportsSessions => _client?.supportsCodexSessions == true;
 
   @override
   Timer? get _interruptSafetyTimerValue => _interruptSafetyTimer;
+
+  @override
+  Future<void> _reloadCatalogue(String catalog) =>
+      _reloadMobileCodexCatalogue(catalog);
 
   @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
@@ -37,128 +68,86 @@ class MobileCodexController extends _$MobileCodexController
     _events = client.events.listen(_onEvent);
     ref.onDispose(() {
       _interruptSafetyTimer?.cancel();
+      _deferredThreadEventTimer?.cancel();
       _events?.cancel();
     });
     final response = await client.codexRequest(
       'codex.thread.open',
-      <String, Object?>{'tabId': tabId},
+      <String, Object?>{'tabId': tabId, 'supportsMissingRolloutRecovery': true},
     );
-    var next = MobileCodexState.fromSnapshot(response['snapshot']);
-    next = next.copyWith(selectedModel: _string(response['model']));
+    final storedConfiguration = response['configuration'];
+    _threadId = _string(response['threadId']);
+    _threadGeneration += 1;
+    var next = MobileCodexState.fromSnapshot(response['snapshot']).copyWith(
+      activeCwd: _string(response['cwd']),
+      historyNextCursor: _string(response['historyNextCursor']),
+      recovery: response['recovery'] == null
+          ? null
+          : MobileCodexThreadRecovery.fromJson(response['recovery']),
+    );
+    next = _applyMobileConfiguration(next, storedConfiguration);
     next = await _loadCatalogues(client, next);
-    return next;
-  }
-
-  Future<MobileCodexState> _loadCatalogues(
-    MobileCodexClient client,
-    MobileCodexState current,
-  ) async {
-    var next = current;
-    try {
-      final payload = await client.codexRequest('codex.model.list');
-      final discovered = _modelItems(payload);
-      final models = discovered.isEmpty
-          ? const <MobileCodexModelOption>[
-              MobileCodexModelOption(id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol'),
-            ]
-          : discovered;
-      final selected = models.any((model) => model.id == next.selectedModel)
-          ? next.selectedModel
-          : null;
-      next = next.copyWith(
-        models: models,
-        selectedModel:
-            selected ??
-            models.where((model) => model.isDefault).firstOrNull?.id ??
-            models.first.id,
-      );
-    } catch (error, stackTrace) {
-      _logger.warning(
-        'Codex model discovery was unavailable.',
-        error,
-        stackTrace,
-      );
-      next = next.copyWith(
-        models: const <MobileCodexModelOption>[
-          MobileCodexModelOption(id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol'),
-        ],
-        selectedModel: next.selectedModel ?? 'gpt-5.6-sol',
-      );
+    if (storedConfiguration == null) {
+      try {
+        final preferences = await ref
+            .read(mobileCodexPreferencesRepositoryProvider)
+            .load(hostId);
+        final preferredModel =
+            next.models.any((model) => model.id == preferences.model)
+            ? preferences.model
+            : next.selectedModel;
+        final preferredOption = next.models
+            .where((model) => model.id == preferredModel)
+            .firstOrNull;
+        next = next.copyWith(
+          selectedModel: preferredModel,
+          reasoningEffort: _supportedEffort(
+            preferredOption,
+            preferences.reasoningEffort,
+          ),
+          speedMode:
+              preferences.speedMode == 'fast' &&
+                  preferredOption?.supportsFastMode == true
+              ? 'fast'
+              : 'normal',
+          permissionMode: preferences.permissionMode,
+          planMode: preferences.planMode,
+          collaborationMode: preferences.planMode ? 'plan' : null,
+        );
+        await client.codexRequest('codex.tab.configure', <String, Object?>{
+          'tabId': tabId,
+          'configuration': _mobileConfigurationPayload(next),
+        });
+      } catch (error, stackTrace) {
+        _logger.warning(
+          'Codex preferences were unavailable.',
+          error,
+          stackTrace,
+        );
+      }
     }
-    final selectedOption = next.models
-        .where((model) => model.id == next.selectedModel)
-        .firstOrNull;
-    final initialEffort =
-        selectedOption?.defaultReasoningEffort ?? next.reasoningEffort;
-    next = next.copyWith(
-      reasoningEffort: _supportedEffort(selectedOption, initialEffort),
-      speedMode: selectedOption?.supportsFastMode == false
-          ? 'normal'
-          : next.speedMode,
-    );
-    next = next.copyWith(
-      collaborationModes: await _optionalItems(
-        client,
-        'codex.collaborationModes.list',
-      ),
-      skills: await _optionalItems(
-        client,
-        'codex.skills.list',
-        includeTabId: true,
-      ),
-      apps: await _optionalItems(client, 'codex.apps.list', includeTabId: true),
-    );
+    _scheduleDeferredThreadEventDrain();
     return next;
-  }
-
-  Future<List<Map<String, Object?>>> _optionalItems(
-    MobileCodexClient client,
-    String request, {
-    bool includeTabId = false,
-  }) async {
-    try {
-      final payload = await client.codexRequest(
-        request,
-        includeTabId
-            ? <String, Object?>{'tabId': tabId}
-            : const <String, Object?>{},
-      );
-      final value =
-          payload['data'] ??
-          payload['items'] ??
-          payload['apps'] ??
-          payload['skills'] ??
-          payload['collaborationModes'] ??
-          payload['modes'];
-      return value is List
-          ? <Map<String, Object?>>[
-              for (final item in value)
-                if (item is Map) Map<String, Object?>.from(item),
-            ]
-          : const <Map<String, Object?>>[];
-    } catch (error, stackTrace) {
-      _logger.warning(
-        'Optional Codex catalogue was unavailable.',
-        error,
-        stackTrace,
-      );
-      return const <Map<String, Object?>>[];
-    }
   }
 
   Future<void> send(
     String text, {
     List<Map<String, Object?>> attachments = const <Map<String, Object?>>[],
+    List<Map<String, Object?>> catalogSelections =
+        const <Map<String, Object?>>[],
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty && catalogSelections.isEmpty) {
+      return;
+    }
     final message = <String, Object?>{
       'id': _newClientMessageId(),
       'text': trimmed,
       'attachments': attachments,
+      'catalogSelections': catalogSelections,
     };
     final current = state.value ?? const MobileCodexState();
-    if (current.busy) {
+    if (current.busy || _sessionTransitionInProgress) {
       state = AsyncData(
         current.copyWith(
           queuedMessages: <Map<String, Object?>>[
@@ -172,58 +161,61 @@ class MobileCodexController extends _$MobileCodexController
     await _sendNow(message);
   }
 
-  bool get supportsImageUpload =>
-      _client is MobileWorkspaceClient &&
-      (_client! as MobileWorkspaceClient).supportsPromptImageUpload;
-
-  Future<String> uploadImage({
-    required String format,
-    required int sizeBytes,
-    required Stream<List<int>> Function() openRead,
-  }) async {
-    final client = _client;
-    if (client is! MobileWorkspaceClient) {
-      throw UnsupportedError('Image uploads are unavailable on this client.');
-    }
-    final workspaceClient = client as MobileWorkspaceClient;
-    try {
-      final result = await workspaceClient.uploadPromptImage(
-        format: format,
-        sizeBytes: sizeBytes,
-        openRead: openRead,
-      );
-      return result.hostPath;
-    } catch (error, stackTrace) {
-      _setError(error, stackTrace);
-      rethrow;
-    }
-  }
-
   @override
   Future<void> _sendNow(Map<String, Object?> message) async {
     final client = _client;
     if (client == null) return;
     final current = state.value ?? const MobileCodexState();
+    final supportsTurnPolicy = client.supportsCodexTurnPolicy;
+    final wirePermissionMode =
+        !supportsTurnPolicy && current.permissionMode == 'auto-review'
+        ? 'on-request'
+        : current.permissionMode;
     state = AsyncData(current.copyWith(sending: true, error: null));
     try {
       await client.codexRequest('codex.turn.start', <String, Object?>{
         'tabId': tabId,
+        'expectedThreadId': _threadId,
         'clientUserMessageId':
             message['id']?.toString() ?? _newClientMessageId(),
         'input': _input(message, current),
+        'userMessage': _userMessagePresentation(message),
         'model': current.selectedModel,
         'reasoning': <String, Object?>{'effort': current.reasoningEffort},
         'effort': current.reasoningEffort,
         'serviceTier': current.speedMode == 'fast' ? 'fast' : null,
-        'approvalPolicy': current.permissionMode,
-        if (current.planMode || current.collaborationMode != null)
-          'collaborationMode': <String, Object?>{
-            'mode': current.collaborationMode ?? 'plan',
-            'settings': <String, Object?>{
-              'model': current.selectedModel,
-              'reasoning_effort': current.reasoningEffort,
-            },
+        'approvalPolicy': supportsTurnPolicy
+            ? switch (current.permissionMode) {
+                'never' => 'never',
+                'untrusted' => 'untrusted',
+                _ => 'on-request',
+              }
+            : wirePermissionMode,
+        if (supportsTurnPolicy)
+          'approvalsReviewer': current.permissionMode == 'auto-review'
+              ? 'auto_review'
+              : 'user',
+        if (supportsTurnPolicy)
+          'sandboxPolicy': current.permissionMode == 'never'
+              ? <String, Object?>{'type': 'dangerFullAccess'}
+              : <String, Object?>{
+                  'type': 'workspaceWrite',
+                  'writableRoots': const <String>[],
+                  'networkAccess': false,
+                },
+        'collaborationMode': <String, Object?>{
+          'mode':
+              current.collaborationMode ??
+              (current.planMode ? 'plan' : 'default'),
+          'settings': <String, Object?>{
+            'model': current.selectedModel,
+            'reasoning_effort': current.reasoningEffort,
           },
+        },
+        'configuration': <String, Object?>{
+          ..._mobileConfigurationPayload(current),
+          'permissionMode': wirePermissionMode,
+        },
       });
       if (ref.mounted) {
         state = AsyncData((state.value ?? current).copyWith(sending: false));
@@ -260,22 +252,33 @@ class MobileCodexController extends _$MobileCodexController
     }
   }
 
-  Future<void> steer(String text) async {
+  Future<void> steer(
+    String text, {
+    List<Map<String, Object?>> attachments = const <Map<String, Object?>>[],
+    List<Map<String, Object?>> catalogSelections =
+        const <Map<String, Object?>>[],
+  }) async {
     final client = _client;
     final current = state.value;
     if (client == null ||
         current?.activeTurnId == null ||
-        text.trim().isEmpty) {
+        (text.trim().isEmpty &&
+            attachments.isEmpty &&
+            catalogSelections.isEmpty)) {
       return;
     }
+    final message = <String, Object?>{
+      'text': text.trim(),
+      'attachments': attachments,
+      'catalogSelections': catalogSelections,
+    };
     try {
       await client.codexRequest('codex.turn.steer', <String, Object?>{
         'tabId': tabId,
         'turnId': current!.activeTurnId,
         'clientUserMessageId': _newClientMessageId(),
-        'input': <Map<String, Object?>>[
-          <String, Object?>{'type': 'text', 'text': text.trim()},
-        ],
+        'input': _input(message, current),
+        'userMessage': _userMessagePresentation(message),
       });
     } catch (error, stackTrace) {
       _setError(error, stackTrace);
@@ -284,24 +287,22 @@ class MobileCodexController extends _$MobileCodexController
 
   Future<void> respondApproval(
     MobileCodexPendingRequest request, {
-    required bool accepted,
-    bool forSession = false,
+    required Object decision,
   }) async {
+    final decisionName = request.approvalDecisionName(decision);
+    final accepted =
+        decisionName == 'accept' || decisionName == 'acceptForSession';
     if (request.isPermissionsRequest) {
       await _respond(request, <String, Object?>{
         'permissions': accepted
             ? _permissionSubset(request.params['permissions'])
             : const <String, Object?>{},
-        'scope': forSession ? 'session' : 'turn',
+        'scope': decisionName == 'acceptForSession' ? 'session' : 'turn',
       });
       return;
     }
     await _respond(request, <String, Object?>{
-      'decision': accepted
-          ? forSession
-                ? 'acceptForSession'
-                : 'accept'
-          : 'decline',
+      'decision': request.approvalWireDecision(decision),
     });
   }
 
@@ -315,6 +316,25 @@ class MobileCodexController extends _$MobileCodexController
           entry.key: <String, Object?>{'answers': entry.value},
       },
     });
+  }
+
+  Future<void> snoozeQuestionAutoResolution(
+    MobileCodexPendingRequest request,
+  ) async {
+    if (request.isBlocking) return;
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.codexRequest('codex.request.snooze', <String, Object?>{
+        'requestId': request.id,
+      });
+    } catch (error, stackTrace) {
+      _logger.fine(
+        'The runtime host does not support snoozing Codex questions.',
+        error,
+        stackTrace,
+      );
+    }
   }
 
   Future<void> respondElicitation(
@@ -367,6 +387,60 @@ class MobileCodexController extends _$MobileCodexController
     }
   }
 
+  void _persistCurrentConfiguration() {
+    final current = state.value;
+    if (current == null) return;
+    final client = _client;
+    if (client != null) {
+      unawaited(
+        client
+            .codexRequest('codex.tab.configure', <String, Object?>{
+              'tabId': tabId,
+              'configuration': _mobileConfigurationPayload(current),
+            })
+            .catchError((Object error, StackTrace stackTrace) {
+              _logger.warning(
+                'Codex tab configuration could not be saved.',
+                error,
+                stackTrace,
+              );
+              return <String, Object?>{};
+            }),
+      );
+    }
+    MobileCodexPreferencesRepository repository;
+    try {
+      repository = ref.read(mobileCodexPreferencesRepositoryProvider);
+    } on Object catch (error, stackTrace) {
+      _logger.warning(
+        'Codex preferences repository was unavailable.',
+        error,
+        stackTrace,
+      );
+      return;
+    }
+    unawaited(
+      repository
+          .save(
+            hostId,
+            MobileCodexPreferences(
+              model: current.selectedModel,
+              reasoningEffort: current.reasoningEffort,
+              speedMode: current.speedMode,
+              permissionMode: current.permissionMode,
+              planMode: current.planMode,
+            ),
+          )
+          .catchError((Object error, StackTrace stackTrace) {
+            _logger.warning(
+              'Codex preferences could not be saved.',
+              error,
+              stackTrace,
+            );
+          }),
+    );
+  }
+
   Future<void> compact() => _simpleRequest('codex.thread.compact');
 
   Future<void> review({
@@ -413,85 +487,4 @@ class MobileCodexController extends _$MobileCodexController
     setPlanMode(true);
     await send(text);
   }
-
-  void setModel(String? model) {
-    if (model == null || model.isEmpty) return;
-    _update(
-      (current) => current.copyWith(
-        selectedModel: model,
-        speedMode:
-            current.models
-                    .where((item) => item.id == model)
-                    .firstOrNull
-                    ?.supportsFastMode ==
-                false
-            ? 'normal'
-            : current.speedMode,
-        reasoningEffort: _supportedEffort(
-          current.models.where((item) => item.id == model).firstOrNull,
-          current.models
-                  .where((item) => item.id == model)
-                  .firstOrNull
-                  ?.defaultReasoningEffort ??
-              current.reasoningEffort,
-        ),
-      ),
-    );
-  }
-
-  void setReasoning(String effort) => _update(
-    (current) => current.copyWith(
-      reasoningEffort: _supportedEffort(
-        current.models
-            .where((item) => item.id == current.selectedModel)
-            .firstOrNull,
-        effort,
-      ),
-    ),
-  );
-  void setSpeed(String speed) => _update((current) {
-    final model = current.models
-        .where((item) => item.id == current.selectedModel)
-        .firstOrNull;
-    return current.copyWith(
-      speedMode: speed == 'fast' && model?.supportsFastMode == false
-          ? 'normal'
-          : speed,
-    );
-  });
-  void setPermissionMode(String mode) =>
-      _update((current) => current.copyWith(permissionMode: mode));
-  void setPlanMode(bool enabled) => _update(
-    (current) => current.copyWith(
-      planMode: enabled,
-      collaborationMode: enabled
-          ? 'plan'
-          : current.collaborationMode == 'plan'
-          ? null
-          : current.collaborationMode,
-    ),
-  );
-  void setCollaborationMode(String? mode) {
-    if (mode == null || mode.isEmpty) return;
-    _update(
-      (current) =>
-          current.copyWith(collaborationMode: mode, planMode: mode == 'plan'),
-    );
-  }
-
-  void clearError() => _update((current) => current.copyWith(error: null));
-
-  void removeQueuedMessage(int index) => _update((current) {
-    if (index < 0 || index >= current.queuedMessages.length) return current;
-    final next = <Map<String, Object?>>[...current.queuedMessages]
-      ..removeAt(index);
-    return current.copyWith(queuedMessages: next);
-  });
-
-  void editQueuedMessage(int index, String text) => _update((current) {
-    if (index < 0 || index >= current.queuedMessages.length) return current;
-    final next = <Map<String, Object?>>[...current.queuedMessages];
-    next[index] = <String, Object?>{...next[index], 'text': text.trim()};
-    return current.copyWith(queuedMessages: next);
-  });
 }

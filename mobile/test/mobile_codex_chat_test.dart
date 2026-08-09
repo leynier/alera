@@ -176,8 +176,7 @@ void main() {
       );
       await controller.respondApproval(
         approval,
-        accepted: true,
-        forSession: true,
+        decision: approval.approvalDecisionValue('acceptForSession'),
       );
       expect(client.calls.last.payload['result'], <String, Object?>{
         'decision': 'acceptForSession',
@@ -269,7 +268,13 @@ void main() {
         (call) => call.type == 'codex.turn.start',
       );
       expect(container.read(provider).value!.planMode, isFalse);
-      expect(implementationTurn.payload, isNot(contains('collaborationMode')));
+      expect(implementationTurn.payload['collaborationMode'], <String, Object?>{
+        'mode': 'default',
+        'settings': <String, Object?>{
+          'model': 'gpt-current',
+          'reasoning_effort': 'low',
+        },
+      });
       expect(
         (implementationTurn.payload['input'] as List).last,
         <String, Object?>{'type': 'text', 'text': 'Implement plan'},
@@ -331,6 +336,12 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
 
   @override
   bool get supportsCodexChat => true;
+
+  @override
+  bool get supportsCodexSessions => true;
+
+  @override
+  bool get supportsCodexTurnPolicy => true;
 
   @override
   Stream<MobileRuntimeEvent> get events => _events.stream;

@@ -14,40 +14,202 @@ List<Map<String, Object?>> _input(
   MobileCodexState state,
 ) {
   final text = message['text']?.toString() ?? '';
-  final attachments = message['attachments'];
+  final attachments = message['attachments'] is List
+      ? <Map<String, Object?>>[
+          for (final value in message['attachments']! as List)
+            if (value is Map) Map<String, Object?>.from(value),
+        ]
+      : const <Map<String, Object?>>[];
   final skill = _skillInput(text, state.skills);
   final app = _appInput(text, state.apps);
-  return <Map<String, Object?>>[
+  final selectedCatalog = message['catalogSelections'] is List
+      ? <Map<String, Object?>>[
+          for (final value in message['catalogSelections']! as List)
+            if (value is Map) Map<String, Object?>.from(value),
+        ]
+      : const <Map<String, Object?>>[];
+  final selectedNames = <String>{
+    for (final selection in selectedCatalog)
+      if (selection['name'] case final String name) name,
+  };
+  final catalog = _catalogInputs(
+    text,
+    state.skills,
+    state.apps,
+    excludedNames: selectedNames,
+  );
+  final input = <Map<String, Object?>>[
     if (skill != null) skill.$1,
     if (app != null) app.$1,
-    if (skill != null) <String, Object?>{'type': 'text', 'text': skill.$2},
-    if (app != null) <String, Object?>{'type': 'text', 'text': app.$2},
-    if (text.isNotEmpty && skill == null && app == null)
-      <String, Object?>{'type': 'text', 'text': text},
-    if (attachments is List)
-      for (final attachment in attachments)
-        if (attachment is Map) Map<String, Object?>.from(attachment),
-    ..._mentionInputs(text),
+    ...selectedCatalog,
+    ...catalog,
   ];
+  final modelText = skill != null
+      ? skill.$2
+      : app != null
+      ? app.$2
+      : text;
+  var hasText = false;
+  if (modelText.isNotEmpty) {
+    input.add(<String, Object?>{'type': 'text', 'text': modelText});
+    hasText = true;
+  }
+  final references = <({String path, String name})>[];
+  final seenReferences = <String>{};
+  final inlineElements = <Map<String, Object?>>[];
+  for (final attachment in attachments) {
+    final path = attachment['path']?.toString() ?? '';
+    if (path.isEmpty) continue;
+    if (attachment['type'] == 'localImage') {
+      input.add(<String, Object?>{
+        'type': 'localImage',
+        'path': path,
+        if (attachment['detail'] != null) 'detail': attachment['detail'],
+      });
+    } else if (attachment['type'] == 'localAudio') {
+      input.add(<String, Object?>{'type': 'localAudio', 'path': path});
+    } else if (seenReferences.add(path)) {
+      final name =
+          attachment['displayName']?.toString() ??
+          attachment['name']?.toString() ??
+          _basename(path);
+      final referenceText = mobileCodexFileReferenceText(path);
+      final characterStart = modelText.indexOf(referenceText);
+      if (characterStart >= 0) {
+        final start = utf8
+            .encode(modelText.substring(0, characterStart))
+            .length;
+        inlineElements.add(<String, Object?>{
+          'byteRange': <String, Object?>{
+            'start': start,
+            'end': start + utf8.encode(referenceText).length,
+          },
+          'placeholder': name,
+        });
+      } else {
+        references.add((path: path, name: name));
+      }
+    }
+  }
+  if (inlineElements.isNotEmpty) {
+    for (final part in input) {
+      if (part['type'] == 'text' && part['text'] == modelText) {
+        part['text_elements'] = inlineElements;
+        break;
+      }
+    }
+  }
+  input.addAll(_mobileFileReferenceInputs(references, followsText: hasText));
+  return input;
 }
 
-String _newClientMessageId() =>
-    'alera-${DateTime.now().toUtc().microsecondsSinceEpoch}';
-
-List<Map<String, Object?>> _mentionInputs(String text) {
+List<Map<String, Object?>> _mobileFileReferenceInputs(
+  List<({String path, String name})> references, {
+  required bool followsText,
+}) {
   final result = <Map<String, Object?>>[];
-  final seen = <String>{};
-  for (final match in RegExp(r'@([^\s]+)').allMatches(text)) {
-    final path = match.group(1)?.trim() ?? '';
-    if (path.isEmpty || !seen.add(path)) continue;
+  for (var index = 0; index < references.length; index++) {
+    final reference = references[index];
+    final prefix = index == 0 ? (followsText ? '\n\n' : '') : '\n';
+    final path = mobileCodexFileReferenceText(reference.path);
+    final text = '$prefix$path';
+    final start = utf8.encode(prefix).length;
     result.add(<String, Object?>{
-      'type': 'mention',
-      'name': _basename(path),
-      'path': path,
+      'type': 'text',
+      'text': text,
+      'text_elements': <Map<String, Object?>>[
+        <String, Object?>{
+          'byteRange': <String, Object?>{
+            'start': start,
+            'end': start + utf8.encode(path).length,
+          },
+          'placeholder': reference.name,
+        },
+      ],
     });
   }
   return result;
 }
+
+Map<String, Object?> _userMessagePresentation(Map<String, Object?> message) {
+  final rawAttachments = message['attachments'];
+  final attachments = <Map<String, Object?>>[];
+  final seen = <String>{};
+  if (rawAttachments is List) {
+    for (final value in rawAttachments) {
+      if (value is! Map) continue;
+      final attachment = Map<String, Object?>.from(value);
+      final path = attachment['path']?.toString() ?? '';
+      if (path.isEmpty || !seen.add(path)) continue;
+      final type = attachment['type']?.toString() ?? 'file';
+      final isDirectory = attachment['isDirectory'] == true;
+      attachments.add(<String, Object?>{
+        'path': path,
+        'displayName':
+            attachment['displayName']?.toString() ??
+            attachment['name']?.toString() ??
+            _basename(path),
+        'kind': isDirectory
+            ? 'directory'
+            : type == 'localImage'
+            ? 'image'
+            : 'file',
+        'origin': attachment['origin']?.toString() ?? 'attachment',
+        'isImage': type == 'localImage',
+        'isDirectory': isDirectory,
+        if (attachment['mimeType'] != null) 'mimeType': attachment['mimeType'],
+        if (attachment['sizeBytes'] != null)
+          'sizeBytes': attachment['sizeBytes'],
+        if (attachment['detail'] != null) 'detail': attachment['detail'],
+      });
+    }
+  }
+  return <String, Object?>{
+    'text': message['text']?.toString() ?? '',
+    if (attachments.isNotEmpty) 'attachments': attachments,
+  };
+}
+
+List<Map<String, Object?>> _catalogInputs(
+  String text,
+  List<Map<String, Object?>> skills,
+  List<Map<String, Object?>> apps, {
+  Set<String> excludedNames = const <String>{},
+}) {
+  final result = <Map<String, Object?>>[];
+  final seen = <String>{};
+  for (final match in RegExp(r'\$([^\s]+)').allMatches(text)) {
+    final token = match.group(1)?.trim() ?? '';
+    if (token.isEmpty || excludedNames.contains(token) || !seen.add(token)) {
+      continue;
+    }
+    final skill = skills
+        .where((item) => _catalogName(item) == token)
+        .firstOrNull;
+    final skillPath = skill?['path']?.toString();
+    if (skillPath?.isNotEmpty == true) {
+      result.add(<String, Object?>{
+        'type': 'skill',
+        'name': token,
+        'path': skillPath,
+      });
+      continue;
+    }
+    final app = apps.where((item) => _catalogName(item) == token).firstOrNull;
+    final appPath = app == null ? null : _appConnectorPath(app);
+    if (appPath != null) {
+      result.add(<String, Object?>{
+        'type': 'mention',
+        'name': token,
+        'path': appPath,
+      });
+    }
+  }
+  return result;
+}
+
+String _newClientMessageId() =>
+    'alera-${DateTime.now().toUtc().microsecondsSinceEpoch}';
 
 String _basename(String path) {
   final normalized = path.replaceAll('\\', '/');
@@ -172,10 +334,52 @@ String? _string(Object? value) =>
 String _supportedEffort(MobileCodexModelOption? model, String requested) {
   final values = model?.reasoningEfforts ?? const <String>[];
   if (values.isEmpty || values.contains(requested)) return requested;
+  final modelDefault = model?.defaultReasoningEffort;
+  if (modelDefault != null && values.contains(modelDefault)) {
+    return modelDefault;
+  }
   for (final value in <String>['medium', 'high', 'low', 'xhigh']) {
     if (values.contains(value)) return value;
   }
   return values.first;
+}
+
+Map<String, Object?> _mobileConfigurationPayload(MobileCodexState state) =>
+    <String, Object?>{
+      'selectedModel': state.selectedModel,
+      'reasoningEffort': state.reasoningEffort,
+      'speedMode': state.speedMode,
+      'permissionMode': state.permissionMode,
+      'planMode': state.planMode,
+      'collaborationMode': state.collaborationMode,
+    };
+
+MobileCodexState _applyMobileConfiguration(
+  MobileCodexState state,
+  Object? value,
+) {
+  if (value is! Map) return state;
+  final json = Map<String, Object?>.from(value);
+  final selectedModel = _string(json['selectedModel']);
+  final reasoningEffort = _string(json['reasoningEffort']);
+  final permissionMode = _string(json['permissionMode']);
+  final collaborationMode = _string(json['collaborationMode']);
+  return state.copyWith(
+    selectedModel: selectedModel ?? state.selectedModel,
+    reasoningEffort: reasoningEffort ?? state.reasoningEffort,
+    speedMode: json['speedMode'] == 'fast' ? 'fast' : 'normal',
+    permissionMode: switch (permissionMode) {
+      'untrusted' ||
+      'on-request' ||
+      'auto-review' ||
+      'never' => permissionMode!,
+      _ => state.permissionMode,
+    },
+    planMode: json['planMode'] is bool
+        ? json['planMode']! as bool
+        : state.planMode,
+    collaborationMode: collaborationMode,
+  );
 }
 
 String _safeError(Object error) {
