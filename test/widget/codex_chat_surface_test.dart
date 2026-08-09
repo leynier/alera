@@ -334,10 +334,23 @@ void main() {
     final sendButton = tester.getRect(
       find.byKey(const ValueKey<String>('composer-action-button')),
     );
+    final contextIndicator = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is CircularProgressIndicator && widget.value == 0.1,
+      ),
+    );
+    final modelConfiguration = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-model-configuration')),
+    );
     expect(
       composerShell.right - sendButton.right,
       lessThanOrEqualTo(AleraTokens.space12),
     );
+    expect(
+      modelConfiguration.left - contextIndicator.right,
+      lessThanOrEqualTo(AleraTokens.space8),
+    );
+    expect(contextIndicator.right, lessThan(modelConfiguration.right));
 
     await tester.tap(
       find.byKey(const ValueKey<String>('codex-model-configuration')),
