@@ -16,6 +16,7 @@ part 'managed_hooks/codex_managed_agent_hook.dart';
 part 'managed_hooks/copilot_managed_agent_hook.dart';
 part 'managed_hooks/grok_managed_agent_hook.dart';
 part 'managed_hooks/opencode_managed_agent_hook.dart';
+part 'managed_hooks/opencode2_managed_agent_hook.dart';
 part 'managed_hooks/pi_managed_agent_hook.dart';
 
 enum ManagedAgentHookInstallState { installed, notInstalled, partial, error }

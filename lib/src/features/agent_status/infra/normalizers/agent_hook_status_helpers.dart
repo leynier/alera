@@ -9,6 +9,7 @@ bool _isInterrupted(AgentHookEvent event) {
     AgentType.copilot ||
     AgentType.agy ||
     AgentType.opencode ||
+    AgentType.opencode2 ||
     AgentType.pi => _isGenericInterrupted(event),
     AgentType.grok => _isGenericInterrupted(event),
   };

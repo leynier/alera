@@ -14,14 +14,25 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
 use super::ai_text_grok_plan::plan_grok_command;
+use super::ai_text_open_code::open_code_run_arguments;
 use super::ai_text_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
-const SUPPORTED_AGENTS: [&str; 10] = [
-    "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
+const SUPPORTED_AGENTS: [&str; 11] = [
+    "codex",
+    "claude",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
+    "grok",
+    "custom",
 ];
 
 static ACTIVE_GENERATIONS: OnceLock<Mutex<HashMap<String, oneshot::Sender<()>>>> = OnceLock::new();
@@ -274,26 +285,15 @@ pub(super) fn plan_command(
             }
             ("agy", arguments, Some(prompt.to_string()), "Antigravity")
         }
-        "opencode" => (
-            "opencode",
-            vec![
-                "run".to_string(),
-                "--model".to_string(),
-                model.to_string(),
-                "--agent".to_string(),
-                "build".to_string(),
-                "--format".to_string(),
-                "default".to_string(),
-            ]
-            .into_iter()
-            .chain(
-                thinking
-                    .map(|value| vec!["--variant".to_string(), value.to_string()])
-                    .unwrap_or_default(),
-            )
-            .collect(),
+        "opencode" | "opencode2" => (
+            agent,
+            open_code_run_arguments(model, thinking),
             Some(prompt.to_string()),
-            "OpenCode",
+            if agent == "opencode2" {
+                "OpenCode 2"
+            } else {
+                "OpenCode"
+            },
         ),
         "pi" => (
             "pi",
@@ -484,9 +484,8 @@ fn default_model(agent: &str) -> &'static str {
         "codex" => "gpt-5.5",
         "copilot" => "gpt-5.4",
         "cursor" => "auto",
-        // An empty model lets AGY use its own configured/default model.
-        "agy" => "",
-        "opencode" => "opencode/deepseek-v4-flash-free",
+        "agy" => "", // empty => AGY uses its own default model
+        "opencode" | "opencode2" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
         "grok" => "grok-4.5",

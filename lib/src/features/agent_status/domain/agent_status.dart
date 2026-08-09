@@ -22,6 +22,7 @@ enum AgentType {
   cursor('cursor'),
   agy('agy'),
   opencode('opencode'),
+  opencode2('opencode2'),
   pi('pi'),
   amp('amp'),
   grok('grok');

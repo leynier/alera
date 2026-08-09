@@ -7,7 +7,9 @@ use serde_json::{json, Map, Value};
 use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
 use self::cursor_overlay::prepare_cursor;
 use super::integration_hook_scripts::write_managed_script;
-use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
+use super::integration_plugins::{
+    install_amp_plugin, install_opencode2_plugin, install_opencode_plugin, install_pi_plugin,
+};
 
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
@@ -74,6 +76,7 @@ pub fn prepare_enabled_integrations(
         settings.agy.then(|| install_agy(&script)),
         settings.grok.then(|| install_grok(&script)),
         settings.opencode.then(install_opencode_plugin),
+        settings.opencode2.then(install_opencode2_plugin),
         settings.pi.then(install_pi_plugin),
         settings.amp.then(install_amp_plugin),
     ]

@@ -73,6 +73,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       // status. This branch protects future misuse.
       AgentType.cursor ||
       AgentType.opencode ||
+      AgentType.opencode2 ||
       AgentType.pi ||
       AgentType.amp => throw ArgumentError.value(
         agentType,
@@ -86,6 +87,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
   _ManagedHookArtifact? _managedArtifact(AgentType agentType) {
     return switch (agentType) {
       AgentType.opencode => _opencodeArtifact(),
+      AgentType.opencode2 => _opencode2Artifact(),
       AgentType.pi => _piArtifact(),
       AgentType.amp => _ampArtifact(),
       AgentType.codex ||

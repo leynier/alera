@@ -29,6 +29,7 @@ const Map<AgentType, String> agentPromptDeliveryOptions = <AgentType, String>{
   AgentType.copilot: '--interactive',
   AgentType.agy: '--prompt-interactive',
   AgentType.opencode: '--prompt',
+  AgentType.opencode2: '--prompt',
 };
 
 AgentPromptDelivery agentPromptDeliveryFor(AgentType adapter) {

@@ -287,7 +287,7 @@ pub enum RuntimeAgentsAction {
 
 #[derive(Debug, Args)]
 pub struct RuntimeAgentsChangeArgs {
-    /// Agent keys: codex, claude, copilot, cursor, agy, opencode, pi, amp, grok.
+    /// Agent keys: codex, claude, copilot, cursor, agy, opencode, opencode2, pi, amp, grok.
     #[arg(value_name = "agent", required_unless_present = "all")]
     pub agents: Vec<String>,
 

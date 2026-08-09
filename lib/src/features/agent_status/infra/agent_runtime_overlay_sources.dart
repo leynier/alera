@@ -92,7 +92,7 @@ extension _AgentRuntimeOverlaySources on AgentRuntimeOverlayService {
     required String sourcePath,
     required String overlayPath,
     required String managedSubdirectory,
-    required String managedFileName,
+    required Set<String> managedFileNames,
   }) {
     for (final entry in Directory(sourcePath).listSync(followLinks: false)) {
       final entryName = p.basename(entry.path);
@@ -103,7 +103,7 @@ extension _AgentRuntimeOverlaySources on AgentRuntimeOverlayService {
           entry.path,
         ).listSync(followLinks: false)) {
           final childName = p.basename(child.path);
-          if (childName == managedFileName) {
+          if (managedFileNames.contains(childName)) {
             continue;
           }
           _mirrorEntry(
