@@ -1,15 +1,13 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
-import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('renders usage, current limits, and CCS account breakdown', (
+  testWidgets('renders usage metrics and CCS account breakdown', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
@@ -20,15 +18,6 @@ void main() {
           hostId: 'local',
           days: 30,
           snapshot: _snapshot(),
-          quotaSnapshots: <AgentQuotaSnapshot>[
-            _quota(
-              provider: AgentQuotaProviderId.claude,
-              accountId: 'dev',
-              displayName: 'ccdev',
-              usedPercent: 40,
-            ),
-            _quota(provider: AgentQuotaProviderId.codex, usedPercent: 20),
-          ],
           loading: false,
           error: null,
           onDaysChanged: (_) {},
@@ -40,11 +29,15 @@ void main() {
 
     expect(find.text('Usage'), findsOneWidget);
     expect(find.text('Local Host'), findsOneWidget);
-    expect(find.text('Current Limits'), findsOneWidget);
-    expect(find.text('ccdev'), findsNWidgets(2));
+    expect(find.text('Current Limits'), findsNothing);
+    expect(find.text('ccdev'), findsOneWidget);
     expect(find.text('Codex Codex'), findsNothing);
     expect(find.text('Codex'), findsWidgets);
-    expect(find.text('40% Used'), findsOneWidget);
+    final cacheSavingsDetail = tester.widget<Text>(
+      find.text('Compared with full input rates'),
+    );
+    expect(cacheSavingsDetail.maxLines, isNull);
+    expect(cacheSavingsDetail.overflow, isNull);
     expect(find.text('Processed Tokens'), findsOneWidget);
     expect(find.text('49'), findsOneWidget);
     expect(find.text(r'$1.75'), findsOneWidget);
@@ -81,7 +74,6 @@ void main() {
           hostId: 'remote-dev',
           days: 30,
           snapshot: _snapshot(),
-          quotaSnapshots: const <AgentQuotaSnapshot>[],
           loading: false,
           error: null,
           onDaysChanged: (value) => selectedDays = value,
@@ -115,7 +107,6 @@ void main() {
           hostId: 'local',
           days: 30,
           snapshot: _snapshot(),
-          quotaSnapshots: const <AgentQuotaSnapshot>[],
           loading: false,
           error: null,
           onDaysChanged: (_) {},
@@ -139,7 +130,7 @@ void main() {
     );
   });
 
-  testWidgets('shows only selected CCS quotas with their Usage names', (
+  testWidgets('hides Grouped when only one Claude account is in Usage', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
@@ -148,25 +139,9 @@ void main() {
       _wrap(
         AgentUsageDialogView(
           hostId: 'local',
-          days: 30,
+          days: 7,
           snapshot: _snapshot(),
-          quotaSnapshots: <AgentQuotaSnapshot>[
-            _quota(provider: AgentQuotaProviderId.claude, usedPercent: 10),
-            _quota(
-              provider: AgentQuotaProviderId.claude,
-              accountId: 'dev',
-              displayName: 'ccdev',
-              usedPercent: 40,
-            ),
-            _quota(
-              provider: AgentQuotaProviderId.claude,
-              accountId: 'shared',
-              displayName: 'ccshared',
-              usedPercent: 20,
-            ),
-          ],
-          visibleClaudeQuotaAccounts: const <String>{'default', 'dev'},
-          claudeUsageLabels: const <String, String>{'dev': 'Engineering'},
+          showGroupedBreakdown: false,
           loading: false,
           error: null,
           onDaysChanged: (_) {},
@@ -176,10 +151,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Engineering'), findsOneWidget);
-    expect(find.text('Claude Code Default'), findsOneWidget);
-    expect(find.text('Claude Code Engineering'), findsNothing);
-    expect(find.text('ccshared'), findsNothing);
+    expect(find.text('Profiles'), findsOneWidget);
+    expect(find.text('Grouped'), findsNothing);
+    expect(find.text('Models'), findsOneWidget);
   });
 
   testWidgets('shows a retry state when usage is unavailable', (tester) async {
@@ -190,7 +164,6 @@ void main() {
           hostId: 'local',
           days: 30,
           snapshot: null,
-          quotaSnapshots: const <AgentQuotaSnapshot>[],
           loading: false,
           error: 'Runtime does not support usage.',
           onDaysChanged: (_) {},
@@ -217,7 +190,6 @@ void main() {
           hostId: 'local',
           days: 30,
           snapshot: _snapshot(),
-          quotaSnapshots: const <AgentQuotaSnapshot>[],
           loading: true,
           error: null,
           onDaysChanged: (_) {},
@@ -243,7 +215,6 @@ void main() {
           hostId: 'local',
           days: 30,
           snapshot: _snapshot(),
-          quotaSnapshots: const <AgentQuotaSnapshot>[],
           loading: false,
           error: 'Runtime is unavailable.',
           onDaysChanged: (_) {},
@@ -347,30 +318,4 @@ Map<String, Object?> _bucket({
     'unpricedRecords': 0,
     'sessions': 1,
   };
-}
-
-AgentQuotaSnapshot _quota({
-  required AgentQuotaProviderId provider,
-  String accountId = 'default',
-  String displayName = 'Default',
-  required double usedPercent,
-}) {
-  return AgentQuotaSnapshot(
-    provider: provider,
-    accountId: accountId,
-    displayName: displayName,
-    status: AgentQuotaStatus.ok,
-    updatedAt: DateTime.utc(2026),
-    error: null,
-    windows: <AgentQuotaWindow>[
-      AgentQuotaWindow(
-        label: 'Weekly',
-        usedPercent: usedPercent,
-        windowMinutes: null,
-        resetsAt: null,
-        resetDescription: null,
-      ),
-    ],
-    buckets: const <AgentQuotaBucket>[],
-  );
 }

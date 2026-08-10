@@ -18,6 +18,8 @@ void main() {
           hostId: 'remote-dev',
           target: null,
           settings: const AgentQuotaHostSettings(
+            claudeDefaultEnabled: true,
+            claudeDefaultShowInUsage: false,
             claudeProfiles: <ClaudeQuotaProfileSettings>[
               ClaudeQuotaProfileSettings(
                 alias: 'ccdev',
@@ -37,6 +39,7 @@ void main() {
       );
 
       expect(proxy.type, 'agentUsage.fetch');
+      expect(proxy.payload['claudeDefaultEnabled'], isFalse);
       expect(proxy.payload['claudeProfiles'], <Object?>[
         <String, String>{'alias': 'Engineering', 'profile': 'dev'},
       ]);

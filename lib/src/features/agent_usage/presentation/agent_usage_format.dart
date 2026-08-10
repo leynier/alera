@@ -70,10 +70,3 @@ String _usagePricingDetail(AgentUsageSnapshot snapshot) {
     AgentUsagePricingStatus.unavailable => 'Pricing unavailable',
   };
 }
-
-String _quotaStateLabel(AgentQuotaStatus status) => switch (status) {
-  AgentQuotaStatus.ok => 'No Limit Data',
-  AgentQuotaStatus.stale => 'Stale',
-  AgentQuotaStatus.error => 'Error',
-  AgentQuotaStatus.unavailable => 'Unavailable',
-};

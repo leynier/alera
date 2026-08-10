@@ -303,6 +303,17 @@ class SettingsController extends _$SettingsController {
     await _saveQuotaHost(hostId, current.copyWith(claudeDefaultEnabled: value));
   }
 
+  Future<void> setClaudeDefaultShowInUsage({
+    required String hostId,
+    required bool value,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    await _saveQuotaHost(
+      hostId,
+      current.copyWith(claudeDefaultShowInUsage: value),
+    );
+  }
+
   Future<void> setSelectedClaudeQuotaProfile({
     required String hostId,
     required String profile,

@@ -30,7 +30,7 @@ class RuntimeAgentUsageLoader implements AgentUsageLoader {
       timeout: const Duration(seconds: 90),
       payload: <String, Object?>{
         ...payload,
-        'claudeDefaultEnabled': request.settings.claudeDefaultEnabled,
+        'claudeDefaultEnabled': request.settings.claudeDefaultShowInUsage,
         'claudeProfiles': <Map<String, String>>[
           for (final profile in request.settings.claudeProfiles)
             if (profile.showInUsage)

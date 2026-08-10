@@ -6,8 +6,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
-import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
-import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
 import 'package:alera/src/features/agent_usage/application/agent_usage_providers.dart'
     hide AgentUsageProvider;
@@ -23,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'agent_usage_dialog_content.dart';
 part 'agent_usage_daily_chart.dart';
 part 'agent_usage_format.dart';
+part 'agent_usage_metrics.dart';
 
 Future<void> openAgentUsageDialog(BuildContext context) {
   return showDialog<void>(
@@ -55,7 +54,6 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
       ),
     );
     final usage = ref.watch(agentUsageProvider(_days));
-    final quota = ref.watch(agentQuotaStateProvider);
     final quotaSettings = ref.watch(
       settingsControllerProvider.select(
         (settings) => settings.agents.quotas.forHost(hostId),
@@ -67,27 +65,19 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
       hostId: hostId,
       days: _days,
       snapshot: snapshot,
-      quotaSnapshots: quota.value?.snapshots ?? const <AgentQuotaSnapshot>[],
-      visibleClaudeQuotaAccounts: <String>{
-        if (quotaSettings.claudeDefaultEnabled) 'default',
-        for (final profile in quotaSettings.claudeProfiles)
-          if (profile.showInUsage) profile.profile,
-      },
-      claudeUsageLabels: <String, String>{
-        for (final profile in quotaSettings.claudeProfiles)
-          if (profile.showInUsage) profile.profile: profile.usageLabel,
-      },
+      showGroupedBreakdown:
+          (quotaSettings.claudeDefaultShowInUsage ? 1 : 0) +
+              quotaSettings.claudeProfiles
+                  .where((profile) => profile.showInUsage)
+                  .length >
+          1,
       loading: usage.isLoading || (usageState?.refreshing ?? false),
       error: usage.hasError ? usage.error.toString() : usageState?.error,
       onDaysChanged: (days) {
         agentUsagePeriodMemory.select(days);
         setState(() => _days = days);
       },
-      onRefresh: () {
-        ref.read(agentUsageProvider(_days).notifier).refresh();
-        ref.read(agentQuotaServiceProvider).requestForceRefresh(hostId);
-        ref.invalidate(agentQuotaStateProvider);
-      },
+      onRefresh: () => ref.read(agentUsageProvider(_days).notifier).refresh(),
       onClose: () => Navigator.of(context).pop(),
     );
   }
@@ -99,9 +89,7 @@ class AgentUsageDialogView extends StatelessWidget {
     required this.hostId,
     required this.days,
     required this.snapshot,
-    required this.quotaSnapshots,
-    this.visibleClaudeQuotaAccounts,
-    this.claudeUsageLabels = const <String, String>{},
+    this.showGroupedBreakdown = true,
     required this.loading,
     required this.error,
     required this.onDaysChanged,
@@ -112,9 +100,7 @@ class AgentUsageDialogView extends StatelessWidget {
   final String hostId;
   final int days;
   final AgentUsageSnapshot? snapshot;
-  final List<AgentQuotaSnapshot> quotaSnapshots;
-  final Set<String>? visibleClaudeQuotaAccounts;
-  final Map<String, String> claudeUsageLabels;
+  final bool showGroupedBreakdown;
   final bool loading;
   final String? error;
   final ValueChanged<int> onDaysChanged;
@@ -199,10 +185,7 @@ class AgentUsageDialogView extends StatelessWidget {
                     )
                   : _AgentUsageContent(
                       snapshot: snapshot!,
-                      quotas: quotaSnapshots,
-                      visibleClaudeAccounts: visibleClaudeQuotaAccounts,
-                      claudeUsageLabels: claudeUsageLabels,
-                      refreshing: loading,
+                      showGroupedBreakdown: showGroupedBreakdown,
                     ),
             ),
           ],

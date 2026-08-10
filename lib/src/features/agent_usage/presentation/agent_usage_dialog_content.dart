@@ -5,17 +5,11 @@ enum _UsageBreakdownMode { profile, grouped, model }
 class _AgentUsageContent extends StatefulWidget {
   const _AgentUsageContent({
     required this.snapshot,
-    required this.quotas,
-    required this.visibleClaudeAccounts,
-    required this.claudeUsageLabels,
-    required this.refreshing,
+    required this.showGroupedBreakdown,
   });
 
   final AgentUsageSnapshot snapshot;
-  final List<AgentQuotaSnapshot> quotas;
-  final Set<String>? visibleClaudeAccounts;
-  final Map<String, String> claudeUsageLabels;
-  final bool refreshing;
+  final bool showGroupedBreakdown;
 
   @override
   State<_AgentUsageContent> createState() => _AgentUsageContentState();
@@ -23,6 +17,14 @@ class _AgentUsageContent extends StatefulWidget {
 
 class _AgentUsageContentState extends State<_AgentUsageContent> {
   _UsageBreakdownMode _mode = _UsageBreakdownMode.profile;
+
+  @override
+  void didUpdateWidget(covariant _AgentUsageContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.showGroupedBreakdown && _mode == _UsageBreakdownMode.grouped) {
+      _mode = _UsageBreakdownMode.profile;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +43,6 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _UsageQuotaStrip(
-            quotas: widget.quotas,
-            visibleClaudeAccounts: widget.visibleClaudeAccounts,
-            claudeUsageLabels: widget.claudeUsageLabels,
-          ),
-          const SizedBox(height: AleraTokens.space16),
           _UsageCoverageNotice(snapshot: snapshot),
           if (_hasCoverageNotice(snapshot))
             const SizedBox(height: AleraTokens.space12),
@@ -106,16 +102,17 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
               ),
               AleraSegmentedButton<_UsageBreakdownMode>(
                 dense: true,
-                segments: const <ButtonSegment<_UsageBreakdownMode>>[
-                  ButtonSegment<_UsageBreakdownMode>(
+                segments: <ButtonSegment<_UsageBreakdownMode>>[
+                  const ButtonSegment<_UsageBreakdownMode>(
                     value: _UsageBreakdownMode.profile,
                     label: Text('Profiles'),
                   ),
-                  ButtonSegment<_UsageBreakdownMode>(
-                    value: _UsageBreakdownMode.grouped,
-                    label: Text('Grouped'),
-                  ),
-                  ButtonSegment<_UsageBreakdownMode>(
+                  if (widget.showGroupedBreakdown)
+                    const ButtonSegment<_UsageBreakdownMode>(
+                      value: _UsageBreakdownMode.grouped,
+                      label: Text('Grouped'),
+                    ),
+                  const ButtonSegment<_UsageBreakdownMode>(
                     value: _UsageBreakdownMode.model,
                     label: Text('Models'),
                   ),
@@ -131,198 +128,6 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
           _UsageSourceSummary(snapshot: snapshot),
         ],
       ),
-    );
-  }
-}
-
-class _UsageQuotaStrip extends StatelessWidget {
-  const _UsageQuotaStrip({
-    required this.quotas,
-    required this.visibleClaudeAccounts,
-    required this.claudeUsageLabels,
-  });
-
-  final List<AgentQuotaSnapshot> quotas;
-  final Set<String>? visibleClaudeAccounts;
-  final Map<String, String> claudeUsageLabels;
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = quotas
-        .where(
-          (snapshot) =>
-              (snapshot.provider == AgentQuotaProviderId.claude &&
-                  (visibleClaudeAccounts?.contains(snapshot.accountId) ??
-                      true)) ||
-              snapshot.provider == AgentQuotaProviderId.codex,
-        )
-        .toList(growable: false);
-    if (visible.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Text('Current Limits', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AleraTokens.space8),
-        AleraPanel(
-          children: <Widget>[
-            for (final snapshot in visible)
-              _UsageQuotaRow(
-                snapshot: snapshot,
-                displayName: snapshot.provider == AgentQuotaProviderId.claude
-                    ? claudeUsageLabels[snapshot.accountId]
-                    : null,
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _UsageQuotaRow extends StatelessWidget {
-  const _UsageQuotaRow({required this.snapshot, this.displayName});
-
-  final AgentQuotaSnapshot snapshot;
-  final String? displayName;
-
-  @override
-  Widget build(BuildContext context) {
-    final used = snapshot.remainingPercent == null
-        ? null
-        : 100 - snapshot.remainingPercent!;
-    final label = switch (snapshot.provider) {
-      AgentQuotaProviderId.codex => 'Codex',
-      AgentQuotaProviderId.claude when snapshot.accountId == 'default' =>
-        'Claude Code Default',
-      AgentQuotaProviderId.claude => displayName ?? snapshot.displayName,
-      _ => snapshot.provider.label,
-    };
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space12,
-        vertical: AleraTokens.space8,
-      ),
-      child: Row(
-        children: <Widget>[
-          AgentQuotaProviderIcon(
-            provider: snapshot.provider,
-            size: AleraTokens.iconMd,
-            showTooltip: false,
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          if (used != null) ...<Widget>[
-            SizedBox(
-              width: AleraTokens.usageQuotaProgressWidth,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
-                child: LinearProgressIndicator(
-                  value: used / 100,
-                  minHeight: AleraTokens.space4,
-                  color: AleraTokens.foregroundMuted,
-                  backgroundColor: AleraTokens.border,
-                ),
-              ),
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Text('${used.round()}% Used', style: AleraTokens.monoCompactStyle),
-          ] else
-            Text(
-              _quotaStateLabel(snapshot.status),
-              style: AleraTokens.monoCompactStyle,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UsageMetric extends StatelessWidget {
-  const _UsageMetric({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.detail,
-  });
-
-  final String label;
-  final String value;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
-          const SizedBox(height: AleraTokens.space4),
-          Text(
-            value,
-            style: AleraTokens.monoStyle.copyWith(
-              color: AleraTokens.foreground,
-              fontSize: Theme.of(context).textTheme.titleMedium?.fontSize,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AleraTokens.space2),
-          Text(
-            detail,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UsageMetrics extends StatelessWidget {
-  const _UsageMetrics({required this.metrics});
-
-  final List<Widget> metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns =
-            ((constraints.maxWidth + AleraTokens.space8) /
-                    (AleraTokens.usageMetricMinWidth + AleraTokens.space8))
-                .floor()
-                .clamp(1, metrics.length);
-        final metricWidth =
-            (constraints.maxWidth - AleraTokens.space8 * (columns - 1)) /
-            columns;
-        return Wrap(
-          spacing: AleraTokens.space8,
-          runSpacing: AleraTokens.space8,
-          children: <Widget>[
-            for (final metric in metrics)
-              SizedBox(width: metricWidth, child: metric),
-          ],
-        );
-      },
     );
   }
 }

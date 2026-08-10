@@ -80,6 +80,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   const AgentQuotaHostSettings({
     this.enabledProviders = AgentQuotaProviderId.values,
     this.claudeDefaultEnabled = true,
+    this.claudeDefaultShowInUsage = true,
     this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
     this.selectedClaudeProfile = 'default',
     this.environment = AgentQuotaEnvironmentSettings.defaults,
@@ -88,6 +89,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
 
   final List<AgentQuotaProviderId> enabledProviders;
   final bool claudeDefaultEnabled;
+  final bool claudeDefaultShowInUsage;
   final List<ClaudeQuotaProfileSettings> claudeProfiles;
   final String selectedClaudeProfile;
   final AgentQuotaEnvironmentSettings environment;

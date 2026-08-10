@@ -1903,6 +1903,15 @@ class AgentQuotaHostSettingsMapper
         opt: true,
         def: true,
       );
+  static bool _$claudeDefaultShowInUsage(AgentQuotaHostSettings v) =>
+      v.claudeDefaultShowInUsage;
+  static const Field<AgentQuotaHostSettings, bool> _f$claudeDefaultShowInUsage =
+      Field(
+        'claudeDefaultShowInUsage',
+        _$claudeDefaultShowInUsage,
+        opt: true,
+        def: true,
+      );
   static List<ClaudeQuotaProfileSettings> _$claudeProfiles(
     AgentQuotaHostSettings v,
   ) => v.claudeProfiles;
@@ -1946,6 +1955,7 @@ class AgentQuotaHostSettingsMapper
   final MappableFields<AgentQuotaHostSettings> fields = const {
     #enabledProviders: _f$enabledProviders,
     #claudeDefaultEnabled: _f$claudeDefaultEnabled,
+    #claudeDefaultShowInUsage: _f$claudeDefaultShowInUsage,
     #claudeProfiles: _f$claudeProfiles,
     #selectedClaudeProfile: _f$selectedClaudeProfile,
     #environment: _f$environment,
@@ -1956,6 +1966,7 @@ class AgentQuotaHostSettingsMapper
     return AgentQuotaHostSettings(
       enabledProviders: data.dec(_f$enabledProviders),
       claudeDefaultEnabled: data.dec(_f$claudeDefaultEnabled),
+      claudeDefaultShowInUsage: data.dec(_f$claudeDefaultShowInUsage),
       claudeProfiles: data.dec(_f$claudeProfiles),
       selectedClaudeProfile: data.dec(_f$selectedClaudeProfile),
       environment: data.dec(_f$environment),
@@ -2060,6 +2071,7 @@ abstract class AgentQuotaHostSettingsCopyWith<
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
+    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2124,6 +2136,7 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
+    bool? claudeDefaultShowInUsage,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
@@ -2133,6 +2146,8 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
       if (enabledProviders != null) #enabledProviders: enabledProviders,
       if (claudeDefaultEnabled != null)
         #claudeDefaultEnabled: claudeDefaultEnabled,
+      if (claudeDefaultShowInUsage != null)
+        #claudeDefaultShowInUsage: claudeDefaultShowInUsage,
       if (claudeProfiles != null) #claudeProfiles: claudeProfiles,
       if (selectedClaudeProfile != null)
         #selectedClaudeProfile: selectedClaudeProfile,
@@ -2146,6 +2161,10 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
     claudeDefaultEnabled: data.get(
       #claudeDefaultEnabled,
       or: $value.claudeDefaultEnabled,
+    ),
+    claudeDefaultShowInUsage: data.get(
+      #claudeDefaultShowInUsage,
+      or: $value.claudeDefaultShowInUsage,
     ),
     claudeProfiles: data.get(#claudeProfiles, or: $value.claudeProfiles),
     selectedClaudeProfile: data.get(
