@@ -6,12 +6,17 @@ class _MobileTimelineRow extends StatelessWidget {
     required this.onOpenPlan,
     required this.activityExpanded,
     required this.onToggleActivity,
+    required this.planPreviewInitiallyOverflowing,
+    required this.onPlanPreviewOverflowChanged,
   });
 
   final MobileCodexPresentationRow row;
   final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
   final bool activityExpanded;
   final VoidCallback onToggleActivity;
+  final bool planPreviewInitiallyOverflowing;
+  final void Function(String planId, bool overflowing)
+  onPlanPreviewOverflowChanged;
 
   @override
   Widget build(BuildContext context) => switch (row.kind) {
@@ -19,6 +24,8 @@ class _MobileTimelineRow extends StatelessWidget {
       cell: row.cell!,
       isPreviousPlan: row.isPreviousPlan,
       onOpenPlan: onOpenPlan,
+      planPreviewInitiallyOverflowing: planPreviewInitiallyOverflowing,
+      onPlanPreviewOverflowChanged: onPlanPreviewOverflowChanged,
     ),
     MobileCodexPresentationKind.activity => _MobileActivityGroup(
       cells: row.activityCells,
@@ -33,12 +40,17 @@ class _MobileTimelineCell extends StatefulWidget {
   const _MobileTimelineCell({
     required this.cell,
     required this.onOpenPlan,
+    required this.planPreviewInitiallyOverflowing,
+    required this.onPlanPreviewOverflowChanged,
     this.isPreviousPlan = false,
   });
 
   final MobileCodexTimelineCell cell;
   final bool isPreviousPlan;
   final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
+  final bool planPreviewInitiallyOverflowing;
+  final void Function(String planId, bool overflowing)
+  onPlanPreviewOverflowChanged;
 
   @override
   State<_MobileTimelineCell> createState() => _MobileTimelineCellState();
@@ -68,6 +80,9 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
         cell: cell,
         previous: widget.isPreviousPlan,
         onOpen: () => widget.onOpenPlan(cell),
+        initiallyOverflowing: widget.planPreviewInitiallyOverflowing,
+        onOverflowChanged: (overflowing) =>
+            widget.onPlanPreviewOverflowChanged(cell.id, overflowing),
       );
     }
     if (cell.isUser || cell.isAssistant) return _message(context, cell);

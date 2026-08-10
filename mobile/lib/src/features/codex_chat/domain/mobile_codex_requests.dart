@@ -137,6 +137,24 @@ class MobileCodexPendingRequest {
         params['questions'] is List;
   }
 
+  bool get isImplementPlanQuestion {
+    if (!isQuestion) return false;
+    final candidates = <Object?>[
+      params['title'],
+      params['question'],
+      params['prompt'],
+      params['message'],
+      for (final question in questions) question.question,
+    ];
+    final text = candidates
+        .whereType<String>()
+        .map((candidate) => candidate.trim())
+        .where((candidate) => candidate.isNotEmpty)
+        .toList(growable: false);
+    return text.any(_isMobilePlanImplementationDecision) ||
+        _isMobilePlanImplementationDecision(text.join(' '));
+  }
+
   List<MobileCodexQuestion> get questions {
     final values = params['questions'];
     if (values is List && values.isNotEmpty) {
@@ -302,4 +320,15 @@ class MobileCodexPendingRequest {
     params['path'],
     'Codex is requesting permission to continue.',
   ]);
+}
+
+bool _isMobilePlanImplementationDecision(String value) {
+  final normalized = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  return RegExp(
+    r'^(?:(?:do|would) you (?:want|like) (?:(?:me|codex|us) )?to |should (?:i|we|codex) |shall (?:i|we) )?implement (?:this|the) plan(?: now)?$',
+  ).hasMatch(normalized);
 }

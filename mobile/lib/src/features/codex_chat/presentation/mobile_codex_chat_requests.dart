@@ -17,6 +17,7 @@ class _MobileInteractionDock extends StatelessWidget {
         ? _MobileQuestionCard(
             key: ValueKey<Object>(request.id),
             request: request,
+            state: state,
             controller: controller,
           )
         : request.isElicitation
@@ -103,10 +104,12 @@ class _MobileQuestionCard extends StatefulWidget {
   const _MobileQuestionCard({
     super.key,
     required this.request,
+    required this.state,
     required this.controller,
   });
 
   final MobileCodexPendingRequest request;
+  final MobileCodexState state;
   final MobileCodexController controller;
 
   @override
@@ -240,6 +243,20 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
                   ? null
                   : () => unawaited(_submitCustom(question)),
               onSkip: _submitting ? null : _skip,
+            ),
+          ],
+          if (widget.request.isImplementPlanQuestion) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _MobileModelMenuButton(
+                key: const ValueKey<String>('mobile-codex-plan-model-selector'),
+                state: widget.state,
+                onModel: widget.controller.setModel,
+                onReasoning: widget.controller.setReasoning,
+                onSpeed: widget.controller.setSpeed,
+                onCollaboration: widget.controller.setCollaborationMode,
+              ),
             ),
           ],
         ],

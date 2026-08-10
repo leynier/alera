@@ -369,17 +369,8 @@ class MobileCodexState {
     return null;
   }
 
-  bool get hasEquivalentPlanRequest => pendingRequests.any((request) {
-    if (!request.isQuestion) return false;
-    final text = <Object?>[
-      request.params['title'],
-      request.params['question'],
-      request.params['prompt'],
-      request.params['message'],
-      for (final question in request.questions) question.question,
-    ].join(' ').toLowerCase();
-    return text.contains('implement') && text.contains('plan');
-  });
+  bool get hasEquivalentPlanRequest =>
+      pendingRequests.any((request) => request.isImplementPlanQuestion);
 
   bool get shouldShowImplementPlan =>
       latestActionablePlan != null && !hasEquivalentPlanRequest;
