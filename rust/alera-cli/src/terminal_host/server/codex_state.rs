@@ -21,6 +21,10 @@ mod codex_history_projection;
 mod codex_markdown;
 #[path = "codex_resume_identity.rs"]
 mod codex_resume_identity;
+#[path = "codex_review_history.rs"]
+mod codex_review_history;
+#[path = "codex_review_transition.rs"]
+pub(super) mod codex_review_transition;
 #[path = "codex_state_snapshot.rs"]
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
@@ -106,8 +110,21 @@ pub(super) fn trim_cells(cells: &mut Vec<Value>) {
     codex_state_snapshot::trim_cells(cells);
 }
 
+pub(super) fn clear_review_transition(snapshot: &mut Value) {
+    codex_review_transition::clear_live_transition(snapshot);
+}
+
+#[cfg(test)]
 pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Value {
+    append_message_with_normalized(tab, message).0
+}
+
+pub(super) fn append_message_with_normalized(
+    tab: &mut WorkspaceTabRecord,
+    message: Value,
+) -> (Value, Value) {
     let mut next = snapshot(tab);
+    let message = codex_review_transition::normalize_live_message(&mut next, message);
     let object = ensure_payload_object(&mut next);
     object.insert(
         "schemaVersion".to_string(),
@@ -121,15 +138,17 @@ pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Va
         trim_events(events);
     }
     reduce_timeline(&mut next, &message);
+    codex_review_transition::record_review_user_message(&mut next, &message);
     update_turn_and_pending(&mut next, &message);
     next = normalize_snapshot(next);
     bound_snapshot(&mut next);
     persist_snapshot(tab, next.clone());
-    next
+    (next, message)
 }
 
 pub(super) fn mark_server_failure(tab: &mut WorkspaceTabRecord, reason: &str) -> Value {
     let mut next = snapshot(tab);
+    codex_review_transition::clear_live_transition(&mut next);
     let object = ensure_payload_object(&mut next);
     object.remove("activeTurnId");
     if let Some(cells) = object
@@ -389,7 +408,11 @@ pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         .and_then(Value::as_str)
         .unwrap_or_default();
     let method = match raw_method {
+        "codex/event/task_started" => "turn/started",
         "codex/event/task_complete" => "turn/completed",
+        "codex/event/task_failed" => "turn/failed",
+        "codex/event/turn_aborted" => "turn/aborted",
+        "codex/event/turn_interrupted" => "turn/interrupted",
         "codex/event/token_count" => "token_count",
         other => other,
     };
@@ -459,6 +482,13 @@ mod tests;
 #[path = "codex_state_snapshot_tests.rs"]
 mod snapshot_tests;
 
+#[cfg(test)]
+#[path = "codex_review_transition_tests.rs"]
+mod review_transition_tests;
+
+#[cfg(test)]
+#[path = "codex_review_history_tests.rs"]
+mod review_history_tests;
 #[cfg(test)]
 #[path = "codex_state_snapshot_resume_tests.rs"]
 mod snapshot_resume_tests;

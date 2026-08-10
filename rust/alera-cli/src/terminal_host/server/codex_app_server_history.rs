@@ -154,17 +154,32 @@ impl CodexAppServer {
         thread_id: &str,
         response: &Value,
         limit: usize,
-    ) -> Option<CodexTurnHistoryPage> {
-        let history_response = resume_history_response(response)?;
+    ) -> HostResult<Option<CodexTurnHistoryPage>> {
+        let Some(mut history_response) = resume_history_response(response) else {
+            return Ok(None);
+        };
         let (next_page_cursor, inclusive_turn_id) = resumed_history_continuation(response);
-        self.thread_history.lock().await.insert(
+        let mut next_page_cursor = next_page_cursor.map(str::to_string);
+        if let Some(boundary_turns) = resumed_history_boundary_turns(response) {
+            let (turns, cursor) = self
+                .complete_review_boundary(
+                    thread_id,
+                    boundary_turns,
+                    next_page_cursor,
+                    inclusive_turn_id,
+                )
+                .await;
+            history_response = history_response_from_descending_turns(&turns);
+            next_page_cursor = cursor;
+        }
+        Ok(self.thread_history.lock().await.insert(
             thread_id,
             &history_response,
             limit,
             None,
-            next_page_cursor,
+            next_page_cursor.as_deref(),
             inclusive_turn_id,
-        )
+        ))
     }
 
     pub(super) async fn load_thread_history_page(
@@ -183,11 +198,10 @@ impl CodexAppServer {
         }
         let decoded = decode_history_cursor(cursor).map_err(HostError::format)?;
         let page_cursor = native_page_cursor(&decoded).map_err(HostError::state)?;
-        let request_limit = if decoded.inclusive_turn_id.is_some() {
-            limit.max(1).saturating_add(1)
-        } else {
-            limit.max(1)
-        };
+        let request_limit = limit
+            .max(1)
+            .saturating_add(1)
+            .saturating_add(usize::from(decoded.inclusive_turn_id.is_some()));
         let response = self
             .request(
                 "thread/turns/list",
@@ -200,6 +214,22 @@ impl CodexAppServer {
                 }),
             )
             .await?;
+        let turns = response
+            .get("data")
+            .and_then(Value::as_array)
+            .cloned()
+            .ok_or_else(|| HostError::state("Codex thread history is unavailable."))?;
+        let next_page_cursor = response
+            .get("nextCursor")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let (turns, next_page_cursor) = self
+            .complete_review_boundary(thread_id, turns, next_page_cursor, None)
+            .await;
+        let response = json!({
+            "data": turns,
+            "nextCursor": next_page_cursor,
+        });
         let history_response =
             turns_list_history_response(&response, decoded.inclusive_turn_id.as_deref())
                 .ok_or_else(|| HostError::state("Codex thread history is unavailable."))?;
@@ -229,6 +259,92 @@ impl CodexAppServer {
         .map(|(page, _)| page)
         .map_err(HostError::format)
     }
+
+    async fn complete_review_boundary(
+        &self,
+        thread_id: &str,
+        turns: Vec<Value>,
+        next_cursor: Option<String>,
+        inclusive_turn_id: Option<&str>,
+    ) -> (Vec<Value>, Option<String>) {
+        let Some(next_cursor) = next_cursor else {
+            return (turns, None);
+        };
+        let Some(cursor) = review_boundary_cursor(&turns, Some(&next_cursor)) else {
+            return (turns, Some(next_cursor));
+        };
+        let cursor = cursor.to_string();
+        let response = match self
+            .request(
+                "thread/turns/list",
+                json!({
+                    "threadId": thread_id,
+                    "limit": review_boundary_fetch_limit(inclusive_turn_id),
+                    "sortDirection": "desc",
+                    "itemsView": "full",
+                    "cursor": cursor,
+                }),
+            )
+            .await
+        {
+            Ok(response) => Some(response),
+            Err(error) => {
+                tracing::warn!(
+                    target: "codex_app_server",
+                    "Codex review history boundary could not be completed: {error}"
+                );
+                None
+            }
+        };
+        merge_review_boundary_response(turns, next_cursor, response.as_ref())
+    }
+}
+
+fn merge_review_boundary_response(
+    mut turns: Vec<Value>,
+    next_cursor: String,
+    response: Option<&Value>,
+) -> (Vec<Value>, Option<String>) {
+    let Some(response) = response else {
+        return (turns, Some(next_cursor));
+    };
+    let Some(older_turns) = response.get("data").and_then(Value::as_array) else {
+        return (turns, Some(next_cursor));
+    };
+    let known_ids = turns
+        .iter()
+        .filter_map(|turn| turn.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<HashSet<_>>();
+    turns.extend(
+        older_turns
+            .iter()
+            .filter(|turn| {
+                turn.get("id")
+                    .and_then(Value::as_str)
+                    .is_none_or(|id| !known_ids.contains(id))
+            })
+            .cloned(),
+    );
+    (
+        turns,
+        response
+            .get("nextCursor")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+    )
+}
+
+fn review_boundary_fetch_limit(inclusive_turn_id: Option<&str>) -> usize {
+    1 + usize::from(inclusive_turn_id.is_some())
+}
+
+fn review_boundary_cursor<'a>(turns: &[Value], next_cursor: Option<&'a str>) -> Option<&'a str> {
+    next_cursor.filter(|_| {
+        turns.last().is_some_and(
+            super::codex_state::codex_review_transition::history_turn_may_be_review_worker,
+        )
+    })
 }
 
 fn history_continuation_cursor(
@@ -303,6 +419,19 @@ fn resume_history_response(response: &Value) -> Option<Value> {
         return Some(history_response_from_descending_turns(initial_turns));
     }
     thread_read_history_response(response)
+}
+
+fn resumed_history_boundary_turns(response: &Value) -> Option<Vec<Value>> {
+    if let Some(initial_turns) = response
+        .pointer("/initialTurnsPage/data")
+        .and_then(Value::as_array)
+    {
+        return Some(initial_turns.clone());
+    }
+    response
+        .pointer("/thread/turns")
+        .and_then(Value::as_array)
+        .map(|turns| turns.iter().rev().cloned().collect())
 }
 
 fn resumed_history_continuation(response: &Value) -> (Option<&str>, Option<&str>) {

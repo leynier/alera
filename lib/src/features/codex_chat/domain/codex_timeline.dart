@@ -432,8 +432,8 @@ abstract final class CodexTimelineReducer {
 
     if (method.contains('review') && turnId.isNotEmpty) {
       final title = method.contains('enter')
-          ? 'Preparing review'
-          : 'Review finished';
+          ? 'Entered review mode'
+          : 'Exited review mode';
       final review = _firstString(<Object?>[
         params['review'],
         item['review'],
@@ -451,6 +451,11 @@ abstract final class CodexTimelineReducer {
           timestamp: timestamp,
           title: title,
           detailsText: review.isEmpty ? null : review,
+          metadata: <String, Object?>{
+            'itemType': method.contains('enter')
+                ? 'enteredReviewMode'
+                : 'exitedReviewMode',
+          },
         ),
       );
       if (review.isEmpty) return result;

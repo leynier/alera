@@ -1,6 +1,7 @@
 part of 'codex_chat_surface.dart';
 
 enum _CodexWorkedActionKind {
+  review,
   edit,
   read,
   viewImage,
@@ -27,6 +28,7 @@ class _CodexWorkedAction {
   final int itemCount;
 
   IconData get icon => switch (kind) {
+    _CodexWorkedActionKind.review => AleraIcons.review,
     _CodexWorkedActionKind.edit => AleraIcons.edit,
     _CodexWorkedActionKind.read => AleraIcons.read,
     _CodexWorkedActionKind.viewImage => AleraIcons.viewImage,

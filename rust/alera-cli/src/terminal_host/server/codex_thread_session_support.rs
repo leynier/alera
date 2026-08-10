@@ -219,7 +219,7 @@ pub(in crate::terminal_host::server::codex_requests) fn thread_resume_params(
         "cwd": cwd,
         "excludeTurns": true,
         "initialTurnsPage": {
-            "limit": history_limit.max(1),
+            "limit": history_limit.max(1).saturating_add(1),
             "sortDirection": "desc",
             "itemsView": "full",
         },
@@ -284,6 +284,7 @@ pub(in crate::terminal_host::server::codex_requests) fn reset_snapshot_for_new_t
     thread_id: &str,
     append_boundary: bool,
 ) {
+    clear_review_transition(snapshot);
     let Some(object) = snapshot.as_object_mut() else {
         return;
     };
@@ -375,6 +376,10 @@ mod tests {
     fn new_thread_snapshot_clears_conversation_accounting() {
         let mut value = json!({
             "activeTurnId": "turn-old",
+            "aleraReviewTransition": {
+                "entryTurnId": "review-entry",
+                "workerTurnId": "review-worker",
+            },
             "contextUsed": 900,
             "contextLimit": 1000,
             "title": "Old thread",
@@ -386,6 +391,7 @@ mod tests {
         reset_snapshot_for_new_thread(&mut value, "thread-new", true);
 
         assert!(value.get("activeTurnId").is_none());
+        assert!(value.get("aleraReviewTransition").is_none());
         assert!(value.get("contextUsed").is_none());
         assert!(value.get("contextLimit").is_none());
         assert!(value.get("title").is_none());
@@ -466,7 +472,7 @@ mod tests {
         assert_eq!(params["threadId"], "thread-1");
         assert_eq!(params["cwd"], "/workspace");
         assert_eq!(params["excludeTurns"], true);
-        assert_eq!(params["initialTurnsPage"]["limit"], 20);
+        assert_eq!(params["initialTurnsPage"]["limit"], 21);
         assert_eq!(params["initialTurnsPage"]["sortDirection"], "desc");
         assert_eq!(params["initialTurnsPage"]["itemsView"], "full");
         assert_eq!(params.as_object().unwrap().len(), 4);

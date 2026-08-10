@@ -92,6 +92,7 @@ pub(super) fn clear_thread_identity(tab: &mut WorkspaceTabRecord) {
 }
 
 pub(super) fn clear_stale_thread_activity(snapshot: &mut Value) {
+    super::codex_state::clear_review_transition(snapshot);
     let Some(snapshot) = snapshot.as_object_mut() else {
         return;
     };
@@ -144,6 +145,7 @@ pub(super) fn missing_rollout(error: &str, thread_id: &str) -> bool {
 }
 
 pub(super) fn append_context_reset_notice(snapshot: &mut Value) {
+    super::codex_state::clear_review_transition(snapshot);
     let now = Utc::now();
     if !snapshot.is_object() {
         *snapshot = json!({});
@@ -228,8 +230,9 @@ fn required_choice(
 #[cfg(test)]
 mod tests {
     use super::{
-        append_context_reset_notice, clear_thread_identity, has_materialized_conversation,
-        missing_rollout, normalize_configuration, set_thread_owned_by_alera, thread_owned_by_alera,
+        append_context_reset_notice, clear_stale_thread_activity, clear_thread_identity,
+        has_materialized_conversation, missing_rollout, normalize_configuration,
+        set_thread_owned_by_alera, thread_owned_by_alera,
     };
     use alera_core::runtime::WorkspaceTabRecord;
     use chrono::Utc;
@@ -319,11 +322,34 @@ mod tests {
     fn context_reset_discards_requests_from_the_missing_rollout() {
         let mut snapshot = json!({
             "activeTurnId": "turn-old",
+            "aleraReviewTransition": {
+                "entryTurnId": "review-envelope",
+                "workerTurnId": "review-worker"
+            },
             "pendingRequests": [{"id": 9}],
             "timelineCells": [],
         });
         append_context_reset_notice(&mut snapshot);
         assert!(snapshot.get("activeTurnId").is_none());
+        assert!(snapshot.get("aleraReviewTransition").is_none());
+        assert_eq!(snapshot["pendingRequests"], json!([]));
+    }
+
+    #[test]
+    fn stale_activity_cleanup_discards_review_transition_state() {
+        let mut snapshot = json!({
+            "activeTurnId": "review-envelope",
+            "aleraReviewTransition": {
+                "entryTurnId": "review-envelope",
+                "workerTurnId": "review-worker"
+            },
+            "pendingRequests": [{"id": 9}],
+        });
+
+        clear_stale_thread_activity(&mut snapshot);
+
+        assert!(snapshot.get("activeTurnId").is_none());
+        assert!(snapshot.get("aleraReviewTransition").is_none());
         assert_eq!(snapshot["pendingRequests"], json!([]));
     }
 }

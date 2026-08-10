@@ -24,6 +24,7 @@ pub(super) fn record_history_completeness(snapshot: &mut Value, turn_id: &str, t
 pub(super) fn public_history_turn(mut turn: Value) -> Value {
     if let Some(object) = turn.as_object_mut() {
         object.remove(HISTORY_ITEMS_COMPLETE);
+        object.remove(super::codex_review_transition::REVIEW_WORKER_TURN_ID);
     }
     turn
 }

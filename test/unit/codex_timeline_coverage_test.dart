@@ -291,7 +291,8 @@ void main() {
       _event('review/exit', <String, Object?>{'turnId': 'turn-review-2'}),
       now: now,
     );
-    expect(cells.last.title, 'Review finished');
+    expect(cells.last.title, 'Exited review mode');
+    expect(cells.last.metadata['itemType'], 'exitedReviewMode');
   });
 
   test(

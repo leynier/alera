@@ -11,7 +11,8 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
 use super::super::codex_state::{
-    active_turn_id, is_codex_tab, set_thread_and_snapshot, snapshot, tab_thread_id,
+    active_turn_id, clear_review_transition, is_codex_tab, set_thread_and_snapshot, snapshot,
+    tab_thread_id,
 };
 use super::super::codex_tab_lifecycle::{
     active_cwd, configuration, set_active_cwd, set_thread_owned_by_alera,
@@ -120,7 +121,7 @@ impl ServerActor {
             .await?;
         let history_page = server
             .project_resumed_thread_history(&thread_id, &response, history_limit)
-            .await;
+            .await?;
         let next_snapshot = response
             .get("snapshot")
             .filter(|value| value.is_object())

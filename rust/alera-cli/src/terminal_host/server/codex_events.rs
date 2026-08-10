@@ -7,8 +7,8 @@ use crate::terminal_host::protocol::event;
 
 use super::codex_nonblocking_questions::is_nonblocking_user_input_request;
 use super::codex_state::{
-    active_turn_id, append_message, is_codex_tab, snapshot, snapshot_delta, tab_thread_id,
-    thread_id_from_message,
+    active_turn_id, append_message_with_normalized, is_codex_tab, snapshot, snapshot_delta,
+    tab_thread_id, thread_id_from_message,
 };
 use super::ServerActor;
 
@@ -252,8 +252,11 @@ impl ServerActor {
         let previous_snapshot = snapshot(&tab);
         let mut next = tab.clone();
         let mut title_changed = false;
+        let mut normalized_messages = Vec::with_capacity(messages.len());
         for message in &messages {
-            append_message(&mut next, message.clone());
+            let (_, normalized_message) =
+                append_message_with_normalized(&mut next, message.clone());
+            normalized_messages.push(normalized_message);
             if let Some(title) = super::codex_state::thread_title_from_message(message) {
                 if !next
                     .payload
@@ -267,7 +270,7 @@ impl ServerActor {
             }
         }
         let next_snapshot = snapshot(&next);
-        let delta = snapshot_delta(&previous_snapshot, &next_snapshot, &messages);
+        let delta = snapshot_delta(&previous_snapshot, &next_snapshot, &normalized_messages);
         let next_active_turn_id = active_turn_id(&next_snapshot);
         if let Some(payload) = next.payload.as_object_mut() {
             payload.insert("codexSnapshot".to_string(), next_snapshot);

@@ -28,7 +28,11 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     let method = match raw_method {
         "codex/event/item_started" => "item/started",
         "codex/event/item_completed" => "item/completed",
+        "codex/event/task_started" => "turn/started",
         "codex/event/task_complete" => "turn/completed",
+        "codex/event/task_failed" => "turn/failed",
+        "codex/event/turn_aborted" => "turn/aborted",
+        "codex/event/turn_interrupted" => "turn/interrupted",
         "codex/event/token_count" => "token_count",
         other => other,
     };
@@ -89,11 +93,14 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
         }
         for cell in &mut cells {
             if cell.get("turnId").and_then(Value::as_str) == Some(turn_id.as_str())
-                && cell.get("isStreaming").and_then(Value::as_bool) == Some(true)
+                && (cell.get("kind").and_then(Value::as_str) == Some("turnSeparator")
+                    || cell.get("isStreaming").and_then(Value::as_bool) == Some(true))
             {
                 if let Some(map) = cell.as_object_mut() {
                     map.insert("status".to_string(), Value::String("completed".to_string()));
-                    map.insert("isStreaming".to_string(), Value::Bool(false));
+                    if map.get("isStreaming").and_then(Value::as_bool) == Some(true) {
+                        map.insert("isStreaming".to_string(), Value::Bool(false));
+                    }
                     map.insert("updatedAt".to_string(), Value::String(now.clone()));
                 }
             }
@@ -131,12 +138,17 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
             "completed"
         };
         for cell in &mut cells {
-            if cell.get("turnId").and_then(Value::as_str) == Some(turn_id.as_str())
-                && cell.get("isStreaming").and_then(Value::as_bool) == Some(true)
-            {
+            if cell.get("turnId").and_then(Value::as_str) != Some(turn_id.as_str()) {
+                continue;
+            }
+            let is_separator = cell.get("kind").and_then(Value::as_str) == Some("turnSeparator");
+            let is_streaming = cell.get("isStreaming").and_then(Value::as_bool) == Some(true);
+            if is_separator || is_streaming {
                 if let Some(map) = cell.as_object_mut() {
                     map.insert("status".to_string(), Value::String(status.to_string()));
-                    map.insert("isStreaming".to_string(), Value::Bool(false));
+                    if is_streaming {
+                        map.insert("isStreaming".to_string(), Value::Bool(false));
+                    }
                     map.insert("updatedAt".to_string(), Value::String(now.clone()));
                 }
             }
@@ -428,9 +440,9 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                 "completed",
                 &now,
                 Some(if lower.contains("enter") {
-                    "Preparing review".to_string()
+                    "Entered review mode".to_string()
                 } else {
-                    "Review finished".to_string()
+                    "Exited review mode".to_string()
                 }),
                 None,
                 None,
@@ -440,7 +452,13 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                     Some(review.clone())
                 },
                 false,
-                None,
+                Some(json!({
+                    "itemType": if lower.contains("enter") {
+                        "enteredReviewMode"
+                    } else {
+                        "exitedReviewMode"
+                    },
+                })),
             ),
         );
         if !review.is_empty() {

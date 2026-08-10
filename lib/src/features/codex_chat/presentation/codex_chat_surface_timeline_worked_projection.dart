@@ -21,6 +21,16 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
     );
   }
   final itemType = cell.metadata['itemType']?.toString().toLowerCase();
+  if (itemType == 'enteredreviewmode' || itemType == 'exitedreviewmode') {
+    return _CodexWorkedAction(
+      cell: cell,
+      kind: _CodexWorkedActionKind.review,
+      label: itemType == 'enteredreviewmode'
+          ? 'Entered review mode'
+          : 'Exited review mode',
+      hasDetails: _codexWorkedActionHasDetails(cell),
+    );
+  }
   if (itemType == 'websearch') {
     final query = cell.metadata['query']?.toString().trim() ?? '';
     return _CodexWorkedAction(
@@ -115,6 +125,7 @@ String _codexCommandActionLabel(
     cell.title,
   ]);
   return switch (kind) {
+    _CodexWorkedActionKind.review => cell.title ?? 'Review mode changed',
     _CodexWorkedActionKind.read =>
       'Read ${_codexActionTarget(action, fallback: command)}',
     _CodexWorkedActionKind.listFiles =>
@@ -221,6 +232,15 @@ String _codexWorkedSummary(List<_CodexWorkedAction> actions) {
     final count = counts[kind];
     if (count == null) continue;
     labels.add(switch (kind) {
+      _CodexWorkedActionKind.review =>
+        count == 1
+            ? actions
+                  .firstWhere(
+                    (action) => action.kind == _CodexWorkedActionKind.review,
+                  )
+                  .label
+                  .toLowerCase()
+            : 'changed review mode $count times',
       _CodexWorkedActionKind.edit =>
         'edited $count ${count == 1 ? 'file' : 'files'}',
       _CodexWorkedActionKind.read =>
