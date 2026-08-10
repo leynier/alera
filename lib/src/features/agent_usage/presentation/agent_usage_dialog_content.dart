@@ -1,0 +1,427 @@
+part of 'agent_usage_dialog.dart';
+
+enum _UsageBreakdownMode { account, model }
+
+class _AgentUsageContent extends StatefulWidget {
+  const _AgentUsageContent({
+    required this.snapshot,
+    required this.quotas,
+    required this.refreshing,
+  });
+
+  final AgentUsageSnapshot snapshot;
+  final List<AgentQuotaSnapshot> quotas;
+  final bool refreshing;
+
+  @override
+  State<_AgentUsageContent> createState() => _AgentUsageContentState();
+}
+
+class _AgentUsageContentState extends State<_AgentUsageContent> {
+  _UsageBreakdownMode _mode = _UsageBreakdownMode.account;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
+    final totals = snapshot.totals;
+    final cachedShare = totals.totalInputTokens == 0
+        ? 0.0
+        : totals.cachedInputTokens / totals.totalInputTokens;
+    final breakdown = _mode == _UsageBreakdownMode.account
+        ? snapshot.accounts
+        : snapshot.models;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AleraTokens.space20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _UsageQuotaStrip(quotas: widget.quotas),
+          const SizedBox(height: AleraTokens.space16),
+          _UsageCoverageNotice(snapshot: snapshot),
+          if (_hasCoverageNotice(snapshot))
+            const SizedBox(height: AleraTokens.space12),
+          Wrap(
+            spacing: AleraTokens.space8,
+            runSpacing: AleraTokens.space8,
+            children: <Widget>[
+              _UsageMetric(
+                label: 'Processed Tokens',
+                value: _formatUsageTokens(totals.totalTokens),
+                detail: '${snapshot.records} assistant responses',
+              ),
+              _UsageMetric(
+                label: 'API-Equivalent Cost',
+                value: _formatUsageUsd(snapshot.costUsd),
+                detail: _usagePricingDetail(snapshot),
+              ),
+              _UsageMetric(
+                label: 'Sessions',
+                value: _formatUsageCount(snapshot.sessions),
+                detail: '${snapshot.sources.length} transcript sources',
+              ),
+              _UsageMetric(
+                label: 'Cached Input',
+                value: _formatUsageTokens(totals.cachedInputTokens),
+                detail: _formatUsagePercent(cachedShare),
+              ),
+              _UsageMetric(
+                label: 'Cache Savings',
+                value: _formatUsageUsd(snapshot.cacheSavingsUsd),
+                detail: 'Compared with full input rates',
+              ),
+            ],
+          ),
+          const SizedBox(height: AleraTokens.space20),
+          Text('Daily Activity', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            'Tokens read from Claude Code and Codex transcripts on this host.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+          ),
+          const SizedBox(height: AleraTokens.space12),
+          AgentUsageDailyChart(days: snapshot.days),
+          const SizedBox(height: AleraTokens.space20),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Breakdown',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              AleraSegmentedButton<_UsageBreakdownMode>(
+                dense: true,
+                segments: const <ButtonSegment<_UsageBreakdownMode>>[
+                  ButtonSegment<_UsageBreakdownMode>(
+                    value: _UsageBreakdownMode.account,
+                    label: Text('Account'),
+                  ),
+                  ButtonSegment<_UsageBreakdownMode>(
+                    value: _UsageBreakdownMode.model,
+                    label: Text('Model'),
+                  ),
+                ],
+                selected: _mode,
+                onSelectionChanged: (value) => setState(() => _mode = value),
+              ),
+            ],
+          ),
+          const SizedBox(height: AleraTokens.space8),
+          _UsageBreakdownTable(values: breakdown),
+          const SizedBox(height: AleraTokens.space16),
+          _UsageSourceSummary(snapshot: snapshot),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageQuotaStrip extends StatelessWidget {
+  const _UsageQuotaStrip({required this.quotas});
+
+  final List<AgentQuotaSnapshot> quotas;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = quotas
+        .where(
+          (snapshot) =>
+              snapshot.provider == AgentQuotaProviderId.claude ||
+              snapshot.provider == AgentQuotaProviderId.codex,
+        )
+        .toList(growable: false);
+    if (visible.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text('Current Limits', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AleraTokens.space8),
+        AleraPanel(
+          children: <Widget>[
+            for (final snapshot in visible) _UsageQuotaRow(snapshot: snapshot),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _UsageQuotaRow extends StatelessWidget {
+  const _UsageQuotaRow({required this.snapshot});
+
+  final AgentQuotaSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final used = snapshot.remainingPercent == null
+        ? null
+        : 100 - snapshot.remainingPercent!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space12,
+        vertical: AleraTokens.space8,
+      ),
+      child: Row(
+        children: <Widget>[
+          AgentQuotaProviderIcon(
+            provider: snapshot.provider,
+            size: AleraTokens.iconMd,
+            showTooltip: false,
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          Expanded(
+            child: Text(
+              '${snapshot.provider.label} ${snapshot.displayName}',
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          if (used != null) ...<Widget>[
+            SizedBox(
+              width: AleraTokens.usageQuotaProgressWidth,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+                child: LinearProgressIndicator(
+                  value: used / 100,
+                  minHeight: AleraTokens.space4,
+                  color: AleraTokens.foregroundMuted,
+                  backgroundColor: AleraTokens.border,
+                ),
+              ),
+            ),
+            const SizedBox(width: AleraTokens.space8),
+            Text('${used.round()}% Used', style: AleraTokens.monoCompactStyle),
+          ] else
+            Text(
+              _quotaStateLabel(snapshot.status),
+              style: AleraTokens.monoCompactStyle,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageMetric extends StatelessWidget {
+  const _UsageMetric({
+    required this.label,
+    required this.value,
+    required this.detail,
+  });
+
+  final String label;
+  final String value;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: AleraTokens.usageMetricMinWidth,
+      padding: const EdgeInsets.all(AleraTokens.space12),
+      decoration: BoxDecoration(
+        color: AleraTokens.surfaceVariant,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        border: Border.all(color: AleraTokens.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            value,
+            style: AleraTokens.monoStyle.copyWith(
+              color: AleraTokens.foreground,
+              fontSize: Theme.of(context).textTheme.titleMedium?.fontSize,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: AleraTokens.space2),
+          Text(
+            detail,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageBreakdownTable extends StatelessWidget {
+  const _UsageBreakdownTable({required this.values});
+
+  final List<AgentUsageBreakdown> values;
+
+  @override
+  Widget build(BuildContext context) {
+    if (values.isEmpty) {
+      return const AleraEmptyState(
+        title: 'No Activity',
+        message: 'No Claude Code or Codex usage was found in this range.',
+      );
+    }
+    return AleraPanel(
+      children: <Widget>[
+        const _UsageTableHeader(),
+        for (final value in values) _UsageBreakdownRow(value: value),
+      ],
+    );
+  }
+}
+
+class _UsageTableHeader extends StatelessWidget {
+  const _UsageTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: AleraTokens.space12,
+        vertical: AleraTokens.space8,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: Text('Name')),
+          SizedBox(
+            width: AleraTokens.usageTokensColumnWidth,
+            child: Text('Tokens', textAlign: TextAlign.end),
+          ),
+          SizedBox(
+            width: AleraTokens.usageCostColumnWidth,
+            child: Text('Cost', textAlign: TextAlign.end),
+          ),
+          SizedBox(
+            width: AleraTokens.usageSessionsColumnWidth,
+            child: Text('Responses', textAlign: TextAlign.end),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageBreakdownRow extends StatelessWidget {
+  const _UsageBreakdownRow({required this.value});
+
+  final AgentUsageBreakdown value;
+
+  @override
+  Widget build(BuildContext context) {
+    final quotaProvider = value.provider == AgentUsageProvider.claude
+        ? AgentQuotaProviderId.claude
+        : AgentQuotaProviderId.codex;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space12,
+        vertical: AleraTokens.space8,
+      ),
+      child: Row(
+        children: <Widget>[
+          AgentQuotaProviderIcon(
+            provider: quotaProvider,
+            size: AleraTokens.iconMd,
+            showTooltip: false,
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          Expanded(child: Text(value.label, overflow: TextOverflow.ellipsis)),
+          SizedBox(
+            width: AleraTokens.usageTokensColumnWidth,
+            child: Text(
+              _formatUsageTokens(value.tokens),
+              textAlign: TextAlign.end,
+              style: AleraTokens.monoCompactStyle,
+            ),
+          ),
+          SizedBox(
+            width: AleraTokens.usageCostColumnWidth,
+            child: Text(
+              _formatUsageUsd(value.costUsd),
+              textAlign: TextAlign.end,
+              style: AleraTokens.monoCompactStyle,
+            ),
+          ),
+          SizedBox(
+            width: AleraTokens.usageSessionsColumnWidth,
+            child: Text(
+              _formatUsageCount(value.records),
+              textAlign: TextAlign.end,
+              style: AleraTokens.monoCompactStyle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsageSourceSummary extends StatelessWidget {
+  const _UsageSourceSummary({required this.snapshot});
+
+  final AgentUsageSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Scanned ${snapshot.sources.fold(0, (sum, source) => sum + source.scannedFiles)} files in ${snapshot.scanDurationMs} ms. Transcript content stays on this host.',
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+    );
+  }
+}
+
+class _UsageCoverageNotice extends StatelessWidget {
+  const _UsageCoverageNotice({required this.snapshot});
+
+  final AgentUsageSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasCoverageNotice(snapshot)) return const SizedBox.shrink();
+    final sourceIssues = snapshot.sources.where(
+      (source) =>
+          source.status == AgentUsageSourceStatus.partial ||
+          source.status == AgentUsageSourceStatus.failed,
+    );
+    final messages = <String>[
+      for (final source in sourceIssues)
+        '${_usageProviderLabel(source.provider)} ${source.displayName} is partial.',
+      if (snapshot.pricing.status == AgentUsagePricingStatus.unavailable)
+        'Some model costs may be unavailable because pricing could not be loaded.',
+    ];
+    return Container(
+      padding: const EdgeInsets.all(AleraTokens.space12),
+      decoration: BoxDecoration(
+        color: AleraTokens.surfaceVariant,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        border: Border.all(color: AleraTokens.border),
+      ),
+      child: Text(
+        messages.join(' '),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+      ),
+    );
+  }
+}
+
+bool _hasCoverageNotice(AgentUsageSnapshot snapshot) {
+  return snapshot.pricing.status == AgentUsagePricingStatus.unavailable ||
+      snapshot.sources.any(
+        (source) =>
+            source.status == AgentUsageSourceStatus.partial ||
+            source.status == AgentUsageSourceStatus.failed,
+      );
+}

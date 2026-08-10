@@ -11,6 +11,7 @@ class _QuotaOverviewButton extends StatelessWidget {
     required this.error,
     required this.onTogglePinned,
     required this.profileLabelFor,
+    this.onOpenUsage,
   });
 
   final List<AgentQuotaSnapshot> snapshots;
@@ -19,6 +20,7 @@ class _QuotaOverviewButton extends StatelessWidget {
   final String? error;
   final AgentQuotaPinToggle onTogglePinned;
   final String? Function(AgentQuotaSnapshot snapshot) profileLabelFor;
+  final VoidCallback? onOpenUsage;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +34,7 @@ class _QuotaOverviewButton extends StatelessWidget {
           hostId: hostId,
           emptyMessage: error ?? 'No quota data',
           onTogglePinned: onTogglePinned,
+          onOpenUsage: onOpenUsage,
           profileLabels: <String, String>{
             for (final snapshot in snapshots)
               snapshot.key: ?profileLabelFor(snapshot),
@@ -59,6 +62,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
     required this.onTogglePinned,
     this.profileLabels = const <String, String>{},
     this.emptyMessage = 'No quota data',
+    this.onOpenUsage,
   });
 
   final List<AgentQuotaSnapshot> snapshots;
@@ -67,6 +71,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
   final AgentQuotaPinToggle onTogglePinned;
   final Map<String, String> profileLabels;
   final String emptyMessage;
+  final VoidCallback? onOpenUsage;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +121,17 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
                     ),
                     onTogglePinned: onTogglePinned,
                   ),
+                if (onOpenUsage != null) ...<Widget>[
+                  const Divider(height: 1, color: AleraTokens.borderSubtle),
+                  Padding(
+                    padding: const EdgeInsets.all(AleraTokens.space8),
+                    child: FilledButton.tonalIcon(
+                      onPressed: onOpenUsage,
+                      icon: const Icon(AleraIcons.quota),
+                      label: const Text('Open Usage'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

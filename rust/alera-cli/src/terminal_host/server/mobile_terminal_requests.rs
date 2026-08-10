@@ -344,6 +344,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.cloudEnrollment.create"
             | "mobile.cloudSubscriptions.refresh"
             | "agentQuota.snapshot"
+            | "agentUsage.snapshot"
             | "agentQuota.fetchClaudeTui"
             | "agentQuota.consumeCodexResetCredit"
             | "cliRegistration.status"
