@@ -385,51 +385,6 @@ class _MobilePlanProgress {
   }
 }
 
-class _MobilePlanProgressBadge extends StatelessWidget {
-  const _MobilePlanProgressBadge({required this.progress});
-
-  final _MobilePlanProgress progress;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-      child: ActionChip(
-        avatar: const Icon(Icons.circle_outlined, size: AleraTokens.space16),
-        label: Text('Step ${progress.current} / ${progress.total}'),
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          builder: (context) => SafeArea(
-            child: ListView.separated(
-              shrinkWrap: true,
-              padding: AleraTokens.contentPadding,
-              itemCount: progress.items.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AleraTokens.space6),
-              itemBuilder: (context, index) {
-                final item = progress.items[index];
-                final status = item['status']?.toString().toLowerCase();
-                final done = status == 'completed' || status == 'done';
-                return ListTile(
-                  leading: Icon(
-                    done ? Icons.check_circle : Icons.circle_outlined,
-                  ),
-                  title: Text(
-                    item['step']?.toString() ??
-                        item['title']?.toString() ??
-                        'Step ${index + 1}',
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 Future<void> _sharePlan(BuildContext context, String text) async {
   final shared = await shareMobileCodexPlanText(
     text,

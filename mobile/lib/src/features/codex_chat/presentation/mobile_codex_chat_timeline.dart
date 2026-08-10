@@ -6,6 +6,9 @@ class _MobileTimelineRow extends StatelessWidget {
     required this.onOpenPlan,
     required this.activityExpanded,
     required this.onToggleActivity,
+    required this.turnExpanded,
+    required this.onToggleTurn,
+    required this.showTurnActivity,
     required this.planPreviewInitiallyOverflowing,
     required this.onPlanPreviewOverflowChanged,
   });
@@ -14,26 +17,40 @@ class _MobileTimelineRow extends StatelessWidget {
   final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
   final bool activityExpanded;
   final VoidCallback onToggleActivity;
+  final bool turnExpanded;
+  final VoidCallback onToggleTurn;
+  final bool showTurnActivity;
   final bool planPreviewInitiallyOverflowing;
   final void Function(String planId, bool overflowing)
   onPlanPreviewOverflowChanged;
 
   @override
-  Widget build(BuildContext context) => switch (row.kind) {
-    MobileCodexPresentationKind.cell => _MobileTimelineCell(
-      cell: row.cell!,
-      isPreviousPlan: row.isPreviousPlan,
-      onOpenPlan: onOpenPlan,
-      planPreviewInitiallyOverflowing: planPreviewInitiallyOverflowing,
-      onPlanPreviewOverflowChanged: onPlanPreviewOverflowChanged,
-    ),
-    MobileCodexPresentationKind.activity => _MobileActivityGroup(
-      cells: row.activityCells,
-      expanded: activityExpanded,
-      onToggle: onToggleActivity,
-    ),
-    MobileCodexPresentationKind.working => const _MobileWorkingRow(),
-  };
+  Widget build(BuildContext context) {
+    if (!showTurnActivity) return const SizedBox.shrink();
+    return switch (row.kind) {
+      MobileCodexPresentationKind.cell => _MobileTimelineCell(
+        cell: row.cell!,
+        isPreviousPlan: row.isPreviousPlan,
+        onOpenPlan: onOpenPlan,
+        planPreviewInitiallyOverflowing: planPreviewInitiallyOverflowing,
+        onPlanPreviewOverflowChanged: onPlanPreviewOverflowChanged,
+        turnExpanded: turnExpanded,
+        onToggleTurn: onToggleTurn,
+        turnActivityCount: row.turnActivityCount,
+      ),
+      MobileCodexPresentationKind.activity => _MobileActivityGroup(
+        cells: row.activityCells,
+        expanded: activityExpanded,
+        onToggle: onToggleActivity,
+      ),
+      MobileCodexPresentationKind.working => _MobileWorkingRow(
+        startedAt: row.startedAt,
+        expanded: turnExpanded,
+        canToggle: row.turnActivityCount > 0,
+        onToggle: onToggleTurn,
+      ),
+    };
+  }
 }
 
 class _MobileTimelineCell extends StatefulWidget {
@@ -42,6 +59,9 @@ class _MobileTimelineCell extends StatefulWidget {
     required this.onOpenPlan,
     required this.planPreviewInitiallyOverflowing,
     required this.onPlanPreviewOverflowChanged,
+    required this.turnExpanded,
+    required this.onToggleTurn,
+    required this.turnActivityCount,
     this.isPreviousPlan = false,
   });
 
@@ -51,6 +71,9 @@ class _MobileTimelineCell extends StatefulWidget {
   final bool planPreviewInitiallyOverflowing;
   final void Function(String planId, bool overflowing)
   onPlanPreviewOverflowChanged;
+  final bool turnExpanded;
+  final VoidCallback onToggleTurn;
+  final int turnActivityCount;
 
   @override
   State<_MobileTimelineCell> createState() => _MobileTimelineCellState();
@@ -74,7 +97,14 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
   @override
   Widget build(BuildContext context) {
     final cell = widget.cell;
-    if (cell.kind == 'turnSeparator') return _MobileWorkedRow(cell: cell);
+    if (cell.kind == 'turnSeparator') {
+      return _MobileWorkedRow(
+        cell: cell,
+        expanded: widget.turnExpanded,
+        canToggle: widget.turnActivityCount > 1,
+        onToggle: widget.onToggleTurn,
+      );
+    }
     if (cell.kind == 'plan') {
       return _MobilePlanCard(
         cell: cell,

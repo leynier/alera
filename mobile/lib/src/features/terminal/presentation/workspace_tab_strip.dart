@@ -36,6 +36,14 @@ class _TabStrip extends StatelessWidget {
             GestureDetector(
               onLongPress: () => onActions(tab),
               child: InputChip(
+                avatar: tab.isCodex
+                    ? const AgentIdentityIcon(
+                        agentType: 'codex',
+                        size: AleraTokens.space16,
+                        color: AleraTokens.foreground,
+                        showTooltip: false,
+                      )
+                    : null,
                 label: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: _tabTitleMaxWidth(tab.kind),
@@ -74,9 +82,14 @@ class _TabStrip extends StatelessWidget {
                 : const Icon(Icons.add),
           ),
           IconButton.filledTonal(
-            tooltip: 'New Codex Tab',
+            tooltip: 'New Codex Chat',
             onPressed: creating ? null : onCreateCodex,
-            icon: const Icon(Icons.forum_outlined),
+            icon: const AgentIdentityIcon(
+              agentType: 'codex',
+              size: AleraTokens.space20,
+              color: AleraTokens.foreground,
+              showTooltip: false,
+            ),
           ),
         ],
       ),

@@ -1,32 +1,55 @@
 part of 'mobile_codex_chat_screen.dart';
 
 class _MobileWorkedRow extends StatelessWidget {
-  const _MobileWorkedRow({required this.cell});
+  const _MobileWorkedRow({
+    required this.cell,
+    required this.expanded,
+    required this.canToggle,
+    required this.onToggle,
+  });
 
   final MobileCodexTimelineCell cell;
+  final bool expanded;
+  final bool canToggle;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final duration = _mobileDuration(cell.metadata['durationMs']);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
-        child: Row(
-          children: <Widget>[
-            Expanded(child: Divider(color: AleraTokens.border)),
-            const SizedBox(width: AleraTokens.space8),
-            Text(
-              duration == null ? 'Worked' : 'Worked For $duration',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+    final duration = _mobileDuration(
+      cell.metadata['computedDurationMs'] ?? cell.metadata['durationMs'],
+    );
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
+      child: Row(
+        children: <Widget>[
+          Text(
+            duration == null ? 'Worked' : 'Worked for $duration',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
             ),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(child: Divider(color: AleraTokens.border)),
+          ),
+          if (canToggle) ...<Widget>[
+            const SizedBox(width: AleraTokens.space6),
+            Icon(
+              expanded ? Icons.expand_more : Icons.chevron_right,
+              size: AleraTokens.space16,
+              color: AleraTokens.foregroundFaint,
+            ),
           ],
-        ),
+          const SizedBox(width: AleraTokens.space12),
+          const Expanded(child: Divider(color: AleraTokens.borderSubtle)),
+        ],
       ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+      child: canToggle
+          ? InkWell(
+              borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+              onTap: onToggle,
+              child: content,
+            )
+          : content,
     );
   }
 }

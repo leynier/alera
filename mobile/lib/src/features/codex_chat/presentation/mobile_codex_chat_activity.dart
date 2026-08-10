@@ -1,19 +1,111 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileWorkingRow extends StatelessWidget {
-  const _MobileWorkingRow();
+class _MobileWorkingRow extends StatefulWidget {
+  const _MobileWorkingRow({
+    required this.startedAt,
+    required this.expanded,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  final DateTime? startedAt;
+  final bool expanded;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  @override
+  State<_MobileWorkingRow> createState() => _MobileWorkingRowState();
+}
+
+class _MobileWorkingRowState extends State<_MobileWorkingRow>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+  bool _tickerEnabled = false;
+  bool _applicationActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _syncTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _applicationActive = state == AppLifecycleState.resumed;
+    _syncTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MobileWorkingRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.startedAt != widget.startedAt) _syncTimer();
+  }
+
+  void _syncTimer() {
+    _timer?.cancel();
+    _timer = widget.startedAt != null && _tickerEnabled && _applicationActive
+        ? Timer.periodic(AleraTokens.codexElapsedTimeRefreshInterval, (_) {
+            if (mounted) setState(() {});
+          })
+        : null;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
-    child: _MobileCodexShimmerText(
-      text: 'Working',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: AleraTokens.foregroundMuted,
-        fontFamily: AleraTokens.monoFontFamily,
+    padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+      onTap: widget.canToggle ? widget.onToggle : null,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
+        child: Row(
+          children: <Widget>[
+            _MobileCodexShimmerText(
+              text: widget.startedAt == null
+                  ? 'Working'
+                  : 'Working for ${_mobileElapsed(widget.startedAt!)}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
+            if (widget.canToggle) ...<Widget>[
+              const SizedBox(width: AleraTokens.space6),
+              Icon(
+                widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                size: AleraTokens.space16,
+                color: AleraTokens.foregroundFaint,
+              ),
+            ],
+            const SizedBox(width: AleraTokens.space12),
+            const Expanded(child: Divider(color: AleraTokens.borderSubtle)),
+          ],
+        ),
       ),
     ),
   );
+}
+
+String _mobileElapsed(DateTime startedAt) {
+  final milliseconds = DateTime.now()
+      .difference(startedAt.toLocal())
+      .inMilliseconds
+      .clamp(0, 1 << 31);
+  return _mobileDuration(milliseconds) ?? '0s';
 }
 
 class _MobileActivityGroup extends StatelessWidget {
