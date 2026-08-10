@@ -496,26 +496,3 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
     groupId: 'workspaceIdentity',
   ),
 ];
-
-const List<SettingsSearchEntry> aiDictationSearchEntries =
-    <SettingsSearchEntry>[
-      SettingsSearchEntry(
-        title: 'AI Dictation',
-        description: 'Transcribe microphone recordings locally with Whisper.',
-        keywords: <String>[
-          'ai',
-          'dictation',
-          'voice',
-          'speech',
-          'whisper',
-          'microphone',
-        ],
-        groupId: 'local',
-      ),
-      SettingsSearchEntry(
-        title: 'Whisper Model',
-        description: 'Download or remove the offline Whisper base model.',
-        keywords: <String>['offline', 'model', 'download', 'privacy'],
-        groupId: 'local',
-      ),
-    ];

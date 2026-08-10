@@ -6,6 +6,7 @@ import 'package:alera/src/features/account/presentation/account_settings_pane.da
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
