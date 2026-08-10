@@ -124,6 +124,9 @@ void main() {
             loadLinuxInstallerKind: () async => installerKind,
             platform: 'linux',
             backend: backend,
+            // The payload prefix the deb and rpm install under, so the
+            // detection that routes the update runs for real here.
+            resolvedExecutable: '/opt/alera/alera',
           );
 
           final result = await service.checkForUpdates();
@@ -169,6 +172,29 @@ void main() {
       expect(result.autoInstallAllowed, isFalse);
       expect(result.message, contains('requires a supported Linux package'));
     });
+
+    // A directory the user extracted themselves is invisible to apt and dnf,
+    // so pointing it at the repository would upgrade nothing, or another copy.
+    test(
+      'does not send an unmanaged Linux install to the repository',
+      () async {
+        final service = DesktopAleraUpdateService(
+          config: _config(autoInstallEnabled: true),
+          loadPackageInfo: () async => _packageInfo('1'),
+          loadLinuxInstallerKind: () async => 'deb',
+          platform: 'linux',
+          backend: _FakeDesktopUpdaterBackend(
+            candidate: _candidate(platform: 'linux'),
+          ),
+          resolvedExecutable: '/home/leynier/.local/share/alera/alera',
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(result.message, isNot(contains('package repository')));
+        expect(result.message, contains('requires a supported Linux package'));
+      },
+    );
 
     test('keeps package-managed installations on their manager path', () async {
       final launched = <Uri>[];
