@@ -62,14 +62,17 @@ void main() {
       // Scoped to the block that decides auto-install. The signing steps still
       // check these secrets, and must, to decide whether they can sign at all.
       final decision = workflow.substring(
-        workflow.indexOf('auto_install_enabled=false'),
+        workflow.indexOf('auto_install_enabled=true'),
         workflow.indexOf('dart run desktop_updater:release'),
       );
 
       expect(
-        decision,
-        contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
-        reason: 'Linux updates go through apt or dnf so dependencies resolve',
+        workflow,
+        isNot(contains('if [[ "\$PLATFORM" != "linux" ]]; then')),
+        reason:
+            'which installation may be replaced is decided at runtime, by '
+            'whether a package manager owns it and whether Alera can write '
+            'to it, not by the platform it was built for',
       );
       expect(
         decision,
