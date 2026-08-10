@@ -156,7 +156,9 @@ fn transcribe_inner(
         }
     }
     let abort_flag = Arc::clone(cancelled);
-    params.set_abort_callback_safe(Some(move || abort_flag.load(Ordering::Relaxed)));
+    let abort_callback: Box<dyn FnMut() -> bool> =
+        Box::new(move || abort_flag.load(Ordering::Relaxed));
+    params.set_abort_callback_safe(Some(abort_callback));
 
     state.full(params, &audio).map_err(|native_error| {
         if cancelled.load(Ordering::Relaxed) {

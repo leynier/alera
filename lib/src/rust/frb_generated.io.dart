@@ -35,19 +35,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<AgentHookEventBatchDto>
-      dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
+  dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
 
   @protected
   RustStreamSink<ProcessEvent> dco_decode_StreamSink_process_event_Sse(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<SourceControlWatchSignal>
-      dco_decode_StreamSink_source_control_watch_signal_Sse(dynamic raw);
+  dco_decode_StreamSink_source_control_watch_signal_Sse(dynamic raw);
 
   @protected
   RustStreamSink<WorkspaceExplorerWatchBatch>
-      dco_decode_StreamSink_workspace_explorer_watch_batch_Sse(dynamic raw);
+  dco_decode_StreamSink_workspace_explorer_watch_batch_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -90,7 +91,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryRefCategory dco_decode_box_autoadd_git_history_ref_category(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GitSubmoduleStatus dco_decode_box_autoadd_git_submodule_status(dynamic raw);
@@ -100,38 +102,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceControlWatcherHandle
-      dco_decode_box_autoadd_source_control_watcher_handle(dynamic raw);
+  dco_decode_box_autoadd_source_control_watcher_handle(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   WorkspaceExplorerDirectoryChildren
-      dco_decode_box_autoadd_workspace_explorer_directory_children(dynamic raw);
+  dco_decode_box_autoadd_workspace_explorer_directory_children(dynamic raw);
 
   @protected
   WorkspaceExplorerWatcherHandle
-      dco_decode_box_autoadd_workspace_explorer_watcher_handle(dynamic raw);
+  dco_decode_box_autoadd_workspace_explorer_watcher_handle(dynamic raw);
 
   @protected
   WorkspaceFileGitStatus dco_decode_box_autoadd_workspace_file_git_status(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceQuickOpenSession dco_decode_box_autoadd_workspace_quick_open_session(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceReplaceOptions dco_decode_box_autoadd_workspace_replace_options(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceReplaceRequest dco_decode_box_autoadd_workspace_replace_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceSearchOptions dco_decode_box_autoadd_workspace_search_options(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   CodexSavedPrompt dco_decode_codex_saved_prompt(dynamic raw);
@@ -195,7 +202,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitExplorerStatusSnapshot dco_decode_git_explorer_status_snapshot(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GitHistoryItem dco_decode_git_history_item(dynamic raw);
@@ -262,7 +270,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitCommitChangeEntry> dco_decode_list_git_commit_change_entry(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<GitDiffFile> dco_decode_list_git_diff_file(dynamic raw);
@@ -272,7 +281,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitExplorerStatusEntry> dco_decode_list_git_explorer_status_entry(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<GitHistoryItem> dco_decode_list_git_history_item(dynamic raw);
@@ -306,38 +316,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<WorkspaceExplorerDirectoryChildren>
-      dco_decode_list_workspace_explorer_directory_children(dynamic raw);
+  dco_decode_list_workspace_explorer_directory_children(dynamic raw);
 
   @protected
   List<WorkspaceExplorerEntryBinding>
-      dco_decode_list_workspace_explorer_entry_binding(dynamic raw);
+  dco_decode_list_workspace_explorer_entry_binding(dynamic raw);
 
   @protected
   List<WorkspaceExplorerTreeNode> dco_decode_list_workspace_explorer_tree_node(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<WorkspaceFileEntry> dco_decode_list_workspace_file_entry(dynamic raw);
 
   @protected
   List<WorkspaceQuickOpenMatch> dco_decode_list_workspace_quick_open_match(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<WorkspaceReplaceConflict> dco_decode_list_workspace_replace_conflict(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<WorkspaceReplaceFileExpectation>
-      dco_decode_list_workspace_replace_file_expectation(dynamic raw);
+  dco_decode_list_workspace_replace_file_expectation(dynamic raw);
 
   @protected
   List<WorkspaceSearchFileResult> dco_decode_list_workspace_search_file_result(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<WorkspaceSearchMatch> dco_decode_list_workspace_search_match(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   MermanViewerError dco_decode_merman_viewer_error(dynamic raw);
@@ -362,15 +377,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryItemRef? dco_decode_opt_box_autoadd_git_history_item_ref(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GitHistoryRefCategory? dco_decode_opt_box_autoadd_git_history_ref_category(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GitSubmoduleStatus? dco_decode_opt_box_autoadd_git_submodule_status(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -380,12 +398,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceExplorerDirectoryChildren?
-      dco_decode_opt_box_autoadd_workspace_explorer_directory_children(
-          dynamic raw);
+  dco_decode_opt_box_autoadd_workspace_explorer_directory_children(dynamic raw);
 
   @protected
   WorkspaceFileGitStatus? dco_decode_opt_box_autoadd_workspace_file_git_status(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
@@ -407,7 +425,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceControlWatcherHandle dco_decode_source_control_watcher_handle(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -429,31 +448,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceExplorerDirectoryChildren
-      dco_decode_workspace_explorer_directory_children(dynamic raw);
+  dco_decode_workspace_explorer_directory_children(dynamic raw);
 
   @protected
   WorkspaceExplorerEntryBinding dco_decode_workspace_explorer_entry_binding(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceExplorerTreeNode dco_decode_workspace_explorer_tree_node(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceExplorerTreeNodeKind dco_decode_workspace_explorer_tree_node_kind(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceExplorerTreeProjection dco_decode_workspace_explorer_tree_projection(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceExplorerWatchBatch dco_decode_workspace_explorer_watch_batch(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceExplorerWatcherHandle dco_decode_workspace_explorer_watcher_handle(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceFileEntry dco_decode_workspace_file_entry(dynamic raw);
@@ -475,14 +500,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceQuickOpenSession dco_decode_workspace_quick_open_session(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceReplaceConflict dco_decode_workspace_replace_conflict(dynamic raw);
 
   @protected
   WorkspaceReplaceFileExpectation dco_decode_workspace_replace_file_expectation(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceReplaceOptions dco_decode_workspace_replace_options(dynamic raw);
@@ -504,7 +531,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceSearchFileResult dco_decode_workspace_search_file_result(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   WorkspaceSearchMatch dco_decode_workspace_search_match(dynamic raw);
@@ -523,131 +551,157 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, String> sse_decode_Map_String_String_None(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<AgentHookEventBatchDto>
-      sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
-          SseDeserializer deserializer);
+  sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<ProcessEvent> sse_decode_StreamSink_process_event_Sse(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<SourceControlWatchSignal>
-      sse_decode_StreamSink_source_control_watch_signal_Sse(
-          SseDeserializer deserializer);
+  sse_decode_StreamSink_source_control_watch_signal_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<WorkspaceExplorerWatchBatch>
-      sse_decode_StreamSink_workspace_explorer_watch_batch_Sse(
-          SseDeserializer deserializer);
+  sse_decode_StreamSink_workspace_explorer_watch_batch_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
   AgentHookEndpointDto sse_decode_agent_hook_endpoint_dto(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   AgentHookEventBatchDto sse_decode_agent_hook_event_batch_dto(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   AgentHookEventDto sse_decode_agent_hook_event_dto(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   AiDictationError sse_decode_ai_dictation_error(SseDeserializer deserializer);
 
   @protected
   AiDictationErrorKind sse_decode_ai_dictation_error_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   AiDictationRequest sse_decode_ai_dictation_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   AiDictationResult sse_decode_ai_dictation_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   AiDictationRequest sse_decode_box_autoadd_ai_dictation_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeArea sse_decode_box_autoadd_git_change_area(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeEntry sse_decode_box_autoadd_git_change_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryItemRef sse_decode_box_autoadd_git_history_item_ref(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryRefCategory sse_decode_box_autoadd_git_history_ref_category(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitSubmoduleStatus sse_decode_box_autoadd_git_submodule_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   SourceControlWatcherHandle
-      sse_decode_box_autoadd_source_control_watcher_handle(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_source_control_watcher_handle(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   WorkspaceExplorerDirectoryChildren
-      sse_decode_box_autoadd_workspace_explorer_directory_children(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerWatcherHandle
-      sse_decode_box_autoadd_workspace_explorer_watcher_handle(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_workspace_explorer_watcher_handle(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileGitStatus sse_decode_box_autoadd_workspace_file_git_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceQuickOpenSession sse_decode_box_autoadd_workspace_quick_open_session(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceOptions sse_decode_box_autoadd_workspace_replace_options(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceRequest sse_decode_box_autoadd_workspace_replace_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchOptions sse_decode_box_autoadd_workspace_search_options(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CodexSavedPrompt sse_decode_codex_saved_prompt(SseDeserializer deserializer);
 
   @protected
   CodexSavedPromptScope sse_decode_codex_saved_prompt_scope(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeArea sse_decode_git_change_area(SseDeserializer deserializer);
@@ -666,23 +720,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitChangeTreeRowKind sse_decode_git_change_tree_row_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitCommitChangeEntry sse_decode_git_commit_change_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitCommitCompareResult sse_decode_git_commit_compare_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitCommitCompareStatus sse_decode_git_commit_compare_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitCommitCompareSummary sse_decode_git_commit_compare_summary(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitDiffFile sse_decode_git_diff_file(SseDeserializer deserializer);
@@ -704,26 +763,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitExplorerStatus sse_decode_git_explorer_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitExplorerStatusEntry sse_decode_git_explorer_status_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitExplorerStatusSnapshot sse_decode_git_explorer_status_snapshot(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryItem sse_decode_git_history_item(SseDeserializer deserializer);
 
   @protected
   GitHistoryItemRef sse_decode_git_history_item_ref(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryRefCategory sse_decode_git_history_ref_category(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
@@ -742,7 +806,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitRepositoryState sse_decode_git_repository_state(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitStashEntry sse_decode_git_stash_entry(SseDeserializer deserializer);
@@ -752,7 +817,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitSubmoduleStatus sse_decode_git_submodule_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitWorktreeEntry sse_decode_git_worktree_entry(SseDeserializer deserializer);
@@ -768,27 +834,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AgentHookEventDto> sse_decode_list_agent_hook_event_dto(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<CodexSavedPrompt> sse_decode_list_codex_saved_prompt(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitChangeEntry> sse_decode_list_git_change_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitChangeGroup> sse_decode_list_git_change_group(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitChangeTreeRow> sse_decode_list_git_change_tree_row(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitCommitChangeEntry> sse_decode_list_git_commit_change_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitDiffFile> sse_decode_list_git_diff_file(SseDeserializer deserializer);
@@ -798,34 +870,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitExplorerStatusEntry> sse_decode_list_git_explorer_status_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitHistoryItem> sse_decode_list_git_history_item(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitHistoryItemRef> sse_decode_list_git_history_item_ref(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitRangeCommit> sse_decode_list_git_range_commit(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitRangeFile> sse_decode_list_git_range_file(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitRemote> sse_decode_list_git_remote(SseDeserializer deserializer);
 
   @protected
   List<GitStashEntry> sse_decode_list_git_stash_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -835,85 +914,104 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<(String, String)> sse_decode_list_record_string_string(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceExplorerDirectoryChildren>
-      sse_decode_list_workspace_explorer_directory_children(
-          SseDeserializer deserializer);
+  sse_decode_list_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceExplorerEntryBinding>
-      sse_decode_list_workspace_explorer_entry_binding(
-          SseDeserializer deserializer);
+  sse_decode_list_workspace_explorer_entry_binding(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceExplorerTreeNode> sse_decode_list_workspace_explorer_tree_node(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceFileEntry> sse_decode_list_workspace_file_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceQuickOpenMatch> sse_decode_list_workspace_quick_open_match(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceReplaceConflict> sse_decode_list_workspace_replace_conflict(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceReplaceFileExpectation>
-      sse_decode_list_workspace_replace_file_expectation(
-          SseDeserializer deserializer);
+  sse_decode_list_workspace_replace_file_expectation(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceSearchFileResult> sse_decode_list_workspace_search_file_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WorkspaceSearchMatch> sse_decode_list_workspace_search_match(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   MermanViewerError sse_decode_merman_viewer_error(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   MermanViewerErrorKind sse_decode_merman_viewer_error_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   MermanWorkspaceRender sse_decode_merman_workspace_render(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Map<String, String>? sse_decode_opt_Map_String_String_None(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   GitChangeArea? sse_decode_opt_box_autoadd_git_change_area(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeEntry? sse_decode_opt_box_autoadd_git_change_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryItemRef? sse_decode_opt_box_autoadd_git_history_item_ref(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitHistoryRefCategory? sse_decode_opt_box_autoadd_git_history_ref_category(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitSubmoduleStatus? sse_decode_opt_box_autoadd_git_submodule_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -923,12 +1021,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceExplorerDirectoryChildren?
-      sse_decode_opt_box_autoadd_workspace_explorer_directory_children(
-          SseDeserializer deserializer);
+  sse_decode_opt_box_autoadd_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileGitStatus? sse_decode_opt_box_autoadd_workspace_file_git_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -944,15 +1044,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, String) sse_decode_record_string_string(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   SourceControlWatchSignal sse_decode_source_control_watch_signal(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   SourceControlWatcherHandle sse_decode_source_control_watcher_handle(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -971,285 +1074,390 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceEditorTextFile sse_decode_workspace_editor_text_file(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerDirectoryChildren
-      sse_decode_workspace_explorer_directory_children(
-          SseDeserializer deserializer);
+  sse_decode_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerEntryBinding sse_decode_workspace_explorer_entry_binding(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerTreeNode sse_decode_workspace_explorer_tree_node(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerTreeNodeKind sse_decode_workspace_explorer_tree_node_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerTreeProjection sse_decode_workspace_explorer_tree_projection(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerWatchBatch sse_decode_workspace_explorer_watch_batch(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceExplorerWatcherHandle sse_decode_workspace_explorer_watcher_handle(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileEntry sse_decode_workspace_file_entry(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileError sse_decode_workspace_file_error(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileErrorKind sse_decode_workspace_file_error_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileGitStatus sse_decode_workspace_file_git_status(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceFileKind sse_decode_workspace_file_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceQuickOpenMatch sse_decode_workspace_quick_open_match(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceQuickOpenSession sse_decode_workspace_quick_open_session(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceConflict sse_decode_workspace_replace_conflict(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceFileExpectation sse_decode_workspace_replace_file_expectation(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceOptions sse_decode_workspace_replace_options(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplacePreview sse_decode_workspace_replace_preview(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceRequest sse_decode_workspace_replace_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceReplaceResult sse_decode_workspace_replace_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchError sse_decode_workspace_search_error(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchErrorKind sse_decode_workspace_search_error_kind(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchFileResult sse_decode_workspace_search_file_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchMatch sse_decode_workspace_search_match(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchOptions sse_decode_workspace_search_options(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceSearchResult sse_decode_workspace_search_result(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   WorkspaceTextFile sse_decode_workspace_text_file(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_AnyhowException(
-      AnyhowException self, SseSerializer serializer);
+    AnyhowException self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_Map_String_String_None(
-      Map<String, String> self, SseSerializer serializer);
+    Map<String, String> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
-      RustStreamSink<AgentHookEventBatchDto> self, SseSerializer serializer);
+    RustStreamSink<AgentHookEventBatchDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_StreamSink_process_event_Sse(
-      RustStreamSink<ProcessEvent> self, SseSerializer serializer);
+    RustStreamSink<ProcessEvent> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_StreamSink_source_control_watch_signal_Sse(
-      RustStreamSink<SourceControlWatchSignal> self, SseSerializer serializer);
+    RustStreamSink<SourceControlWatchSignal> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_StreamSink_workspace_explorer_watch_batch_Sse(
-      RustStreamSink<WorkspaceExplorerWatchBatch> self,
-      SseSerializer serializer);
+    RustStreamSink<WorkspaceExplorerWatchBatch> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_agent_hook_endpoint_dto(
-      AgentHookEndpointDto self, SseSerializer serializer);
+    AgentHookEndpointDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_agent_hook_event_batch_dto(
-      AgentHookEventBatchDto self, SseSerializer serializer);
+    AgentHookEventBatchDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_agent_hook_event_dto(
-      AgentHookEventDto self, SseSerializer serializer);
+    AgentHookEventDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ai_dictation_error(
-      AiDictationError self, SseSerializer serializer);
+    AiDictationError self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ai_dictation_error_kind(
-      AiDictationErrorKind self, SseSerializer serializer);
+    AiDictationErrorKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ai_dictation_request(
-      AiDictationRequest self, SseSerializer serializer);
+    AiDictationRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ai_dictation_result(
-      AiDictationResult self, SseSerializer serializer);
+    AiDictationResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_ai_dictation_request(
-      AiDictationRequest self, SseSerializer serializer);
+    AiDictationRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_change_area(
-      GitChangeArea self, SseSerializer serializer);
+    GitChangeArea self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_change_entry(
-      GitChangeEntry self, SseSerializer serializer);
+    GitChangeEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_history_item_ref(
-      GitHistoryItemRef self, SseSerializer serializer);
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_history_ref_category(
-      GitHistoryRefCategory self, SseSerializer serializer);
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_submodule_status(
-      GitSubmoduleStatus self, SseSerializer serializer);
+    GitSubmoduleStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_i_64(
-      PlatformInt64 self, SseSerializer serializer);
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_source_control_watcher_handle(
-      SourceControlWatcherHandle self, SseSerializer serializer);
+    SourceControlWatcherHandle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_workspace_explorer_directory_children(
-      WorkspaceExplorerDirectoryChildren self, SseSerializer serializer);
+    WorkspaceExplorerDirectoryChildren self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_explorer_watcher_handle(
-      WorkspaceExplorerWatcherHandle self, SseSerializer serializer);
+    WorkspaceExplorerWatcherHandle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_file_git_status(
-      WorkspaceFileGitStatus self, SseSerializer serializer);
+    WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_quick_open_session(
-      WorkspaceQuickOpenSession self, SseSerializer serializer);
+    WorkspaceQuickOpenSession self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_replace_options(
-      WorkspaceReplaceOptions self, SseSerializer serializer);
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_replace_request(
-      WorkspaceReplaceRequest self, SseSerializer serializer);
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_workspace_search_options(
-      WorkspaceSearchOptions self, SseSerializer serializer);
+    WorkspaceSearchOptions self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_codex_saved_prompt(
-      CodexSavedPrompt self, SseSerializer serializer);
+    CodexSavedPrompt self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_codex_saved_prompt_scope(
-      CodexSavedPromptScope self, SseSerializer serializer);
+    CodexSavedPromptScope self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_change_area(GitChangeArea self, SseSerializer serializer);
 
   @protected
   void sse_encode_git_change_entry(
-      GitChangeEntry self, SseSerializer serializer);
+    GitChangeEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_change_group(
-      GitChangeGroup self, SseSerializer serializer);
+    GitChangeGroup self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_change_status(
-      GitChangeStatus self, SseSerializer serializer);
+    GitChangeStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_change_tree_row(
-      GitChangeTreeRow self, SseSerializer serializer);
+    GitChangeTreeRow self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_change_tree_row_kind(
-      GitChangeTreeRowKind self, SseSerializer serializer);
+    GitChangeTreeRowKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_commit_change_entry(
-      GitCommitChangeEntry self, SseSerializer serializer);
+    GitCommitChangeEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_commit_compare_result(
-      GitCommitCompareResult self, SseSerializer serializer);
+    GitCommitCompareResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_commit_compare_status(
-      GitCommitCompareStatus self, SseSerializer serializer);
+    GitCommitCompareStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_commit_compare_summary(
-      GitCommitCompareSummary self, SseSerializer serializer);
+    GitCommitCompareSummary self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_diff_file(GitDiffFile self, SseSerializer serializer);
@@ -1259,7 +1467,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_git_diff_line_kind(
-      GitDiffLineKind self, SseSerializer serializer);
+    GitDiffLineKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_diff_result(GitDiffResult self, SseSerializer serializer);
@@ -1272,39 +1482,57 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_git_explorer_status(
-      GitExplorerStatus self, SseSerializer serializer);
+    GitExplorerStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_explorer_status_entry(
-      GitExplorerStatusEntry self, SseSerializer serializer);
+    GitExplorerStatusEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_explorer_status_snapshot(
-      GitExplorerStatusSnapshot self, SseSerializer serializer);
+    GitExplorerStatusSnapshot self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_history_item(
-      GitHistoryItem self, SseSerializer serializer);
+    GitHistoryItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_history_item_ref(
-      GitHistoryItemRef self, SseSerializer serializer);
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_history_ref_category(
-      GitHistoryRefCategory self, SseSerializer serializer);
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_history_result(
-      GitHistoryResult self, SseSerializer serializer);
+    GitHistoryResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_range_commit(
-      GitRangeCommit self, SseSerializer serializer);
+    GitRangeCommit self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_range_context(
-      GitRangeContext self, SseSerializer serializer);
+    GitRangeContext self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_range_file(GitRangeFile self, SseSerializer serializer);
@@ -1314,22 +1542,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_git_repository_state(
-      GitRepositoryState self, SseSerializer serializer);
+    GitRepositoryState self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_stash_entry(GitStashEntry self, SseSerializer serializer);
 
   @protected
   void sse_encode_git_status_result(
-      GitStatusResult self, SseSerializer serializer);
+    GitStatusResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_submodule_status(
-      GitSubmoduleStatus self, SseSerializer serializer);
+    GitSubmoduleStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_worktree_entry(
-      GitWorktreeEntry self, SseSerializer serializer);
+    GitWorktreeEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -1342,195 +1578,285 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_agent_hook_event_dto(
-      List<AgentHookEventDto> self, SseSerializer serializer);
+    List<AgentHookEventDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_codex_saved_prompt(
-      List<CodexSavedPrompt> self, SseSerializer serializer);
+    List<CodexSavedPrompt> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_change_entry(
-      List<GitChangeEntry> self, SseSerializer serializer);
+    List<GitChangeEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_change_group(
-      List<GitChangeGroup> self, SseSerializer serializer);
+    List<GitChangeGroup> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_change_tree_row(
-      List<GitChangeTreeRow> self, SseSerializer serializer);
+    List<GitChangeTreeRow> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_commit_change_entry(
-      List<GitCommitChangeEntry> self, SseSerializer serializer);
+    List<GitCommitChangeEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_diff_file(
-      List<GitDiffFile> self, SseSerializer serializer);
+    List<GitDiffFile> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_diff_line(
-      List<GitDiffLine> self, SseSerializer serializer);
+    List<GitDiffLine> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_explorer_status_entry(
-      List<GitExplorerStatusEntry> self, SseSerializer serializer);
+    List<GitExplorerStatusEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_history_item(
-      List<GitHistoryItem> self, SseSerializer serializer);
+    List<GitHistoryItem> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_history_item_ref(
-      List<GitHistoryItemRef> self, SseSerializer serializer);
+    List<GitHistoryItemRef> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_range_commit(
-      List<GitRangeCommit> self, SseSerializer serializer);
+    List<GitRangeCommit> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_range_file(
-      List<GitRangeFile> self, SseSerializer serializer);
+    List<GitRangeFile> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_remote(
-      List<GitRemote> self, SseSerializer serializer);
+    List<GitRemote> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_stash_entry(
-      List<GitStashEntry> self, SseSerializer serializer);
+    List<GitStashEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_git_worktree_entry(
-      List<GitWorktreeEntry> self, SseSerializer serializer);
+    List<GitWorktreeEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-      Uint8List self, SseSerializer serializer);
+    Uint8List self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_record_string_string(
-      List<(String, String)> self, SseSerializer serializer);
+    List<(String, String)> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_explorer_directory_children(
-      List<WorkspaceExplorerDirectoryChildren> self, SseSerializer serializer);
+    List<WorkspaceExplorerDirectoryChildren> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_explorer_entry_binding(
-      List<WorkspaceExplorerEntryBinding> self, SseSerializer serializer);
+    List<WorkspaceExplorerEntryBinding> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_explorer_tree_node(
-      List<WorkspaceExplorerTreeNode> self, SseSerializer serializer);
+    List<WorkspaceExplorerTreeNode> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_file_entry(
-      List<WorkspaceFileEntry> self, SseSerializer serializer);
+    List<WorkspaceFileEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_quick_open_match(
-      List<WorkspaceQuickOpenMatch> self, SseSerializer serializer);
+    List<WorkspaceQuickOpenMatch> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_replace_conflict(
-      List<WorkspaceReplaceConflict> self, SseSerializer serializer);
+    List<WorkspaceReplaceConflict> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_replace_file_expectation(
-      List<WorkspaceReplaceFileExpectation> self, SseSerializer serializer);
+    List<WorkspaceReplaceFileExpectation> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_search_file_result(
-      List<WorkspaceSearchFileResult> self, SseSerializer serializer);
+    List<WorkspaceSearchFileResult> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_workspace_search_match(
-      List<WorkspaceSearchMatch> self, SseSerializer serializer);
+    List<WorkspaceSearchMatch> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_merman_viewer_error(
-      MermanViewerError self, SseSerializer serializer);
+    MermanViewerError self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_merman_viewer_error_kind(
-      MermanViewerErrorKind self, SseSerializer serializer);
+    MermanViewerErrorKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_merman_workspace_render(
-      MermanWorkspaceRender self, SseSerializer serializer);
+    MermanWorkspaceRender self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_Map_String_String_None(
-      Map<String, String>? self, SseSerializer serializer);
+    Map<String, String>? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_git_change_area(
-      GitChangeArea? self, SseSerializer serializer);
+    GitChangeArea? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_git_change_entry(
-      GitChangeEntry? self, SseSerializer serializer);
+    GitChangeEntry? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_git_history_item_ref(
-      GitHistoryItemRef? self, SseSerializer serializer);
+    GitHistoryItemRef? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_git_history_ref_category(
-      GitHistoryRefCategory? self, SseSerializer serializer);
+    GitHistoryRefCategory? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_git_submodule_status(
-      GitSubmoduleStatus? self, SseSerializer serializer);
+    GitSubmoduleStatus? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
-      PlatformInt64? self, SseSerializer serializer);
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_workspace_explorer_directory_children(
-      WorkspaceExplorerDirectoryChildren? self, SseSerializer serializer);
+    WorkspaceExplorerDirectoryChildren? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_workspace_file_git_status(
-      WorkspaceFileGitStatus? self, SseSerializer serializer);
+    WorkspaceFileGitStatus? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
-      Uint8List? self, SseSerializer serializer);
+    Uint8List? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_process_event(ProcessEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_process_event_kind(
-      ProcessEventKind self, SseSerializer serializer);
+    ProcessEventKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_process_run_result(
-      ProcessRunResult self, SseSerializer serializer);
+    ProcessRunResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_record_string_string(
-      (String, String) self, SseSerializer serializer);
+    (String, String) self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_source_control_watch_signal(
-      SourceControlWatchSignal self, SseSerializer serializer);
+    SourceControlWatchSignal self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_source_control_watcher_handle(
-      SourceControlWatcherHandle self, SseSerializer serializer);
+    SourceControlWatcherHandle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
@@ -1549,115 +1875,171 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_workspace_editor_text_file(
-      WorkspaceEditorTextFile self, SseSerializer serializer);
+    WorkspaceEditorTextFile self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_directory_children(
-      WorkspaceExplorerDirectoryChildren self, SseSerializer serializer);
+    WorkspaceExplorerDirectoryChildren self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_entry_binding(
-      WorkspaceExplorerEntryBinding self, SseSerializer serializer);
+    WorkspaceExplorerEntryBinding self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_tree_node(
-      WorkspaceExplorerTreeNode self, SseSerializer serializer);
+    WorkspaceExplorerTreeNode self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_tree_node_kind(
-      WorkspaceExplorerTreeNodeKind self, SseSerializer serializer);
+    WorkspaceExplorerTreeNodeKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_tree_projection(
-      WorkspaceExplorerTreeProjection self, SseSerializer serializer);
+    WorkspaceExplorerTreeProjection self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_watch_batch(
-      WorkspaceExplorerWatchBatch self, SseSerializer serializer);
+    WorkspaceExplorerWatchBatch self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_explorer_watcher_handle(
-      WorkspaceExplorerWatcherHandle self, SseSerializer serializer);
+    WorkspaceExplorerWatcherHandle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_file_entry(
-      WorkspaceFileEntry self, SseSerializer serializer);
+    WorkspaceFileEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_file_error(
-      WorkspaceFileError self, SseSerializer serializer);
+    WorkspaceFileError self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_file_error_kind(
-      WorkspaceFileErrorKind self, SseSerializer serializer);
+    WorkspaceFileErrorKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_file_git_status(
-      WorkspaceFileGitStatus self, SseSerializer serializer);
+    WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_file_kind(
-      WorkspaceFileKind self, SseSerializer serializer);
+    WorkspaceFileKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_quick_open_match(
-      WorkspaceQuickOpenMatch self, SseSerializer serializer);
+    WorkspaceQuickOpenMatch self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_quick_open_session(
-      WorkspaceQuickOpenSession self, SseSerializer serializer);
+    WorkspaceQuickOpenSession self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_conflict(
-      WorkspaceReplaceConflict self, SseSerializer serializer);
+    WorkspaceReplaceConflict self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_file_expectation(
-      WorkspaceReplaceFileExpectation self, SseSerializer serializer);
+    WorkspaceReplaceFileExpectation self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_options(
-      WorkspaceReplaceOptions self, SseSerializer serializer);
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_preview(
-      WorkspaceReplacePreview self, SseSerializer serializer);
+    WorkspaceReplacePreview self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_request(
-      WorkspaceReplaceRequest self, SseSerializer serializer);
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_replace_result(
-      WorkspaceReplaceResult self, SseSerializer serializer);
+    WorkspaceReplaceResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_error(
-      WorkspaceSearchError self, SseSerializer serializer);
+    WorkspaceSearchError self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_error_kind(
-      WorkspaceSearchErrorKind self, SseSerializer serializer);
+    WorkspaceSearchErrorKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_file_result(
-      WorkspaceSearchFileResult self, SseSerializer serializer);
+    WorkspaceSearchFileResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_match(
-      WorkspaceSearchMatch self, SseSerializer serializer);
+    WorkspaceSearchMatch self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_options(
-      WorkspaceSearchOptions self, SseSerializer serializer);
+    WorkspaceSearchOptions self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_search_result(
-      WorkspaceSearchResult self, SseSerializer serializer);
+    WorkspaceSearchResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_workspace_text_file(
-      WorkspaceTextFile self, SseSerializer serializer);
+    WorkspaceTextFile self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -1668,9 +2050,9 @@ class RustLibWire implements BaseWire {
 
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   RustLibWire(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 }

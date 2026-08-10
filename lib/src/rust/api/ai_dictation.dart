@@ -11,18 +11,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<void> cancelWhisper({required String requestId}) =>
     RustLib.instance.api.crateApiAiDictationCancelWhisper(requestId: requestId);
 
-Future<AiDictationResult> transcribeWhisper(
-        {required AiDictationRequest request}) =>
+Future<AiDictationResult> transcribeWhisper({
+  required AiDictationRequest request,
+}) =>
     RustLib.instance.api.crateApiAiDictationTranscribeWhisper(request: request);
 
 class AiDictationError implements FrbException {
   final AiDictationErrorKind kind;
   final String message;
 
-  const AiDictationError({
-    required this.kind,
-    required this.message,
-  });
+  const AiDictationError({required this.kind, required this.message});
 
   @override
   int get hashCode => kind.hashCode ^ message.hashCode;
@@ -43,7 +41,6 @@ enum AiDictationErrorKind {
   cancelled,
   inference,
   io,
-  ;
 }
 
 class AiDictationRequest {

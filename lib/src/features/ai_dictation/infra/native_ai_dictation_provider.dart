@@ -25,7 +25,9 @@ class NativeAiDictationProvider implements AiDictationProvider {
         text: result.text,
         providerId: id,
         elapsed: stopwatch.elapsed,
-        duration: Duration(milliseconds: _durationMillis(result.durationMillis)),
+        duration: Duration(
+          milliseconds: _durationMillis(result.durationMillis),
+        ),
         detectedLanguage: result.detectedLanguage,
       );
     } on native.AiDictationError catch (error) {

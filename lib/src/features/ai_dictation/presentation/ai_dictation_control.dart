@@ -9,14 +9,17 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_service
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiDictationControl extends ConsumerWidget {
+class AiDictationControl extends StatelessWidget {
   const AiDictationControl({super.key, required this.targetId});
 
   final String targetId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final service = ref.read(aiDictationServiceProvider);
+  Widget build(BuildContext context) {
+    final service = _tryService(context);
+    if (service == null) {
+      return const SizedBox.shrink();
+    }
     return AnimatedBuilder(
       animation: service,
       builder: (context, _) {
@@ -42,6 +45,17 @@ class AiDictationControl extends ConsumerWidget {
         );
       },
     );
+  }
+
+  AiDictationService? _tryService(BuildContext context) {
+    try {
+      return ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(aiDictationServiceProvider);
+    } on StateError {
+      return null;
+    }
   }
 
   Future<void> _toggle(AiDictationService service, bool active) async {
