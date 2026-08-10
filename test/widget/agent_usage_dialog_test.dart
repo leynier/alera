@@ -3,6 +3,7 @@ import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,12 +46,24 @@ void main() {
     expect(find.text('49'), findsOneWidget);
     expect(find.text(r'$1.75'), findsOneWidget);
     expect(find.text('Daily Activity'), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    expect(chart.data.barGroups.first.barRods.first.color, Colors.transparent);
     expect(find.text('ccdev'), findsWidgets);
     expect(find.text('Transcript content stays on this host.'), findsNothing);
     expect(
       find.textContaining('Transcript content stays on this host.'),
       findsOneWidget,
     );
+
+    final firstMetric = tester.getRect(
+      find.byKey(const ValueKey<String>('usage-metric-processed-tokens')),
+    );
+    final lastMetric = tester.getRect(
+      find.byKey(const ValueKey<String>('usage-metric-cache-savings')),
+    );
+    expect(firstMetric.left, closeTo(140, 0.1));
+    expect(lastMetric.right, closeTo(1140, 0.1));
   });
 
   testWidgets('changes range, refreshes, and switches to model breakdown', (

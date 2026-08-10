@@ -14,6 +14,7 @@ import 'package:alera/src/features/agent_usage/application/agent_usage_providers
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
