@@ -33,89 +33,20 @@ Future<void> _showMobileReviewDialog(
   BuildContext context,
   MobileCodexController controller,
 ) async {
-  final input = TextEditingController();
-  var target = 'uncommittedChanges';
-  var delivery = 'inline';
-  final selection = await showDialog<Map<String, String?>>(
+  final branches = controller.reviewBranches();
+  final selection = await showModalBottomSheet<_MobileCodexReviewSelection>(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        final requiresArgument = target != 'uncommittedChanges';
-        final canSubmit = !requiresArgument || input.text.trim().isNotEmpty;
-        return AlertDialog(
-          title: const Text('Start Review'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              DropdownButtonFormField<String>(
-                initialValue: target,
-                decoration: const InputDecoration(labelText: 'Target'),
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem(
-                    value: 'uncommittedChanges',
-                    child: Text('Uncommitted Changes'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'baseBranch',
-                    child: Text('Base Branch'),
-                  ),
-                  DropdownMenuItem(value: 'commit', child: Text('Commit')),
-                  DropdownMenuItem(value: 'custom', child: Text('Custom')),
-                ],
-                onChanged: (value) {
-                  if (value != null) setDialogState(() => target = value);
-                },
-              ),
-              if (target != 'uncommittedChanges')
-                TextField(
-                  controller: input,
-                  onChanged: (_) => setDialogState(() {}),
-                  decoration: InputDecoration(
-                    labelText: switch (target) {
-                      'baseBranch' => 'Branch',
-                      'commit' => 'Commit Sha',
-                      _ => 'Instructions',
-                    },
-                  ),
-                ),
-              DropdownButtonFormField<String>(
-                initialValue: delivery,
-                decoration: const InputDecoration(labelText: 'Delivery'),
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem(value: 'inline', child: Text('Inline')),
-                  DropdownMenuItem(value: 'detached', child: Text('Detached')),
-                ],
-                onChanged: (value) {
-                  if (value != null) setDialogState(() => delivery = value);
-                },
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: canSubmit
-                  ? () => Navigator.of(context).pop(<String, String?>{
-                      'target': target,
-                      'argument': input.text.trim(),
-                      'delivery': delivery,
-                    })
-                  : null,
-              child: const Text('Start Review'),
-            ),
-          ],
-        );
-      },
-    ),
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    backgroundColor: AleraTokens.surface,
+    builder: (context) => _MobileCodexReviewSheet(branches: branches),
   );
-  input.dispose();
   if (selection == null || !context.mounted) return;
   await controller.review(
-    target: selection['target'] ?? 'uncommittedChanges',
-    argument: selection['argument'],
-    delivery: selection['delivery'],
+    target: selection.target.wireValue,
+    argument: selection.argument,
+    commitTitle: selection.commitTitle,
+    delivery: selection.delivery.wireValue,
   );
 }

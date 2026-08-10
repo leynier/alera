@@ -415,6 +415,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.turn.steer"
             | "codex.thread.rename"
             | "codex.thread.compact"
+            | "codex.review.branches"
             | "codex.review.start"
             | "codex.response"
             | "codex.request.snooze"

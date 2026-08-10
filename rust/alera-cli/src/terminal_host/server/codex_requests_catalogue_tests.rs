@@ -42,6 +42,28 @@ fn skills_list_falls_back_to_the_tab_workspace() {
 }
 
 #[test]
+fn review_branches_use_the_resumed_cwd_and_live_head() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace_path = root.path().join("workspace");
+    let resumed_path = root.path().join("resumed");
+    init_review_repository(&workspace_path, "original", &["main"]);
+    init_review_repository(&resumed_path, "feature/live", &["main"]);
+    let package_path = resumed_path.join("packages/app");
+    std::fs::create_dir_all(&package_path).unwrap();
+    let mut tab = tab();
+    set_active_cwd(&mut tab, &package_path.to_string_lossy());
+
+    let payload = live_codex_review_branches(&tab, &workspace_path.to_string_lossy()).unwrap();
+
+    assert_eq!(payload["currentBranch"], "feature/live");
+    assert_eq!(payload["cwd"], package_path.to_string_lossy().as_ref());
+    let branches = payload["branches"].as_array().unwrap();
+    assert!(branches.contains(&json!("feature/live")));
+    assert!(branches.contains(&json!("main")));
+    assert!(!branches.contains(&json!("original")));
+}
+
+#[test]
 fn resumed_tab_uses_the_workspace_that_owns_its_active_directory() {
     let mut tab = tab();
     set_active_cwd(&mut tab, "/other-workspace/packages/app");
@@ -403,4 +425,27 @@ fn workspace(id: &str, path: &str) -> Workspace {
         parent_workspace_id: None,
         child_count: 0,
     }
+}
+
+fn init_review_repository(path: &std::path::Path, current: &str, others: &[&str]) {
+    let repository = git2::Repository::init(path).unwrap();
+    let tree_id = repository.index().unwrap().write_tree().unwrap();
+    let tree = repository.find_tree(tree_id).unwrap();
+    let signature = git2::Signature::now("Alera", "alera@example.invalid").unwrap();
+    let reference = format!("refs/heads/{current}");
+    let commit_id = repository
+        .commit(
+            Some(&reference),
+            &signature,
+            &signature,
+            "initial",
+            &tree,
+            &[],
+        )
+        .unwrap();
+    let commit = repository.find_commit(commit_id).unwrap();
+    for branch in others {
+        repository.branch(branch, &commit, false).unwrap();
+    }
+    repository.set_head(&reference).unwrap();
 }

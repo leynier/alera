@@ -35,6 +35,7 @@ part 'mobile_codex_chat_widget_review_regression_4_test_cases.dart';
 part 'mobile_codex_chat_widget_review_regression_5_test_cases.dart';
 part 'mobile_codex_chat_widget_review_regression_6_test_cases.dart';
 part 'mobile_codex_chat_widget_review_regression_7_test_cases.dart';
+part 'mobile_codex_chat_widget_review_dialog_test_cases.dart';
 
 void main() {
   _registerMobileCodexFoundationTests();
@@ -50,6 +51,7 @@ void main() {
   _registerMobileCodexReviewRegression5Tests();
   _registerMobileCodexReviewRegression6Tests();
   _registerMobileCodexReviewRegression7Tests();
+  _registerMobileCodexReviewDialogTests();
   testWidgets('mobile Codex chat phone golden', (tester) async {
     final client = FakeMobileCodexClient();
     addTearDown(client.dispose);
@@ -134,7 +136,7 @@ class _LaunchWithoutQueryUrlLauncherPlatform extends UrlLauncherPlatform
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
-  required FakeMobileCodexClient client,
+  required MobileCodexClient client,
   required String hostId,
   String? tabId,
   ProviderContainer? container,
