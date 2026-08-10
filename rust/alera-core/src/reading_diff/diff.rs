@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Ported and modified from Meat revision f39f41dfe7b5b37a12b35fdfbaecc7e779855bd3.
+
 use super::ReadingDiffError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

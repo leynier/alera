@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Ported and modified from Meat revision f39f41dfe7b5b37a12b35fdfbaecc7e779855bd3.
+
 use super::*;
 
 const DIFF: &[u8] = b"diff --git a/app.py b/app.py\r\n--- a/app.py\r\n+++ b/app.py\r\n@@ -1,3 +1,4 @@\r\n import os\r\n-old = calculate_large_value(source)\r\n+new = calculate_large_value(source)\r\n+print(new)\r\n return old\r\n";
