@@ -11,6 +11,8 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
+#[path = "codex_diff_coverage.rs"]
+mod codex_diff_coverage;
 #[path = "codex_history_metadata.rs"]
 mod codex_history_metadata;
 #[path = "codex_history_projection.rs"]

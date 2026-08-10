@@ -170,6 +170,7 @@ class MobileCodexState {
   const MobileCodexState({
     this.events = const <Map<String, Object?>>[],
     this.timelineCells = const <MobileCodexTimelineCell>[],
+    this.paginatedHistoryCellIds = const <String>{},
     this.pendingRequests = const <MobileCodexPendingRequest>[],
     this.activeTurnId,
     this.models = const <MobileCodexModelOption>[],
@@ -197,7 +198,10 @@ class MobileCodexState {
     this.recovery,
   });
 
-  factory MobileCodexState.fromSnapshot(Object? value) {
+  factory MobileCodexState.fromSnapshot(
+    Object? value, {
+    bool deriveTimeline = true,
+  }) {
     final json = _map(value);
     final events = _maps(json['events']);
     var cells = <MobileCodexTimelineCell>[
@@ -225,16 +229,25 @@ class MobileCodexState {
       historyNextCursor: _string(json['historyNextCursor']),
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
-      promptHistory: mobileCodexPromptHistory(cells),
-      mcpInitializing: _mobileCodexHasInitializingMcp(cells),
-      presentationRows: MobileCodexTimelineProjection.project(
-        cells,
-        activeTurnId: activeTurnId,
-      ),
+      promptHistory: deriveTimeline
+          ? mobileCodexPromptHistory(cells)
+          : const <String>[],
+      mcpInitializing: deriveTimeline
+          ? mobileCodexHasInitializingMcp(cells)
+          : false,
+      presentationRows: deriveTimeline
+          ? MobileCodexTimelineProjection.project(
+              cells,
+              activeTurnId: activeTurnId,
+            )
+          : const <MobileCodexPresentationRow>[],
     );
   }
 
-  MobileCodexState applySnapshotDelta(Object? value) {
+  MobileCodexState applySnapshotDelta(
+    Object? value, {
+    bool deriveTimeline = true,
+  }) {
     final json = _map(value);
     if (json.isEmpty) return this;
     final removedIds = <String>{
@@ -276,9 +289,15 @@ class MobileCodexState {
     final nextActiveTurnId = json.containsKey('activeTurnId')
         ? _string(json['activeTurnId'])
         : activeTurnId;
+    final nextPaginatedHistoryCellIds = removedIds.isEmpty
+        ? paginatedHistoryCellIds
+        : Set<String>.unmodifiable(
+            paginatedHistoryCellIds.difference(removedIds),
+          );
     return copyWith(
       events: nextEvents,
       timelineCells: nextCells,
+      paginatedHistoryCellIds: nextPaginatedHistoryCellIds,
       pendingRequests: json.containsKey('pendingRequests')
           ? <MobileCodexPendingRequest>[
               if (json['pendingRequests'] is List)
@@ -294,21 +313,24 @@ class MobileCodexState {
           ? _int(json['contextLimit'])
           : contextLimit,
       title: json.containsKey('title') ? _string(json['title']) : title,
-      promptHistory: cellsChanged
+      promptHistory: cellsChanged && deriveTimeline
           ? mobileCodexPromptHistory(nextCells)
           : promptHistory,
-      mcpInitializing: cellsChanged
-          ? _mobileCodexHasInitializingMcp(nextCells)
+      mcpInitializing: cellsChanged && deriveTimeline
+          ? mobileCodexHasInitializingMcp(nextCells)
           : mcpInitializing,
-      presentationRows: MobileCodexTimelineProjection.project(
-        nextCells,
-        activeTurnId: nextActiveTurnId,
-      ),
+      presentationRows: deriveTimeline
+          ? MobileCodexTimelineProjection.project(
+              nextCells,
+              activeTurnId: nextActiveTurnId,
+            )
+          : presentationRows,
     );
   }
 
   final List<Map<String, Object?>> events;
   final List<MobileCodexTimelineCell> timelineCells;
+  final Set<String> paginatedHistoryCellIds;
   final List<MobileCodexPendingRequest> pendingRequests;
   final String? activeTurnId;
   final List<MobileCodexModelOption> models;
@@ -382,6 +404,7 @@ class MobileCodexState {
   MobileCodexState copyWith({
     List<Map<String, Object?>>? events,
     List<MobileCodexTimelineCell>? timelineCells,
+    Set<String>? paginatedHistoryCellIds,
     List<MobileCodexPendingRequest>? pendingRequests,
     Object? activeTurnId = _keep,
     List<MobileCodexModelOption>? models,
@@ -410,6 +433,8 @@ class MobileCodexState {
   }) => MobileCodexState(
     events: events ?? this.events,
     timelineCells: timelineCells ?? this.timelineCells,
+    paginatedHistoryCellIds:
+        paginatedHistoryCellIds ?? this.paginatedHistoryCellIds,
     pendingRequests: pendingRequests ?? this.pendingRequests,
     activeTurnId: identical(activeTurnId, _keep)
         ? this.activeTurnId
@@ -474,7 +499,7 @@ List<String> mobileCodexPromptHistory(List<MobileCodexTimelineCell> cells) =>
           cell.markdownText!.trim(),
     ]);
 
-bool _mobileCodexHasInitializingMcp(List<MobileCodexTimelineCell> cells) =>
+bool mobileCodexHasInitializingMcp(List<MobileCodexTimelineCell> cells) =>
     cells.any(
       (cell) =>
           cell.metadata['itemType'] == 'mcpServerStartup' &&

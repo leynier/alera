@@ -76,6 +76,8 @@ abstract final class MobileCodexTimelineProjection {
     for (final cell in cells) {
       if (_isTopNotice(cell)) {
         topNotices.add(cell);
+      } else if (cell.metadata['supersededByStructuredFileChanges'] == true) {
+        continue;
       } else if (!_isEmptyCompletedDiffPlaceholder(cell)) {
         content.add(cell);
       }

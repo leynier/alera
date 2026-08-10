@@ -52,10 +52,34 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
   }
 
   void _deferThreadEvent(MobileRuntimeEvent event) {
-    // A full snapshot supersedes every earlier deferred delta. Delta-only
-    // events are retained in order for compatibility with older test hosts.
     if (event.payload['snapshot'] is Map) {
-      _deferredThreadEvents.clear();
+      final retained = <MobileRuntimeEvent>[];
+      var segmentThreadId = _threadId;
+      var segmentHasBaseSnapshot = segmentThreadId != null;
+      for (final deferred in _deferredThreadEvents) {
+        final deferredThreadId = deferred.payload.containsKey('threadId')
+            ? _string(deferred.payload['threadId'])
+            : segmentThreadId;
+        if (deferredThreadId != segmentThreadId) {
+          segmentThreadId = deferredThreadId;
+          segmentHasBaseSnapshot = false;
+        }
+        if (deferred.payload['snapshot'] is Map && segmentHasBaseSnapshot) {
+          final payload = Map<String, Object?>.from(deferred.payload)
+            ..remove('snapshot');
+          if (payload['snapshotDelta'] is Map) {
+            retained.add(MobileRuntimeEvent(deferred.name, payload));
+          }
+          continue;
+        }
+        retained.add(deferred);
+        if (deferred.payload['snapshot'] is Map) {
+          segmentHasBaseSnapshot = true;
+        }
+      }
+      _deferredThreadEvents
+        ..clear()
+        ..addAll(retained);
     }
     _deferredThreadEvents.add(event);
   }
@@ -105,7 +129,15 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
     final sameThread = eventThreadId == previousThreadId;
     final delta = event.payload['snapshotDelta'];
     final snapshot = event.payload['snapshot'];
-    final next = !forceSnapshot && delta is Map
+    final next = !sameThread && snapshot is Map
+        ? MobileCodexState.fromSnapshot(snapshot)
+        : delta is Map && delta.isNotEmpty && snapshot is Map
+        ? _reconcileMobileSameThreadSnapshot(
+            current,
+            MobileCodexState.fromSnapshot(snapshot, deriveTimeline: false),
+            delta,
+          )
+        : delta is Map
         ? current.applySnapshotDelta(delta)
         : snapshot is Map
         ? sameThread && !forceSnapshot

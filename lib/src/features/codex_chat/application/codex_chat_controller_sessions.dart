@@ -242,3 +242,55 @@ CodexChatSnapshot _mergeSameThreadSnapshot(
     title: incoming.title,
   );
 }
+
+CodexChatSnapshot _reconcileSameThreadSnapshot(
+  CodexChatSnapshot current,
+  CodexChatSnapshot incoming,
+  Map<dynamic, dynamic> delta,
+) {
+  final updated = current.applyDelta(delta);
+  final segments = updated.timelineCells is CodexTimelineCells
+      ? updated.timelineCells as CodexTimelineCells
+      : null;
+  final incomingLive = incoming.timelineCells is CodexTimelineCells
+      ? (incoming.timelineCells as CodexTimelineCells).live
+      : incoming.timelineCells;
+  final incomingIds = <String>{for (final cell in incomingLive) cell.id};
+  final live = <CodexTimelineCell>[
+    for (final cell in segments?.live ?? updated.timelineCells)
+      if (!incomingIds.contains(cell.id) &&
+          (segments?.historyIndexFor(cell.id) == null))
+        cell,
+    for (final cell in incomingLive)
+      if (segments?.historyIndexFor(cell.id) == null) cell,
+  ];
+  const retainedLiveLimit = 480;
+  final boundedLive = live.length <= retainedLiveLimit
+      ? List<CodexTimelineCell>.unmodifiable(live)
+      : List<CodexTimelineCell>.unmodifiable(
+          live.sublist(live.length - retainedLiveLimit),
+        );
+  final mergedCells = segments == null
+      ? boundedLive
+      : segments.withLive(boundedLive);
+  final mergedPromptHistory = segments == null
+      ? List<String>.unmodifiable(<String>[
+          for (final cell in boundedLive)
+            if (cell.kind == CodexTimelineKind.userMessage &&
+                cell.metadata[CodexTimelineMetadata.isSteering] != true &&
+                (cell.markdownText ?? '').trim().isNotEmpty)
+              cell.markdownText!.trim(),
+        ])
+      : segments.promptHistoryWithLive(boundedLive);
+  return CodexChatSnapshot(
+    events: updated.events,
+    timelineCells: mergedCells,
+    pendingRequests: incoming.pendingRequests,
+    promptHistory: mergedPromptHistory,
+    mcpInitializing: incoming.mcpInitializing,
+    activeTurnId: incoming.activeTurnId,
+    contextUsed: incoming.contextUsed,
+    contextLimit: incoming.contextLimit,
+    title: incoming.title,
+  );
+}

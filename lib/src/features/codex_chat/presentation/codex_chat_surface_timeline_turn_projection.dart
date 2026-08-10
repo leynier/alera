@@ -62,6 +62,9 @@ class _CodexTurnProjection {
             CodexTimelineKind.systemNotice:
           secondary.add(cell);
         case CodexTimelineKind.diff:
+          if (cell.metadata['supersededByStructuredFileChanges'] == true) {
+            break;
+          }
           final details = cell.detailsText ?? cell.markdownText ?? '';
           if (cell.status != CodexTimelineStatus.completed ||
               cell.isStreaming ||
