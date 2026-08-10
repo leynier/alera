@@ -34,10 +34,10 @@ void main() {
       request: request,
       rawDiff: Uint8List.fromList(<int>[1]),
       compiler: compiler,
-      agent: AiTextGenerationAgent.codex,
-      model: 'gpt-5.5',
+      agent: AiTextGenerationAgent.agy,
+      model: 'agent-model',
       effort: 'medium',
-      accessPolicy: AgentTaskAccessPolicy.repositoryReadOnly,
+      accessPolicy: AgentTaskAccessPolicy.diffOnly,
       cacheKey: 'key',
     );
     expect(preparation.rawBytes, 42);
@@ -93,6 +93,8 @@ void main() {
         customInstructions: 'Keep security checks.',
       );
       expect(prompt, contains('MeatPlanV1'));
+      expect(prompt, contains('<output_schema>'));
+      expect(prompt, contains('{}'));
       expect(prompt, contains('1|diff --git a/a b/a'));
       expect(prompt, contains('Keep security checks.'));
       final repair = buildReadingDiffRepairPrompt(

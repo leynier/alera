@@ -5,8 +5,7 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 part 'grok_ai_text_generation.dart';
 part 'opencode_ai_text_generation.dart';
 part 'ai_text_generation_model_labels.dart';
-
-enum AiPromptDelivery { argv, stdin, promptFile }
+part 'ai_text_generation_output_capabilities.dart';
 
 class AiThinkingLevel {
   const AiThinkingLevel({required this.id, required this.label});
@@ -66,9 +65,8 @@ class AiTextAgentSpec {
     required this.defaultModelId,
     required this.buildArgs,
     this.modelCanInherit = false,
-    this.supportsStructuredOutput = false,
+    this.nativeStructuredOutput = AiNativeStructuredOutput.none,
     this.supportsRepositoryRead = false,
-    this.supportsLargePrompt = false,
     this.readOnlyGuarantee = false,
     this.maxPromptBytes = 1024 * 1024,
   });
@@ -81,9 +79,8 @@ class AiTextAgentSpec {
   final List<AiTextModel> models;
   final String? defaultModelId;
   final bool modelCanInherit;
-  final bool supportsStructuredOutput;
+  final AiNativeStructuredOutput nativeStructuredOutput;
   final bool supportsRepositoryRead;
-  final bool supportsLargePrompt;
   final bool readOnlyGuarantee;
   final int maxPromptBytes;
   final List<String> Function({
@@ -147,9 +144,8 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'sonnet',
-    supportsStructuredOutput: true,
+    nativeStructuredOutput: AiNativeStructuredOutput.claudeJsonSchema,
     supportsRepositoryRead: true,
-    supportsLargePrompt: true,
     readOnlyGuarantee: true,
     maxPromptBytes: 1024 * 1024,
     buildArgs:
@@ -196,9 +192,8 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.5',
-    supportsStructuredOutput: true,
+    nativeStructuredOutput: AiNativeStructuredOutput.codexSchemaFile,
     supportsRepositoryRead: true,
-    supportsLargePrompt: true,
     readOnlyGuarantee: true,
     maxPromptBytes: 1024 * 1024,
     buildArgs:
@@ -296,6 +291,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
     models: const <AiTextModel>[],
     defaultModelId: null,
     modelCanInherit: true,
+    nativeStructuredOutput: AiNativeStructuredOutput.jsonSchemaArgument,
     buildArgs:
         ({
           required model,

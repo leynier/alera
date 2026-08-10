@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('confirmation discloses quota, provider transfer and access', (
+  testWidgets('confirmation discloses AI Text usage and diff-only access', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -21,12 +21,12 @@ void main() {
 
     expect(find.text('Generate Reading Diff'), findsNWidgets(2));
     expect(
-      find.textContaining('consumes its subscription quota'),
+      find.textContaining('may consume subscription quota'),
       findsOneWidget,
     );
-    expect(find.textContaining('configured provider'), findsOneWidget);
-    expect(find.text('Repository Read Only'), findsOneWidget);
-    expect(find.text('Codex'), findsOneWidget);
+    expect(find.textContaining('Only the displayed diff'), findsOneWidget);
+    expect(find.text('Diff Only'), findsOneWidget);
+    expect(find.text('Antigravity'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
   });
 
@@ -82,10 +82,10 @@ ReadingDiffPreparation _preparation() {
         ),
       ],
     ),
-    agent: AiTextGenerationAgent.codex,
-    model: 'gpt-5.5',
+    agent: AiTextGenerationAgent.agy,
+    model: 'agent-model',
     effort: 'medium',
-    accessPolicy: AgentTaskAccessPolicy.repositoryReadOnly,
+    accessPolicy: AgentTaskAccessPolicy.diffOnly,
     cacheKey: 'key',
   );
 }

@@ -32,13 +32,9 @@ class ReadingDiffService {
     final operation = AiTextGenerationOperation.readingDiff;
     final agent = request.settings.agentFor(operation);
     final spec = aiTextAgentSpecs[agent];
-    if (spec == null ||
-        !spec.supportsStructuredOutput ||
-        !spec.supportsRepositoryRead ||
-        !spec.supportsLargePrompt ||
-        !spec.readOnlyGuarantee) {
+    if (spec == null && agent != AiTextGenerationAgent.custom) {
       throw AiTextGenerationException(
-        '${agent.label} cannot generate a structured reading diff with read-only repository access. Choose Codex or Claude Code.',
+        '${agent.label} does not support AI text generation.',
       );
     }
     final model = modelForAgent(
@@ -59,13 +55,30 @@ class ReadingDiffService {
     if (rawDiff.isEmpty) {
       throw const AiTextGenerationException('No diff is available to read.');
     }
+    final promptLimit = _promptLimit(agent, request.settings, spec);
+    final chunkLimit = _chunkLimit(promptLimit);
     final rust.ReadingDiffPreparation compiler;
     try {
-      compiler = await rust.prepareReadingDiff(diff: rawDiff);
+      compiler = await rust.prepareReadingDiff(
+        diff: rawDiff,
+        maxChunkBytes: BigInt.from(chunkLimit),
+      );
     } on rust.ReadingDiffError catch (error) {
       throw AiTextGenerationException(error.message);
     }
     final instructions = request.settings.instructionsFor(operation);
+    for (final chunk in compiler.chunks) {
+      final prompt = buildReadingDiffPrompt(
+        preparation: compiler,
+        chunk: chunk,
+        customInstructions: instructions,
+      );
+      if (utf8.encode(prompt).length > promptLimit) {
+        throw AiTextGenerationException(
+          '${agent.label} cannot receive this diff hunk within its safe prompt limit.',
+        );
+      }
+    }
     final cacheKey = sha256.convert(<int>[
       ...utf8.encode(compiler.rubricVersion),
       ...utf8.encode('|${compiler.schemaVersion}|${agent.key}|${model.id}|'),
@@ -80,7 +93,7 @@ class ReadingDiffService {
       agent: agent,
       model: model.id,
       effort: effort,
-      accessPolicy: AgentTaskAccessPolicy.repositoryReadOnly,
+      accessPolicy: AgentTaskAccessPolicy.diffOnly,
       cacheKey: cacheKey,
       cachedResult: request.ignoreCache ? null : await cache.read(cacheKey),
     );
@@ -216,4 +229,25 @@ class ReadingDiffService {
 
   String _lane(ReadingDiffRequest request) =>
       '${request.workspacePath}::${request.filePath ?? '*'}::${request.area?.key ?? 'all'}::${request.commitOid ?? request.baseRef ?? 'worktree'}';
+}
+
+const int _defaultReadingDiffChunkBytes = 160 * 1024;
+const int _argvPromptBytes = 24000;
+
+int _promptLimit(
+  AiTextGenerationAgent agent,
+  AiTextGenerationSettings settings,
+  AiTextAgentSpec? spec,
+) {
+  if (agent == AiTextGenerationAgent.custom) {
+    return settings.customCommand.contains('{prompt}')
+        ? _argvPromptBytes
+        : 1024 * 1024;
+  }
+  return spec?.maxPromptBytes ?? _argvPromptBytes;
+}
+
+int _chunkLimit(int promptLimit) {
+  final conservativeLimit = (promptLimit - 8192) ~/ 4;
+  return conservativeLimit.clamp(4096, _defaultReadingDiffChunkBytes);
 }

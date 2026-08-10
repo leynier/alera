@@ -75,6 +75,7 @@ void main() {
       selectedModelByAgent: <AiTextGenerationAgent, String>{
         AiTextGenerationAgent.codex: 'gpt-global',
         AiTextGenerationAgent.claude: 'sonnet',
+        AiTextGenerationAgent.opencode: 'provider/reading-model',
       },
       promptSettingsByOperation:
           <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
@@ -84,6 +85,10 @@ void main() {
                 ),
             AiTextGenerationOperation.pullRequestDetails:
                 AiTextGenerationPromptSettings(model: 'gpt-pull-request'),
+            AiTextGenerationOperation.readingDiff:
+                AiTextGenerationPromptSettings(
+                  agent: AiTextGenerationAgent.opencode,
+                ),
           },
     );
 
@@ -102,6 +107,14 @@ void main() {
     expect(
       settings.modelForOperation(AiTextGenerationOperation.pullRequestDetails),
       'gpt-pull-request',
+    );
+    expect(
+      settings.agentFor(AiTextGenerationOperation.readingDiff),
+      AiTextGenerationAgent.opencode,
+    );
+    expect(
+      settings.modelForOperation(AiTextGenerationOperation.readingDiff),
+      'provider/reading-model',
     );
     expect(
       settings.modelForOperation(AiTextGenerationOperation.workspaceIdentity),

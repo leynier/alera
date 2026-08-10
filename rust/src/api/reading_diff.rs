@@ -57,8 +57,17 @@ pub fn git_reading_diff_patch(
     )
 }
 
-pub fn prepare_reading_diff(diff: Vec<u8>) -> Result<ReadingDiffPreparation, ReadingDiffError> {
-    let prepared = reading_diff::prepare(&diff, None)?;
+pub fn prepare_reading_diff(
+    diff: Vec<u8>,
+    max_chunk_bytes: Option<u64>,
+) -> Result<ReadingDiffPreparation, ReadingDiffError> {
+    let max_chunk_bytes = max_chunk_bytes
+        .map(usize::try_from)
+        .transpose()
+        .map_err(|_| ReadingDiffError {
+            message: "The reading diff chunk limit exceeds this platform's capacity.".to_string(),
+        })?;
+    let prepared = reading_diff::prepare(&diff, max_chunk_bytes)?;
     Ok(ReadingDiffPreparation {
         raw_bytes: prepared.raw_bytes,
         schema_version: prepared.schema_version,

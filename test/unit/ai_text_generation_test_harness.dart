@@ -21,6 +21,7 @@ class _FakeProcessRunner implements ProcessRunner {
   String? executable;
   List<String> arguments = const <String>[];
   Map<String, String>? environment;
+  String? workingDirectory;
   String? promptFilePath;
   String? promptFileText;
   String? grokHomePath;
@@ -52,6 +53,7 @@ class _FakeProcessRunner implements ProcessRunner {
     startCount += 1;
     this.executable = executable;
     this.arguments = List<String>.from(arguments);
+    this.workingDirectory = workingDirectory;
     final promptFileIndex = arguments.indexOf('--prompt-file');
     if (promptFileIndex >= 0 && promptFileIndex + 1 < arguments.length) {
       promptFilePath = arguments[promptFileIndex + 1];

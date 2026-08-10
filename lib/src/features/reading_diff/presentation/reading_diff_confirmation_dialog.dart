@@ -35,7 +35,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space12),
             Text(
-              'This manually runs your authenticated agent CLI and consumes its subscription quota. The diff and repository snippets the agent chooses to read may be sent to its configured provider.',
+              'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. Only the displayed diff is provided to the agent.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),

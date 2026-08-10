@@ -11,6 +11,11 @@ You are preparing a non-applicable reading diff. Return only one JSON object mat
 Contract: MeatPlanV${preparation.schemaVersion}
 Rubric: ${preparation.rubricVersion}
 
+Return an object that satisfies this exact schema:
+<output_schema>
+${preparation.planSchema}
+</output_schema>
+
 The original numbered unified diff below is immutable. Line numbers before `|` are coordinates, not source text. You may only propose:
 - remove: inclusive ranges of hunk source rows that are review noise;
 - replace: one exact source span with a strict source projection that only removes text and inserts `...` or `…`;

@@ -25,8 +25,13 @@ Future<Uint8List> gitReadingDiffPatch({
   baseRef: baseRef,
 );
 
-Future<ReadingDiffPreparation> prepareReadingDiff({required List<int> diff}) =>
-    RustLib.instance.api.crateApiReadingDiffPrepareReadingDiff(diff: diff);
+Future<ReadingDiffPreparation> prepareReadingDiff({
+  required List<int> diff,
+  BigInt? maxChunkBytes,
+}) => RustLib.instance.api.crateApiReadingDiffPrepareReadingDiff(
+  diff: diff,
+  maxChunkBytes: maxChunkBytes,
+);
 
 Future<ReadingDiffCompileResult> compileReadingDiffPlan({
   required List<int> diff,

@@ -17,6 +17,7 @@ import 'fake_git_backend.dart';
 
 part 'ai_text_generation_grok_test_cases.dart';
 part 'ai_text_generation_agy_test_cases.dart';
+part 'ai_text_generation_reading_diff_test_cases.dart';
 part 'ai_text_generation_prompt_override_test_cases.dart';
 part 'ai_text_generation_test_harness.dart';
 
@@ -24,6 +25,7 @@ void main() {
   group('AI text generation', () {
     _registerGrokAiTextGenerationTests();
     _registerAgyAiTextGenerationTests();
+    _registerAiTextReadingDiffTests();
     _registerAiTextPromptOverrideTests();
 
     test('builds commit prompts with staged context and instructions', () {
@@ -59,70 +61,6 @@ void main() {
       expect(prompt, contains('feat: add ai pr'));
       expect(prompt, contains('+new line'));
       expect(prompt, contains('Prefer conventional titles.'));
-    });
-
-    test(
-      'runs Codex with a schema and reads its structured result file',
-      () async {
-        final process = _FakeProcessRunner(
-          stdout:
-              '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
-        );
-        final runner = CliAiTextAgentRunner(
-          processRunner: process,
-          commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
-        );
-
-        final result = await runner.run(
-          const AiTextAgentRunRequest(
-            settings: AiTextGenerationSettings(),
-            prompt: 'Plan this diff.',
-            runId: 'reading-diff-codex',
-            workingDirectory: '/repo',
-            agent: AiTextGenerationAgent.codex,
-            outputContract: AgentTaskOutputContract.readingDiffPlanV1,
-            outputSchema: '{"type":"object"}',
-          ),
-        );
-
-        expect(process.arguments, contains('--output-schema'));
-        expect(process.arguments, contains('--output-last-message'));
-        expect(process.outputSchemaText, '{"type":"object"}');
-        expect(result.text, contains('"version":1'));
-      },
-    );
-
-    test('unwraps Claude structured output and disables persistence', () async {
-      final process = _FakeProcessRunner(
-        stdout:
-            '{"structured_output":{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}}',
-      );
-      final runner = CliAiTextAgentRunner(
-        processRunner: process,
-        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
-      );
-
-      final result = await runner.run(
-        const AiTextAgentRunRequest(
-          settings: AiTextGenerationSettings(),
-          prompt: 'Plan this diff.',
-          runId: 'reading-diff-claude',
-          workingDirectory: '/repo',
-          agent: AiTextGenerationAgent.claude,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
-          outputSchema: '{"type":"object"}',
-        ),
-      );
-
-      expect(process.arguments, contains('--json-schema'));
-      expect(process.arguments, contains('--no-session-persistence'));
-      expect(
-        process.arguments
-            .skip(process.arguments.indexOf('--output-format') + 1)
-            .first,
-        'json',
-      );
-      expect(jsonDecode(result.text), containsPair('version', 1));
     });
 
     test('parses generated pull request title and body', () {

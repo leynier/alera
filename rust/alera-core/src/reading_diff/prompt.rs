@@ -1,5 +1,5 @@
 pub const SCHEMA_VERSION: u32 = 1;
-pub const RUBRIC_VERSION: &str = "alera-reading-diff-rubric-v1";
+pub const RUBRIC_VERSION: &str = "alera-reading-diff-rubric-v2";
 
 pub fn plan_schema() -> String {
     format!(

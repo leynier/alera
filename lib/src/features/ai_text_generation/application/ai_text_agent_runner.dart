@@ -80,9 +80,15 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     _pending.add(request.runId);
 
     _AiTextAgentCommandPlan? plan;
+    Directory? isolatedDirectory;
     try {
       final environment = await commandEnvironmentResolver.environment();
       plan = await _planCommand(request, environment);
+      if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
+        isolatedDirectory = await Directory.systemTemp.createTemp(
+          'alera-diff-only-',
+        );
+      }
       if (_canceled.contains(request.runId)) {
         throw const AiTextGenerationCanceledException();
       }
@@ -91,7 +97,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         process = await processRunner.start(
           plan.binary,
           plan.args,
-          workingDirectory: request.workingDirectory,
+          workingDirectory: isolatedDirectory?.path ?? request.workingDirectory,
           environment: <String, String>{
             ...environment,
             ...plan.environmentOverrides,
@@ -137,7 +143,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
           : await plan.outputFile!.readAsString();
       final text = request.outputContract == AgentTaskOutputContract.plainText
           ? request.cleanOutput(rawOutput)
-          : _cleanStructuredOutput(rawOutput);
+          : _cleanStructuredOutput(request.cleanOutput(rawOutput));
       if (text.trim().isEmpty) {
         throw AiTextGenerationException('${plan.label} returned no text.');
       }
@@ -147,6 +153,14 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       _running.remove(request.runId);
       _canceled.remove(request.runId);
       await plan?.dispose();
+      final directory = isolatedDirectory;
+      if (directory != null) {
+        try {
+          if (await directory.exists()) {
+            await directory.delete(recursive: true);
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -172,12 +186,6 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     if (spec == null) {
       throw AiTextGenerationException(
         '${agent.label} does not support AI text generation.',
-      );
-    }
-    if (request.outputContract != AgentTaskOutputContract.plainText &&
-        !spec.supportsStructuredOutput) {
-      throw AiTextGenerationException(
-        '${spec.label} does not support structured reading diff plans.',
       );
     }
     if (request.outputContract != AgentTaskOutputContract.plainText &&
@@ -248,28 +256,31 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       promptDirectory ??= await Directory.systemTemp.createTemp(
         'alera-agent-task-',
       );
-      if (agent == AiTextGenerationAgent.codex) {
-        final schemaFile = File(p.join(promptDirectory.path, 'schema.json'));
-        outputFile = File(p.join(promptDirectory.path, 'result.json'));
-        await schemaFile.writeAsString(schema, flush: true);
-        args = <String>[
-          ...args,
-          '--output-schema',
-          schemaFile.path,
-          '--output-last-message',
-          outputFile.path,
-        ];
-      } else if (agent == AiTextGenerationAgent.claude) {
-        final formatIndex = args.indexOf('--output-format');
-        if (formatIndex >= 0 && formatIndex + 1 < args.length) {
-          args[formatIndex + 1] = 'json';
-        }
-        args = <String>[
-          ...args,
-          '--json-schema',
-          schema,
-          '--no-session-persistence',
-        ];
+      switch (spec.nativeStructuredOutput) {
+        case AiNativeStructuredOutput.none:
+          break;
+        case AiNativeStructuredOutput.codexSchemaFile:
+          final schemaFile = File(p.join(promptDirectory.path, 'schema.json'));
+          outputFile = File(p.join(promptDirectory.path, 'result.json'));
+          await schemaFile.writeAsString(schema, flush: true);
+          args = <String>[
+            ...args,
+            '--output-schema',
+            schemaFile.path,
+            '--output-last-message',
+            outputFile.path,
+          ];
+        case AiNativeStructuredOutput.claudeJsonSchema:
+          _setJsonOutputFormat(args);
+          args = <String>[
+            ...args,
+            '--json-schema',
+            schema,
+            '--no-session-persistence',
+          ];
+        case AiNativeStructuredOutput.jsonSchemaArgument:
+          _setJsonOutputFormat(args);
+          args = <String>[...args, '--json-schema', schema];
       }
     }
     return _AiTextAgentCommandPlan(
@@ -283,6 +294,15 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       environmentOverrides: environmentOverrides,
       outputFile: outputFile,
     );
+  }
+
+  void _setJsonOutputFormat(List<String> args) {
+    final formatIndex = args.indexOf('--output-format');
+    if (formatIndex >= 0 && formatIndex + 1 < args.length) {
+      args[formatIndex + 1] = 'json';
+      return;
+    }
+    args.addAll(const <String>['--output-format', 'json']);
   }
 
   Future<void> _copyGrokRuntimeConfiguration(
