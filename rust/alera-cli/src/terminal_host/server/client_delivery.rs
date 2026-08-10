@@ -135,6 +135,20 @@ impl ServerActor {
         }
     }
 
+    pub(super) fn shutdown_runtime_after_client_write(&self, client_id: u64) {
+        if let Some(client) = self.clients.get(&client_id) {
+            if client
+                .handle
+                .send_control(ClientFrame::ShutdownRuntimeAfterWrite {
+                    inbox: self.inbox.clone(),
+                })
+                .is_err()
+            {
+                self.disconnect_client_soon(client_id);
+            }
+        }
+    }
+
     pub(super) fn broadcast(&self, client_ids: &[u64], message: Value) {
         for id in client_ids {
             if let Some(client) = self.clients.get(id) {

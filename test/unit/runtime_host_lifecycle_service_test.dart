@@ -178,6 +178,30 @@ void main() {
       expect(client.shutdownCalls, <bool>[false]);
     });
 
+    test('prepareAppQuit does not wait for detached host cleanup', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '1.2.0',
+          'persistent': false,
+        },
+        shutdownLeavesHostRunning: true,
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '1.2.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+        shutdownSettleTimeout: const Duration(seconds: 5),
+      );
+
+      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
+
+      expect(allowed, isTrue);
+      expect(client.shutdownCalls, <bool>[false]);
+      expect(await client.probeRuntimeStatus(), isNotNull);
+    });
+
     test('prepareAppQuit cancels when busy quit is declined', () async {
       final client = _FakeRuntimeClient(
         status: <String, Object?>{
@@ -397,12 +421,14 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
     this.status,
     this.busyOnSoftStop = false,
     this.probeThrows = false,
+    this.shutdownLeavesHostRunning = false,
     this.ensureStartedError,
   });
 
   Map<String, Object?>? status;
   final bool busyOnSoftStop;
   final bool probeThrows;
+  final bool shutdownLeavesHostRunning;
   final Object? ensureStartedError;
   final List<bool> shutdownCalls = <bool>[];
   int ensureStartedCalls = 0;
@@ -432,8 +458,10 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
         activeSessions: 1,
       );
     }
-    _stopped = true;
-    status = null;
+    if (!shutdownLeavesHostRunning) {
+      _stopped = true;
+      status = null;
+    }
     return RuntimeHostShutdownResult(stopped: true, forced: force);
   }
 

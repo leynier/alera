@@ -185,8 +185,7 @@ final class RuntimeHostLifecycleService {
     }
 
     try {
-      await _client.shutdownRuntime(force: false);
-      await _waitUntilStopped();
+      await _shutdownForAppQuit(force: false);
       return true;
     } on StateError catch (error) {
       if (error.message.contains('No live Alera runtime host')) {
@@ -209,8 +208,7 @@ final class RuntimeHostLifecycleService {
         case RuntimeHostQuitDecision.leaveRuntimeOpen:
           return true;
         case RuntimeHostQuitDecision.forceStop:
-          await _client.shutdownRuntime(force: true);
-          await _waitUntilStopped();
+          await _shutdownForAppQuit(force: true);
           return true;
       }
     }
@@ -219,12 +217,43 @@ final class RuntimeHostLifecycleService {
   Future<void> _waitUntilStopped() async {
     final deadline = DateTime.now().add(_shutdownSettleTimeout);
     while (DateTime.now().isBefore(deadline)) {
-      final status = await _client.probeRuntimeStatus();
+      Map<String, Object?>? status;
+      try {
+        status = await _client.probeRuntimeStatus();
+      } on StateError catch (error) {
+        if (_isExpectedShutdownDisconnect(error)) {
+          return;
+        }
+        rethrow;
+      }
       if (status == null) {
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
+  }
+
+  /// App quit only needs the shutdown request accepted. The sidecar is
+  /// detached, so waiting for its cleanup would keep the native window open
+  /// while it terminates terminal trees and flushes its stores.
+  Future<void> _shutdownForAppQuit({required bool force}) async {
+    try {
+      await _client.shutdownRuntime(force: force);
+    } on StateError catch (error) {
+      // Older sidecars can close the connection while processing shutdown
+      // before they write the response. Treat that expected disconnect as a
+      // best-effort shutdown so an app quit is never trapped behind EOF.
+      if (_isExpectedShutdownDisconnect(error)) {
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  bool _isExpectedShutdownDisconnect(StateError error) {
+    final message = error.message;
+    return message.contains('Terminal host connection closed') ||
+        message.contains('No live Alera runtime host');
   }
 }
 
