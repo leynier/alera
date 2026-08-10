@@ -226,6 +226,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.runtimeSettings.get"));
     assert!(mobile_request_allowed("mobile.runtimeSettings.update"));
     assert!(mobile_request_allowed("agentQuota.snapshot"));
+    assert!(mobile_request_allowed("agentUsage.snapshot"));
     assert!(mobile_request_allowed("agentQuota.fetchClaudeTui"));
     assert!(mobile_request_allowed("agentQuota.consumeCodexResetCredit"));
     assert!(mobile_request_allowed("cliRegistration.status"));
