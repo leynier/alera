@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::Instant;
 
 use hound::{SampleFormat, WavReader};
 use whisper_rs::{
@@ -103,7 +102,6 @@ fn transcribe_inner(
     request: &AiDictationRequest,
     cancelled: &Arc<AtomicBool>,
 ) -> Result<AiDictationResult, AiDictationError> {
-    let started = Instant::now();
     if cancelled.load(Ordering::Relaxed) {
         return Err(cancelled_error());
     }
@@ -199,10 +197,6 @@ fn transcribe_inner(
         text,
         detected_language,
         duration_millis,
-    })
-    .map(|result| {
-        let _elapsed_millis = started.elapsed().as_millis();
-        result
     })
 }
 
