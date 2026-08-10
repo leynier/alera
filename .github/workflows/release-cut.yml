@@ -323,7 +323,20 @@ jobs:
           dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
             --platform macos \
             --bundle "$BUNDLE_DIR"
-          tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
+          # Only the app, never the directory that contains it. BUNDLE_DIR is
+          # the Xcode products root on macOS (it is the runnable bundle itself
+          # on Windows and Linux), so archiving `.` shipped every dSYM, every
+          # per-pod build product and a loose copy of each framework alongside
+          # Alera.app: 450 MB published where the app is 271 MB.
+          # COPYFILE_DISABLE keeps macOS tar from adding its `._*` AppleDouble
+          # files for the xattrs Xcode leaves behind.
+          asset="release-assets/alera-${RELEASE_VERSION}-macos.tar.gz"
+          COPYFILE_DISABLE=1 tar -czf "$asset" -C "$BUNDLE_DIR" Alera.app
+          roots="$(tar -tzf "$asset" | awk -F/ '{print $1}' | sort -u)"
+          if [[ "$roots" != "Alera.app" ]]; then
+            echo "::error::macOS asset must contain only Alera.app, got: $roots"
+            exit 1
+          fi
 
       - name: Package Windows release assets
         if: matrix.platform == 'windows'
