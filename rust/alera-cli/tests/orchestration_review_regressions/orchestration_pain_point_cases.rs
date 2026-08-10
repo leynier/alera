@@ -64,7 +64,11 @@ fn timed_out_agent_spawn_cannot_dispatch_on_late_readiness() {
         json!({"task": task_id}),
     ));
     assert!(show["active"].is_null(), "{show}");
-    assert!(show["history"].as_array().unwrap().is_empty(), "{show}");
+    // The spawn's own dispatch is in the history as a failed startup. Late
+    // readiness must not add a second one on top of it.
+    let history = show["history"].as_array().unwrap();
+    assert_eq!(history.len(), 1, "{show}");
+    assert_eq!(history[0]["status"], json!("startup_failed"), "{show}");
 }
 
 #[test]

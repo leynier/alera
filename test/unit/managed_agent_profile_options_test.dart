@@ -48,6 +48,7 @@ void main() {
           AgentType.cursor: true,
           AgentType.agy: true,
           AgentType.opencode: true,
+          AgentType.opencode2: true,
           AgentType.pi: true,
           AgentType.amp: false,
           AgentType.grok: true,
@@ -65,6 +66,7 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: true,
           AgentType.opencode: true,
+          AgentType.opencode2: true,
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: false,
@@ -234,6 +236,8 @@ void main() {
               'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
               'This profile lets OpenCode approve actions automatically.',
+          AgentType.opencode2:
+              'This profile lets OpenCode approve actions automatically.',
           AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
           AgentType.grok: '',
@@ -336,6 +340,7 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: false,
           AgentType.opencode: false,
+          AgentType.opencode2: false,
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: false,
@@ -389,6 +394,15 @@ void main() {
           'autoApprove': true,
         }),
         'opencode --model gpt --agent build --auto',
+      );
+      expect(
+        managedAgentCommandPreview(AgentType.opencode2, const <String, Object?>{
+          'model': 'gpt',
+          'agent': 'build',
+          'autoApprove': true,
+        }),
+        // Interactive opencode2 only accepts --auto on the default TUI.
+        'opencode2 --auto',
       );
       expect(
         managedAgentCommandPreview(AgentType.pi, const <String, Object?>{

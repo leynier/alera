@@ -12,6 +12,7 @@ class PairedHostProfile {
     required this.deviceId,
     required this.pairedAt,
     this.serverPublicKeyB64,
+    this.endpointNetwork,
     this.alias,
   });
 
@@ -21,6 +22,7 @@ class PairedHostProfile {
   final String runtimeId;
   final String deviceId;
   final String? serverPublicKeyB64;
+  final String? endpointNetwork;
   final DateTime pairedAt;
 
   /// Local, user-chosen name for this host. Never sent to the runtime; the
@@ -38,6 +40,7 @@ class PairedHostProfile {
       deviceId: deviceId,
       pairedAt: pairedAt,
       serverPublicKeyB64: serverPublicKeyB64,
+      endpointNetwork: endpointNetwork,
       alias: alias,
     );
   }
@@ -61,13 +64,15 @@ class PairedHostProfile {
       runtimeId: credentials.runtimeId,
       deviceId: credentials.deviceId,
       serverPublicKeyB64: offer.serverPublicKeyB64,
+      endpointNetwork: offer.endpointNetwork,
       pairedAt: DateTime.now().toUtc(),
     );
   }
 
   factory PairedHostProfile.fromJson(Map<String, Object?> json) {
     final endpoint = json.requiredString('endpoint');
-    validatePairingEndpoint(endpoint);
+    final endpointNetwork = json.optionalString('endpointNetwork');
+    validatePairingEndpoint(endpoint, endpointNetwork: endpointNetwork);
     return PairedHostProfile(
       id: json.requiredString('id'),
       displayName: json.requiredString('displayName'),
@@ -75,6 +80,7 @@ class PairedHostProfile {
       runtimeId: json.requiredString('runtimeId'),
       deviceId: json.requiredString('deviceId'),
       serverPublicKeyB64: json.optionalString('serverPublicKeyB64'),
+      endpointNetwork: endpointNetwork,
       pairedAt: DateTime.parse(json.requiredString('pairedAt')),
       alias: json.optionalString('alias'),
     );
@@ -88,6 +94,7 @@ class PairedHostProfile {
       'runtimeId': runtimeId,
       'deviceId': deviceId,
       'serverPublicKeyB64': serverPublicKeyB64,
+      if (endpointNetwork != null) 'endpointNetwork': endpointNetwork,
       'pairedAt': pairedAt.toUtc().toIso8601String(),
       if (alias != null) 'alias': alias,
     };

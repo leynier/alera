@@ -84,6 +84,18 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
 /// Windows then buckets, sorted by the desktop reading order.
 List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
   final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets]
+    // ignore: prefer_spread_collections
+    ..addAll(
+      snapshot.amounts.map(
+        (amount) => QuotaMeter(
+          label: amount.label,
+          usedPercent: 0,
+          resetsAt: amount.resetsAt,
+          resetDescription: amount.resetDescription,
+          displayValue: _amountDisplay(amount),
+        ),
+      ),
+    )
     ..sort(
       (left, right) => quotaMeterReadingOrder(
         snapshot.provider,
@@ -91,6 +103,14 @@ List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
       ).compareTo(quotaMeterReadingOrder(snapshot.provider, right.label)),
     );
   return meters;
+}
+
+String _amountDisplay(QuotaAmount amount) {
+  final value =
+      amount.spentAmount ?? amount.remainingAmount ?? amount.limitAmount;
+  return value == null
+      ? 'n/a'
+      : '${amount.currency} ${value.toStringAsFixed(2)}';
 }
 
 int quotaMeterReadingOrder(String provider, String label) {

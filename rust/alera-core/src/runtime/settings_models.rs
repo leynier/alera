@@ -288,7 +288,7 @@ impl Default for RuntimeAgentQuotaSettings {
 
 impl RuntimeAgentQuotaSettings {
     pub fn normalized(mut self) -> Self {
-        const SUPPORTED: [&str; 8] = [
+        const SUPPORTED: [&str; 9] = [
             "claude",
             "codex",
             "kimi",
@@ -297,6 +297,7 @@ impl RuntimeAgentQuotaSettings {
             "antigravity",
             "minimax",
             "zai",
+            "opencode",
         ];
         let mut seen = std::collections::HashSet::new();
         self.enabled_providers.retain(|provider| {
@@ -367,6 +368,7 @@ fn default_quota_providers() -> Vec<String> {
         "antigravity",
         "minimax",
         "zai",
+        "opencode",
     ]
     .into_iter()
     .map(str::to_string)
@@ -418,6 +420,8 @@ pub struct RuntimeAgentStatusHookSettings {
     #[serde(default)]
     pub opencode: bool,
     #[serde(default)]
+    pub opencode2: bool,
+    #[serde(default)]
     pub pi: bool,
     #[serde(default)]
     pub amp: bool,
@@ -434,6 +438,7 @@ impl RuntimeAgentStatusHookSettings {
             "cursor" => self.cursor,
             "agy" => self.agy,
             "opencode" => self.opencode,
+            "opencode2" => self.opencode2,
             "pi" => self.pi,
             "amp" => self.amp,
             "grok" => self.grok,
@@ -449,6 +454,7 @@ impl RuntimeAgentStatusHookSettings {
             "cursor" => &mut self.cursor,
             "agy" => &mut self.agy,
             "opencode" => &mut self.opencode,
+            "opencode2" => &mut self.opencode2,
             "pi" => &mut self.pi,
             "amp" => &mut self.amp,
             "grok" => &mut self.grok,
@@ -459,8 +465,17 @@ impl RuntimeAgentStatusHookSettings {
     }
 
     pub fn enabled_agents(&self) -> Vec<&'static str> {
-        const AGENTS: [&str; 9] = [
-            "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok",
+        const AGENTS: [&str; 10] = [
+            "codex",
+            "claude",
+            "copilot",
+            "cursor",
+            "agy",
+            "opencode",
+            "opencode2",
+            "pi",
+            "amp",
+            "grok",
         ];
         AGENTS
             .into_iter()

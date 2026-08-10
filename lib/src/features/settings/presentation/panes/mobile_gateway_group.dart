@@ -33,6 +33,7 @@ class MobileGatewayGroup extends StatelessWidget {
     required this.applying,
     required this.onEnabledChanged,
     required this.onModeSelected,
+    required this.onNetbirdEndpointSelected,
     required this.onBindHostChanged,
     required this.onPortChanged,
     required this.onApply,
@@ -44,6 +45,7 @@ class MobileGatewayGroup extends StatelessWidget {
   final bool applying;
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<MobileEndpointMode> onModeSelected;
+  final ValueChanged<MobileNetbirdEndpoint> onNetbirdEndpointSelected;
   final ValueChanged<String> onBindHostChanged;
   final ValueChanged<int> onPortChanged;
   final VoidCallback onApply;
@@ -72,6 +74,8 @@ class MobileGatewayGroup extends StatelessWidget {
               'Only this machine can reach the gateway.',
             MobileEndpointMode.tailscale =>
               'Devices on your Tailnet reach the gateway over Tailscale.',
+            MobileEndpointMode.netbird =>
+              'Devices on your NetBird network reach the gateway over NetBird.',
             MobileEndpointMode.manual =>
               'Configure the bind host and endpoint yourself.',
           },
@@ -80,16 +84,21 @@ class MobileGatewayGroup extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: AleraSegmentedButton<MobileEndpointMode>(
               dense: true,
-              segments: const <ButtonSegment<MobileEndpointMode>>[
-                ButtonSegment<MobileEndpointMode>(
+              segments: <ButtonSegment<MobileEndpointMode>>[
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.loopback,
                   label: Text('This Device'),
                 ),
-                ButtonSegment<MobileEndpointMode>(
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.tailscale,
                   label: Text('Tailscale'),
                 ),
-                ButtonSegment<MobileEndpointMode>(
+                if (status.netbird != null)
+                  const ButtonSegment<MobileEndpointMode>(
+                    value: MobileEndpointMode.netbird,
+                    label: Text('NetBird'),
+                  ),
+                const ButtonSegment<MobileEndpointMode>(
                   value: MobileEndpointMode.manual,
                   label: Text('Manual'),
                 ),
@@ -101,6 +110,18 @@ class MobileGatewayGroup extends StatelessWidget {
         ),
         if (mode == MobileEndpointMode.tailscale) ...<Widget>[
           _tailscaleStatusRow(),
+          if (defaultTargetPlatform == TargetPlatform.windows)
+            const AleraSettingRow(
+              title: 'Windows Firewall',
+              description:
+                  'If the phone cannot connect, allow Alera through Windows '
+                  'Firewall for incoming connections on the gateway port.',
+              child: SizedBox.shrink(),
+            ),
+        ],
+        if (mode == MobileEndpointMode.netbird) ...<Widget>[
+          _netbirdStatusRow(),
+          _netbirdEndpointRow(),
           if (defaultTargetPlatform == TargetPlatform.windows)
             const AleraSettingRow(
               title: 'Windows Firewall',
@@ -199,6 +220,95 @@ class MobileGatewayGroup extends StatelessWidget {
             const SizedBox(width: AleraTokens.space6),
             Flexible(child: AleraBadge(label: label)),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _netbirdStatusRow() {
+    final netbird = status.netbird;
+    final (bool active, String label, String description) = switch (netbird) {
+      null => (
+        false,
+        'Unknown',
+        'The runtime does not report NetBird - update the Alera CLI.',
+      ),
+      MobileNetbirdStatus(detected: false) => (
+        false,
+        'Not Detected',
+        'Install NetBird on this machine to use this mode.',
+      ),
+      MobileNetbirdStatus(connected: false) => (
+        false,
+        'Not Connected',
+        netbird.error ?? 'Run "netbird up" and sign in to your network.',
+      ),
+      MobileNetbirdStatus(netbirdIp: final String ip) => (
+        true,
+        'Connected - $ip',
+        'Devices connected to the same NetBird network can pair and connect. '
+            'DNS: ${netbird.dnsHostname ?? 'unavailable'}; interface: '
+            '${netbird.interfaceName ?? 'unavailable'}.',
+      ),
+      _ => (
+        false,
+        'No NetBird IP',
+        'NetBird is connected but reported no NetBird IPv4 address.',
+      ),
+    };
+    return AleraSettingRow(
+      title: 'NetBird Status',
+      description: description,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AleraStatusDot(active: active),
+            const SizedBox(width: AleraTokens.space6),
+            Flexible(child: AleraBadge(label: label)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _netbirdEndpointRow() {
+    final netbird = status.netbird;
+    final segments = <ButtonSegment<MobileNetbirdEndpoint>>[
+      const ButtonSegment<MobileNetbirdEndpoint>(
+        value: MobileNetbirdEndpoint.ip,
+        label: Text('IP Address'),
+      ),
+      if (netbird?.dnsHostname != null ||
+          status.settings.netbirdEndpoint == MobileNetbirdEndpoint.dns)
+        ButtonSegment<MobileNetbirdEndpoint>(
+          value: MobileNetbirdEndpoint.dns,
+          label: Text('DNS Hostname'),
+        ),
+      if (netbird?.interfaceName case final String interfaceName)
+        ButtonSegment<MobileNetbirdEndpoint>(
+          value: MobileNetbirdEndpoint.interface,
+          label: Text('Interface ($interfaceName)'),
+        ),
+      if (netbird?.interfaceName == null &&
+          status.settings.netbirdEndpoint == MobileNetbirdEndpoint.interface)
+        const ButtonSegment<MobileNetbirdEndpoint>(
+          value: MobileNetbirdEndpoint.interface,
+          label: Text('Private Interface'),
+        ),
+    ];
+    return AleraSettingRow(
+      title: 'NetBird Endpoint',
+      description: 'Address included in new pairing offers.',
+      controlWidth: 360,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: AleraSegmentedButton<MobileNetbirdEndpoint>(
+          dense: true,
+          segments: segments,
+          selected: status.settings.netbirdEndpoint,
+          onSelectionChanged: applying ? (_) {} : onNetbirdEndpointSelected,
         ),
       ),
     );

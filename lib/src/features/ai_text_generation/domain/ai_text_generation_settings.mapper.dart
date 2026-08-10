@@ -98,6 +98,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return AiTextGenerationAgent.agy;
       case r'opencode':
         return AiTextGenerationAgent.opencode;
+      case r'opencode2':
+        return AiTextGenerationAgent.opencode2;
       case r'pi':
         return AiTextGenerationAgent.pi;
       case r'amp':
@@ -126,6 +128,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return r'agy';
       case AiTextGenerationAgent.opencode:
         return r'opencode';
+      case AiTextGenerationAgent.opencode2:
+        return r'opencode2';
       case AiTextGenerationAgent.pi:
         return r'pi';
       case AiTextGenerationAgent.amp:

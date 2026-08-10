@@ -52,6 +52,7 @@ void main() {
           'antigravity',
           'minimax',
           'zai',
+          'opencode',
         ],
       );
     },

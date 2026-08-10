@@ -87,43 +87,6 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
-  WorkbenchContextPanelTab _supportedContextPanelTabForProjectWorkspace({
-    required Project? project,
-    required Workspace? workspace,
-    required WorkbenchViewPrefs prefs,
-    required WorkbenchContextPanelTab tab,
-  }) {
-    if (workspace == null) {
-      return tab;
-    }
-    final sourceControlScope = WorkspaceSourceControlScope.resolve(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-    );
-    if (sourceControlScope == null && tab == WorkbenchContextPanelTab.gitDiff) {
-      return WorkbenchContextPanelTab.explorer;
-    }
-    return tab;
-  }
-
-  WorkbenchViewPrefs _viewPrefsForProjectContext({
-    required Project? project,
-    required Workspace? workspace,
-    required WorkbenchViewPrefs prefs,
-  }) {
-    final activeContextPanelTab = _supportedContextPanelTabForProjectWorkspace(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-      tab: prefs.activeContextPanelTab,
-    );
-    if (activeContextPanelTab == prefs.activeContextPanelTab) {
-      return prefs;
-    }
-    return prefs.copyWith(activeContextPanelTab: activeContextPanelTab);
-  }
-
   Project? _projectById(Iterable<Project> projects, String? projectId) {
     if (projectId == null) {
       return null;
@@ -131,23 +94,6 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     for (final project in projects) {
       if (project.id == projectId) {
         return project;
-      }
-    }
-    return null;
-  }
-
-  Workspace? _workspaceById(
-    Map<String, List<Workspace>> workspacesByProject,
-    String? workspaceId,
-  ) {
-    if (workspaceId == null) {
-      return null;
-    }
-    for (final workspaces in workspacesByProject.values) {
-      for (final workspace in workspaces) {
-        if (workspace.id == workspaceId) {
-          return workspace;
-        }
       }
     }
     return null;
@@ -166,11 +112,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     final expandedPrefs = changedPrefs
         ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
         : prefs;
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: null,
-      prefs: expandedPrefs,
-    );
+    final nextViewPrefs = expandedPrefs;
     final prefsChanged = !identical(nextViewPrefs, prefs);
     state = state.copyWith(
       viewPrefs: nextViewPrefs,

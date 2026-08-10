@@ -9,8 +9,7 @@ extension _AgentRuntimeOverlayPrepare on AgentRuntimeOverlayService {
     required String sourceEnvKey,
     required String defaultSourcePath,
     required String managedSubdirectory,
-    required String managedFileName,
-    required String managedFileContent,
+    required Map<String, String> managedFiles,
   }) async {
     final source = _resolveSource(
       publicEnvKey: publicEnvKey,
@@ -36,13 +35,15 @@ extension _AgentRuntimeOverlayPrepare on AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: overlay.path,
           managedSubdirectory: managedSubdirectory,
-          managedFileName: managedFileName,
+          managedFileNames: managedFiles.keys.toSet(),
         );
       }
-      _writeManagedFile(
-        p.join(overlay.path, managedSubdirectory, managedFileName),
-        managedFileContent,
-      );
+      for (final entry in managedFiles.entries) {
+        _writeManagedFile(
+          p.join(overlay.path, managedSubdirectory, entry.key),
+          entry.value,
+        );
+      }
     } catch (_) {
       _safeRemoveOverlay(overlay.path, root);
       if (source.isExplicit) {

@@ -9,7 +9,13 @@ AgentStatusState? _normalizeCursorState(
     'sessionStart' ||
     'preToolUse' ||
     'postToolUse' ||
-    'postToolUseFailure' => AgentStatusState.working,
+    'postToolUseFailure' ||
+    // Cursor fires the `before` events ahead of every execution, approval
+    // prompt or not, and never tells the hook which it was. The matching
+    // `after` event is what ends the wait, so a long command does not sit
+    // marked as needing attention for its whole run.
+    'afterShellExecution' ||
+    'afterMCPExecution' => AgentStatusState.working,
     'beforeShellExecution' || 'beforeMCPExecution' => AgentStatusState.waiting,
     'afterAgentResponse' =>
       previous?.agentType == AgentType.cursor &&
@@ -34,13 +40,13 @@ _ToolSnapshot _extractCursorToolSnapshot(
     'preToolUse' ||
     'postToolUse' ||
     'postToolUseFailure' => _cursorToolUseSnapshot(payload, eventName),
-    'beforeShellExecution' => _ToolSnapshot(
+    'beforeShellExecution' || 'afterShellExecution' => _ToolSnapshot(
       toolName: 'Shell',
       toolInput: _readFirstString(payload, const <String>['command']),
       hasToolUpdate: true,
       hasToolInput: payload.containsKey('command'),
     ),
-    'beforeMCPExecution' => _cursorMcpSnapshot(payload),
+    'beforeMCPExecution' || 'afterMCPExecution' => _cursorMcpSnapshot(payload),
     'afterAgentResponse' => _ToolSnapshot(
       lastAssistantMessage: _readCursorMultiline(payload, const <String>[
         'text',

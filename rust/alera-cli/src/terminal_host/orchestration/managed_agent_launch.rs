@@ -41,6 +41,7 @@ pub fn build_managed_agent_launch(
         "cursor" => build_cursor(values, &mut arguments)?,
         "agy" => build_agy(values, &mut arguments)?,
         "opencode" => build_opencode(values, &mut arguments)?,
+        "opencode2" => build_opencode2(values, &mut arguments)?,
         "pi" => build_pi(values, &mut arguments)?,
         "amp" => build_amp(values, &mut arguments)?,
         _ => return Err(format!("unsupported managed agent type: {agent_type}")),
@@ -297,6 +298,14 @@ fn build_opencode(values: &Map<String, Value>, arguments: &mut Vec<String>) -> R
     require_known_keys(values, &["model", "agent", "autoApprove"])?;
     push_string(values, "model", "--model", arguments)?;
     push_string(values, "agent", "--agent", arguments)?;
+    push_flag(values, "autoApprove", "--auto", arguments)
+}
+
+// Interactive opencode2 only accepts --auto on the default TUI command.
+// Model/agent remain accepted in profile config for UI parity and run-mode
+// consumers, but they are not emitted on the interactive launch line.
+fn build_opencode2(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["model", "agent", "autoApprove"])?;
     push_flag(values, "autoApprove", "--auto", arguments)
 }
 

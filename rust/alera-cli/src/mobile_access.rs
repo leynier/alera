@@ -1,6 +1,6 @@
 use alera_core::runtime::{
     MobileAccessSettings, MobileDevice, MobileDevicePermission, MobileEndpointMode,
-    MobilePairingOffer, RuntimeStore,
+    MobileNetbirdEndpoint, MobilePairingOffer, RuntimeStore,
 };
 use anyhow::{bail, Result};
 use chrono::{Duration, Utc};
@@ -22,6 +22,8 @@ pub struct MobileSettingsUpdateRequest {
     pub port: Option<i64>,
     #[serde(default)]
     pub endpoint_mode: Option<MobileEndpointMode>,
+    #[serde(default)]
+    pub netbird_endpoint: Option<MobileNetbirdEndpoint>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -57,6 +59,8 @@ pub struct MobileStatusPayload {
     pub runtime_host_active: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tailscale: Option<crate::tailscale::TailscaleStatusSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub netbird: Option<crate::netbird::NetbirdStatusSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +95,8 @@ pub struct MobilePairingOfferPayload {
     pub runtime_id: String,
     pub host_name: String,
     pub pairing_secret: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint_network: Option<String>,
     pub server_public_key_b64: Option<String>,
     pub expires_at: chrono::DateTime<Utc>,
 }
@@ -128,6 +134,7 @@ pub async fn mobile_status(
         active_pairings,
         runtime_host_active,
         tailscale: Some(crate::tailscale::detect().await),
+        netbird: Some(crate::netbird::detect().await),
     })
 }
 
@@ -163,6 +170,9 @@ pub fn apply_mobile_settings_update(
     if let Some(endpoint_mode) = request.endpoint_mode {
         settings.endpoint_mode = endpoint_mode;
     }
+    if let Some(netbird_endpoint) = request.netbird_endpoint {
+        settings.netbird_endpoint = netbird_endpoint;
+    }
     Ok(settings)
 }
 
@@ -184,6 +194,13 @@ pub async fn apply_mobile_settings_update_resolved(
             settings.bind_host = crate::tailscale::resolve_tailnet_bind_ip()
                 .await?
                 .to_string();
+        }
+        MobileEndpointMode::Netbird if settings.enabled || switched_mode => {
+            settings.bind_host =
+                crate::netbird::resolve_netbird_endpoint(settings.netbird_endpoint)
+                    .await?
+                    .bind_ip
+                    .to_string();
         }
         MobileEndpointMode::Loopback if switched_mode && !request_has_bind_host => {
             settings.bind_host = MobileAccessSettings::default().bind_host;
@@ -208,12 +225,42 @@ pub async fn prepare_mobile_pairing_offer_settings_resolved(
             .await?
             .to_string();
     }
-    prepare_mobile_pairing_offer_settings(settings, request)
+    let mut generated_endpoint_network = None;
+    if settings.endpoint_mode == MobileEndpointMode::Netbird && !has_explicit_endpoint {
+        let resolved = crate::netbird::resolve_netbird_endpoint(settings.netbird_endpoint).await?;
+        settings.bind_host = resolved.bind_ip.to_string();
+        if settings.netbird_endpoint == MobileNetbirdEndpoint::Dns {
+            let endpoint = format!("ws://{}:{}", resolved.advertised_host, settings.port);
+            return prepare_mobile_pairing_offer_settings_with_network(
+                settings,
+                request,
+                Some(endpoint),
+                resolved.endpoint_network,
+            );
+        }
+        generated_endpoint_network = resolved.endpoint_network;
+    }
+    prepare_mobile_pairing_offer_settings_with_network(
+        settings,
+        request,
+        None,
+        generated_endpoint_network,
+    )
 }
 
-pub fn prepare_mobile_pairing_offer_settings(
+#[cfg(test)]
+fn prepare_mobile_pairing_offer_settings(
+    settings: MobileAccessSettings,
+    request: &MobilePairingCreateRequest,
+) -> Result<(MobileAccessSettings, String)> {
+    prepare_mobile_pairing_offer_settings_with_network(settings, request, None, None)
+}
+
+fn prepare_mobile_pairing_offer_settings_with_network(
     mut settings: MobileAccessSettings,
     request: &MobilePairingCreateRequest,
+    generated_endpoint: Option<String>,
+    endpoint_network: Option<String>,
 ) -> Result<(MobileAccessSettings, String)> {
     let explicit_endpoint = request
         .endpoint
@@ -221,7 +268,10 @@ pub fn prepare_mobile_pairing_offer_settings(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string);
-    let endpoint = explicit_endpoint.map(Ok).unwrap_or_else(|| {
+    let endpoint = generated_endpoint
+        .or(explicit_endpoint)
+        .map(Ok)
+        .unwrap_or_else(|| {
             if is_wildcard_bind_host(&settings.bind_host) {
                 bail!(
                     "mobile pairing endpoint is required when bind host is {}; pass --endpoint wss://<host-or-vpn-name>:{}",
@@ -235,7 +285,7 @@ pub fn prepare_mobile_pairing_offer_settings(
                 settings.port
             ))
         })?;
-    let endpoint = validate_pairing_endpoint(endpoint)?;
+    let endpoint = validate_pairing_endpoint(endpoint, endpoint_network.as_deref())?;
     let endpoint_port = i64::from(endpoint.port);
     if !settings.enabled {
         settings.enabled = true;
@@ -276,6 +326,19 @@ pub async fn create_mobile_pairing_offer_for_settings(
         claimed_device_id: None,
     };
     let offer = store.upsert_mobile_pairing_offer(offer).await?;
+    let endpoint_network = if request
+        .endpoint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_none()
+        && settings.endpoint_mode == MobileEndpointMode::Netbird
+        && settings.netbird_endpoint == MobileNetbirdEndpoint::Dns
+    {
+        Some("netbird".to_string())
+    } else {
+        None
+    };
     Ok(MobilePairingOfferPayload {
         v: MOBILE_PROTOCOL_VERSION,
         pairing_id: offer.id,
@@ -283,6 +346,7 @@ pub async fn create_mobile_pairing_offer_for_settings(
         runtime_id: runtime_id(store).await?,
         host_name: host_name(),
         pairing_secret,
+        endpoint_network,
         server_public_key_b64: offer.server_public_key_b64,
         expires_at: offer.expires_at,
     })
@@ -479,7 +543,10 @@ struct ValidPairingEndpoint {
     requires_listener_port_match: bool,
 }
 
-fn validate_pairing_endpoint(endpoint: String) -> Result<ValidPairingEndpoint> {
+fn validate_pairing_endpoint(
+    endpoint: String,
+    endpoint_network: Option<&str>,
+) -> Result<ValidPairingEndpoint> {
     let parsed = Url::parse(&endpoint)
         .map_err(|_| anyhow::anyhow!("mobile pairing endpoint must be a ws:// or wss:// URL"))?;
     match parsed.scheme() {
@@ -495,17 +562,30 @@ fn validate_pairing_endpoint(endpoint: String) -> Result<ValidPairingEndpoint> {
     if port == 0 {
         bail!("mobile pairing endpoint port must be between 1 and 65535");
     }
-    if parsed.scheme() == "ws"
-        && !is_loopback_endpoint_host(host)
-        && !is_tailscale_endpoint_host(host)
-    {
-        bail!("mobile pairing endpoints outside loopback or a tailscale tailnet must use wss://");
+    let plaintext_allowed = parsed.scheme() != "ws"
+        || is_loopback_endpoint_host(host)
+        || is_private_overlay_endpoint_host(host)
+        || (endpoint_network == Some("netbird") && is_dns_hostname(host));
+    if !plaintext_allowed {
+        bail!("mobile pairing endpoints outside loopback or a private overlay must use wss://");
     }
     Ok(ValidPairingEndpoint {
         value: endpoint,
         port,
         requires_listener_port_match: parsed.scheme() == "ws",
     })
+}
+
+fn is_dns_hostname(host: &str) -> bool {
+    let normalized = normalize_endpoint_host(host);
+    !normalized.is_empty()
+        && !normalized.contains(':')
+        && normalized
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '.'))
+        && normalized.contains('.')
+        && !normalized.starts_with('.')
+        && !normalized.ends_with('.')
 }
 
 fn endpoint_host(bind_host: &str) -> String {
@@ -525,7 +605,7 @@ fn is_loopback_endpoint_host(host: &str) -> bool {
             .is_ok_and(|address| address.is_loopback())
 }
 
-fn is_tailscale_endpoint_host(host: &str) -> bool {
+fn is_private_overlay_endpoint_host(host: &str) -> bool {
     normalize_endpoint_host(host)
         .parse::<std::net::IpAddr>()
         .is_ok_and(crate::tailscale::is_tailscale_ip)

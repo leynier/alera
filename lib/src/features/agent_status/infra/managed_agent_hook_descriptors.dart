@@ -22,6 +22,17 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     );
   }
 
+  ManagedAgentHookInstallStatus _cursorRuntimeOnlyStatus() {
+    return ManagedAgentHookInstallStatus(
+      agentType: AgentType.cursor,
+      state: ManagedAgentHookInstallState.notInstalled,
+      configPath: p.join(_homeDirectory, '.cursor', 'hooks.json'),
+      managedHooksPresent: false,
+      detail:
+          'Cursor hooks are installed as a per-session plugin, never in this file.',
+    );
+  }
+
   _AgentHookDescriptor _descriptor(AgentType agentType) {
     final extension = switch ((agentType, _platform)) {
       (AgentType.copilot, ManagedAgentHookPlatform.windows) => 'ps1',
@@ -48,10 +59,6 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
       ),
-      AgentType.cursor => _cursorDescriptor(
-        scriptFileName: scriptFileName,
-        scriptPath: scriptPath,
-      ),
       AgentType.agy => _agyDescriptor(
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
@@ -62,13 +69,16 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       ),
       // coverage:ignore-start
       // Descriptor lookups for artifact-backed agents are guarded by
-      // _managedArtifact before this switch. This branch protects future misuse.
+      // _managedArtifact before this switch, and Cursor by its runtime-only
+      // status. This branch protects future misuse.
+      AgentType.cursor ||
       AgentType.opencode ||
+      AgentType.opencode2 ||
       AgentType.pi ||
       AgentType.amp => throw ArgumentError.value(
         agentType,
         'agentType',
-        'Managed artifact agents do not use JSON hook descriptors.',
+        'This agent does not use a JSON hook descriptor.',
       ),
       // coverage:ignore-end
     };
@@ -77,6 +87,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
   _ManagedHookArtifact? _managedArtifact(AgentType agentType) {
     return switch (agentType) {
       AgentType.opencode => _opencodeArtifact(),
+      AgentType.opencode2 => _opencode2Artifact(),
       AgentType.pi => _piArtifact(),
       AgentType.amp => _ampArtifact(),
       AgentType.codex ||

@@ -20,6 +20,9 @@ const resourceSnapshotOpenInterval = Duration(seconds: 2);
 /// Cadence while the panel is closed. The status-bar chip still needs a number,
 /// but nobody is watching it change, and each poll keeps the host's sampler
 /// alive.
+///
+/// The host sweeps at whatever cadence it is told, so this is the interval it
+/// runs at too: a slower poll is a proportionally cheaper host.
 const resourceSnapshotClosedInterval = Duration(seconds: 15);
 
 const _resourceSnapshotTimeout = Duration(seconds: 5);
@@ -42,10 +45,15 @@ Future<ResourceSnapshot> resourceSnapshot(Ref ref) async {
       : resourceSnapshotClosedInterval;
   final timer = Timer.periodic(interval, (_) => ref.invalidateSelf());
   ref.onDispose(timer.cancel);
-  return fetchResourceSnapshot(client: client, appPid: pid);
+  return fetchResourceSnapshot(client: client, appPid: pid, interval: interval);
 }
 
 /// Ask the runtime host for its latest sweep.
+///
+/// [interval] is the cadence this caller polls at. The host sizes both its
+/// sampling interval and the window it waits before stopping around it, so an
+/// omitted or wrong value leaves the sampler stopped under a client that is
+/// still asking.
 ///
 /// A host that predates the resource monitor simply rejects the verb, so a
 /// failure degrades to an unavailable snapshot instead of an error state: the
@@ -53,11 +61,15 @@ Future<ResourceSnapshot> resourceSnapshot(Ref ref) async {
 Future<ResourceSnapshot> fetchResourceSnapshot({
   required RuntimeHostClient client,
   required int appPid,
+  required Duration interval,
 }) async {
   try {
     final payload = await client.runtimeRequest(
       'resources.snapshot',
-      <String, Object?>{'appPid': appPid},
+      <String, Object?>{
+        'appPid': appPid,
+        'intervalMs': interval.inMilliseconds,
+      },
       _resourceSnapshotTimeout,
     );
     if (payload is! Map) {

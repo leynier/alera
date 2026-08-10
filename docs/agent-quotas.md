@@ -14,6 +14,7 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 - Antigravity.
 - MiniMax Token Plan.
 - Z.ai.
+- OpenCode Go and OpenCode Zen.
 
 The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a 15-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. Automatic reads reuse that cache; the explicit refresh button bypasses it. For the local desktop host, Alera resolves configured variables missing from the GUI process through the user's login shell and sends their values directly to the runtime host in memory. Values are never persisted or returned in quota responses. Alera must be restarted after changing those shell exports because the resolver caches them for the app lifetime. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
 
@@ -38,6 +39,10 @@ The default Claude account can be enabled or disabled independently from the Cla
 
 ## Environment-Based Plans
 
+## OpenCode Go And Zen
+
+OpenCode is enabled as one provider with separate **Go** and **Zen** snapshots. Alera reads the OpenCode local SQLite history on the target host, so the OpenCode CLI must have been used on that host. Go is displayed against the published $12 per 5-hour, $30 weekly, and $60 monthly plan limits. These values are host-local estimates because OpenCode does not currently expose an account usage endpoint. Zen is shown as local 30-day spend; authoritative Zen balance data is not currently exposed by the provider. Estimated rows are labeled **Estimated** and must not be treated as billing records.
+
 Alera stores only environment variable names, never API key values. Configure the values on every local or remote host where the provider is enabled:
 
 - Kimi Code: `KIMI_API_KEY` and optionally `KIMI_CODE_BASE_URL`.
@@ -45,6 +50,22 @@ Alera stores only environment variable names, never API key values. Configure th
 - Z.ai: `ZAI_API_KEY` and optionally `ZAI_BASE_URL`.
 
 The Kimi, MiniMax, and Z.ai variable names can be changed per host in settings. MiniMax chooses the global or China token-plan endpoint from the configured host.
+
+## Where The Host Reads Variables From
+
+Quota lookups for the local host run inside the `alera terminal-host` sidecar, which the app starts as a detached child. A GUI launch (Finder, Dock, Spotlight, a `.desktop` entry) starts the app with a minimal environment that contains none of the user's shell rc exports, so the sidecar would not see them either.
+
+The sidecar therefore resolves these variables through the user's login shell (`$SHELL -ilc`), cached for the process lifetime and refreshable through the `shellEnvironment.reload` request. A value already present in the sidecar's own environment always wins, so an explicit override is never masked. This covers `CCS_DIR`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CODEX_HOME`, `GROK_HOME`, `CURSOR_CONFIG_DIR`, `XDG_CONFIG_HOME`, the configurable Kimi / MiniMax / Z.ai names, and the base-URL overrides. The same environment is handed to the **Try With TUI** scrape, so the CLI it launches resolves on `PATH` and reads the same configuration it would in a terminal tab. Windows is unaffected: user and system variables already reach GUI processes there.
+
+Resolved values may be secrets. They are held in memory only, never logged and never written to disk.
+
+## Claude Credential States
+
+A Claude account with no usable OAuth credentials reports which of these it hit, because they need different things from the user:
+
+- **Not signed in to Claude** - no credential store holds anything for that config directory.
+- **Claude credentials could not be read** - a credential store holds an entry that could not be read. On macOS this is usually a Keychain item whose access control has not been granted yet; allowing the access prompt resolves it. The probe waits long enough for that prompt to be answered.
+- **Claude credentials are not OAuth credentials** - credentials were read but carry no `claudeAiOauth` entry, so the account authenticates some other way.
 
 ## Provider Data Sources
 

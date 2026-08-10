@@ -8,6 +8,15 @@ pub(super) fn install_opencode_plugin() -> anyhow::Result<()> {
     )
 }
 
+pub(super) fn install_opencode2_plugin() -> anyhow::Result<()> {
+    // Same config root as v1; a distinct filename keeps both plugins loadable.
+    install_plugin(
+        env_path("OPENCODE_CONFIG_DIR").unwrap_or(home_dir()?.join(".config/opencode")),
+        "plugins/alera-agent-status-v2.js",
+        OPENCODE2_PLUGIN,
+    )
+}
+
 pub(super) fn install_pi_plugin() -> anyhow::Result<()> {
     install_plugin(
         env_path("PI_CODING_AGENT_DIR").unwrap_or(home_dir()?.join(".pi/agent")),
@@ -44,5 +53,6 @@ fn env_path(key: &str) -> Option<PathBuf> {
 }
 
 const OPENCODE_PLUGIN: &str = include_str!("integration_plugins/opencode.js");
+const OPENCODE2_PLUGIN: &str = include_str!("integration_plugins/opencode2.js");
 const PI_PLUGIN: &str = include_str!("integration_plugins/pi.ts");
 const AMP_PLUGIN: &str = include_str!("integration_plugins/amp.ts");

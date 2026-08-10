@@ -5,6 +5,7 @@ import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/infra/app_restart_launcher.dart';
 import 'package:alera/src/features/updater/infra/desktop_updater_backend.dart';
+import 'package:alera/src/features/updater/infra/install_directory_writability.dart';
 import 'package:alera/src/features/updater/infra/linux_update_package.dart';
 import 'package:alera/src/features/updater/infra/package_manager_update_launcher.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -31,6 +32,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     PackageManagerInstall? packageInstall,
     PackageManagerUpdateLauncher? packageManagerLauncher,
     AleraAppRestarter? appRestarter,
+    InstallDirectoryWritabilityProbe? probeInstallDirectory,
   }) : config = config ?? AleraUpdateConfig.fromEnvironment(),
        _loadPackageInfo = loadPackageInfo ?? PackageInfo.fromPlatform,
        _launchUrl = launchUrl ?? _launchExternalUrl,
@@ -40,6 +42,8 @@ class DesktopAleraUpdateService implements AleraUpdateService {
        _backend = backend ?? DesktopUpdaterBackend() {
     final runner = processRunner ?? const RustProcessRunner();
     final executable = resolvedExecutable ?? Platform.resolvedExecutable;
+    _probeInstallDirectory =
+        probeInstallDirectory ?? () => canReplaceInstallDirectory(executable);
     _packageInstall =
         packageInstall ??
         packageManagerInstallFromExecutablePath(
@@ -85,6 +89,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
   final LinuxInstallerKindLoader _loadLinuxInstallerKind;
   final AleraDesktopUpdaterBackend _backend;
   late final PackageManagerInstall _packageInstall;
+  late final InstallDirectoryWritabilityProbe _probeInstallDirectory;
   late final PackageManagerUpdateLauncher _packageManagerLauncher;
   late final AleraAppRestarter _appRestarter;
   DesktopUpdaterReleaseCandidate? _activeCandidate;
@@ -144,11 +149,16 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     _activeUpdate = update;
     _stagingPath = null;
 
+    // Linux is no longer excluded wholesale. What must never be replaced is an
+    // installation a package manager owns, which is now detected rather than
+    // assumed from the platform, and a directory Alera cannot write: an update
+    // that fails part way through the swap is the one outcome that leaves the
+    // user without an app.
     final autoInstallAllowed =
         config.canAutoInstall &&
-        _platform != 'linux' &&
         !_packageInstall.isPackageManaged &&
-        _installableArtifactKinds.contains(candidate.artifactKind);
+        _installableArtifactKinds.contains(candidate.artifactKind) &&
+        (_platform != 'linux' || await _probeInstallDirectory());
     if (autoInstallAllowed) {
       return AleraUpdateCheckResult(
         latest: update,
@@ -179,17 +189,24 @@ class DesktopAleraUpdateService implements AleraUpdateService {
     if (!config.canAutoInstall) {
       throw StateError('Automatic update installation is disabled.');
     }
-    final manager = packageManagerLabel(_packageInstall.method);
-    if (manager != null) {
+    // Checked against `isPackageManaged` rather than against the label: a deb
+    // or rpm install carries no manager name, because the path proves it is
+    // packaged without saying whether apt or dnf owns it.
+    if (_packageInstall.isPackageManaged) {
+      final manager = packageManagerLabel(_packageInstall.method);
       throw StateError(
-        'Alera does not replace an installation $manager owns. Upgrade '
-        'through $manager instead.',
+        manager == null
+            ? 'Alera does not replace an installation dpkg or rpm owns. '
+                  'Upgrade through apt or dnf instead.'
+            : 'Alera does not replace an installation $manager owns. Upgrade '
+                  'through $manager instead.',
       );
     }
-    if (_platform == 'linux') {
+    if (_platform == 'linux' && !await _probeInstallDirectory()) {
       throw StateError(
-        'Automatic Linux updates are disabled. Install Alera through apt, '
-        'dnf, or the configured package repository.',
+        'Alera cannot write to its own installation directory, so replacing '
+        'it would fail part way through. Reinstall it somewhere writable, or '
+        'update through your package manager.',
       );
     }
     final candidate = _activeCandidate;
@@ -291,7 +308,11 @@ String _manualUpdateMessage({
   if (manager != null) {
     return 'Update ${update.version} is available through $manager.';
   }
+  // Only an installation dpkg or rpm actually owns can be pointed at the
+  // repository. A directory the user extracted themselves is invisible to apt
+  // and dnf, so sending them there would upgrade nothing, or a different copy.
   if (update.platform == 'linux' &&
+      packageInstall.method == PackageInstallMethod.linuxSystemPackage &&
       config.channel == AleraUpdateChannel.stable &&
       (update.installerKind == 'deb' || update.installerKind == 'rpm')) {
     return 'Update ${update.version} is available through the Linux package repository.';

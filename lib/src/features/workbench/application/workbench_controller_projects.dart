@@ -85,13 +85,7 @@ mixin _WorkbenchControllerProjects
       )..remove(workspace.id);
       final wasActive = state.activeWorkspaceId == workspace.id;
       final prefs = state.viewPrefs;
-      final nextPrefs = wasActive
-          ? _viewPrefsForProjectContext(
-              project: state.activeProject,
-              workspace: null,
-              prefs: prefs,
-            )
-          : prefs;
+      final nextPrefs = prefs;
 
       state = state.copyWith(
         tabsByWorkspace: tabsByWorkspace,
@@ -402,11 +396,7 @@ mixin _WorkbenchControllerProjects
     bool recordHistory = true,
   }) async {
     final prefs = state.viewPrefs;
-    final nextPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-    );
+    final nextPrefs = prefs;
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
@@ -436,11 +426,7 @@ mixin _WorkbenchControllerProjects
 
   Future<void> activateProject(Project project) async {
     final prefs = state.viewPrefs;
-    final nextPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: null,
-      prefs: prefs,
-    );
+    final nextPrefs = prefs;
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: null,

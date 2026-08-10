@@ -59,6 +59,13 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   String get workspaceId;
 
+  /// Absolute path of the workspace root, used to relativize dropped paths.
+  ///
+  /// Defaulted so the many test doubles of this class do not each have to
+  /// restate a workspace they do not own; a null value keeps dropped paths
+  /// absolute.
+  String? get workspacePath => null;
+
   /// The runtime-host identity used to select the matching Agent Canvas.
   /// Test and synthetic handles may omit it when they do not own a PTY.
   String? get terminalSessionId => null;

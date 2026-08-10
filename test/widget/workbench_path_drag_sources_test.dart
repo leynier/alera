@@ -60,7 +60,9 @@ void main() {
     final source = tester.getCenter(find.text('readme.md'));
     final target = tester.getCenter(find.text('src'));
     final gesture = await tester.startGesture(source);
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    // Path drag starts after horizontal touch slop, not after long-press.
+    await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
+    await tester.pump();
     await gesture.moveTo(target);
     await tester.pump();
     await gesture.up();
@@ -180,6 +182,8 @@ Future<void> _pumpSourceControl(
               ),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
+              groupMode: GitDiffGroupMode.byArea,
+              onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
               onOpenGitCommitDiff:
@@ -205,11 +209,11 @@ Future<void> _pumpSourceControl(
 
 Set<String> _terminalDragPaths(WidgetTester tester) {
   final finder = find.byWidgetPredicate(
-    (widget) => widget is TerminalPathLongPressDraggable,
+    (widget) => widget is TerminalPathDraggable,
   );
   return <String>{
     for (final element in finder.evaluate())
-      ...(element.widget as TerminalPathLongPressDraggable).data.paths,
+      ...(element.widget as TerminalPathDraggable).data.paths,
   };
 }
 

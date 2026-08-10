@@ -62,14 +62,17 @@ void main() {
       // Scoped to the block that decides auto-install. The signing steps still
       // check these secrets, and must, to decide whether they can sign at all.
       final decision = workflow.substring(
-        workflow.indexOf('auto_install_enabled=false'),
+        workflow.indexOf('auto_install_enabled=true'),
         workflow.indexOf('dart run desktop_updater:release'),
       );
 
       expect(
-        decision,
-        contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
-        reason: 'Linux updates go through apt or dnf so dependencies resolve',
+        workflow,
+        isNot(contains('if [[ "\$PLATFORM" != "linux" ]]; then')),
+        reason:
+            'which installation may be replaced is decided at runtime, by '
+            'whether a package manager owns it and whether Alera can write '
+            'to it, not by the platform it was built for',
       );
       expect(
         decision,
@@ -201,6 +204,36 @@ void main() {
           "needs.build_desktop_app.result == 'success' && needs.package_runtime.result == 'success'",
         ),
       );
+    });
+
+    test('builds and ships macOS for Apple Silicon only', () {
+      final appInfo = File(
+        'macos/Runner/Configs/AppInfo.xcconfig',
+      ).readAsStringSync();
+      final podfile = File('macos/Podfile').readAsStringSync();
+      final xcodeProject = File(
+        'macos/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final helperAssets = File(
+        'tool/native_helpers/native_helper_assets.json',
+      ).readAsStringSync();
+      final releaseWorkflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final buildWorkflow = File(
+        '.github/workflows/desktop-build.yml',
+      ).readAsStringSync();
+
+      expect(appInfo, contains('ARCHS = arm64'));
+      expect(appInfo, contains('EXCLUDED_ARCHS[sdk=macosx*] = x86_64'));
+      expect(podfile, contains("config.build_settings['ARCHS'] = 'arm64'"));
+      // The sidecar is pinned to the triple instead of inheriting the build
+      // machine, so the shipped binary cannot depend on which runner ran.
+      expect(xcodeProject, contains('aarch64-apple-darwin'));
+      expect(helperAssets, isNot(contains('"x86_64"')));
+      for (final workflow in <String>[releaseWorkflow, buildWorkflow]) {
+        expect(workflow, contains('verify_macos_arm64_only.sh'));
+      }
     });
 
     test('uses dedicated R2 sccache credentials with local fallback', () {

@@ -9,6 +9,7 @@ const List<String> supportedQuotaProviders = <String>[
   'antigravity',
   'minimax',
   'zai',
+  'opencode',
 ];
 
 const Map<String, String> quotaProviderLabels = <String, String>{
@@ -20,6 +21,7 @@ const Map<String, String> quotaProviderLabels = <String, String>{
   'antigravity': 'Antigravity',
   'minimax': 'MiniMax',
   'zai': 'Z.ai',
+  'opencode': 'OpenCode',
 };
 
 class QuotaSettings {

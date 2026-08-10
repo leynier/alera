@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver};
+use crate::agent_status::{start_agent_integrations, start_hook_receiver};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -58,6 +58,7 @@ mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_text_grok_plan;
+mod ai_text_open_code;
 mod ai_text_requests;
 mod ai_text_workspace_identity;
 mod automation_actor;
@@ -237,6 +238,8 @@ pub async fn run_terminal_host_server(
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
     tokio::spawn(async {
+        // Variables first: the PATH cache is filled from the same probe.
+        let _ = crate::login_shell_environment::login_shell_variables().await;
         let _ = crate::login_shell_environment::login_shell_path_segments().await;
     });
 
@@ -290,7 +293,7 @@ pub async fn run_terminal_host_server(
     let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
     let hook_runtime_dir = actor.runtime_dir.clone();
     let hook_warnings = tokio::task::spawn_blocking(move || {
-        reconcile_agent_integrations(&hook_runtime_dir, &hook_settings)
+        start_agent_integrations(&hook_runtime_dir, &hook_settings)
     })
     .await
     .unwrap_or_else(|error| vec![error.to_string()]);
@@ -308,9 +311,12 @@ pub async fn run_terminal_host_server(
         actor.start_push_subscription_sync(None);
     }
     // A deferred setup script deletes itself when it finishes, so anything
-    // still here outlived the host that wrote it and its terminal is gone.
+    // still here outlived the host that wrote it and its terminal is gone. An
+    // agent prompt script never deletes itself, so the same sweep is the only
+    // thing that clears one.
     if let Some(directory) = actor.setup_script_directory() {
         crate::worktree_setup_script::remove_stale_setup_scripts(&directory);
+        crate::agent_prompt_stdin_script::remove_stale_agent_prompt_scripts(&directory);
     }
     actor.automations_active = actor.runtime_store.has_active_automations().await?
         || !actor

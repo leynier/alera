@@ -14,9 +14,9 @@ part 'managed_hooks/amp_managed_agent_hook.dart';
 part 'managed_hooks/claude_managed_agent_hook.dart';
 part 'managed_hooks/codex_managed_agent_hook.dart';
 part 'managed_hooks/copilot_managed_agent_hook.dart';
-part 'managed_hooks/cursor_managed_agent_hook.dart';
 part 'managed_hooks/grok_managed_agent_hook.dart';
 part 'managed_hooks/opencode_managed_agent_hook.dart';
+part 'managed_hooks/opencode2_managed_agent_hook.dart';
 part 'managed_hooks/pi_managed_agent_hook.dart';
 
 enum ManagedAgentHookInstallState { installed, notInstalled, partial, error }
@@ -79,6 +79,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _managedArtifactStatus(artifact);
@@ -121,6 +124,19 @@ class ManagedAgentHookInstallService {
         detail: 'Managed Copilot hook file is disabled.',
       );
     }
+    // Antigravity's `enabled: false` disables a whole bundle without removing
+    // it, so the handlers can be present and still never run.
+    if (descriptor.configShape == _AgentHookConfigShape.agyBundle &&
+        hooks['enabled'] == false &&
+        managedHooksPresent) {
+      return ManagedAgentHookInstallStatus(
+        agentType: agentType,
+        state: ManagedAgentHookInstallState.partial,
+        configPath: descriptor.configPath,
+        managedHooksPresent: true,
+        detail: 'Managed Antigravity hook bundle is disabled.',
+      );
+    }
     if (presentCount == 0) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
@@ -153,6 +169,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       final current = _managedArtifactStatus(artifact);
@@ -179,7 +198,7 @@ class ManagedAgentHookInstallService {
         .map((event) => event.eventName)
         .toSet();
     for (final entry in hooks.entries.toList(growable: false)) {
-      if (managedEvents.contains(entry.key)) {
+      if (managedEvents.contains(entry.key) || entry.value is! List) {
         continue;
       }
       final definitions = _definitionsFromValue(entry.value);
@@ -206,13 +225,15 @@ class ManagedAgentHookInstallService {
       );
       hooks[event.eventName] = <Object?>[...cleaned, definition];
     }
+    // Installing is an explicit request to enable, so Antigravity's documented
+    // `enabled: false` opt-out cannot survive it.
+    if (descriptor.configShape == _AgentHookConfigShape.agyBundle) {
+      hooks.remove('enabled');
+    }
     _setHookContainer(config, descriptor, hooks);
     if (descriptor.agentType == AgentType.copilot) {
       config['version'] = 1;
       config.remove('disableAllHooks');
-    }
-    if (descriptor.agentType == AgentType.cursor) {
-      config['version'] ??= 1;
     }
     _writeManagedScript(
       descriptor.scriptPath,
@@ -232,6 +253,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.claude) {
       return _claudeRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.cursor) {
+      return _cursorRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _removeManagedArtifact(artifact);
@@ -250,6 +274,11 @@ class ManagedAgentHookInstallService {
     final hooks = _hookContainer(config, descriptor);
     var changed = false;
     for (final entry in hooks.entries.toList(growable: false)) {
+      // Non-event keys such as Antigravity's `enabled` flag are not handler
+      // lists; dropping them here would silently rewrite the user's config.
+      if (entry.value is! List) {
+        continue;
+      }
       final definitions = _definitionsFromValue(entry.value);
       final cleaned = _removeManagedCommands(
         definitions,
@@ -263,6 +292,12 @@ class ManagedAgentHookInstallService {
       } else {
         hooks[entry.key] = cleaned;
       }
+    }
+    // `enabled` alone is not a hook set, so an emptied Alera bundle should not
+    // survive as leftover config.
+    if (descriptor.configShape == _AgentHookConfigShape.agyBundle &&
+        hooks.keys.every((key) => key == 'enabled')) {
+      hooks.clear();
     }
     if (changed) {
       _setHookContainer(config, descriptor, hooks);

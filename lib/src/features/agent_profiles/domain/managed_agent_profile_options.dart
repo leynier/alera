@@ -134,7 +134,8 @@ bool agentProfileSupportsPersona(AgentType adapter) {
     AgentType.claude ||
     AgentType.copilot ||
     AgentType.agy ||
-    AgentType.opencode => true,
+    AgentType.opencode ||
+    AgentType.opencode2 => true,
     _ => false,
   };
 }
@@ -167,6 +168,7 @@ int managedAgentRiskScore(AgentType adapter, Map<String, Object?> config) {
     case AgentType.agy:
       addWhen(config['skipPermissions'] == true, 100);
     case AgentType.opencode:
+    case AgentType.opencode2:
       addWhen(config['autoApprove'] == true, 60);
     case AgentType.pi:
       addWhen(config['projectTrust'] == 'approve', 30);
@@ -214,6 +216,7 @@ Set<String> managedAgentRiskMarkers(
     case AgentType.agy:
       markWhen(config['skipPermissions'] == true, 'skipPermissions');
     case AgentType.opencode:
+    case AgentType.opencode2:
       markWhen(config['autoApprove'] == true, 'autoApprove');
     case AgentType.pi:
       markWhen(config['projectTrust'] == 'approve', 'projectTrust');
@@ -237,7 +240,7 @@ String managedAgentRiskWarning(AgentType adapter, Map<String, Object?> config) {
     AgentType.cursor =>
       'This profile reduces Cursor review, sandbox, or trust protections.',
     AgentType.agy => 'This profile lets Antigravity skip permission checks.',
-    AgentType.opencode =>
+    AgentType.opencode || AgentType.opencode2 =>
       'This profile lets OpenCode approve actions automatically.',
     AgentType.pi => 'This profile pre-approves project trust for Pi.',
     AgentType.amp || AgentType.grok => '',
@@ -335,6 +338,9 @@ String managedAgentCommandPreview(
     case AgentType.opencode:
       stringOption('model', '--model');
       stringOption('agent', '--agent');
+      flag('autoApprove', '--auto');
+    case AgentType.opencode2:
+      // Interactive opencode2 only accepts --auto on the default TUI command.
       flag('autoApprove', '--auto');
     case AgentType.pi:
       stringOption('model', '--model');

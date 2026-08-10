@@ -54,6 +54,7 @@ impl ServerActor {
     /// response target.
     pub(super) async fn handle_line(&mut self, client_id: u64, line: String) {
         let mut restart_after_response = false;
+        let mut shutdown_after_response = false;
         let decoded: Value = match serde_json::from_str(&line) {
             Ok(value) => value,
             // jsonDecode threw: no request id is available, so drop the client.
@@ -70,6 +71,7 @@ impl ServerActor {
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
                 restart_after_response = request_type == "host.restart";
+                shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
                     if self.emulator_requests.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type)
@@ -146,6 +148,14 @@ impl ServerActor {
                     if restart_after_response {
                         self.restart_runtime_after_client_write(client_id);
                     }
+                    if shutdown_after_response {
+                        self.shutdown_runtime_after_client_write(client_id);
+                    }
+                } else if shutdown_after_response {
+                    // There is no response to order against for a malformed
+                    // request without an id, so preserve the legacy shutdown
+                    // behavior for that case.
+                    let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 }
             }
             Err(error) => {
@@ -298,7 +308,6 @@ impl ServerActor {
                         return Err(HostError::state(message));
                     }
                 }
-                let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 Ok(json!({
                     "stopped": true,
                     "forced": force,
@@ -503,8 +512,12 @@ impl ServerActor {
             }
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
-                let path_count = crate::login_shell_environment::reload_login_shell_path().await;
-                Ok(json!({ "pathEntryCount": path_count }))
+                let (path_count, variable_count) =
+                    crate::login_shell_environment::reload_login_shell_environment().await;
+                Ok(json!({
+                    "pathEntryCount": path_count,
+                    "variableCount": variable_count,
+                }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;

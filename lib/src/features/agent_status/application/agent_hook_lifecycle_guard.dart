@@ -25,6 +25,7 @@ final class AgentHookLifecycleGuard {
       AgentType.copilot ||
       AgentType.cursor ||
       AgentType.opencode ||
+      AgentType.opencode2 ||
       AgentType.pi ||
       AgentType.grok => true,
     };

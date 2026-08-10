@@ -2,7 +2,8 @@ part of '../agent_hook_event_normalizer.dart';
 
 String? _assistantTextFromHookEvent(AgentHookEvent event, String eventName) {
   return switch (event.agentType) {
-    AgentType.opencode => _openCodeAssistantTextForEvent(event, eventName),
+    AgentType.opencode ||
+    AgentType.opencode2 => _openCodeAssistantTextForEvent(event, eventName),
     AgentType.pi => _piAssistantTextForEvent(event, eventName),
     AgentType.amp => _ampAssistantTextForEvent(event, eventName),
     AgentType.codex ||

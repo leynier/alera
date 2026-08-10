@@ -714,6 +714,7 @@ void main() {
         cursor: true,
         agy: true,
         opencode: true,
+        opencode2: true,
         pi: true,
         amp: true,
         grok: true,
@@ -800,7 +801,10 @@ void main() {
         expect(environment, contains('CODEX_HOME'));
         expect(environment, contains('CLAUDE_CONFIG_DIR'));
         expect(environment, contains('COPILOT_HOME'));
-        expect(environment, contains('ALERA_CURSOR_PLUGIN_DIR'));
+        // Cursor is intentionally absent: the runtime host builds its
+        // per-session plugin, because anything injected here is stripped again
+        // by the host's launch-environment sanitisation.
+        expect(environment, isNot(contains('ALERA_CURSOR_PLUGIN_DIR')));
         expect(environment, contains('OPENCODE_CONFIG_DIR'));
         expect(environment, contains('PI_CODING_AGENT_DIR'));
         expect(environment, contains('ALERA_AMP_CONFIG_DIR'));
@@ -852,7 +856,7 @@ void main() {
         );
 
         for (final hooks in const <AgentStatusHookSettings>[
-          AgentStatusHookSettings(cursor: true),
+          AgentStatusHookSettings(copilot: true),
           AgentStatusHookSettings(opencode: true),
           AgentStatusHookSettings(pi: true),
           AgentStatusHookSettings(amp: true),

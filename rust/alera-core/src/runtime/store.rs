@@ -15,10 +15,10 @@ use super::runtime_schema::RUNTIME_SCHEMA;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
-    MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
-    ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget,
-    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
-    WorkspaceTabRecord, WorkspaceTag,
+    MobileEndpointMode, MobileNetbirdEndpoint, MobilePairingOffer, Project, ProjectConfig,
+    ProjectConfigMap, ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind,
+    SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
+    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -118,6 +118,12 @@ impl RuntimeStore {
             "mobileAccessSettings",
             "endpointMode",
             "TEXT NOT NULL DEFAULT 'loopback'",
+        )
+        .await?;
+        self.ensure_column(
+            "mobileAccessSettings",
+            "netbirdEndpoint",
+            "TEXT NOT NULL DEFAULT 'ip'",
         )
         .await?;
         self.ensure_column("browserProfiles", "sourceFamily", "TEXT")
@@ -354,7 +360,7 @@ impl RuntimeStore {
 
     pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
         let row = sqlx::query(
-            "SELECT enabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt \
+            "SELECT enabled, bindHost, port, endpointMode, netbirdEndpoint, serverPublicKeyB64, updatedAt \
              FROM mobileAccessSettings WHERE id = 1",
         )
         .fetch_optional(&self.pool)
@@ -378,17 +384,19 @@ impl RuntimeStore {
         settings.updated_at = Utc::now();
         sqlx::query(
             "INSERT INTO mobileAccessSettings \
-             (id, enabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt) \
-             VALUES (1, ?, ?, ?, ?, ?, ?) \
+             (id, enabled, bindHost, port, endpointMode, netbirdEndpoint, serverPublicKeyB64, updatedAt) \
+             VALUES (1, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              enabled = excluded.enabled, bindHost = excluded.bindHost, port = excluded.port, \
              endpointMode = excluded.endpointMode, \
+             netbirdEndpoint = excluded.netbirdEndpoint, \
              serverPublicKeyB64 = excluded.serverPublicKeyB64, updatedAt = excluded.updatedAt",
         )
         .bind(if settings.enabled { 1_i64 } else { 0_i64 })
         .bind(&settings.bind_host)
         .bind(settings.port)
         .bind(settings.endpoint_mode.as_str())
+        .bind(settings.netbird_endpoint.as_str())
         .bind(&settings.server_public_key_b64)
         .bind(format_timestamp(settings.updated_at))
         .execute(&self.pool)
@@ -1726,6 +1734,9 @@ fn mobile_access_settings_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Mobil
         endpoint_mode: MobileEndpointMode::from_db(
             row.try_get::<String, _>("endpointMode")?.as_str(),
         ),
+        netbird_endpoint: MobileNetbirdEndpoint::from_db(
+            row.try_get::<String, _>("netbirdEndpoint")?.as_str(),
+        ),
         server_public_key_b64: row.try_get("serverPublicKeyB64")?,
         updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
     })
@@ -1793,7 +1804,7 @@ pub fn parse_timestamp(value: &str) -> DateTime<Utc> {
 }
 
 fn empty_to_none(value: Option<String>) -> Option<String> {
-    value.and_then(|v| if v.trim().is_empty() { None } else { Some(v) })
+    value.filter(|v| !v.trim().is_empty())
 }
 
 #[cfg(test)]

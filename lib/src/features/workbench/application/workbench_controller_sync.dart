@@ -71,17 +71,8 @@ mixin _WorkbenchControllerSync
       workspacesByProject: updatedWorkspaces,
       preferredWorkspaceId: state.activeWorkspaceId,
     );
-    final activeWorkspace = _workspaceById(
-      updatedWorkspaces,
-      activeWorkspaceId,
-    );
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: _projectById(projects, activeProjectId),
-      workspace: activeWorkspace,
-      prefs: prunedViewPrefs,
-    );
-    final viewPrefsChanged =
-        prefsChanged || !identical(nextViewPrefs, prunedViewPrefs);
+    final nextViewPrefs = prunedViewPrefs;
+    final viewPrefsChanged = prefsChanged;
 
     state = state.copyWith(
       projects: projects,
@@ -217,16 +208,8 @@ mixin _WorkbenchControllerSync
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,
           )
         : expandedViewPrefs;
-    final activeWorkspace = _workspaceById(nextWorkspaces, activeWorkspaceId);
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: _projectById(state.projects, candidateProjectId),
-      workspace: activeWorkspace,
-      prefs: workspacePrunedViewPrefs,
-    );
-    final viewPrefsChanged =
-        expansionChanged ||
-        sourceControlRootsChanged ||
-        !identical(nextViewPrefs, workspacePrunedViewPrefs);
+    final nextViewPrefs = workspacePrunedViewPrefs;
+    final viewPrefsChanged = expansionChanged || sourceControlRootsChanged;
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,

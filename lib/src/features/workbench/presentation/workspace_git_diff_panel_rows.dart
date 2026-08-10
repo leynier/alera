@@ -22,7 +22,7 @@ class _GitPathDragRegion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TerminalPathLongPressDraggable<TerminalPathDragData>(
+    return TerminalPathDraggable<TerminalPathDragData>(
       data: TerminalPathDragData(paths: <String>[absolutePath]),
       feedback: _GitPathDragFeedback(label: label, isDirectory: isDirectory),
       child: child,
@@ -165,9 +165,18 @@ class _LineStats extends StatelessWidget {
 }
 
 class _GitStatusLabel extends StatelessWidget {
-  const _GitStatusLabel({required this.status});
+  const _GitStatusLabel({
+    required this.status,
+    this.area,
+    this.showAreaMarker = false,
+  });
 
   final GitChangeStatus status;
+  final GitChangeArea? area;
+
+  /// When true, append a small staged/unstaged marker next to the letter so
+  /// files can share one list without area section headers.
+  final bool showAreaMarker;
 
   @override
   Widget build(BuildContext context) {
@@ -179,13 +188,58 @@ class _GitStatusLabel extends StatelessWidget {
       GitChangeStatus.copied => ('C', AleraTokens.warning),
       GitChangeStatus.modified => ('M', AleraTokens.warning),
     };
-    return SizedBox(
-      width: 12,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-      ),
+    final areaMarker = showAreaMarker ? _areaMarker(area) : null;
+    final tooltip = showAreaMarker ? _areaTooltip(area) : null;
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SizedBox(
+          width: 12,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: color),
+          ),
+        ),
+        if (areaMarker != null)
+          SizedBox(
+            width: 10,
+            child: Text(
+              areaMarker,
+              textAlign: TextAlign.left,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: area == GitChangeArea.staged
+                    ? AleraTokens.success
+                    : AleraTokens.foregroundFaint,
+                fontSize: 10,
+              ),
+            ),
+          ),
+      ],
     );
+    if (tooltip == null) {
+      return content;
+    }
+    return Tooltip(message: tooltip, child: content);
+  }
+
+  static String? _areaMarker(GitChangeArea? area) {
+    return switch (area) {
+      GitChangeArea.staged => 'S',
+      GitChangeArea.unstaged => '·',
+      GitChangeArea.untracked => '·',
+      null => null,
+    };
+  }
+
+  static String? _areaTooltip(GitChangeArea? area) {
+    return switch (area) {
+      GitChangeArea.staged => 'Staged',
+      GitChangeArea.unstaged => 'Unstaged',
+      GitChangeArea.untracked => 'Untracked',
+      null => null,
+    };
   }
 }

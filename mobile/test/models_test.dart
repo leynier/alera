@@ -43,6 +43,18 @@ void main() {
       expect(ipv6.endpoint, 'ws://[fd7a:115c:a1e0:ab12::4]:6768');
     });
 
+    test('Accepts plaintext NetBird endpoints', () {
+      final offer = PairingOffer.fromJson(
+        _offer(
+          endpoint: 'ws://laptop.netbird.cloud:6768',
+          endpointNetwork: 'netbird',
+        ),
+      );
+
+      expect(offer.endpoint, 'ws://laptop.netbird.cloud:6768');
+      expect(offer.endpointNetwork, 'netbird');
+    });
+
     test('Rejects plaintext cgnat endpoints outside the tailscale range', () {
       expect(
         () => PairingOffer.fromJson(_offer(endpoint: 'ws://100.63.0.1:6768')),
@@ -86,6 +98,19 @@ void main() {
       expect(profile.endpoint, 'ws://100.64.1.5:6768');
     });
 
+    test('Reloads saved NetBird DNS endpoints', () {
+      final profile = PairedHostProfile.fromJson(
+        _profile(
+          endpoint: 'ws://laptop.netbird.cloud:6768',
+          endpointNetwork: 'netbird',
+        ),
+      );
+
+      expect(profile.endpoint, 'ws://laptop.netbird.cloud:6768');
+      expect(profile.endpointNetwork, 'netbird');
+      expect(profile.toJson()['endpointNetwork'], 'netbird');
+    });
+
     test('Pairing result requires the runtime id promised by the offer', () {
       final offer = PairingOffer.fromJson(
         _offer(endpoint: 'ws://100.64.1.5:6768'),
@@ -118,7 +143,10 @@ PairedDeviceCredentials _credentials({required String runtimeId}) {
   });
 }
 
-Map<String, Object?> _offer({required String endpoint}) {
+Map<String, Object?> _offer({
+  required String endpoint,
+  String? endpointNetwork,
+}) {
   return <String, Object?>{
     'v': aleraMobileProtocolVersion,
     'pairingId': 'pairing-1',
@@ -130,10 +158,14 @@ Map<String, Object?> _offer({required String endpoint}) {
         .toUtc()
         .add(const Duration(minutes: 5))
         .toIso8601String(),
+    'endpointNetwork': ?endpointNetwork,
   };
 }
 
-Map<String, Object?> _profile({required String endpoint}) {
+Map<String, Object?> _profile({
+  required String endpoint,
+  String? endpointNetwork,
+}) {
   return <String, Object?>{
     'id': 'runtime-1',
     'displayName': 'Alera Host',
@@ -141,5 +173,6 @@ Map<String, Object?> _profile({required String endpoint}) {
     'runtimeId': 'runtime-1',
     'deviceId': 'device-1',
     'pairedAt': DateTime.now().toUtc().toIso8601String(),
+    'endpointNetwork': ?endpointNetwork,
   };
 }
