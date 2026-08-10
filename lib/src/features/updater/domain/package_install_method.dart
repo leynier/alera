@@ -11,6 +11,12 @@ enum PackageInstallMethod {
   scoop,
   chocolatey,
 
+  /// A deb or rpm install: `dpkg` or `rpm` owns `/opt/alera`.
+  ///
+  /// Which of the two it is comes from `/etc/os-release`, not from the path, so
+  /// the distinction lives with the update rather than with the installation.
+  linuxSystemPackage,
+
   /// A plain download, or anything Alera cannot attribute to a manager.
   unmanaged,
 }
@@ -68,8 +74,35 @@ PackageManagerInstall packageManagerInstallFromExecutablePath({
   return switch (platform) {
     'macos' => _macosInstall(context, segments),
     'windows' => _windowsInstall(context, segments),
+    'linux' => _linuxInstall(segments),
     _ => PackageManagerInstall.unmanaged,
   };
+}
+
+/// The prefix `tool/release/package_linux.sh` installs the deb and rpm payload
+/// under. `/usr/bin/alera` is a symlink into it, and `Platform.resolvedExecutable`
+/// resolves symlinks, so the running executable always reports this path.
+const List<String> _linuxPackagePrefix = <String>['opt', 'alera'];
+
+PackageManagerInstall _linuxInstall(List<String> segments) {
+  // Anchored at the filesystem root: a tarball extracted into
+  // `~/projects/opt/alera` is not a packaged installation, and treating it as
+  // one would send the user to an `apt` upgrade that cannot see it.
+  final root = segments.isNotEmpty && segments.first == '/' ? 1 : 0;
+  final matches =
+      segments.length > root + _linuxPackagePrefix.length &&
+      segments[root] == _linuxPackagePrefix[0] &&
+      segments[root + 1] == _linuxPackagePrefix[1];
+  if (!matches) {
+    return PackageManagerInstall.unmanaged;
+  }
+  // Deliberately without a manager or relaunch executable: the deb and rpm
+  // upgrades need `sudo`, so they run in Alera's command terminal where a
+  // password prompt has a PTY to appear on, not in the detached shell that
+  // Homebrew and Scoop use after the app has already closed.
+  return const PackageManagerInstall(
+    method: PackageInstallMethod.linuxSystemPackage,
+  );
 }
 
 PackageManagerInstall _macosInstall(p.Context context, List<String> segments) {
@@ -152,6 +185,10 @@ String? packageManagerLabel(PackageInstallMethod method) {
     PackageInstallMethod.homebrewCask => 'Homebrew',
     PackageInstallMethod.scoop => 'Scoop',
     PackageInstallMethod.chocolatey => 'Chocolatey',
+    // Null on purpose: the path says the install is packaged but not by which
+    // manager, and naming the wrong one is worse than naming none. The Linux
+    // copy comes from the update's installer kind instead.
+    PackageInstallMethod.linuxSystemPackage => null,
     PackageInstallMethod.unmanaged => null,
   };
 }

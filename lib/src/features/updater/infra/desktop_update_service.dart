@@ -291,7 +291,11 @@ String _manualUpdateMessage({
   if (manager != null) {
     return 'Update ${update.version} is available through $manager.';
   }
+  // Only an installation dpkg or rpm actually owns can be pointed at the
+  // repository. A directory the user extracted themselves is invisible to apt
+  // and dnf, so sending them there would upgrade nothing, or a different copy.
   if (update.platform == 'linux' &&
+      packageInstall.method == PackageInstallMethod.linuxSystemPackage &&
       config.channel == AleraUpdateChannel.stable &&
       (update.installerKind == 'deb' || update.installerKind == 'rpm')) {
     return 'Update ${update.version} is available through the Linux package repository.';
