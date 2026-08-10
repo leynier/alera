@@ -185,10 +185,13 @@ jobs:
           archive_url="${BASE_URL}/updates/${CHANNEL}/app-archive.json"
           update_base_url="${BASE_URL}/updates/${CHANNEL}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
-          # Auto-install is enabled on every platform whose artifacts a package
-          # manager does not own. Linux is the exception, and not because of
-          # signing: a raw dpkg or rpm transaction does not resolve the libmpv
-          # dependency closure, so those updates go through apt or dnf.
+          # Auto-install is enabled on every platform. Whether it may run is
+          # decided at runtime, not per platform: Alera never replaces an
+          # installation a package manager owns, and on Linux it also refuses a
+          # directory it cannot write. A deb or rpm install is therefore still
+          # upgraded through apt or dnf, while a tarball install replaces its
+          # own directory, which runs no dpkg transaction and so needs no
+          # dependency resolution.
           #
           # It deliberately does not depend on Authenticode or Developer ID
           # signing. Update integrity comes from the Ed25519-signed manifest,
@@ -197,10 +200,7 @@ jobs:
           # the OS shows on first launch, not whether an update can be trusted
           # in transit, so withholding auto-install until a certificate exists
           # only left users on older builds.
-          auto_install_enabled=false
-          if [[ "$PLATFORM" != "linux" ]]; then
-            auto_install_enabled=true
-          fi
+          auto_install_enabled=true
           dart run desktop_updater:release publish \
             --platform "$PLATFORM" \
             --base-url "$update_base_url" \
@@ -364,6 +364,11 @@ jobs:
         run: |
           set -euo pipefail
           bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
+          # The unmanaged install path. Distributions outside the deb and rpm
+          # families have no package to install, and only a directory Alera
+          # owns can be replaced in place by the updater.
+          tar -czf "release-assets/alera-${RELEASE_VERSION}-linux-x64.tar.gz" \
+            -C "$BUNDLE_DIR" .
 
       - name: Upload updater artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
