@@ -111,6 +111,40 @@ void main() {
     expect(cells.single.isStreaming, isFalse);
   });
 
+  test('mobile retains structured tool metadata and response content', () {
+    final cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'item/completed',
+        'params': <String, Object?>{
+          'turnId': 'turn-tools',
+          'item': <String, Object?>{
+            'id': 'mcp',
+            'type': 'mcpToolCall',
+            'server': 'codex_apps',
+            'tool': 'calendar.lookup',
+            'arguments': <String, Object?>{'calendarId': 'work'},
+            'result': <String, Object?>{
+              'content': <Object?>[
+                <String, Object?>{'type': 'text', 'text': 'Found 2 events'},
+              ],
+              'structuredContent': <String, Object?>{'count': 2},
+            },
+          },
+        },
+      },
+    );
+
+    expect(cells.single.metadata['server'], 'codex_apps');
+    expect(cells.single.metadata['tool'], 'calendar.lookup');
+    expect(cells.single.metadata['arguments'], <String, Object?>{
+      'calendarId': 'work',
+    });
+    expect(cells.single.metadata['result'], isA<Map>());
+    expect(cells.single.metadata['detailsSource'], 'result');
+    expect(cells.single.detailsText, isNull);
+  });
+
   test('mobile exposes only the latest actionable plan', () {
     MobileCodexState state(Object? pendingRequests) =>
         MobileCodexState.fromSnapshot(<String, Object?>{

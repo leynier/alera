@@ -228,7 +228,7 @@ bool _isWorkedActionCell(CodexTimelineCell cell) =>
     cell.kind == CodexTimelineKind.command ||
     cell.kind == CodexTimelineKind.diff ||
     switch (cell.metadata['itemType']?.toString().toLowerCase()) {
-      'websearch' || 'imageview' => true,
+      'websearch' || 'imageview' || 'mcptoolcall' || 'dynamictoolcall' => true,
       _ => false,
     };
 
@@ -265,7 +265,7 @@ bool _isEmptyCompletedDiffPlaceholder(CodexTimelineCell cell) {
   }
   final details = cell.detailsText ?? cell.markdownText ?? '';
   return !_hasCodexDiffDetails(details) &&
-      _codexChanges(cell.metadata['changes']).isEmpty;
+      _codexChangeCount(cell, _codexChanges(cell.metadata['changes'])) == 0;
 }
 
 bool _hasCodexDiffDetails(String details) {

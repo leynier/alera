@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
@@ -38,6 +39,9 @@ part 'mobile_codex_chat_catalog_model_menu.dart';
 part 'mobile_codex_chat_attachments.dart';
 part 'mobile_codex_chat_timeline.dart';
 part 'mobile_codex_chat_activity.dart';
+part 'mobile_codex_chat_tool_details.dart';
+part 'mobile_codex_chat_tool_media.dart';
+part 'mobile_codex_chat_tool_value.dart';
 part 'mobile_codex_chat_notices.dart';
 part 'mobile_codex_chat_plan.dart';
 part 'mobile_codex_chat_plan_progress.dart';

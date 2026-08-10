@@ -78,6 +78,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
   bool _scrollToBottomScheduled = false;
   bool _scrollToBottomRequested = false;
   bool _animateScrollToBottom = false;
+  bool _timelineHasSelection = false;
   String? _pinnedEntryKey;
 
   @override
@@ -99,6 +100,19 @@ class _CodexTimelineState extends State<_CodexTimeline>
   @override
   void didUpdateWidget(covariant _CodexTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final timelineChanged =
+        !identical(
+          oldWidget.snapshot.timelineCells,
+          widget.snapshot.timelineCells,
+        ) ||
+        !identical(
+          oldWidget.snapshot.pendingRequests,
+          widget.snapshot.pendingRequests,
+        );
+    if (timelineChanged && _timelineHasSelection) {
+      _timelineSelectionAreaKey.currentState?.selectableRegion.clearSelection();
+      _timelineHasSelection = false;
+    }
     if (!oldWidget.loadingEarlier && widget.loadingEarlier) {
       _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiable(
         _projection.live.sourceCells,
@@ -167,15 +181,6 @@ class _CodexTimelineState extends State<_CodexTimeline>
         _flyingPlan = updatedPlan;
       }
     }
-    final timelineChanged =
-        !identical(
-          oldWidget.snapshot.timelineCells,
-          widget.snapshot.timelineCells,
-        ) ||
-        !identical(
-          oldWidget.snapshot.pendingRequests,
-          widget.snapshot.pendingRequests,
-        );
     if (timelineChanged && !_showScrollToBottom) {
       _scheduleScrollToBottom();
     }
@@ -442,6 +447,8 @@ class _CodexTimelineState extends State<_CodexTimeline>
         children: <Widget>[
           SelectionArea(
             key: _timelineSelectionAreaKey,
+            onSelectionChanged: (selection) =>
+                _timelineHasSelection = selection?.plainText.isNotEmpty == true,
             child: CustomScrollView(
               key: const ValueKey<String>('codex-timeline-scroll-view'),
               controller: widget.timeline,

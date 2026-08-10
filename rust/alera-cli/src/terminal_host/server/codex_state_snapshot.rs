@@ -132,6 +132,7 @@ pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value])
         .cloned()
         .unwrap_or_default();
     if retained_events != expected_events {
+        delta.insert("eventsAppend".to_string(), Value::Array(Vec::new()));
         delta.insert("eventsReplace".to_string(), Value::Array(retained_events));
     }
     for key in ["activeTurnId", "contextUsed", "contextLimit", "title"] {
@@ -426,7 +427,7 @@ pub(super) fn bound_snapshot(snapshot: &mut Value) {
         let removed_event = snapshot
             .get_mut("events")
             .and_then(Value::as_array_mut)
-            .filter(|events| events.len() > 1)
+            .filter(|events| !events.is_empty())
             .map(|events| events.remove(0));
         if removed_event.is_some() {
             continue;

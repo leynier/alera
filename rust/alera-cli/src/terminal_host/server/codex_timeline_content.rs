@@ -81,6 +81,13 @@ pub(super) fn item_markdown(item: &Value) -> String {
 }
 
 pub(super) fn item_details(item: &Value) -> String {
+    let Some(source) = item_details_source(item) else {
+        return String::new();
+    };
+    item[source].as_str().unwrap_or_default().to_string()
+}
+
+pub(super) fn item_details_source(item: &Value) -> Option<&'static str> {
     for key in [
         "aggregatedOutput",
         "output",
@@ -97,11 +104,11 @@ pub(super) fn item_details(item: &Value) -> String {
         };
         if let Some(text) = value.as_str() {
             if !text.is_empty() {
-                return text.to_string();
+                return Some(key);
             }
         } else {
-            return value.to_string();
+            return Some(key);
         }
     }
-    String::new()
+    None
 }

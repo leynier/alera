@@ -151,6 +151,7 @@ abstract final class AleraIcons {
   static const IconData hidden = LucideIcons.eyeOff;
   static const IconData preview = LucideIcons.scanEye;
   static const IconData viewImage = LucideIcons.image;
+  static const IconData audio = LucideIcons.audioLines;
   static const IconData imageError = LucideIcons.imageOff;
 
   // Views / layout

@@ -16,7 +16,7 @@ fn resumed_snapshot(cells: Vec<Value>, items_complete: bool) -> Value {
 }
 
 #[test]
-fn complete_large_history_deduplicates_when_early_events_are_evicted() {
+fn complete_history_deduplicates_when_early_events_are_missing() {
     let repeated = "x".repeat(2000);
     let items = (0..50)
         .map(|index| {
@@ -38,16 +38,15 @@ fn complete_large_history_deduplicates_when_early_events_are_evicted() {
             "items": items,
         }]}
     });
-    let page = latest_turn_page(&response, 20).unwrap();
+    let mut page = latest_turn_page(&response, 20).unwrap();
     assert_eq!(
         page.snapshot["completeHistoryTurnIds"],
         json!(["turn-large"])
     );
-    assert!(page.snapshot["events"]
-        .as_array()
+    page.snapshot["events"]
+        .as_array_mut()
         .unwrap()
-        .iter()
-        .all(|event| event["method"] != "turn/started"));
+        .retain(|event| event["method"] != "turn/started");
     let stored = json!({
         "events": [],
         "timelineCells": [

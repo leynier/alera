@@ -213,8 +213,23 @@ void main() {
         'action': <String, Object?>{'type': 'search', 'query': 'Alera'},
       },
       <String, Object?>{
+        'id': 'mcp',
+        'type': 'mcpToolCall',
+        'server': 'codex_apps',
+        'tool': 'calendar.lookup',
+        'arguments': <String, Object?>{'calendarId': 'work'},
+        'result': <String, Object?>{
+          'content': <Object?>[
+            <String, Object?>{'type': 'text', 'text': 'Found 2 events'},
+          ],
+          'structuredContent': <String, Object?>{'count': 2},
+        },
+        'durationMs': 21,
+      },
+      <String, Object?>{
         'id': 'dynamic',
         'type': 'dynamicToolCall',
+        'namespace': 'workspace',
         'tool': 'inspect',
         'arguments': <String, Object?>{'path': 'README.md'},
         'contentItems': <Object?>[
@@ -234,18 +249,28 @@ void main() {
         now: now,
       );
     }
-    expect(cells, hasLength(4));
+    expect(cells, hasLength(5));
     expect(
       cells.every((cell) => cell.kind == CodexTimelineKind.toolCall),
       isTrue,
     );
     expect(cells[0].title, 'Web search');
     expect(cells[0].metadata['query'], 'Alera');
-    expect(cells[1].title, 'inspect');
-    expect(cells[1].metadata['durationMs'], 42);
-    expect(cells[1].detailsText, contains('done'));
-    expect(cells[2].title, 'Viewed image');
-    expect(cells[3].title, 'Compacted');
+    expect(cells[1].metadata['server'], 'codex_apps');
+    expect(cells[1].metadata['tool'], 'calendar.lookup');
+    expect(cells[1].metadata['arguments'], <String, Object?>{
+      'calendarId': 'work',
+    });
+    expect(cells[1].metadata['result'], isA<Map>());
+    expect(cells[1].metadata['detailsSource'], 'result');
+    expect(cells[2].title, 'inspect');
+    expect(cells[2].metadata['namespace'], 'workspace');
+    expect(cells[2].metadata['contentItems'], isA<List>());
+    expect(cells[2].metadata['durationMs'], 42);
+    expect(cells[2].metadata['detailsSource'], 'contentItems');
+    expect(cells[2].detailsText, isNull);
+    expect(cells[3].title, 'Viewed image');
+    expect(cells[4].title, 'Compacted');
   });
 
   test('maps standalone command and file streams to specific kinds', () {

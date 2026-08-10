@@ -382,40 +382,6 @@ void registerCodexTimelineSegmentTests() {
     expect(find.text('Read 2 files, ran 1 command'), findsOneWidget);
   });
 
-  testWidgets('counts web searches without calling them files', (tester) async {
-    final client = _SurfaceRuntimeClient(
-      pendingRequests: const <Object?>[],
-      activeTurnId: 'turn-web',
-      timelineCells: const <Object?>[
-        <String, Object?>{
-          'id': 'web-one',
-          'turnId': 'turn-web',
-          'kind': 'toolCall',
-          'status': 'completed',
-          'metadata': <String, Object?>{
-            'itemType': 'webSearch',
-            'query': 'first query',
-          },
-        },
-        <String, Object?>{
-          'id': 'web-two',
-          'turnId': 'turn-web',
-          'kind': 'toolCall',
-          'status': 'completed',
-          'metadata': <String, Object?>{
-            'itemType': 'webSearch',
-            'query': 'second query',
-          },
-        },
-      ],
-    );
-    addTearDown(client.dispose);
-    await _pumpTimelineSegmentSurface(tester, client);
-
-    expect(find.text('Searched the web 2 times'), findsOneWidget);
-    expect(find.text('Searched 2 files'), findsNothing);
-  });
-
   testWidgets('uses the dedicated viewed image activity icon', (tester) async {
     final client = _SurfaceRuntimeClient(
       pendingRequests: const <Object?>[],

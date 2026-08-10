@@ -39,9 +39,12 @@ abstract final class AleraIcons {
   static const IconData workspaces = LucideIcons.folders;
   static const IconData listView = LucideIcons.list;
   static const IconData viewImage = LucideIcons.image;
+  static const IconData audio = LucideIcons.audioLines;
   static const IconData folder = LucideIcons.folder;
   static const IconData folderOpen = LucideIcons.folderOpen;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
   static const IconData contextCompact = LucideIcons.foldHorizontal;
+  static const IconData tool = LucideIcons.wrench;
+  static const IconData public = LucideIcons.globe;
 }

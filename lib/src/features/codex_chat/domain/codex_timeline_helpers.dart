@@ -207,6 +207,14 @@ String _itemMarkdown(Map<String, Object?> item) {
 }
 
 String _itemDetails(Map<String, Object?> item) {
+  final source = _itemDetailsSource(item);
+  if (source == null) return '';
+  final value = item[source];
+  if (value is String) return value;
+  return '';
+}
+
+String? _itemDetailsSource(Map<String, Object?> item) {
   for (final key in <String>[
     'aggregatedOutput',
     'output',
@@ -221,13 +229,52 @@ String _itemDetails(Map<String, Object?> item) {
     final value = item[key];
     if (value == null) continue;
     if (value is String) {
-      if (value.isNotEmpty) return value;
+      if (value.isNotEmpty) return key;
     } else {
-      return value.toString();
+      return key;
     }
   }
-  return '';
+  return null;
 }
+
+Map<String, Object?> _itemTimelineMetadata(Map<String, Object?> item) {
+  return <String, Object?>{
+    'itemType': item['type'],
+    'type': item['type'],
+    'query': item['query'],
+    'url': item['url'],
+    'action': item['action'],
+    'results': item['results'],
+    'changes': item['changes'],
+    'changesCount':
+        item['changesCount'] ??
+        (item['changes'] is List ? (item['changes'] as List).length : null),
+    'arguments': item['arguments'],
+    'result': item['result'],
+    'error': item['error'],
+    'contentItems': item['contentItems'],
+    'commandActions': item['commandActions'],
+    'durationMs': item['durationMs'],
+    'status': item['status'],
+    'server': item['server'],
+    'tool': item['tool'],
+    'namespace': item['namespace'],
+    'appContext': item['appContext'],
+    'pluginId': item['pluginId'],
+    'readOnlyHint': item['readOnlyHint'],
+    'success': item['success'],
+    'path': item['path'],
+    'revisedPrompt': item['revisedPrompt'],
+    'savedPath': item['savedPath'],
+    'aggregatedOutput': _nonStringItemDetail(item['aggregatedOutput']),
+    'output': _nonStringItemDetail(item['output']),
+    'diff': _nonStringItemDetail(item['diff']),
+    'commandOutput': _nonStringItemDetail(item['commandOutput']),
+    'detailsSource': ?_itemDetailsSource(item),
+  };
+}
+
+Object? _nonStringItemDetail(Object? value) => value is String ? null : value;
 
 Map<String, Object?> _map(Object? value) {
   if (value is Map<String, Object?>) return value;

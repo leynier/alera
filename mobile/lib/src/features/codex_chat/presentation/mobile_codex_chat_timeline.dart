@@ -175,7 +175,12 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
                     Text(cell.subtitle!, style: AleraTokens.monoStyle),
                   ],
                   const SizedBox(height: AleraTokens.space8),
-                  _MobileCodexMarkdown(text: cell.displayText),
+                  if (cell.kind == 'toolCall' ||
+                      cell.kind == 'diff' ||
+                      cell.metadata['commandActions'] != null)
+                    _MobileCodexToolDetails(cell: cell)
+                  else
+                    _MobileCodexMarkdown(text: cell.displayText),
                 ],
               ],
             ),
@@ -388,7 +393,17 @@ String _mobileCellLabel(MobileCodexTimelineCell cell) {
     return 'Asked ${count is int ? count : 1} Questions';
   }
   if (cell.kind == 'command') return cell.title ?? 'Ran Command';
-  if (cell.kind == 'toolCall') return cell.title ?? 'Tool Call';
+  if (cell.kind == 'toolCall') {
+    return switch (_mobileActivityKind(cell)) {
+      _MobileActivityKind.webSearch =>
+        cell.metadata['query'] == null
+            ? 'Searched the Web'
+            : 'Searched the Web for ${cell.metadata['query']}',
+      _MobileActivityKind.tool =>
+        'Used ${cell.metadata['tool'] ?? cell.title ?? 'Tool'}',
+      _ => cell.title ?? 'Tool Call',
+    };
+  }
   if (cell.kind == 'diff') return cell.title ?? 'Edited Files';
   if (cell.kind == 'subAgent') return cell.title ?? 'Sub-Agent';
   return cell.title ?? 'Codex Activity';
@@ -407,6 +422,9 @@ IconData _mobileCellIcon(MobileCodexTimelineCell cell) => switch (cell.kind) {
   'subAgent' => Icons.account_tree_outlined,
   'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.viewImage =>
     AleraIcons.viewImage,
+  'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.webSearch =>
+    AleraIcons.public,
+  'toolCall' => AleraIcons.tool,
   _ => Icons.info_outline,
 };
 

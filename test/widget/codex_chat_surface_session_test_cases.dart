@@ -174,6 +174,22 @@ void registerCodexChatSurfaceSessionTests() {
     addTearDown(client.dispose);
     await _pumpSessionSurface(tester, client);
 
+    final historyButton = find.widgetWithText(
+      TextButton,
+      'Load Earlier Messages',
+    );
+    final surfaceRect = tester.getRect(find.byType(CodexChatSurface));
+    expect(
+      find.descendant(
+        of: historyButton,
+        matching: find.byIcon(AleraIcons.chevronUp),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getRect(historyButton).center.dx,
+      closeTo(surfaceRect.center.dx, 0.1),
+    );
     await tester.tap(find.text('Load Earlier Messages'));
     await tester.pump();
     expect(client.requestTypes, contains('codex.thread.history'));

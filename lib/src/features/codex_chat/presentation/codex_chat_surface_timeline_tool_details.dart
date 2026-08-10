@@ -32,11 +32,32 @@ class _CodexToolDetailsState extends State<_CodexToolDetails> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (projection.fields.isNotEmpty)
-          for (final (label, value) in projection.fields)
+        if (projection.overview.isNotEmpty)
+          for (final (label, value) in projection.overview)
             _CodexToolField(label: label, value: value),
+        if (projection.arguments != null)
+          _CodexStructuredToolPayload(
+            label: 'Arguments',
+            value: projection.arguments!,
+            paginationId: '${widget.cell.id}:arguments',
+          ),
+        if (projection.commandActions != null)
+          _CodexStructuredToolPayload(
+            label: 'Command Actions',
+            value: projection.commandActions!,
+            paginationId: '${widget.cell.id}:command-actions',
+          ),
+        if (projection.response != null)
+          _CodexStructuredToolPayload(
+            label: projection.responseLabel,
+            value: projection.response!,
+            paginationId: '${widget.cell.id}:response',
+          ),
         if (projection.images.isNotEmpty) ...<Widget>[
-          if (projection.fields.isNotEmpty)
+          if (projection.overview.isNotEmpty ||
+              projection.arguments != null ||
+              projection.commandActions != null ||
+              projection.response != null)
             const SizedBox(height: AleraTokens.space8),
           Wrap(
             spacing: AleraTokens.space8,
@@ -64,7 +85,11 @@ class _CodexToolDetailsState extends State<_CodexToolDetails> {
           ),
         ],
         if (projection.showDetails) ...<Widget>[
-          if (projection.fields.isNotEmpty || projection.images.isNotEmpty)
+          if (projection.overview.isNotEmpty ||
+              projection.arguments != null ||
+              projection.commandActions != null ||
+              projection.response != null ||
+              projection.images.isNotEmpty)
             const SizedBox(height: AleraTokens.space8),
           if (projection.isDiff)
             _CodexDiffDetails(
@@ -72,64 +97,15 @@ class _CodexToolDetailsState extends State<_CodexToolDetails> {
               lines: projection.diffLines,
             )
           else
-            _CodexToolPayload(label: 'Output', value: projection.details),
+            _CodexStructuredToolPayload(
+              label: 'Output',
+              value: projection.details,
+              paginationId: '${widget.cell.id}:output',
+            ),
         ],
       ],
     );
   }
-}
-
-class _CodexToolDetailsProjection {
-  const _CodexToolDetailsProjection({
-    required this.fields,
-    required this.images,
-    required this.details,
-    required this.showDetails,
-    required this.isDiff,
-    required this.diffLines,
-  });
-
-  factory _CodexToolDetailsProjection.fromCell(CodexTimelineCell cell) {
-    final details = cell.detailsText ?? cell.markdownText ?? '';
-    final metadata = cell.metadata;
-    final rawFields = <(String, Object?)>[
-      ('Query', metadata['query']),
-      ('Action', metadata['action']),
-      ('URL', metadata['url']),
-      ('Duration', _codexDurationLabel(metadata['durationMs'])),
-      ('Changes', metadata['changes']),
-      ('Arguments', metadata['arguments']),
-      ('Command Actions', metadata['commandActions']),
-      ('Result', metadata['result']),
-    ];
-    final fields = <(String, String)>[
-      for (final (label, value) in rawFields)
-        if (!_emptyCodexDetail(value)) (label, _prettyCodexValue(value!)),
-    ];
-    final images = _codexDetailImages(<Object?>[details, ...metadata.values]);
-    final prettyDetails = _prettyCodexValue(details);
-    final isDiff =
-        cell.kind == CodexTimelineKind.diff || _looksLikeDiff(details);
-    return _CodexToolDetailsProjection(
-      fields: List<(String, String)>.unmodifiable(fields),
-      images: List<String>.unmodifiable(images),
-      details: details,
-      showDetails:
-          details.trim().isNotEmpty &&
-          !fields.any((field) => field.$2 == prettyDetails),
-      isDiff: isDiff,
-      diffLines: isDiff
-          ? List<String>.unmodifiable(details.split('\n'))
-          : const <String>[],
-    );
-  }
-
-  final List<(String, String)> fields;
-  final List<String> images;
-  final String details;
-  final bool showDetails;
-  final bool isDiff;
-  final List<String> diffLines;
 }
 
 class _CodexToolField extends StatelessWidget {
@@ -256,9 +232,6 @@ class _CodexDiffLine extends StatelessWidget {
   }
 }
 
-bool _emptyCodexDetail(Object? value) =>
-    value == null || value is String && value.trim().isEmpty;
-
 String _prettyCodexValue(Object value) {
   if (value is! String) {
     return const JsonEncoder.withIndent('  ').convert(value);
@@ -286,16 +259,48 @@ bool _looksLikeDiff(String value) =>
 
 List<String> _codexDetailImages(Iterable<Object?> roots) {
   final images = <String>{};
-  void collect(Object? value) {
+  var remainingNodes = _codexStructuredToolPageSize * 3;
+  void collect(Object? value, [int depth = 0]) {
+    if (remainingNodes <= 0 ||
+        depth > _codexStructuredToolDepthLimit ||
+        images.length >= 8) {
+      return;
+    }
+    remainingNodes -= 1;
     if (value is Map) {
-      value.values.forEach(collect);
+      final type = value['type']?.toString().toLowerCase();
+      final data = value['data'];
+      final mimeType = value['mimeType']?.toString().toLowerCase();
+      if (type == 'image' &&
+          data is String &&
+          mimeType?.startsWith('image/') == true) {
+        images.add('data:$mimeType;base64,$data');
+        return;
+      }
+      final blob = value['blob'];
+      if (blob is String && mimeType?.startsWith('image/') == true) {
+        images.add('data:$mimeType;base64,$blob');
+        return;
+      }
+      for (final nested in value.values) {
+        if (remainingNodes <= 0 || images.length >= 8) break;
+        collect(nested, depth + 1);
+      }
       return;
     }
     if (value is Iterable && value is! String) {
-      value.forEach(collect);
+      for (final nested in value) {
+        if (remainingNodes <= 0 || images.length >= 8) break;
+        collect(nested, depth + 1);
+      }
       return;
     }
     if (value is! String) return;
+    if (value.startsWith('data:image/')) {
+      images.add(value);
+      return;
+    }
+    if (value.length > _codexStructuredToolTextLimit) return;
     final candidates = RegExp(
       r'''(?:data:image/[^\s]+|https?://[^\s"']+|file://[^\s"']+|(?:[A-Za-z]:[\\/]|/)[^\n"']+)''',
     ).allMatches(value);
@@ -310,7 +315,10 @@ List<String> _codexDetailImages(Iterable<Object?> roots) {
     }
   }
 
-  roots.forEach(collect);
+  for (final root in roots) {
+    if (remainingNodes <= 0 || images.length >= 8) break;
+    collect(root);
+  }
   return images.take(8).toList(growable: false);
 }
 
