@@ -29,6 +29,50 @@ void _registerAiTextReadingDiffTests() {
     expect(result.text, contains('"version":1'));
   });
 
+  test('extracts Codex message from a multiline JSON error', () async {
+    final process = _FakeProcessRunner(
+      stdout: '',
+      stderr: '''
+ERROR: {
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "code": "invalid_json_schema",
+    "message": "The version property must declare an integer type.",
+    "param": "text.format.schema"
+  },
+  "status": 400
+}
+''',
+      exitCode: 1,
+    );
+    final runner = CliAiTextAgentRunner(
+      processRunner: process,
+      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+    );
+
+    await expectLater(
+      runner.run(
+        const AiTextAgentRunRequest(
+          settings: AiTextGenerationSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'reading-diff-codex-error',
+          workingDirectory: '/repo',
+          agent: AiTextGenerationAgent.codex,
+          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          outputSchema: '{"type":"object"}',
+        ),
+      ),
+      throwsA(
+        isA<AiTextGenerationException>().having(
+          (error) => error.message,
+          'message',
+          'Codex failed: The version property must declare an integer type.',
+        ),
+      ),
+    );
+  });
+
   test('unwraps Claude structured output and disables persistence', () async {
     final process = _FakeProcessRunner(
       stdout:

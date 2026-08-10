@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_process_failure.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -131,7 +132,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         throw const AiTextGenerationCanceledException();
       }
       if (output.exitCode != 0) {
-        final detail = _failureDetail(output.stdout, output.stderr);
+        final detail = aiTextProcessFailureDetail(output.stdout, output.stderr);
         throw AiTextGenerationException(
           detail == null
               ? '${plan.label} failed. Check the agent CLI configuration and try again.'
@@ -371,23 +372,6 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       stdout: stdout.toString(),
       stderr: stderr.toString(),
     );
-  }
-
-  String? _failureDetail(String stdout, String stderr) {
-    final combined = '$stdout\n$stderr'
-        .replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '')
-        .trim();
-    if (combined.isEmpty) {
-      return null;
-    }
-    final lines = combined
-        .split(RegExp(r'\r?\n'))
-        .where((line) => line.trim().isNotEmpty)
-        .toList(growable: false);
-    final detail = lines.isEmpty ? combined : lines.last.trim();
-    return detail.length > 240
-        ? '${detail.substring(0, 240).trimRight()}...'
-        : detail;
   }
 
   String _cleanStructuredOutput(String output) {

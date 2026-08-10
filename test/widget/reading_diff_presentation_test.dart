@@ -5,6 +5,7 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_failure_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_generation_progress_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_view.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
@@ -84,6 +85,30 @@ void main() {
     expect(find.text('Claude Code · sonnet'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('reading diff failures remain visible and selectable', (
+    tester,
+  ) async {
+    var dismissed = false;
+    const message =
+        'Codex failed: Invalid schema for response_format: version must have a type key.';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReadingDiffFailureView(
+          message: message,
+          onDismiss: () => dismissed = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Reading diff generation failed'), findsOneWidget);
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(SelectableText), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Dismiss Error'));
+    expect(dismissed, isTrue);
   });
 }
 

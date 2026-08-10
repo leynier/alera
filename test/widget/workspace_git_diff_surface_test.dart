@@ -1,6 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
+import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
+import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -17,9 +27,11 @@ import '../unit/fake_git_backend.dart';
 
 part 'workspace_git_diff_surface_test_controller.dart';
 part 'workspace_git_diff_surface_pull_request_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_cases.dart';
 
 void main() {
   _registerWorkspaceGitDiffSurfacePullRequestTests();
+  _registerWorkspaceGitDiffSurfaceReadingDiffTests();
   testWidgets('diff surface caps rendered line previews', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = GitDiffResult(
@@ -416,12 +428,15 @@ Future<void> _pumpDiffSurface(
   required FakeGitBackend backend,
   WorkbenchController? controller,
   WorkspaceTabRecord? tab,
+  ReadingDiffService? readingDiffService,
 }) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
         settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+        if (readingDiffService != null)
+          readingDiffServiceProvider.overrideWithValue(readingDiffService),
         if (controller != null)
           workbenchControllerProvider.overrideWith(() => controller),
       ],
@@ -438,28 +453,6 @@ Future<void> _pumpDiffSurface(
         ),
       ),
     ),
-  );
-}
-
-IconButton _openFileButton(WidgetTester tester) {
-  final finder = find.ancestor(
-    of: find.byIcon(AleraIcons.external),
-    matching: find.byType(IconButton),
-  );
-  return tester.widget<IconButton>(finder);
-}
-
-Workspace _workspace() {
-  final now = DateTime.utc(2026, 6, 6);
-  return Workspace(
-    id: 'workspace-1',
-    projectId: 'project-1',
-    name: 'Main',
-    path: '/tmp/project',
-    createdAt: now,
-    updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
   );
 }
 

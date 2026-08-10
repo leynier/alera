@@ -87,3 +87,22 @@ fn operation_reasoning_overrides_global_reasoning() {
         .windows(2)
         .any(|values| values == ["-c", "model_reasoning_effort=high"]));
 }
+
+#[test]
+fn failure_detail_extracts_a_multiline_json_message() {
+    let stderr = r#"
+ERROR: {
+  "type": "error",
+  "error": {
+    "code": "invalid_json_schema",
+    "message": "The version property must declare an integer type."
+  },
+  "status": 400
+}
+"#;
+
+    assert_eq!(
+        ai_text_failure_detail("", stderr).as_deref(),
+        Some("The version property must declare an integer type.")
+    );
+}

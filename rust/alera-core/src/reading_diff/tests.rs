@@ -6,6 +6,14 @@ use super::*;
 const DIFF: &[u8] = b"diff --git a/app.py b/app.py\r\n--- a/app.py\r\n+++ b/app.py\r\n@@ -1,3 +1,4 @@\r\n import os\r\n-old = calculate_large_value(source)\r\n+new = calculate_large_value(source)\r\n+print(new)\r\n return old\r\n";
 
 #[test]
+fn plan_schema_declares_a_type_for_the_version_constant() {
+    let schema: serde_json::Value = serde_json::from_str(&plan_schema()).expect("valid schema");
+
+    assert_eq!(schema["properties"]["version"]["type"], "integer");
+    assert_eq!(schema["properties"]["version"]["const"], SCHEMA_VERSION);
+}
+
+#[test]
 fn compiles_only_source_projected_edits_and_preserves_crlf() {
     let plan = r#"{"version":1,"remove":[{"start_line":8,"end_line":8}],"replace":[{"line":7,"old":"calculate_large_value(source)","new":"calculate_...(source)"}],"fold":[],"summary":"Rename the calculated value."}"#;
     let result = compile(DIFF, plan).expect("valid plan");

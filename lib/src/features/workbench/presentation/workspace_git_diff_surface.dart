@@ -5,12 +5,12 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_failure_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_generation_progress_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_view.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
@@ -50,6 +50,7 @@ class _WorkspaceGitDiffSurfaceState
   bool _showReadingDiff = false;
   bool _readingDiffBusy = false;
   ReadingDiffGenerationProgress? _readingDiffProgress;
+  String? _readingDiffError;
   String? _readingDiffAgentLabel;
   String? _readingDiffModel;
   int _readingDiffGeneration = 0;
@@ -119,6 +120,13 @@ class _WorkspaceGitDiffSurfaceState
               progress: progress,
               agentLabel: _readingDiffAgentLabel,
               model: _readingDiffModel,
+            ),
+            const Divider(height: 1, color: AleraTokens.borderSubtle),
+          ],
+          if (_readingDiffError case final error?) ...<Widget>[
+            ReadingDiffFailureView(
+              message: error,
+              onDismiss: () => setState(() => _readingDiffError = null),
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
           ],
@@ -246,6 +254,7 @@ class _WorkspaceGitDiffSurfaceState
       _showReadingDiff = false;
       _readingDiffBusy = false;
       _readingDiffProgress = null;
+      _readingDiffError = null;
       _readingDiffAgentLabel = null;
       _readingDiffModel = null;
       _future = nextFuture;
@@ -302,6 +311,7 @@ class _WorkspaceGitDiffSurfaceState
         completedChunks: 0,
         totalChunks: 0,
       );
+      _readingDiffError = null;
       _readingDiffAgentLabel = null;
       _readingDiffModel = null;
     });
@@ -356,18 +366,17 @@ class _WorkspaceGitDiffSurfaceState
         _readingDiffResult = result;
         _showReadingDiff = true;
         _readingDiffProgress = null;
+        _readingDiffError = null;
       });
     } on AiTextGenerationCanceledException {
       return;
     } catch (error) {
       if (mounted && generation == _readingDiffGeneration) {
-        AleraToast.show(
-          context,
-          message: error is AiTextGenerationException
+        setState(() {
+          _readingDiffError = error is AiTextGenerationException
               ? error.message
-              : 'Could not generate the reading diff.',
-          tone: AleraToastTone.error,
-        );
+              : 'Could not generate the reading diff.';
+        });
       }
     } finally {
       if (mounted && generation == _readingDiffGeneration) {
