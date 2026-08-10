@@ -125,6 +125,58 @@ void main() {
     await tester.tap(find.text('Try Again'));
     expect(retries, 1);
   });
+
+  testWidgets('keeps saved usage visible while refreshing in background', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _wrap(
+        AgentUsageDialogView(
+          hostId: 'local',
+          days: 30,
+          snapshot: _snapshot(),
+          quotaSnapshots: const <AgentQuotaSnapshot>[],
+          loading: true,
+          error: null,
+          onDaysChanged: (_) {},
+          onRefresh: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Processed Tokens'), findsOneWidget);
+    expect(find.text('Updating'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('keeps saved usage visible after a refresh failure', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _wrap(
+        AgentUsageDialogView(
+          hostId: 'local',
+          days: 30,
+          snapshot: _snapshot(),
+          quotaSnapshots: const <AgentQuotaSnapshot>[],
+          loading: false,
+          error: 'Runtime is unavailable.',
+          onDaysChanged: (_) {},
+          onRefresh: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Processed Tokens'), findsOneWidget);
+    expect(find.text('Update Failed'), findsOneWidget);
+    expect(find.text('Usage Unavailable'), findsNothing);
+  });
 }
 
 Widget _wrap(Widget child) {
