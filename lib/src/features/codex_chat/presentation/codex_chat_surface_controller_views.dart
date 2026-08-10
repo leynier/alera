@@ -152,11 +152,6 @@ class _CodexControllerFooter extends ConsumerWidget {
       children: <Widget>[
         if (state.error != null)
           _CodexInlineError(message: state.error!, onRetry: controller.retry),
-        if (state.recovery != null)
-          _CodexRecoveryBanner(
-            message: state.recovery!.message,
-            onContinue: controller.recoverThread,
-          ),
         if (state.queuedMessages.isNotEmpty)
           _CodexQueueBar(
             messages: state.queuedMessages,
@@ -175,6 +170,15 @@ class _CodexControllerFooter extends ConsumerWidget {
           ),
         if (view.planProgress != null)
           _CodexPlanProgressDock(progress: view.planProgress!),
+        if (state.recovery != null)
+          Flexible(
+            fit: FlexFit.loose,
+            child: _CodexRecoveryQuestionDock(
+              key: ValueKey<(String, String?)>((tabId, controller.threadId)),
+              message: state.recovery!.message,
+              onContinue: controller.recoverThread,
+            ),
+          ),
         if (showQuestionDock)
           Flexible(
             fit: FlexFit.loose,

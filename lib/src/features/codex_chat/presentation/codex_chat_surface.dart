@@ -74,6 +74,7 @@ part 'codex_chat_surface_timeline_activity.dart';
 part 'codex_chat_surface_timeline_notices.dart';
 part 'codex_chat_surface_timeline_plan.dart';
 part 'codex_chat_surface_timeline_plan_question.dart';
+part 'codex_chat_surface_recovery_question.dart';
 part 'codex_chat_surface_timeline_messages.dart';
 part 'codex_chat_surface_timeline_message_actions.dart';
 part 'codex_chat_surface_timeline_tool_details.dart';
