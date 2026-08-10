@@ -243,9 +243,9 @@ void main() {
 
       final allowed = await service.prepareAppQuit(
         keepRuntimeOpen: false,
-        confirmBusyQuit:
-            ({required String title, required String message}) async =>
-                RuntimeHostQuitDecision.cancel,
+        confirmBusyQuit: (
+                {required String title, required String message}) async =>
+            RuntimeHostQuitDecision.cancel,
       );
 
       expect(allowed, isFalse);
@@ -272,9 +272,9 @@ void main() {
 
         final allowed = await service.prepareAppQuit(
           keepRuntimeOpen: false,
-          confirmBusyQuit:
-              ({required String title, required String message}) async =>
-                  RuntimeHostQuitDecision.leaveRuntimeOpen,
+          confirmBusyQuit: (
+                  {required String title, required String message}) async =>
+              RuntimeHostQuitDecision.leaveRuntimeOpen,
         );
 
         expect(allowed, isTrue);
@@ -302,9 +302,9 @@ void main() {
 
       final allowed = await service.prepareAppQuit(
         keepRuntimeOpen: false,
-        confirmBusyQuit:
-            ({required String title, required String message}) async =>
-                RuntimeHostQuitDecision.forceStop,
+        confirmBusyQuit: (
+                {required String title, required String message}) async =>
+            RuntimeHostQuitDecision.forceStop,
       );
 
       expect(allowed, isTrue);
@@ -369,12 +369,12 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce:
-            ({
-              required String title,
-              required String message,
-              required String confirmLabel,
-            }) async => false,
+        confirmForce: ({
+          required String title,
+          required String message,
+          required String confirmLabel,
+        }) async =>
+            false,
       );
 
       expect(client.shutdownCalls, <bool>[false]);
@@ -400,12 +400,12 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce:
-            ({
-              required String title,
-              required String message,
-              required String confirmLabel,
-            }) async => true,
+        confirmForce: ({
+          required String title,
+          required String message,
+          required String confirmLabel,
+        }) async =>
+            true,
       );
 
       expect(client.shutdownCalls, <bool>[false, true]);
