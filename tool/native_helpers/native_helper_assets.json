@@ -47,10 +47,9 @@
         "sourceSubdirectory": "packages/serve-sim",
         "packageDirectory": "packages/serve-sim",
         "product": "serve-sim-bin",
-        "buildOutput": "apple/Products/Release/serve-sim-bin",
+        "buildOutput": "arm64-apple-macosx/release/serve-sim-bin",
         "architectures": [
-          "arm64",
-          "x86_64"
+          "arm64"
         ],
         "dependencyLockPath": "packages/serve-sim/Package.resolved",
         "dependencyLockSha256": "ba95ccfd76f628fcf173102770f9e2fbeee0320823b9f1b508a0b8ff51f890ca",

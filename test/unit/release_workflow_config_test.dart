@@ -203,6 +203,36 @@ void main() {
       );
     });
 
+    test('builds and ships macOS for Apple Silicon only', () {
+      final appInfo = File(
+        'macos/Runner/Configs/AppInfo.xcconfig',
+      ).readAsStringSync();
+      final podfile = File('macos/Podfile').readAsStringSync();
+      final xcodeProject = File(
+        'macos/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final helperAssets = File(
+        'tool/native_helpers/native_helper_assets.json',
+      ).readAsStringSync();
+      final releaseWorkflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final buildWorkflow = File(
+        '.github/workflows/desktop-build.yml',
+      ).readAsStringSync();
+
+      expect(appInfo, contains('ARCHS = arm64'));
+      expect(appInfo, contains('EXCLUDED_ARCHS[sdk=macosx*] = x86_64'));
+      expect(podfile, contains("config.build_settings['ARCHS'] = 'arm64'"));
+      // The sidecar is pinned to the triple instead of inheriting the build
+      // machine, so the shipped binary cannot depend on which runner ran.
+      expect(xcodeProject, contains('aarch64-apple-darwin'));
+      expect(helperAssets, isNot(contains('"x86_64"')));
+      for (final workflow in <String>[releaseWorkflow, buildWorkflow]) {
+        expect(workflow, contains('verify_macos_arm64_only.sh'));
+      }
+    });
+
     test('uses dedicated R2 sccache credentials with local fallback', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
