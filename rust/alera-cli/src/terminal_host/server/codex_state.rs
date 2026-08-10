@@ -25,6 +25,8 @@ mod codex_resume_identity;
 mod codex_review_history;
 #[path = "codex_review_transition.rs"]
 pub(super) mod codex_review_transition;
+#[path = "codex_state_accessors.rs"]
+mod codex_state_accessors;
 #[path = "codex_state_snapshot.rs"]
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
@@ -42,6 +44,9 @@ use codex_state_snapshot::{
     bound_snapshot, ensure_payload_object, normalize_snapshot, trim_events, update_context_usage,
 };
 
+pub(super) use codex_state_accessors::{
+    clear_review_transition, persist_snapshot, render_markdown, trim_cells,
+};
 pub(super) use codex_state_snapshot::merge_resume_snapshot;
 pub(super) use codex_state_snapshot::snapshot_delta;
 
@@ -96,22 +101,6 @@ pub(super) fn set_thread_and_snapshot(
     payload.insert("codexSnapshot".to_string(), next_snapshot);
     payload.remove("codexActiveTurnId");
     tab.updated_at = Utc::now();
-}
-
-pub(super) fn render_markdown(text: &str) -> String {
-    codex_markdown::render_markdown(text)
-}
-
-pub(super) fn persist_snapshot(tab: &mut WorkspaceTabRecord, next: Value) {
-    codex_state_snapshot::persist_snapshot(tab, next);
-}
-
-pub(super) fn trim_cells(cells: &mut Vec<Value>) {
-    codex_state_snapshot::trim_cells(cells);
-}
-
-pub(super) fn clear_review_transition(snapshot: &mut Value) {
-    codex_review_transition::clear_live_transition(snapshot);
 }
 
 #[cfg(test)]
@@ -475,13 +464,22 @@ pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
 }
 
 #[cfg(test)]
+#[path = "codex_state_rich_tests.rs"]
+mod rich_tests;
+#[cfg(test)]
 #[path = "codex_state_tests.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "codex_state_snapshot_identity_tests.rs"]
+mod snapshot_identity_tests;
+#[cfg(test)]
 #[path = "codex_state_snapshot_tests.rs"]
 mod snapshot_tests;
 
+#[cfg(test)]
+#[path = "codex_review_transition_edge_tests.rs"]
+mod review_transition_edge_tests;
 #[cfg(test)]
 #[path = "codex_review_transition_tests.rs"]
 mod review_transition_tests;

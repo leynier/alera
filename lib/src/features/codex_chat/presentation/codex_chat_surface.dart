@@ -87,6 +87,7 @@ part 'codex_chat_surface_timeline_worked_projection.dart';
 part 'codex_chat_surface_timeline_progress.dart';
 part 'codex_chat_surface_shimmer.dart';
 part 'codex_chat_surface_timeline_groups.dart';
+part 'codex_chat_surface_timeline_widget.dart';
 part 'codex_chat_surface_timeline_viewport.dart';
 part 'codex_chat_surface_timeline_turn.dart';
 part 'codex_chat_surface_timeline_projection.dart';

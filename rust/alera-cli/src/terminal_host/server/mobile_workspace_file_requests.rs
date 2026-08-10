@@ -15,8 +15,7 @@ use serde_json::{json, Value};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
-use super::prompt_file_store::DIRECTORY as PROMPT_FILE_DIRECTORY;
-use super::prompt_image_store::PROMPT_IMAGE_DIRECTORY;
+use super::mobile_workspace_file_paths::prompt_attachment_root;
 use super::requests::{optional_string_key, require_string_key};
 use super::{ServerActor, ServerCommand};
 
@@ -383,17 +382,6 @@ fn validated_mobile_workspace_root(candidate: &Path, roots: Vec<PathBuf>) -> Hos
         return Err(HostError::state("protected workspace metadata"));
     }
     Ok(candidate.to_string_lossy().into_owned())
-}
-
-fn prompt_attachment_root(
-    runtime_dir: &Path,
-    canonical_path: &Path,
-) -> HostResult<std::path::PathBuf> {
-    [PROMPT_FILE_DIRECTORY, PROMPT_IMAGE_DIRECTORY]
-        .into_iter()
-        .filter_map(|name| fs::canonicalize(runtime_dir.join(name)).ok())
-        .find(|root| canonical_path.starts_with(root))
-        .ok_or_else(|| HostError::state("Prompt attachment path is outside the runtime store."))
 }
 
 fn workspace_file_error(error: alera_core::workspace_files::WorkspaceFileError) -> HostError {

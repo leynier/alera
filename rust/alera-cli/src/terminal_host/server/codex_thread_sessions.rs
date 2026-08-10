@@ -375,3 +375,7 @@ mod resumed_title_tests;
 #[path = "codex_thread_session_support.rs"]
 mod support;
 pub(in crate::terminal_host::server) use support::*;
+
+#[path = "codex_thread_session_response.rs"]
+mod response;
+pub(in crate::terminal_host::server) use response::{append_thread_boundary, session_response};
