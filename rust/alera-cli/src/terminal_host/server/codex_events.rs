@@ -3,14 +3,37 @@
 use chrono::Utc;
 use serde_json::{json, Value};
 
-use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::protocol::event;
 
+use super::codex_nonblocking_questions::is_nonblocking_user_input_request;
 use super::codex_state::{
-    active_turn_id, append_message, is_codex_tab, snapshot, tab_thread_id, thread_id_from_message,
-    turn_id_from_message,
+    active_turn_id, append_message_with_normalized, is_codex_tab, snapshot, snapshot_delta,
+    tab_thread_id, thread_id_from_message,
 };
 use super::ServerActor;
+
+// The current Codex protocol requires isBlocking and deprecates autoResolutionMs.
+// Match the Codex TUI's fixed 60-second grace plus 60-second countdown.
+const CODEX_NONBLOCKING_QUESTION_GRACE: std::time::Duration = std::time::Duration::from_secs(120);
+
+fn pending_auto_resolution_request(
+    tab: &alera_core::runtime::WorkspaceTabRecord,
+    thread_id: &str,
+    request_id: &Value,
+) -> Option<Value> {
+    if tab_thread_id(tab).as_deref() != Some(thread_id) {
+        return None;
+    }
+    snapshot(tab)
+        .get("pendingRequests")
+        .and_then(Value::as_array)
+        .and_then(|requests| {
+            requests
+                .iter()
+                .find(|request| request.get("id") == Some(request_id))
+                .cloned()
+        })
+}
 
 #[path = "codex_stream_collector.rs"]
 mod codex_stream_collector;
@@ -77,12 +100,92 @@ impl ServerActor {
                 return;
             }
         };
+        self.schedule_nonblocking_question_auto_resolution(&tab, &message);
         if is_streaming_codex_message(&message) {
             self.queue_codex_message(&tab.id, message).await;
             return;
         }
         self.handle_codex_force_flush(&tab.id).await;
         self.persist_codex_messages(tab, vec![message]).await;
+    }
+
+    fn schedule_nonblocking_question_auto_resolution(
+        &self,
+        tab: &alera_core::runtime::WorkspaceTabRecord,
+        message: &Value,
+    ) {
+        if !is_nonblocking_user_input_request(message) {
+            return;
+        }
+        let Some(request_id) = message.get("id").cloned() else {
+            return;
+        };
+        let Some(thread_id) = tab_thread_id(tab) else {
+            return;
+        };
+        let Some(server_instance) = self
+            .codex
+            .as_ref()
+            .map(super::codex_app_server::CodexAppServer::instance_token)
+        else {
+            return;
+        };
+        let inbox = self.inbox.clone();
+        let tab_id = tab.id.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(CODEX_NONBLOCKING_QUESTION_GRACE).await;
+            let _ = inbox.send(super::ServerCommand::CodexAutoResolve {
+                tab_id,
+                thread_id,
+                request_id,
+                server_instance,
+            });
+        });
+    }
+
+    pub(super) async fn handle_codex_auto_resolve(
+        &mut self,
+        tab_id: &str,
+        thread_id: &str,
+        request_id: Value,
+        server_instance: std::sync::Arc<()>,
+    ) {
+        if !self
+            .codex
+            .as_ref()
+            .is_some_and(|server| server.matches_instance(&server_instance))
+        {
+            return;
+        }
+        let pending = match self.find_codex_tab_by_id(tab_id).await {
+            Ok(Some(tab)) => pending_auto_resolution_request(&tab, thread_id, &request_id),
+            Ok(None) => None,
+            Err(error) => {
+                self.broadcast_codex_server_error(error.to_string());
+                return;
+            }
+        };
+        if pending.as_ref().is_none_or(|request| {
+            !is_nonblocking_user_input_request(request)
+                || request
+                    .get("autoResolutionSnoozed")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+        }) {
+            return;
+        }
+        if let Err(error) = self
+            .respond_to_codex_request_for_tab(
+                &json!({
+                    "requestId": request_id,
+                    "result": {"answers": {}},
+                }),
+                tab_id,
+            )
+            .await
+        {
+            self.broadcast_codex_server_error(error.to_string());
+        }
     }
 
     pub(super) async fn handle_codex_force_flush(&mut self, tab_id: &str) {
@@ -146,10 +249,14 @@ impl ServerActor {
         tab: alera_core::runtime::WorkspaceTabRecord,
         messages: Vec<Value>,
     ) {
+        let previous_snapshot = snapshot(&tab);
         let mut next = tab.clone();
         let mut title_changed = false;
+        let mut normalized_messages = Vec::with_capacity(messages.len());
         for message in &messages {
-            append_message(&mut next, message.clone());
+            let (_, normalized_message) =
+                append_message_with_normalized(&mut next, message.clone());
+            normalized_messages.push(normalized_message);
             if let Some(title) = super::codex_state::thread_title_from_message(message) {
                 if !next
                     .payload
@@ -163,6 +270,7 @@ impl ServerActor {
             }
         }
         let next_snapshot = snapshot(&next);
+        let delta = snapshot_delta(&previous_snapshot, &next_snapshot, &normalized_messages);
         let next_active_turn_id = active_turn_id(&next_snapshot);
         if let Some(payload) = next.payload.as_object_mut() {
             payload.insert("codexSnapshot".to_string(), next_snapshot);
@@ -203,6 +311,7 @@ impl ServerActor {
                 "message": message,
                 "coalescedMessages": messages.len(),
                 "snapshot": snapshot(&saved),
+                "snapshotDelta": delta,
             }),
         ));
     }
@@ -262,175 +371,8 @@ impl ServerActor {
             json!({"status": "error", "error": reason}),
         ));
     }
-
-    pub(super) async fn find_codex_tab_for_thread(
-        &self,
-        thread_id: &str,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>> {
-        let workspaces = self
-            .runtime_store
-            .list_all_workspaces()
-            .await
-            .map_err(|error| {
-                crate::terminal_host::host_error::HostError::state(error.to_string())
-            })?;
-        for workspace in workspaces {
-            let tabs = self
-                .runtime_store
-                .list_workspace_tabs(&workspace.id)
-                .await
-                .map_err(|error| {
-                    crate::terminal_host::host_error::HostError::state(error.to_string())
-                })?;
-            if let Some(tab) = tabs
-                .into_iter()
-                .find(|tab| is_codex_tab(tab) && tab_thread_id(tab).as_deref() == Some(thread_id))
-            {
-                return Ok(Some(tab));
-            }
-        }
-        Ok(None)
-    }
-
-    pub(super) async fn find_codex_tab_for_request(
-        &self,
-        request_id: &Value,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>> {
-        self.find_codex_tab_matching(|tab| {
-            snapshot(tab)
-                .pointer("/pendingRequests")
-                .and_then(Value::as_array)
-                .is_some_and(|requests| {
-                    requests
-                        .iter()
-                        .any(|request| request.get("id") == Some(request_id))
-                })
-        })
-        .await
-    }
-
-    async fn reject_unroutable_codex_request(&self, id: Value) {
-        let Some(server) = self.codex.as_ref().cloned() else {
-            return;
-        };
-        let error = json!({
-            "code": -32601,
-            "message": "Alera could not associate this Codex request with an open tab.",
-        });
-        if let Err(error) = server.respond(id, None, Some(error)).await {
-            self.broadcast_codex_server_error(error.wire_message());
-        }
-    }
-
-    async fn find_codex_tab_for_message(
-        &self,
-        message: &Value,
-        thread_id: Option<&str>,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>> {
-        if let Some(thread_id) = thread_id {
-            if let Some(tab) = self.find_codex_tab_for_thread(thread_id).await? {
-                return Ok(Some(tab));
-            }
-        }
-        let Some(turn_id) = turn_id_from_message(message) else {
-            if message.get("id").is_some() {
-                return self.find_latest_codex_tab().await;
-            }
-            return Ok(None);
-        };
-        self.find_codex_tab_matching(|tab| {
-            active_turn_id(&snapshot(tab)).as_deref() == Some(turn_id.as_str())
-                || snapshot(tab)
-                    .pointer("/events")
-                    .and_then(Value::as_array)
-                    .is_some_and(|events| {
-                        events.iter().any(|event| {
-                            super::codex_state::turn_id_from_message(event).as_deref()
-                                == Some(turn_id.as_str())
-                        })
-                    })
-        })
-        .await
-    }
-
-    async fn find_latest_codex_tab(
-        &self,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>> {
-        let workspaces = self
-            .runtime_store
-            .list_all_workspaces()
-            .await
-            .map_err(|error| {
-                crate::terminal_host::host_error::HostError::state(error.to_string())
-            })?;
-        let mut candidates = Vec::new();
-        for workspace in workspaces {
-            let tabs = self
-                .runtime_store
-                .list_workspace_tabs(&workspace.id)
-                .await
-                .map_err(|error| {
-                    crate::terminal_host::host_error::HostError::state(error.to_string())
-                })?;
-            candidates.extend(
-                tabs.into_iter()
-                    .filter(|tab| is_codex_tab(tab) && tab_thread_id(tab).is_some()),
-            );
-        }
-        let active = candidates
-            .iter()
-            .filter(|tab| active_turn_id(&snapshot(tab)).is_some())
-            .max_by(|left, right| {
-                left.updated_at
-                    .cmp(&right.updated_at)
-                    .then_with(|| left.id.cmp(&right.id))
-            })
-            .cloned();
-        Ok(active.or_else(|| {
-            candidates.into_iter().max_by(|left, right| {
-                left.updated_at
-                    .cmp(&right.updated_at)
-                    .then_with(|| left.id.cmp(&right.id))
-            })
-        }))
-    }
-
-    async fn find_codex_tab_by_id(
-        &self,
-        tab_id: &str,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>> {
-        self.find_codex_tab_matching(|tab| tab.id == tab_id).await
-    }
-
-    async fn find_codex_tab_matching<F>(
-        &self,
-        matches: F,
-    ) -> HostResult<Option<alera_core::runtime::WorkspaceTabRecord>>
-    where
-        F: Fn(&alera_core::runtime::WorkspaceTabRecord) -> bool,
-    {
-        let workspaces = self
-            .runtime_store
-            .list_all_workspaces()
-            .await
-            .map_err(|error| {
-                crate::terminal_host::host_error::HostError::state(error.to_string())
-            })?;
-        for workspace in workspaces {
-            let tabs = self
-                .runtime_store
-                .list_workspace_tabs(&workspace.id)
-                .await
-                .map_err(|error| {
-                    crate::terminal_host::host_error::HostError::state(error.to_string())
-                })?;
-            if let Some(tab) = tabs
-                .into_iter()
-                .find(|tab| is_codex_tab(tab) && matches(tab))
-            {
-                return Ok(Some(tab));
-            }
-        }
-        Ok(None)
-    }
 }
+
+#[cfg(test)]
+#[path = "codex_events_tests.rs"]
+mod tests;

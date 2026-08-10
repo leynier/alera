@@ -1,7 +1,9 @@
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 
-pub(super) fn create_private_exclusive(path: &Path) -> std::io::Result<File> {
+pub(in crate::terminal_host::server) fn create_private_exclusive(
+    path: &Path,
+) -> std::io::Result<File> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -12,7 +14,10 @@ pub(super) fn create_private_exclusive(path: &Path) -> std::io::Result<File> {
     options.open(path)
 }
 
-pub(super) fn open_nofollow(path: &Path, write: bool) -> std::io::Result<File> {
+pub(in crate::terminal_host::server) fn open_nofollow(
+    path: &Path,
+    write: bool,
+) -> std::io::Result<File> {
     let mut options = OpenOptions::new();
     options.read(true).write(write);
     #[cfg(unix)]
@@ -24,10 +29,10 @@ pub(super) fn open_nofollow(path: &Path, write: bool) -> std::io::Result<File> {
 }
 
 #[cfg(unix)]
-pub(super) fn restrict_to_owner(path: &Path) {
+pub(in crate::terminal_host::server) fn restrict_to_owner(path: &Path) {
     use std::os::unix::fs::PermissionsExt as _;
     let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700));
 }
 
 #[cfg(not(unix))]
-pub(super) fn restrict_to_owner(_path: &Path) {}
+pub(in crate::terminal_host::server) fn restrict_to_owner(_path: &Path) {}

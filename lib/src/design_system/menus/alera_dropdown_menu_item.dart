@@ -27,44 +27,47 @@ class AleraDropdownMenuItem extends StatelessWidget {
     final color = itemEnabled
         ? AleraTokens.foreground
         : AleraTokens.foregroundFaint;
-    return SizedBox(
-      height: AleraTokens.space32 + AleraTokens.space4,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AleraTokens.space2 / 2),
-        child: InkWell(
-          autofocus: autofocus,
-          onTap: itemEnabled ? onTap : null,
-          mouseCursor: itemEnabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space4,
-            ),
-            child: Row(
-              children: <Widget>[
-                if (leading != null) ...<Widget>[
-                  leading!,
-                  const SizedBox(width: AleraTokens.space8),
+    return MouseRegion(
+      cursor: itemEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: SizedBox(
+        height: AleraTokens.space32 + AleraTokens.space4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AleraTokens.space2 / 2),
+          child: InkWell(
+            autofocus: autofocus,
+            onTap: itemEnabled ? onTap : null,
+            mouseCursor: itemEnabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space8,
+                vertical: AleraTokens.space4,
+              ),
+              child: Row(
+                children: <Widget>[
+                  if (leading != null) ...<Widget>[
+                    leading!,
+                    const SizedBox(width: AleraTokens.space8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: color),
+                    ),
+                  ),
+                  if (selected)
+                    const Icon(
+                      AleraIcons.check,
+                      size: AleraTokens.space16,
+                      color: AleraTokens.foreground,
+                    ),
                 ],
-                Expanded(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: color),
-                  ),
-                ),
-                if (selected)
-                  const Icon(
-                    AleraIcons.check,
-                    size: AleraTokens.space16,
-                    color: AleraTokens.foreground,
-                  ),
-              ],
+              ),
             ),
           ),
         ),

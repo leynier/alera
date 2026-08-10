@@ -385,7 +385,9 @@ abstract final class CodexTimelineReducer {
           kind: kind,
           status: status,
           timestamp: timestamp,
-          title: _titleFor(type, lowerMethod, item: item),
+          title: type.contains('contextcompaction')
+              ? _contextCompactionTitle(status)
+              : _titleFor(type, lowerMethod, item: item),
           subtitle: _firstString(<Object?>[
             item['command'],
             item['name'],
@@ -398,17 +400,7 @@ abstract final class CodexTimelineReducer {
           isStreaming: method != 'item/completed',
           metadata: <String, Object?>{
             ...?current?.metadata,
-            'itemType': item['type'],
-            'type': item['type'],
-            'query': item['query'],
-            'url': item['url'],
-            'action': item['action'],
-            'changes': item['changes'],
-            'arguments': item['arguments'],
-            'result': item['result'],
-            'commandActions': item['commandActions'],
-            'durationMs': item['durationMs'],
-            'status': item['status'],
+            ..._itemTimelineMetadata(item),
             if (isAgentMessage && phase.isNotEmpty) 'streamPhase': phase,
           },
         ),
@@ -440,8 +432,8 @@ abstract final class CodexTimelineReducer {
 
     if (method.contains('review') && turnId.isNotEmpty) {
       final title = method.contains('enter')
-          ? 'Preparing review'
-          : 'Review finished';
+          ? 'Entered review mode'
+          : 'Exited review mode';
       final review = _firstString(<Object?>[
         params['review'],
         item['review'],
@@ -459,6 +451,11 @@ abstract final class CodexTimelineReducer {
           timestamp: timestamp,
           title: title,
           detailsText: review.isEmpty ? null : review,
+          metadata: <String, Object?>{
+            'itemType': method.contains('enter')
+                ? 'enteredReviewMode'
+                : 'exitedReviewMode',
+          },
         ),
       );
       if (review.isEmpty) return result;

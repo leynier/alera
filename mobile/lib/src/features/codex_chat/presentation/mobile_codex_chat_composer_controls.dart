@@ -1,0 +1,120 @@
+part of 'mobile_codex_chat_screen.dart';
+
+class _MobileComposerControls extends StatelessWidget {
+  const _MobileComposerControls({
+    required this.composer,
+    required this.disabled,
+    required this.sendDisabled,
+    required this.hasText,
+  });
+
+  final _MobileComposer composer;
+  final bool disabled;
+  final bool sendDisabled;
+  final bool hasText;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth >= AleraTokens.codexComposerSingleRowMinWidth) {
+        return Row(
+          children: <Widget>[
+            ..._leftControls(),
+            const Spacer(),
+            ..._rightControls(),
+          ],
+        );
+      }
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(children: _leftControls(compact: true)),
+          const SizedBox(height: AleraTokens.space2),
+          Row(children: <Widget>[const Spacer(), ..._rightControls()]),
+        ],
+      );
+    },
+  );
+
+  List<Widget> _leftControls({bool compact = false}) => <Widget>[
+    IconButton(
+      tooltip: 'Add Attachment',
+      visualDensity: VisualDensity.compact,
+      onPressed: composer.canAttach && !disabled
+          ? () => unawaited(composer.onAttach())
+          : null,
+      icon: const Icon(Icons.add),
+    ),
+    _MobilePermissionButton(
+      value:
+          !composer.supportsTurnPolicy &&
+              composer.state.permissionMode == 'auto-review'
+          ? 'untrusted'
+          : composer.state.permissionMode,
+      enabled: !disabled,
+      supportsAutoReview: composer.supportsTurnPolicy,
+      compact: compact,
+      onSelected: composer.onPermission,
+    ),
+    const SizedBox(width: AleraTokens.space4),
+    TextButton.icon(
+      onPressed: disabled
+          ? null
+          : () => composer.onPlan(!composer.state.planMode),
+      icon: Icon(
+        composer.state.planMode ? Icons.lightbulb : Icons.lightbulb_outline,
+        size: AleraTokens.space12,
+      ),
+      label: const Text('Plan'),
+      style: TextButton.styleFrom(
+        foregroundColor: composer.state.planMode
+            ? AleraTokens.foreground
+            : AleraTokens.foregroundMuted,
+      ),
+    ),
+    if (composer.supportsSessions)
+      PopupMenuButton<String>(
+        tooltip: 'Codex Chat Actions',
+        enabled: !composer.busy && !disabled,
+        onSelected: (value) {
+          switch (value) {
+            case 'resume':
+              unawaited(composer.onResume());
+            case 'new':
+              unawaited(composer.onNew());
+            case 'clear':
+              unawaited(composer.onClear());
+          }
+        },
+        itemBuilder: (context) => const <PopupMenuEntry<String>>[
+          PopupMenuItem(value: 'resume', child: Text('Resume Thread')),
+          PopupMenuItem(value: 'new', child: Text('Start New Chat')),
+          PopupMenuItem(value: 'clear', child: Text('Clear Chat')),
+        ],
+        icon: const Icon(Icons.more_horiz),
+      ),
+  ];
+
+  List<Widget> _rightControls() => <Widget>[
+    _MobileContextButton(state: composer.state),
+    Flexible(
+      child: _MobileModelMenuButton(
+        state: composer.state,
+        onModel: composer.onModel,
+        onReasoning: composer.onReasoning,
+        onSpeed: composer.onSpeed,
+        onCollaboration: composer.onCollaboration,
+      ),
+    ),
+    const SizedBox(width: AleraTokens.space4),
+    _MobileSendButton(
+      busy: composer.busy,
+      disabled: sendDisabled,
+      hasText: hasText,
+      canSteer: hasText && !disabled,
+      onSend: composer.onSend,
+      onSteer: composer.onSteer,
+      onStop: composer.onStop,
+    ),
+  ];
+}

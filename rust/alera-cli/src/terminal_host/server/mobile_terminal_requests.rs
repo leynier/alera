@@ -12,11 +12,16 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
@@ -64,7 +69,12 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
+    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
 ];
 
@@ -335,6 +345,16 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.promptImage.chunk"
             | "mobile.promptImage.complete"
             | "mobile.promptImage.cancel"
+            | "mobile.workspaceQuickOpen.start"
+            | "mobile.workspaceQuickOpen.search"
+            | "mobile.workspaceQuickOpen.stop"
+            | "mobile.workspaceFile.read"
+            | "mobile.codexSavedPrompts.list"
+            | "mobile.promptFile.start"
+            | "mobile.promptFile.chunk"
+            | "mobile.promptFile.complete"
+            | "mobile.promptFile.cancel"
+            | "mobile.promptAttachment.read"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
@@ -370,7 +390,21 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "detach"
             | "terminate"
             | "codex.thread.open"
+            | "codex.thread.list"
+            | "codex.threads.list"
+            | "codex.session.list"
+            | "codex.thread.resume"
+            | "codex.session.resume"
+            | "codex.thread.history"
+            | "codex.thread.turns.list"
+            | "codex.session.history"
+            | "codex.thread.new"
+            | "codex.session.new"
+            | "codex.thread.clear"
+            | "codex.session.clear"
             | "codex.tab.create"
+            | "codex.tab.configure"
+            | "codex.thread.recover"
             | "codex.thread.snapshot"
             | "codex.thread.items.list"
             | "codex.model.list"
@@ -382,8 +416,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.turn.steer"
             | "codex.thread.rename"
             | "codex.thread.compact"
+            | "codex.review.branches"
             | "codex.review.start"
             | "codex.response"
+            | "codex.request.snooze"
             | "automation.list"
             | "automation.show"
             | "automation.upsert"
@@ -408,4 +444,35 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "automation.import"
             | "automation.policy"
     )
+}
+
+#[cfg(test)]
+mod mobile_codex_file_surface_tests {
+    use super::*;
+
+    #[test]
+    fn advertises_and_allows_mobile_codex_file_surfaces() {
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY));
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY));
+        assert!(
+            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY)
+        );
+        assert!(MOBILE_HELLO_CAPABILITIES
+            .contains(&RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY));
+        for request in [
+            "mobile.workspaceQuickOpen.start",
+            "mobile.workspaceQuickOpen.search",
+            "mobile.workspaceQuickOpen.stop",
+            "mobile.workspaceFile.read",
+            "mobile.codexSavedPrompts.list",
+            "mobile.promptFile.start",
+            "mobile.promptFile.chunk",
+            "mobile.promptFile.complete",
+            "mobile.promptFile.cancel",
+            "mobile.promptAttachment.read",
+        ] {
+            assert!(mobile_request_allowed(request), "{request}");
+        }
+    }
 }

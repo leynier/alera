@@ -11,8 +11,22 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
 
+#[path = "codex_diff_coverage.rs"]
+mod codex_diff_coverage;
+#[path = "codex_history_metadata.rs"]
+mod codex_history_metadata;
+#[path = "codex_history_projection.rs"]
+mod codex_history_projection;
 #[path = "codex_markdown.rs"]
 mod codex_markdown;
+#[path = "codex_resume_identity.rs"]
+mod codex_resume_identity;
+#[path = "codex_review_history.rs"]
+mod codex_review_history;
+#[path = "codex_review_transition.rs"]
+pub(super) mod codex_review_transition;
+#[path = "codex_state_accessors.rs"]
+mod codex_state_accessors;
 #[path = "codex_state_snapshot.rs"]
 mod codex_state_snapshot;
 #[path = "codex_timeline_cells.rs"]
@@ -23,15 +37,26 @@ mod codex_timeline_content;
 mod codex_timeline_modern;
 #[path = "codex_timeline_state.rs"]
 mod codex_timeline_state;
+#[path = "codex_timeline_tool_metadata.rs"]
+mod codex_timeline_tool_metadata;
 
 use codex_state_snapshot::{
-    bound_snapshot, ensure_payload_object, normalize_snapshot, persist_snapshot, trim_cells,
-    trim_events, update_context_usage,
+    bound_snapshot, ensure_payload_object, normalize_snapshot, trim_events, update_context_usage,
+};
+
+pub(super) use codex_state_accessors::{
+    clear_review_transition, persist_snapshot, render_markdown, trim_cells,
+};
+pub(super) use codex_state_snapshot::merge_resume_snapshot;
+pub(super) use codex_state_snapshot::snapshot_delta;
+
+pub(super) use codex_history_projection::{
+    latest_turn_page, older_turn_page, CodexTurnHistoryPage,
 };
 
 pub(super) const CODEX_SNAPSHOT_VERSION: i64 = 2;
 const MAX_SNAPSHOT_EVENTS: usize = 160;
-const MAX_SNAPSHOT_CELLS: usize = 240;
+pub(super) const MAX_SNAPSHOT_CELLS: usize = 240;
 const MAX_SNAPSHOT_BYTES: usize = 512 * 1024;
 
 pub(super) fn is_codex_tab(tab: &WorkspaceTabRecord) -> bool {
@@ -66,72 +91,29 @@ pub(super) fn set_thread_and_snapshot(
     thread_id: &str,
     next_snapshot: Value,
 ) {
+    let mut next_snapshot = normalize_snapshot(next_snapshot);
+    bound_snapshot(&mut next_snapshot);
     let payload = ensure_payload_object(&mut tab.payload);
     payload.insert(
         "codexThreadId".to_string(),
         Value::String(thread_id.to_string()),
     );
-    payload.insert(
-        "codexSnapshot".to_string(),
-        normalize_snapshot(next_snapshot),
-    );
+    payload.insert("codexSnapshot".to_string(), next_snapshot);
     payload.remove("codexActiveTurnId");
     tab.updated_at = Utc::now();
 }
 
-pub(super) fn append_user_input(
-    tab: &mut WorkspaceTabRecord,
-    input: &Value,
-    turn_id: &str,
-) -> Value {
-    let text = input
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|part| {
-            if part.get("type").and_then(Value::as_str) == Some("text") {
-                part.get("text").and_then(Value::as_str)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    let attachments = input
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|part| part.get("type").and_then(Value::as_str) != Some("text"))
-        .cloned()
-        .collect::<Vec<_>>();
-    let mut next = snapshot(tab);
-    let object = ensure_payload_object(&mut next);
-    let cells = object
-        .entry("timelineCells".to_string())
-        .or_insert_with(|| Value::Array(Vec::new()));
-    if let Value::Array(cells) = cells {
-        let now = Utc::now().to_rfc3339();
-        cells.push(json!({
-            "id": format!("user-{turn_id}"),
-            "turnId": turn_id,
-            "kind": "userMessage",
-            "status": "completed",
-            "createdAt": now,
-            "updatedAt": now,
-            "isStreaming": false,
-            "isCollapsed": false,
-            "markdownText": text,
-            "renderedMarkdownText": codex_markdown::render_markdown(&text),
-            "metadata": {"attachments": attachments},
-        }));
-        trim_cells(cells);
-    }
-    persist_snapshot(tab, next.clone());
-    next
+#[cfg(test)]
+pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Value {
+    append_message_with_normalized(tab, message).0
 }
 
-pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Value {
+pub(super) fn append_message_with_normalized(
+    tab: &mut WorkspaceTabRecord,
+    message: Value,
+) -> (Value, Value) {
     let mut next = snapshot(tab);
+    let message = codex_review_transition::normalize_live_message(&mut next, message);
     let object = ensure_payload_object(&mut next);
     object.insert(
         "schemaVersion".to_string(),
@@ -145,15 +127,17 @@ pub(super) fn append_message(tab: &mut WorkspaceTabRecord, message: Value) -> Va
         trim_events(events);
     }
     reduce_timeline(&mut next, &message);
+    codex_review_transition::record_review_user_message(&mut next, &message);
     update_turn_and_pending(&mut next, &message);
     next = normalize_snapshot(next);
     bound_snapshot(&mut next);
     persist_snapshot(tab, next.clone());
-    next
+    (next, message)
 }
 
 pub(super) fn mark_server_failure(tab: &mut WorkspaceTabRecord, reason: &str) -> Value {
     let mut next = snapshot(tab);
+    codex_review_transition::clear_live_transition(&mut next);
     let object = ensure_payload_object(&mut next);
     object.remove("activeTurnId");
     if let Some(cells) = object
@@ -240,58 +224,68 @@ pub(super) fn append_question_answer(
     else {
         return;
     };
+    let answer_turn_id = request.get("turnId").cloned().unwrap_or(Value::Null);
     let answers = result.get("answers");
     let question_values = request
         .pointer("/params/questions")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let mut answered = Vec::new();
+    let mut question_answers = Vec::new();
+    let mut has_answer = false;
     for (index, question) in question_values.iter().enumerate() {
+        let question_text = question
+            .get("question")
+            .or_else(|| question.get("prompt"))
+            .and_then(Value::as_str)
+            .unwrap_or("Codex question");
         let question_id = question
             .get("id")
             .or_else(|| question.get("key"))
             .and_then(Value::as_str)
             .unwrap_or(if index == 0 { "question-0" } else { "" });
-        let Some(raw_answer) = answers.and_then(|answers| {
+        let raw_answer = answers.and_then(|answers| {
             answers
                 .as_object()
                 .and_then(|values| values.get(question_id))
                 .or_else(|| answers.as_array().and_then(|values| values.get(index)))
-        }) else {
-            continue;
-        };
+        });
         let answer = raw_answer
-            .get("answers")
-            .and_then(Value::as_array)
-            .map(|values| {
-                values
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+            .map(|raw_answer| {
+                raw_answer
+                    .get("answers")
+                    .and_then(Value::as_array)
+                    .map(|values| {
+                        values
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .or_else(|| {
+                        raw_answer.as_array().map(|values| {
+                            values
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        })
+                    })
+                    .or_else(|| raw_answer.as_str().map(str::to_string))
+                    .unwrap_or_else(|| raw_answer.to_string())
             })
-            .or_else(|| {
-                raw_answer.as_array().map(|values| {
-                    values
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-            })
-            .or_else(|| raw_answer.as_str().map(str::to_string))
-            .unwrap_or_else(|| raw_answer.to_string());
+            .unwrap_or_default();
         if !answer.trim().is_empty() && answer != "null" {
-            let question_text = question
-                .get("question")
-                .or_else(|| question.get("prompt"))
-                .and_then(Value::as_str)
-                .unwrap_or("Codex question");
-            answered.push(json!({"question": question_text, "answer": answer}));
+            has_answer = true;
+            question_answers.push(json!({"question": question_text, "answer": answer}));
+        } else {
+            question_answers.push(json!({
+                "question": question_text,
+                "answer": "No answer provided",
+            }));
         }
     }
-    if answered.is_empty() {
+    if !has_answer {
         return;
     }
     let mut next = saved_snapshot;
@@ -301,14 +295,16 @@ pub(super) fn append_question_answer(
         .or_insert_with(|| Value::Array(Vec::new()));
     if let Value::Array(cells) = cells {
         let now = Utc::now().to_rfc3339();
-        let summary = answered
+        let summary = question_answers
             .iter()
             .filter_map(|answer| answer.get("answer").and_then(Value::as_str))
+            .filter(|answer| *answer != "No answer provided")
             .map(str::to_string)
             .collect::<Vec<_>>()
             .join(", ");
         cells.push(json!({
             "id": format!("qa-{}", request_id),
+            "turnId": answer_turn_id,
             "kind": "questionAnswer",
             "status": "completed",
             "createdAt": now,
@@ -318,7 +314,10 @@ pub(super) fn append_question_answer(
             "title": "Question Answer",
             "markdownText": summary,
             "renderedMarkdownText": codex_markdown::render_markdown(&summary),
-            "metadata": {"questions": answered},
+            "metadata": {
+                "questions": question_answers,
+                "questionCount": question_values.len(),
+            },
         }));
         trim_cells(cells);
     }
@@ -389,7 +388,7 @@ fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     codex_timeline_state::reduce_timeline(snapshot, message);
 }
 
-fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
+pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
     let Some(object) = snapshot.as_object_mut() else {
         return;
     };
@@ -398,7 +397,11 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         .and_then(Value::as_str)
         .unwrap_or_default();
     let method = match raw_method {
+        "codex/event/task_started" => "turn/started",
         "codex/event/task_complete" => "turn/completed",
+        "codex/event/task_failed" => "turn/failed",
+        "codex/event/turn_aborted" => "turn/aborted",
+        "codex/event/turn_interrupted" => "turn/interrupted",
         "codex/event/token_count" => "token_count",
         other => other,
     };
@@ -434,6 +437,12 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         }
     } else if let (Some(id), Some(method)) = (message.get("id"), message.get("method")) {
         if !id.is_null() {
+            let request_turn_id = turn_id_from_message(message).or_else(|| {
+                object
+                    .get("activeTurnId")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            });
             let requests = object
                 .entry("pendingRequests".to_string())
                 .or_insert_with(|| Value::Array(Vec::new()));
@@ -443,6 +452,7 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
                     "id": id,
                     "method": method,
                     "params": message.get("params").cloned().unwrap_or(Value::Null),
+                    "turnId": request_turn_id,
                 }));
                 if requests.len() > 32 {
                     let excess = requests.len() - 32;
@@ -454,5 +464,33 @@ fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
 }
 
 #[cfg(test)]
+#[path = "codex_state_rich_tests.rs"]
+mod rich_tests;
+#[cfg(test)]
 #[path = "codex_state_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "codex_state_snapshot_identity_tests.rs"]
+mod snapshot_identity_tests;
+#[cfg(test)]
+#[path = "codex_state_snapshot_tests.rs"]
+mod snapshot_tests;
+
+#[cfg(test)]
+#[path = "codex_review_transition_edge_tests.rs"]
+mod review_transition_edge_tests;
+#[cfg(test)]
+#[path = "codex_review_transition_tests.rs"]
+mod review_transition_tests;
+
+#[cfg(test)]
+#[path = "codex_review_history_tests.rs"]
+mod review_history_tests;
+#[cfg(test)]
+#[path = "codex_state_snapshot_resume_tests.rs"]
+mod snapshot_resume_tests;
+
+#[cfg(test)]
+#[path = "codex_timeline_compaction_tests.rs"]
+mod timeline_compaction_tests;

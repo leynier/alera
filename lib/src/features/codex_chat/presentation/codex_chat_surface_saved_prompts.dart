@@ -1,15 +1,18 @@
 part of 'codex_chat_surface.dart';
 
 extension _CodexSavedPrompts on _CodexChatSurfaceState {
-  Future<void> _loadSavedPrompts() async {
+  Future<void> _loadSavedPrompts(String workspacePath) async {
+    final generation = ++_savedPromptLoadGeneration;
     try {
       final prompts = await _workspaceFiles.listCodexSavedPrompts(
-        workspacePath: widget.workspace.path,
+        workspacePath: workspacePath,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _savedPromptLoadGeneration) return;
       _setSurfaceState(() => _savedPrompts = prompts);
     } catch (_) {
-      if (mounted) _setSurfaceState(() => _savedPrompts = const []);
+      if (mounted && generation == _savedPromptLoadGeneration) {
+        _setSurfaceState(() => _savedPrompts = const []);
+      }
     }
   }
 

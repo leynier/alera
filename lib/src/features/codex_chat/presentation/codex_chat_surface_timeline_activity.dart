@@ -21,18 +21,21 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         MouseRegion(
+          cursor: text.trim().isEmpty
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: InkWell(
             onTap: text.trim().isEmpty
                 ? null
                 : () => setState(() => _collapsed = !_collapsed),
+            mouseCursor: text.trim().isEmpty
+                ? SystemMouseCursors.basic
+                : SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space6,
-                vertical: AleraTokens.space4,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -42,12 +45,20 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
                     color: AleraTokens.foregroundMuted,
                   ),
                   const SizedBox(width: AleraTokens.space6),
-                  Text(
-                    widget.cell.title ?? 'Thinking',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
+                  if (widget.cell.isStreaming)
+                    _CodexShimmerText(
+                      text: widget.cell.title ?? 'Thinking',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    )
+                  else
+                    Text(
+                      widget.cell.title ?? 'Thinking',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
                     ),
-                  ),
                   if (text.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(width: AleraTokens.space4),
                     AnimatedOpacity(
@@ -59,15 +70,6 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
                             : AleraIcons.chevronDown,
                         size: AleraTokens.iconMd,
                         color: AleraTokens.foregroundFaint,
-                      ),
-                    ),
-                  ],
-                  if (widget.cell.isStreaming) ...<Widget>[
-                    const SizedBox(width: AleraTokens.space6),
-                    const SizedBox.square(
-                      dimension: AleraTokens.iconXs,
-                      child: CircularProgressIndicator(
-                        strokeWidth: AleraTokens.strokeHairline,
                       ),
                     ),
                   ],
@@ -119,7 +121,13 @@ class _CodexToolCellState extends State<_CodexToolCell> {
   @override
   Widget build(BuildContext context) {
     final cell = widget.cell;
-    final details = cell.detailsText ?? cell.markdownText ?? '';
+    if (cell.metadata['itemType'] == 'mcpServerStartup') {
+      return _CodexMcpStatusCell(cell: cell);
+    }
+    if (_isContextCompaction(cell)) {
+      return _CodexContextCompactionCell(cell: cell);
+    }
+    final hasDetails = _codexWorkedActionHasDetails(cell);
     final label = cell.subtitle?.trim().isNotEmpty == true
         ? '${cell.title ?? _toolFallback(cell)} · ${cell.subtitle}'
         : cell.title ?? _toolFallback(cell);
@@ -127,12 +135,18 @@ class _CodexToolCellState extends State<_CodexToolCell> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         MouseRegion(
+          cursor: !hasDetails
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: InkWell(
-            onTap: details.trim().isEmpty
+            onTap: !hasDetails
                 ? null
                 : () => setState(() => _collapsed = !_collapsed),
+            mouseCursor: !hasDetails
+                ? SystemMouseCursors.basic
+                : SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -161,7 +175,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
                       ),
                     ),
                   ),
-                  if (details.trim().isNotEmpty) ...<Widget>[
+                  if (hasDetails) ...<Widget>[
                     const SizedBox(width: AleraTokens.space4),
                     AnimatedOpacity(
                       opacity: _hovered ? 1 : 0,
@@ -180,7 +194,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
             ),
           ),
         ),
-        if (!_collapsed && details.trim().isNotEmpty)
+        if (!_collapsed && hasDetails)
           Container(
             margin: const EdgeInsets.only(
               left: AleraTokens.space8,
@@ -198,6 +212,57 @@ class _CodexToolCellState extends State<_CodexToolCell> {
     );
   }
 }
+
+class _CodexContextCompactionCell extends StatelessWidget {
+  const _CodexContextCompactionCell({required this.cell});
+
+  final CodexTimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final active =
+        cell.isStreaming || cell.status == CodexTimelineStatus.inProgress;
+    final label = switch (cell.status) {
+      CodexTimelineStatus.failed => 'Compaction failed',
+      _ when active => 'Compacting',
+      _ => 'Compacted',
+    };
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: cell.status == CodexTimelineStatus.failed
+          ? AleraTokens.error
+          : AleraTokens.foregroundMuted,
+    );
+    return Padding(
+      key: ValueKey<String>('codex-context-compaction-${cell.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space6,
+        vertical: AleraTokens.space4,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(
+            AleraIcons.contextCompact,
+            size: AleraTokens.iconSm,
+            color: cell.status == CodexTimelineStatus.failed
+                ? AleraTokens.error
+                : AleraTokens.foregroundMuted,
+          ),
+          const SizedBox(width: AleraTokens.space6),
+          if (active)
+            _CodexShimmerText(text: label, style: style)
+          else
+            Text(label, style: style),
+        ],
+      ),
+    );
+  }
+}
+
+bool _isContextCompaction(CodexTimelineCell cell) => cell.metadata['itemType']
+    .toString()
+    .toLowerCase()
+    .contains('contextcompaction');
 
 class _CodexSubAgentCell extends StatefulWidget {
   const _CodexSubAgentCell({required this.cell});
@@ -220,6 +285,7 @@ class _CodexSubAgentCellState extends State<_CodexSubAgentCell> {
       children: <Widget>[
         InkWell(
           onTap: () => setState(() => _collapsed = !_collapsed),
+          mouseCursor: SystemMouseCursors.click,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
             child: Row(
@@ -247,88 +313,6 @@ class _CodexSubAgentCellState extends State<_CodexSubAgentCell> {
   }
 }
 
-class _CodexPlanCell extends StatefulWidget {
-  const _CodexPlanCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
-  @override
-  State<_CodexPlanCell> createState() => _CodexPlanCellState();
-}
-
-class _CodexPlanCellState extends State<_CodexPlanCell> {
-  bool _collapsed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final raw = widget.cell.markdownText ?? '';
-    final text = widget.cell.renderedMarkdownText ?? raw;
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-      decoration: BoxDecoration(
-        color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        border: Border.all(color: AleraTokens.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          InkWell(
-            onTap: () => setState(() => _collapsed = !_collapsed),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space12,
-                vertical: AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AleraTokens.space6,
-                      vertical: AleraTokens.space2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AleraTokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                    ),
-                    child: const Text('Plan'),
-                  ),
-                  const Spacer(),
-                  AleraIconButton(
-                    tooltip: 'Copy Plan',
-                    icon: AleraIcons.copy,
-                    onPressed: () =>
-                        _copyCodexText(context, raw, 'Plan copied'),
-                  ),
-                  Icon(
-                    _collapsed
-                        ? AleraIcons.chevronRight
-                        : AleraIcons.chevronDown,
-                    size: AleraTokens.iconMd,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!_collapsed && text.trim().isNotEmpty) ...<Widget>[
-            const Divider(height: AleraTokens.dividerExtent),
-            Padding(
-              padding: const EdgeInsets.all(AleraTokens.space12),
-              child: _CodexMarkdownText(text: text),
-            ),
-            const Divider(height: AleraTokens.dividerExtent),
-            TextButton.icon(
-              onPressed: () => setState(() => _collapsed = true),
-              icon: const Icon(AleraIcons.chevronUp, size: AleraTokens.iconMd),
-              label: const Text('Collapse Plan'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _CodexQuestionAnswerCell extends StatefulWidget {
   const _CodexQuestionAnswerCell({required this.cell});
 
@@ -343,45 +327,115 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
   bool _collapsed = true;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      TextButton.icon(
-        onPressed: () => setState(() => _collapsed = !_collapsed),
-        icon: Icon(
-          _collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
-          size: AleraTokens.iconMd,
-        ),
-        label: const Text('Answered Codex'),
-      ),
-      if (!_collapsed)
-        Padding(
-          padding: const EdgeInsets.only(left: AleraTokens.space12),
-          child: _CodexMarkdownText(
-            text:
-                widget.cell.renderedMarkdownText ??
-                widget.cell.markdownText ??
-                '',
+  Widget build(BuildContext context) {
+    final answers = _questionAnswers(widget.cell);
+    final storedCount = widget.cell.metadata['questionCount'];
+    final count = storedCount is num && storedCount.toInt() >= answers.length
+        ? storedCount.toInt()
+        : answers.length;
+    final label = 'Asked $count ${count == 1 ? 'question' : 'questions'}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: InkWell(
+              key: const ValueKey<String>('codex-question-answer-header'),
+              onTap: () => setState(() => _collapsed = !_collapsed),
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(
+                      AleraIcons.question,
+                      size: AleraTokens.iconLg,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                    const SizedBox(width: AleraTokens.space8),
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space6),
+                    Icon(
+                      _collapsed
+                          ? AleraIcons.chevronRight
+                          : AleraIcons.chevronDown,
+                      size: AleraTokens.iconMd,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-    ],
-  );
+          if (!_collapsed)
+            Padding(
+              key: const ValueKey<String>('codex-question-answer-details'),
+              padding: const EdgeInsets.only(top: AleraTokens.space12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (final answer in answers)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: AleraTokens.space16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            answer.question,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AleraTokens.foregroundMuted),
+                          ),
+                          const SizedBox(height: AleraTokens.space6),
+                          DefaultTextStyle.merge(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AleraTokens.foregroundFaint),
+                            child: _CodexMarkdownText(text: answer.answer),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-class _CodexSystemNotice extends StatelessWidget {
-  const _CodexSystemNotice({required this.cell});
-
-  final CodexTimelineCell cell;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    cell.markdownText ?? cell.title ?? 'Codex Event',
-    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: cell.status == CodexTimelineStatus.failed
-          ? AleraTokens.error
-          : AleraTokens.foregroundFaint,
-    ),
-  );
+List<({String question, String answer})> _questionAnswers(
+  CodexTimelineCell cell,
+) {
+  final values = cell.metadata['questions'];
+  final answers = <({String question, String answer})>[];
+  if (values is List) {
+    for (final value in values) {
+      if (value is! Map) continue;
+      final question = value['question']?.toString().trim() ?? '';
+      final answer = value['answer']?.toString().trim() ?? '';
+      if (question.isNotEmpty && answer.isNotEmpty) {
+        answers.add((question: question, answer: answer));
+      }
+    }
+  }
+  if (answers.isNotEmpty) return answers;
+  final fallback = cell.markdownText?.trim() ?? '';
+  return <({String question, String answer})>[
+    (question: cell.title ?? 'Codex question', answer: fallback),
+  ];
 }
 
 Color _statusColor(CodexTimelineStatus status) => switch (status) {
