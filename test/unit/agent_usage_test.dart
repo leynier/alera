@@ -33,6 +33,13 @@ void main() {
           'distinctSessions': 2,
           'message': 'One file changed during the scan.',
         },
+        <String, Object?>{
+          'provider': 'claude',
+          'accountId': 'research',
+          'displayName': 'Research',
+          'status': 'ok',
+          'distinctSessions': 1,
+        },
       ],
       'buckets': <Object?>[
         _bucket(
@@ -67,7 +74,7 @@ void main() {
     expect(snapshot.totals.totalTokens, 49);
     expect(snapshot.costUsd, 1.75);
     expect(snapshot.cacheSavingsUsd, 1);
-    expect(snapshot.sessions, 5);
+    expect(snapshot.sessions, 6);
     expect(snapshot.records, 3);
     expect(snapshot.accounts, hasLength(2));
     expect(snapshot.accounts.first.label, 'ccdev');
@@ -75,7 +82,7 @@ void main() {
     expect(snapshot.providers, hasLength(2));
     expect(snapshot.providers.first.label, 'Claude Code');
     expect(snapshot.providers.first.tokens, 35);
-    expect(snapshot.providers.first.sessions, 3);
+    expect(snapshot.providers.first.sessions, 4);
     expect(snapshot.models, hasLength(2));
     expect(snapshot.days, hasLength(10));
     expect(snapshot.days.first.day, '2026-08-01');
@@ -85,7 +92,12 @@ void main() {
       35,
     );
     expect(snapshot.days.last.codexTokens, 14);
-    expect(snapshot.sources.last.status, AgentUsageSourceStatus.partial);
+    expect(
+      snapshot.sources
+          .singleWhere((source) => source.accountId == 'default')
+          .status,
+      AgentUsageSourceStatus.partial,
+    );
   });
 
   test('defaults malformed numeric and enum fields safely', () {
