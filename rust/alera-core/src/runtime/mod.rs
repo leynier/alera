@@ -4,6 +4,7 @@ mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
 mod agent_profile_store_tests;
+mod agent_quota_settings_models;
 mod alera_account_models;
 mod alera_account_store;
 #[cfg(test)]
@@ -65,6 +66,7 @@ mod workspace_pin_store_tests;
 pub use agent_canvas_models::*;
 pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
 pub use agent_profile_models::*;
+pub use agent_quota_settings_models::*;
 pub use alera_account_models::*;
 #[allow(unused_imports)]
 pub use automation_catalog_store::*;
