@@ -23,6 +23,7 @@ dependencies:
   xterm: ^4.0.0
   desktop_updater: ^2.7.0
   http: ^1.6.0
+  record: ^7.1.1
   image: ^4.9.1
   media_kit: 1.2.6
   media_kit_libs_video: 1.0.7

@@ -258,7 +258,12 @@ class _CodexComposerState extends State<_CodexComposer> {
                 ),
               Stack(
                 children: <Widget>[
-                  DecoratedBox(
+                  AiDictationTarget(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    initialPrompt:
+                        'The user is chatting with Codex about a software task.',
+                    builder: (context, targetId) => DecoratedBox(
                     decoration: BoxDecoration(
                       color: AleraTokens.surfaceVariant,
                       borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
@@ -321,6 +326,8 @@ class _CodexComposerState extends State<_CodexComposer> {
                           ),
                           child: Row(
                             children: <Widget>[
+                              AiDictationControl(targetId: targetId),
+                              const SizedBox(width: AleraTokens.space6),
                               Expanded(
                                 child: SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
@@ -386,6 +393,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                           ),
                         ),
                       ],
+                    ),
                     ),
                   ),
                   if (contextUsed != null &&

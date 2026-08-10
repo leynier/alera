@@ -7,6 +7,8 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_attachment_types.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_saved_prompt_expander.dart';

@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -427,6 +428,7 @@ class AleraSettings with AleraSettingsMappable {
     required this.general,
     this.agents = AgentSettings.defaults,
     this.aiTextGeneration = AiTextGenerationSettings.defaults,
+    this.aiDictation = AiDictationSettings.defaults,
     this.textActions = TextActionsSettings.defaults,
     this.editor = EditorSettings.defaults,
     this.diagnostics = DiagnosticsSettings.defaults,
@@ -438,6 +440,7 @@ class AleraSettings with AleraSettingsMappable {
   final GeneralSettings general;
   final AgentSettings agents;
   final AiTextGenerationSettings aiTextGeneration;
+  final AiDictationSettings aiDictation;
   final TextActionsSettings textActions;
   final EditorSettings editor;
   final DiagnosticsSettings diagnostics;
@@ -449,6 +452,7 @@ class AleraSettings with AleraSettingsMappable {
     general: GeneralSettings.defaults,
     agents: AgentSettings.defaults,
     aiTextGeneration: AiTextGenerationSettings.defaults,
+    aiDictation: AiDictationSettings.defaults,
     editor: EditorSettings.defaults,
     diagnostics: DiagnosticsSettings.defaults,
     codexChat: CodexChatSettings.defaults,

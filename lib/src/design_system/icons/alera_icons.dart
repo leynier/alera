@@ -36,6 +36,7 @@ abstract final class AleraIcons {
   static const IconData check = LucideIcons.check;
   static const IconData doneAll = LucideIcons.checkCheck;
   static const IconData send = LucideIcons.send;
+  static const IconData mic = LucideIcons.mic;
   static const IconData pin = LucideIcons.pin;
   static const IconData pinOff = LucideIcons.pinOff;
 
