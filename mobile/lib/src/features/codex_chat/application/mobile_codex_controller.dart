@@ -18,6 +18,7 @@ part 'mobile_codex_controller_helpers.dart';
 part 'mobile_codex_controller_lifecycle.dart';
 part 'mobile_codex_controller_workspace.dart';
 part 'mobile_codex_controller_options.dart';
+part 'mobile_codex_controller_review.dart';
 part 'mobile_codex_controller_sessions.dart';
 part 'mobile_codex_controller_catalogues.dart';
 
@@ -460,29 +461,6 @@ class MobileCodexController extends _$MobileCodexController
   }
 
   Future<void> compact() => _simpleRequest('codex.thread.compact');
-
-  Future<void> review({
-    String target = 'uncommittedChanges',
-    String? argument,
-    String? delivery,
-  }) {
-    final targetPayload = <String, Object?>{'type': target};
-    if (argument != null && argument.trim().isNotEmpty) {
-      switch (target) {
-        case 'baseBranch':
-          targetPayload['branch'] = argument.trim();
-        case 'commit':
-          targetPayload['sha'] = argument.trim();
-        case 'custom':
-          targetPayload['instructions'] = argument.trim();
-      }
-    }
-    return _simpleRequest('codex.review.start', <String, Object?>{
-      'tabId': tabId,
-      'target': targetPayload,
-      if (delivery != null && delivery.isNotEmpty) 'delivery': delivery,
-    });
-  }
 
   Future<void> rename(String title) => _simpleRequest(
     'codex.thread.rename',

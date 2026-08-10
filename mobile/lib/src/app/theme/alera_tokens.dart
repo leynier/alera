@@ -73,6 +73,7 @@ abstract final class AleraTokens {
   static const int codexCatalogVisibleRowCount = 2;
   static const double codexInlineEditorMaxHeight = minTapTarget * 3.5;
   static const int codexRasterPreviewCacheDimension = 2048;
+  static const double codexPickerHeightFactor = 0.72;
 
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',

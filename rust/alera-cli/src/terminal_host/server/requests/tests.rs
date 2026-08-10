@@ -219,6 +219,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
         "codex.turn.steer",
         "codex.thread.rename",
         "codex.thread.compact",
+        "codex.review.branches",
         "codex.review.start",
         "codex.response",
     ] {

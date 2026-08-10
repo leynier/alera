@@ -4,7 +4,10 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use alera_core::runtime::{Workspace, WorkspaceTabRecord};
+use alera_core::{
+    git as core_git,
+    runtime::{Workspace, WorkspaceTabRecord},
+};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::CODEX_TAB_KIND;
@@ -24,6 +27,20 @@ use super::codex_thread_sessions::{
 };
 
 impl ServerActor {
+    pub(super) async fn codex_review_branches(&mut self, payload: &Value) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let tab = self.codex_tab(&tab_id).await?;
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| {
+                HostError::state(format!("Workspace not found: {}", tab.workspace_id))
+            })?;
+        live_codex_review_branches(&tab, &workspace.path)
+    }
+
     pub(super) async fn create_codex_tab(&mut self, payload: &Value) -> HostResult<Value> {
         let workspace_id = require_string_key(payload, "workspaceId")?;
         let workspace = self
@@ -367,6 +384,19 @@ fn codex_skills_list_params(
             .or_insert(json!(false));
     }
     params
+}
+
+fn live_codex_review_branches(tab: &WorkspaceTabRecord, workspace_path: &str) -> HostResult<Value> {
+    let cwd = active_cwd(tab).unwrap_or_else(|| workspace_path.to_string());
+    let branches =
+        core_git::list_branches(&cwd).map_err(|error| HostError::state(error.to_string()))?;
+    let current_branch =
+        core_git::current_branch(&cwd).map_err(|error| HostError::state(error.to_string()))?;
+    Ok(json!({
+        "branches": branches,
+        "currentBranch": current_branch,
+        "cwd": cwd,
+    }))
 }
 
 #[cfg(test)]

@@ -61,6 +61,7 @@ impl ServerActor {
                 self.codex_thread_command(payload, "thread/compact/start")
                     .await
             }
+            "codex.review.branches" => self.codex_review_branches(payload).await,
             "codex.review.start" => self.codex_thread_command(payload, "review/start").await,
             "codex.response" => self.respond_to_codex_request(payload).await,
             "codex.request.snooze" => self.snooze_codex_request(payload).await,
