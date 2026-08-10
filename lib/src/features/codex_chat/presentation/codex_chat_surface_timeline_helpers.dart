@@ -228,7 +228,12 @@ bool _isWorkedActionCell(CodexTimelineCell cell) =>
     cell.kind == CodexTimelineKind.command ||
     cell.kind == CodexTimelineKind.diff ||
     switch (cell.metadata['itemType']?.toString().toLowerCase()) {
-      'websearch' || 'imageview' || 'mcptoolcall' || 'dynamictoolcall' => true,
+      'websearch' ||
+      'imageview' ||
+      'mcptoolcall' ||
+      'dynamictoolcall' ||
+      'enteredreviewmode' ||
+      'exitedreviewmode' => true,
       _ => false,
     };
 

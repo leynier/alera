@@ -395,6 +395,7 @@ String _mobileCellLabel(MobileCodexTimelineCell cell) {
   if (cell.kind == 'command') return cell.title ?? 'Ran Command';
   if (cell.kind == 'toolCall') {
     return switch (_mobileActivityKind(cell)) {
+      _MobileActivityKind.review => cell.title ?? 'Review Mode Changed',
       _MobileActivityKind.webSearch =>
         cell.metadata['query'] == null
             ? 'Searched the Web'
@@ -420,6 +421,8 @@ IconData _mobileCellIcon(MobileCodexTimelineCell cell) => switch (cell.kind) {
   'diff' => Icons.edit_outlined,
   'command' => Icons.terminal,
   'subAgent' => Icons.account_tree_outlined,
+  'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.review =>
+    AleraIcons.review,
   'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.viewImage =>
     AleraIcons.viewImage,
   'toolCall' when _mobileActivityKind(cell) == _MobileActivityKind.webSearch =>

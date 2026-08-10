@@ -192,6 +192,7 @@ class _MobileActivityItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final kind = _mobileActivityKind(cell);
     final target = switch (kind) {
+      _MobileActivityKind.review => cell.title,
       _MobileActivityKind.viewImage =>
         cell.subtitle ?? cell.metadata['path']?.toString(),
       _MobileActivityKind.webSearch => cell.metadata['query']?.toString(),
@@ -200,6 +201,7 @@ class _MobileActivityItem extends StatelessWidget {
       _ => cell.subtitle ?? cell.title ?? cell.displayText,
     };
     final label = switch (kind) {
+      _MobileActivityKind.review => target ?? 'Review mode changed',
       _MobileActivityKind.viewImage =>
         target == null || target.isEmpty
             ? 'Viewed image'
@@ -255,6 +257,7 @@ class _MobileActivityItem extends StatelessWidget {
 }
 
 enum _MobileActivityKind {
+  review,
   read,
   viewImage,
   search,
@@ -267,6 +270,9 @@ enum _MobileActivityKind {
 
 _MobileActivityKind _mobileActivityKind(MobileCodexTimelineCell cell) {
   final itemType = cell.metadata['itemType']?.toString().toLowerCase();
+  if (itemType == 'enteredreviewmode' || itemType == 'exitedreviewmode') {
+    return _MobileActivityKind.review;
+  }
   if (itemType == 'websearch') return _MobileActivityKind.webSearch;
   if (itemType == 'mcptoolcall' || itemType == 'dynamictoolcall') {
     return _MobileActivityKind.tool;
@@ -294,6 +300,7 @@ _MobileActivityKind _mobileActivityKind(MobileCodexTimelineCell cell) {
 }
 
 IconData _mobileActivityIcon(_MobileActivityKind kind) => switch (kind) {
+  _MobileActivityKind.review => AleraIcons.review,
   _MobileActivityKind.read => Icons.menu_book_outlined,
   _MobileActivityKind.viewImage => AleraIcons.viewImage,
   _MobileActivityKind.search => Icons.search,
@@ -305,6 +312,7 @@ IconData _mobileActivityIcon(_MobileActivityKind kind) => switch (kind) {
 };
 
 String _mobileActivityVerb(_MobileActivityKind kind) => switch (kind) {
+  _MobileActivityKind.review => 'Changed',
   _MobileActivityKind.read => 'Read',
   _MobileActivityKind.viewImage => 'Viewed',
   _MobileActivityKind.search => 'Searched',
@@ -329,7 +337,16 @@ String _mobileActivitySummary(List<MobileCodexTimelineCell> cells) {
   return <String>[
     for (final kind in _MobileActivityKind.values)
       if ((counts[kind] ?? 0) > 0)
-        '${_mobileActivityVerb(kind)} ${counts[kind]} ${_mobileActivityNoun(kind, counts[kind]!)}',
+        kind == _MobileActivityKind.review && counts[kind] == 1
+            ? cells
+                      .firstWhere(
+                        (cell) =>
+                            _mobileActivityKind(cell) ==
+                            _MobileActivityKind.review,
+                      )
+                      .title ??
+                  'Review mode changed'
+            : '${_mobileActivityVerb(kind)} ${counts[kind]} ${_mobileActivityNoun(kind, counts[kind]!)}',
   ].join(', ');
 }
 
@@ -350,6 +367,9 @@ int _mobileActivityItemCount(
 }
 
 String _mobileActivityNoun(_MobileActivityKind kind, int count) {
+  if (kind == _MobileActivityKind.review) {
+    return count == 1 ? 'review state' : 'review states';
+  }
   if (kind == _MobileActivityKind.run) {
     return count == 1 ? 'command' : 'commands';
   }

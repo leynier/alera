@@ -38,6 +38,7 @@ part 'codex_chat_surface_tool_compatibility_test_cases.dart';
 part 'codex_chat_surface_timeline_file_change_test_cases.dart';
 part 'codex_chat_surface_timeline_interaction_test_cases.dart';
 part 'codex_chat_surface_timeline_review_test_cases.dart';
+part 'codex_chat_surface_timeline_review_transition_test_cases.dart';
 part 'codex_chat_surface_timeline_progress_test_cases.dart';
 part 'codex_chat_surface_timeline_context_test_cases.dart';
 part 'codex_chat_surface_timeline_question_answer_test_cases.dart';
@@ -453,5 +454,6 @@ void main() {
   });
 
   registerCodexComposerFoundationTests();
+  registerCodexTimelineReviewTransitionTests();
   registerCodexReviewDialogTests();
 }

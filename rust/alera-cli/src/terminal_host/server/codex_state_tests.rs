@@ -320,6 +320,13 @@ fn legacy_item_events_and_task_completion_reduce_to_timeline_cells() {
     append_message(
         &mut record,
         json!({
+            "method": "codex/event/task_started",
+            "params": {"msg": {"turn_id": "turn"}}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
             "method": "codex/event/item_started",
             "params": {"msg": {"turn_id": "turn", "item": {"id": "answer", "type": "agentMessage"}}}
         }),
@@ -340,6 +347,11 @@ fn legacy_item_events_and_task_completion_reduce_to_timeline_cells() {
     assert_eq!(answer["kind"], "assistantMessage");
     assert_eq!(answer["markdownText"], "done");
     assert_eq!(answer["isStreaming"], false);
+    let separator = cells
+        .iter()
+        .find(|cell| cell["kind"] == "turnSeparator")
+        .unwrap();
+    assert_eq!(separator["status"], "completed");
 }
 
 #[test]

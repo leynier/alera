@@ -189,7 +189,7 @@ impl ServerActor {
         let stored_snapshot = snapshot(&tab);
         let history_page = server
             .project_resumed_thread_history(thread_id, &response, 20)
-            .await;
+            .await?;
         let next_snapshot = response
             .get("snapshot")
             .filter(|value| value.is_object())

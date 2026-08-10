@@ -117,15 +117,7 @@ impl ServerActor {
 
     async fn clear_codex_active_turn(&mut self, tab: &WorkspaceTabRecord) {
         let mut next = tab.clone();
-        if let Some(object) = next.payload.as_object_mut() {
-            object.remove("codexActiveTurnId");
-            if let Some(snapshot) = object
-                .get_mut("codexSnapshot")
-                .and_then(Value::as_object_mut)
-            {
-                snapshot.remove("activeTurnId");
-            }
-        }
+        clear_codex_active_turn_payload(&mut next.payload);
         if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
             self.refresh_codex_presence(&saved);
             self.schedule_codex_presence_changed();
@@ -143,6 +135,49 @@ impl ServerActor {
         Err(HostError::state(
             "This client does not support the Codex chat tab.",
         ))
+    }
+}
+
+fn clear_codex_active_turn_payload(payload: &mut Value) {
+    let Some(object) = payload.as_object_mut() else {
+        return;
+    };
+    object.remove("codexActiveTurnId");
+    let Some(snapshot) = object.get_mut("codexSnapshot") else {
+        return;
+    };
+    super::codex_state::clear_review_transition(snapshot);
+    if let Some(snapshot) = snapshot.as_object_mut() {
+        snapshot.remove("activeTurnId");
+    }
+}
+
+#[cfg(test)]
+mod active_turn_tests {
+    use serde_json::json;
+
+    use super::clear_codex_active_turn_payload;
+
+    #[test]
+    fn clearing_an_interrupted_turn_discards_review_transition_state() {
+        let mut payload = json!({
+            "codexActiveTurnId": "review-worker",
+            "codexSnapshot": {
+                "activeTurnId": "review-entry",
+                "aleraReviewTransition": {
+                    "entryTurnId": "review-entry",
+                    "workerTurnId": "review-worker",
+                },
+            },
+        });
+
+        clear_codex_active_turn_payload(&mut payload);
+
+        assert!(payload.get("codexActiveTurnId").is_none());
+        assert!(payload["codexSnapshot"].get("activeTurnId").is_none());
+        assert!(payload["codexSnapshot"]
+            .get("aleraReviewTransition")
+            .is_none());
     }
 }
 

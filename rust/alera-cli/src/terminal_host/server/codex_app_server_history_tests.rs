@@ -130,6 +130,77 @@ fn native_turn_pages_are_reversed_and_chain_after_local_pages() {
 }
 
 #[test]
+fn native_review_overlap_keeps_the_envelope_and_worker_together() {
+    let response = json!({
+        "thread": {"turns": [
+            {
+                "id": "review-envelope",
+                "status": "completed",
+                "items": [
+                    {"id": "entry", "type": "enteredReviewMode", "review": "current changes"},
+                    {"id": "exit", "type": "exitedReviewMode", "review": "No findings."}
+                ]
+            },
+            {
+                "id": "review-worker",
+                "status": "completed",
+                "items": [
+                    {"id": "user-1", "type": "userMessage", "clientId": null,
+                     "content": [{"type": "text", "text": "Review the current code changes (staged, unstaged, and untracked files) and provide prioritized findings."}]},
+                    {"id": "user-2", "type": "userMessage", "clientId": null,
+                     "content": [{"type": "text", "text": "Review the current code changes (staged, unstaged, and untracked files) and provide prioritized findings."}]}
+                ]
+            }
+        ]}
+    });
+
+    let page = latest_turn_page(&response, 20).unwrap();
+    assert_eq!(page.turns.len(), 1);
+    assert_eq!(page.turns[0]["id"], "review-envelope");
+    assert_eq!(
+        page.turns[0]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["type"] == "userMessage")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn native_review_boundary_requests_the_older_envelope() {
+    let worker = json!({
+        "id": "review-worker",
+        "items": [
+            {"type": "userMessage", "clientId": null,
+             "content": [{"type": "text", "text": "Review the changes."}]},
+            {"type": "userMessage", "clientId": null,
+             "content": [{"type": "text", "text": "Review the changes."}]}
+        ]
+    });
+    assert_eq!(
+        review_boundary_cursor(&[completed_turn("newer"), worker], Some("older-page")),
+        Some("older-page")
+    );
+    assert_eq!(
+        review_boundary_cursor(&[completed_turn("ordinary")], Some("older-page")),
+        None
+    );
+}
+
+#[test]
+fn failed_review_boundary_fetch_keeps_the_usable_page_and_cursor() {
+    let turns = vec![completed_turn("newer"), completed_turn("review-worker")];
+
+    let (kept, cursor) =
+        merge_review_boundary_response(turns.clone(), "native-older".to_string(), None);
+
+    assert_eq!(kept, turns);
+    assert_eq!(cursor.as_deref(), Some("native-older"));
+}
+
+#[test]
 fn resumed_history_prefers_the_requested_initial_turn_page() {
     let response = json!({
         "thread": {"turns": [completed_turn("partial-live")]},
@@ -192,6 +263,43 @@ fn resumed_paginated_history_preserves_the_backwards_cursor() {
     assert_eq!(continuation.page_cursor.as_deref(), Some("native-older"));
     assert_eq!(continuation.inclusive_turn_id.as_deref(), Some("turn-new"));
     assert!(continuation.local_cursor.is_none());
+}
+
+#[test]
+fn fallback_resume_reverses_turns_for_review_boundary_completion() {
+    let response = json!({
+        "thread": {
+            "turns": [
+                {
+                    "id": "review-worker",
+                    "status": "inProgress",
+                    "items": [
+                        {"type": "userMessage", "clientId": null,
+                         "content": [{"type": "text", "text": "Review the changes."}]},
+                        {"type": "userMessage", "clientId": null,
+                         "content": [{"type": "text", "text": "Review the changes."}]}
+                    ]
+                },
+                completed_turn("turn-new")
+            ],
+        },
+        "turnsBackwardsCursor": "native-before-worker",
+    });
+
+    let turns = resumed_history_boundary_turns(&response).unwrap();
+
+    assert_eq!(turns[0]["id"], "turn-new");
+    assert_eq!(turns[1]["id"], "review-worker");
+    assert_eq!(
+        review_boundary_cursor(&turns, Some("native-before-worker")),
+        Some("native-before-worker")
+    );
+    assert_eq!(
+        resumed_history_continuation(&response),
+        (Some("native-before-worker"), Some("review-worker"))
+    );
+    assert_eq!(review_boundary_fetch_limit(Some("review-worker")), 2);
+    assert_eq!(review_boundary_fetch_limit(None), 1);
 }
 
 #[test]

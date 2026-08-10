@@ -38,10 +38,12 @@ fn turn_page(
     cursor: Option<&str>,
     limit: usize,
 ) -> Result<CodexTurnHistoryPage, &'static str> {
-    let turns = response
+    let raw_turns = response
         .pointer("/thread/turns")
         .and_then(Value::as_array)
         .ok_or("Codex thread history is unavailable.")?;
+    let normalized_turns = super::codex_review_transition::normalize_history_turns(raw_turns);
+    let turns = normalized_turns.as_slice();
     let Some((mut turn_index, mut item_end)) = page_end(turns, cursor)? else {
         return Ok(CodexTurnHistoryPage {
             snapshot: project_turns(&[]),
@@ -331,6 +333,7 @@ fn project_turns_with_start_marker(turns: &[Value]) -> Option<Value> {
     for turn in turns {
         project_turn(&mut snapshot, turn);
     }
+    super::codex_review_transition::restore_active_history_transition(&mut snapshot, turns);
     let mut snapshot = normalize_snapshot(snapshot);
     bound_snapshot(&mut snapshot);
     let cells = snapshot["timelineCells"].as_array_mut()?;
@@ -367,9 +370,11 @@ pub(super) fn project_turns(turns: &[Value]) -> Value {
         "timelineCells": [],
         "pendingRequests": [],
     });
-    for turn in turns {
+    let normalized_turns = super::codex_review_transition::normalize_history_turns(turns);
+    for turn in &normalized_turns {
         project_turn(&mut snapshot, turn);
     }
+    super::codex_review_transition::restore_active_history_transition(&mut snapshot, turns);
     let mut snapshot = normalize_snapshot(snapshot);
     bound_snapshot(&mut snapshot);
     snapshot
