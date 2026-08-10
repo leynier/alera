@@ -27,9 +27,7 @@ class AgentUsageDailyChart extends StatelessWidget {
           image: true,
           child: SizedBox(
             height: AleraTokens.usageChartHeight,
-            child: CustomPaint(
-              painter: _AgentUsageDailyChartPainter(days: days),
-            ),
+            child: _UsageBarChart(days: days),
           ),
         ),
         const SizedBox(height: AleraTokens.space6),
@@ -87,87 +85,91 @@ class _UsageChartLegend extends StatelessWidget {
   }
 }
 
-class _AgentUsageDailyChartPainter extends CustomPainter {
-  const _AgentUsageDailyChartPainter({required this.days});
+class _UsageBarChart extends StatelessWidget {
+  const _UsageBarChart({required this.days});
 
   final List<AgentUsageDay> days;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    if (days.isEmpty || size.width <= 0 || size.height <= 0) return;
+  Widget build(BuildContext context) {
     final maximum = days.fold<int>(
       1,
       (value, day) => day.tokens > value ? day.tokens : value,
     );
-    final grid = Paint()
-      ..color = AleraTokens.borderSubtle
-      ..strokeWidth = AleraTokens.strokeHairline;
-    for (var line = 0; line <= 4; line++) {
-      final y = size.height * line / 4;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-    }
-    final slotWidth = size.width / days.length;
-    final pairWidth = (slotWidth - AleraTokens.space2).clamp(
-      AleraTokens.space2,
-      AleraTokens.space20,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final slotWidth = constraints.maxWidth / days.length;
+        final pairWidth = (slotWidth - AleraTokens.space2).clamp(
+          AleraTokens.space2,
+          AleraTokens.space20,
+        );
+        final barWidth = (pairWidth - AleraTokens.space2) / 2;
+        return BarChart(
+          BarChartData(
+            minY: 0,
+            maxY: maximum.toDouble(),
+            alignment: BarChartAlignment.spaceAround,
+            barGroups: <BarChartGroupData>[
+              for (var index = 0; index < days.length; index++)
+                BarChartGroupData(
+                  x: index,
+                  barsSpace: AleraTokens.space2,
+                  barRods: <BarChartRodData>[
+                    _usageBar(
+                      days[index].claudeTokens,
+                      barWidth,
+                      AleraTokens.foreground,
+                    ),
+                    _usageBar(
+                      days[index].codexTokens,
+                      barWidth,
+                      AleraTokens.foregroundFaint,
+                    ),
+                  ],
+                ),
+            ],
+            titlesData: const FlTitlesData(show: false),
+            borderData: FlBorderData(show: false),
+            gridData: FlGridData(
+              drawVerticalLine: false,
+              horizontalInterval: maximum / 4,
+              getDrawingHorizontalLine: (_) => const FlLine(
+                color: AleraTokens.borderSubtle,
+                strokeWidth: AleraTokens.strokeHairline,
+              ),
+            ),
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => AleraTokens.surfaceElevated,
+                tooltipBorder: const BorderSide(color: AleraTokens.border),
+                tooltipBorderRadius: BorderRadius.circular(
+                  AleraTokens.radiusMd,
+                ),
+                tooltipPadding: const EdgeInsets.all(AleraTokens.space8),
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final provider = rodIndex == 0 ? 'Claude Code' : 'Codex';
+                  return BarTooltipItem(
+                    '${_formatUsageDay(days[groupIndex].day)}\n$provider: ${_formatUsageTokens(rod.toY.round())}',
+                    AleraTokens.monoCompactStyle.copyWith(
+                      color: AleraTokens.foreground,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          duration: Duration.zero,
+        );
+      },
     );
-    final barWidth = (pairWidth - AleraTokens.space2) / 2;
-    final claudePaint = Paint()..color = AleraTokens.foreground;
-    final codexPaint = Paint()..color = AleraTokens.foregroundFaint;
-    for (var index = 0; index < days.length; index++) {
-      final day = days[index];
-      final center = (index + 0.5) * slotWidth;
-      final left = center - pairWidth / 2;
-      _drawUsageBar(
-        canvas,
-        size.height,
-        left,
-        barWidth,
-        day.claudeTokens / maximum,
-        claudePaint,
-      );
-      _drawUsageBar(
-        canvas,
-        size.height,
-        left + barWidth + AleraTokens.space2,
-        barWidth,
-        day.codexTokens / maximum,
-        codexPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_AgentUsageDailyChartPainter oldDelegate) {
-    if (oldDelegate.days.length != days.length) return true;
-    for (var index = 0; index < days.length; index++) {
-      final old = oldDelegate.days[index];
-      final current = days[index];
-      if (old.day != current.day ||
-          old.claudeTokens != current.claudeTokens ||
-          old.codexTokens != current.codexTokens) {
-        return true;
-      }
-    }
-    return false;
   }
 }
 
-void _drawUsageBar(
-  Canvas canvas,
-  double height,
-  double left,
-  double width,
-  double share,
-  Paint paint,
-) {
-  if (share <= 0 || width <= 0) return;
-  final top = height * (1 - share.clamp(0.0, 1.0));
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTRB(left, top, left + width, height),
-      const Radius.circular(AleraTokens.radiusSm),
-    ),
-    paint,
+BarChartRodData _usageBar(int tokens, double width, Color color) {
+  return BarChartRodData(
+    toY: tokens.toDouble(),
+    width: width,
+    color: tokens == 0 ? Colors.transparent : color,
+    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
   );
 }

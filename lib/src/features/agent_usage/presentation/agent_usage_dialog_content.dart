@@ -40,31 +40,34 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
           _UsageCoverageNotice(snapshot: snapshot),
           if (_hasCoverageNotice(snapshot))
             const SizedBox(height: AleraTokens.space12),
-          Wrap(
-            spacing: AleraTokens.space8,
-            runSpacing: AleraTokens.space8,
-            children: <Widget>[
+          _UsageMetrics(
+            metrics: <Widget>[
               _UsageMetric(
+                key: const ValueKey<String>('usage-metric-processed-tokens'),
                 label: 'Processed Tokens',
                 value: _formatUsageTokens(totals.totalTokens),
                 detail: '${snapshot.records} assistant responses',
               ),
               _UsageMetric(
+                key: const ValueKey<String>('usage-metric-api-cost'),
                 label: 'API-Equivalent Cost',
                 value: _formatUsageUsd(snapshot.costUsd),
                 detail: _usagePricingDetail(snapshot),
               ),
               _UsageMetric(
+                key: const ValueKey<String>('usage-metric-sessions'),
                 label: 'Sessions',
                 value: _formatUsageCount(snapshot.sessions),
                 detail: '${snapshot.sources.length} transcript sources',
               ),
               _UsageMetric(
+                key: const ValueKey<String>('usage-metric-cached-input'),
                 label: 'Cached Input',
                 value: _formatUsageTokens(totals.cachedInputTokens),
                 detail: _formatUsagePercent(cachedShare),
               ),
               _UsageMetric(
+                key: const ValueKey<String>('usage-metric-cache-savings'),
                 label: 'Cache Savings',
                 value: _formatUsageUsd(snapshot.cacheSavingsUsd),
                 detail: 'Compared with full input rates',
@@ -206,6 +209,7 @@ class _UsageQuotaRow extends StatelessWidget {
 
 class _UsageMetric extends StatelessWidget {
   const _UsageMetric({
+    super.key,
     required this.label,
     required this.value,
     required this.detail,
@@ -218,7 +222,6 @@ class _UsageMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: AleraTokens.usageMetricMinWidth,
       padding: const EdgeInsets.all(AleraTokens.space12),
       decoration: BoxDecoration(
         color: AleraTokens.surfaceVariant,
@@ -254,6 +257,36 @@ class _UsageMetric extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _UsageMetrics extends StatelessWidget {
+  const _UsageMetrics({required this.metrics});
+
+  final List<Widget> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns =
+            ((constraints.maxWidth + AleraTokens.space8) /
+                    (AleraTokens.usageMetricMinWidth + AleraTokens.space8))
+                .floor()
+                .clamp(1, metrics.length);
+        final metricWidth =
+            (constraints.maxWidth - AleraTokens.space8 * (columns - 1)) /
+            columns;
+        return Wrap(
+          spacing: AleraTokens.space8,
+          runSpacing: AleraTokens.space8,
+          children: <Widget>[
+            for (final metric in metrics)
+              SizedBox(width: metricWidth, child: metric),
+          ],
+        );
+      },
     );
   }
 }
