@@ -248,6 +248,10 @@ MobileCodexState _mergeMobileHistory(
     for (final cell in current.timelineCells)
       if (cellKeys.add(cell.id)) cell,
   ];
+  final paginatedHistoryCellIds = Set<String>.unmodifiable(<String>{
+    ...current.paginatedHistoryCellIds,
+    for (final cell in page.timelineCells) cell.id,
+  });
   return current.copyWith(
     events: <Map<String, Object?>>[
       ...page.events,
@@ -255,6 +259,7 @@ MobileCodexState _mergeMobileHistory(
         if (eventKeys.add(jsonEncode(event))) event,
     ],
     timelineCells: mergedCells,
+    paginatedHistoryCellIds: paginatedHistoryCellIds,
     promptHistory: mobileCodexPromptHistory(mergedCells),
     activeTurnId: current.activeTurnId,
     title: current.title ?? page.title,
@@ -288,5 +293,55 @@ MobileCodexState _mergeMobileSameThreadSnapshot(
     contextLimit: incoming.contextLimit,
     title: incoming.title,
     mcpInitializing: incoming.mcpInitializing,
+  );
+}
+
+MobileCodexState _reconcileMobileSameThreadSnapshot(
+  MobileCodexState current,
+  MobileCodexState incoming,
+  Map<dynamic, dynamic> delta,
+) {
+  final updated = current.applySnapshotDelta(delta, deriveTimeline: false);
+  final incomingIds = <String>{
+    for (final cell in incoming.timelineCells) cell.id,
+  };
+  final historyCells = <MobileCodexTimelineCell>[
+    for (final cell in updated.timelineCells)
+      if (updated.paginatedHistoryCellIds.contains(cell.id)) cell,
+  ];
+  final liveCells = <MobileCodexTimelineCell>[
+    for (final cell in updated.timelineCells)
+      if (!updated.paginatedHistoryCellIds.contains(cell.id) &&
+          !incomingIds.contains(cell.id))
+        cell,
+    for (final cell in incoming.timelineCells)
+      if (!updated.paginatedHistoryCellIds.contains(cell.id)) cell,
+  ];
+  const retainedLiveCellLimit = 480;
+  final boundedLiveCells = liveCells.length <= retainedLiveCellLimit
+      ? liveCells
+      : liveCells.sublist(liveCells.length - retainedLiveCellLimit);
+  final retainedCells = List<MobileCodexTimelineCell>.unmodifiable(
+    <MobileCodexTimelineCell>[...historyCells, ...boundedLiveCells],
+  );
+  final paginatedHistoryCellIds =
+      historyCells.length == updated.paginatedHistoryCellIds.length
+      ? updated.paginatedHistoryCellIds
+      : Set<String>.unmodifiable(historyCells.map((cell) => cell.id));
+  final activeTurnId = incoming.activeTurnId;
+  return updated.copyWith(
+    timelineCells: retainedCells,
+    paginatedHistoryCellIds: paginatedHistoryCellIds,
+    promptHistory: mobileCodexPromptHistory(retainedCells),
+    pendingRequests: incoming.pendingRequests,
+    activeTurnId: activeTurnId,
+    contextUsed: incoming.contextUsed,
+    contextLimit: incoming.contextLimit,
+    title: incoming.title,
+    mcpInitializing: mobileCodexHasInitializingMcp(retainedCells),
+    presentationRows: MobileCodexTimelineProjection.project(
+      retainedCells,
+      activeTurnId: activeTurnId,
+    ),
   );
 }

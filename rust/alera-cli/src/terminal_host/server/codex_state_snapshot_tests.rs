@@ -135,6 +135,87 @@ fn snapshot_delta_keeps_cells_evicted_from_the_bounded_live_window() {
 }
 
 #[test]
+fn snapshot_bounding_clears_stale_diff_supersession() {
+    let mut cells = vec![json!({
+        "id": "item-file-change",
+        "turnId": "turn-1",
+        "kind": "diff",
+        "metadata": {
+            "itemType": "fileChange",
+            "changes": [{
+                "path": "lib/example.dart",
+                "diff": "@@ -1 +1 @@\n-old\n+new"
+            }]
+        }
+    })];
+    cells.extend((0..MAX_SNAPSHOT_CELLS - 1).map(|index| {
+        json!({
+            "id": format!("filler-{index}"),
+            "turnId": "other-turn",
+            "kind": "assistantMessage"
+        })
+    }));
+    cells.push(json!({
+        "id": "diff-turn-1",
+        "turnId": "turn-1",
+        "kind": "diff",
+        "detailsText": "diff --git a/lib/example.dart b/lib/example.dart\n--- a/lib/example.dart\n+++ b/lib/example.dart\n@@ -1 +1 @@\n-old\n+new",
+        "metadata": {"supersededByStructuredFileChanges": true}
+    }));
+    let mut snapshot = json!({"timelineCells": cells});
+
+    bound_snapshot(&mut snapshot);
+
+    assert_eq!(
+        snapshot["timelineCells"]
+            .as_array()
+            .and_then(|cells| cells.last())
+            .and_then(|cell| cell.pointer("/metadata/supersededByStructuredFileChanges")),
+        None
+    );
+}
+
+#[test]
+fn direct_cell_trimming_clears_stale_diff_supersession() {
+    let mut cells = vec![json!({
+        "id": "item-file-change",
+        "turnId": "turn-1",
+        "kind": "diff",
+        "metadata": {
+            "itemType": "fileChange",
+            "changes": [{
+                "path": "lib/example.dart",
+                "diff": "@@ -1 +1 @@\n-old\n+new"
+            }]
+        }
+    })];
+    cells.extend((0..MAX_SNAPSHOT_CELLS - 1).map(|index| {
+        json!({
+            "id": format!("filler-{index}"),
+            "turnId": "other-turn",
+            "kind": "assistantMessage"
+        })
+    }));
+    cells.push(json!({
+        "id": "diff-turn-1",
+        "turnId": "turn-1",
+        "kind": "diff",
+        "detailsText": "diff --git a/lib/example.dart b/lib/example.dart\n--- a/lib/example.dart\n+++ b/lib/example.dart\n@@ -1 +1 @@\n-old\n+new",
+        "metadata": {"supersededByStructuredFileChanges": true}
+    }));
+
+    trim_cells(&mut cells);
+
+    assert_eq!(cells.len(), MAX_SNAPSHOT_CELLS);
+    assert_eq!(
+        cells
+            .last()
+            .and_then(|cell| cell.pointer("/metadata/supersededByStructuredFileChanges")),
+        None
+    );
+}
+
+#[test]
 fn snapshot_delta_replaces_events_when_the_byte_budget_evicts_them() {
     let previous = json!({
         "events": [{"method": "old"}],

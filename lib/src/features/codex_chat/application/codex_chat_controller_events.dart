@@ -55,13 +55,10 @@ extension CodexChatControllerEvents on CodexChatController {
         : null;
     final next = eventThreadId != previousThreadId
         ? incoming
+        : delta is Map && delta.isNotEmpty && incoming != null
+        ? _reconcileSameThreadSnapshot(state.snapshot, incoming, delta)
         : delta is Map
-        ? incoming == null
-              ? state.snapshot.applyDelta(delta)
-              : _mergeSameThreadSnapshot(
-                  state.snapshot.applyDelta(delta),
-                  incoming,
-                )
+        ? state.snapshot.applyDelta(delta)
         : incoming == null
         ? null
         : _mergeSameThreadSnapshot(state.snapshot, incoming);

@@ -25,7 +25,10 @@ void registerCodexTimelineFileChangeTests() {
           'kind': 'diff',
           'status': 'completed',
           'detailsText': '[]',
-          'metadata': <String, Object?>{'changes': <Object?>[]},
+          'metadata': <String, Object?>{
+            'itemType': 'fileChange',
+            'changes': <Object?>[],
+          },
         },
       ],
     );
@@ -56,6 +59,90 @@ void registerCodexTimelineFileChangeTests() {
     await _pumpTimelineSegmentSurface(tester, client);
 
     expect(find.text('Edited files'), findsOneWidget);
+  });
+
+  testWidgets(
+    'suppresses aggregate turn diffs when structured file changes exist',
+    (tester) async {
+      final client = _SurfaceRuntimeClient(
+        pendingRequests: const <Object?>[],
+        timelineCells: const <Object?>[
+          <String, Object?>{
+            'id': 'diff-turn-tools',
+            'turnId': 'turn-tools',
+            'kind': 'diff',
+            'status': 'completed',
+            'detailsText':
+                'diff --git a/a/updated.dart b/a/updated.dart\n'
+                '+++ b/a/updated.dart\n@@ -1 +1 @@\n-old\n+new',
+            'metadata': <String, Object?>{
+              'lastDelta': '+new',
+              'supersededByStructuredFileChanges': true,
+            },
+          },
+          <String, Object?>{
+            'id': 'item-file-change',
+            'turnId': 'turn-tools',
+            'kind': 'diff',
+            'status': 'completed',
+            'metadata': <String, Object?>{
+              'itemType': 'fileChange',
+              'changes': <Object?>[
+                <String, Object?>{
+                  'path': 'a/updated.dart',
+                  'diff': '@@ -1 +1 @@\n-old\n+new',
+                },
+              ],
+            },
+          },
+        ],
+      );
+      addTearDown(client.dispose);
+      await _pumpTimelineSegmentSurface(tester, client);
+
+      expect(find.text('Edited updated.dart +1 -1'), findsOneWidget);
+      expect(find.text('Edited files'), findsNothing);
+    },
+  );
+
+  testWidgets('keeps aggregate diffs with changes outside structured items', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'diff-turn-tools',
+          'turnId': 'turn-tools',
+          'kind': 'diff',
+          'status': 'completed',
+          'detailsText':
+              'diff --git a/lib/generated.dart b/lib/generated.dart\n'
+              '+++ b/lib/generated.dart\n@@ -1 +1 @@\n-old\n+new',
+        },
+        <String, Object?>{
+          'id': 'item-file-change',
+          'turnId': 'turn-tools',
+          'kind': 'diff',
+          'status': 'completed',
+          'metadata': <String, Object?>{
+            'itemType': 'fileChange',
+            'changes': <Object?>[
+              <String, Object?>{'path': 'lib/updated.dart'},
+            ],
+          },
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    await tester.tap(find.text('Worked'));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('worked-action-group-diff-turn-tools')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('keeps unsuccessful file change outcomes without a payload', (

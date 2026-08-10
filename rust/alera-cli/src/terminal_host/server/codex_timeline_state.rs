@@ -56,6 +56,9 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
     if super::codex_timeline_modern::reduce_modern_notification(
         &mut cells, method, &params, &turn_id, &item_id, &now,
     ) {
+        if method == "item/fileChange/patchUpdated" {
+            super::codex_diff_coverage::mark_superseded_aggregate_diff(&mut cells, &turn_id);
+        }
         trim_cells(&mut cells);
         object.insert("timelineCells".to_string(), Value::Array(cells));
         return;
@@ -464,6 +467,12 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
         }
     }
 
+    if method == "turn/diff/updated"
+        || item_type.contains("filechange")
+        || lower.contains("filechange")
+    {
+        super::codex_diff_coverage::mark_superseded_aggregate_diff(&mut cells, &turn_id);
+    }
     trim_cells(&mut cells);
     object.insert("timelineCells".to_string(), Value::Array(cells));
 }

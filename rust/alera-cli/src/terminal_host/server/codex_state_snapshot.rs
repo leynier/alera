@@ -417,6 +417,7 @@ pub(super) fn bound_snapshot(snapshot: &mut Value) {
     {
         trim_cells(cells);
     }
+    let mut removed_cell_for_size = false;
     loop {
         let too_large = serde_json::to_vec(snapshot)
             .map(|bytes| bytes.len() > MAX_SNAPSHOT_BYTES)
@@ -439,6 +440,15 @@ pub(super) fn bound_snapshot(snapshot: &mut Value) {
             .map(|cells| cells.remove(0));
         if removed_cell.is_none() {
             break;
+        }
+        removed_cell_for_size = true;
+    }
+    if removed_cell_for_size {
+        if let Some(cells) = snapshot
+            .get_mut("timelineCells")
+            .and_then(Value::as_array_mut)
+        {
+            super::codex_diff_coverage::revalidate_superseded_aggregate_diffs(cells);
         }
     }
 }
@@ -470,6 +480,7 @@ pub(super) fn trim_cells(cells: &mut Vec<Value>) {
     if cells.len() > MAX_SNAPSHOT_CELLS {
         let excess = cells.len() - MAX_SNAPSHOT_CELLS;
         cells.drain(0..excess);
+        super::codex_diff_coverage::revalidate_superseded_aggregate_diffs(cells);
     }
 }
 

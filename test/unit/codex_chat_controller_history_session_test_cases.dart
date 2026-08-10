@@ -1,6 +1,100 @@
 part of 'codex_chat_controller_test.dart';
 
 void registerCodexChatControllerHistorySessionTests() {
+  test('same-thread bounded updates retain older live cells', () async {
+    final client = _FakeCodexRuntimeClient()
+      ..openThreadId = 'thread-current'
+      ..openSnapshot = <String, Object?>{
+        'timelineCells': <Object?>[
+          <String, Object?>{
+            'id': 'older-live',
+            'kind': 'userMessage',
+            'status': 'completed',
+            'markdownText': 'Older prompt',
+          },
+          <String, Object?>{
+            'id': 'recent-live',
+            'kind': 'assistantMessage',
+            'status': 'completed',
+            'markdownText': 'Recent answer',
+          },
+        ],
+      };
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-bounded-live');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    await _settle();
+
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-bounded-live',
+        'threadId': 'thread-current',
+        'snapshot': <String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'missed-live',
+              'kind': 'assistantMessage',
+              'status': 'completed',
+              'markdownText': 'Missed answer recovered from the snapshot',
+            },
+            <String, Object?>{
+              'id': 'recent-live',
+              'kind': 'assistantMessage',
+              'status': 'completed',
+              'markdownText': 'Updated recent answer',
+            },
+            <String, Object?>{
+              'id': 'new-live',
+              'kind': 'assistantMessage',
+              'status': 'inProgress',
+              'markdownText': 'New answer',
+            },
+          ],
+        },
+        'snapshotDelta': <String, Object?>{
+          'timelineUpserts': <Object?>[
+            <String, Object?>{
+              'id': 'recent-live',
+              'kind': 'assistantMessage',
+              'status': 'completed',
+              'markdownText': 'Updated recent answer',
+            },
+            <String, Object?>{
+              'id': 'new-live',
+              'kind': 'assistantMessage',
+              'status': 'inProgress',
+              'markdownText': 'New answer',
+            },
+          ],
+        },
+      }),
+    );
+    await _settle();
+
+    final cells = container.read(provider).snapshot.timelineCells;
+    expect(cells.map((cell) => cell.id), <String>[
+      'older-live',
+      'missed-live',
+      'recent-live',
+      'new-live',
+    ]);
+    expect(cells[2].markdownText, 'Updated recent answer');
+  });
+
   test(
     'identity-only thread events do not complete or drain an active send',
     () async {
@@ -283,6 +377,7 @@ void registerCodexChatControllerHistorySessionTests() {
       current = container.read(provider);
       expect(current.snapshot.timelineCells.map((cell) => cell.id), <String>[
         'older',
+        'recent',
         'bounded-live',
       ]);
       expect(current.historyNextCursor, 'older-next');
