@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/features/updater/domain/package_install_method.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,7 +44,13 @@ void main() {
           message: 'Update 1.2.3 is available through the package repository.',
         ),
       );
-      await _pumpSection(tester, controller);
+      await _pumpSection(
+        tester,
+        controller,
+        packageInstall: const PackageManagerInstall(
+          method: PackageInstallMethod.linuxSystemPackage,
+        ),
+      );
 
       expect(find.text(_debUpgradeCommand), findsOneWidget);
       expect(find.text('Installation Guide'), findsOneWidget);
@@ -69,7 +76,14 @@ void main() {
           latest: _latest().copyWith(platform: 'linux', installerKind: 'deb'),
         ),
       );
-      await _pumpSection(tester, controller, runtime: runtime);
+      await _pumpSection(
+        tester,
+        controller,
+        runtime: runtime,
+        packageInstall: const PackageManagerInstall(
+          method: PackageInstallMethod.linuxSystemPackage,
+        ),
+      );
 
       await tester.tap(find.text('Run Update'));
       await tester.pumpAndSettle();
@@ -250,11 +264,16 @@ Future<void> _pumpSection(
   WidgetTester tester,
   _FakeUpdateController controller, {
   FakeCommandTerminalRuntime? runtime,
+  // Stated rather than inherited from wherever the test runner happens to
+  // live: which manager owns the installation is what decides whether an
+  // upgrade command is offered at all.
+  PackageManagerInstall packageInstall = PackageManagerInstall.unmanaged,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         aleraUpdateControllerProvider.overrideWith(() => controller),
+        packageManagerInstallProvider.overrideWithValue(packageInstall),
         if (runtime != null) terminalRuntimeProvider.overrideWithValue(runtime),
       ],
       child: MaterialApp(

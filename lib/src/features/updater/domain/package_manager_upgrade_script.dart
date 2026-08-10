@@ -56,7 +56,12 @@ PackageManagerUpgradeScript? packageManagerUpgradeScript(
         '-File',
       ],
     ),
-    PackageInstallMethod.chocolatey || PackageInstallMethod.unmanaged => null,
+    // Chocolatey and the Linux packages both need elevation, so neither can be
+    // handed to a detached shell: the prompt would appear with no window left
+    // to explain it. Linux answers it in Alera's command terminal instead.
+    PackageInstallMethod.chocolatey ||
+    PackageInstallMethod.linuxSystemPackage ||
+    PackageInstallMethod.unmanaged => null,
   };
 }
 
