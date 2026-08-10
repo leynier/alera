@@ -53,6 +53,10 @@ deb_root="$stage/deb"
 install_payload "$deb_root"
 mkdir -p "$deb_root/DEBIAN"
 installed_size="$(du -sk "$deb_root/opt/alera" | awk '{print $1}')"
+# The dependency lists below are hand written, so they can only stay honest if
+# every entry is one `ldd` over the bundle resolves. An extra name makes users
+# install a library Alera never loads: `libayatana-appindicator3` was listed
+# here for a tray that no binary in the bundle links or dlopens.
 cat >"$deb_root/DEBIAN/control" <<DEB
 Package: alera
 Version: ${deb_version}
@@ -61,7 +65,7 @@ Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libayatana-appindicator3-1 | libappindicator3-1, libmpv2
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libmpv2
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
