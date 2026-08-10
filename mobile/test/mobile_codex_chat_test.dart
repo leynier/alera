@@ -71,6 +71,46 @@ void main() {
     );
   });
 
+  test('mobile tracks context compaction once through completion', () {
+    var cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'item/started',
+        'params': <String, Object?>{
+          'turnId': 'turn-1',
+          'item': <String, Object?>{
+            'id': 'compact-1',
+            'type': 'contextCompaction',
+            'title': 'Context automatically compacting',
+          },
+        },
+      },
+    );
+    expect(cells.single.kind, 'toolCall');
+    expect(cells.single.title, 'Compacting');
+    expect(cells.single.isStreaming, isTrue);
+
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'item/completed',
+      'params': <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{
+          'id': 'compact-1',
+          'type': 'contextCompaction',
+        },
+      },
+    });
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'thread/compacted',
+      'params': <String, Object?>{'turnId': 'turn-1'},
+    });
+    expect(cells, hasLength(1));
+    expect(cells.single.id, 'item-compact-1');
+    expect(cells.single.title, 'Compacted');
+    expect(cells.single.status, 'completed');
+    expect(cells.single.isStreaming, isFalse);
+  });
+
   test('mobile exposes only the latest actionable plan', () {
     MobileCodexState state(Object? pendingRequests) =>
         MobileCodexState.fromSnapshot(<String, Object?>{

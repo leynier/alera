@@ -116,6 +116,9 @@ String _titleFor(
   String method, {
   Map<String, Object?> item = const <String, Object?>{},
 }) {
+  if (type.contains('contextcompaction')) {
+    return method.contains('completed') ? 'Compacted' : 'Compacting';
+  }
   final explicit = _firstString(<Object?>[
     item['title'],
     item['name'],
@@ -137,12 +140,17 @@ String _titleFor(
   if (type.contains('websearch')) return 'Web search';
   if (type.contains('imageview')) return 'Viewed image';
   if (type.contains('imagegeneration')) return 'Generated image';
-  if (type.contains('contextcompaction')) return 'Compacted context';
   if (type.contains('enteredreview')) return 'Entered review mode';
   if (type.contains('exitedreview')) return 'Exited review mode';
   if (type.contains('tool') || method.contains('tool')) return 'Tool call';
   return 'Codex activity';
 }
+
+String _contextCompactionTitle(CodexTimelineStatus status) => switch (status) {
+  CodexTimelineStatus.failed => 'Compaction failed',
+  CodexTimelineStatus.completed => 'Compacted',
+  _ => 'Compacting',
+};
 
 List<CodexTimelineCell> _updateTurnSeparator(
   List<CodexTimelineCell> cells,

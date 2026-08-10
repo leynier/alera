@@ -124,6 +124,9 @@ class _CodexToolCellState extends State<_CodexToolCell> {
     if (cell.metadata['itemType'] == 'mcpServerStartup') {
       return _CodexMcpStatusCell(cell: cell);
     }
+    if (_isContextCompaction(cell)) {
+      return _CodexContextCompactionCell(cell: cell);
+    }
     final details = cell.detailsText ?? cell.markdownText ?? '';
     final label = cell.subtitle?.trim().isNotEmpty == true
         ? '${cell.title ?? _toolFallback(cell)} · ${cell.subtitle}'
@@ -209,6 +212,57 @@ class _CodexToolCellState extends State<_CodexToolCell> {
     );
   }
 }
+
+class _CodexContextCompactionCell extends StatelessWidget {
+  const _CodexContextCompactionCell({required this.cell});
+
+  final CodexTimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final active =
+        cell.isStreaming || cell.status == CodexTimelineStatus.inProgress;
+    final label = switch (cell.status) {
+      CodexTimelineStatus.failed => 'Compaction failed',
+      _ when active => 'Compacting',
+      _ => 'Compacted',
+    };
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: cell.status == CodexTimelineStatus.failed
+          ? AleraTokens.error
+          : AleraTokens.foregroundMuted,
+    );
+    return Padding(
+      key: ValueKey<String>('codex-context-compaction-${cell.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space6,
+        vertical: AleraTokens.space4,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(
+            AleraIcons.contextCompact,
+            size: AleraTokens.iconSm,
+            color: cell.status == CodexTimelineStatus.failed
+                ? AleraTokens.error
+                : AleraTokens.foregroundMuted,
+          ),
+          const SizedBox(width: AleraTokens.space6),
+          if (active)
+            _CodexShimmerText(text: label, style: style)
+          else
+            Text(label, style: style),
+        ],
+      ),
+    );
+  }
+}
+
+bool _isContextCompaction(CodexTimelineCell cell) => cell.metadata['itemType']
+    .toString()
+    .toLowerCase()
+    .contains('contextcompaction');
 
 class _CodexSubAgentCell extends StatefulWidget {
   const _CodexSubAgentCell({required this.cell});

@@ -385,7 +385,9 @@ abstract final class CodexTimelineReducer {
           kind: kind,
           status: status,
           timestamp: timestamp,
-          title: _titleFor(type, lowerMethod, item: item),
+          title: type.contains('contextcompaction')
+              ? _contextCompactionTitle(status)
+              : _titleFor(type, lowerMethod, item: item),
           subtitle: _firstString(<Object?>[
             item['command'],
             item['name'],

@@ -43,4 +43,5 @@ abstract final class AleraIcons {
   static const IconData folderOpen = LucideIcons.folderOpen;
   static const IconData cloudOff = LucideIcons.cloudOff;
   static const IconData systemUpdate = LucideIcons.download;
+  static const IconData contextCompact = LucideIcons.foldHorizontal;
 }

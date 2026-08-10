@@ -42,6 +42,48 @@ void _registerMobileCodexTurnActivityTests() {
     expect(find.byIcon(AleraIcons.viewImage), findsOneWidget);
   });
 
+  testWidgets('mobile shows dedicated context compaction lifecycle rows', (
+    tester,
+  ) async {
+    final client = FakeMobileCodexClient(
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'command-before-compaction',
+          'turnId': 'turn-active',
+          'kind': 'command',
+          'status': 'completed',
+          'title': 'Read one file',
+          'metadata': <String, Object?>{'itemType': 'commandExecution'},
+        },
+        <String, Object?>{
+          'id': 'compacting',
+          'turnId': 'turn-active',
+          'kind': 'toolCall',
+          'status': 'inProgress',
+          'title': 'Context automatically compacting',
+          'isStreaming': true,
+          'metadata': <String, Object?>{'itemType': 'contextCompaction'},
+        },
+        <String, Object?>{
+          'id': 'compacted',
+          'turnId': 'turn-complete',
+          'kind': 'toolCall',
+          'status': 'completed',
+          'title': 'Compacted context',
+          'metadata': <String, Object?>{'itemType': 'contextCompaction'},
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpScreen(tester, client: client, hostId: 'host-compaction');
+
+    expect(find.text('Compacting'), findsOneWidget);
+    expect(find.text('Compacted'), findsOneWidget);
+    expect(find.text('Context automatically compacting'), findsNothing);
+    expect(find.text('Ran Compacting'), findsNothing);
+    expect(find.byIcon(AleraIcons.contextCompact), findsNWidgets(2));
+  });
+
   testWidgets('mobile Worked separators do not expose a no-op expander', (
     tester,
   ) async {
