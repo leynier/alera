@@ -70,6 +70,14 @@ abstract final class AleraTokens {
   static const double automationDialogMaxHeight = 760.0;
   static const double automationDialogHeight = 680.0;
   static const double automationInfoLabelWidth = 100.0;
+  static const double usageDialogWidth = 1040.0;
+  static const double usageDialogMaxHeight = 720.0;
+  static const double usageChartHeight = 200.0;
+  static const double usageMetricMinWidth = 180.0;
+  static const double usageQuotaProgressWidth = 152.0;
+  static const double usageTokensColumnWidth = 120.0;
+  static const double usageCostColumnWidth = 100.0;
+  static const double usageSessionsColumnWidth = 90.0;
   static const double collapsedSidebarFooterHeight = 72.0;
   static const double dividerExtent = 1.0;
   static const double iconXs = 10.0;
