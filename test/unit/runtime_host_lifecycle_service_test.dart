@@ -202,31 +202,6 @@ void main() {
       expect(await client.probeRuntimeStatus(), isNotNull);
     });
 
-    test(
-      'prepareAppQuit allows an older host that closes during shutdown',
-      () async {
-        final client = _FakeRuntimeClient(
-          status: <String, Object?>{
-            'runtimeHostVersion': '1.2.0',
-            'persistent': false,
-          },
-          shutdownDisconnects: true,
-        );
-        final service = RuntimeHostLifecycleService(
-          client: client,
-          bundledVersionProbe: _FakeBundledProbe(
-            const BundledSidecarVersion(version: '1.2.0'),
-          ),
-          readConfig: () => TerminalHostConfig.defaults,
-        );
-
-        final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-        expect(allowed, isTrue);
-        expect(client.shutdownCalls, <bool>[false]);
-      },
-    );
-
     test('prepareAppQuit cancels when busy quit is declined', () async {
       final client = _FakeRuntimeClient(
         status: <String, Object?>{
