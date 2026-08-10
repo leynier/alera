@@ -202,28 +202,30 @@ void main() {
       expect(await client.probeRuntimeStatus(), isNotNull);
     });
 
-    test('prepareAppQuit allows an older host that closes during shutdown',
-        () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        shutdownDisconnects: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
+    test(
+      'prepareAppQuit allows an older host that closes during shutdown',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '1.2.0',
+            'persistent': false,
+          },
+          shutdownDisconnects: true,
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '1.2.0'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+        );
 
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
+        final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
 
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-    });
+        expect(allowed, isTrue);
+        expect(client.shutdownCalls, <bool>[false]);
+      },
+    );
 
     test('prepareAppQuit cancels when busy quit is declined', () async {
       final client = _FakeRuntimeClient(
@@ -243,9 +245,9 @@ void main() {
 
       final allowed = await service.prepareAppQuit(
         keepRuntimeOpen: false,
-        confirmBusyQuit: (
-                {required String title, required String message}) async =>
-            RuntimeHostQuitDecision.cancel,
+        confirmBusyQuit:
+            ({required String title, required String message}) async =>
+                RuntimeHostQuitDecision.cancel,
       );
 
       expect(allowed, isFalse);
@@ -272,9 +274,9 @@ void main() {
 
         final allowed = await service.prepareAppQuit(
           keepRuntimeOpen: false,
-          confirmBusyQuit: (
-                  {required String title, required String message}) async =>
-              RuntimeHostQuitDecision.leaveRuntimeOpen,
+          confirmBusyQuit:
+              ({required String title, required String message}) async =>
+                  RuntimeHostQuitDecision.leaveRuntimeOpen,
         );
 
         expect(allowed, isTrue);
@@ -302,9 +304,9 @@ void main() {
 
       final allowed = await service.prepareAppQuit(
         keepRuntimeOpen: false,
-        confirmBusyQuit: (
-                {required String title, required String message}) async =>
-            RuntimeHostQuitDecision.forceStop,
+        confirmBusyQuit:
+            ({required String title, required String message}) async =>
+                RuntimeHostQuitDecision.forceStop,
       );
 
       expect(allowed, isTrue);
@@ -369,12 +371,12 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce: ({
-          required String title,
-          required String message,
-          required String confirmLabel,
-        }) async =>
-            false,
+        confirmForce:
+            ({
+              required String title,
+              required String message,
+              required String confirmLabel,
+            }) async => false,
       );
 
       expect(client.shutdownCalls, <bool>[false]);
@@ -400,12 +402,12 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce: ({
-          required String title,
-          required String message,
-          required String confirmLabel,
-        }) async =>
-            true,
+        confirmForce:
+            ({
+              required String title,
+              required String message,
+              required String confirmLabel,
+            }) async => true,
       );
 
       expect(client.shutdownCalls, <bool>[false, true]);
