@@ -63,6 +63,7 @@ abstract final class AleraTokens {
   static const Duration durationSpin = Duration(milliseconds: 1200);
   static const Duration codexShimmerCadence = Duration(milliseconds: 80);
   static const Duration codexShimmerCycle = Duration(milliseconds: 1600);
+  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
   static const double codexPlanPreviewHeight = 248;
   static const double codexPlanPreviewFadeHeight = space48 * 2;
   static const double codexChatFooterMaxHeight =

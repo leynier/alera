@@ -40,6 +40,7 @@ part 'mobile_codex_chat_timeline.dart';
 part 'mobile_codex_chat_activity.dart';
 part 'mobile_codex_chat_notices.dart';
 part 'mobile_codex_chat_plan.dart';
+part 'mobile_codex_chat_plan_progress.dart';
 part 'mobile_codex_chat_plan_preview.dart';
 part 'mobile_codex_chat_requests.dart';
 part 'mobile_codex_chat_elicitation.dart';
@@ -95,6 +96,9 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   Set<String>? _historyOriginalCellIds;
   final GlobalKey _historyAnchorKey = GlobalKey();
   final Set<String> _expandedActivityGroups = <String>{};
+  final Set<String> _collapsedActiveActivityGroups = <String>{};
+  final Set<String> _collapsedWorkingTurns = <String>{};
+  final Set<String> _expandedWorkedTurns = <String>{};
   final Set<String> _overflowingPlanPreviewIds = <String>{};
   List<MobileCodexPresentationRow>? _timelineRowIndexSource;
   Map<String, int> _timelineRowIndexes = const <String, int>{};
@@ -162,6 +166,9 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
         _handleRestoredDraft,
       );
       _expandedActivityGroups.clear();
+      _collapsedActiveActivityGroups.clear();
+      _collapsedWorkingTurns.clear();
+      _expandedWorkedTurns.clear();
       _timelineRowIndexSource = null;
       _timelineRowIndexes = const <String, int>{};
       _timelinePinned = null;
@@ -226,6 +233,35 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
       _composer.text,
       _catalogSelections,
     );
+  }
+
+  bool _turnExpanded(
+    MobileCodexPresentationRow row, {
+    required String? activeTurnId,
+  }) {
+    final turnId = row.turnId;
+    if (turnId == null) return true;
+    if (turnId == activeTurnId) {
+      return !_collapsedWorkingTurns.contains(turnId);
+    }
+    return row.turnActivityCount <= 1 || _expandedWorkedTurns.contains(turnId);
+  }
+
+  void _toggleTurn(
+    MobileCodexPresentationRow row, {
+    required String? activeTurnId,
+  }) {
+    final turnId = row.turnId;
+    if (turnId == null) return;
+    setState(() {
+      if (turnId == activeTurnId) {
+        if (!_collapsedWorkingTurns.add(turnId)) {
+          _collapsedWorkingTurns.remove(turnId);
+        }
+      } else if (!_expandedWorkedTurns.add(turnId)) {
+        _expandedWorkedTurns.remove(turnId);
+      }
+    });
   }
 
   @override
@@ -339,8 +375,24 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                                     final child = _MobileTimelineRow(
                                       row: row,
                                       onOpenPlan: _openPlan,
-                                      activityExpanded: _expandedActivityGroups
-                                          .contains(row.id),
+                                      activityExpanded:
+                                          row.turnId == state.activeTurnId &&
+                                              !_collapsedActiveActivityGroups
+                                                  .contains(row.id) ||
+                                          row.turnId != state.activeTurnId &&
+                                              _expandedActivityGroups.contains(
+                                                row.id,
+                                              ),
+                                      turnExpanded: _turnExpanded(
+                                        row,
+                                        activeTurnId: state.activeTurnId,
+                                      ),
+                                      showTurnActivity:
+                                          !row.isTurnActivity ||
+                                          _turnExpanded(
+                                            row,
+                                            activeTurnId: state.activeTurnId,
+                                          ),
                                       planPreviewInitiallyOverflowing:
                                           row.cell?.kind == 'plan' &&
                                           _overflowingPlanPreviewIds.contains(
@@ -360,15 +412,19 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                                           },
                                       onToggleActivity: () {
                                         setState(() {
-                                          if (!_expandedActivityGroups.add(
-                                            row.id,
-                                          )) {
-                                            _expandedActivityGroups.remove(
-                                              row.id,
-                                            );
+                                          final target =
+                                              row.turnId == state.activeTurnId
+                                              ? _collapsedActiveActivityGroups
+                                              : _expandedActivityGroups;
+                                          if (!target.add(row.id)) {
+                                            target.remove(row.id);
                                           }
                                         });
                                       },
+                                      onToggleTurn: () => _toggleTurn(
+                                        row,
+                                        activeTurnId: state.activeTurnId,
+                                      ),
                                     );
                                     return KeyedSubtree(
                                       key: ValueKey<String>(row.id),

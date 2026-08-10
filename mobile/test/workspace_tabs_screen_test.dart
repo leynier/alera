@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,56 @@ import 'support/fake_terminal_client.dart';
 import 'support/fake_mobile_codex_client.dart';
 
 void main() {
+  testWidgets('Shows Codex identity in the tab strip and create action', (
+    tester,
+  ) async {
+    final terminalClient = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[
+        fakeTab(id: 'codex-1', title: 'Codex Chat', kind: 'codex'),
+      ];
+    final codexClient = FakeMobileCodexClient();
+    addTearDown(terminalClient.dispose);
+    addTearDown(codexClient.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          terminalClientProvider(
+            'host-1',
+          ).overrideWith((ref) async => terminalClient),
+          workspaceClientProvider(
+            'host-1',
+          ).overrideWith((ref) async => terminalClient),
+          mobileCodexClientProvider(
+            'host-1',
+          ).overrideWith((ref) async => codexClient),
+        ],
+        child: const MaterialApp(
+          home: WorkspaceTabsScreen(
+            hostId: 'host-1',
+            workspace: WorkspaceSummary(
+              id: 'workspace-1',
+              projectId: 'project-1',
+              name: 'Workspace',
+              path: '/repo',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AgentIdentityIcon), findsNWidgets(2));
+    expect(find.byTooltip('New Codex Chat'), findsOneWidget);
+    expect(find.byTooltip('Codex'), findsNothing);
+
+    await tester.longPressAt(
+      tester.getCenter(find.byType(AgentIdentityIcon).first),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Close Tab'), findsOneWidget);
+  });
+
   testWidgets('Completes tab closure after the tabs screen unmounts', (
     tester,
   ) async {

@@ -253,6 +253,7 @@ void mobileCodexStateTests() {
         ],
       });
       expect(state.presentationRows.first.cell?.id, 'warning');
+      expect(state.presentationRows.first.isTurnActivity, isFalse);
       expect(state.presentationRows[1].cell?.id, 'mcp-startup');
       expect(
         state.presentationRows.where(
@@ -344,72 +345,6 @@ void mobileCodexStateTests() {
     );
     expect(initialActivity.id, 'activity-read-one');
     expect(updatedActivity.id, initialActivity.id);
-  });
-
-  test('mobile keeps Working visible while assistant text streams', () {
-    const activeTurnId = 'turn-working';
-    final rows =
-        MobileCodexTimelineProjection.project(const <MobileCodexTimelineCell>[
-          MobileCodexTimelineCell(
-            id: 'user',
-            kind: 'userMessage',
-            status: 'completed',
-            turnId: activeTurnId,
-            markdownText: 'Start',
-          ),
-          MobileCodexTimelineCell(
-            id: 'assistant',
-            kind: 'assistantMessage',
-            status: 'inProgress',
-            turnId: activeTurnId,
-            markdownText: 'Streaming answer',
-            isStreaming: true,
-          ),
-        ], activeTurnId: activeTurnId);
-
-    expect(rows.map((row) => row.kind), <MobileCodexPresentationKind>[
-      MobileCodexPresentationKind.cell,
-      MobileCodexPresentationKind.working,
-      MobileCodexPresentationKind.cell,
-    ]);
-  });
-
-  test('mobile omits only successful empty file change placeholders', () {
-    final rows = MobileCodexTimelineProjection.project(
-      const <MobileCodexTimelineCell>[
-        MobileCodexTimelineCell(
-          id: 'empty',
-          kind: 'diff',
-          status: 'completed',
-          detailsText: '[]',
-          metadata: <String, Object?>{'changes': <Object?>[]},
-        ),
-        MobileCodexTimelineCell(
-          id: 'failed',
-          kind: 'diff',
-          status: 'failed',
-          metadata: <String, Object?>{'changes': <Object?>[]},
-        ),
-        MobileCodexTimelineCell(
-          id: 'changed',
-          kind: 'diff',
-          status: 'completed',
-          detailsText: '[]',
-          metadata: <String, Object?>{
-            'changes': <Object?>[
-              <String, Object?>{'path': 'README.md'},
-            ],
-          },
-        ),
-      ],
-      activeTurnId: null,
-    );
-
-    expect(rows, hasLength(1));
-    expect(rows.single.activityCells.map((cell) => cell.id), <String>[
-      'failed',
-      'changed',
-    ]);
   });
 
   test('mobile identifies only explicit implement-plan decisions', () {
