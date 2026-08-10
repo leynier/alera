@@ -32,11 +32,12 @@ impl ServerActor {
                     .agent_quota_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
+                let claude_profiles = settings.claude_profiles_for_usage();
                 fetch_agent_usage(json!({
                     "sinceDay": since_day,
                     "untilDay": until_day,
                     "claudeDefaultEnabled": settings.claude_default_enabled,
-                    "claudeProfiles": settings.claude_profiles,
+                    "claudeProfiles": claude_profiles,
                 }))
                 .await
                 .map_err(|error| HostError::state(error.to_string()))

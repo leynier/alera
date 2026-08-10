@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_usage/application/agent_usage_loader.dart';
+import 'package:alera/src/features/agent_usage/application/agent_usage_profile_selection.dart';
 import 'package:alera/src/features/agent_usage/application/agent_usage_snapshot_cache.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/agent_usage/infra/file_agent_usage_snapshot_cache.dart';
@@ -83,7 +84,7 @@ class AgentUsage extends _$AgentUsage {
     final cache = ref.watch(agentUsageSnapshotCacheProvider);
     final memory = cache.peek(hostId: hostId, days: days);
     if (memory != null) {
-      final snapshot = AgentUsageSnapshot.fromJson(memory);
+      final snapshot = _snapshotFor(request, memory);
       _scheduleRefresh(request, snapshot, generation);
       return AgentUsageState(snapshot: snapshot, refreshing: true);
     }
@@ -105,12 +106,12 @@ class AgentUsage extends _$AgentUsage {
     final cache = ref.read(agentUsageSnapshotCacheProvider);
     final cached = await cache.read(hostId: request.hostId, days: days);
     if (cached != null) {
-      final snapshot = AgentUsageSnapshot.fromJson(cached);
+      final snapshot = _snapshotFor(request, cached);
       _scheduleRefresh(request, snapshot, generation);
       return AgentUsageState(snapshot: snapshot, refreshing: true);
     }
     final response = await ref.read(agentUsageLoaderProvider).fetch(request);
-    final snapshot = AgentUsageSnapshot.fromJson(response);
+    final snapshot = _snapshotFor(request, response);
     await _writeCacheBestEffort(request.hostId, days, response);
     return AgentUsageState(snapshot: snapshot);
   }
@@ -154,7 +155,7 @@ class AgentUsage extends _$AgentUsage {
     }
     try {
       final response = await ref.read(agentUsageLoaderProvider).fetch(request);
-      final snapshot = AgentUsageSnapshot.fromJson(response);
+      final snapshot = _snapshotFor(request, response);
       await _writeCacheBestEffort(request.hostId, days, response);
       if (_isCurrent(generation)) {
         state = AsyncData(AgentUsageState(snapshot: snapshot));
@@ -187,6 +188,19 @@ class AgentUsage extends _$AgentUsage {
 
   bool _isCurrent(Object generation) {
     return !_disposed && identical(_generation, generation);
+  }
+
+  AgentUsageSnapshot _snapshotFor(
+    AgentUsageRequest request,
+    Map<String, Object?> response,
+  ) {
+    return AgentUsageSnapshot.fromJson(response).withClaudeProfileSelection(
+      defaultEnabled: request.settings.claudeDefaultEnabled,
+      profileLabels: <String, String>{
+        for (final profile in request.settings.claudeProfiles)
+          if (profile.showInUsage) profile.profile: profile.usageLabel,
+      },
+    );
   }
 }
 

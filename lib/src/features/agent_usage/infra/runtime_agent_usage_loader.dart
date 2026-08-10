@@ -33,10 +33,11 @@ class RuntimeAgentUsageLoader implements AgentUsageLoader {
         'claudeDefaultEnabled': request.settings.claudeDefaultEnabled,
         'claudeProfiles': <Map<String, String>>[
           for (final profile in request.settings.claudeProfiles)
-            <String, String>{
-              'alias': profile.alias,
-              'profile': profile.profile,
-            },
+            if (profile.showInUsage)
+              <String, String>{
+                'alias': profile.usageLabel,
+                'profile': profile.profile,
+              },
         ],
       },
     );

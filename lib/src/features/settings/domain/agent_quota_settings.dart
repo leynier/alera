@@ -32,10 +32,19 @@ class ClaudeQuotaProfileSettings with ClaudeQuotaProfileSettingsMappable {
   const ClaudeQuotaProfileSettings({
     required this.alias,
     required this.profile,
+    this.showInUsage = true,
+    this.usageDisplayName,
   });
 
   final String alias;
   final String profile;
+  final bool showInUsage;
+  final String? usageDisplayName;
+
+  String get usageLabel {
+    final configured = usageDisplayName?.trim();
+    return configured == null || configured.isEmpty ? alias : configured;
+  }
 
   factory ClaudeQuotaProfileSettings.fromJson(Map<String, Object?> json) =>
       ClaudeQuotaProfileSettingsMapper.fromMap(Map<String, dynamic>.from(json));

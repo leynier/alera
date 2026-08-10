@@ -1,16 +1,20 @@
 part of 'agent_usage_dialog.dart';
 
-enum _UsageBreakdownMode { account, model }
+enum _UsageBreakdownMode { profile, grouped, model }
 
 class _AgentUsageContent extends StatefulWidget {
   const _AgentUsageContent({
     required this.snapshot,
     required this.quotas,
+    required this.visibleClaudeAccounts,
+    required this.claudeUsageLabels,
     required this.refreshing,
   });
 
   final AgentUsageSnapshot snapshot;
   final List<AgentQuotaSnapshot> quotas;
+  final Set<String>? visibleClaudeAccounts;
+  final Map<String, String> claudeUsageLabels;
   final bool refreshing;
 
   @override
@@ -18,7 +22,7 @@ class _AgentUsageContent extends StatefulWidget {
 }
 
 class _AgentUsageContentState extends State<_AgentUsageContent> {
-  _UsageBreakdownMode _mode = _UsageBreakdownMode.account;
+  _UsageBreakdownMode _mode = _UsageBreakdownMode.profile;
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +31,21 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
     final cachedShare = totals.totalInputTokens == 0
         ? 0.0
         : totals.cachedInputTokens / totals.totalInputTokens;
-    final breakdown = _mode == _UsageBreakdownMode.account
-        ? snapshot.accounts
-        : snapshot.models;
+    final breakdown = switch (_mode) {
+      _UsageBreakdownMode.profile => snapshot.accounts,
+      _UsageBreakdownMode.grouped => snapshot.providers,
+      _UsageBreakdownMode.model => snapshot.models,
+    };
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AleraTokens.space20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _UsageQuotaStrip(quotas: widget.quotas),
+          _UsageQuotaStrip(
+            quotas: widget.quotas,
+            visibleClaudeAccounts: widget.visibleClaudeAccounts,
+            claudeUsageLabels: widget.claudeUsageLabels,
+          ),
           const SizedBox(height: AleraTokens.space16),
           _UsageCoverageNotice(snapshot: snapshot),
           if (_hasCoverageNotice(snapshot))
@@ -98,12 +108,16 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
                 dense: true,
                 segments: const <ButtonSegment<_UsageBreakdownMode>>[
                   ButtonSegment<_UsageBreakdownMode>(
-                    value: _UsageBreakdownMode.account,
-                    label: Text('Account'),
+                    value: _UsageBreakdownMode.profile,
+                    label: Text('Profiles'),
+                  ),
+                  ButtonSegment<_UsageBreakdownMode>(
+                    value: _UsageBreakdownMode.grouped,
+                    label: Text('Grouped'),
                   ),
                   ButtonSegment<_UsageBreakdownMode>(
                     value: _UsageBreakdownMode.model,
-                    label: Text('Model'),
+                    label: Text('Models'),
                   ),
                 ],
                 selected: _mode,
@@ -122,16 +136,24 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
 }
 
 class _UsageQuotaStrip extends StatelessWidget {
-  const _UsageQuotaStrip({required this.quotas});
+  const _UsageQuotaStrip({
+    required this.quotas,
+    required this.visibleClaudeAccounts,
+    required this.claudeUsageLabels,
+  });
 
   final List<AgentQuotaSnapshot> quotas;
+  final Set<String>? visibleClaudeAccounts;
+  final Map<String, String> claudeUsageLabels;
 
   @override
   Widget build(BuildContext context) {
     final visible = quotas
         .where(
           (snapshot) =>
-              snapshot.provider == AgentQuotaProviderId.claude ||
+              (snapshot.provider == AgentQuotaProviderId.claude &&
+                  (visibleClaudeAccounts?.contains(snapshot.accountId) ??
+                      true)) ||
               snapshot.provider == AgentQuotaProviderId.codex,
         )
         .toList(growable: false);
@@ -143,7 +165,13 @@ class _UsageQuotaStrip extends StatelessWidget {
         const SizedBox(height: AleraTokens.space8),
         AleraPanel(
           children: <Widget>[
-            for (final snapshot in visible) _UsageQuotaRow(snapshot: snapshot),
+            for (final snapshot in visible)
+              _UsageQuotaRow(
+                snapshot: snapshot,
+                displayName: snapshot.provider == AgentQuotaProviderId.claude
+                    ? claudeUsageLabels[snapshot.accountId]
+                    : null,
+              ),
           ],
         ),
       ],
@@ -152,15 +180,23 @@ class _UsageQuotaStrip extends StatelessWidget {
 }
 
 class _UsageQuotaRow extends StatelessWidget {
-  const _UsageQuotaRow({required this.snapshot});
+  const _UsageQuotaRow({required this.snapshot, this.displayName});
 
   final AgentQuotaSnapshot snapshot;
+  final String? displayName;
 
   @override
   Widget build(BuildContext context) {
     final used = snapshot.remainingPercent == null
         ? null
         : 100 - snapshot.remainingPercent!;
+    final label = switch (snapshot.provider) {
+      AgentQuotaProviderId.codex => 'Codex',
+      AgentQuotaProviderId.claude when snapshot.accountId == 'default' =>
+        'Claude Code Default',
+      AgentQuotaProviderId.claude => displayName ?? snapshot.displayName,
+      _ => snapshot.provider.label,
+    };
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
@@ -176,7 +212,7 @@ class _UsageQuotaRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Text(
-              '${snapshot.provider.label} ${snapshot.displayName}',
+              label,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall,
             ),

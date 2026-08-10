@@ -11,7 +11,9 @@ import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
 import 'package:alera/src/features/agent_usage/application/agent_usage_providers.dart'
     hide AgentUsageProvider;
+import 'package:alera/src/features/agent_usage/application/agent_usage_period_memory.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -37,7 +39,13 @@ class AgentUsageDialog extends ConsumerStatefulWidget {
 }
 
 class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
-  int _days = 30;
+  late int _days;
+
+  @override
+  void initState() {
+    super.initState();
+    _days = agentUsagePeriodMemory.days;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +56,11 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
     );
     final usage = ref.watch(agentUsageProvider(_days));
     final quota = ref.watch(agentQuotaStateProvider);
+    final quotaSettings = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.agents.quotas.forHost(hostId),
+      ),
+    );
     final usageState = usage.value;
     final snapshot = usageState?.snapshot;
     return AgentUsageDialogView(
@@ -55,9 +68,21 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
       days: _days,
       snapshot: snapshot,
       quotaSnapshots: quota.value?.snapshots ?? const <AgentQuotaSnapshot>[],
+      visibleClaudeQuotaAccounts: <String>{
+        if (quotaSettings.claudeDefaultEnabled) 'default',
+        for (final profile in quotaSettings.claudeProfiles)
+          if (profile.showInUsage) profile.profile,
+      },
+      claudeUsageLabels: <String, String>{
+        for (final profile in quotaSettings.claudeProfiles)
+          if (profile.showInUsage) profile.profile: profile.usageLabel,
+      },
       loading: usage.isLoading || (usageState?.refreshing ?? false),
       error: usage.hasError ? usage.error.toString() : usageState?.error,
-      onDaysChanged: (days) => setState(() => _days = days),
+      onDaysChanged: (days) {
+        agentUsagePeriodMemory.select(days);
+        setState(() => _days = days);
+      },
       onRefresh: () {
         ref.read(agentUsageProvider(_days).notifier).refresh();
         ref.read(agentQuotaServiceProvider).requestForceRefresh(hostId);
@@ -75,6 +100,8 @@ class AgentUsageDialogView extends StatelessWidget {
     required this.days,
     required this.snapshot,
     required this.quotaSnapshots,
+    this.visibleClaudeQuotaAccounts,
+    this.claudeUsageLabels = const <String, String>{},
     required this.loading,
     required this.error,
     required this.onDaysChanged,
@@ -86,6 +113,8 @@ class AgentUsageDialogView extends StatelessWidget {
   final int days;
   final AgentUsageSnapshot? snapshot;
   final List<AgentQuotaSnapshot> quotaSnapshots;
+  final Set<String>? visibleClaudeQuotaAccounts;
+  final Map<String, String> claudeUsageLabels;
   final bool loading;
   final String? error;
   final ValueChanged<int> onDaysChanged;
@@ -171,6 +200,8 @@ class AgentUsageDialogView extends StatelessWidget {
                   : _AgentUsageContent(
                       snapshot: snapshot!,
                       quotas: quotaSnapshots,
+                      visibleClaudeAccounts: visibleClaudeQuotaAccounts,
+                      claudeUsageLabels: claudeUsageLabels,
                       refreshing: loading,
                     ),
             ),

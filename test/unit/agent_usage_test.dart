@@ -1,4 +1,5 @@
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
+import 'package:alera/src/features/agent_usage/application/agent_usage_profile_selection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -71,6 +72,10 @@ void main() {
     expect(snapshot.accounts, hasLength(2));
     expect(snapshot.accounts.first.label, 'ccdev');
     expect(snapshot.accounts.first.sessions, 3);
+    expect(snapshot.providers, hasLength(2));
+    expect(snapshot.providers.first.label, 'Claude Code');
+    expect(snapshot.providers.first.tokens, 35);
+    expect(snapshot.providers.first.sessions, 3);
     expect(snapshot.models, hasLength(2));
     expect(snapshot.days, hasLength(10));
     expect(snapshot.days.first.day, '2026-08-01');
@@ -122,6 +127,154 @@ void main() {
     expect(totals.totalTokens, 42);
     expect(totals.totalInputTokens, 35);
   });
+
+  test('keeps only selected Claude profiles and applies Usage names', () {
+    final snapshot =
+        AgentUsageSnapshot.fromJson(<String, Object?>{
+          'sources': <Object?>[
+            _source('claude', 'default', 'Default'),
+            _source('claude', 'dev', 'ccdev'),
+            _source('claude', 'shared', 'ccshared'),
+            _source('codex', 'default', 'Default'),
+          ],
+          'buckets': <Object?>[
+            _bucket(
+              provider: 'claude',
+              accountId: 'default',
+              displayName: 'Default',
+              model: 'claude-opus-5',
+              day: '2026-08-10',
+              input: 1,
+              cached: 0,
+              output: 0,
+              cost: 0,
+              savings: 0,
+              records: 1,
+            ),
+            _bucket(
+              provider: 'claude',
+              accountId: 'dev',
+              displayName: 'ccdev',
+              model: 'claude-opus-5',
+              day: '2026-08-10',
+              input: 2,
+              cached: 0,
+              output: 0,
+              cost: 0,
+              savings: 0,
+              records: 1,
+            ),
+            _bucket(
+              provider: 'claude',
+              accountId: 'shared',
+              displayName: 'ccshared',
+              model: 'claude-opus-5',
+              day: '2026-08-10',
+              input: 4,
+              cached: 0,
+              output: 0,
+              cost: 0,
+              savings: 0,
+              records: 1,
+            ),
+            _bucket(
+              provider: 'codex',
+              accountId: 'default',
+              displayName: 'Default',
+              model: 'gpt-5.6-codex',
+              day: '2026-08-10',
+              input: 8,
+              cached: 0,
+              output: 0,
+              cost: 0,
+              savings: 0,
+              records: 1,
+            ),
+          ],
+        }).withClaudeProfileSelection(
+          defaultEnabled: false,
+          profileLabels: const <String, String>{'dev': 'Engineering'},
+        );
+
+    expect(snapshot.sources.map((source) => source.accountId), <String>[
+      'dev',
+      'default',
+    ]);
+    expect(snapshot.buckets.map((bucket) => bucket.accountId), <String>[
+      'dev',
+      'default',
+    ]);
+    expect(
+      snapshot.accounts.map((account) => account.label),
+      unorderedEquals(<String>['Engineering', 'Codex']),
+    );
+    expect(snapshot.totals.totalTokens, 10);
+  });
+
+  test('labels default provider accounts without changing CCS Usage names', () {
+    final snapshot = AgentUsageSnapshot.fromJson(<String, Object?>{
+      'buckets': <Object?>[
+        _bucket(
+          provider: 'claude',
+          accountId: 'default',
+          displayName: 'Default',
+          model: 'claude-opus-5',
+          day: '2026-08-10',
+          input: 1,
+          cached: 0,
+          output: 0,
+          cost: 0,
+          savings: 0,
+          records: 1,
+        ),
+        _bucket(
+          provider: 'claude',
+          accountId: 'dev',
+          displayName: 'Engineering',
+          model: 'claude-opus-5',
+          day: '2026-08-10',
+          input: 2,
+          cached: 0,
+          output: 0,
+          cost: 0,
+          savings: 0,
+          records: 1,
+        ),
+        _bucket(
+          provider: 'codex',
+          accountId: 'default',
+          displayName: 'Default',
+          model: 'gpt-5.6-codex',
+          day: '2026-08-10',
+          input: 3,
+          cached: 0,
+          output: 0,
+          cost: 0,
+          savings: 0,
+          records: 1,
+        ),
+      ],
+    });
+
+    expect(
+      snapshot.accounts.map((account) => account.label),
+      unorderedEquals(<String>['Claude Code Default', 'Engineering', 'Codex']),
+    );
+  });
+}
+
+Map<String, Object?> _source(
+  String provider,
+  String accountId,
+  String displayName,
+) {
+  return <String, Object?>{
+    'provider': provider,
+    'accountId': accountId,
+    'displayName': displayName,
+    'status': 'ok',
+    'distinctSessions': 1,
+  };
 }
 
 Map<String, Object?> _bucket({
