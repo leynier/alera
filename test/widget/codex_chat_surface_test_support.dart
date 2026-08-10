@@ -71,6 +71,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     this.historyNextCursor,
     this.historyTimelineCells = const <Object?>[],
     this.historyGate,
+    this.recoveryGate,
     this.pendingRequests,
     this.threadListResponse,
     this.permissionMode,
@@ -91,6 +92,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final String? historyNextCursor;
   final List<Object?> historyTimelineCells;
   final Completer<void>? historyGate;
+  final Completer<void>? recoveryGate;
   final List<Object?>? pendingRequests;
   final Map<String, Object?>? threadListResponse;
   final String? permissionMode;
@@ -237,6 +239,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     }
     if (type == 'codex.thread.recover') {
       recoveryRequests += 1;
+      if (recoveryRequests == 1) await recoveryGate?.future;
       return <String, Object?>{
         'threadId': null,
         'snapshot': <String, Object?>{

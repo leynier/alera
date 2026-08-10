@@ -454,25 +454,3 @@ class _CodexInlineError extends StatelessWidget {
     ],
   );
 }
-
-class _CodexRecoveryBanner extends StatelessWidget {
-  const _CodexRecoveryBanner({required this.message, required this.onContinue});
-
-  final String message;
-  final Future<void> Function() onContinue;
-
-  @override
-  Widget build(BuildContext context) => MaterialBanner(
-    key: const ValueKey<String>('codex-thread-recovery'),
-    content: Text(
-      '$message Earlier messages remain visible, but they are not part of the new model context.',
-    ),
-    leading: const Icon(AleraIcons.warning),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => unawaited(onContinue()),
-        child: const Text('Continue In New Thread'),
-      ),
-    ],
-  );
-}

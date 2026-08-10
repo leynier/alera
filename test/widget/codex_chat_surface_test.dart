@@ -43,8 +43,10 @@ part 'codex_chat_surface_timeline_review_state_test_cases.dart';
 part 'codex_chat_surface_session_state_test_cases.dart';
 part 'codex_chat_surface_timeline_request_test_cases.dart';
 part 'codex_chat_surface_review_dialog_test_cases.dart';
+part 'codex_chat_surface_recovery_test_cases.dart';
 
 void main() {
+  _registerCodexChatSurfaceRecoveryTests();
   test('allows only standard external URI schemes', () {
     for (final value in <String>[
       'https://example.com/path',
@@ -208,52 +210,6 @@ void main() {
     await mouse.moveTo(tester.getCenter(contextIndicator));
     await tester.pump();
     expect(find.text('Context Window'), findsOneWidget);
-  });
-
-  testWidgets('keeps history visible while offering rollout recovery', (
-    tester,
-  ) async {
-    final client = _SurfaceRuntimeClient(
-      recovery: const <String, Object?>{
-        'kind': 'missingRollout',
-        'message': 'The saved Codex context is no longer available.',
-      },
-    );
-    addTearDown(client.dispose);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          codexChatRuntimeClientProvider.overrideWithValue(client),
-          settingsControllerProvider.overrideWith(_SurfaceSettings.new),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 1000,
-              height: 800,
-              child: CodexChatSurface(workspace: _workspace(), tab: _tab()),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
-
-    expect(find.textContaining('Answer from Codex'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('codex-thread-recovery')),
-      findsOneWidget,
-    );
-    expect(find.text('Continue In New Thread'), findsOneWidget);
-    final composer = tester.widget<TextField>(
-      find.byKey(const ValueKey<String>('codex-composer-text-field')),
-    );
-    expect(composer.enabled, isFalse);
-
-    await tester.tap(find.text('Continue In New Thread'));
-    await tester.pump();
-    expect(client.recoveryRequests, 1);
   });
 
   testWidgets('offers cancel turn for legacy approval requests', (
