@@ -256,14 +256,17 @@ class RustGitBackend implements GitBackend {
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) => _guard(() async {
     final result = await rust.gitRangeContext(
       path: path,
       baseRef: baseRef,
       commitLimit: commitLimit,
+      headRef: headRef,
     );
     return GitRangeContext(
       baseRef: result.baseRef,
+      headOid: result.headOid,
       headBranch: result.headBranch,
       mergeBase: result.mergeBase,
       commits: result.commits

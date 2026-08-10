@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_generation_progress_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_view.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 import 'package:flutter/material.dart';
@@ -58,6 +60,30 @@ void main() {
     );
     expect(find.text('+new'), findsOneWidget);
     expect(find.text('-old'), findsOneWidget);
+  });
+
+  testWidgets('reading diff progress shows the active agent chunk and model', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ReadingDiffGenerationProgressView(
+          progress: ReadingDiffGenerationProgress(
+            stage: ReadingDiffGenerationStage.generating,
+            completedChunks: 1,
+            totalChunks: 3,
+            currentChunk: 2,
+          ),
+          agentLabel: 'Claude Code',
+          model: 'sonnet',
+        ),
+      ),
+    );
+
+    expect(find.text('Generating chunk 2 of 3'), findsOneWidget);
+    expect(find.text('Claude Code · sonnet'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }
 

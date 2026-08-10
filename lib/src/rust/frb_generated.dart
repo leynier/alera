@@ -219,6 +219,7 @@ abstract class RustLibApi extends BaseApi {
     required String path,
     required String baseRef,
     int? commitLimit,
+    String? headRef,
   });
 
   Future<Uint8List> crateApiReadingDiffGitReadingDiffPatch({
@@ -1422,6 +1423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String path,
     required String baseRef,
     int? commitLimit,
+    String? headRef,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1430,6 +1432,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(path, serializer);
           sse_encode_String(baseRef, serializer);
           sse_encode_opt_box_autoadd_u_32(commitLimit, serializer);
+          sse_encode_opt_String(headRef, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1442,7 +1445,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_git_error,
         ),
         constMeta: kCrateApiGitGitRangeContextConstMeta,
-        argValues: [path, baseRef, commitLimit],
+        argValues: [path, baseRef, commitLimit, headRef],
         apiImpl: this,
       ),
     );
@@ -1450,7 +1453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiGitGitRangeContextConstMeta => const TaskConstMeta(
     debugName: "git_range_context",
-    argNames: ["path", "baseRef", "commitLimit"],
+    argNames: ["path", "baseRef", "commitLimit", "headRef"],
   );
 
   @override
@@ -4002,15 +4005,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitRangeContext dco_decode_git_range_context(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return GitRangeContext(
       baseRef: dco_decode_String(arr[0]),
-      headBranch: dco_decode_opt_String(arr[1]),
-      mergeBase: dco_decode_opt_String(arr[2]),
-      commits: dco_decode_list_git_range_commit(arr[3]),
-      files: dco_decode_list_git_range_file(arr[4]),
-      patch: dco_decode_String(arr[5]),
+      headOid: dco_decode_String(arr[1]),
+      headBranch: dco_decode_opt_String(arr[2]),
+      mergeBase: dco_decode_opt_String(arr[3]),
+      commits: dco_decode_list_git_range_commit(arr[4]),
+      files: dco_decode_list_git_range_file(arr[5]),
+      patch: dco_decode_String(arr[6]),
     );
   }
 
@@ -5614,6 +5618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitRangeContext sse_decode_git_range_context(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_baseRef = sse_decode_String(deserializer);
+    var var_headOid = sse_decode_String(deserializer);
     var var_headBranch = sse_decode_opt_String(deserializer);
     var var_mergeBase = sse_decode_opt_String(deserializer);
     var var_commits = sse_decode_list_git_range_commit(deserializer);
@@ -5621,6 +5626,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_patch = sse_decode_String(deserializer);
     return GitRangeContext(
       baseRef: var_baseRef,
+      headOid: var_headOid,
       headBranch: var_headBranch,
       mergeBase: var_mergeBase,
       commits: var_commits,
@@ -7531,6 +7537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.baseRef, serializer);
+    sse_encode_String(self.headOid, serializer);
     sse_encode_opt_String(self.headBranch, serializer);
     sse_encode_opt_String(self.mergeBase, serializer);
     sse_encode_list_git_range_commit(self.commits, serializer);

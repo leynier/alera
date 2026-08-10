@@ -484,6 +484,51 @@ void main() {
       },
     );
 
+    test(
+      'openOrCreateGitPullRequestDiffTab stores and reuses the PR range',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 8, 10),
+        );
+
+        final first = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'base123',
+          subject: 'feat: subscription-backed reading diffs',
+        );
+        final second = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'base123',
+        );
+        final retargeted = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'new-base456',
+        );
+
+        expect(second.id, first.id);
+        expect(retargeted.id, isNot(first.id));
+        expect(first.title, 'Pull request #385');
+        expect(first.gitDiffSource, WorkspaceGitDiffSource.pullRequest);
+        expect(first.gitDiffScope, WorkspaceGitDiffScope.all);
+        expect(first.gitDiffPullRequestNumber, 385);
+        expect(first.gitDiffCommitOid, 'head123');
+        expect(first.gitDiffParentOid, 'base123');
+        expect(
+          first.gitDiffCommitSubject,
+          'feat: subscription-backed reading diffs',
+        );
+        expect(repository.tabs, hasLength(2));
+      },
+    );
+
     test('updates git diff roots after a folder move', () async {
       final repository = _FakeWorkbenchRepository()
         ..tabs.add(

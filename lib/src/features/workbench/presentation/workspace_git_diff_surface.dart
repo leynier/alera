@@ -8,8 +8,10 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_generation_progress_view.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_view.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -23,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workspace_git_diff_surface_rows.dart';
+part 'workspace_git_diff_surface_bar.dart';
 
 class WorkspaceGitDiffSurface extends ConsumerStatefulWidget {
   const WorkspaceGitDiffSurface({
@@ -46,6 +49,9 @@ class _WorkspaceGitDiffSurfaceState
   ReadingDiffResult? _readingDiffResult;
   bool _showReadingDiff = false;
   bool _readingDiffBusy = false;
+  ReadingDiffGenerationProgress? _readingDiffProgress;
+  String? _readingDiffAgentLabel;
+  String? _readingDiffModel;
   int _readingDiffGeneration = 0;
 
   @override
@@ -108,6 +114,14 @@ class _WorkspaceGitDiffSurfaceState
                   }),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
+          if (_readingDiffProgress case final progress?) ...<Widget>[
+            ReadingDiffGenerationProgressView(
+              progress: progress,
+              agentLabel: _readingDiffAgentLabel,
+              model: _readingDiffModel,
+            ),
+            const Divider(height: 1, color: AleraTokens.borderSubtle),
+          ],
           Expanded(
             child: _showReadingDiff && _readingDiffResult != null
                 ? ReadingDiffView(result: _readingDiffResult!)
@@ -128,12 +142,15 @@ class _WorkspaceGitDiffSurfaceState
                           message: 'No diff available.',
                         );
                       }
-                      final isCommitDiff =
-                          widget.tab.gitDiffSource ==
-                          WorkspaceGitDiffSource.commit;
+                      final isCommitDiff = _isCommitBackedDiff;
                       return _DiffFileList(
                         result: result,
                         sourcePath: _sourceControlScope.path,
+                        sourceLabel:
+                            widget.tab.gitDiffSource ==
+                                WorkspaceGitDiffSource.pullRequest
+                            ? 'Pull Request'
+                            : null,
                         commitOid: isCommitDiff
                             ? widget.tab.gitDiffCommitOid
                             : null,
@@ -150,7 +167,7 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   bool get _canOpenFile {
-    if (widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+    if (_isCommitBackedDiff) {
       return false;
     }
     return _openableDiffFile != null;
@@ -195,7 +212,7 @@ class _WorkspaceGitDiffSurfaceState
       widget.tab.gitDiffOldPath,
     );
     final area = widget.tab.gitDiffArea;
-    final nextFuture = widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
+    final nextFuture = _isCommitBackedDiff
         ? _loadCommitDiff(
             backend: backend,
             sourceControlScope: sourceControlScope,
@@ -228,6 +245,9 @@ class _WorkspaceGitDiffSurfaceState
       _readingDiffResult = null;
       _showReadingDiff = false;
       _readingDiffBusy = false;
+      _readingDiffProgress = null;
+      _readingDiffAgentLabel = null;
+      _readingDiffModel = null;
       _future = nextFuture;
     });
     unawaited(
@@ -263,12 +283,8 @@ class _WorkspaceGitDiffSurfaceState
       settings: ref.read(settingsControllerProvider).aiTextGeneration,
       filePath: scope == WorkspaceGitDiffScope.all ? null : sourceFilePath,
       area: scope == WorkspaceGitDiffScope.file ? widget.tab.gitDiffArea : null,
-      commitOid: widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
-          ? widget.tab.gitDiffCommitOid
-          : null,
-      parentOid: widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
-          ? widget.tab.gitDiffParentOid
-          : null,
+      commitOid: _isCommitBackedDiff ? widget.tab.gitDiffCommitOid : null,
+      parentOid: _isCommitBackedDiff ? widget.tab.gitDiffParentOid : null,
       ignoreCache: ignoreCache,
     );
   }
@@ -281,6 +297,13 @@ class _WorkspaceGitDiffSurfaceState
     final generation = ++_readingDiffGeneration;
     setState(() {
       _readingDiffBusy = true;
+      _readingDiffProgress = const ReadingDiffGenerationProgress(
+        stage: ReadingDiffGenerationStage.preparing,
+        completedChunks: 0,
+        totalChunks: 0,
+      );
+      _readingDiffAgentLabel = null;
+      _readingDiffModel = null;
     });
     try {
       final service = ref.read(readingDiffServiceProvider);
@@ -288,9 +311,14 @@ class _WorkspaceGitDiffSurfaceState
       if (!mounted || generation != _readingDiffGeneration) {
         return;
       }
+      setState(() {
+        _readingDiffAgentLabel = preparation.agent.label;
+        _readingDiffModel = preparation.model;
+      });
       if (preparation.cachedResult == null) {
         setState(() {
           _readingDiffBusy = false;
+          _readingDiffProgress = null;
         });
         final confirmed = await showDialog<bool>(
           context: context,
@@ -304,15 +332,30 @@ class _WorkspaceGitDiffSurfaceState
         }
         setState(() {
           _readingDiffBusy = true;
+          _readingDiffProgress = ReadingDiffGenerationProgress(
+            stage: ReadingDiffGenerationStage.generating,
+            completedChunks: 0,
+            totalChunks: preparation.chunkCount,
+            currentChunk: 1,
+          );
         });
       }
-      final result = await service.generate(preparation);
+      final result = await service.generate(
+        preparation,
+        onProgress: (progress) {
+          if (!mounted || generation != _readingDiffGeneration) {
+            return;
+          }
+          setState(() => _readingDiffProgress = progress);
+        },
+      );
       if (!mounted || generation != _readingDiffGeneration) {
         return;
       }
       setState(() {
         _readingDiffResult = result;
         _showReadingDiff = true;
+        _readingDiffProgress = null;
       });
     } on AiTextGenerationCanceledException {
       return;
@@ -330,6 +373,7 @@ class _WorkspaceGitDiffSurfaceState
       if (mounted && generation == _readingDiffGeneration) {
         setState(() {
           _readingDiffBusy = false;
+          _readingDiffProgress = null;
         });
       }
     }
@@ -343,6 +387,7 @@ class _WorkspaceGitDiffSurfaceState
     if (mounted && _readingDiffBusy) {
       setState(() {
         _readingDiffBusy = false;
+        _readingDiffProgress = null;
       });
     }
   }
@@ -379,6 +424,11 @@ class _WorkspaceGitDiffSurfaceState
     );
   }
 
+  bool get _isCommitBackedDiff => switch (widget.tab.gitDiffSource) {
+    WorkspaceGitDiffSource.commit || WorkspaceGitDiffSource.pullRequest => true,
+    WorkspaceGitDiffSource.workingTree => false,
+  };
+
   WorkspaceSourceControlScope get _sourceControlScope {
     final root = normalizeSourceControlRootRelativePath(widget.tab.gitDiffRoot);
     if (root == null) {
@@ -396,110 +446,6 @@ class _WorkspaceGitDiffSurfaceState
         relativeRoot: root,
       ),
       relativeRoot: root,
-    );
-  }
-}
-
-class _GitDiffBar extends StatelessWidget {
-  const _GitDiffBar({
-    required this.title,
-    required this.filePath,
-    required this.onRefresh,
-    required this.onOpenFile,
-    required this.aiTextEnabled,
-    required this.readingDiffReady,
-    required this.showingReadingDiff,
-    required this.readingDiffBusy,
-    required this.onGenerateReadingDiff,
-    required this.onRegenerateReadingDiff,
-    required this.onCancelReadingDiff,
-    required this.onToggleReadingDiff,
-  });
-
-  final String title;
-  final String? filePath;
-  final VoidCallback onRefresh;
-  final VoidCallback? onOpenFile;
-  final bool aiTextEnabled;
-  final bool readingDiffReady;
-  final bool showingReadingDiff;
-  final bool readingDiffBusy;
-  final VoidCallback? onGenerateReadingDiff;
-  final VoidCallback? onRegenerateReadingDiff;
-  final VoidCallback onCancelReadingDiff;
-  final VoidCallback? onToggleReadingDiff;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: AleraTokens.sidebarHeaderHeight,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
-        child: Row(
-          children: <Widget>[
-            AleraFileIcon(
-              pathOrName: filePath ?? title,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                  fontFamily: 'JetBrains Mono',
-                ),
-              ),
-            ),
-            if (aiTextEnabled) ...<Widget>[
-              AleraIconButton(
-                tooltip: readingDiffBusy
-                    ? 'Cancel Reading Diff'
-                    : readingDiffReady
-                    ? showingReadingDiff
-                          ? 'Show Original Diff'
-                          : 'Show Reading Diff'
-                    : 'Generate Reading Diff',
-                icon: readingDiffBusy
-                    ? AleraIcons.cancel
-                    : showingReadingDiff
-                    ? AleraIcons.diff
-                    : AleraIcons.ai,
-                onPressed: readingDiffBusy
-                    ? onCancelReadingDiff
-                    : readingDiffReady
-                    ? onToggleReadingDiff
-                    : onGenerateReadingDiff,
-              ),
-              if (readingDiffReady && !readingDiffBusy) ...<Widget>[
-                const SizedBox(width: AleraTokens.space2),
-                AleraIconButton(
-                  tooltip: 'Regenerate Reading Diff',
-                  icon: AleraIcons.refresh,
-                  onPressed: onRegenerateReadingDiff,
-                ),
-              ],
-              const SizedBox(width: AleraTokens.space2),
-            ],
-            AleraIconButton(
-              tooltip: onOpenFile == null
-                  ? 'File is not available in working tree'
-                  : 'Open file',
-              icon: AleraIcons.external,
-              onPressed: onOpenFile,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
-              tooltip: 'Refresh',
-              icon: AleraIcons.refresh,
-              onPressed: onRefresh,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

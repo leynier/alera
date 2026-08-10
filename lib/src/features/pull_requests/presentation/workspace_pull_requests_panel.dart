@@ -1,12 +1,14 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
@@ -14,6 +16,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +28,7 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
     super.key,
     required this.workspace,
     required this.repoPath,
+    this.gitDiffRoot,
   });
 
   final Workspace workspace;
@@ -33,6 +37,10 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
   /// workspace path for git projects, or a designated git subfolder for Folder
   /// workspaces (`WorkspaceSourceControlScope.path`).
   final String repoPath;
+
+  /// The Source Control root relative to the workspace, when [repoPath] points
+  /// at a designated repository inside a Folder workspace.
+  final String? gitDiffRoot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,8 +61,10 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
         );
         return _VisiblePullRequestsPanel(
           key: ValueKey<WorkspacePullRequestScope>(scope),
+          workspace: workspace,
           scope: scope,
           repoPath: repoPath,
+          gitDiffRoot: gitDiffRoot,
         );
       },
     );
@@ -67,11 +77,15 @@ class _VisiblePullRequestsPanel extends ConsumerStatefulWidget {
   const _VisiblePullRequestsPanel({
     super.key,
     required this.scope,
+    required this.workspace,
     required this.repoPath,
+    this.gitDiffRoot,
   });
 
   final WorkspacePullRequestScope scope;
+  final Workspace workspace;
   final String repoPath;
+  final String? gitDiffRoot;
 
   @override
   ConsumerState<_VisiblePullRequestsPanel> createState() =>
@@ -81,6 +95,7 @@ class _VisiblePullRequestsPanel extends ConsumerStatefulWidget {
 class _VisiblePullRequestsPanelState
     extends ConsumerState<_VisiblePullRequestsPanel> {
   late final WorkspacePullRequestController _controller;
+  bool _openingDiff = false;
 
   @override
   void initState() {
@@ -118,11 +133,62 @@ class _VisiblePullRequestsPanelState
         controller: _controller,
         onOpenUrl: (url) =>
             ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
+        onOpenDiff: _openingDiff ? null : _openDiff,
         onCreateActionChanged: (action) => ref
             .read(workbenchControllerProvider.notifier)
             .setPullRequestCreateAction(action),
       ),
     );
+  }
+
+  Future<void> _openDiff(HostedReview review) async {
+    final baseRef = review.baseBranch?.trim() ?? '';
+    final headRef = review.headSha?.trim() ?? '';
+    if (baseRef.isEmpty || headRef.isEmpty) {
+      AleraToast.show(
+        context,
+        message:
+            'The linked pull request does not expose a comparable branch range.',
+        tone: AleraToastTone.error,
+      );
+      return;
+    }
+    setState(() => _openingDiff = true);
+    try {
+      final range = await ref
+          .read(gitBackendProvider)
+          .rangeContext(widget.repoPath, baseRef: baseRef, headRef: headRef);
+      final mergeBase = range.mergeBase;
+      final headOid = range.headOid ?? headRef;
+      if (mergeBase == null || mergeBase.isEmpty) {
+        throw StateError('The pull request merge base could not be resolved.');
+      }
+      if (!mounted) {
+        return;
+      }
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .openGitPullRequestDiffTab(
+            workspace: widget.workspace,
+            gitDiffRoot: widget.gitDiffRoot,
+            pullRequestNumber: review.number,
+            commitOid: headOid,
+            parentOid: mergeBase,
+            subject: review.title,
+          );
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: 'Could not open the pull request diff: $error',
+          tone: AleraToastTone.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _openingDiff = false);
+      }
+    }
   }
 }
 
@@ -133,6 +199,7 @@ class _PullRequestBody extends StatelessWidget {
     required this.createAction,
     required this.controller,
     required this.onOpenUrl,
+    required this.onOpenDiff,
     required this.onCreateActionChanged,
   });
 
@@ -141,6 +208,7 @@ class _PullRequestBody extends StatelessWidget {
   final PullRequestCreateAction createAction;
   final WorkspacePullRequestController controller;
   final Future<void> Function(String url) onOpenUrl;
+  final ValueChanged<HostedReview>? onOpenDiff;
   final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
 
   @override
@@ -197,6 +265,7 @@ class _PullRequestBody extends StatelessWidget {
         savingCommentIds: state.savingCommentIds,
         action: state.action,
         onOpenUrl: onOpenUrl,
+        onOpenDiff: onOpenDiff == null ? null : () => onOpenDiff!(review),
         onUnlink: controller.unlink,
         onMerge: controller.mergeReview,
         onClose: controller.closeReview,

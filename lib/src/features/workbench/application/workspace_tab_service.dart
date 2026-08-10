@@ -312,6 +312,52 @@ class WorkspaceTabService {
     return tab;
   }
 
+  Future<WorkspaceTabRecord> openOrCreateGitPullRequestDiffTab({
+    required String workspaceId,
+    String? gitDiffRoot,
+    required int pullRequestNumber,
+    required String commitOid,
+    required String parentOid,
+    String? subject,
+  }) async {
+    if (pullRequestNumber <= 0) {
+      throw StateError('Pull request number must be positive.');
+    }
+    final normalizedRoot = normalizeSourceControlRootRelativePath(gitDiffRoot);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind == WorkspaceTabKind.gitDiff &&
+          tab.gitDiffSource == WorkspaceGitDiffSource.pullRequest &&
+          tab.gitDiffRoot == normalizedRoot &&
+          tab.gitDiffPullRequestNumber == pullRequestNumber &&
+          tab.gitDiffCommitOid == commitOid &&
+          tab.gitDiffParentOid == parentOid) {
+        return tab;
+      }
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.gitDiff,
+      title: 'Pull request #$pullRequestNumber',
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabGitDiffSourcePayloadKey:
+            WorkspaceGitDiffSource.pullRequest.key,
+        workspaceTabGitDiffScopePayloadKey: WorkspaceGitDiffScope.all.key,
+        workspaceTabGitDiffCommitOidPayloadKey: commitOid,
+        workspaceTabGitDiffParentOidPayloadKey: parentOid,
+        workspaceTabGitDiffCompareRefPayloadKey: '#$pullRequestNumber',
+        workspaceTabGitDiffPullRequestNumberPayloadKey: pullRequestNumber,
+        workspaceTabGitDiffCommitSubjectPayloadKey: ?subject,
+        workspaceTabGitDiffRootPayloadKey: ?normalizedRoot,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
   Future<void> closeTab(String tabId) {
     return _repository.removeWorkspaceTab(tabId);
   }

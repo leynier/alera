@@ -412,12 +412,14 @@ class FakeGitBackend
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) async {
     calls.add(
       GitBackendCall('rangeContext', <String, Object?>{
         'path': path,
         'baseRef': baseRef,
         'commitLimit': commitLimit,
+        'headRef': headRef,
       }),
     );
     final error = rangeContextError;

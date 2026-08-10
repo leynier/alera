@@ -1022,6 +1022,7 @@ fn wire__crate__api__git__git_range_context_impl(
             let api_path = <String>::sse_decode(&mut deserializer);
             let api_base_ref = <String>::sse_decode(&mut deserializer);
             let api_commit_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_head_ref = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
@@ -1029,6 +1030,7 @@ fn wire__crate__api__git__git_range_context_impl(
                         api_path,
                         api_base_ref,
                         api_commit_limit,
+                        api_head_ref,
                     )?;
                     Ok(output_ok)
                 })())
@@ -3744,6 +3746,7 @@ impl SseDecode for crate::api::git::GitRangeContext {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_baseRef = <String>::sse_decode(deserializer);
+        let mut var_headOid = <String>::sse_decode(deserializer);
         let mut var_headBranch = <Option<String>>::sse_decode(deserializer);
         let mut var_mergeBase = <Option<String>>::sse_decode(deserializer);
         let mut var_commits = <Vec<crate::api::git::GitRangeCommit>>::sse_decode(deserializer);
@@ -3751,6 +3754,7 @@ impl SseDecode for crate::api::git::GitRangeContext {
         let mut var_patch = <String>::sse_decode(deserializer);
         return crate::api::git::GitRangeContext {
             base_ref: var_baseRef,
+            head_oid: var_headOid,
             head_branch: var_headBranch,
             merge_base: var_mergeBase,
             commits: var_commits,
@@ -6120,6 +6124,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeContext {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.base_ref.into_into_dart().into_dart(),
+            self.head_oid.into_into_dart().into_dart(),
             self.head_branch.into_into_dart().into_dart(),
             self.merge_base.into_into_dart().into_dart(),
             self.commits.into_into_dart().into_dart(),
@@ -7689,6 +7694,7 @@ impl SseEncode for crate::api::git::GitRangeContext {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.base_ref, serializer);
+        <String>::sse_encode(self.head_oid, serializer);
         <Option<String>>::sse_encode(self.head_branch, serializer);
         <Option<String>>::sse_encode(self.merge_base, serializer);
         <Vec<crate::api::git::GitRangeCommit>>::sse_encode(self.commits, serializer);

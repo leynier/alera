@@ -5,6 +5,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
@@ -99,9 +100,19 @@ class ReadingDiffService {
     );
   }
 
-  Future<ReadingDiffResult> generate(ReadingDiffPreparation preparation) async {
+  Future<ReadingDiffResult> generate(
+    ReadingDiffPreparation preparation, {
+    void Function(ReadingDiffGenerationProgress progress)? onProgress,
+  }) async {
     final cached = preparation.cachedResult;
     if (cached != null) {
+      onProgress?.call(
+        ReadingDiffGenerationProgress(
+          stage: ReadingDiffGenerationStage.cached,
+          completedChunks: preparation.chunkCount,
+          totalChunks: preparation.chunkCount,
+        ),
+      );
       return cached;
     }
     final lane = _lane(preparation.request);
@@ -117,6 +128,14 @@ class ReadingDiffService {
     try {
       for (final chunk in preparation.compiler.chunks) {
         _throwIfCanceled(lane);
+        onProgress?.call(
+          ReadingDiffGenerationProgress(
+            stage: ReadingDiffGenerationStage.generating,
+            completedChunks: compiled.length,
+            totalChunks: preparation.chunkCount,
+            currentChunk: chunk.index + 1,
+          ),
+        );
         final prompt = buildReadingDiffPrompt(
           preparation: preparation.compiler,
           chunk: chunk,
@@ -132,6 +151,14 @@ class ReadingDiffService {
             planJson: plan.text,
           );
         } on rust.ReadingDiffError catch (error) {
+          onProgress?.call(
+            ReadingDiffGenerationProgress(
+              stage: ReadingDiffGenerationStage.repairing,
+              completedChunks: compiled.length,
+              totalChunks: preparation.chunkCount,
+              currentChunk: chunk.index + 1,
+            ),
+          );
           final repairPrompt = buildReadingDiffRepairPrompt(
             originalPrompt: prompt,
             rejectedPlan: plan.text,
@@ -167,6 +194,13 @@ class ReadingDiffService {
         );
       }
       _throwIfCanceled(lane);
+      onProgress?.call(
+        ReadingDiffGenerationProgress(
+          stage: ReadingDiffGenerationStage.combining,
+          completedChunks: preparation.chunkCount,
+          totalChunks: preparation.chunkCount,
+        ),
+      );
       final merged = await rust.mergeReadingDiffChunks(chunks: compiled);
       final result = ReadingDiffResult(
         diff: merged.readingDiff,

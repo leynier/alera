@@ -16,8 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 import '../unit/fake_git_backend.dart';
 
 part 'workspace_git_diff_surface_test_controller.dart';
+part 'workspace_git_diff_surface_pull_request_cases.dart';
 
 void main() {
+  _registerWorkspaceGitDiffSurfacePullRequestTests();
   testWidgets('diff surface caps rendered line previews', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = GitDiffResult(
@@ -464,7 +466,7 @@ Workspace _workspace() {
 WorkspaceTabRecord _diffTab({
   WorkspaceGitDiffSource source = WorkspaceGitDiffSource.workingTree,
   WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
-  String filePath = 'lib/large.dart',
+  String? filePath = 'lib/large.dart',
   String title = 'large.dart unstaged',
   GitChangeArea? area = GitChangeArea.unstaged,
   String? gitDiffRoot,
@@ -477,7 +479,7 @@ WorkspaceTabRecord _diffTab({
   final payload = <String, Object?>{
     workspaceTabGitDiffSourcePayloadKey: source.key,
     workspaceTabGitDiffScopePayloadKey: scope.key,
-    workspaceTabFilePathPayloadKey: filePath,
+    workspaceTabFilePathPayloadKey: ?filePath,
   };
   if (area != null) {
     payload[workspaceTabGitDiffAreaPayloadKey] = area.key;

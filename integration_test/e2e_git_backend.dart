@@ -166,6 +166,7 @@ class E2eGitBackend implements GitBackend {
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) async => GitRangeContext(
     baseRef: baseRef,
     commits: const <GitRangeCommit>[],

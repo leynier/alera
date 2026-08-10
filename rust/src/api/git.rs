@@ -238,6 +238,7 @@ pub struct GitRangeFile {
 /// Tree-to-tree range summary used for AI pull-request prompts.
 pub struct GitRangeContext {
     pub base_ref: String,
+    pub head_oid: String,
     pub head_branch: Option<String>,
     pub merge_base: Option<String>,
     pub commits: Vec<GitRangeCommit>,
@@ -453,14 +454,15 @@ pub fn git_commit_diff(
     git_diff_impl::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
 }
 
-/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref], HEAD)
-/// to HEAD for AI pull-request generation.
+/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref],
+/// [head_ref]) to [head_ref]. HEAD is used when no explicit head is provided.
 pub fn git_range_context(
     path: String,
     base_ref: String,
     commit_limit: Option<u32>,
+    head_ref: Option<String>,
 ) -> Result<GitRangeContext, GitError> {
-    git_range_impl::git_range_context(path, base_ref, commit_limit)
+    git_range_impl::git_range_context(path, base_ref, commit_limit, head_ref)
 }
 
 pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {

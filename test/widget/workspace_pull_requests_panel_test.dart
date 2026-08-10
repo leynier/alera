@@ -13,7 +13,9 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,11 +32,47 @@ HostedReview _review(int number) => HostedReview(
   author: 'leynier',
   baseBranch: 'main',
   headBranch: 'feature',
+  headSha: 'head-$number',
 );
 
 class _PanelWorkbenchController extends WorkbenchController {
+  final List<
+    ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+  >
+  openedPullRequestDiffs =
+      <
+        ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+      >[];
+
   @override
   WorkbenchState build() => const WorkbenchState();
+
+  @override
+  Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
+    required Workspace workspace,
+    String? gitDiffRoot,
+    required int pullRequestNumber,
+    required String commitOid,
+    required String parentOid,
+    String? subject,
+    String? targetGroupId,
+  }) async {
+    openedPullRequestDiffs.add((
+      number: pullRequestNumber,
+      commitOid: commitOid,
+      gitDiffRoot: gitDiffRoot,
+      parentOid: parentOid,
+    ));
+    final now = DateTime.utc(2026, 8, 10);
+    return WorkspaceTabRecord(
+      id: 'pr-diff',
+      workspaceId: workspace.id,
+      kind: WorkspaceTabKind.gitDiff,
+      title: 'Pull request #$pullRequestNumber',
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
 }
 
 void main() {
@@ -222,6 +260,93 @@ void main() {
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(linkedReviews.store[workspace.id]?.dismissed, isFalse);
     expect(linkedReviews.store[workspace.id]?.number, 123);
+  });
+
+  testWidgets('opens the linked pull request diff from its exact hosted head', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 8, 10);
+    final workspace = Workspace(
+      id: 'workspace-1',
+      projectId: 'project-1',
+      name: 'Feature',
+      branch: 'feature',
+      path: '/repo',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+    );
+    final review = _review(385);
+    final forge = FakeForgeProvider()..branchReview = review;
+    final git = FakeGitBackend()
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      }
+      ..gitRangeContextResult = const GitRangeContext(
+        baseRef: 'main',
+        headOid: 'hosted-head',
+        mergeBase: 'merge-base',
+        commits: <GitRangeCommit>[],
+        files: <GitRangeFile>[],
+        patch: '',
+      );
+    late _PanelWorkbenchController workbench;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          effectiveHostingProviderOverrideProvider.overrideWith(
+            (ref, projectId) async => null,
+          ),
+          gitBackendProvider.overrideWithValue(git),
+          forgeProviderRegistryProvider.overrideWithValue(
+            ForgeProviderRegistry(<ForgeProvider>[forge]),
+          ),
+          linkedReviewRepositoryProvider.overrideWithValue(
+            FakeLinkedReviewRepository(),
+          ),
+          workbenchControllerProvider.overrideWith(
+            () => workbench = _PanelWorkbenchController(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: WorkspacePullRequestsPanel(
+                workspace: workspace,
+                repoPath: workspace.path,
+                gitDiffRoot: 'packages/app',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Open Pull Request Diff'));
+    await tester.pumpAndSettle();
+
+    expect(
+      git.calls.where((call) => call.method == 'rangeContext').single.args,
+      <String, Object?>{
+        'path': '/repo',
+        'baseRef': 'main',
+        'commitLimit': 40,
+        'headRef': 'head-385',
+      },
+    );
+    expect(workbench.openedPullRequestDiffs, <Object>[
+      (
+        number: 385,
+        commitOid: 'hosted-head',
+        gitDiffRoot: 'packages/app',
+        parentOid: 'merge-base',
+      ),
+    ]);
   });
 
   testWidgets('shows the self-hosted forge in authentication guidance', (

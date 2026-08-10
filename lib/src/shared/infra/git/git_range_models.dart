@@ -28,18 +28,20 @@ class GitRangeFile {
   final int? removed;
 }
 
-/// Tree-to-tree range summary used for AI pull-request prompts.
+/// Tree-to-tree range summary for AI prompts and hosted pull-request diffs.
 class GitRangeContext {
   const GitRangeContext({
     required this.baseRef,
     required this.commits,
     required this.files,
     required this.patch,
+    this.headOid,
     this.headBranch,
     this.mergeBase,
   });
 
   final String baseRef;
+  final String? headOid;
   final String? headBranch;
   final String? mergeBase;
   final List<GitRangeCommit> commits;

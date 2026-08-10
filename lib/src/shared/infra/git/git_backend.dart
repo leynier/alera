@@ -149,12 +149,14 @@ abstract interface class GitBackend {
     String? oldPath,
   });
 
-  /// Commits and tree-to-tree patch from merge-base([baseRef], HEAD) to HEAD.
-  /// Used for AI pull-request title/description generation.
+  /// Commits and tree-to-tree patch from merge-base([baseRef], [headRef]) to
+  /// [headRef]. When [headRef] is omitted, HEAD is used. This supports both AI
+  /// pull-request text generation and exact hosted pull-request ranges.
   Future<GitRangeContext> rangeContext(
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   });
 
   /// Branch/upstream/divergence information for the repository containing

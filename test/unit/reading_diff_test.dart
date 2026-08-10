@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
@@ -64,6 +65,39 @@ void main() {
       ).retainedFraction,
       1,
     );
+  });
+
+  test('reading diff progress reports lifecycle labels and fractions', () {
+    const preparing = ReadingDiffGenerationProgress(
+      stage: ReadingDiffGenerationStage.preparing,
+      completedChunks: 0,
+      totalChunks: 0,
+    );
+    const generating = ReadingDiffGenerationProgress(
+      stage: ReadingDiffGenerationStage.generating,
+      completedChunks: 1,
+      totalChunks: 4,
+      currentChunk: 2,
+    );
+    const repairing = ReadingDiffGenerationProgress(
+      stage: ReadingDiffGenerationStage.repairing,
+      completedChunks: 1,
+      totalChunks: 4,
+      currentChunk: 2,
+    );
+    const combining = ReadingDiffGenerationProgress(
+      stage: ReadingDiffGenerationStage.combining,
+      completedChunks: 4,
+      totalChunks: 4,
+    );
+
+    expect(preparing.label, 'Preparing reading diff');
+    expect(preparing.fraction, isNull);
+    expect(generating.label, 'Generating chunk 2 of 4');
+    expect(generating.fraction, 0.25);
+    expect(repairing.label, 'Repairing chunk 2 of 4');
+    expect(combining.label, 'Combining 4 chunks');
+    expect(combining.fraction, 1);
   });
 
   test(

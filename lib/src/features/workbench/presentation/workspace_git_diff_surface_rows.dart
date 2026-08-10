@@ -4,12 +4,14 @@ class _DiffFileList extends StatelessWidget {
   const _DiffFileList({
     required this.result,
     required this.sourcePath,
+    this.sourceLabel,
     this.commitOid,
     this.parentOid,
   });
 
   final GitDiffResult result;
   final String sourcePath;
+  final String? sourceLabel;
   final String? commitOid;
   final String? parentOid;
 
@@ -18,6 +20,7 @@ class _DiffFileList extends StatelessWidget {
     final rows = _DiffRows.fromResult(
       result,
       sourcePath: sourcePath,
+      sourceLabel: sourceLabel,
       commitOid: commitOid,
       parentOid: parentOid,
     );
@@ -37,6 +40,7 @@ class _DiffRows {
   factory _DiffRows.fromResult(
     GitDiffResult result, {
     required String sourcePath,
+    String? sourceLabel,
     String? commitOid,
     String? parentOid,
   }) {
@@ -44,7 +48,7 @@ class _DiffRows {
       if (result.truncated) const _BannerRow('Diff truncated for preview.'),
     ];
     for (final file in result.files) {
-      items.add(_FileHeaderRow(file));
+      items.add(_FileHeaderRow(file, sourceLabel: sourceLabel));
       if (file.isBinary && isWorkspaceImageFilePath(file.path)) {
         items.add(
           _ImageDiffRow(
@@ -83,9 +87,10 @@ abstract class _DiffRow {
 }
 
 class _FileHeaderRow extends _DiffRow {
-  const _FileHeaderRow(this.file);
+  const _FileHeaderRow(this.file, {this.sourceLabel});
 
   final GitDiffFile file;
+  final String? sourceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +114,7 @@ class _FileHeaderRow extends _DiffRow {
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
-                '${file.sourceLabel ?? file.area.label} · ${file.path}',
+                '${sourceLabel ?? file.sourceLabel ?? file.area.label} · ${file.path}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
