@@ -48,17 +48,18 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
     );
     final usage = ref.watch(agentUsageProvider(_days));
     final quota = ref.watch(agentQuotaStateProvider);
-    final snapshot = usage.value;
+    final usageState = usage.value;
+    final snapshot = usageState?.snapshot;
     return AgentUsageDialogView(
       hostId: hostId,
       days: _days,
       snapshot: snapshot,
       quotaSnapshots: quota.value?.snapshots ?? const <AgentQuotaSnapshot>[],
-      loading: usage.isLoading,
-      error: usage.hasError ? usage.error.toString() : null,
+      loading: usage.isLoading || (usageState?.refreshing ?? false),
+      error: usage.hasError ? usage.error.toString() : usageState?.error,
       onDaysChanged: (days) => setState(() => _days = days),
       onRefresh: () {
-        ref.invalidate(agentUsageProvider(_days));
+        ref.read(agentUsageProvider(_days).notifier).refresh();
         ref.read(agentQuotaServiceProvider).requestForceRefresh(hostId);
         ref.invalidate(agentQuotaStateProvider);
       },
@@ -119,6 +120,23 @@ class AgentUsageDialogView extends StatelessWidget {
                       hostId == 'local' ? 'Local Host' : hostId,
                       style: AleraTokens.monoCompactStyle,
                     ),
+                    if (loading && snapshot != null) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space12),
+                      const _UsageLoadStatus(
+                        icon: AleraIcons.sync,
+                        label: 'Updating',
+                        tooltip:
+                            'Showing saved usage while new data loads in the background.',
+                      ),
+                    ] else if (error != null && snapshot != null) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space12),
+                      _UsageLoadStatus(
+                        icon: AleraIcons.warning,
+                        label: 'Update Failed',
+                        tooltip: error!,
+                        color: AleraTokens.warning,
+                      ),
+                    ],
                     const SizedBox(width: AleraTokens.space12),
                     AleraSegmentedButton<int>(
                       dense: true,
@@ -140,7 +158,7 @@ class AgentUsageDialogView extends StatelessWidget {
                 ),
               ),
             ),
-            if (loading)
+            if (loading && snapshot == null)
               const LinearProgressIndicator(minHeight: AleraTokens.space2),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
             Expanded(
@@ -155,6 +173,41 @@ class AgentUsageDialogView extends StatelessWidget {
                       quotas: quotaSnapshots,
                       refreshing: loading,
                     ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UsageLoadStatus extends StatelessWidget {
+  const _UsageLoadStatus({
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    this.color = AleraTokens.foregroundMuted,
+  });
+
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        label: label,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: AleraTokens.iconSm, color: color),
+            const SizedBox(width: AleraTokens.space4),
+            Text(
+              label,
+              style: AleraTokens.monoCompactStyle.copyWith(color: color),
             ),
           ],
         ),
