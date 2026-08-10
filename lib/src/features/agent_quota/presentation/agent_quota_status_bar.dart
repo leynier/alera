@@ -10,6 +10,7 @@ import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
+import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -71,6 +72,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         loading: quota.isLoading,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
+        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       );
     }
@@ -82,6 +84,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         loading: true,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
+        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
       error: (error, _) => AgentQuotaStatusBarView(
@@ -91,6 +94,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         error: error.toString(),
         onRefresh: refresh,
         onTogglePinned: togglePinned,
+        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
       data: (_) => AgentQuotaStatusBarView(
@@ -100,6 +104,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         loading: true,
         onRefresh: refresh,
         onTogglePinned: togglePinned,
+        onOpenUsage: () => unawaited(openAgentUsageDialog(context)),
         trailing: trailing,
       ),
     );
@@ -117,6 +122,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
     this.loading = false,
     this.error,
     this.trailing,
+    this.onOpenUsage,
   });
 
   final String hostId;
@@ -127,6 +133,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
   final bool loading;
   final String? error;
   final Widget? trailing;
+  final VoidCallback? onOpenUsage;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +156,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
               error: error,
               onRefresh: onRefresh,
               onTogglePinned: onTogglePinned,
+              onOpenUsage: onOpenUsage,
               trailing: trailing,
             );
           }
@@ -183,6 +191,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
                 hostId: hostId,
                 error: error,
                 onTogglePinned: onTogglePinned,
+                onOpenUsage: onOpenUsage,
                 profileLabelFor: _claudeProfileLabel,
               ),
               const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
