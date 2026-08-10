@@ -422,7 +422,6 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
     this.busyOnSoftStop = false,
     this.probeThrows = false,
     this.shutdownLeavesHostRunning = false,
-    this.shutdownDisconnects = false,
     this.ensureStartedError,
   });
 
@@ -430,7 +429,6 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
   final bool busyOnSoftStop;
   final bool probeThrows;
   final bool shutdownLeavesHostRunning;
-  final bool shutdownDisconnects;
   final Object? ensureStartedError;
   final List<bool> shutdownCalls = <bool>[];
   int ensureStartedCalls = 0;
@@ -459,9 +457,6 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
         activeAgents: 1,
         activeSessions: 1,
       );
-    }
-    if (shutdownDisconnects) {
-      throw StateError('Terminal host connection closed.');
     }
     if (!shutdownLeavesHostRunning) {
       _stopped = true;
