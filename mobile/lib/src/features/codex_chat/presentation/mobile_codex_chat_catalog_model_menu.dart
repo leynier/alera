@@ -2,6 +2,7 @@ part of 'mobile_codex_chat_screen.dart';
 
 class _MobileModelMenuButton extends StatelessWidget {
   const _MobileModelMenuButton({
+    super.key,
     required this.state,
     required this.onModel,
     required this.onReasoning,

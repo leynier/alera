@@ -5,11 +5,15 @@ class _MobilePlanCard extends StatelessWidget {
     required this.cell,
     required this.previous,
     required this.onOpen,
+    required this.initiallyOverflowing,
+    required this.onOverflowChanged,
   });
 
   final MobileCodexTimelineCell cell;
   final bool previous;
   final VoidCallback onOpen;
+  final bool initiallyOverflowing;
+  final ValueChanged<bool> onOverflowChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -40,32 +44,19 @@ class _MobilePlanCard extends StatelessWidget {
                 onOpen: onOpen,
               ),
               if (!previous)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: AleraTokens.codexPlanPreviewHeight,
-                  ),
-                  child: ShaderMask(
-                    blendMode: BlendMode.dstIn,
-                    shaderCallback: (bounds) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Color(0xFFFFFFFF),
-                        Color(0xFFFFFFFF),
-                        Color(0x00000000),
-                      ],
-                      stops: <double>[0, 0.62, 1],
-                    ).createShader(bounds),
-                    child: SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(
-                        AleraTokens.space16,
-                        0,
-                        AleraTokens.space16,
-                        AleraTokens.space16,
-                      ),
-                      child: _MobileCodexMarkdown(text: cell.displayText),
+                _MobilePlanPreview(
+                  key: ValueKey<String>('mobile-codex-plan-preview-${cell.id}'),
+                  initiallyOverflowing: initiallyOverflowing,
+                  preserveOverflow: cell.isStreaming,
+                  onOverflowChanged: onOverflowChanged,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AleraTokens.space16,
+                      0,
+                      AleraTokens.space16,
+                      AleraTokens.space16,
                     ),
+                    child: _MobileCodexMarkdown(text: cell.displayText),
                   ),
                 ),
             ],

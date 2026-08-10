@@ -54,7 +54,7 @@ abstract final class MobileCodexTimelineProjection {
     for (final cell in cells) {
       if (_isTopNotice(cell)) {
         topNotices.add(cell);
-      } else {
+      } else if (!_isEmptyCompletedDiffPlaceholder(cell)) {
         content.add(cell);
       }
     }
@@ -63,8 +63,19 @@ abstract final class MobileCodexTimelineProjection {
       (cell) => cell.kind == 'plan',
     );
     var index = 0;
+    var workingInserted = false;
     while (index < content.length) {
       final cell = content[index];
+      if (!workingInserted &&
+          activeTurnId != null &&
+          cell.turnId == activeTurnId &&
+          !cell.isUser &&
+          cell.kind != 'turnSeparator') {
+        rows.add(
+          MobileCodexPresentationRow.working(id: 'working-$activeTurnId'),
+        );
+        workingInserted = true;
+      }
       if (_isActivity(cell)) {
         final activity = <MobileCodexTimelineCell>[];
         final turnId = cell.turnId;
@@ -97,7 +108,7 @@ abstract final class MobileCodexTimelineProjection {
       );
       index++;
     }
-    if (activeTurnId != null && !_hasVisibleStreamingTail(rows)) {
+    if (activeTurnId != null && !workingInserted) {
       rows.add(MobileCodexPresentationRow.working(id: 'working-$activeTurnId'));
     }
     return List<MobileCodexPresentationRow>.unmodifiable(rows);
@@ -121,10 +132,20 @@ abstract final class MobileCodexTimelineProjection {
                 'deprecationNotice',
               }.contains(cell.metadata['noticeType'])));
 
-  static bool _hasVisibleStreamingTail(List<MobileCodexPresentationRow> rows) {
-    if (rows.isEmpty) return false;
-    final tail = rows.last;
-    if (tail.cell?.isStreaming == true) return true;
-    return tail.activityCells.any((cell) => cell.isStreaming);
+  static bool _isEmptyCompletedDiffPlaceholder(MobileCodexTimelineCell cell) {
+    if (cell.kind != 'diff' || cell.status != 'completed' || cell.isStreaming) {
+      return false;
+    }
+    final details = (cell.detailsText ?? cell.markdownText ?? '').trim();
+    final hasDetails = details.isNotEmpty && details != '[]';
+    return !hasDetails && !_hasStructuredChanges(cell.metadata['changes']);
   }
+
+  static bool _hasStructuredChanges(Object? changes) => switch (changes) {
+    null => false,
+    List<Object?> values => values.isNotEmpty,
+    Map<Object?, Object?> values => values.isNotEmpty,
+    String value => value.trim().isNotEmpty && value.trim() != '[]',
+    _ => true,
+  };
 }

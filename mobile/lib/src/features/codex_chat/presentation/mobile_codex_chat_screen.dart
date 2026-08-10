@@ -39,6 +39,7 @@ part 'mobile_codex_chat_timeline.dart';
 part 'mobile_codex_chat_activity.dart';
 part 'mobile_codex_chat_notices.dart';
 part 'mobile_codex_chat_plan.dart';
+part 'mobile_codex_chat_plan_preview.dart';
 part 'mobile_codex_chat_requests.dart';
 part 'mobile_codex_chat_elicitation.dart';
 part 'mobile_codex_chat_markdown.dart';
@@ -90,6 +91,7 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
   Set<String>? _historyOriginalCellIds;
   final GlobalKey _historyAnchorKey = GlobalKey();
   final Set<String> _expandedActivityGroups = <String>{};
+  final Set<String> _overflowingPlanPreviewIds = <String>{};
   List<MobileCodexPresentationRow>? _timelineRowIndexSource;
   Map<String, int> _timelineRowIndexes = const <String, int>{};
   String? _historyAnchorCellId;
@@ -287,6 +289,12 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                       provider.select((value) => value.value!),
                     );
                     final rows = _historyRowsOverride ?? state.presentationRows;
+                    _overflowingPlanPreviewIds.retainWhere(
+                      state.timelineCells
+                          .map((cell) => cell.id)
+                          .toSet()
+                          .contains,
+                    );
                     _scheduleTimelinePin();
                     return CustomScrollView(
                       controller: _timeline,
@@ -329,6 +337,23 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                                       onOpenPlan: _openPlan,
                                       activityExpanded: _expandedActivityGroups
                                           .contains(row.id),
+                                      planPreviewInitiallyOverflowing:
+                                          row.cell?.kind == 'plan' &&
+                                          _overflowingPlanPreviewIds.contains(
+                                            row.cell!.id,
+                                          ),
+                                      onPlanPreviewOverflowChanged:
+                                          (planId, overflowing) {
+                                            if (overflowing) {
+                                              _overflowingPlanPreviewIds.add(
+                                                planId,
+                                              );
+                                            } else {
+                                              _overflowingPlanPreviewIds.remove(
+                                                planId,
+                                              );
+                                            }
+                                          },
                                       onToggleActivity: () {
                                         setState(() {
                                           if (!_expandedActivityGroups.add(

@@ -261,9 +261,18 @@ void mobileCodexStateTests() {
         isEmpty,
       );
       expect(
-        state.presentationRows.last.kind,
-        MobileCodexPresentationKind.working,
+        state.presentationRows
+            .where((row) => row.kind == MobileCodexPresentationKind.working)
+            .length,
+        1,
       );
+      final workingIndex = state.presentationRows.indexWhere(
+        (row) => row.kind == MobileCodexPresentationKind.working,
+      );
+      final activeToolIndex = state.presentationRows.indexWhere(
+        (row) => row.cell?.id == 'read-2',
+      );
+      expect(workingIndex, lessThan(activeToolIndex));
     },
   );
 
@@ -335,6 +344,97 @@ void mobileCodexStateTests() {
     );
     expect(initialActivity.id, 'activity-read-one');
     expect(updatedActivity.id, initialActivity.id);
+  });
+
+  test('mobile keeps Working visible while assistant text streams', () {
+    const activeTurnId = 'turn-working';
+    final rows =
+        MobileCodexTimelineProjection.project(const <MobileCodexTimelineCell>[
+          MobileCodexTimelineCell(
+            id: 'user',
+            kind: 'userMessage',
+            status: 'completed',
+            turnId: activeTurnId,
+            markdownText: 'Start',
+          ),
+          MobileCodexTimelineCell(
+            id: 'assistant',
+            kind: 'assistantMessage',
+            status: 'inProgress',
+            turnId: activeTurnId,
+            markdownText: 'Streaming answer',
+            isStreaming: true,
+          ),
+        ], activeTurnId: activeTurnId);
+
+    expect(rows.map((row) => row.kind), <MobileCodexPresentationKind>[
+      MobileCodexPresentationKind.cell,
+      MobileCodexPresentationKind.working,
+      MobileCodexPresentationKind.cell,
+    ]);
+  });
+
+  test('mobile omits only successful empty file change placeholders', () {
+    final rows = MobileCodexTimelineProjection.project(
+      const <MobileCodexTimelineCell>[
+        MobileCodexTimelineCell(
+          id: 'empty',
+          kind: 'diff',
+          status: 'completed',
+          detailsText: '[]',
+          metadata: <String, Object?>{'changes': <Object?>[]},
+        ),
+        MobileCodexTimelineCell(
+          id: 'failed',
+          kind: 'diff',
+          status: 'failed',
+          metadata: <String, Object?>{'changes': <Object?>[]},
+        ),
+        MobileCodexTimelineCell(
+          id: 'changed',
+          kind: 'diff',
+          status: 'completed',
+          detailsText: '[]',
+          metadata: <String, Object?>{
+            'changes': <Object?>[
+              <String, Object?>{'path': 'README.md'},
+            ],
+          },
+        ),
+      ],
+      activeTurnId: null,
+    );
+
+    expect(rows, hasLength(1));
+    expect(rows.single.activityCells.map((cell) => cell.id), <String>[
+      'failed',
+      'changed',
+    ]);
+  });
+
+  test('mobile identifies only explicit implement-plan decisions', () {
+    MobileCodexPendingRequest request(String question) =>
+        MobileCodexPendingRequest.fromJson(<String, Object?>{
+          'id': 1,
+          'method': 'item/tool/request_user_input',
+          'params': <String, Object?>{
+            'questions': <Object?>[
+              <String, Object?>{'id': 'plan', 'question': question},
+            ],
+          },
+        });
+
+    expect(request('Implement this plan?').isImplementPlanQuestion, isTrue);
+    expect(
+      request('Should I implement the plan now?').isImplementPlanQuestion,
+      isTrue,
+    );
+    expect(
+      request(
+        'Which plan should implementation prioritize?',
+      ).isImplementPlanQuestion,
+      isFalse,
+    );
   });
 
   test('mobile Codex preferences keep every safe permission mode', () {
