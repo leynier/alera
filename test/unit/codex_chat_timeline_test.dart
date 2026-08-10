@@ -245,7 +245,7 @@ void main() {
     expect(cells[1].metadata['durationMs'], 42);
     expect(cells[1].detailsText, contains('done'));
     expect(cells[2].title, 'Viewed image');
-    expect(cells[3].title, 'Compacted context');
+    expect(cells[3].title, 'Compacted');
   });
 
   test('maps standalone command and file streams to specific kinds', () {

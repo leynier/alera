@@ -458,3 +458,7 @@ mod snapshot_tests;
 #[cfg(test)]
 #[path = "codex_state_snapshot_resume_tests.rs"]
 mod snapshot_resume_tests;
+
+#[cfg(test)]
+#[path = "codex_timeline_compaction_tests.rs"]
+mod timeline_compaction_tests;

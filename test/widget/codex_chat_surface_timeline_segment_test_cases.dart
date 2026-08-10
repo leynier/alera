@@ -445,6 +445,40 @@ void registerCodexTimelineSegmentTests() {
     );
     expect(find.text('Viewed image · /repo/image.png'), findsOneWidget);
   });
+
+  testWidgets('shows dedicated context compaction lifecycle rows', (
+    tester,
+  ) async {
+    final client = _SurfaceRuntimeClient(
+      pendingRequests: const <Object?>[],
+      timelineCells: const <Object?>[
+        <String, Object?>{
+          'id': 'compacting',
+          'turnId': 'turn-active',
+          'kind': 'toolCall',
+          'status': 'inProgress',
+          'title': 'Context automatically compacting',
+          'isStreaming': true,
+          'metadata': <String, Object?>{'itemType': 'contextCompaction'},
+        },
+        <String, Object?>{
+          'id': 'compacted',
+          'turnId': 'turn-complete',
+          'kind': 'toolCall',
+          'status': 'completed',
+          'title': 'Compacted context',
+          'metadata': <String, Object?>{'itemType': 'contextCompaction'},
+        },
+      ],
+    );
+    addTearDown(client.dispose);
+    await _pumpTimelineSegmentSurface(tester, client);
+
+    expect(find.text('Compacting'), findsOneWidget);
+    expect(find.text('Compacted'), findsOneWidget);
+    expect(find.text('Context automatically compacting'), findsNothing);
+    expect(find.byIcon(AleraIcons.contextCompact), findsNWidgets(2));
+  });
 }
 
 Future<void> _pumpTimelineSegmentSurface(

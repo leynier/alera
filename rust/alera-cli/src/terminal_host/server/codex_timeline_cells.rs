@@ -208,6 +208,40 @@ pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
     existing.insert("metadata".to_string(), Value::Object(metadata));
 }
 
+pub(super) fn complete_context_compaction(cells: &mut Vec<Value>, turn_id: &str, now: &str) {
+    if let Some(cell) = cells.iter_mut().rev().find(|cell| {
+        cell.get("turnId").and_then(Value::as_str) == Some(turn_id)
+            && cell
+                .pointer("/metadata/itemType")
+                .and_then(Value::as_str)
+                .is_some_and(|item_type| item_type.eq_ignore_ascii_case("contextCompaction"))
+    }) {
+        if let Some(map) = cell.as_object_mut() {
+            map.insert("title".to_string(), Value::String("Compacted".to_string()));
+            map.insert("status".to_string(), Value::String("completed".to_string()));
+            map.insert("isStreaming".to_string(), Value::Bool(false));
+            map.insert("updatedAt".to_string(), Value::String(now.to_string()));
+        }
+        return;
+    }
+    upsert_cell(
+        cells,
+        new_cell(
+            &format!("compaction-{turn_id}"),
+            turn_id,
+            "toolCall",
+            "completed",
+            now,
+            Some("Compacted".to_string()),
+            None,
+            None,
+            None,
+            false,
+            Some(json!({"itemType": "contextCompaction"})),
+        ),
+    );
+}
+
 pub(super) fn cell_by_id<'a>(cells: &'a [Value], id: &str) -> Option<&'a Value> {
     cells
         .iter()
@@ -285,7 +319,11 @@ pub(super) fn title_for(item_type: &str, method: &str) -> String {
         return "Generated image".to_string();
     }
     if item_type.contains("contextcompaction") {
-        return "Compacted context".to_string();
+        return if method.contains("completed") {
+            "Compacted".to_string()
+        } else {
+            "Compacting".to_string()
+        };
     }
     if item_type.contains("enteredreview") {
         return "Entered review mode".to_string();

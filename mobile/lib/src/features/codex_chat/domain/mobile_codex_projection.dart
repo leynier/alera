@@ -287,8 +287,14 @@ abstract final class MobileCodexTimelineProjection {
 bool _isMobileCodexGroupedActivity(MobileCodexTimelineCell cell) =>
     cell.isReasoning ||
     cell.kind == 'command' ||
-    cell.kind == 'toolCall' ||
+    (cell.kind == 'toolCall' && !isMobileCodexContextCompaction(cell)) ||
     cell.kind == 'diff';
+
+bool isMobileCodexContextCompaction(MobileCodexTimelineCell cell) => cell
+    .metadata['itemType']
+    .toString()
+    .toLowerCase()
+    .contains('contextcompaction');
 
 bool _isVisibleMobileCodexTurnWork(MobileCodexTimelineCell cell) =>
     switch (cell.kind) {

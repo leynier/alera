@@ -338,12 +338,20 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
             item_markdown(&item)
         };
         let details = item_details(&item);
-        let title = first_string(&[
-            item.get("title"),
-            item.get("name"),
-            item.get("tool"),
-            item.get("command"),
-        ]);
+        let title = if item_type.contains("contextcompaction") {
+            match status {
+                "failed" => "Compaction failed".to_string(),
+                "completed" => "Compacted".to_string(),
+                _ => "Compacting".to_string(),
+            }
+        } else {
+            first_string(&[
+                item.get("title"),
+                item.get("name"),
+                item.get("tool"),
+                item.get("command"),
+            ])
+        };
         upsert_cell(
             &mut cells,
             new_cell(

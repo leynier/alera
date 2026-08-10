@@ -40,6 +40,7 @@ abstract final class AleraIcons {
   static const IconData pinOff = LucideIcons.pinOff;
   static const IconData maximize = LucideIcons.maximize2;
   static const IconData minimize = LucideIcons.minimize2;
+  static const IconData contextCompact = LucideIcons.foldHorizontal;
 
   // Search
   static const IconData search = LucideIcons.search;

@@ -37,6 +37,10 @@ abstract final class MobileCodexTimelineReducer {
         .toString()
         .toLowerCase();
 
+    if (method == 'thread/compacted') {
+      return _reduceLegacyMobileContextCompaction(cells, turnId);
+    }
+
     if (rawMethod == 'codex/event/task_complete') {
       final text = _first(<Object?>[
         legacy['last_agent_message'],
@@ -198,7 +202,9 @@ abstract final class MobileCodexTimelineReducer {
           turnId: turnId,
           kind: kind,
           status: status,
-          title: _titleFor(type, lower, item),
+          title: type.contains('contextcompaction')
+              ? mobileCodexContextCompactionTitle(status)
+              : _titleFor(type, lower, item),
           subtitle: _first(<Object?>[
             item['command'],
             item['name'],
@@ -452,13 +458,19 @@ String _kindFor(String type, String method) {
     return 'subAgent';
   }
   if (type.contains('plan') || method.contains('/plan')) return 'plan';
-  if (type.contains('tool') || method.contains('tool') || method == 'output') {
+  if (type.contains('contextcompaction') ||
+      type.contains('tool') ||
+      method.contains('tool') ||
+      method == 'output') {
     return 'toolCall';
   }
   return 'progressText';
 }
 
 String _titleFor(String type, String method, Map<String, Object?> item) {
+  if (type.contains('contextcompaction')) {
+    return method.contains('completed') ? 'Compacted' : 'Compacting';
+  }
   final explicit = _first(<Object?>[
     item['title'],
     item['name'],

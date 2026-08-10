@@ -118,6 +118,9 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
     if (cell.isUser || cell.isAssistant) return _message(context, cell);
     if (_isMcpStatus(cell)) return _MobileMcpStatus(cell: cell);
     if (_isWarning(cell)) return _MobileWarningNotice(cell: cell);
+    if (isMobileCodexContextCompaction(cell)) {
+      return _MobileContextCompactionCell(cell: cell);
+    }
     if (cell.kind == 'progressText') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
@@ -237,6 +240,46 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
               ),
             )
           else ...<Widget>[const SizedBox(height: AleraTokens.space8), actions],
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileContextCompactionCell extends StatelessWidget {
+  const _MobileContextCompactionCell({required this.cell});
+
+  final MobileCodexTimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = cell.isStreaming || cell.status == 'inProgress';
+    final label = switch (cell.status) {
+      'failed' => 'Compaction failed',
+      _ when active => 'Compacting',
+      _ => 'Compacted',
+    };
+    final color = cell.status == 'failed'
+        ? AleraTokens.error
+        : AleraTokens.foregroundMuted;
+    final style = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(color: color);
+    return Padding(
+      key: ValueKey<String>('mobile-context-compaction-${cell.id}'),
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            AleraIcons.contextCompact,
+            size: AleraTokens.space16,
+            color: color,
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          if (active)
+            _MobileCodexShimmerText(text: label, style: style)
+          else
+            Text(label, style: style),
         ],
       ),
     );
