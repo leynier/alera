@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
@@ -40,7 +41,9 @@ void main() {
     expect(find.text('Usage'), findsOneWidget);
     expect(find.text('Local Host'), findsOneWidget);
     expect(find.text('Current Limits'), findsOneWidget);
-    expect(find.text('Claude Code ccdev'), findsOneWidget);
+    expect(find.text('ccdev'), findsNWidgets(2));
+    expect(find.text('Codex Codex'), findsNothing);
+    expect(find.text('Codex'), findsWidgets);
     expect(find.text('40% Used'), findsOneWidget);
     expect(find.text('Processed Tokens'), findsOneWidget);
     expect(find.text('49'), findsOneWidget);
@@ -49,7 +52,6 @@ void main() {
     expect(find.byType(BarChart), findsOneWidget);
     final chart = tester.widget<BarChart>(find.byType(BarChart));
     expect(chart.data.barGroups.first.barRods.first.color, Colors.transparent);
-    expect(find.text('ccdev'), findsWidgets);
     expect(find.text('Transcript content stays on this host.'), findsNothing);
     expect(
       find.textContaining('Transcript content stays on this host.'),
@@ -96,10 +98,88 @@ void main() {
     await tester.tap(find.byTooltip('Refresh Usage'));
     expect(refreshes, 1);
 
-    await tester.tap(find.text('Model'));
+    await tester.tap(find.text('Models'));
     await tester.pumpAndSettle();
     expect(find.text('claude-opus-5'), findsOneWidget);
     expect(find.text('gpt-5.6-codex'), findsOneWidget);
+  });
+
+  testWidgets('groups selected Claude profiles into one provider row', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _wrap(
+        AgentUsageDialogView(
+          hostId: 'local',
+          days: 30,
+          snapshot: _snapshot(),
+          quotaSnapshots: const <AgentQuotaSnapshot>[],
+          loading: false,
+          error: null,
+          onDaysChanged: (_) {},
+          onRefresh: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Grouped'));
+    await tester.pumpAndSettle();
+
+    final breakdownPanel = find.byType(AleraPanel).last;
+    expect(
+      find.descendant(of: breakdownPanel, matching: find.text('Claude Code')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: breakdownPanel, matching: find.text('Codex')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows only selected CCS quotas with their Usage names', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _wrap(
+        AgentUsageDialogView(
+          hostId: 'local',
+          days: 30,
+          snapshot: _snapshot(),
+          quotaSnapshots: <AgentQuotaSnapshot>[
+            _quota(provider: AgentQuotaProviderId.claude, usedPercent: 10),
+            _quota(
+              provider: AgentQuotaProviderId.claude,
+              accountId: 'dev',
+              displayName: 'ccdev',
+              usedPercent: 40,
+            ),
+            _quota(
+              provider: AgentQuotaProviderId.claude,
+              accountId: 'shared',
+              displayName: 'ccshared',
+              usedPercent: 20,
+            ),
+          ],
+          visibleClaudeQuotaAccounts: const <String>{'default', 'dev'},
+          claudeUsageLabels: const <String, String>{'dev': 'Engineering'},
+          loading: false,
+          error: null,
+          onDaysChanged: (_) {},
+          onRefresh: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Engineering'), findsOneWidget);
+    expect(find.text('Claude Code Default'), findsOneWidget);
+    expect(find.text('Claude Code Engineering'), findsNothing);
+    expect(find.text('ccshared'), findsNothing);
   });
 
   testWidgets('shows a retry state when usage is unavailable', (tester) async {

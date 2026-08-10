@@ -86,4 +86,60 @@ void _registerSettingsDialogQuotaTests() {
       findsOneWidget,
     );
   });
+
+  testWidgets('configures the Usage name and visibility for a CCS profile', (
+    tester,
+  ) async {
+    final quotaSettings = AgentQuotaSettings.defaults.withHost(
+      'local',
+      const AgentQuotaHostSettings(
+        claudeProfiles: <ClaudeQuotaProfileSettings>[
+          ClaudeQuotaProfileSettings(alias: 'ccdev', profile: 'dev'),
+        ],
+      ),
+    );
+    final container = await _pumpSettingsDialog(
+      tester,
+      initialSettings: AleraSettings.defaults.copyWith(
+        agents: AleraSettings.defaults.agents.copyWith(quotas: quotaSettings),
+      ),
+      extraOverrides: <dynamic>[
+        agentQuotaStateProvider.overrideWith(
+          (ref) async => AgentQuotaState.empty('local'),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Quotas').first);
+    await tester.pump();
+    expect(find.text('Usage: ccdev'), findsOneWidget);
+
+    final editProfile = find.byIcon(AleraIcons.edit);
+    await tester.ensureVisible(editProfile);
+    await tester.pumpAndSettle();
+    await tester.tap(editProfile);
+    await tester.pumpAndSettle();
+
+    final usageName = find.byWidgetPredicate(
+      (widget) => widget is AleraTextField && widget.labelText == 'Usage Name',
+    );
+    await tester.enterText(
+      find.descendant(of: usageName, matching: find.byType(TextField)),
+      'Engineering',
+    );
+    await tester.tap(find.text('Show in Usage'));
+    await tester.tap(find.text('Save Profile'));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final profile = container
+        .read(settingsControllerProvider)
+        .agents
+        .quotas
+        .forHost('local')
+        .claudeProfiles
+        .single;
+    expect(profile.usageDisplayName, 'Engineering');
+    expect(profile.showInUsage, isFalse);
+    expect(find.text('Not shown in Usage'), findsOneWidget);
+  });
 }

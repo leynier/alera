@@ -243,7 +243,7 @@ class AgentUsageSnapshot {
             key,
             () => _MutableBreakdown(
               provider: bucket.provider,
-              label: bucket.displayName,
+              label: _usageAccountLabel(bucket),
             ),
           )
           .add(bucket);
@@ -251,6 +251,37 @@ class AgentUsageSnapshot {
     for (final source in sources) {
       final key = '${source.provider.name}:${source.accountId}';
       values[key]?.sessions = source.distinctSessions;
+    }
+    return _sortedBreakdowns(values);
+  }
+
+  List<AgentUsageBreakdown> get providers {
+    final values = <String, _MutableBreakdown>{};
+    for (final bucket in buckets) {
+      final key = bucket.provider.name;
+      values
+          .putIfAbsent(
+            key,
+            () => _MutableBreakdown(
+              provider: bucket.provider,
+              label: switch (bucket.provider) {
+                AgentUsageProvider.claude => 'Claude Code',
+                AgentUsageProvider.codex => 'Codex',
+              },
+            ),
+          )
+          .add(bucket);
+    }
+    final sourceSessions = <String, int>{};
+    for (final source in sources) {
+      sourceSessions.update(
+        source.provider.name,
+        (sessions) => sessions + source.distinctSessions,
+        ifAbsent: () => source.distinctSessions,
+      );
+    }
+    for (final entry in sourceSessions.entries) {
+      values[entry.key]?.sessions = entry.value;
     }
     return _sortedBreakdowns(values);
   }
@@ -294,6 +325,14 @@ class AgentUsageSnapshot {
         values[_usageDay(date)] ?? AgentUsageDay.empty(_usageDay(date)),
     ];
   }
+}
+
+String _usageAccountLabel(AgentUsageBucket bucket) {
+  return switch ((bucket.provider, bucket.accountId)) {
+    (AgentUsageProvider.claude, 'default') => 'Claude Code Default',
+    (AgentUsageProvider.codex, 'default') => 'Codex',
+    _ => bucket.displayName,
+  };
 }
 
 class AgentUsageBreakdown {

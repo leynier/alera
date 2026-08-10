@@ -75,6 +75,8 @@ void main() {
         AgentQuotaProviderId.zai,
       ]);
       expect(remote.claudeProfiles.single.alias, 'ccdev');
+      expect(remote.claudeProfiles.single.showInUsage, isTrue);
+      expect(remote.claudeProfiles.single.usageLabel, 'ccdev');
       expect(remote.claudeDefaultEnabled, isFalse);
       expect(remote.selectedClaudeProfile, 'leynierdev');
       expect(remote.environment.kimiApiKey, 'REMOTE_KIMI_KEY');
@@ -84,6 +86,8 @@ void main() {
       final profile = ClaudeQuotaProfileSettings.fromJson(<String, Object?>{
         'alias': 'cc41',
         'profile': 'leynier41',
+        'showInUsage': false,
+        'usageDisplayName': 'Personal',
       });
       final environment = AgentQuotaEnvironmentSettings.fromJson(
         <String, Object?>{'kimiApiKey': 'CUSTOM_KIMI_KEY'},
@@ -94,6 +98,8 @@ void main() {
       });
 
       expect(host.claudeProfiles.single.alias, 'cc41');
+      expect(host.claudeProfiles.single.showInUsage, isFalse);
+      expect(host.claudeProfiles.single.usageLabel, 'Personal');
       expect(host.environment.kimiApiKey, 'CUSTOM_KIMI_KEY');
     });
   });
