@@ -144,7 +144,7 @@ final class AgentUsageProvider
   }
 }
 
-String _$agentUsageHash() => r'c04bb8fafc41a58b4f96a160d5ccd25d08b49d4d';
+String _$agentUsageHash() => r'dd87e1b42ebc9b4721b6ead9531b5207c3fca5e1';
 
 final class AgentUsageFamily extends $Family
     with

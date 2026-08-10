@@ -10,6 +10,7 @@ void main() {
       expect(local.enabledProviders, AgentQuotaProviderId.values);
       expect(local.claudeProfiles, isEmpty);
       expect(local.claudeDefaultEnabled, isTrue);
+      expect(local.claudeDefaultShowInUsage, isTrue);
       expect(local.selectedClaudeProfile, 'default');
       expect(local.environment.kimiApiKey, 'KIMI_API_KEY');
       expect(local.unpinnedQuotaKeys, isEmpty);
@@ -59,6 +60,7 @@ void main() {
           'remote': <String, Object?>{
             'enabledProviders': <String>['claude', 'grok', 'zai'],
             'claudeDefaultEnabled': false,
+            'claudeDefaultShowInUsage': false,
             'claudeProfiles': <Object?>[
               <String, Object?>{'alias': 'ccdev', 'profile': 'leynierdev'},
             ],
@@ -78,6 +80,7 @@ void main() {
       expect(remote.claudeProfiles.single.showInUsage, isTrue);
       expect(remote.claudeProfiles.single.usageLabel, 'ccdev');
       expect(remote.claudeDefaultEnabled, isFalse);
+      expect(remote.claudeDefaultShowInUsage, isFalse);
       expect(remote.selectedClaudeProfile, 'leynierdev');
       expect(remote.environment.kimiApiKey, 'REMOTE_KIMI_KEY');
     });

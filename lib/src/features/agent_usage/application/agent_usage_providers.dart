@@ -195,7 +195,7 @@ class AgentUsage extends _$AgentUsage {
     Map<String, Object?> response,
   ) {
     return AgentUsageSnapshot.fromJson(response).withClaudeProfileSelection(
-      defaultEnabled: request.settings.claudeDefaultEnabled,
+      defaultEnabled: request.settings.claudeDefaultShowInUsage,
       profileLabels: <String, String>{
         for (final profile in request.settings.claudeProfiles)
           if (profile.showInUsage) profile.profile: profile.usageLabel,

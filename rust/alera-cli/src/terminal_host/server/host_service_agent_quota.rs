@@ -36,7 +36,7 @@ impl ServerActor {
                 fetch_agent_usage(json!({
                     "sinceDay": since_day,
                     "untilDay": until_day,
-                    "claudeDefaultEnabled": settings.claude_default_enabled,
+                    "claudeDefaultEnabled": settings.claude_default_show_in_usage,
                     "claudeProfiles": claude_profiles,
                 }))
                 .await

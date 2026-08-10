@@ -74,7 +74,7 @@ abstract final class AleraTokens {
   static const double usageDialogMaxHeight = 720.0;
   static const double usageChartHeight = 200.0;
   static const double usageMetricMinWidth = 180.0;
-  static const double usageQuotaProgressWidth = 152.0;
+  static const double usageMetricMinHeight = 104.0;
   static const double usageTokensColumnWidth = 120.0;
   static const double usageCostColumnWidth = 100.0;
   static const double usageSessionsColumnWidth = 90.0;

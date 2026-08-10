@@ -7,6 +7,8 @@ pub struct RuntimeAgentQuotaSettings {
     pub enabled_providers: Vec<String>,
     #[serde(default = "default_true")]
     pub claude_default_enabled: bool,
+    #[serde(default = "default_true")]
+    pub claude_default_show_in_usage: bool,
     #[serde(default)]
     pub claude_profiles: Vec<RuntimeClaudeQuotaProfile>,
     #[serde(default)]
@@ -18,6 +20,7 @@ impl Default for RuntimeAgentQuotaSettings {
         Self {
             enabled_providers: default_quota_providers(),
             claude_default_enabled: true,
+            claude_default_show_in_usage: true,
             claude_profiles: Vec::new(),
             environment: RuntimeAgentQuotaEnvironment::default(),
         }
@@ -187,6 +190,12 @@ mod tests {
 
         assert!(profile.show_in_usage);
         assert_eq!(profile.usage_label(), "ccdev");
+
+        let settings: RuntimeAgentQuotaSettings =
+            serde_json::from_value(serde_json::json!({ "claudeDefaultEnabled": false }))
+                .expect("legacy settings");
+        assert!(!settings.claude_default_enabled);
+        assert!(settings.claude_default_show_in_usage);
     }
 
     #[test]

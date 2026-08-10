@@ -24,6 +24,7 @@ void _registerSettingsDialogQuotaTests() {
     expect(find.text('Provider Quotas'), findsWidgets);
     expect(find.text('Claude Code Quotas'), findsOneWidget);
     expect(find.text('Claude Default Quotas'), findsOneWidget);
+    expect(find.text('Claude Default in Usage'), findsOneWidget);
     expect(find.text('Claude CCS Profiles'), findsOneWidget);
     expect(find.text('Kimi API Key Variable'), findsOneWidget);
 
@@ -47,6 +48,39 @@ void _registerSettingsDialogQuotaTests() {
           .kimiApiKey,
       'CUSTOM_KIMI_KEY',
     );
+  });
+
+  testWidgets('configures Claude Default visibility in Usage independently', (
+    tester,
+  ) async {
+    final container = await _pumpSettingsDialog(
+      tester,
+      extraOverrides: <dynamic>[
+        agentQuotaStateProvider.overrideWith(
+          (ref) async => AgentQuotaState.empty('local'),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Quotas').first);
+    await tester.pump();
+    final defaultInUsage = find.text('Claude Default in Usage');
+    await tester.ensureVisible(defaultInUsage);
+    await tester.pumpAndSettle();
+    final row = find.ancestor(
+      of: defaultInUsage,
+      matching: find.byType(SettingsSwitchRow),
+    );
+    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final settings = container
+        .read(settingsControllerProvider)
+        .agents
+        .quotas
+        .forHost('local');
+    expect(settings.claudeDefaultEnabled, isTrue);
+    expect(settings.claudeDefaultShowInUsage, isFalse);
   });
 
   testWidgets('toggles quota pinning from the settings pane', (tester) async {

@@ -174,6 +174,20 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   );
                 },
               ),
+              SettingsSwitchRow(
+                title: 'Claude Default in Usage',
+                description:
+                    'Include the default Claude account in Usage independently of quota polling.',
+                value: hostSettings.claudeDefaultShowInUsage,
+                onChanged: (value) {
+                  unawaited(
+                    controller.setClaudeDefaultShowInUsage(
+                      hostId: hostId,
+                      value: value,
+                    ),
+                  );
+                },
+              ),
               AleraSettingRow(
                 title: 'Claude CCS Profiles',
                 description:
