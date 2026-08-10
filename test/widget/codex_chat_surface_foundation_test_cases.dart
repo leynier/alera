@@ -257,6 +257,9 @@ void registerCodexComposerFoundationTests() {
   });
 
   registerCodexTimelineSegmentTests();
+  registerCodexToolResponseTests();
+  registerCodexToolLimitsTests();
+  registerCodexToolCompatibilityTests();
   registerCodexTimelineFileChangeTests();
   registerCodexTimelineInteractionTests();
   registerCodexTimelineReviewTests();

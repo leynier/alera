@@ -26,6 +26,7 @@ part 'mobile_codex_chat_widget_foundation_test_cases.dart';
 part 'mobile_codex_chat_widget_catalog_test_cases.dart';
 part 'mobile_codex_chat_widget_timeline_test_cases.dart';
 part 'mobile_codex_chat_widget_turn_activity_test_cases.dart';
+part 'mobile_codex_chat_widget_tool_response_test_cases.dart';
 part 'mobile_codex_chat_widget_plan_parity_test_cases.dart';
 part 'mobile_codex_chat_widget_request_test_cases.dart';
 part 'mobile_codex_chat_widget_session_test_cases.dart';
@@ -43,6 +44,7 @@ void main() {
   _registerMobileCodexCatalogTests();
   _registerMobileCodexTimelineTests();
   _registerMobileCodexTurnActivityTests();
+  _registerMobileCodexToolResponseTests();
   _registerMobileCodexPlanParityTests();
   _registerMobileCodexRequestTests();
   _registerMobileCodexSessionTests();

@@ -105,7 +105,8 @@ fn snapshot_delta_only_upserts_changed_cells() {
     assert_eq!(delta["timelineUpserts"][0]["id"], "stream");
     assert_eq!(delta["timelineUpserts"][1]["id"], "added");
     assert_eq!(delta["timelineRemovedIds"], json!([]));
-    assert_eq!(delta["eventsAppend"].as_array().unwrap().len(), 1);
+    assert_eq!(delta["eventsAppend"], json!([]));
+    assert_eq!(delta["eventsReplace"], json!([]));
     assert_eq!(delta["pendingRequests"], json!([{"id": 1}]));
     assert_eq!(delta["activeTurnId"], Value::Null);
     assert_eq!(delta["contextUsed"], 42);
@@ -146,7 +147,7 @@ fn snapshot_delta_replaces_events_when_the_byte_budget_evicts_them() {
     let delta = snapshot_delta(&previous, &next, &[json!({"method": "large"})]);
 
     assert_eq!(delta["eventsReplace"], json!([{"method": "retained"}]));
-    assert_eq!(delta["eventsAppend"], json!([{"method": "large"}]));
+    assert_eq!(delta["eventsAppend"], json!([]));
 }
 
 #[test]

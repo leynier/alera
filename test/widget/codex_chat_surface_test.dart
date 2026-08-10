@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -31,6 +32,9 @@ import '../unit/fake_git_backend.dart';
 
 part 'codex_chat_surface_session_test_cases.dart';
 part 'codex_chat_surface_timeline_segment_test_cases.dart';
+part 'codex_chat_surface_tool_response_test_cases.dart';
+part 'codex_chat_surface_tool_limits_test_cases.dart';
+part 'codex_chat_surface_tool_compatibility_test_cases.dart';
 part 'codex_chat_surface_timeline_file_change_test_cases.dart';
 part 'codex_chat_surface_timeline_interaction_test_cases.dart';
 part 'codex_chat_surface_timeline_review_test_cases.dart';

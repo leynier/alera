@@ -194,6 +194,7 @@ abstract final class MobileCodexTimelineReducer {
           : method == 'item/completed'
           ? 'completed'
           : 'inProgress';
+      final details = _mobileCodexItemDetails(item);
       return _upsert(
         cells,
         _cell(
@@ -216,16 +217,11 @@ abstract final class MobileCodexTimelineReducer {
             item['summary'],
             item['message'],
           ]),
-          detailsText: _first(<Object?>[
-            item['output'],
-            item['result'],
-            item['diff'],
-            item['commandOutput'],
-          ]),
+          detailsText: details.isEmpty ? null : details,
           isStreaming: method != 'item/completed',
           metadata: <String, Object?>{
             ...?current?.metadata,
-            'itemType': item['type'],
+            ..._mobileCodexItemMetadata(item),
             if (isAgent && phase.isNotEmpty) 'streamPhase': phase,
           },
         ),

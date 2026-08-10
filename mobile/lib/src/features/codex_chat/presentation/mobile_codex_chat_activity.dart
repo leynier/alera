@@ -191,14 +191,25 @@ class _MobileActivityItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kind = _mobileActivityKind(cell);
-    final target = kind == _MobileActivityKind.viewImage
-        ? cell.subtitle ?? cell.metadata['path']?.toString()
-        : cell.subtitle ?? cell.title ?? cell.displayText;
-    final label = kind == _MobileActivityKind.viewImage
-        ? target == null || target.isEmpty
-              ? 'Viewed image'
-              : 'Viewed image · $target'
-        : '${_mobileActivityVerb(kind)} $target';
+    final target = switch (kind) {
+      _MobileActivityKind.viewImage =>
+        cell.subtitle ?? cell.metadata['path']?.toString(),
+      _MobileActivityKind.webSearch => cell.metadata['query']?.toString(),
+      _MobileActivityKind.tool =>
+        cell.metadata['tool']?.toString() ?? cell.title,
+      _ => cell.subtitle ?? cell.title ?? cell.displayText,
+    };
+    final label = switch (kind) {
+      _MobileActivityKind.viewImage =>
+        target == null || target.isEmpty
+            ? 'Viewed image'
+            : 'Viewed image · $target',
+      _MobileActivityKind.webSearch =>
+        target == null || target.isEmpty
+            ? 'Searched the web'
+            : 'Searched the web for $target',
+      _ => '${_mobileActivityVerb(kind)} $target',
+    };
     final details = cell.displayText.trim();
     final showsDistinctDetails =
         details.isNotEmpty && details != target && details != cell.title;
@@ -225,7 +236,14 @@ class _MobileActivityItem extends StatelessWidget {
               ).textTheme.bodyMedium?.copyWith(color: color),
             ),
           ),
-          if (showsDistinctDetails)
+          if (cell.kind == 'toolCall' ||
+              cell.kind == 'diff' ||
+              cell.metadata['commandActions'] != null)
+            Padding(
+              padding: const EdgeInsets.only(left: AleraTokens.space24),
+              child: _MobileCodexToolDetails(cell: cell),
+            )
+          else if (showsDistinctDetails)
             Padding(
               padding: const EdgeInsets.only(left: AleraTokens.space24),
               child: _MobileCodexMarkdown(text: details),
@@ -236,9 +254,23 @@ class _MobileActivityItem extends StatelessWidget {
   }
 }
 
-enum _MobileActivityKind { read, viewImage, search, list, edit, run }
+enum _MobileActivityKind {
+  read,
+  viewImage,
+  search,
+  webSearch,
+  list,
+  edit,
+  tool,
+  run,
+}
 
 _MobileActivityKind _mobileActivityKind(MobileCodexTimelineCell cell) {
+  final itemType = cell.metadata['itemType']?.toString().toLowerCase();
+  if (itemType == 'websearch') return _MobileActivityKind.webSearch;
+  if (itemType == 'mcptoolcall' || itemType == 'dynamictoolcall') {
+    return _MobileActivityKind.tool;
+  }
   final value = '${cell.title} ${cell.subtitle} ${cell.metadata['itemType']}'
       .toLowerCase();
   if (value.contains('imageview') || value.contains('viewed image')) {
@@ -265,8 +297,10 @@ IconData _mobileActivityIcon(_MobileActivityKind kind) => switch (kind) {
   _MobileActivityKind.read => Icons.menu_book_outlined,
   _MobileActivityKind.viewImage => AleraIcons.viewImage,
   _MobileActivityKind.search => Icons.search,
+  _MobileActivityKind.webSearch => AleraIcons.public,
   _MobileActivityKind.list => Icons.list_alt_outlined,
   _MobileActivityKind.edit => Icons.edit_outlined,
+  _MobileActivityKind.tool => AleraIcons.tool,
   _MobileActivityKind.run => Icons.terminal,
 };
 
@@ -274,18 +308,22 @@ String _mobileActivityVerb(_MobileActivityKind kind) => switch (kind) {
   _MobileActivityKind.read => 'Read',
   _MobileActivityKind.viewImage => 'Viewed',
   _MobileActivityKind.search => 'Searched',
+  _MobileActivityKind.webSearch => 'Searched',
   _MobileActivityKind.list => 'Listed',
   _MobileActivityKind.edit => 'Edited',
+  _MobileActivityKind.tool => 'Used',
   _MobileActivityKind.run => 'Ran',
 };
 
 String _mobileActivitySummary(List<MobileCodexTimelineCell> cells) {
   final counts = <_MobileActivityKind, int>{};
   for (final cell in cells) {
+    final kind = _mobileActivityKind(cell);
+    final itemCount = _mobileActivityItemCount(cell, kind);
     counts.update(
-      _mobileActivityKind(cell),
-      (value) => value + 1,
-      ifAbsent: () => 1,
+      kind,
+      (value) => value + itemCount,
+      ifAbsent: () => itemCount,
     );
   }
   return <String>[
@@ -295,12 +333,34 @@ String _mobileActivitySummary(List<MobileCodexTimelineCell> cells) {
   ].join(', ');
 }
 
+int _mobileActivityItemCount(
+  MobileCodexTimelineCell cell,
+  _MobileActivityKind kind,
+) {
+  if (kind != _MobileActivityKind.edit) return 1;
+  final count = cell.metadata['changesCount'];
+  if (count is num && count.isFinite && count >= 0) return count.toInt();
+  final changes = cell.metadata['changes'];
+  if (changes is List) {
+    return changes
+        .where((change) => change is! Map || change['truncated'] != true)
+        .length;
+  }
+  return 1;
+}
+
 String _mobileActivityNoun(_MobileActivityKind kind, int count) {
   if (kind == _MobileActivityKind.run) {
     return count == 1 ? 'command' : 'commands';
   }
   if (kind == _MobileActivityKind.viewImage) {
     return count == 1 ? 'image' : 'images';
+  }
+  if (kind == _MobileActivityKind.webSearch) {
+    return count == 1 ? 'time' : 'times';
+  }
+  if (kind == _MobileActivityKind.tool) {
+    return count == 1 ? 'tool' : 'tools';
   }
   return count == 1 ? 'file' : 'files';
 }

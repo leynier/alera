@@ -29,6 +29,8 @@ mod codex_timeline_content;
 mod codex_timeline_modern;
 #[path = "codex_timeline_state.rs"]
 mod codex_timeline_state;
+#[path = "codex_timeline_tool_metadata.rs"]
+mod codex_timeline_tool_metadata;
 
 use codex_state_snapshot::{
     bound_snapshot, ensure_payload_object, normalize_snapshot, trim_events, update_context_usage,

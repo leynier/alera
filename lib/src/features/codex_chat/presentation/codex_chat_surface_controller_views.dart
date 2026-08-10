@@ -41,12 +41,12 @@ class _CodexControllerTimeline extends ConsumerWidget {
     return Column(
       children: <Widget>[
         if (view.historyNextCursor != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
+          Center(
+            child: TextButton.icon(
               onPressed: () =>
                   controller.loadHistory(cursor: view.historyNextCursor),
-              child: const Text('Load Earlier Messages'),
+              icon: const Icon(AleraIcons.chevronUp, size: AleraTokens.iconSm),
+              label: const Text('Load Earlier Messages'),
             ),
           ),
         Expanded(

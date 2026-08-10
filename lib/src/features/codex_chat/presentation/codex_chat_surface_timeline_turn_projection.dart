@@ -66,7 +66,8 @@ class _CodexTurnProjection {
           if (cell.status != CodexTimelineStatus.completed ||
               cell.isStreaming ||
               _hasCodexDiffDetails(details) ||
-              _codexChanges(cell.metadata['changes']).isNotEmpty) {
+              _codexChangeCount(cell, _codexChanges(cell.metadata['changes'])) >
+                  0) {
             secondary.add(cell);
           }
       }

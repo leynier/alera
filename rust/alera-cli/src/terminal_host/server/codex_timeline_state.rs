@@ -9,6 +9,7 @@ use super::{
         is_reasoning_delta, kind_for, new_cell, title_for, upsert_cell,
     },
     codex_timeline_content::{item_details, item_markdown, update_turn_separator_metrics},
+    codex_timeline_tool_metadata::item_timeline_metadata,
     trim_cells, turn_id_from_message,
 };
 
@@ -378,24 +379,10 @@ pub(super) fn reduce_timeline(snapshot: &mut Value, message: &Value) {
                     Some(details)
                 },
                 method != "item/completed",
-                Some(json!({
-                    "itemType": item.get("type"),
-                    "type": item.get("type"),
-                    "query": item.get("query"),
-                    "url": item.get("url"),
-                    "action": item.get("action"),
-                    "changes": item.get("changes"),
-                    "arguments": item.get("arguments"),
-                    "result": item.get("result"),
-                    "commandActions": item.get("commandActions"),
-                    "durationMs": item.get("durationMs"),
-                    "status": item.get("status"),
-                    "streamPhase": if is_agent_message && !phase.is_empty() {
-                        Value::String(phase)
-                    } else {
-                        Value::Null
-                    }
-                })),
+                Some(item_timeline_metadata(
+                    &item,
+                    (is_agent_message && !phase.is_empty()).then_some(phase.as_str()),
+                )),
             ),
         );
     } else if method == "error" || method == "stream/error" || method == "stream_error" {

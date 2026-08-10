@@ -127,7 +127,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
     if (_isContextCompaction(cell)) {
       return _CodexContextCompactionCell(cell: cell);
     }
-    final details = cell.detailsText ?? cell.markdownText ?? '';
+    final hasDetails = _codexWorkedActionHasDetails(cell);
     final label = cell.subtitle?.trim().isNotEmpty == true
         ? '${cell.title ?? _toolFallback(cell)} · ${cell.subtitle}'
         : cell.title ?? _toolFallback(cell);
@@ -135,16 +135,16 @@ class _CodexToolCellState extends State<_CodexToolCell> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         MouseRegion(
-          cursor: details.trim().isEmpty
+          cursor: !hasDetails
               ? SystemMouseCursors.basic
               : SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: InkWell(
-            onTap: details.trim().isEmpty
+            onTap: !hasDetails
                 ? null
                 : () => setState(() => _collapsed = !_collapsed),
-            mouseCursor: details.trim().isEmpty
+            mouseCursor: !hasDetails
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
@@ -175,7 +175,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
                       ),
                     ),
                   ),
-                  if (details.trim().isNotEmpty) ...<Widget>[
+                  if (hasDetails) ...<Widget>[
                     const SizedBox(width: AleraTokens.space4),
                     AnimatedOpacity(
                       opacity: _hovered ? 1 : 0,
@@ -194,7 +194,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
             ),
           ),
         ),
-        if (!_collapsed && details.trim().isNotEmpty)
+        if (!_collapsed && hasDetails)
           Container(
             margin: const EdgeInsets.only(
               left: AleraTokens.space8,

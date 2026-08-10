@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 part 'mobile_codex_timeline.dart';
 part 'mobile_codex_timeline_compaction.dart';
+part 'mobile_codex_timeline_content.dart';
 part 'mobile_codex_requests.dart';
 part 'mobile_codex_state_helpers.dart';
 part 'mobile_codex_projection.dart';
