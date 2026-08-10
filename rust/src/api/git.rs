@@ -11,7 +11,7 @@ use git2::{
 #[path = "git_commit_state_impl.rs"]
 mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
-mod git_diff_impl;
+pub(in crate::api) mod git_diff_impl;
 #[path = "git_diff_paths.rs"]
 pub(in crate::api) mod git_diff_paths;
 #[path = "git_history_impl.rs"]

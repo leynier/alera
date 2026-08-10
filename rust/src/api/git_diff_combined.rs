@@ -1,10 +1,11 @@
 use git2::Repository;
 
 use super::super::git_diff_paths::GitPathContext;
+use super::git_diff_render::MAX_DIFF_PATCH_BYTES;
 use super::{
     diff_file_for_area,
     git_diff_render::{diff_lines_byte_len, truncate_diff_lines_to_bytes},
-    GitChangeArea, GitDiffFile, GitDiffResult, GitError, MAX_DIFF_PATCH_BYTES,
+    GitChangeArea, GitDiffFile, GitDiffResult, GitError,
 };
 
 pub(super) fn git_diff_all_for_file(

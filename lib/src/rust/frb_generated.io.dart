@@ -10,6 +10,7 @@ import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/process.dart';
+import 'api/reading_diff.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 import 'dart:async';
@@ -296,6 +297,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ReadingDiffChunk> dco_decode_list_reading_diff_chunk(dynamic raw);
+
+  @protected
+  List<ReadingDiffCompiledChunk> dco_decode_list_reading_diff_compiled_chunk(
+    dynamic raw,
+  );
+
+  @protected
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
@@ -400,6 +409,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessRunResult dco_decode_process_run_result(dynamic raw);
+
+  @protected
+  ReadingDiffChunk dco_decode_reading_diff_chunk(dynamic raw);
+
+  @protected
+  ReadingDiffCompileResult dco_decode_reading_diff_compile_result(dynamic raw);
+
+  @protected
+  ReadingDiffCompiledChunk dco_decode_reading_diff_compiled_chunk(dynamic raw);
+
+  @protected
+  ReadingDiffError dco_decode_reading_diff_error(dynamic raw);
+
+  @protected
+  ReadingDiffPreparation dco_decode_reading_diff_preparation(dynamic raw);
 
   @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
@@ -874,6 +898,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ReadingDiffChunk> sse_decode_list_reading_diff_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReadingDiffCompiledChunk> sse_decode_list_reading_diff_compiled_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<(String, String)> sse_decode_list_record_string_string(
     SseDeserializer deserializer,
   );
@@ -1002,6 +1036,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessRunResult sse_decode_process_run_result(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffChunk sse_decode_reading_diff_chunk(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffCompileResult sse_decode_reading_diff_compile_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReadingDiffCompiledChunk sse_decode_reading_diff_compiled_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReadingDiffError sse_decode_reading_diff_error(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffPreparation sse_decode_reading_diff_preparation(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (String, String) sse_decode_record_string_string(
@@ -1613,6 +1668,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_reading_diff_chunk(
+    List<ReadingDiffChunk> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_reading_diff_compiled_chunk(
+    List<ReadingDiffCompiledChunk> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_record_string_string(
     List<(String, String)> self,
     SseSerializer serializer,
@@ -1768,6 +1835,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_process_run_result(
     ProcessRunResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_chunk(
+    ReadingDiffChunk self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_compile_result(
+    ReadingDiffCompileResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_compiled_chunk(
+    ReadingDiffCompiledChunk self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_error(
+    ReadingDiffError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_preparation(
+    ReadingDiffPreparation self,
     SseSerializer serializer,
   );
 

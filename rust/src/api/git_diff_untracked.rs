@@ -118,7 +118,7 @@ fn binary_untracked_text() -> UntrackedText {
     }
 }
 
-fn build_untracked_patch(file_path: &str, content: &str, is_symlink: bool) -> String {
+pub(super) fn build_untracked_patch(file_path: &str, content: &str, is_symlink: bool) -> String {
     let added = count_text_lines(content);
     let mode = if is_symlink { "120000" } else { "100644" };
     let mut patch = format!(

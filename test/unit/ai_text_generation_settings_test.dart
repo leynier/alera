@@ -10,6 +10,7 @@ void main() {
         'Commit Messages',
         'Pull Request Details',
         'Branch Names',
+        'Reading Diffs',
         'Workspace Identity',
       ],
     );

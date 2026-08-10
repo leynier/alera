@@ -186,6 +186,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'pullRequestDetails',
         title: 'Pull Request Details',
       ),
+      SettingsGroupSpec(id: 'readingDiff', title: 'Reading Diffs'),
       SettingsGroupSpec(id: 'workspaceIdentity', title: 'Workspace Identity'),
     ];
     const terminalGroups = <SettingsGroupSpec>[

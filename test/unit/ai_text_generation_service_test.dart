@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
@@ -58,6 +59,70 @@ void main() {
       expect(prompt, contains('feat: add ai pr'));
       expect(prompt, contains('+new line'));
       expect(prompt, contains('Prefer conventional titles.'));
+    });
+
+    test(
+      'runs Codex with a schema and reads its structured result file',
+      () async {
+        final process = _FakeProcessRunner(
+          stdout:
+              '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+        );
+        final runner = CliAiTextAgentRunner(
+          processRunner: process,
+          commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+        );
+
+        final result = await runner.run(
+          const AiTextAgentRunRequest(
+            settings: AiTextGenerationSettings(),
+            prompt: 'Plan this diff.',
+            runId: 'reading-diff-codex',
+            workingDirectory: '/repo',
+            agent: AiTextGenerationAgent.codex,
+            outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+            outputSchema: '{"type":"object"}',
+          ),
+        );
+
+        expect(process.arguments, contains('--output-schema'));
+        expect(process.arguments, contains('--output-last-message'));
+        expect(process.outputSchemaText, '{"type":"object"}');
+        expect(result.text, contains('"version":1'));
+      },
+    );
+
+    test('unwraps Claude structured output and disables persistence', () async {
+      final process = _FakeProcessRunner(
+        stdout:
+            '{"structured_output":{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}}',
+      );
+      final runner = CliAiTextAgentRunner(
+        processRunner: process,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+      );
+
+      final result = await runner.run(
+        const AiTextAgentRunRequest(
+          settings: AiTextGenerationSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'reading-diff-claude',
+          workingDirectory: '/repo',
+          agent: AiTextGenerationAgent.claude,
+          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          outputSchema: '{"type":"object"}',
+        ),
+      );
+
+      expect(process.arguments, contains('--json-schema'));
+      expect(process.arguments, contains('--no-session-persistence'));
+      expect(
+        process.arguments
+            .skip(process.arguments.indexOf('--output-format') + 1)
+            .first,
+        'json',
+      );
+      expect(jsonDecode(result.text), containsPair('version', 1));
     });
 
     test('parses generated pull request title and body', () {

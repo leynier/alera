@@ -10,7 +10,9 @@ import 'package:alera/src/shared/infra/process/command_environment_resolver.dart
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 
-const int maxArgvPromptBytes = 24000;
+enum AgentTaskAccessPolicy { repositoryReadOnly, diffOnly }
+
+enum AgentTaskOutputContract { plainText, readingDiffPlanV1 }
 
 class AiTextAgentRunRequest {
   const AiTextAgentRunRequest({
@@ -22,6 +24,9 @@ class AiTextAgentRunRequest {
     this.model,
     this.reasoning,
     this.cleanOutput = cleanGeneratedText,
+    this.accessPolicy = AgentTaskAccessPolicy.repositoryReadOnly,
+    this.outputContract = AgentTaskOutputContract.plainText,
+    this.outputSchema,
   });
 
   final AiTextGenerationSettings settings;
@@ -32,6 +37,9 @@ class AiTextAgentRunRequest {
   final String? model;
   final String? reasoning;
   final String Function(String) cleanOutput;
+  final AgentTaskAccessPolicy accessPolicy;
+  final AgentTaskOutputContract outputContract;
+  final String? outputSchema;
 }
 
 class AiTextAgentRunResult {
@@ -41,11 +49,13 @@ class AiTextAgentRunResult {
   final String agentLabel;
 }
 
-abstract interface class AiTextAgentRunner {
+abstract interface class AgentTaskRunner {
   Future<AiTextAgentRunResult> run(AiTextAgentRunRequest request);
 
   void cancel(String runId);
 }
+
+abstract interface class AiTextAgentRunner implements AgentTaskRunner {}
 
 class CliAiTextAgentRunner implements AiTextAgentRunner {
   CliAiTextAgentRunner({
@@ -122,7 +132,12 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
               : '${plan.label} failed: $detail',
         );
       }
-      final text = request.cleanOutput(output.stdout);
+      final rawOutput = plan.outputFile == null
+          ? output.stdout
+          : await plan.outputFile!.readAsString();
+      final text = request.outputContract == AgentTaskOutputContract.plainText
+          ? request.cleanOutput(rawOutput)
+          : _cleanStructuredOutput(rawOutput);
       if (text.trim().isEmpty) {
         throw AiTextGenerationException('${plan.label} returned no text.');
       }
@@ -159,6 +174,19 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         '${agent.label} does not support AI text generation.',
       );
     }
+    if (request.outputContract != AgentTaskOutputContract.plainText &&
+        !spec.supportsStructuredOutput) {
+      throw AiTextGenerationException(
+        '${spec.label} does not support structured reading diff plans.',
+      );
+    }
+    if (request.outputContract != AgentTaskOutputContract.plainText &&
+        request.accessPolicy == AgentTaskAccessPolicy.repositoryReadOnly &&
+        (!spec.supportsRepositoryRead || !spec.readOnlyGuarantee)) {
+      throw AiTextGenerationException(
+        '${spec.label} cannot guarantee read-only repository access for this task.',
+      );
+    }
     final model = modelForAgent(
       agent,
       request.model ??
@@ -170,13 +198,15 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         request.reasoning ??
         settings.thinkingForModel(model.id) ??
         model.defaultThinkingLevel;
-    if (spec.promptDelivery == AiPromptDelivery.argv &&
-        utf8.encode(request.prompt).length > maxArgvPromptBytes) {
+    if ((request.outputContract != AgentTaskOutputContract.plainText ||
+            spec.promptDelivery == AiPromptDelivery.argv) &&
+        utf8.encode(request.prompt).length > spec.maxPromptBytes) {
       throw AiTextGenerationException(
         '${spec.label} cannot receive large prompts safely. Choose an agent that supports stdin prompts or reduce the staged diff.',
       );
     }
     Directory? promptDirectory;
+    File? outputFile;
     final environmentOverrides = <String, String>{};
     var deliveredPrompt = '';
     if (spec.promptDelivery == AiPromptDelivery.argv) {
@@ -202,20 +232,56 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         rethrow;
       }
     }
+    var args = spec.buildArgs(
+      prompt: deliveredPrompt,
+      model: model.id,
+      thinkingLevel: thinking,
+      timeoutSeconds: settings.timeoutSeconds,
+    );
+    if (request.outputContract != AgentTaskOutputContract.plainText) {
+      final schema = request.outputSchema?.trim();
+      if (schema == null || schema.isEmpty) {
+        throw const AiTextGenerationException(
+          'Structured generation requires an output schema.',
+        );
+      }
+      promptDirectory ??= await Directory.systemTemp.createTemp(
+        'alera-agent-task-',
+      );
+      if (agent == AiTextGenerationAgent.codex) {
+        final schemaFile = File(p.join(promptDirectory.path, 'schema.json'));
+        outputFile = File(p.join(promptDirectory.path, 'result.json'));
+        await schemaFile.writeAsString(schema, flush: true);
+        args = <String>[
+          ...args,
+          '--output-schema',
+          schemaFile.path,
+          '--output-last-message',
+          outputFile.path,
+        ];
+      } else if (agent == AiTextGenerationAgent.claude) {
+        final formatIndex = args.indexOf('--output-format');
+        if (formatIndex >= 0 && formatIndex + 1 < args.length) {
+          args[formatIndex + 1] = 'json';
+        }
+        args = <String>[
+          ...args,
+          '--json-schema',
+          schema,
+          '--no-session-persistence',
+        ];
+      }
+    }
     return _AiTextAgentCommandPlan(
       binary: spec.binary,
-      args: spec.buildArgs(
-        prompt: deliveredPrompt,
-        model: model.id,
-        thinkingLevel: thinking,
-        timeoutSeconds: settings.timeoutSeconds,
-      ),
+      args: args,
       stdinPayload: spec.promptDelivery == AiPromptDelivery.stdin
           ? request.prompt
           : null,
       label: spec.label,
       promptDirectory: promptDirectory,
       environmentOverrides: environmentOverrides,
+      outputFile: outputFile,
     );
   }
 
@@ -303,6 +369,32 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         ? '${detail.substring(0, 240).trimRight()}...'
         : detail;
   }
+
+  String _cleanStructuredOutput(String output) {
+    final trimmed = output.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, dynamic>) {
+        final structured = decoded['structured_output'];
+        if (structured is Map || structured is List) {
+          return jsonEncode(structured);
+        }
+        final result = decoded['result'];
+        if (result is String && result.trim().isNotEmpty) {
+          return _cleanStructuredOutput(result);
+        }
+        return jsonEncode(decoded);
+      }
+    } catch (_) {}
+    final fenced = RegExp(
+      r'```(?:json)?\s*([\s\S]*?)\s*```',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    return fenced?.group(1)?.trim() ?? trimmed;
+  }
 }
 
 class _AiTextAgentCommandPlan {
@@ -313,6 +405,7 @@ class _AiTextAgentCommandPlan {
     required this.label,
     this.environmentOverrides = const <String, String>{},
     this.promptDirectory,
+    this.outputFile,
   });
 
   final String binary;
@@ -321,6 +414,7 @@ class _AiTextAgentCommandPlan {
   final String label;
   final Map<String, String> environmentOverrides;
   final Directory? promptDirectory;
+  final File? outputFile;
 
   Future<void> dispose() async {
     final directory = promptDirectory;

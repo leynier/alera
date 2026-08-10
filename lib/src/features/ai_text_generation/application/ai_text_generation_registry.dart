@@ -66,6 +66,11 @@ class AiTextAgentSpec {
     required this.defaultModelId,
     required this.buildArgs,
     this.modelCanInherit = false,
+    this.supportsStructuredOutput = false,
+    this.supportsRepositoryRead = false,
+    this.supportsLargePrompt = false,
+    this.readOnlyGuarantee = false,
+    this.maxPromptBytes = 1024 * 1024,
   });
 
   final AiTextGenerationAgent agent;
@@ -76,6 +81,11 @@ class AiTextAgentSpec {
   final List<AiTextModel> models;
   final String? defaultModelId;
   final bool modelCanInherit;
+  final bool supportsStructuredOutput;
+  final bool supportsRepositoryRead;
+  final bool supportsLargePrompt;
+  final bool readOnlyGuarantee;
+  final int maxPromptBytes;
   final List<String> Function({
     required String prompt,
     required String model,
@@ -137,6 +147,11 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'sonnet',
+    supportsStructuredOutput: true,
+    supportsRepositoryRead: true,
+    supportsLargePrompt: true,
+    readOnlyGuarantee: true,
+    maxPromptBytes: 1024 * 1024,
     buildArgs:
         ({
           required model,
@@ -181,6 +196,11 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.5',
+    supportsStructuredOutput: true,
+    supportsRepositoryRead: true,
+    supportsLargePrompt: true,
+    readOnlyGuarantee: true,
+    maxPromptBytes: 1024 * 1024,
     buildArgs:
         ({
           required model,
@@ -221,6 +241,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.4',
+    maxPromptBytes: 24000,
     buildArgs:
         ({
           required prompt,
@@ -247,6 +268,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
     parseModels: parseCursorModels,
     models: const <AiTextModel>[AiTextModel(id: 'auto', label: 'Auto')],
     defaultModelId: 'auto',
+    maxPromptBytes: 24000,
     buildArgs:
         ({
           required prompt,

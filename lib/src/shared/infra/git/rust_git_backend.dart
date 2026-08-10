@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:alera/src/rust/api/git.dart' as rust;
 import 'package:alera/src/rust/api/git_diff_blob.dart' as rust_blob;
 import 'package:alera/src/rust/api/git_explorer_status.dart' as explorer_rust;
+import 'package:alera/src/rust/api/reading_diff.dart' as rust_reading_diff;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -168,6 +169,25 @@ class RustGitBackend implements GitBackend {
         final result = await rust.gitDiffAll(path: path, filePath: filePath);
         return _toDiffResult(result);
       });
+
+  @override
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  }) => _guard(
+    () => rust_reading_diff.gitReadingDiffPatch(
+      path: path,
+      filePath: filePath,
+      area: area == null ? null : _toRustArea(area),
+      commitOid: commitOid,
+      parentOid: parentOid,
+      baseRef: baseRef,
+    ),
+  );
 
   @override
   Future<Uint8List?> diffBlobBytes({

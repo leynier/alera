@@ -102,6 +102,16 @@ class E2eGitBackend implements GitBackend {
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
 
   @override
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  }) async => Uint8List(0);
+
+  @override
   Future<Uint8List?> diffBlobBytes({
     required String path,
     required String filePath,

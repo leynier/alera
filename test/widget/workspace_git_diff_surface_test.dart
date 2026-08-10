@@ -1,6 +1,8 @@
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -12,6 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_git_backend.dart';
+
+part 'workspace_git_diff_surface_test_controller.dart';
 
 void main() {
   testWidgets('diff surface caps rendered line previews', (tester) async {
@@ -144,6 +148,7 @@ void main() {
 
     expect(_openFileButton(tester).onPressed, isNotNull);
     expect(find.byTooltip('Open file'), findsOneWidget);
+    expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
   });
 
   testWidgets('diff surface disables opening rename-out old paths', (
@@ -414,6 +419,7 @@ Future<void> _pumpDiffSurface(
     ProviderScope(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
+        settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
         if (controller != null)
           workbenchControllerProvider.overrideWith(() => controller),
       ],
@@ -500,30 +506,4 @@ WorkspaceTabRecord _diffTab({
     updatedAt: now,
     payload: payload,
   );
-}
-
-class _GitDiffSurfaceTestController extends WorkbenchController {
-  final List<String> openedRelativePaths = <String>[];
-
-  @override
-  WorkbenchState build() => const WorkbenchState();
-
-  @override
-  Future<WorkspaceTabRecord> openEditorTab({
-    required Workspace workspace,
-    required String relativePath,
-    String? targetGroupId,
-  }) async {
-    openedRelativePaths.add(relativePath);
-    final now = DateTime.utc(2026, 6, 6);
-    return WorkspaceTabRecord(
-      id: 'editor-${openedRelativePaths.length}',
-      workspaceId: workspace.id,
-      kind: WorkspaceTabKind.editor,
-      title: relativePath.split('/').last,
-      createdAt: now,
-      updatedAt: now,
-      payload: <String, Object?>{workspaceTabFilePathPayloadKey: relativePath},
-    );
-  }
 }

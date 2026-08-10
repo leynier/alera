@@ -103,6 +103,18 @@ abstract interface class GitBackend {
   /// when [filePath] is provided.
   Future<GitDiffResult> diffAll({required String path, String? filePath});
 
+  /// Immutable unified patch used as the source for a reading diff. Passing a
+  /// commit selects a commit diff; [area] selects one worktree area; omitting
+  /// both combines the visible working-tree changes.
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  });
+
   /// Raw bytes of one side of a diffed file for binary previews (images).
   /// Pass [area] for worktree diffs or [commitOid]/[parentOid] for commit
   /// diffs. Returns null when that side does not exist (added or deleted

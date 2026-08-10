@@ -5,6 +5,12 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
+import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
+import 'package:alera/src/features/reading_diff/presentation/reading_diff_view.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
@@ -37,6 +43,10 @@ class _WorkspaceGitDiffSurfaceState
     extends ConsumerState<WorkspaceGitDiffSurface> {
   Future<GitDiffResult>? _future;
   GitDiffResult? _loadedResult;
+  ReadingDiffResult? _readingDiffResult;
+  bool _showReadingDiff = false;
+  bool _readingDiffBusy = false;
+  int _readingDiffGeneration = 0;
 
   @override
   void initState() {
@@ -55,8 +65,21 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   @override
+  void dispose() {
+    if (_readingDiffBusy) {
+      ref.read(readingDiffServiceProvider).cancel(_readingDiffRequest());
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final filePath = widget.tab.filePath;
+    final aiTextEnabled = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.aiTextGeneration.enabled,
+      ),
+    );
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
@@ -67,32 +90,59 @@ class _WorkspaceGitDiffSurfaceState
             filePath: filePath,
             onRefresh: _load,
             onOpenFile: _canOpenFile ? () => unawaited(_openFile()) : null,
+            aiTextEnabled: aiTextEnabled,
+            readingDiffReady: _readingDiffResult != null,
+            showingReadingDiff: _showReadingDiff,
+            readingDiffBusy: _readingDiffBusy,
+            onGenerateReadingDiff: _loadedResult?.files.isNotEmpty == true
+                ? () => unawaited(_generateReadingDiff())
+                : null,
+            onRegenerateReadingDiff: _loadedResult?.files.isNotEmpty == true
+                ? () => unawaited(_generateReadingDiff(ignoreCache: true))
+                : null,
+            onCancelReadingDiff: _cancelReadingDiff,
+            onToggleReadingDiff: _readingDiffResult == null
+                ? null
+                : () => setState(() {
+                    _showReadingDiff = !_showReadingDiff;
+                  }),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
           Expanded(
-            child: FutureBuilder<GitDiffResult>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const _DiffMessage(message: 'Could not load diff.');
-                }
-                final result = snapshot.data;
-                if (result == null || result.files.isEmpty) {
-                  return const _DiffMessage(message: 'No diff available.');
-                }
-                final isCommitDiff =
-                    widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit;
-                return _DiffFileList(
-                  result: result,
-                  sourcePath: _sourceControlScope.path,
-                  commitOid: isCommitDiff ? widget.tab.gitDiffCommitOid : null,
-                  parentOid: isCommitDiff ? widget.tab.gitDiffParentOid : null,
-                );
-              },
-            ),
+            child: _showReadingDiff && _readingDiffResult != null
+                ? ReadingDiffView(result: _readingDiffResult!)
+                : FutureBuilder<GitDiffResult>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return const _DiffMessage(
+                          message: 'Could not load diff.',
+                        );
+                      }
+                      final result = snapshot.data;
+                      if (result == null || result.files.isEmpty) {
+                        return const _DiffMessage(
+                          message: 'No diff available.',
+                        );
+                      }
+                      final isCommitDiff =
+                          widget.tab.gitDiffSource ==
+                          WorkspaceGitDiffSource.commit;
+                      return _DiffFileList(
+                        result: result,
+                        sourcePath: _sourceControlScope.path,
+                        commitOid: isCommitDiff
+                            ? widget.tab.gitDiffCommitOid
+                            : null,
+                        parentOid: isCommitDiff
+                            ? widget.tab.gitDiffParentOid
+                            : null,
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -134,6 +184,8 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   void _load() {
+    _cancelReadingDiff();
+    _readingDiffGeneration += 1;
     final backend = ref.read(gitBackendProvider);
     final scope = widget.tab.gitDiffScope;
     final filePath = widget.tab.filePath;
@@ -173,6 +225,9 @@ class _WorkspaceGitDiffSurfaceState
           };
     setState(() {
       _loadedResult = null;
+      _readingDiffResult = null;
+      _showReadingDiff = false;
+      _readingDiffBusy = false;
       _future = nextFuture;
     });
     unawaited(
@@ -195,6 +250,101 @@ class _WorkspaceGitDiffSurfaceState
         },
       ),
     );
+  }
+
+  ReadingDiffRequest _readingDiffRequest({bool ignoreCache = false}) {
+    final scope = widget.tab.gitDiffScope;
+    final sourceControlScope = _sourceControlScope;
+    final sourceFilePath = sourceControlScope.toSourceRelativePath(
+      widget.tab.filePath,
+    );
+    return ReadingDiffRequest(
+      workspacePath: sourceControlScope.path,
+      settings: ref.read(settingsControllerProvider).aiTextGeneration,
+      filePath: scope == WorkspaceGitDiffScope.all ? null : sourceFilePath,
+      area: scope == WorkspaceGitDiffScope.file ? widget.tab.gitDiffArea : null,
+      commitOid: widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
+          ? widget.tab.gitDiffCommitOid
+          : null,
+      parentOid: widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
+          ? widget.tab.gitDiffParentOid
+          : null,
+      ignoreCache: ignoreCache,
+    );
+  }
+
+  Future<void> _generateReadingDiff({bool ignoreCache = false}) async {
+    if (_readingDiffBusy) {
+      return;
+    }
+    final request = _readingDiffRequest(ignoreCache: ignoreCache);
+    final generation = ++_readingDiffGeneration;
+    setState(() {
+      _readingDiffBusy = true;
+    });
+    try {
+      final service = ref.read(readingDiffServiceProvider);
+      final preparation = await service.prepare(request);
+      if (!mounted || generation != _readingDiffGeneration) {
+        return;
+      }
+      if (preparation.cachedResult == null) {
+        setState(() {
+          _readingDiffBusy = false;
+        });
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) =>
+              ReadingDiffConfirmationDialog(preparation: preparation),
+        );
+        if (!mounted ||
+            confirmed != true ||
+            generation != _readingDiffGeneration) {
+          return;
+        }
+        setState(() {
+          _readingDiffBusy = true;
+        });
+      }
+      final result = await service.generate(preparation);
+      if (!mounted || generation != _readingDiffGeneration) {
+        return;
+      }
+      setState(() {
+        _readingDiffResult = result;
+        _showReadingDiff = true;
+      });
+    } on AiTextGenerationCanceledException {
+      return;
+    } catch (error) {
+      if (mounted && generation == _readingDiffGeneration) {
+        AleraToast.show(
+          context,
+          message: error is AiTextGenerationException
+              ? error.message
+              : 'Could not generate the reading diff.',
+          tone: AleraToastTone.error,
+        );
+      }
+    } finally {
+      if (mounted && generation == _readingDiffGeneration) {
+        setState(() {
+          _readingDiffBusy = false;
+        });
+      }
+    }
+  }
+
+  void _cancelReadingDiff() {
+    if (_readingDiffBusy) {
+      ref.read(readingDiffServiceProvider).cancel(_readingDiffRequest());
+    }
+    _readingDiffGeneration += 1;
+    if (mounted && _readingDiffBusy) {
+      setState(() {
+        _readingDiffBusy = false;
+      });
+    }
   }
 
   Future<void> _openFile() {
@@ -256,12 +406,28 @@ class _GitDiffBar extends StatelessWidget {
     required this.filePath,
     required this.onRefresh,
     required this.onOpenFile,
+    required this.aiTextEnabled,
+    required this.readingDiffReady,
+    required this.showingReadingDiff,
+    required this.readingDiffBusy,
+    required this.onGenerateReadingDiff,
+    required this.onRegenerateReadingDiff,
+    required this.onCancelReadingDiff,
+    required this.onToggleReadingDiff,
   });
 
   final String title;
   final String? filePath;
   final VoidCallback onRefresh;
   final VoidCallback? onOpenFile;
+  final bool aiTextEnabled;
+  final bool readingDiffReady;
+  final bool showingReadingDiff;
+  final bool readingDiffBusy;
+  final VoidCallback? onGenerateReadingDiff;
+  final VoidCallback? onRegenerateReadingDiff;
+  final VoidCallback onCancelReadingDiff;
+  final VoidCallback? onToggleReadingDiff;
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +454,36 @@ class _GitDiffBar extends StatelessWidget {
                 ),
               ),
             ),
+            if (aiTextEnabled) ...<Widget>[
+              AleraIconButton(
+                tooltip: readingDiffBusy
+                    ? 'Cancel Reading Diff'
+                    : readingDiffReady
+                    ? showingReadingDiff
+                          ? 'Show Original Diff'
+                          : 'Show Reading Diff'
+                    : 'Generate Reading Diff',
+                icon: readingDiffBusy
+                    ? AleraIcons.cancel
+                    : showingReadingDiff
+                    ? AleraIcons.diff
+                    : AleraIcons.ai,
+                onPressed: readingDiffBusy
+                    ? onCancelReadingDiff
+                    : readingDiffReady
+                    ? onToggleReadingDiff
+                    : onGenerateReadingDiff,
+              ),
+              if (readingDiffReady && !readingDiffBusy) ...<Widget>[
+                const SizedBox(width: AleraTokens.space2),
+                AleraIconButton(
+                  tooltip: 'Regenerate Reading Diff',
+                  icon: AleraIcons.refresh,
+                  onPressed: onRegenerateReadingDiff,
+                ),
+              ],
+              const SizedBox(width: AleraTokens.space2),
+            ],
             AleraIconButton(
               tooltip: onOpenFile == null
                   ? 'File is not available in working tree'

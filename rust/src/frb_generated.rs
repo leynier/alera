@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1686513083;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1444543496;
 
 // Section: executor
 
@@ -146,6 +146,44 @@ fn wire__crate__api__git__clone_repository_impl(
                         crate::api::git::clone_repository(api_url, api_destination_path)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__reading_diff__compile_reading_diff_plan_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "compile_reading_diff_plan",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_diff = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_plan_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::reading_diff::ReadingDiffError>((move || {
+                    let output_ok = crate::api::reading_diff::compile_reading_diff_plan(
+                        api_diff,
+                        api_plan_json,
+                    )?;
+                    Ok(output_ok)
+                })(
+                ))
             }
         },
     )
@@ -998,6 +1036,51 @@ fn wire__crate__api__git__git_range_context_impl(
         },
     )
 }
+fn wire__crate__api__reading_diff__git_reading_diff_patch_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_reading_diff_patch",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_file_path = <Option<String>>::sse_decode(&mut deserializer);
+            let api_area = <Option<crate::api::git::GitChangeArea>>::sse_decode(&mut deserializer);
+            let api_commit_oid = <Option<String>>::sse_decode(&mut deserializer);
+            let api_parent_oid = <Option<String>>::sse_decode(&mut deserializer);
+            let api_base_ref = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok = crate::api::reading_diff::git_reading_diff_patch(
+                        api_path,
+                        api_file_path,
+                        api_area,
+                        api_commit_oid,
+                        api_parent_oid,
+                        api_base_ref,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__git__git_repository_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1621,6 +1704,43 @@ fn wire__crate__api__git__list_worktrees_impl(
         },
     )
 }
+fn wire__crate__api__reading_diff__merge_reading_diff_chunks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "merge_reading_diff_chunks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_chunks = <Vec<crate::api::reading_diff::ReadingDiffCompiledChunk>>::sse_decode(
+                &mut deserializer,
+            );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::reading_diff::ReadingDiffError>((move || {
+                    let output_ok =
+                        crate::api::reading_diff::merge_reading_diff_chunks(api_chunks)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
 fn wire__crate__api__workspace_files__move_workspace_entry_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1658,6 +1778,40 @@ fn wire__crate__api__workspace_files__move_workspace_entry_impl(
                         Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__reading_diff__prepare_reading_diff_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_reading_diff",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_diff = <Vec<u8>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::reading_diff::ReadingDiffError>((move || {
+                    let output_ok = crate::api::reading_diff::prepare_reading_diff(api_diff)?;
+                    Ok(output_ok)
+                })(
+                ))
             }
         },
     )
@@ -3950,6 +4104,34 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::reading_diff::ReadingDiffChunk> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::reading_diff::ReadingDiffChunk>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::reading_diff::ReadingDiffCompiledChunk> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::reading_diff::ReadingDiffCompiledChunk>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<(String, String)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4328,6 +4510,83 @@ impl SseDecode for crate::api::process::ProcessRunResult {
             exit_code: var_exitCode,
             stdout: var_stdout,
             stderr: var_stderr,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reading_diff::ReadingDiffChunk {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_rawDiff = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_numberedDiff = <String>::sse_decode(deserializer);
+        return crate::api::reading_diff::ReadingDiffChunk {
+            index: var_index,
+            raw_diff: var_rawDiff,
+            numbered_diff: var_numberedDiff,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reading_diff::ReadingDiffCompileResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_readingDiff = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_summary = <String>::sse_decode(deserializer);
+        let mut var_changedLines = <u32>::sse_decode(deserializer);
+        let mut var_retainedChangedLines = <u32>::sse_decode(deserializer);
+        return crate::api::reading_diff::ReadingDiffCompileResult {
+            reading_diff: var_readingDiff,
+            summary: var_summary,
+            changed_lines: var_changedLines,
+            retained_changed_lines: var_retainedChangedLines,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reading_diff::ReadingDiffCompiledChunk {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_readingDiff = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_summary = <String>::sse_decode(deserializer);
+        let mut var_changedLines = <u32>::sse_decode(deserializer);
+        let mut var_retainedChangedLines = <u32>::sse_decode(deserializer);
+        return crate::api::reading_diff::ReadingDiffCompiledChunk {
+            index: var_index,
+            reading_diff: var_readingDiff,
+            summary: var_summary,
+            changed_lines: var_changedLines,
+            retained_changed_lines: var_retainedChangedLines,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reading_diff::ReadingDiffError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::reading_diff::ReadingDiffError {
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reading_diff::ReadingDiffPreparation {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rawBytes = <u64>::sse_decode(deserializer);
+        let mut var_schemaVersion = <u32>::sse_decode(deserializer);
+        let mut var_rubricVersion = <String>::sse_decode(deserializer);
+        let mut var_planSchema = <String>::sse_decode(deserializer);
+        let mut var_chunks =
+            <Vec<crate::api::reading_diff::ReadingDiffChunk>>::sse_decode(deserializer);
+        return crate::api::reading_diff::ReadingDiffPreparation {
+            raw_bytes: var_rawBytes,
+            schema_version: var_schemaVersion,
+            rubric_version: var_rubricVersion,
+            plan_schema: var_planSchema,
+            chunks: var_chunks,
         };
     }
 }
@@ -4867,261 +5126,285 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         3 => wire__crate__api__git__clone_repository_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__workspace_files__copy_workspace_entry_impl(
+        4 => wire__crate__api__reading_diff__compile_reading_diff_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__workspace_files__create_workspace_directory_impl(
+        5 => wire__crate__api__workspace_files__copy_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__workspace_files__create_workspace_file_impl(
+        6 => wire__crate__api__workspace_files__create_workspace_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__workspace_files__delete_workspace_entry_impl(
+        7 => wire__crate__api__workspace_files__create_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__git__git_commit_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__git__git_commit_amend_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__git__git_commit_compare_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
+        8 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__workspace_files__delete_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__git_explorer_status__git_explorer_status_snapshot_impl(
+        12 => wire__crate__api__git__git_commit_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__git__git_commit_amend_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__git__git_commit_compare_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__git__git_history_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__git__git_range_context_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__workspace_files__list_codex_saved_prompts_impl(
+        19 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__git_explorer_status__git_explorer_status_snapshot_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__workspace_files__list_workspace_children_impl(
+        22 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__git__git_history_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__git__git_range_context_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__reading_diff__git_reading_diff_patch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+        29 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__workspace_files__list_codex_saved_prompts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+        44 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__workspace_files__list_workspace_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__workspace_search__preview_workspace_replace_cancelable_impl(
+        46 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__reading_diff__merge_reading_diff_chunks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => {
+        48 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        49 => wire__crate__api__reading_diff__prepare_reading_diff_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        50 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        51 => wire__crate__api__workspace_search__preview_workspace_replace_cancelable_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        52 => {
             wire__crate__api__process__process_close_stdin_impl(port, ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__process__process_kill_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__process__process_run_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
-        52 => {
+        53 => wire__crate__api__process__process_kill_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__process__process_run_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
+        56 => {
             wire__crate__api__process__process_write_stdin_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        57 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        58 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        59 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        60 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        63 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        64 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
+        65 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__workspace_search__search_workspace_impl(
+        66 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
+        67 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
+        68 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        69 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        70 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        71 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        72 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
+        73 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        74 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        75 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        76 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
+        77 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        78 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        79 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        80 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        81 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        82 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        83 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -6128,6 +6411,116 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::process::ProcessRunResult>
     for crate::api::process::ProcessRunResult
 {
     fn into_into_dart(self) -> crate::api::process::ProcessRunResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffChunk {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.index.into_into_dart().into_dart(),
+            self.raw_diff.into_into_dart().into_dart(),
+            self.numbered_diff.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reading_diff::ReadingDiffChunk
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reading_diff::ReadingDiffChunk>
+    for crate::api::reading_diff::ReadingDiffChunk
+{
+    fn into_into_dart(self) -> crate::api::reading_diff::ReadingDiffChunk {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffCompileResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.reading_diff.into_into_dart().into_dart(),
+            self.summary.into_into_dart().into_dart(),
+            self.changed_lines.into_into_dart().into_dart(),
+            self.retained_changed_lines.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reading_diff::ReadingDiffCompileResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reading_diff::ReadingDiffCompileResult>
+    for crate::api::reading_diff::ReadingDiffCompileResult
+{
+    fn into_into_dart(self) -> crate::api::reading_diff::ReadingDiffCompileResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffCompiledChunk {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.index.into_into_dart().into_dart(),
+            self.reading_diff.into_into_dart().into_dart(),
+            self.summary.into_into_dart().into_dart(),
+            self.changed_lines.into_into_dart().into_dart(),
+            self.retained_changed_lines.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reading_diff::ReadingDiffCompiledChunk
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reading_diff::ReadingDiffCompiledChunk>
+    for crate::api::reading_diff::ReadingDiffCompiledChunk
+{
+    fn into_into_dart(self) -> crate::api::reading_diff::ReadingDiffCompiledChunk {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.message.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reading_diff::ReadingDiffError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reading_diff::ReadingDiffError>
+    for crate::api::reading_diff::ReadingDiffError
+{
+    fn into_into_dart(self) -> crate::api::reading_diff::ReadingDiffError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffPreparation {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.raw_bytes.into_into_dart().into_dart(),
+            self.schema_version.into_into_dart().into_dart(),
+            self.rubric_version.into_into_dart().into_dart(),
+            self.plan_schema.into_into_dart().into_dart(),
+            self.chunks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reading_diff::ReadingDiffPreparation
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reading_diff::ReadingDiffPreparation>
+    for crate::api::reading_diff::ReadingDiffPreparation
+{
+    fn into_into_dart(self) -> crate::api::reading_diff::ReadingDiffPreparation {
         self
     }
 }
@@ -7549,6 +7942,26 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::reading_diff::ReadingDiffChunk> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::reading_diff::ReadingDiffChunk>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::reading_diff::ReadingDiffCompiledChunk> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::reading_diff::ReadingDiffCompiledChunk>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<(String, String)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7852,6 +8265,54 @@ impl SseEncode for crate::api::process::ProcessRunResult {
         <i32>::sse_encode(self.exit_code, serializer);
         <String>::sse_encode(self.stdout, serializer);
         <String>::sse_encode(self.stderr, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reading_diff::ReadingDiffChunk {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.index, serializer);
+        <Vec<u8>>::sse_encode(self.raw_diff, serializer);
+        <String>::sse_encode(self.numbered_diff, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reading_diff::ReadingDiffCompileResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<u8>>::sse_encode(self.reading_diff, serializer);
+        <String>::sse_encode(self.summary, serializer);
+        <u32>::sse_encode(self.changed_lines, serializer);
+        <u32>::sse_encode(self.retained_changed_lines, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reading_diff::ReadingDiffCompiledChunk {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.index, serializer);
+        <Vec<u8>>::sse_encode(self.reading_diff, serializer);
+        <String>::sse_encode(self.summary, serializer);
+        <u32>::sse_encode(self.changed_lines, serializer);
+        <u32>::sse_encode(self.retained_changed_lines, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reading_diff::ReadingDiffError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reading_diff::ReadingDiffPreparation {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.raw_bytes, serializer);
+        <u32>::sse_encode(self.schema_version, serializer);
+        <String>::sse_encode(self.rubric_version, serializer);
+        <String>::sse_encode(self.plan_schema, serializer);
+        <Vec<crate::api::reading_diff::ReadingDiffChunk>>::sse_encode(self.chunks, serializer);
     }
 }
 

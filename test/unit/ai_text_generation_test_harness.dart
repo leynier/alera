@@ -26,6 +26,7 @@ class _FakeProcessRunner implements ProcessRunner {
   String? grokHomePath;
   String? grokAuthText;
   String? grokConfigText;
+  String? outputSchemaText;
   final StringBuffer _stdin = StringBuffer();
 
   String get stdinText => _stdin.toString();
@@ -69,6 +70,16 @@ class _FakeProcessRunner implements ProcessRunner {
           grokConfigText = config.readAsStringSync();
         }
       }
+    }
+    final outputSchemaIndex = arguments.indexOf('--output-schema');
+    if (outputSchemaIndex >= 0 && outputSchemaIndex + 1 < arguments.length) {
+      outputSchemaText = File(
+        arguments[outputSchemaIndex + 1],
+      ).readAsStringSync();
+    }
+    final outputFileIndex = arguments.indexOf('--output-last-message');
+    if (outputFileIndex >= 0 && outputFileIndex + 1 < arguments.length) {
+      File(arguments[outputFileIndex + 1]).writeAsStringSync(stdout);
     }
     this.environment = environment == null
         ? null

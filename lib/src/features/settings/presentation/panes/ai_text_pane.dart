@@ -32,6 +32,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
       <AiTextGenerationOperation>[
         AiTextGenerationOperation.commitMessage,
         AiTextGenerationOperation.pullRequestDetails,
+        AiTextGenerationOperation.readingDiff,
         AiTextGenerationOperation.workspaceIdentity,
       ];
 
