@@ -313,6 +313,11 @@ jobs:
           tar -czf "runtime-native-${PLATFORM}-${NATIVE_ARCH}.tar.gz" \
             -C runtime-native-input "$PLATFORM"
 
+      - name: Verify macOS ships arm64 only
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: bash tool/release/verify_macos_arm64_only.sh "$BUNDLE_DIR/Alera.app"
+
       - name: Package macOS release asset
         if: matrix.platform == 'macos'
         shell: bash

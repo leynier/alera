@@ -9,6 +9,16 @@
 ALERA_PRODUCT_NAME = Alera
 ALERA_BUNDLE_ID = dev.leynier.alera
 
+// Alera ships for Apple Silicon only: the Homebrew cask declares
+// `depends_on arch: :arm64` and CI refuses to stage the sidecar unless the
+// runner is ARM64. Without this the Xcode default `$(ARCHS_STANDARD)` still
+// built an x86_64 slice into every binary, doubling the app for a machine
+// nobody can install it on. Flutter's macos_assemble.sh derives its
+// `-dDarwinArchs` from ARCHS, and CocoaPods thins the embedded frameworks to
+// it, so setting it here reaches the engine, the AOT code and the pods.
+ARCHS = arm64
+EXCLUDED_ARCHS[sdk=macosx*] = x86_64
+
 #include? "Flavor.xcconfig"
 
 PRODUCT_NAME = $(ALERA_PRODUCT_NAME)

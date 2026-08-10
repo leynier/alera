@@ -38,5 +38,14 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+    target.build_configurations.each do |config|
+      # Pod targets resolve ARCHS from their own configuration, not from the
+      # app's, and cargokit reads it straight out of the environment
+      # (CARGOKIT_DARWIN_ARCHS) to pick which Rust targets to build. Leaving it
+      # at the Xcode default here would keep building an x86_64 slice of every
+      # plugin and of alera_native for an architecture Alera does not ship.
+      config.build_settings['ARCHS'] = 'arm64'
+      config.build_settings['EXCLUDED_ARCHS[sdk=macosx*]'] = 'x86_64'
+    end
   end
 end

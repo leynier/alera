@@ -54,7 +54,7 @@ void main() {
         derivation.dependencyLockSha256,
         'ba95ccfd76f628fcf173102770f9e2fbeee0320823b9f1b508a0b8ff51f890ca',
       );
-      expect(derivation.architectures, <String>['arm64', 'x86_64']);
+      expect(derivation.architectures, <String>['arm64']);
       expect(derivation.dependencies, hasLength(1));
       expect(
         derivation.dependencies.single.sourceSha256,
