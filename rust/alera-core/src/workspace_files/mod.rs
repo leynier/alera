@@ -6,8 +6,11 @@ use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptions, OpenOptionsFollowExt};
 use cap_std::{ambient_authority, fs::Dir};
 use same_file::Handle;
 
+mod mime;
 mod prompts;
 mod quick_open;
+
+use mime::{mime_type_for_path, path_has_binary_preview_mime};
 
 pub use prompts::{list_codex_saved_prompts, CodexSavedPrompt, CodexSavedPromptScope};
 pub use quick_open::{
@@ -258,16 +261,6 @@ fn file_is_probably_utf8(
     Ok(range_is_probably_utf8(&sample, sample_bytes < total_bytes))
 }
 
-fn path_has_binary_preview_mime(path: &Path) -> bool {
-    matches!(
-        path.extension()
-            .and_then(|value| value.to_str())
-            .map(str::to_ascii_lowercase)
-            .as_deref(),
-        Some("png" | "jpg" | "jpeg" | "gif" | "webp" | "pdf")
-    )
-}
-
 fn range_is_probably_utf8(bytes: &[u8], allow_incomplete_suffix: bool) -> bool {
     if bytes.contains(&0) {
         return false;
@@ -320,25 +313,6 @@ pub fn is_protected_workspace_path(path: &Path) -> bool {
             matches!(value.to_ascii_lowercase().as_str(), ".git" | ".hg" | ".svn")
         }))
     })
-}
-
-fn mime_type_for_path(path: &Path, is_text: bool) -> &'static str {
-    match path
-        .extension()
-        .and_then(|value| value.to_str())
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        Some("webp") => "image/webp",
-        Some("svg") => "image/svg+xml",
-        Some("json") => "application/json",
-        Some("pdf") => "application/pdf",
-        _ if is_text => "text/plain; charset=utf-8",
-        _ => "application/octet-stream",
-    }
 }
 
 #[cfg(test)]

@@ -9,7 +9,10 @@ mixin _WorkbenchControllerNavigation
     required String workspaceId,
     required String tabId,
   }) async {
-    final workspace = _workspaceById(state.workspacesByProject, workspaceId);
+    final workspace = state.workspacesByProject.values
+        .expand((workspaces) => workspaces)
+        .where((workspace) => workspace.id == workspaceId)
+        .firstOrNull;
     final project = workspace == null
         ? null
         : _projectById(state.projects, workspace.projectId);
