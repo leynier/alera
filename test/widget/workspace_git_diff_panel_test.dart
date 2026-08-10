@@ -774,7 +774,10 @@ void main() {
       ),
     );
     expect(splitButton, findsOneWidget);
-    expect(tester.getSize(splitButton).height, 28);
+    final splitButtonRect = tester.getRect(splitButton);
+    expect(splitButtonRect.height, 28);
+    expect(splitButtonRect.right, closeTo(412, 0.1));
+    expect(splitButtonRect.width, lessThan(240));
 
     final primaryAction = find.ancestor(
       of: find.text('Stage All'),
