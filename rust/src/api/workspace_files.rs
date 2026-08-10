@@ -5,10 +5,8 @@ use std::time::UNIX_EPOCH;
 
 use ignore::WalkBuilder;
 
-mod codex_prompts;
 mod editor_text;
 mod explorer_tree;
-mod quick_open;
 mod source_control_watcher;
 mod watcher;
 
@@ -234,7 +232,12 @@ pub fn list_workspace_children(
 pub fn start_workspace_quick_open_session(
     workspace_path: String,
 ) -> Result<WorkspaceQuickOpenSession, WorkspaceFileError> {
-    quick_open::start_workspace_quick_open_session(workspace_path)
+    alera_core::workspace_files::start_workspace_quick_open_session(workspace_path)
+        .map(|session| WorkspaceQuickOpenSession {
+            id: session.id,
+            indexed_file_count: session.indexed_file_count,
+        })
+        .map_err(shared_workspace_file_error)
 }
 
 pub fn search_workspace_quick_open_session(
@@ -242,17 +245,80 @@ pub fn search_workspace_quick_open_session(
     query: String,
     limit: u32,
 ) -> Result<Vec<WorkspaceQuickOpenMatch>, WorkspaceFileError> {
-    quick_open::search_workspace_quick_open_session(session, query, limit)
+    alera_core::workspace_files::search_workspace_quick_open_session(
+        alera_core::workspace_files::WorkspaceQuickOpenSession {
+            id: session.id,
+            indexed_file_count: session.indexed_file_count,
+        },
+        query,
+        limit,
+    )
+    .map(|matches| {
+        matches
+            .into_iter()
+            .map(|item| WorkspaceQuickOpenMatch {
+                relative_path: item.relative_path,
+                score: item.score,
+            })
+            .collect()
+    })
+    .map_err(shared_workspace_file_error)
 }
 
 pub fn stop_workspace_quick_open_session(session: WorkspaceQuickOpenSession) {
-    quick_open::stop_workspace_quick_open_session(session)
+    alera_core::workspace_files::stop_workspace_quick_open_session(
+        alera_core::workspace_files::WorkspaceQuickOpenSession {
+            id: session.id,
+            indexed_file_count: session.indexed_file_count,
+        },
+    )
 }
 
 pub fn list_codex_saved_prompts(
     workspace_path: String,
 ) -> Result<Vec<CodexSavedPrompt>, WorkspaceFileError> {
-    codex_prompts::list_codex_saved_prompts(workspace_path)
+    alera_core::workspace_files::list_codex_saved_prompts(workspace_path)
+        .map(|prompts| {
+            prompts
+                .into_iter()
+                .map(|prompt| CodexSavedPrompt {
+                    name: prompt.name,
+                    description: prompt.description,
+                    argument_hint: prompt.argument_hint,
+                    body: prompt.body,
+                    scope: match prompt.scope {
+                        alera_core::workspace_files::CodexSavedPromptScope::User => {
+                            CodexSavedPromptScope::User
+                        }
+                        alera_core::workspace_files::CodexSavedPromptScope::Repo => {
+                            CodexSavedPromptScope::Repo
+                        }
+                    },
+                })
+                .collect()
+        })
+        .map_err(shared_workspace_file_error)
+}
+
+fn shared_workspace_file_error(
+    error: alera_core::workspace_files::WorkspaceFileError,
+) -> WorkspaceFileError {
+    let kind = match error.kind {
+        alera_core::workspace_files::WorkspaceFileErrorKind::InvalidPath => {
+            WorkspaceFileErrorKind::InvalidPath
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::OutsideWorkspace => {
+            WorkspaceFileErrorKind::OutsideWorkspace
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::NotFound => {
+            WorkspaceFileErrorKind::NotFound
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::Unsupported => {
+            WorkspaceFileErrorKind::Unsupported
+        }
+        alera_core::workspace_files::WorkspaceFileErrorKind::Io => WorkspaceFileErrorKind::Io,
+    };
+    WorkspaceFileError::new(kind, error.context)
 }
 
 pub fn project_workspace_explorer_tree(

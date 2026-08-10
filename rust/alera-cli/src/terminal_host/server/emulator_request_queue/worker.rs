@@ -27,8 +27,12 @@ impl ServerActor {
                         completion,
                     });
                 }
-                QueuedOperation::RuntimeMutation(mutation) => {
-                    let outcome = run_runtime_mutation(manager, runtime_store, mutation).await;
+                QueuedOperation::RuntimeMutation {
+                    mutation,
+                    codex_cleanup,
+                } => {
+                    let outcome =
+                        run_runtime_mutation(manager, runtime_store, mutation, codex_cleanup).await;
                     let _ = inbox.send(ServerCommand::RuntimeMutationFinished(
                         crate::terminal_host::server::runtime_mutations::RuntimeMutationFinished {
                             client_id: request.client_id,

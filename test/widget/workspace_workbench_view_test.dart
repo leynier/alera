@@ -3,6 +3,7 @@
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/features/browser/application/browser_profile_service.dart';
 import 'package:alera/src/features/browser/application/browser_providers.dart';
@@ -41,6 +42,19 @@ late List<String> mergedGroups;
 late List<_UpdatedSplitRatioAction> updatedRatios;
 
 void main() {
+  test('Codex tabs always use the fixed chat title', () {
+    expect(
+      workspaceTabTitleForTesting(
+        _tab(
+          'codex-title',
+          title: 'Generated thread title',
+          kind: WorkspaceTabKind.codex,
+        ),
+      ),
+      'Codex Chat',
+    );
+  });
+
   _registerWorkspaceWorkbenchViewHelperTests();
   group('WorkspaceWorkbenchView', () {
     setUp(() {

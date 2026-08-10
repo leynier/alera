@@ -8,7 +8,7 @@ pub(super) fn emulator_operation(request: &QueuedEmulatorRequest) -> Option<(&st
             request_type,
             payload,
         } => Some((request_type, payload)),
-        QueuedOperation::RuntimeMutation(_)
+        QueuedOperation::RuntimeMutation { .. }
         | QueuedOperation::ParkAll
         | QueuedOperation::ReleaseClients { .. }
         | QueuedOperation::CancelPointer { .. } => None,
@@ -18,7 +18,7 @@ pub(super) fn emulator_operation(request: &QueuedEmulatorRequest) -> Option<(&st
 pub(super) fn can_bypass_active_pointer(request: &QueuedEmulatorRequest) -> bool {
     matches!(
         &request.operation,
-        QueuedOperation::RuntimeMutation(_)
+        QueuedOperation::RuntimeMutation { .. }
             | QueuedOperation::ParkAll
             | QueuedOperation::ReleaseClients { .. }
             | QueuedOperation::CancelPointer { .. }
@@ -26,13 +26,13 @@ pub(super) fn can_bypass_active_pointer(request: &QueuedEmulatorRequest) -> bool
 }
 
 pub(super) fn is_runtime_mutation(request: &QueuedEmulatorRequest) -> bool {
-    matches!(&request.operation, QueuedOperation::RuntimeMutation(_))
+    matches!(&request.operation, QueuedOperation::RuntimeMutation { .. })
 }
 
 pub(super) fn requires_live_client(request: &QueuedEmulatorRequest) -> bool {
     matches!(
         &request.operation,
-        QueuedOperation::Emulator { .. } | QueuedOperation::RuntimeMutation(_)
+        QueuedOperation::Emulator { .. } | QueuedOperation::RuntimeMutation { .. }
     )
 }
 

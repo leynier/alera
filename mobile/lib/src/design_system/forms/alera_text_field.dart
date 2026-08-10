@@ -18,6 +18,8 @@ class AleraTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffix,
     this.keyboardType,
+    this.minLines,
+    this.maxLines = 1,
     this.inputFormatters,
     this.onChanged,
     this.onSubmitted,
@@ -38,6 +40,8 @@ class AleraTextField extends StatelessWidget {
   final IconData? prefixIcon;
   final Widget? suffix;
   final TextInputType? keyboardType;
+  final int? minLines;
+  final int? maxLines;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -60,6 +64,8 @@ class AleraTextField extends StatelessWidget {
         focusNode: focusNode,
         autofocus: autofocus,
         keyboardType: keyboardType,
+        minLines: minLines,
+        maxLines: maxLines,
         inputFormatters: inputFormatters,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
@@ -86,6 +92,8 @@ class AleraTextField extends StatelessWidget {
         focusNode: focusNode,
         autofocus: autofocus,
         keyboardType: keyboardType,
+        minLines: minLines,
+        maxLines: maxLines,
         inputFormatters: inputFormatters,
         onChanged: onChanged,
         onSubmitted: onSubmitted,

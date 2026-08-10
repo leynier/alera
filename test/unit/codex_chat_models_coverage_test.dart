@@ -1,7 +1,10 @@
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_timeline.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+part 'codex_chat_snapshot_coverage_test_cases.dart';
 
 void main() {
   final now = DateTime.utc(2026, 8, 3, 12);
@@ -69,6 +72,44 @@ void main() {
     );
   });
 
+  test('model labels use the compact Codex presentation names', () {
+    expect(
+      CodexModelOption.fromJson(<String, Object?>{
+        'id': 'gpt-5.6-luna',
+        'displayName': 'GPT-5.6-Luna',
+      }).label,
+      '5.6 Luna',
+    );
+    expect(
+      CodexModelOption.fromJson(<String, Object?>{
+        'id': 'gpt-5.3-codex-spark',
+        'displayName': 'GPT-5.3-Codex-Spark',
+      }).label,
+      '5.3 Codex Spark',
+    );
+    expect(
+      CodexModelOption.fromJson(<String, Object?>{
+        'id': 'custom',
+        'displayName': 'Custom Codex',
+      }).label,
+      'Custom Codex',
+    );
+  });
+
+  test('thread summaries parse app-server Unix timestamps in seconds', () {
+    final thread = CodexThreadSummary.fromJson(<String, Object?>{
+      'id': 'thread-1',
+      'preview': 'Inspect the repository',
+      'createdAt': 1786190400,
+      'updatedAt': 1786190460.5,
+      'recencyAt': 1786190520,
+    });
+
+    expect(thread.createdAt, DateTime.utc(2026, 8, 8, 12));
+    expect(thread.updatedAt, DateTime.utc(2026, 8, 8, 12, 1, 0, 500));
+    expect(thread.recencyAt, DateTime.utc(2026, 8, 8, 12, 2));
+  });
+
   test(
     'pending requests expose approval, question and elicitation contracts',
     () {
@@ -114,6 +155,20 @@ void main() {
           'requestedSchema': <String, Object?>{
             'properties': <String, Object?>{
               'image': <String, Object?>{'type': 'openai/imagePicker'},
+            },
+          },
+        }).hasSupportedElicitationForm,
+        isFalse,
+      );
+      expect(
+        request('mcpServer/elicitation/request', <String, Object?>{
+          'mode': 'form',
+          'requestedSchema': <String, Object?>{
+            'properties': <String, Object?>{
+              'role': <String, Object?>{
+                'type': 'string',
+                'enum': <String>['admin', 'member'],
+              },
             },
           },
         }).hasSupportedElicitationForm,
@@ -233,48 +288,23 @@ void main() {
 
     expect(const CodexChatSnapshot().latestActionablePlan, isNull);
     expect(const CodexChatSnapshot().hasPlan, isFalse);
-  });
 
-  test('Codex settings and tab payload getters round-trip typed values', () {
-    final settings = CodexChatSettings.fromJson(<String, Object?>{
-      'selectedModel': 'gpt-current',
-      'reasoningEffort': 'high',
-      'speedMode': 'fast',
-      'permissionMode': 'never',
-      'planMode': true,
-    });
-    expect(settings.selectedModel, 'gpt-current');
-    expect(settings.planMode, isTrue);
-
-    final tab = WorkspaceTabRecord(
-      id: 'codex-tab',
-      workspaceId: 'workspace',
-      kind: WorkspaceTabKind.codex,
-      title: 'Codex',
-      createdAt: now,
-      updatedAt: now,
-      payload: <String, Object?>{
-        workspaceTabCodexThreadIdPayloadKey: 'thread-1',
-        workspaceTabCodexActiveTurnIdPayloadKey: 'turn-1',
-        workspaceTabCodexSnapshotPayloadKey: <Object?, Object?>{
-          'title': 'Chat',
+    final progressOnly = CodexChatSnapshot.fromJson(<String, Object?>{
+      'timelineCells': <Object?>[
+        cell('user', 'userMessage'),
+        <String, Object?>{
+          ...cell('progress', 'plan', markdown: 'Execution progress'),
+          'metadata': <String, Object?>{
+            'plan': <Object?>[
+              <String, Object?>{'step': 'Build', 'status': 'completed'},
+            ],
+          },
         },
-      },
-    );
-    expect(tab.codexThreadId, 'thread-1');
-    expect(tab.codexActiveTurnId, 'turn-1');
-    expect(tab.codexSnapshot, <String, Object?>{'title': 'Chat'});
-
-    final empty = WorkspaceTabRecord(
-      id: 'empty',
-      workspaceId: 'workspace',
-      kind: WorkspaceTabKind.codex,
-      title: 'Codex',
-      createdAt: now,
-      updatedAt: now,
-    );
-    expect(empty.codexThreadId, isNull);
-    expect(empty.codexActiveTurnId, isNull);
-    expect(empty.codexSnapshot, isEmpty);
+      ],
+    });
+    expect(progressOnly.latestActionablePlan, isNull);
+    expect(progressOnly.shouldShowImplementPlan, isFalse);
   });
+
+  registerCodexSnapshotCoverageTests(now);
 }

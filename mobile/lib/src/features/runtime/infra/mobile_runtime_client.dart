@@ -7,6 +7,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials
 import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
@@ -25,6 +26,7 @@ part 'mobile_runtime_client_host_tools.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
+part 'mobile_runtime_codex_workspace_requests.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 
@@ -36,8 +38,13 @@ class MobileRuntimeClient
         MobileRuntimeClientHostTools,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
-        MobileRuntimeCodexRequests
-    implements MobileTerminalClient, MobileWorkspaceClient, MobileCodexClient {
+        MobileRuntimeCodexRequests,
+        MobileRuntimeCodexWorkspaceRequests
+    implements
+        MobileTerminalClient,
+        MobileWorkspaceClient,
+        MobileCodexClient,
+        MobileCodexWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {
     this._requestTimeout = _defaultRequestTimeout,
@@ -164,6 +171,12 @@ class MobileRuntimeClient
   @override
   bool get supportsCodexChat =>
       _runtimeCapabilities.contains(codexChatTabCapability);
+  @override
+  bool get supportsCodexSessions =>
+      _runtimeCapabilities.contains(mobileCodexSessionsCapability);
+  @override
+  bool get supportsCodexTurnPolicy =>
+      _runtimeCapabilities.contains(codexTurnPolicyCapability);
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);

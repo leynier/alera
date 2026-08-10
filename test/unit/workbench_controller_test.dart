@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_composer_draft.dart';
 import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_providers.dart';
 import 'package:alera/src/features/mobile_emulator/domain/mobile_emulator_models.dart';
 import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
@@ -53,6 +55,7 @@ part 'workbench_controller_watcher_recovery_test_cases.dart';
 part 'workbench_controller_navigation_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
+part 'workbench_controller_selection_test_cases.dart';
 
 late _WorkbenchHarness _harness;
 late WorkbenchController _controller;

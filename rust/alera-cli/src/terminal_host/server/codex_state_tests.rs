@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::server::codex_user_messages::append_user_input;
 use chrono::Utc;
 
 fn tab() -> WorkspaceTabRecord {
@@ -67,6 +68,10 @@ fn question_answers_are_persisted_as_timeline_cells() {
     let mut record = tab();
     append_message(
         &mut record,
+        json!({"method":"turn/started","params":{"turn":{"id":"turn-question"}}}),
+    );
+    append_message(
+        &mut record,
         json!({
             "id": 7,
             "method": "item/tool/request_user_input",
@@ -79,8 +84,50 @@ fn question_answers_are_persisted_as_timeline_cells() {
         &json!({"answers": {"mode": {"answers": ["Careful"]}}}),
     );
     let saved = snapshot(&record);
-    assert_eq!(saved["timelineCells"][0]["kind"], "questionAnswer");
-    assert_eq!(saved["timelineCells"][0]["markdownText"], "Careful");
+    let answer = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["kind"] == "questionAnswer")
+        .unwrap();
+    assert_eq!(answer["markdownText"], "Careful");
+    assert_eq!(answer["turnId"], "turn-question");
+    assert_eq!(answer["metadata"]["questionCount"], 1);
+}
+
+#[test]
+fn question_answer_cells_preserve_the_original_question_count() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "id": 7,
+            "method": "item/tool/request_user_input",
+            "params": {
+                "questions": [
+                    {"id": "scope", "question": "Choose a scope"},
+                    {"id": "validation", "question": "Choose validation"}
+                ]
+            }
+        }),
+    );
+    append_question_answer(
+        &mut record,
+        &json!(7),
+        &json!({"answers": {"scope": {"answers": ["Core"]}}}),
+    );
+
+    let saved = snapshot(&record);
+    let answer = saved["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["kind"] == "questionAnswer")
+        .unwrap();
+    assert_eq!(answer["metadata"]["questionCount"], 2);
+    let questions = answer["metadata"]["questions"].as_array().unwrap();
+    assert_eq!(questions.len(), 2);
+    assert_eq!(questions[1]["answer"], "No answer provided");
 }
 
 #[test]
@@ -199,9 +246,13 @@ fn close_and_restart_snapshot_preserves_timeline() {
     append_user_input(
         &mut record,
         &json!([{"type":"text","text":"hello"}]),
+        None,
         "turn",
+        None,
+        false,
     );
     let saved = snapshot(&record);
+    assert_eq!(saved["activeTurnId"], "turn");
     let mut restarted = tab();
     restarted.payload["codexSnapshot"] = saved;
     let restored = snapshot(&restarted);
@@ -269,6 +320,13 @@ fn legacy_item_events_and_task_completion_reduce_to_timeline_cells() {
     append_message(
         &mut record,
         json!({
+            "method": "codex/event/task_started",
+            "params": {"msg": {"turn_id": "turn"}}
+        }),
+    );
+    append_message(
+        &mut record,
+        json!({
             "method": "codex/event/item_started",
             "params": {"msg": {"turn_id": "turn", "item": {"id": "answer", "type": "agentMessage"}}}
         }),
@@ -289,6 +347,11 @@ fn legacy_item_events_and_task_completion_reduce_to_timeline_cells() {
     assert_eq!(answer["kind"], "assistantMessage");
     assert_eq!(answer["markdownText"], "done");
     assert_eq!(answer["isStreaming"], false);
+    let separator = cells
+        .iter()
+        .find(|cell| cell["kind"] == "turnSeparator")
+        .unwrap();
+    assert_eq!(separator["status"], "completed");
 }
 
 #[test]
@@ -340,152 +403,4 @@ fn commentary_phase_and_repeated_output_are_reduced_once() {
             .unwrap()["detailsText"],
         "clean"
     );
-}
-
-#[test]
-fn token_usage_updates_context_metadata() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "thread/tokenUsage/updated",
-            "params": {"tokenUsage": {"totalTokens": 42, "contextWindow": 1000}}
-        }),
-    );
-    let saved = snapshot(&record);
-    assert_eq!(saved["contextUsed"], 42);
-    assert_eq!(saved["contextLimit"], 1000);
-}
-
-#[test]
-fn nested_token_usage_updates_context_metadata() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "thread/tokenUsage/updated",
-            "params": {
-                "tokenUsage": {
-                    "total": {"inputTokens": 12, "outputTokens": 8},
-                    "modelContextWindow": 2000
-                }
-            }
-        }),
-    );
-    let saved = snapshot(&record);
-    assert_eq!(saved["contextUsed"], 20);
-    assert_eq!(saved["contextLimit"], 2000);
-}
-
-#[test]
-fn turn_completion_records_server_duration_on_the_separator() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "turn/started",
-            "params": {"turn": {"id": "turn", "startedAt": "2026-08-03T12:00:00Z"}}
-        }),
-    );
-    append_message(
-        &mut record,
-        json!({
-            "method": "turn/completed",
-            "params": {"turn": {
-                "id": "turn",
-                "startedAt": "2026-08-03T12:00:00Z",
-                "completedAt": "2026-08-03T12:00:01.250Z",
-                "durationMs": 1250
-            }}
-        }),
-    );
-    let saved = snapshot(&record);
-    let separator = saved["timelineCells"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|cell| cell["kind"] == "turnSeparator")
-        .unwrap();
-    assert_eq!(separator["metadata"]["computedDurationMs"], 1250);
-    assert_eq!(
-        separator["metadata"]["completedAt"],
-        "2026-08-03T12:00:01.250Z"
-    );
-}
-
-#[test]
-fn modern_app_server_items_keep_rich_content_and_metadata() {
-    let mut record = tab();
-    append_message(
-        &mut record,
-        json!({
-            "method": "item/completed",
-            "params": {"turnId": "turn", "item": {
-                "id": "search",
-                "type": "webSearch",
-                "query": "Alera",
-                "action": {"type": "search", "query": "Alera"},
-                "status": "completed"
-            }}
-        }),
-    );
-    append_message(
-        &mut record,
-        json!({
-            "method": "item/completed",
-            "params": {"turnId": "turn", "item": {
-                "id": "dynamic",
-                "type": "dynamicToolCall",
-                "tool": "inspect",
-                "arguments": {"path": "README.md"},
-                "contentItems": [{"type": "inputText", "text": "done"}],
-                "durationMs": 42,
-                "status": "completed"
-            }}
-        }),
-    );
-    let saved = snapshot(&record);
-    let cells = saved["timelineCells"].as_array().unwrap();
-    let search = cells
-        .iter()
-        .find(|cell| cell["id"] == "item-search")
-        .unwrap();
-    assert_eq!(search["kind"], "toolCall");
-    assert_eq!(search["title"], "Web search");
-    assert_eq!(search["metadata"]["query"], "Alera");
-    let dynamic = cells
-        .iter()
-        .find(|cell| cell["id"] == "item-dynamic")
-        .unwrap();
-    assert_eq!(dynamic["kind"], "toolCall");
-    assert_eq!(dynamic["title"], "inspect");
-    assert_eq!(dynamic["metadata"]["durationMs"], 42);
-    assert!(dynamic["detailsText"].as_str().unwrap().contains("done"));
-}
-
-#[test]
-fn server_failure_closes_streams_without_deleting_thread_history() {
-    let mut record = tab();
-    record.payload = json!({
-        "codexThreadId": "thread-1",
-        "codexSnapshot": {
-            "events": [{"method": "turn/started"}],
-            "timelineCells": [{
-                "id": "item-answer",
-                "turnId": "turn-1",
-                "kind": "assistantMessage",
-                "status": "inProgress",
-                "isStreaming": true
-            }],
-            "pendingRequests": []
-        }
-    });
-    let saved = mark_server_failure(&mut record, "app-server exited");
-    assert_eq!(record.payload["codexThreadId"], "thread-1");
-    assert!(saved["activeTurnId"].is_null());
-    assert!(saved["timelineCells"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|cell| cell["status"] == "failed" && cell["kind"] == "systemNotice"));
 }

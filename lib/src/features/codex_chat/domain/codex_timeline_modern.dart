@@ -31,17 +31,10 @@ List<CodexTimelineCell>? _reduceModernCodexNotification(
       },
     ),
   ),
-  'thread/compacted' when turnId.isNotEmpty => _upsert(
+  'thread/compacted' when turnId.isNotEmpty => _completeContextCompaction(
     cells,
-    _newCell(
-      id: 'compaction-$turnId',
-      turnId: turnId,
-      kind: CodexTimelineKind.toolCall,
-      status: CodexTimelineStatus.completed,
-      timestamp: timestamp,
-      title: 'Compacted context',
-      metadata: const <String, Object?>{'itemType': 'contextCompaction'},
-    ),
+    turnId: turnId,
+    timestamp: timestamp,
   ),
   'model/rerouted' when turnId.isNotEmpty => _reduceModelReroute(
     cells,
@@ -87,6 +80,45 @@ List<CodexTimelineCell>? _reduceModernCodexNotification(
   ),
   _ => null,
 };
+
+List<CodexTimelineCell> _completeContextCompaction(
+  List<CodexTimelineCell> cells, {
+  required String turnId,
+  required DateTime timestamp,
+}) {
+  final index = cells.lastIndexWhere(
+    (cell) =>
+        cell.turnId == turnId &&
+        cell.metadata['itemType'].toString().toLowerCase().contains(
+          'contextcompaction',
+        ),
+  );
+  if (index < 0) {
+    return _upsert(
+      cells,
+      _newCell(
+        id: 'compaction-$turnId',
+        turnId: turnId,
+        kind: CodexTimelineKind.toolCall,
+        status: CodexTimelineStatus.completed,
+        timestamp: timestamp,
+        title: 'Compacted',
+        metadata: const <String, Object?>{'itemType': 'contextCompaction'},
+      ),
+    );
+  }
+  return <CodexTimelineCell>[
+    for (var position = 0; position < cells.length; position++)
+      position == index
+          ? cells[position].copyWith(
+              status: CodexTimelineStatus.completed,
+              title: 'Compacted',
+              isStreaming: false,
+              updatedAt: timestamp,
+            )
+          : cells[position],
+  ];
+}
 
 String _verificationMarkdown(Object? verifications) {
   final details = verifications?.toString() ?? '';

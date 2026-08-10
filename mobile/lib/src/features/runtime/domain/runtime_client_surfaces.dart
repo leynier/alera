@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.d
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -41,6 +42,13 @@ const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String codexChatTabCapability = 'codexChatTabV1';
+const String mobileCodexSessionsCapability = 'mobileCodexSessionsV1';
+const String codexTurnPolicyCapability = 'codexTurnPolicyV2';
+const String mobileCodexWorkspaceFilesCapability =
+    'mobileCodexWorkspaceFilesV1';
+const String mobilePromptFileUploadCapability = 'mobilePromptFileUploadV1';
+const String mobilePromptAttachmentReadCapability =
+    'mobilePromptAttachmentReadV1';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);
@@ -116,12 +124,51 @@ abstract interface class MobileTerminalClient {
 /// and older hosts continue to exercise terminal parity unchanged.
 abstract interface class MobileCodexClient {
   bool get supportsCodexChat;
+  bool get supportsCodexSessions;
+  bool get supportsCodexTurnPolicy;
   Stream<MobileRuntimeEvent> get events;
   Future<WorkspaceTabSummary> createCodexTab(String workspaceId);
   Future<Map<String, Object?>> codexRequest(
     String type, [
     Map<String, Object?> payload,
   ]);
+}
+
+abstract interface class MobileCodexWorkspaceClient {
+  bool get supportsCodexWorkspaceFiles;
+  bool get supportsPromptFileUpload;
+  bool get supportsPromptAttachmentRead;
+  Future<MobileWorkspaceQuickOpenSession> startWorkspaceQuickOpen(
+    String workspaceId, {
+    String? cwd,
+  });
+  Future<List<MobileWorkspaceQuickOpenMatch>> searchWorkspaceQuickOpen(
+    MobileWorkspaceQuickOpenSession session,
+    String query, {
+    int limit = 20,
+  });
+  Future<void> stopWorkspaceQuickOpen(MobileWorkspaceQuickOpenSession session);
+  Future<List<MobileCodexSavedPrompt>> listCodexSavedPrompts(
+    String workspaceId, {
+    String? cwd,
+  });
+  Future<MobileWorkspaceFileRange> readWorkspaceFile({
+    required String workspaceId,
+    required String relativePath,
+    String? cwd,
+    int offset = 0,
+    int length = maxMobileWorkspaceFileRangeBytes,
+  });
+  Future<MobileWorkspaceFileRange> readPromptAttachment({
+    required String path,
+    int offset = 0,
+    int length = maxMobileWorkspaceFileRangeBytes,
+  });
+  Future<PromptFileUploadResult> uploadPromptFile({
+    required String name,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  });
 }
 
 /// Workspace listing and mutation surface consumed by the workbench

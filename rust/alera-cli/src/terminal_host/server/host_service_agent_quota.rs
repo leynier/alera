@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-use crate::agent_quota::{consume_codex_reset_credit, fetch_agent_quotas, fetch_claude_tui};
+use crate::agent_quota::{
+    consume_codex_reset_credit, fetch_agent_quotas, fetch_agent_usage, fetch_claude_tui,
+};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, event, ok_response};
 
@@ -14,6 +16,44 @@ use super::{ServerActor, ServerCommand};
 const AGENT_QUOTA_CACHE_TTL: Duration = Duration::from_secs(15 * 60);
 
 impl ServerActor {
+    pub(super) fn start_agent_usage_request(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        payload: &Value,
+    ) -> HostResult<()> {
+        let since_day = required_non_blank(payload, "sinceDay")?;
+        let until_day = required_non_blank(payload, "untilDay")?;
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = async {
+                let settings = store
+                    .agent_quota_settings()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let claude_profiles = settings.claude_profiles_for_usage();
+                fetch_agent_usage(json!({
+                    "sinceDay": since_day,
+                    "untilDay": until_day,
+                    "claudeDefaultEnabled": settings.claude_default_show_in_usage,
+                    "claudeProfiles": claude_profiles,
+                }))
+                .await
+                .map_err(|error| HostError::state(error.to_string()))
+            }
+            .await;
+            let _ = inbox.send(ServerCommand::HostToolFinished {
+                client_id,
+                request_id,
+                result,
+                operation_id: None,
+                skill: None,
+            });
+        });
+        Ok(())
+    }
+
     pub(super) fn start_agent_quota_request(
         &mut self,
         client_id: u64,

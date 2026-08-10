@@ -201,6 +201,7 @@ pub(crate) async fn run_runtime_proxy() -> i32 {
 async fn handle_proxy_request(request: ProxyRequest, store: Option<&RuntimeStore>) -> Value {
     let result = match request.request_type.as_str() {
         "agentQuota.fetch" => fetch_agent_quotas(request.payload).await,
+        "agentUsage.fetch" => fetch_agent_usage(request.payload).await,
         "agentQuota.fetchClaudeTui" => fetch_claude_tui_proxy(request.payload).await,
         "agentQuota.consumeCodexResetCredit" => match store {
             Some(store) => consume_codex_reset_credit(store, request.payload).await,
@@ -353,6 +354,8 @@ include!("agent_quota/kimi.rs");
 include!("agent_quota/plans.rs");
 include!("agent_quota/quota_snapshot.rs");
 include!("agent_quota/opencode.rs");
+mod usage;
+pub(crate) use usage::fetch_agent_usage;
 
 fn numeric(value: &Value) -> Option<f64> {
     value

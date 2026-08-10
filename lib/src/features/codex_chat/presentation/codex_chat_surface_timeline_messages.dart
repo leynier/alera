@@ -1,10 +1,16 @@
 part of 'codex_chat_surface.dart';
 
 class _CodexUserMessage extends StatefulWidget {
-  const _CodexUserMessage({required this.cell, required this.workspacePath});
+  const _CodexUserMessage({
+    required this.cell,
+    required this.workspacePath,
+    required this.onOpenAttachment,
+  });
 
   final CodexTimelineCell cell;
   final String workspacePath;
+  final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment;
 
   @override
   State<_CodexUserMessage> createState() => _CodexUserMessageState();
@@ -13,12 +19,27 @@ class _CodexUserMessage extends StatefulWidget {
 class _CodexUserMessageState extends State<_CodexUserMessage> {
   bool _hovered = false;
   bool _raw = false;
+  late List<Map<String, Object?>> _attachments;
+
+  @override
+  void initState() {
+    super.initState();
+    _attachments = _codexTimelineAttachments(widget.cell);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CodexUserMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.cell, widget.cell)) {
+      _attachments = _codexTimelineAttachments(widget.cell);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final raw = widget.cell.markdownText ?? '';
     final rendered = widget.cell.renderedMarkdownText ?? raw;
-    final attachments = _codexTimelineAttachments(widget.cell);
+    final attachments = _attachments;
     final steering =
         widget.cell.metadata[CodexTimelineMetadata.isSteering] == true;
     return Opacity(
@@ -57,12 +78,16 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                             _CodexTimelineAttachment(
                               attachment: attachment,
                               workspacePath: widget.workspacePath,
+                              onOpen: widget.onOpenAttachment,
                             ),
                         ],
                       ),
                     ),
                   if (raw.trim().isNotEmpty)
                     Container(
+                      key: ValueKey<String>(
+                        'codex-user-message-bubble-${widget.cell.id}',
+                      ),
                       padding: const EdgeInsets.all(AleraTokens.space12),
                       decoration: BoxDecoration(
                         color: AleraTokens.accentSubtle,
@@ -90,11 +115,14 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                         ),
                       ),
                     ),
+                  const SizedBox(height: AleraTokens.space8),
                   _CodexMessageActions(
                     visible: _hovered || !kIsWeb,
                     raw: _raw,
                     copyText: raw,
                     alignment: MainAxisAlignment.end,
+                    timestamp: widget.cell.createdAt,
+                    timestampFirst: true,
                     onToggleRaw: () => setState(() => _raw = !_raw),
                   ),
                 ],
@@ -149,30 +177,22 @@ class _CodexAssistantMessageState extends State<_CodexAssistantMessage> {
             if (widget.cell.isStreaming)
               const Padding(
                 padding: EdgeInsets.only(top: AleraTokens.space6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    SizedBox.square(
-                      dimension: AleraTokens.iconSm,
-                      child: CircularProgressIndicator(
-                        strokeWidth: AleraTokens.strokeThin,
-                      ),
-                    ),
-                    SizedBox(width: AleraTokens.space6),
-                    Text(
-                      'Streaming...',
-                      style: AleraTokens.labelMicroFaintStyle,
-                    ),
-                  ],
+                child: _CodexShimmerText(
+                  text: 'Streaming...',
+                  style: AleraTokens.labelMicroFaintStyle,
                 ),
               ),
-            _CodexMessageActions(
-              visible: _hovered || !kIsWeb,
-              raw: _raw,
-              copyText: raw,
-              alignment: MainAxisAlignment.start,
-              onToggleRaw: () => setState(() => _raw = !_raw),
-            ),
+            if (!widget.cell.isStreaming) ...<Widget>[
+              const SizedBox(height: AleraTokens.space8),
+              _CodexMessageActions(
+                visible: _hovered || !kIsWeb,
+                raw: _raw,
+                copyText: raw,
+                alignment: MainAxisAlignment.start,
+                timestamp: widget.cell.createdAt,
+                onToggleRaw: () => setState(() => _raw = !_raw),
+              ),
+            ],
           ],
         ),
       ),
@@ -204,48 +224,6 @@ class _CodexProgressMessage extends StatelessWidget {
   }
 }
 
-class _CodexMessageActions extends StatelessWidget {
-  const _CodexMessageActions({
-    required this.visible,
-    required this.raw,
-    required this.copyText,
-    required this.alignment,
-    required this.onToggleRaw,
-  });
-
-  final bool visible;
-  final bool raw;
-  final String copyText;
-  final MainAxisAlignment alignment;
-  final VoidCallback onToggleRaw;
-
-  @override
-  Widget build(BuildContext context) => AnimatedOpacity(
-    opacity: visible ? 1 : 0,
-    duration: AleraTokens.durationFast,
-    child: IgnorePointer(
-      ignoring: !visible,
-      child: Row(
-        mainAxisAlignment: alignment,
-        children: <Widget>[
-          AleraIconButton(
-            tooltip: 'Copy Message',
-            icon: AleraIcons.copy,
-            onPressed: copyText.isEmpty
-                ? null
-                : () => _copyCodexText(context, copyText, 'Message copied'),
-          ),
-          AleraIconButton(
-            tooltip: raw ? 'Show Markdown' : 'Show Raw Markdown',
-            icon: raw ? AleraIcons.text : AleraIcons.code,
-            onPressed: onToggleRaw,
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _CodexMarkdownText extends StatelessWidget {
   const _CodexMarkdownText({required this.text, this.workspacePath});
 
@@ -272,12 +250,15 @@ class _CodexMarkdownText extends StatelessWidget {
               code: code,
               closed: closed,
             ),
-        onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(url)),
+        onLinkTap: (url, _) => unawaited(_openCodexMarkdownLink(context, url)),
         imageBuilder: (context, source, width, height) {
           final resolved = _resolveCodexImageSource(source, workspacePath);
-          return GestureDetector(
-            onTap: () => _showCodexImagePreview(context, resolved),
-            child: _buildCodexMarkdownImage(context, resolved, width, height),
+          return MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _showCodexImagePreview(context, resolved),
+              child: _buildCodexMarkdownImage(context, resolved, width, height),
+            ),
           );
         },
       ),
@@ -286,7 +267,7 @@ class _CodexMarkdownText extends StatelessWidget {
 }
 
 String _resolveCodexImageSource(String source, String? workspacePath) {
-  final uri = Uri.tryParse(source);
+  final uri = _tryParseCodexUri(source);
   if (workspacePath == null ||
       workspacePath.isEmpty ||
       uri == null ||
@@ -297,9 +278,9 @@ String _resolveCodexImageSource(String source, String? workspacePath) {
   return p.join(workspacePath, source);
 }
 
-Future<void> _openCodexMarkdownLink(String url) async {
-  final uri = Uri.tryParse(url);
-  if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+Future<void> _openCodexMarkdownLink(BuildContext context, String url) async {
+  final handler = _CodexLinkScope.maybeOf(context)?.onOpenLink;
+  if (handler != null) await handler(url);
 }
 
 Widget _buildCodexMarkdownImage(
@@ -319,7 +300,7 @@ Widget _buildCodexMarkdownImage(
 
 Widget _codexImageFromSource(String source, {BoxFit? fit}) {
   try {
-    final uri = Uri.tryParse(source);
+    final uri = _tryParseCodexUri(source);
     if (uri?.scheme == 'data') {
       return Image.memory(
         UriData.fromUri(uri!).contentAsBytes(),
@@ -339,6 +320,18 @@ Widget _codexImageFromSource(String source, {BoxFit? fit}) {
     return Builder(
       builder: (context) => _codexImageError(context, error, stackTrace),
     );
+  } on ArgumentError catch (error, stackTrace) {
+    return Builder(
+      builder: (context) => _codexImageError(context, error, stackTrace),
+    );
+  }
+}
+
+Uri? _tryParseCodexUri(String source) {
+  try {
+    return Uri.tryParse(source);
+  } on ArgumentError {
+    return null;
   }
 }
 
@@ -375,10 +368,12 @@ class _CodexTimelineAttachment extends StatelessWidget {
   const _CodexTimelineAttachment({
     required this.attachment,
     required this.workspacePath,
+    required this.onOpen,
   });
 
   final Map<String, Object?> attachment;
   final String workspacePath;
+  final Future<void> Function(String path, {required bool isImage}) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -392,7 +387,8 @@ class _CodexTimelineAttachment extends StatelessWidget {
         p.basename(path);
     if (_timelineAttachmentIsImage(attachment)) {
       return InkWell(
-        onTap: () => _showCodexImagePreview(context, resolvedPath),
+        onTap: () => unawaited(onOpen(resolvedPath, isImage: true)),
+        mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
@@ -413,8 +409,11 @@ class _CodexTimelineAttachment extends StatelessWidget {
     final canOpen = resolvedPath.isNotEmpty && !path.startsWith('app://');
     return InkWell(
       onTap: canOpen
-          ? () => unawaited(launchUrl(Uri.file(resolvedPath)))
+          ? () => unawaited(onOpen(resolvedPath, isImage: false))
           : null,
+      mouseCursor: canOpen
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       child: Container(
         constraints: const BoxConstraints(
@@ -432,14 +431,19 @@ class _CodexTimelineAttachment extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              type == 'skill'
-                  ? AleraIcons.agent
-                  : path.startsWith('app://')
-                  ? AleraIcons.link
-                  : AleraIcons.fileGeneric,
-              size: AleraTokens.iconMd,
-            ),
+            if (type == 'skill' || path.startsWith('app://'))
+              Icon(
+                type == 'skill' ? AleraIcons.agent : AleraIcons.link,
+                size: AleraTokens.iconMd,
+              )
+            else
+              AleraFileIcon(
+                pathOrName: path,
+                kind: attachment['isDirectory'] == true
+                    ? AleraFileIconKind.folder
+                    : AleraFileIconKind.file,
+                size: AleraTokens.iconMd,
+              ),
             const SizedBox(width: AleraTokens.space6),
             Flexible(child: Text(name, overflow: TextOverflow.ellipsis)),
           ],

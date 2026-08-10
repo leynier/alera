@@ -1,9 +1,14 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 import 'codex_timeline.dart';
 
 part 'codex_chat_state.dart';
 part 'codex_chat_models_helpers.dart';
+part 'codex_thread_models.dart';
+part 'codex_chat_snapshot_models.dart';
+part 'codex_timeline_event.dart';
 
 @immutable
 class CodexModelOption {
@@ -34,7 +39,7 @@ class CodexModelOption {
             : null);
     return CodexModelOption(
       id: id.isEmpty ? 'unknown' : id,
-      label: label.isEmpty ? id : label,
+      label: codexModelDisplayLabel(label.isEmpty ? id : label),
       isDefault: json['isDefault'] == true || json['default'] == true,
       contextWindowTokens: _int(
         json['contextWindowTokens'] ?? json['contextWindow'],
@@ -72,6 +77,10 @@ class CodexInputAttachment {
     this.displayName,
     this.sizeBytes,
     this.detail,
+    this.isDirectory = false,
+    this.origin = CodexInputAttachmentOrigin.attachment,
+    this.tokenText,
+    this.tokenStart,
   });
 
   final String? id;
@@ -81,7 +90,28 @@ class CodexInputAttachment {
   final String? displayName;
   final int? sizeBytes;
   final String? detail;
+  final bool isDirectory;
+  final CodexInputAttachmentOrigin origin;
+  final String? tokenText;
+  final int? tokenStart;
+
+  CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
+      CodexInputAttachment(
+        id: id,
+        path: path,
+        isImage: isImage,
+        mimeType: mimeType,
+        displayName: displayName,
+        sizeBytes: sizeBytes ?? this.sizeBytes,
+        detail: detail,
+        isDirectory: isDirectory ?? this.isDirectory,
+        origin: origin,
+        tokenText: tokenText,
+        tokenStart: tokenStart,
+      );
 }
+
+enum CodexInputAttachmentOrigin { attachment, mention }
 
 enum CodexDraftItemKind { skill, app, mention }
 
@@ -93,6 +123,8 @@ class CodexDraftItem {
     required this.name,
     required this.path,
     this.tokenText,
+    this.tokenStart,
+    this.iconUrl,
   });
 
   final String id;
@@ -100,6 +132,18 @@ class CodexDraftItem {
   final String name;
   final String path;
   final String? tokenText;
+  final int? tokenStart;
+  final String? iconUrl;
+
+  CodexDraftItem copyWith({int? tokenStart}) => CodexDraftItem(
+    id: id,
+    kind: kind,
+    name: name,
+    path: path,
+    tokenText: tokenText,
+    tokenStart: tokenStart ?? this.tokenStart,
+    iconUrl: iconUrl,
+  );
 }
 
 @immutable
@@ -230,12 +274,20 @@ class CodexPendingRequest {
       (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
       elicitationSchema['properties'] is Map &&
       (elicitationSchema['properties'] as Map).values.every((schema) {
-        final type = _string(_map(schema)['type']);
-        return type == null ||
-            type == 'string' ||
-            type == 'number' ||
-            type == 'integer' ||
-            type == 'boolean';
+        final property = _map(schema);
+        final type = _string(property['type']);
+        const supportedKeys = <String>{
+          'type',
+          'title',
+          'description',
+          'default',
+        };
+        return property.keys.every(supportedKeys.contains) &&
+            (type == null ||
+                type == 'string' ||
+                type == 'number' ||
+                type == 'integer' ||
+                type == 'boolean');
       });
 
   bool get isQuestion {
@@ -286,8 +338,19 @@ class CodexPendingRequest {
   }
 
   bool supportsApprovalDecision(String decision) {
-    final available = availableApprovalDecisions;
-    return available.isEmpty || available.contains(decision);
+    if (params['availableDecisions'] is List) {
+      return availableApprovalDecisions.contains(decision);
+    }
+    return switch (decision) {
+      'accept' || 'decline' => isApproval,
+      'acceptForSession' => _supportsSessionApproval,
+      'cancel' => _supportsCancelApproval,
+      'acceptWithExecpolicyAmendment' =>
+        _isCommandApproval && _proposedExecpolicyAmendment.isNotEmpty,
+      'applyNetworkPolicyAmendment' =>
+        _isCommandApproval && _proposedNetworkPolicyAmendments.length == 1,
+      _ => false,
+    };
   }
 
   Object approvalDecisionValue(String decision) {
@@ -299,7 +362,61 @@ class CodexPendingRequest {
         }
       }
     }
-    return decision;
+    return switch (decision) {
+      'acceptWithExecpolicyAmendment'
+          when _proposedExecpolicyAmendment.isNotEmpty =>
+        <String, Object?>{
+          'acceptWithExecpolicyAmendment': <String, Object?>{
+            'execpolicy_amendment': _proposedExecpolicyAmendment,
+          },
+        },
+      'applyNetworkPolicyAmendment'
+          when _proposedNetworkPolicyAmendments.length == 1 =>
+        <String, Object?>{
+          'applyNetworkPolicyAmendment': <String, Object?>{
+            'network_policy_amendment': _proposedNetworkPolicyAmendments.single,
+          },
+        },
+      _ => decision,
+    };
+  }
+
+  bool get _isCommandApproval => const <String>{
+    'item/commandexecution/requestapproval',
+    'execcommandapproval',
+  }.contains(method.toLowerCase());
+
+  bool get _supportsSessionApproval => const <String>{
+    'item/commandexecution/requestapproval',
+    'item/filechange/requestapproval',
+    'item/permissions/requestapproval',
+    'execcommandapproval',
+    'applypatchapproval',
+  }.contains(method.toLowerCase());
+
+  bool get _supportsCancelApproval => const <String>{
+    'item/commandexecution/requestapproval',
+    'item/filechange/requestapproval',
+    'execcommandapproval',
+    'applypatchapproval',
+  }.contains(method.toLowerCase());
+
+  List<Object?> get _proposedExecpolicyAmendment {
+    final value =
+        params['proposedExecpolicyAmendment'] ??
+        params['proposed_execpolicy_amendment'];
+    return value is List ? List<Object?>.from(value) : const <Object?>[];
+  }
+
+  List<Map<String, Object?>> get _proposedNetworkPolicyAmendments {
+    final value =
+        params['proposedNetworkPolicyAmendments'] ??
+        params['proposed_network_policy_amendments'];
+    if (value is! List) return const <Map<String, Object?>>[];
+    return <Map<String, Object?>>[
+      for (final amendment in value)
+        if (amendment is Map) Map<String, Object?>.from(amendment),
+    ];
   }
 
   String approvalDecisionName(Object decision) {
@@ -309,192 +426,48 @@ class CodexPendingRequest {
     }
     return '';
   }
-}
 
-@immutable
-class CodexTimelineEvent {
-  const CodexTimelineEvent({
-    required this.method,
-    required this.raw,
-    this.text = '',
-    this.title,
-    this.kind = 'event',
-  });
-
-  factory CodexTimelineEvent.fromJson(Object? value) {
-    final raw = _map(value);
-    final params = _map(raw['params']);
-    final item = _map(params['item']);
-    final method = _string(raw['method']) ?? 'event';
-    return CodexTimelineEvent(
-      method: method,
-      raw: raw,
-      text: _firstString(<Object?>[
-        params['delta'],
-        params['text'],
-        item['text'],
-        item['content'],
-        item['message'],
-        raw['result'],
-      ]),
-      title: _nullableString(<Object?>[
-        params['title'],
-        params['name'],
-        item['name'],
-        item['command'],
-      ]),
-      kind: _legacyKind(method, item),
-    );
-  }
-
-  final String method;
-  final Map<String, Object?> raw;
-  final String text;
-  final String? title;
-  final String kind;
-
-  bool get isAssistant =>
-      kind == 'assistant' || method.contains('agentMessage');
-  bool get isUser => kind == 'user';
-  bool get isReasoning => kind == 'reasoning' || method.contains('reasoning');
-  bool get isTool => kind == 'tool' || method.contains('tool');
-  bool get isCommand => kind == 'command' || method.contains('command');
-  bool get isDiff => kind == 'diff' || method.contains('diff');
-  bool get isPlan => kind == 'plan' || method.contains('plan');
-  bool get isSubAgent =>
-      method.contains('subagent') || method.contains('collab');
-}
-
-@immutable
-class CodexChatSnapshot {
-  const CodexChatSnapshot({
-    this.events = const <CodexTimelineEvent>[],
-    this.timelineCells = const <CodexTimelineCell>[],
-    this.pendingRequests = const <CodexPendingRequest>[],
-    this.activeTurnId,
-    this.contextUsed,
-    this.contextLimit,
-    this.title,
-  });
-
-  factory CodexChatSnapshot.fromJson(Object? value) {
-    final json = _map(value);
-    final events = <CodexTimelineEvent>[
-      for (final item
-          in json['events'] is List
-              ? json['events'] as List
-              : const <Object?>[])
-        CodexTimelineEvent.fromJson(item),
-    ];
-    var cells = <CodexTimelineCell>[
-      for (final item
-          in json['timelineCells'] is List
-              ? json['timelineCells'] as List
-              : const <Object?>[])
-        if (item is Map) CodexTimelineCell.fromJson(_map(item)),
-    ];
-    if (cells.isEmpty && events.isNotEmpty) {
-      for (final event in events) {
-        cells = CodexTimelineReducer.reduce(cells, event.raw);
-      }
+  Object approvalWireDecision(Object decision) {
+    final methodName = method.toLowerCase();
+    if (methodName != 'execcommandapproval' &&
+        methodName != 'applypatchapproval') {
+      return decision;
     }
-    return CodexChatSnapshot(
-      events: events,
-      timelineCells: cells,
-      pendingRequests: <CodexPendingRequest>[
-        for (final item
-            in json['pendingRequests'] is List
-                ? json['pendingRequests'] as List
-                : const <Object?>[])
-          CodexPendingRequest.fromJson(item),
-      ],
-      activeTurnId: _string(json['activeTurnId']),
-      contextUsed: _int(json['contextUsed']),
-      contextLimit: _int(json['contextLimit']),
-      title: _string(json['title']),
-    );
+    final decisionName = approvalDecisionName(decision);
+    return switch (decisionName) {
+      'accept' => 'approved',
+      'acceptForSession' => 'approved_for_session',
+      'decline' => 'denied',
+      'cancel' => 'abort',
+      'acceptWithExecpolicyAmendment' => _legacyExecpolicyDecision(decision),
+      'applyNetworkPolicyAmendment' => _legacyNetworkDecision(decision),
+      _ => decision,
+    };
   }
 
-  final List<CodexTimelineEvent> events;
-  final List<CodexTimelineCell> timelineCells;
-  final List<CodexPendingRequest> pendingRequests;
-  final String? activeTurnId;
-  final int? contextUsed;
-  final int? contextLimit;
-  final String? title;
-
-  bool get isBusy => activeTurnId != null;
-
-  /// The plan prompt is a turn-local affordance. Older snapshots can retain
-  /// plans from many turns, so rendering a button for any plan makes a stale
-  /// plan actionable after the user has started a new request.
-  CodexTimelineCell? get latestActionablePlan {
-    final latestUserIndex = _latestUserIndex;
-    if (latestUserIndex < 0) return null;
-    for (
-      var index = timelineCells.length - 1;
-      index > latestUserIndex;
-      index--
-    ) {
-      final cell = timelineCells[index];
-      if (cell.kind != CodexTimelineKind.plan ||
-          cell.status == CodexTimelineStatus.failed ||
-          cell.status == CodexTimelineStatus.declined ||
-          cell.isStreaming ||
-          (cell.markdownText ?? cell.detailsText ?? '').trim().isEmpty) {
-        continue;
-      }
-      return cell;
-    }
-    return null;
+  Object _legacyExecpolicyDecision(Object decision) {
+    if (decision is! Map) return decision;
+    final value = decision['acceptWithExecpolicyAmendment'];
+    if (value is! Map) return decision;
+    final amendment = value['execpolicy_amendment'];
+    if (amendment is! List) return decision;
+    return <String, Object?>{
+      'approved_execpolicy_amendment': <String, Object?>{
+        'proposed_execpolicy_amendment': amendment,
+      },
+    };
   }
 
-  /// A server question asking whether to implement a plan owns the prompt.
-  /// Showing the local fallback at the same time creates two competing
-  /// actions and can send an answer for an already resolved request.
-  bool get hasEquivalentPlanRequest => pendingRequests.any((request) {
-    if (!request.isQuestion) return false;
-    final text = <Object?>[
-      request.params['title'],
-      request.params['question'],
-      request.params['prompt'],
-      request.params['message'],
-      for (final question in request.questions) question.question,
-    ].join(' ').toLowerCase();
-    return text.contains('implement') && text.contains('plan');
-  });
-
-  bool get shouldShowImplementPlan =>
-      latestActionablePlan != null && !hasEquivalentPlanRequest;
-
-  bool get hasPlan => shouldShowImplementPlan;
-
-  int get _latestUserIndex {
-    for (var index = timelineCells.length - 1; index >= 0; index--) {
-      if (timelineCells[index].kind == CodexTimelineKind.userMessage) {
-        return index;
-      }
-    }
-    return -1;
+  Object _legacyNetworkDecision(Object decision) {
+    if (decision is! Map) return decision;
+    final value = decision['applyNetworkPolicyAmendment'];
+    if (value is! Map) return decision;
+    final amendment = value['network_policy_amendment'];
+    if (amendment is! Map) return decision;
+    return <String, Object?>{
+      'network_policy_amendment': <String, Object?>{
+        'network_policy_amendment': Map<String, Object?>.from(amendment),
+      },
+    };
   }
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': 2,
-    'events': <Map<String, Object?>>[for (final event in events) event.raw],
-    'timelineCells': <Map<String, Object?>>[
-      for (final cell in timelineCells) cell.toJson(),
-    ],
-    'pendingRequests': <Map<String, Object?>>[
-      for (final request in pendingRequests)
-        <String, Object?>{
-          'id': request.id,
-          'method': request.method,
-          'params': request.params,
-        },
-    ],
-    if (activeTurnId != null) 'activeTurnId': activeTurnId,
-    if (contextUsed != null) 'contextUsed': contextUsed,
-    if (contextLimit != null) 'contextLimit': contextLimit,
-    if (title != null) 'title': title,
-  };
 }

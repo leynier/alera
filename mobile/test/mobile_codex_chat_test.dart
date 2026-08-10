@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
+part 'support/mobile_codex_chat_test_fakes.dart';
+
 void main() {
   test('mobile rebuilds a coherent timeline from legacy raw events', () {
     final state = MobileCodexState.fromSnapshot(<String, Object?>{
@@ -69,6 +71,80 @@ void main() {
       cells.singleWhere((cell) => cell.id == 'diff-turn-1').detailsText,
       'second snapshot',
     );
+  });
+
+  test('mobile tracks context compaction once through completion', () {
+    var cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'item/started',
+        'params': <String, Object?>{
+          'turnId': 'turn-1',
+          'item': <String, Object?>{
+            'id': 'compact-1',
+            'type': 'contextCompaction',
+            'title': 'Context automatically compacting',
+          },
+        },
+      },
+    );
+    expect(cells.single.kind, 'toolCall');
+    expect(cells.single.title, 'Compacting');
+    expect(cells.single.isStreaming, isTrue);
+
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'item/completed',
+      'params': <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{
+          'id': 'compact-1',
+          'type': 'contextCompaction',
+        },
+      },
+    });
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'thread/compacted',
+      'params': <String, Object?>{'turnId': 'turn-1'},
+    });
+    expect(cells, hasLength(1));
+    expect(cells.single.id, 'item-compact-1');
+    expect(cells.single.title, 'Compacted');
+    expect(cells.single.status, 'completed');
+    expect(cells.single.isStreaming, isFalse);
+  });
+
+  test('mobile retains structured tool metadata and response content', () {
+    final cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'item/completed',
+        'params': <String, Object?>{
+          'turnId': 'turn-tools',
+          'item': <String, Object?>{
+            'id': 'mcp',
+            'type': 'mcpToolCall',
+            'server': 'codex_apps',
+            'tool': 'calendar.lookup',
+            'arguments': <String, Object?>{'calendarId': 'work'},
+            'result': <String, Object?>{
+              'content': <Object?>[
+                <String, Object?>{'type': 'text', 'text': 'Found 2 events'},
+              ],
+              'structuredContent': <String, Object?>{'count': 2},
+            },
+          },
+        },
+      },
+    );
+
+    expect(cells.single.metadata['server'], 'codex_apps');
+    expect(cells.single.metadata['tool'], 'calendar.lookup');
+    expect(cells.single.metadata['arguments'], <String, Object?>{
+      'calendarId': 'work',
+    });
+    expect(cells.single.metadata['result'], isA<Map>());
+    expect(cells.single.metadata['detailsSource'], 'result');
+    expect(cells.single.detailsText, isNull);
   });
 
   test('mobile exposes only the latest actionable plan', () {
@@ -176,8 +252,7 @@ void main() {
       );
       await controller.respondApproval(
         approval,
-        accepted: true,
-        forSession: true,
+        decision: approval.approvalDecisionValue('acceptForSession'),
       );
       expect(client.calls.last.payload['result'], <String, Object?>{
         'decision': 'acceptForSession',
@@ -269,7 +344,13 @@ void main() {
         (call) => call.type == 'codex.turn.start',
       );
       expect(container.read(provider).value!.planMode, isFalse);
-      expect(implementationTurn.payload, isNot(contains('collaborationMode')));
+      expect(implementationTurn.payload['collaborationMode'], <String, Object?>{
+        'mode': 'default',
+        'settings': <String, Object?>{
+          'model': 'gpt-current',
+          'reasoning_effort': 'low',
+        },
+      });
       expect(
         (implementationTurn.payload['input'] as List).last,
         <String, Object?>{'type': 'text', 'text': 'Implement plan'},
@@ -287,7 +368,7 @@ void main() {
     },
   );
 
-  testWidgets('mobile screen renders rich timeline and approval actions', (
+  testWidgets('mobile screen renders rich timeline and the current request', (
     tester,
   ) async {
     final client = _FakeMobileCodexClient();
@@ -301,7 +382,11 @@ void main() {
         ],
         child: const MaterialApp(
           home: Scaffold(
-            body: MobileCodexChatScreen(hostId: 'host-1', tabId: 'tab-1'),
+            body: MobileCodexChatScreen(
+              hostId: 'host-1',
+              tabId: 'tab-1',
+              workspaceId: 'workspace-1',
+            ),
           ),
         ),
       ),
@@ -309,162 +394,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 30));
     expect(find.text('Answer from Codex'), findsOneWidget);
-    expect(find.text('Codex Needs Approval'), findsOneWidget);
-    expect(find.text('Approve For Session'), findsOneWidget);
+    expect(find.text('Choose a mode'), findsOneWidget);
+    expect(find.text('Fast'), findsOneWidget);
+    expect(find.text('Careful'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('MCP Server Needs Input'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('MCP Server Needs Input'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Current Codex'), findsOneWidget);
-    expect(find.text('Message Codex'), findsOneWidget);
+    expect(find.textContaining('Current Codex'), findsOneWidget);
+    expect(find.textContaining('Ask Codex anything'), findsOneWidget);
   });
-}
-
-final class _FakeMobileCodexClient implements MobileCodexClient {
-  final StreamController<MobileRuntimeEvent> _events =
-      StreamController<MobileRuntimeEvent>.broadcast();
-  final List<_Call> calls = <_Call>[];
-
-  @override
-  bool get supportsCodexChat => true;
-
-  @override
-  Stream<MobileRuntimeEvent> get events => _events.stream;
-
-  @override
-  Future<Never> createCodexTab(String workspaceId) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Map<String, Object?>> codexRequest(
-    String type, [
-    Map<String, Object?> payload = const <String, Object?>{},
-  ]) async {
-    calls.add(_Call(type, payload));
-    if (type == 'codex.thread.open') {
-      return <String, Object?>{
-        'snapshot': <String, Object?>{
-          'timelineCells': <Object?>[
-            <String, Object?>{
-              'id': 'request',
-              'kind': 'userMessage',
-              'status': 'completed',
-              'markdownText': 'Inspect the workspace',
-            },
-            <String, Object?>{
-              'id': 'answer',
-              'kind': 'assistantMessage',
-              'status': 'completed',
-              'markdownText': 'Answer from Codex',
-            },
-            <String, Object?>{
-              'id': 'plan',
-              'kind': 'plan',
-              'status': 'completed',
-              'markdownText': '1. Inspect\n2. Implement',
-            },
-          ],
-          'pendingRequests': <Object?>[
-            <String, Object?>{
-              'id': 9,
-              'method': 'item/tool/request_user_input',
-              'params': <String, Object?>{
-                'questions': <Object?>[
-                  <String, Object?>{
-                    'id': 'mode',
-                    'question': 'Choose a mode',
-                    'options': <Object?>[
-                      <String, Object?>{'label': 'Fast'},
-                      <String, Object?>{'label': 'Careful'},
-                    ],
-                  },
-                ],
-              },
-            },
-            <String, Object?>{
-              'id': 10,
-              'method': 'item/commandExecution/requestApproval',
-              'params': <String, Object?>{'command': 'git status'},
-            },
-            <String, Object?>{
-              'id': 11,
-              'method': 'mcpServer/elicitation/request',
-              'params': <String, Object?>{
-                'mode': 'form',
-                'requestedSchema': <String, Object?>{
-                  'type': 'object',
-                  'properties': <String, Object?>{
-                    'name': <String, Object?>{'type': 'string'},
-                  },
-                },
-              },
-            },
-          ],
-        },
-      };
-    }
-    if (type == 'codex.model.list') {
-      return <String, Object?>{
-        'data': <Object?>[
-          <String, Object?>{
-            'id': 'gpt-current',
-            'displayName': 'Current Codex',
-            'isDefault': true,
-            'contextWindowTokens': 128000,
-            'supportedReasoningEfforts': <Object?>[
-              <String, Object?>{'reasoningEffort': 'xhigh'},
-              <String, Object?>{'reasoningEffort': 'low'},
-            ],
-            'defaultReasoningEffort': 'low',
-            'additionalSpeedTiers': <String>['fast'],
-            'serviceTiers': <Object?>[
-              <String, Object?>{'id': 'priority', 'name': 'Fast'},
-            ],
-          },
-        ],
-      };
-    }
-    if (type == 'codex.skills.list') {
-      return <String, Object?>{
-        'data': <Object?>[
-          <String, Object?>{'name': 'review', 'path': '/skills/review'},
-        ],
-      };
-    }
-    if (type == 'codex.apps.list') {
-      return <String, Object?>{
-        'data': <Object?>[
-          <String, Object?>{
-            'name': 'filesystem',
-            'slug': 'filesystem',
-            'id': 'connector-filesystem',
-            'connectorId': 'connector-filesystem',
-          },
-        ],
-      };
-    }
-    if (type == 'codex.collaborationModes.list') {
-      return <String, Object?>{
-        'data': <Object?>[
-          <String, Object?>{'mode': 'plan'},
-        ],
-      };
-    }
-    return <String, Object?>{};
-  }
-
-  void emit(MobileRuntimeEvent event) => _events.add(event);
-
-  void dispose() => _events.close();
-}
-
-final class _Call {
-  const _Call(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
 }

@@ -9,11 +9,13 @@ class AgentIdentityIcon extends StatelessWidget {
     required this.agentType,
     this.size = 14,
     this.color = AleraTokens.foregroundMuted,
+    this.showTooltip = true,
   });
 
   final String agentType;
   final double size;
   final Color color;
+  final bool showTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,7 @@ class AgentIdentityIcon extends StatelessWidget {
                   : null,
             ),
     );
-    return Tooltip(message: label, child: icon);
+    return showTooltip ? Tooltip(message: label, child: icon) : icon;
   }
 }
 

@@ -1,64 +1,14 @@
 import 'package:flutter/foundation.dart';
 
 part 'mobile_codex_timeline.dart';
+part 'mobile_codex_timeline_classification.dart';
+part 'mobile_codex_timeline_compaction.dart';
+part 'mobile_codex_timeline_content.dart';
+part 'mobile_codex_model_option.dart';
+part 'mobile_codex_requests.dart';
 part 'mobile_codex_state_helpers.dart';
-
-@immutable
-class MobileCodexModelOption {
-  const MobileCodexModelOption({
-    required this.id,
-    required this.label,
-    this.isDefault = false,
-    this.contextWindowTokens,
-    this.supportsFastMode = false,
-    this.reasoningEfforts = const <String>[],
-    this.defaultReasoningEffort,
-    this.metadata = const <String, Object?>{},
-  });
-
-  factory MobileCodexModelOption.fromJson(Object? value) {
-    final json = _map(value);
-    final id = _first(<Object?>[json['id'], json['model'], json['name']]);
-    return MobileCodexModelOption(
-      id: id.isEmpty ? 'unknown' : id,
-      label: _first(<Object?>[
-        json['displayName'],
-        json['label'],
-        json['name'],
-        id,
-      ]),
-      isDefault: json['isDefault'] == true || json['default'] == true,
-      contextWindowTokens: _int(
-        json['contextWindowTokens'] ?? json['contextWindow'],
-      ),
-      defaultReasoningEffort: _string(json['defaultReasoningEffort']),
-      supportsFastMode:
-          json['supportsFastMode'] == true ||
-          _containsFast(json['serviceTier']) ||
-          _containsFast(json['additionalSpeedTiers']) ||
-          _containsFast(json['serviceTiers']) ||
-          _containsFast(json['supportedServiceTiers']) ||
-          _containsFast(json['serviceTierOptions']),
-      reasoningEfforts: _reasoningEfforts(
-        json['reasoningEfforts'] ??
-            json['supportedReasoningEfforts'] ??
-            (json['reasoning'] is Map
-                ? (json['reasoning'] as Map)['efforts']
-                : null),
-      ),
-      metadata: json,
-    );
-  }
-
-  final String id;
-  final String label;
-  final bool isDefault;
-  final int? contextWindowTokens;
-  final bool supportsFastMode;
-  final List<String> reasoningEfforts;
-  final String? defaultReasoningEffort;
-  final Map<String, Object?> metadata;
-}
+part 'mobile_codex_projection.dart';
+part 'mobile_codex_thread_models.dart';
 
 @immutable
 class MobileCodexTimelineCell {
@@ -161,150 +111,11 @@ class MobileCodexTimelineCell {
       kind == 'toolCall' || kind == 'command' || kind == 'diff';
 }
 
-@immutable
-class MobileCodexQuestionOption {
-  const MobileCodexQuestionOption({required this.label, this.description});
-
-  factory MobileCodexQuestionOption.fromJson(Object? value) {
-    final json = _map(value);
-    return MobileCodexQuestionOption(
-      label: _first(<Object?>[json['label'], json['value'], value]),
-      description: _string(json['description']),
-    );
-  }
-
-  final String label;
-  final String? description;
-}
-
-@immutable
-class MobileCodexQuestion {
-  const MobileCodexQuestion({
-    required this.id,
-    required this.question,
-    this.header,
-    this.options = const <MobileCodexQuestionOption>[],
-    this.isMultiSelect = false,
-    this.isSecret = false,
-    this.isOther = false,
-  });
-
-  factory MobileCodexQuestion.fromJson(Object? value, {int index = 0}) {
-    final json = _map(value);
-    return MobileCodexQuestion(
-      id: _first(<Object?>[json['id'], json['key'], 'question-$index']),
-      question: _first(<Object?>[
-        json['question'],
-        json['prompt'],
-        json['text'],
-        'Codex asked a question.',
-      ]),
-      header: _string(json['header']),
-      options: <MobileCodexQuestionOption>[
-        if (json['options'] is List)
-          for (final option in json['options'] as List)
-            MobileCodexQuestionOption.fromJson(option),
-      ],
-      isMultiSelect:
-          json['isMultiSelect'] == true || json['multiSelect'] == true,
-      isSecret: json['isSecret'] == true,
-      isOther: json['isOther'] == true,
-    );
-  }
-
-  final String id;
-  final String question;
-  final String? header;
-  final List<MobileCodexQuestionOption> options;
-  final bool isMultiSelect;
-  final bool isSecret;
-  final bool isOther;
-}
-
-@immutable
-class MobileCodexPendingRequest {
-  const MobileCodexPendingRequest({
-    required this.id,
-    required this.method,
-    required this.params,
-  });
-
-  factory MobileCodexPendingRequest.fromJson(Object? value) {
-    final json = _map(value);
-    return MobileCodexPendingRequest(
-      id: json['id'] ?? '',
-      method: _first(<Object?>[json['method'], 'request']),
-      params: _map(json['params']),
-    );
-  }
-
-  final Object id;
-  final String method;
-  final Map<String, Object?> params;
-
-  bool get isApproval {
-    final lower = method.toLowerCase();
-    return lower.contains('approval') ||
-        lower.contains('permission') ||
-        lower.contains('requestcommand') ||
-        lower.contains('requestfile');
-  }
-
-  bool get isPermissionsRequest =>
-      method.toLowerCase() == 'item/permissions/requestapproval';
-
-  bool get isElicitation =>
-      method.toLowerCase() == 'mcpserver/elicitation/request';
-
-  bool get isBlocking {
-    final value = params['isBlocking'];
-    if (value is bool) return value;
-    if (params.containsKey('autoResolutionMs')) return false;
-    return true;
-  }
-
-  int? get autoResolutionMs => _int(params['autoResolutionMs']);
-
-  String get elicitationMode => _string(params['mode']) ?? '';
-
-  Map<String, Object?> get elicitationSchema => _map(params['requestedSchema']);
-
-  bool get hasSupportedElicitationForm =>
-      isElicitation &&
-      (elicitationMode == 'form' || elicitationMode == 'openai/form') &&
-      elicitationSchema['properties'] is Map;
-
-  bool get isQuestion {
-    final lower = method.toLowerCase();
-    return lower.contains('question') ||
-        lower.contains('userinput') ||
-        lower.contains('request_user_input') ||
-        params['questions'] is List;
-  }
-
-  List<MobileCodexQuestion> get questions {
-    final values = params['questions'];
-    if (values is List && values.isNotEmpty) {
-      return <MobileCodexQuestion>[
-        for (var index = 0; index < values.length; index++)
-          MobileCodexQuestion.fromJson(values[index], index: index),
-      ];
-    }
-    return <MobileCodexQuestion>[MobileCodexQuestion.fromJson(params)];
-  }
-
-  String get description => _first(<Object?>[
-    params['reason'],
-    params['command'],
-    params['path'],
-    'Codex is requesting permission to continue.',
-  ]);
-}
-
 class MobileCodexState {
   const MobileCodexState({
     this.events = const <Map<String, Object?>>[],
     this.timelineCells = const <MobileCodexTimelineCell>[],
+    this.paginatedHistoryCellIds = const <String>{},
     this.pendingRequests = const <MobileCodexPendingRequest>[],
     this.activeTurnId,
     this.models = const <MobileCodexModelOption>[],
@@ -314,19 +125,28 @@ class MobileCodexState {
     this.selectedModel,
     this.reasoningEffort = 'medium',
     this.speedMode = 'normal',
-    this.permissionMode = 'on-request',
+    this.permissionMode = 'untrusted',
     this.planMode = false,
     this.collaborationMode,
     this.queuedMessages = const <Map<String, Object?>>[],
     this.contextUsed,
     this.contextLimit,
+    this.promptHistory = const <String>[],
+    this.mcpInitializing = false,
     this.title,
+    this.activeCwd,
+    this.historyNextCursor,
     this.error,
     this.sending = false,
     this.interrupting = false,
+    this.presentationRows = const <MobileCodexPresentationRow>[],
+    this.recovery,
   });
 
-  factory MobileCodexState.fromSnapshot(Object? value) {
+  factory MobileCodexState.fromSnapshot(
+    Object? value, {
+    bool deriveTimeline = true,
+  }) {
     final json = _map(value);
     final events = _maps(json['events']);
     var cells = <MobileCodexTimelineCell>[
@@ -339,6 +159,7 @@ class MobileCodexState {
         cells = MobileCodexTimelineReducer.reduce(cells, event);
       }
     }
+    final activeTurnId = _string(json['activeTurnId']);
     return MobileCodexState(
       events: events,
       timelineCells: cells,
@@ -347,15 +168,114 @@ class MobileCodexState {
           for (final item in json['pendingRequests'] as List)
             MobileCodexPendingRequest.fromJson(item),
       ],
-      activeTurnId: _string(json['activeTurnId']),
+      activeTurnId: activeTurnId,
       title: _string(json['title']),
+      activeCwd: _string(json['activeCwd']),
+      historyNextCursor: _string(json['historyNextCursor']),
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
+      promptHistory: deriveTimeline
+          ? mobileCodexPromptHistory(cells)
+          : const <String>[],
+      mcpInitializing: deriveTimeline
+          ? mobileCodexHasInitializingMcp(cells)
+          : false,
+      presentationRows: deriveTimeline
+          ? MobileCodexTimelineProjection.project(
+              cells,
+              activeTurnId: activeTurnId,
+            )
+          : const <MobileCodexPresentationRow>[],
+    );
+  }
+
+  MobileCodexState applySnapshotDelta(
+    Object? value, {
+    bool deriveTimeline = true,
+  }) {
+    final json = _map(value);
+    if (json.isEmpty) return this;
+    final removedIds = <String>{
+      if (json['timelineRemovedIds'] is List)
+        for (final id in json['timelineRemovedIds'] as List)
+          if (id?.toString() case final String value when value.isNotEmpty)
+            value,
+    };
+    final upserts = <String, MobileCodexTimelineCell>{};
+    if (json['timelineUpserts'] is List) {
+      for (final item in json['timelineUpserts'] as List) {
+        if (item is! Map) continue;
+        final cell = MobileCodexTimelineCell.fromJson(item);
+        upserts[cell.id] = cell;
+      }
+    }
+    final cellsChanged = removedIds.isNotEmpty || upserts.isNotEmpty;
+    final nextCells = !cellsChanged
+        ? timelineCells
+        : <MobileCodexTimelineCell>[
+            for (final cell in timelineCells)
+              if (!removedIds.contains(cell.id))
+                upserts.remove(cell.id) ?? cell,
+            ...upserts.values,
+          ];
+    final replacementEvents = json['eventsReplace'] is List
+        ? _maps(json['eventsReplace'])
+        : null;
+    final appendedEvents = _maps(json['eventsAppend']);
+    final eventLimit = _int(json['eventLimit']) ?? 160;
+    final combinedEvents =
+        replacementEvents ??
+        (appendedEvents.isEmpty
+            ? events
+            : <Map<String, Object?>>[...events, ...appendedEvents]);
+    final nextEvents = combinedEvents.length <= eventLimit
+        ? combinedEvents
+        : combinedEvents.sublist(combinedEvents.length - eventLimit);
+    final nextActiveTurnId = json.containsKey('activeTurnId')
+        ? _string(json['activeTurnId'])
+        : activeTurnId;
+    final nextPaginatedHistoryCellIds = removedIds.isEmpty
+        ? paginatedHistoryCellIds
+        : Set<String>.unmodifiable(
+            paginatedHistoryCellIds.difference(removedIds),
+          );
+    return copyWith(
+      events: nextEvents,
+      timelineCells: nextCells,
+      paginatedHistoryCellIds: nextPaginatedHistoryCellIds,
+      pendingRequests: json.containsKey('pendingRequests')
+          ? <MobileCodexPendingRequest>[
+              if (json['pendingRequests'] is List)
+                for (final item in json['pendingRequests'] as List)
+                  MobileCodexPendingRequest.fromJson(item),
+            ]
+          : pendingRequests,
+      activeTurnId: nextActiveTurnId,
+      contextUsed: json.containsKey('contextUsed')
+          ? _int(json['contextUsed'])
+          : contextUsed,
+      contextLimit: json.containsKey('contextLimit')
+          ? _int(json['contextLimit'])
+          : contextLimit,
+      title: json.containsKey('title') ? _string(json['title']) : title,
+      promptHistory: cellsChanged && deriveTimeline
+          ? mobileCodexPromptHistory(nextCells)
+          : promptHistory,
+      mcpInitializing: cellsChanged && deriveTimeline
+          ? mobileCodexHasInitializingMcp(nextCells)
+          : mcpInitializing,
+      presentationRows: deriveTimeline
+          ? MobileCodexTimelineProjection.project(
+              nextCells,
+              activeTurnId: nextActiveTurnId,
+            )
+          : presentationRows,
     );
   }
 
   final List<Map<String, Object?>> events;
   final List<MobileCodexTimelineCell> timelineCells;
+  final Set<String> paginatedHistoryCellIds;
   final List<MobileCodexPendingRequest> pendingRequests;
   final String? activeTurnId;
   final List<MobileCodexModelOption> models;
@@ -371,10 +291,16 @@ class MobileCodexState {
   final List<Map<String, Object?>> queuedMessages;
   final int? contextUsed;
   final int? contextLimit;
+  final List<String> promptHistory;
+  final bool mcpInitializing;
   final String? title;
+  final String? activeCwd;
+  final String? historyNextCursor;
   final String? error;
   final bool sending;
   final bool interrupting;
+  final List<MobileCodexPresentationRow> presentationRows;
+  final MobileCodexThreadRecovery? recovery;
 
   bool get busy => sending || interrupting || activeTurnId != null;
 
@@ -393,7 +319,15 @@ class MobileCodexState {
       index--
     ) {
       final cell = timelineCells[index];
+      if (cell.kind == 'systemNotice' &&
+          const <String>{
+            'threadBoundary',
+            'contextReset',
+          }.contains(cell.metadata['noticeType'])) {
+        return null;
+      }
       if (cell.kind == 'plan' &&
+          cell.metadata['plan'] is! List &&
           cell.status != 'failed' &&
           cell.status != 'declined' &&
           !cell.isStreaming &&
@@ -404,17 +338,8 @@ class MobileCodexState {
     return null;
   }
 
-  bool get hasEquivalentPlanRequest => pendingRequests.any((request) {
-    if (!request.isQuestion) return false;
-    final text = <Object?>[
-      request.params['title'],
-      request.params['question'],
-      request.params['prompt'],
-      request.params['message'],
-      for (final question in request.questions) question.question,
-    ].join(' ').toLowerCase();
-    return text.contains('implement') && text.contains('plan');
-  });
+  bool get hasEquivalentPlanRequest =>
+      pendingRequests.any((request) => request.isImplementPlanQuestion);
 
   bool get shouldShowImplementPlan =>
       latestActionablePlan != null && !hasEquivalentPlanRequest;
@@ -424,6 +349,7 @@ class MobileCodexState {
   MobileCodexState copyWith({
     List<Map<String, Object?>>? events,
     List<MobileCodexTimelineCell>? timelineCells,
+    Set<String>? paginatedHistoryCellIds,
     List<MobileCodexPendingRequest>? pendingRequests,
     Object? activeTurnId = _keep,
     List<MobileCodexModelOption>? models,
@@ -437,15 +363,23 @@ class MobileCodexState {
     bool? planMode,
     Object? collaborationMode = _keepCollaborationMode,
     List<Map<String, Object?>>? queuedMessages,
-    int? contextUsed,
-    int? contextLimit,
+    Object? contextUsed = _keep,
+    Object? contextLimit = _keep,
+    List<String>? promptHistory,
+    bool? mcpInitializing,
     Object? title = _keep,
+    Object? activeCwd = _keep,
+    Object? historyNextCursor = _keep,
     Object? error = _keep,
     bool? sending,
     bool? interrupting,
+    List<MobileCodexPresentationRow>? presentationRows,
+    Object? recovery = _keepRecovery,
   }) => MobileCodexState(
     events: events ?? this.events,
     timelineCells: timelineCells ?? this.timelineCells,
+    paginatedHistoryCellIds:
+        paginatedHistoryCellIds ?? this.paginatedHistoryCellIds,
     pendingRequests: pendingRequests ?? this.pendingRequests,
     activeTurnId: identical(activeTurnId, _keep)
         ? this.activeTurnId
@@ -463,14 +397,56 @@ class MobileCodexState {
         ? this.collaborationMode
         : collaborationMode as String?,
     queuedMessages: queuedMessages ?? this.queuedMessages,
-    contextUsed: contextUsed ?? this.contextUsed,
-    contextLimit: contextLimit ?? this.contextLimit,
+    contextUsed: identical(contextUsed, _keep)
+        ? this.contextUsed
+        : contextUsed as int?,
+    contextLimit: identical(contextLimit, _keep)
+        ? this.contextLimit
+        : contextLimit as int?,
+    promptHistory: promptHistory ?? this.promptHistory,
+    mcpInitializing: mcpInitializing ?? this.mcpInitializing,
     title: identical(title, _keep) ? this.title : title as String?,
+    activeCwd: identical(activeCwd, _keep)
+        ? this.activeCwd
+        : activeCwd as String?,
+    historyNextCursor: identical(historyNextCursor, _keep)
+        ? this.historyNextCursor
+        : historyNextCursor as String?,
     error: identical(error, _keep) ? this.error : error as String?,
     sending: sending ?? this.sending,
     interrupting: interrupting ?? this.interrupting,
+    presentationRows:
+        presentationRows ??
+        (timelineCells == null && identical(activeTurnId, _keep)
+            ? this.presentationRows
+            : MobileCodexTimelineProjection.project(
+                timelineCells ?? this.timelineCells,
+                activeTurnId: identical(activeTurnId, _keep)
+                    ? this.activeTurnId
+                    : activeTurnId as String?,
+              )),
+    recovery: identical(recovery, _keepRecovery)
+        ? this.recovery
+        : recovery as MobileCodexThreadRecovery?,
   );
 }
 
 const Object _keep = Object();
+const Object _keepRecovery = Object();
 const Object _keepCollaborationMode = Object();
+
+List<String> mobileCodexPromptHistory(List<MobileCodexTimelineCell> cells) =>
+    List<String>.unmodifiable(<String>[
+      for (final cell in cells)
+        if (cell.kind == 'userMessage' &&
+            cell.metadata['isSteering'] != true &&
+            (cell.markdownText ?? '').trim().isNotEmpty)
+          cell.markdownText!.trim(),
+    ]);
+
+bool mobileCodexHasInitializingMcp(List<MobileCodexTimelineCell> cells) =>
+    cells.any(
+      (cell) =>
+          cell.metadata['itemType'] == 'mcpServerStartup' &&
+          (cell.isStreaming || cell.status == 'inProgress'),
+    );

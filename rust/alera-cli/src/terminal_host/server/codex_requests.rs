@@ -2,8 +2,12 @@
 
 #[path = "codex_requests_catalogue.rs"]
 mod codex_requests_catalogue;
-#[path = "codex_workspace_inputs.rs"]
-mod codex_workspace_inputs;
+#[path = "codex_thread_sessions.rs"]
+pub(super) mod codex_thread_sessions;
+#[path = "codex_turn_requests.rs"]
+mod codex_turn_requests;
+
+pub(super) use super::codex_runtime_cleanup::CodexCleanupPlan;
 
 use alera_core::runtime::WorkspaceTabRecord;
 use serde_json::{json, Value};
@@ -12,13 +16,8 @@ use uuid::Uuid;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::codex_app_server::CodexAppServer;
-use super::codex_state::{
-    active_turn_id, append_question_answer, append_user_input, is_codex_tab,
-    remove_pending_request, snapshot, tab_thread_id,
-};
-use super::requests::require_string_key;
+use super::codex_state::is_codex_tab;
 use super::ServerActor;
-use codex_workspace_inputs::expand_workspace_inputs;
 
 impl ServerActor {
     pub(super) async fn handle_codex_request(
@@ -31,7 +30,20 @@ impl ServerActor {
         self.require_codex_client(client_id)?;
         match request_type {
             "codex.tab.create" => self.create_codex_tab(payload).await,
+            "codex.tab.configure" => self.configure_codex_tab(payload).await,
             "codex.thread.open" => self.open_codex_thread(payload).await,
+            "codex.thread.list" | "codex.threads.list" | "codex.session.list" => {
+                self.list_codex_threads(payload).await
+            }
+            "codex.thread.resume" | "codex.session.resume" => {
+                self.resume_codex_thread(payload).await
+            }
+            "codex.thread.history" | "codex.thread.turns.list" | "codex.session.history" => {
+                self.list_codex_thread_history(payload).await
+            }
+            "codex.thread.new" | "codex.session.new" => self.new_codex_thread(payload).await,
+            "codex.thread.clear" | "codex.session.clear" => self.clear_codex_thread(payload).await,
+            "codex.thread.recover" => self.recover_codex_thread(payload).await,
             "codex.thread.snapshot" => self.codex_thread_snapshot(payload).await,
             "codex.thread.items.list" => self.list_codex_thread_items(payload).await,
             "codex.model.list" => self.codex_server_request("model/list", json!({})).await,
@@ -49,208 +61,14 @@ impl ServerActor {
                 self.codex_thread_command(payload, "thread/compact/start")
                     .await
             }
+            "codex.review.branches" => self.codex_review_branches(payload).await,
             "codex.review.start" => self.codex_thread_command(payload, "review/start").await,
             "codex.response" => self.respond_to_codex_request(payload).await,
+            "codex.request.snooze" => self.snooze_codex_request(payload).await,
             _ => Err(HostError::state(format!(
                 "Unknown Codex request: {request_type}"
             ))),
         }
-    }
-
-    async fn start_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
-        let tab = self
-            .codex_tab(&require_string_key(payload, "tabId")?)
-            .await?;
-        let thread_id = tab_thread_id(&tab)
-            .ok_or_else(|| HostError::state("Open the Codex thread before sending a message."))?;
-        let original_input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
-        let workspace = self
-            .runtime_store
-            .find_workspace(&tab.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
-        let input = expand_workspace_inputs(original_input.clone(), &workspace.path).await?;
-        let params = turn_params(payload, &thread_id, input);
-        let result = self.codex_server_request("turn/start", params).await?;
-        let turn_id = result
-            .pointer("/turn/id")
-            .or_else(|| result.get("turnId"))
-            .and_then(Value::as_str)
-            .filter(|value| !value.trim().is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("queued-{}", Uuid::new_v4()));
-        let mut next = self.codex_tab(&tab.id).await?;
-        append_user_input(&mut next, &original_input, &turn_id);
-        let saved = self
-            .runtime_store
-            .upsert_workspace_tab(next)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.refresh_codex_presence(&saved);
-        self.schedule_codex_presence_changed();
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "codexThreadChanged",
-            json!({
-                "tabId": saved.id,
-                "workspaceId": saved.workspace_id,
-                "threadId": tab_thread_id(&saved),
-                "snapshot": snapshot(&saved),
-            }),
-        ));
-        Ok(result)
-    }
-
-    async fn interrupt_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
-        let tab = self
-            .codex_tab(&require_string_key(payload, "tabId")?)
-            .await?;
-        let thread_id = tab_thread_id(&tab)
-            .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
-        let turn_id = payload
-            .get("turnId")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .or_else(|| active_turn_id(&snapshot(&tab)))
-            .ok_or_else(|| HostError::state("There is no active Codex turn."))?;
-        let result = self
-            .codex_server_request(
-                "turn/interrupt",
-                json!({"threadId": thread_id, "turnId": turn_id}),
-            )
-            .await;
-        if result.is_ok() {
-            self.clear_codex_active_turn(&tab).await;
-        }
-        result
-    }
-
-    async fn steer_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
-        let tab = self
-            .codex_tab(&require_string_key(payload, "tabId")?)
-            .await?;
-        let thread_id = tab_thread_id(&tab)
-            .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
-        let turn_id = require_string_key(payload, "turnId")?;
-        let workspace = self
-            .runtime_store
-            .find_workspace(&tab.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state("Codex workspace no longer exists."))?;
-        let input = expand_workspace_inputs(
-            payload.get("input").cloned().unwrap_or_else(|| json!([])),
-            &workspace.path,
-        )
-        .await?;
-        self.codex_server_request(
-            "turn/steer",
-            json!({
-            "threadId": thread_id,
-            "expectedTurnId": turn_id,
-                "clientUserMessageId": payload
-                    .get("clientUserMessageId")
-                    .cloned()
-                    .unwrap_or_else(|| Value::String(Uuid::new_v4().to_string())),
-                "input": input,
-            }),
-        )
-        .await
-    }
-
-    async fn rename_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
-        let tab_id = require_string_key(payload, "tabId")?;
-        let title = require_string_key(payload, "name")?;
-        let tab = self.codex_tab(&tab_id).await?;
-        if let Some(thread_id) = tab_thread_id(&tab) {
-            self.codex_server_request(
-                "thread/name/set",
-                json!({"threadId": thread_id, "name": title}),
-            )
-            .await?;
-        }
-        let mut saved = self
-            .runtime_store
-            .rename_workspace_tab(&tab_id, &title)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        if let Some(payload) = saved.payload.as_object_mut() {
-            payload.insert("manualTitle".to_string(), Value::Bool(true));
-            if let Some(snapshot) = payload
-                .get_mut("codexSnapshot")
-                .and_then(Value::as_object_mut)
-            {
-                snapshot.insert("title".to_string(), Value::String(title.clone()));
-            }
-        }
-        saved = self
-            .runtime_store
-            .upsert_workspace_tab(saved)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "codexThreadChanged",
-            json!({
-                "tabId": saved.id,
-                "workspaceId": saved.workspace_id,
-                "threadId": tab_thread_id(&saved),
-                "snapshot": snapshot(&saved),
-            }),
-        ));
-        Ok(json!(saved))
-    }
-
-    async fn codex_thread_command(&mut self, payload: &Value, method: &str) -> HostResult<Value> {
-        let tab = self
-            .codex_tab(&require_string_key(payload, "tabId")?)
-            .await?;
-        let thread_id = tab_thread_id(&tab)
-            .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
-        let mut params = payload.clone();
-        if let Some(object) = params.as_object_mut() {
-            object.remove("tabId");
-            object.insert("threadId".to_string(), Value::String(thread_id));
-            if method == "review/start" && !object.contains_key("target") {
-                object.insert("target".to_string(), json!({"type": "uncommittedChanges"}));
-            }
-        }
-        self.codex_server_request(method, params).await
-    }
-
-    async fn respond_to_codex_request(&mut self, payload: &Value) -> HostResult<Value> {
-        let id = payload
-            .get("requestId")
-            .cloned()
-            .ok_or_else(|| HostError::format("Codex response requires requestId."))?;
-        let server = self.ensure_codex_server(None).await?;
-        let result = payload.get("result").cloned();
-        server
-            .respond(id.clone(), result, payload.get("error").cloned())
-            .await?;
-        if let Some(tab) = self.find_codex_tab_for_request(&id).await? {
-            let mut next = tab;
-            append_question_answer(
-                &mut next,
-                &id,
-                payload.get("result").unwrap_or(&Value::Null),
-            );
-            remove_pending_request(&mut next, &id);
-            if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
-                self.refresh_codex_presence(&saved);
-                self.schedule_codex_presence_changed();
-                self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                    "codexThreadChanged",
-                    json!({
-                        "tabId": saved.id,
-                        "workspaceId": saved.workspace_id,
-                        "threadId": tab_thread_id(&saved),
-                        "snapshot": snapshot(&saved),
-                    }),
-                ));
-            }
-        }
-        Ok(json!({}))
     }
 
     pub(super) async fn codex_server_request(
@@ -299,15 +117,7 @@ impl ServerActor {
 
     async fn clear_codex_active_turn(&mut self, tab: &WorkspaceTabRecord) {
         let mut next = tab.clone();
-        if let Some(object) = next.payload.as_object_mut() {
-            object.remove("codexActiveTurnId");
-            if let Some(snapshot) = object
-                .get_mut("codexSnapshot")
-                .and_then(Value::as_object_mut)
-            {
-                snapshot.remove("activeTurnId");
-            }
-        }
+        clear_codex_active_turn_payload(&mut next.payload);
         if let Ok(saved) = self.runtime_store.upsert_workspace_tab(next).await {
             self.refresh_codex_presence(&saved);
             self.schedule_codex_presence_changed();
@@ -325,6 +135,49 @@ impl ServerActor {
         Err(HostError::state(
             "This client does not support the Codex chat tab.",
         ))
+    }
+}
+
+fn clear_codex_active_turn_payload(payload: &mut Value) {
+    let Some(object) = payload.as_object_mut() else {
+        return;
+    };
+    object.remove("codexActiveTurnId");
+    let Some(snapshot) = object.get_mut("codexSnapshot") else {
+        return;
+    };
+    super::codex_state::clear_review_transition(snapshot);
+    if let Some(snapshot) = snapshot.as_object_mut() {
+        snapshot.remove("activeTurnId");
+    }
+}
+
+#[cfg(test)]
+mod active_turn_tests {
+    use serde_json::json;
+
+    use super::clear_codex_active_turn_payload;
+
+    #[test]
+    fn clearing_an_interrupted_turn_discards_review_transition_state() {
+        let mut payload = json!({
+            "codexActiveTurnId": "review-worker",
+            "codexSnapshot": {
+                "activeTurnId": "review-entry",
+                "aleraReviewTransition": {
+                    "entryTurnId": "review-entry",
+                    "workerTurnId": "review-worker",
+                },
+            },
+        });
+
+        clear_codex_active_turn_payload(&mut payload);
+
+        assert!(payload.get("codexActiveTurnId").is_none());
+        assert!(payload["codexSnapshot"].get("activeTurnId").is_none());
+        assert!(payload["codexSnapshot"]
+            .get("aleraReviewTransition")
+            .is_none());
     }
 }
 
@@ -349,6 +202,8 @@ fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
         "model",
         "cwd",
         "serviceTier",
+        "sandboxPolicy",
+        "approvalsReviewer",
         "collaborationMode",
         "reasoning",
         "effort",
@@ -400,8 +255,13 @@ mod tests {
                 "reasoning": {"effort": "medium"},
                 "serviceTier": "fast",
                 "approvalPolicy": "never",
+                "sandboxPolicy": {"type": "dangerFullAccess"},
                 "collaborationMode": {"mode": "plan"},
                 "input": [{"type": "text", "text": "plan"}],
+                "userMessage": {
+                    "text": "plan",
+                    "attachments": [{"path": "/tmp/plan.md"}]
+                },
             }),
             "thread-1",
             json!([{"type": "text", "text": "plan"}]),
@@ -410,6 +270,9 @@ mod tests {
         assert_eq!(params["effort"], "medium");
         assert_eq!(params["serviceTier"], "fast");
         assert_eq!(params["approvalPolicy"], "never");
+        assert!(params.get("approvalsReviewer").is_none());
+        assert_eq!(params["sandboxPolicy"]["type"], "dangerFullAccess");
+        assert!(params.get("userMessage").is_none());
         assert!(params["clientUserMessageId"].as_str().is_some());
         assert_eq!(
             params["collaborationMode"]["settings"]["model"],
@@ -422,6 +285,17 @@ mod tests {
     }
 
     #[test]
+    fn turn_params_only_overrides_the_reviewer_when_explicitly_requested() {
+        let params = turn_params(
+            &json!({"approvalsReviewer": "auto_review"}),
+            "thread-1",
+            json!([]),
+        );
+
+        assert_eq!(params["approvalsReviewer"], "auto_review");
+    }
+
+    #[test]
     fn turn_params_defaults_to_a_current_codex_model_for_collaboration() {
         let params = turn_params(
             &json!({"collaborationMode": {"mode": "plan"}}),
@@ -431,6 +305,28 @@ mod tests {
         assert_eq!(
             params["collaborationMode"]["settings"]["model"],
             "gpt-5.6-sol"
+        );
+    }
+
+    #[test]
+    fn turn_params_preserves_default_collaboration_mode() {
+        let params = turn_params(
+            &json!({
+                "model": "gpt-current",
+                "effort": "medium",
+                "collaborationMode": {"mode": "default"}
+            }),
+            "thread-1",
+            json!([{"type": "text", "text": "implement"}]),
+        );
+        assert_eq!(params["collaborationMode"]["mode"], "default");
+        assert_eq!(
+            params["collaborationMode"]["settings"]["model"],
+            "gpt-current"
+        );
+        assert_eq!(
+            params["collaborationMode"]["settings"]["reasoning_effort"],
+            "medium"
         );
     }
 }

@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_quota.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
 import 'package:flutter_test/flutter_test.dart';
 

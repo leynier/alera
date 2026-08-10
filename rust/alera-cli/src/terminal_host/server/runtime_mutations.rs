@@ -9,6 +9,9 @@ use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
 
+use super::codex_requests::CodexCleanupPlan;
+use super::codex_runtime_cleanup::CodexCleanupEntry;
+
 #[cfg(test)]
 mod tests;
 
@@ -45,6 +48,7 @@ pub(crate) struct RuntimeMutationCompletion {
 
 pub(crate) struct RuntimeMutationOutcome {
     pub(crate) result: HostResult<RuntimeMutationCompletion>,
+    pub(super) pending_codex_cleanup: Vec<CodexCleanupEntry>,
     pub(super) ended_pointer_tab_ids: Vec<String>,
     pub(super) closed_session_tab_ids: Vec<String>,
     pub(super) committed_tab_ids: Vec<String>,
@@ -89,7 +93,25 @@ pub(super) async fn run_runtime_mutation(
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
     runtime_store: RuntimeStore,
     request: RuntimeMutationRequest,
+    codex_cleanup: Option<CodexCleanupPlan>,
 ) -> RuntimeMutationOutcome {
+    let prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
+        match cleanup.prepare().await {
+            Ok(prepared) => Some(prepared),
+            Err(error) => {
+                return RuntimeMutationOutcome {
+                    result: Err(error),
+                    pending_codex_cleanup: Vec::new(),
+                    ended_pointer_tab_ids: Vec::new(),
+                    closed_session_tab_ids: Vec::new(),
+                    committed_tab_ids: Vec::new(),
+                    effect_on_error: None,
+                };
+            }
+        }
+    } else {
+        None
+    };
     let mut manager = match emulators {
         Some(manager) => Some(manager.lock_owned().await),
         None => None,
@@ -294,8 +316,17 @@ pub(super) async fn run_runtime_mutation(
     ended_pointer_tab_ids.dedup();
     closed_session_tab_ids.sort_unstable();
     closed_session_tab_ids.dedup();
+    if result.is_ok() {
+        if let Some(cleanup) = prepared_codex_cleanup.as_ref() {
+            cleanup.delete_threads_after_commit().await;
+        }
+    }
+    let pending_codex_cleanup = prepared_codex_cleanup
+        .map(|cleanup| cleanup.into_entries())
+        .unwrap_or_default();
     RuntimeMutationOutcome {
         result,
+        pending_codex_cleanup,
         ended_pointer_tab_ids,
         closed_session_tab_ids,
         committed_tab_ids,
