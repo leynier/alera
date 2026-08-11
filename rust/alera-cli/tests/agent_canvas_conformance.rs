@@ -78,10 +78,10 @@ fn send(writer: &mut TcpStream, message: Value) {
 fn response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
     loop {
         let mut line = String::new();
-        assert!(
-            reader.read_line(&mut line).unwrap() > 0,
-            "host closed the connection"
-        );
+        let bytes_read = reader
+            .read_line(&mut line)
+            .unwrap_or_else(|error| panic!("reading response {id} failed: {error}"));
+        assert!(bytes_read > 0, "host closed before response {id}");
         let message: Value = serde_json::from_str(line.trim_end()).unwrap();
         if message.get("id") == Some(&json!(id)) {
             return message;
@@ -106,6 +106,27 @@ fn request(
 fn payload(response: Value) -> Value {
     assert_eq!(response["ok"], json!(true), "request failed: {response}");
     response["payload"].clone()
+}
+
+#[cfg(windows)]
+fn test_launch() -> Value {
+    json!({
+        "shell": std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string()),
+        "arguments": ["/d", "/s", "/c", "ping -n 31 127.0.0.1 >NUL"],
+        "environment": {
+            "PATH": std::env::var("PATH").unwrap_or_default(),
+            "TERM": "xterm"
+        }
+    })
+}
+
+#[cfg(not(windows))]
+fn test_launch() -> Value {
+    json!({
+        "shell": "/bin/sh",
+        "arguments": ["-c", "sleep 30"],
+        "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
+    })
 }
 
 #[test]
@@ -134,12 +155,8 @@ fn publish_decision_resume_and_complete_round_trip() {
             "sessionId": "session-1",
             "workspaceId": "workspace-1",
             "tabId": "tab-1",
-            "workingDirectory": "/tmp",
-            "launch": {
-                "shell": "/bin/sh",
-                "arguments": ["-c", "sleep 30"],
-                "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-            },
+            "workingDirectory": dir.path(),
+            "launch": test_launch(),
             "cols": 80,
             "rows": 24
         }),

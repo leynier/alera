@@ -18,7 +18,7 @@ use snapshot_proof::SnapshotProof;
 use support::*;
 
 enum AttachedDevice {
-    Android(AndroidAttached),
+    Android(Box<AndroidAttached>),
     Ios(IosAttached),
 }
 
@@ -172,7 +172,7 @@ impl EmulatorManager {
             EmulatorPlatform::Android => {
                 let attached = self.android.attach(&device_id).await?;
                 let name = attached.device_name.clone();
-                (AttachedDevice::Android(attached), name)
+                (AttachedDevice::Android(Box::new(attached)), name)
             }
             EmulatorPlatform::Ios => {
                 let attached = self.ios.attach(&device_id).await?;
@@ -357,12 +357,12 @@ impl EmulatorManager {
                 platform: EmulatorPlatform::Android,
                 device_id: "android:test-device".to_string(),
                 device_name: "Test Device".to_string(),
-                attached: AttachedDevice::Android(AndroidAttached {
+                attached: AttachedDevice::Android(Box::new(AndroidAttached {
                     device_name: "Test Device".to_string(),
                     serial: "emulator-5554".to_string(),
                     owned: true,
                     process: None,
-                }),
+                })),
                 helper: None,
                 stream_url: None,
                 generation: 1,

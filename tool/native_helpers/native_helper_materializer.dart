@@ -373,6 +373,7 @@ Future<void> verifyNativeHelperBundle({
     }
     if (asset.executable &&
         normalized != 'windows' &&
+        !Platform.isWindows &&
         payload.statSync().mode & 0x49 == 0) {
       throw StateError('${asset.id} is not executable: ${payload.path}');
     }

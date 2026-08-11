@@ -7,6 +7,7 @@ use super::{PtyEvent, PtyWrite};
 const READ_CHUNK_BYTES: usize = 64 * 1024;
 
 /// Read the PTY on a dedicated thread, forwarding output and the final exit code.
+#[cfg(not(windows))]
 pub(super) fn spawn_reader(
     mut reader: Box<dyn Read + Send>,
     mut child: Box<dyn portable_pty::Child + Send + Sync>,
@@ -40,6 +41,88 @@ pub(super) fn spawn_reader(
             on_event(PtyEvent::Exit(code));
         })
         .expect("failed to spawn pty reader thread");
+}
+
+#[cfg(windows)]
+enum WindowsReaderEvent {
+    Output(Vec<u8>),
+    Error(String),
+    ReaderClosed,
+    ChildExited(i32),
+}
+
+/// ConPTY keeps its output pipe open until the pseudoconsole and input writer
+/// are released. Wait for the child independently, ask the server actor to
+/// release those handles, then drain all remaining output before publishing
+/// the final exit event.
+#[cfg(windows)]
+pub(super) fn spawn_reader(
+    mut reader: Box<dyn Read + Send>,
+    mut child: Box<dyn portable_pty::Child + Send + Sync>,
+    on_event: Arc<dyn Fn(PtyEvent) + Send + Sync>,
+) {
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let reader_tx = event_tx.clone();
+    std::thread::Builder::new()
+        .name("alera-pty-reader".to_string())
+        .spawn(move || {
+            let mut buffer = vec![0u8; READ_CHUNK_BYTES];
+            loop {
+                match reader.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(read) => {
+                        if reader_tx
+                            .send(WindowsReaderEvent::Output(buffer[..read].to_vec()))
+                            .is_err()
+                        {
+                            return;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = reader_tx.send(WindowsReaderEvent::Error(error.to_string()));
+                        break;
+                    }
+                }
+            }
+            let _ = reader_tx.send(WindowsReaderEvent::ReaderClosed);
+        })
+        .expect("failed to spawn pty reader thread");
+
+    std::thread::Builder::new()
+        .name("alera-pty-child-waiter".to_string())
+        .spawn(move || {
+            let code = child
+                .wait()
+                .map(|status| status.exit_code() as i32)
+                .unwrap_or(-1);
+            let _ = event_tx.send(WindowsReaderEvent::ChildExited(code));
+        })
+        .expect("failed to spawn pty child waiter thread");
+
+    std::thread::Builder::new()
+        .name("alera-pty-event-coordinator".to_string())
+        .spawn(move || {
+            let mut child_exit = None;
+            let mut reader_closed = false;
+            while let Ok(event) = event_rx.recv() {
+                match event {
+                    WindowsReaderEvent::Output(data) => on_event(PtyEvent::Output(data)),
+                    WindowsReaderEvent::Error(message) => on_event(PtyEvent::Error(message)),
+                    WindowsReaderEvent::ReaderClosed => reader_closed = true,
+                    WindowsReaderEvent::ChildExited(code) => {
+                        child_exit = Some(code);
+                        on_event(PtyEvent::ChildExited);
+                    }
+                }
+                if reader_closed {
+                    if let Some(code) = child_exit {
+                        on_event(PtyEvent::Exit(code));
+                        return;
+                    }
+                }
+            }
+        })
+        .expect("failed to spawn pty event coordinator thread");
 }
 
 pub(super) fn spawn_writer(

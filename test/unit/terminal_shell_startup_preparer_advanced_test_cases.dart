@@ -180,30 +180,34 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
     },
   );
 
-  test('POSIX fallback shells preserve leading empty PATH entries', () async {
-    final launch = await preparer.prepare(
-      _launch(
-        shell: '/bin/sh',
+  test(
+    'POSIX fallback shells preserve leading empty PATH entries',
+    () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: '/bin/sh',
+          environment: const <String, String>{
+            'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+          },
+          setupCommand: 'printf "%s" "\$PATH"\n',
+        ),
+      );
+
+      final result = await Process.run(
+        '/bin/sh',
+        <String>['-c', launch.setupCommand!],
+        includeParentEnvironment: false,
         environment: const <String, String>{
           'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+          'PATH': ':/usr/bin:/wrapper/bin',
         },
-        setupCommand: 'printf "%s" "\$PATH"\n',
-      ),
-    );
+      );
 
-    final result = await Process.run(
-      '/bin/sh',
-      <String>['-c', launch.setupCommand!],
-      includeParentEnvironment: false,
-      environment: const <String, String>{
-        'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
-        'PATH': ':/usr/bin:/wrapper/bin',
-      },
-    );
-
-    expect(result.exitCode, 0, reason: result.stderr.toString());
-    expect(result.stdout, '/wrapper/bin::/usr/bin');
-  });
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+      expect(result.stdout, '/wrapper/bin::/usr/bin');
+    },
+    skip: Platform.isWindows ? 'Requires a POSIX shell.' : false,
+  );
 
   test('Claude runtime env alone triggers shell restore preparation', () async {
     final launch = await preparer.prepare(

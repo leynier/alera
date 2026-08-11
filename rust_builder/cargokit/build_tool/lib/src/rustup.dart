@@ -18,6 +18,12 @@ class _Toolchain {
   final List<String> targets;
 }
 
+bool isOfficialRustupToolchain(String name) {
+  return RegExp(
+    r'^(?:(?:stable|beta|nightly)(?:-|$)|\d+\.\d+(?:\.\d+)?(?:-|$))',
+  ).hasMatch(name);
+}
+
 class Rustup {
   List<String>? installedTargets(String toolchain) {
     final targets = _installedTargets(toolchain);
@@ -77,13 +83,12 @@ class Rustup {
 
     final res = runCommand("rustup", ['toolchain', 'list']);
 
-    // To list all non-custom toolchains, we need to filter out lines that
-    // don't start with "stable", "beta", or "nightly".
-    Pattern nonCustom = RegExp(r"^(stable|beta|nightly)");
+    // Rustup also names pinned release channels with their version, such as
+    // `1.96-x86_64-pc-windows-msvc`. Linked custom toolchains stay excluded.
     final lines = res.stdout
         .toString()
         .split('\n')
-        .where((e) => e.isNotEmpty && e.startsWith(nonCustom))
+        .where((e) => e.isNotEmpty && isOfficialRustupToolchain(e))
         .map(extractToolchainName)
         .toList(growable: true);
 

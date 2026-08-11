@@ -61,7 +61,8 @@ void main() {
     );
 
     expect(session.pasted, <String>[
-      "packages/app/main.dart 'my file.txt' /tmp/other/absolute.txt ",
+      "${p.join('packages', 'app', 'main.dart')} 'my file.txt' "
+          '/tmp/other/absolute.txt ',
     ]);
     expect(session.focusRequests, 1);
   });

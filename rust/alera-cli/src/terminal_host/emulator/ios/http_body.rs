@@ -67,7 +67,7 @@ fn body_limit_failure(operation: &str, max_body_bytes: usize) -> EmulatorFailure
 mod tests {
     use std::time::Instant;
 
-    use tokio::io::AsyncWriteExt as _;
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
     use tokio::net::TcpListener;
 
     use super::*;
@@ -78,6 +78,8 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            assert!(socket.read(&mut request).await.unwrap() > 0);
             socket
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n")
                 .await
@@ -102,6 +104,8 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            assert!(socket.read(&mut request).await.unwrap() > 0);
             socket
                 .write_all(
                     b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nbody-without-content-length",
@@ -128,6 +132,8 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            assert!(socket.read(&mut request).await.unwrap() > 0);
             socket
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nx")
                 .await

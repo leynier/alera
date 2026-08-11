@@ -26,6 +26,7 @@ pub(super) fn write_managed_script() -> anyhow::Result<PathBuf> {
     Ok(path)
 }
 
+#[cfg(any(not(windows), test))]
 pub(super) const POSIX_HOOK_SCRIPT: &str = r#"#!/bin/sh
 # Antigravity and Copilot read a JSON response on stdout for every hook, and
 # Antigravity additionally requires a `decision` on Stop. An empty object is how

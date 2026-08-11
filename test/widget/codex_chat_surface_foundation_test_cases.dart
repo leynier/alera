@@ -202,8 +202,8 @@ void registerCodexComposerFoundationTests() {
     );
     await tester.pump();
 
-    const attachmentKey = ValueKey<String>(
-      'codex-attached-file-/repo/workspace/assets/logo.png',
+    final attachmentKey = ValueKey<String>(
+      'codex-attached-file-${p.normalize('/repo/workspace/assets/logo.png')}',
     );
     expect(find.byKey(attachmentKey), findsOneWidget);
     expect(
