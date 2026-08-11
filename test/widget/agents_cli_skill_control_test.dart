@@ -211,7 +211,10 @@ void main() {
 
     expect(
       runtime.lastTab?.initialCommand,
-      'npx skills add https://github.com/leynier/alera --skill agent-canvas --global --yes || bunx skills add https://github.com/leynier/alera --skill agent-canvas --global --yes',
+      aleraCliSkillInstallCommand(
+        runner: AleraCliSkillRunner.auto,
+        skill: AleraAgentSkill.agentCanvas,
+      ),
     );
   });
 

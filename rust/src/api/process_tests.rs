@@ -68,6 +68,66 @@ fn windows_shell_keeps_a_path_with_spaces_in_one_token() {
     );
 }
 
+#[cfg(windows)]
+#[test]
+fn windows_run_preserves_script_paths_and_shell_metacharacters() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let script_directory = directory.path().join("scripts with spaces");
+    std::fs::create_dir(&script_directory).expect("create script directory");
+    let script = script_directory.join("argument probe.cmd");
+    std::fs::write(
+        &script,
+        "@echo off\r\nif not \"%~1\"==\"A&B\" exit /b 17\r\nexit /b 0\r\n",
+    )
+    .expect("write command script");
+
+    let result = process_run(
+        script.to_string_lossy().into_owned(),
+        args(&["A&B"]),
+        None,
+        None,
+    )
+    .expect("command script runs");
+
+    assert_eq!(result.exit_code, 0, "stderr: {}", result.stderr);
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_run_prefers_a_working_directory_command_over_path() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let working_directory = directory.path().join("working directory");
+    let path_directory = directory.path().join("path directory");
+    std::fs::create_dir(&working_directory).expect("create working directory");
+    std::fs::create_dir(&path_directory).expect("create path directory");
+    std::fs::write(
+        working_directory.join("alera-precedence-probe.cmd"),
+        "@echo off\r\necho working-directory\r\n",
+    )
+    .expect("write working-directory command");
+    std::fs::write(
+        path_directory.join("alera-precedence-probe.cmd"),
+        "@echo off\r\necho path\r\n",
+    )
+    .expect("write PATH command");
+    let mut environment = std::collections::HashMap::new();
+    environment.insert(
+        "PATH".to_string(),
+        path_directory.to_string_lossy().into_owned(),
+    );
+
+    let result = process_run(
+        "alera-precedence-probe".to_string(),
+        Vec::new(),
+        Some(working_directory.to_string_lossy().into_owned()),
+        Some(environment),
+    )
+    .expect("working-directory command runs");
+
+    assert_eq!(result.exit_code, 0, "stderr: {}", result.stderr);
+    assert_eq!(result.stdout.trim(), "working-directory");
+}
+
 #[test]
 fn run_captures_stdout_and_the_exit_code() {
     let result = process_run("git".to_string(), args(&["--version"]), None, None)

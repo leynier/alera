@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   testWidgets('path drag pastes paths and focuses the terminal', (
@@ -39,7 +40,7 @@ void main() {
     await _dragSourceToTerminal(tester);
 
     expect(session.pasted, <String>[
-      'packages/app/main.dart /tmp/other/absolute.txt ',
+      '${p.join('packages', 'app', 'main.dart')} /tmp/other/absolute.txt ',
     ]);
     expect(session.focusRequests, 1);
   });

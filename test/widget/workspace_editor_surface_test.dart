@@ -3,6 +3,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_editor_surfa
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   test('normalizes editor tab size to the supported range', () {
@@ -74,7 +75,7 @@ void main() {
         workspace: workspace,
         filePath: '/repo/alera/src/main.dart',
       ),
-      'src/main.dart',
+      p.join('src', 'main.dart'),
     );
   });
 

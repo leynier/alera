@@ -18,6 +18,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 import '../unit/fake_source_control_watcher.dart';
@@ -53,8 +54,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_terminalDragPaths(tester), <String>{
-      '/tmp/project/src',
-      '/tmp/project/readme.md',
+      p.join('/tmp/project', 'src'),
+      p.join('/tmp/project', 'readme.md'),
     });
 
     final source = tester.getCenter(find.text('readme.md'));
@@ -97,12 +98,12 @@ void main() {
         await _pumpSourceControl(tester, backend, viewMode: viewMode);
 
         final paths = _terminalDragPaths(tester);
-        expect(paths, contains('/tmp/project/lib/main.dart'));
-        expect(paths, contains('/tmp/project/lib/old file.dart'));
+        expect(paths, contains(p.join('/tmp/project', 'lib', 'main.dart')));
+        expect(paths, contains(p.join('/tmp/project', 'lib', 'old file.dart')));
         if (viewMode == GitDiffViewMode.tree) {
-          expect(paths, contains('/tmp/project/lib'));
+          expect(paths, contains(p.join('/tmp/project', 'lib')));
         } else {
-          expect(paths, isNot(contains('/tmp/project/lib')));
+          expect(paths, isNot(contains(p.join('/tmp/project', 'lib'))));
         }
       },
     );
@@ -144,8 +145,8 @@ void main() {
     expect(
       _terminalDragPaths(tester),
       containsAll(<String>[
-        '/tmp/project/modules/sample',
-        '/tmp/project/modules/sample/README.md',
+        p.join('/tmp/project', 'modules', 'sample'),
+        p.join('/tmp/project', 'modules', 'sample', 'README.md'),
       ]),
     );
   });

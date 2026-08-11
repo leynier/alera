@@ -295,8 +295,13 @@ void _registerWorkspaceServiceRemovalTests() {
   test('WorkspaceRoot resolves the default HOME-based path', () {
     final resolved = WorkspaceRoot().resolve();
 
-    expect(resolved, endsWith('.alera/workspaces'));
-    expect(resolved, contains(Platform.environment['HOME']!));
+    expect(resolved, endsWith(p.join('.alera', 'workspaces')));
+    expect(
+      resolved,
+      contains(
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']!,
+      ),
+    );
   });
 
   test('WorkspaceService defaults timestamps to current utc time', () async {

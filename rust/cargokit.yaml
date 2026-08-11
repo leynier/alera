@@ -1,0 +1,10 @@
+# Keep flutter_rust_bridge's Cargokit build on the same pinned compiler as the
+# workspace and sidecar. Cargokit otherwise forces the user's `stable` alias,
+# bypassing rust-toolchain.toml when a different stable toolchain is installed.
+cargo:
+  debug:
+    toolchain: '1.96'
+  profile:
+    toolchain: '1.96'
+  release:
+    toolchain: '1.96'

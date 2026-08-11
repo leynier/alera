@@ -194,7 +194,15 @@ fn build_command(
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
 ) -> Command {
-    let mut command = match shell_invocation(executable, arguments) {
+    #[cfg(windows)]
+    let executable = resolve_windows_executable(
+        executable,
+        working_directory.as_deref(),
+        environment.as_ref(),
+    );
+    #[cfg(not(windows))]
+    let executable = executable.to_string();
+    let mut command = match shell_invocation(&executable, arguments) {
         ShellInvocation::Posix { program, arguments } => {
             let mut command = windowless_async_command(program);
             command.args(arguments);
@@ -231,6 +239,55 @@ fn build_command(
     command.process_group(0);
     command.kill_on_drop(true);
     command
+}
+
+#[cfg(windows)]
+fn resolve_windows_executable(
+    executable: &str,
+    working_directory: Option<&str>,
+    environment: Option<&HashMap<String, String>>,
+) -> String {
+    if executable.contains(['/', '\\']) {
+        return executable.to_string();
+    }
+    let environment_value = |name: &str| {
+        environment
+            .and_then(|values| {
+                values
+                    .iter()
+                    .find(|(key, _)| key.eq_ignore_ascii_case(name))
+                    .map(|(_, value)| value.clone())
+            })
+            .or_else(|| std::env::var(name).ok())
+    };
+    let extensions = if std::path::Path::new(executable).extension().is_some() {
+        vec![String::new()]
+    } else {
+        environment_value("PATHEXT")
+            .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string())
+            .split(';')
+            .filter(|extension| !extension.is_empty())
+            .map(str::to_string)
+            .collect()
+    };
+    let mut directories = Vec::new();
+    if let Some(working_directory) = working_directory {
+        directories.push(std::path::PathBuf::from(working_directory));
+    } else if let Ok(current_directory) = std::env::current_dir() {
+        directories.push(current_directory);
+    }
+    if let Some(path) = environment_value("PATH") {
+        directories.extend(std::env::split_paths(&path));
+    }
+    for directory in directories {
+        for extension in &extensions {
+            let candidate = directory.join(format!("{executable}{extension}"));
+            if candidate.is_file() {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+    executable.to_string()
 }
 
 /// Waits for the child, killing it if the Dart side asks in the meantime.

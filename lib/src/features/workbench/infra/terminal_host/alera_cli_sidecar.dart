@@ -172,7 +172,7 @@ final class DefaultAleraCliResolver implements AleraCliResolver {
     }
     final bytes = gzip.decode(await archive.readAsBytes());
     await target.writeAsBytes(bytes, flush: true);
-    if (_operatingSystemName != 'windows') {
+    if (_operatingSystemName != 'windows' && !Platform.isWindows) {
       await Process.run('chmod', <String>['755', target.path]);
     }
     return target.path;

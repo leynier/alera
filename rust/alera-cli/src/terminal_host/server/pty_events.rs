@@ -6,6 +6,12 @@ impl ServerActor {
     pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
         match pty_event {
             PtyEvent::Output(data) => self.handle_pty_output(session_id, data).await,
+            #[cfg(windows)]
+            PtyEvent::ChildExited => {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.close_pty_after_child_exit();
+                }
+            }
             PtyEvent::Error(message) => {
                 self.flush_all_output(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {

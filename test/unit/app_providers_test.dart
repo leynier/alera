@@ -1101,8 +1101,8 @@ void main() {
           isNotNull,
         );
 
+        await db.close();
         container.dispose();
-        await Future<void>.delayed(Duration.zero);
       },
     );
   });

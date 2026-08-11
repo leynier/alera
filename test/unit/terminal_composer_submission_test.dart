@@ -1,6 +1,7 @@
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_submission.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   test('classifies ACP-compatible image extensions', () {
@@ -93,9 +94,9 @@ void main() {
       ),
       'Review these\n\n'
       'Attached images:\n'
-      'assets/before.png\n'
+      '${p.join('assets', 'before.png')}\n'
       'Attached files:\n'
-      'docs/report.pdf\n'
+      '${p.join('docs', 'report.pdf')}\n'
       '/tmp/other/notes.txt',
     );
   });

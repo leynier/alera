@@ -145,6 +145,8 @@ void main() {
 
     expect(await File(first.executable).readAsBytes(), executableBytes);
     expect(second.executable, first.executable);
-    expect((await File(first.executable).stat()).mode & 0x40, isNot(0));
+    if (!Platform.isWindows) {
+      expect((await File(first.executable).stat()).mode & 0x40, isNot(0));
+    }
   });
 }

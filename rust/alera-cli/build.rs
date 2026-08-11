@@ -3,6 +3,13 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-env-changed=ALERA_BUILD_COMMIT");
     println!("cargo:rerun-if-env-changed=ALERA_BUILD_VERSION");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+    {
+        // The terminal-host actor owns deeply nested async futures; match the
+        // stack reservation it receives by default on Unix hosts.
+        println!("cargo:rustc-link-arg-bin=alera=/STACK:8388608");
+    }
     watch_git_state();
 
     let commit = std::env::var("ALERA_BUILD_COMMIT")

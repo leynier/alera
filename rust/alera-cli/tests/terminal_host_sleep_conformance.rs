@@ -1,3 +1,6 @@
+#[allow(dead_code)]
+mod terminal_host_test_platform;
+
 use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
@@ -5,6 +8,11 @@ use std::process::Child;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
+
+#[cfg(windows)]
+use base64::engine::general_purpose::STANDARD;
+#[cfg(windows)]
+use base64::Engine as _;
 
 const PROTOCOL_VERSION: i64 = 4;
 
@@ -23,6 +31,24 @@ fn send(writer: &mut TcpStream, message: Value) {
     writer.write_all(&line).unwrap();
     writer.flush().unwrap();
 }
+
+#[cfg(windows)]
+fn answer_conpty_cursor_query(writer: &mut TcpStream, session_id: &str) {
+    send(
+        writer,
+        json!({
+            "id": 9_001,
+            "type": "write",
+            "payload": {
+                "sessionId": session_id,
+                "dataBase64": STANDARD.encode(b"\x1b[1;1R")
+            }
+        }),
+    );
+}
+
+#[cfg(not(windows))]
+fn answer_conpty_cursor_query(_writer: &mut TcpStream, _session_id: &str) {}
 
 fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
     loop {
@@ -127,17 +153,14 @@ fn workspace_sleep_removes_all_tabs_layout_and_sessions() {
                 "sessionId": "sleep-session",
                 "workspaceId": "w1",
                 "tabId": "terminal-1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": ["-c", "sleep 30"],
-                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::long_running_launch(),
                 "cols": 80,
                 "rows": 24
             }
         }),
     );
+    answer_conpty_cursor_query(&mut writer, "sleep-session");
     assert_eq!(read_response(&mut reader, 4)["ok"], json!(true));
     send(
         &mut writer,

@@ -15,7 +15,7 @@ extension _AgentRuntimeOverlayWrappers on AgentRuntimeOverlayService {
   }) {
     final path = p.join(directory.path, _wrapperFileName(executableName));
     _writeManagedFile(path, source);
-    if (_platform != ManagedAgentHookPlatform.windows) {
+    if (_platform != ManagedAgentHookPlatform.windows && !Platform.isWindows) {
       Process.runSync('chmod', <String>['755', path]);
     }
   }

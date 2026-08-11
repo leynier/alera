@@ -3,8 +3,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
+use super::path_string;
+#[cfg(not(windows))]
+use super::sh_quote;
 use super::{clean_managed_definitions, managed_command, object_field};
-use super::{path_string, sh_quote};
 use super::{read_json_object, write_json_object};
 
 /// Events Alera registers with Cursor. `sessionStart` is deliberately absent:

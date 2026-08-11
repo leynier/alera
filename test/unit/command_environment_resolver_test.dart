@@ -35,7 +35,7 @@ void main() {
           '/Users/test/.opencode/bin',
           '/usr/bin',
           '/Users/test/.cargo/bin',
-        ]);
+        ], isWindows: false);
 
         expect(added, <String>[
           '/Users/test/.opencode/bin',

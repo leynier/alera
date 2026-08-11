@@ -51,7 +51,7 @@ void main() {
     test('enables autonomous updates everywhere a package manager does not', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      ).readAsStringSync().replaceAll('\r\n', '\n');
 
       expect(
         workflow,
@@ -125,7 +125,7 @@ void main() {
     test('builds native apps and cross runtimes in parallel', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      ).readAsStringSync().replaceAll('\r\n', '\n');
       final appJob = workflow.substring(
         workflow.indexOf('  build_desktop_app:'),
         workflow.indexOf('  build_runtime_cross:'),
@@ -187,6 +187,26 @@ void main() {
       expect(packageJob, contains('Expected 6 runtime input archives'));
       expect(packageJob, contains('package_runtime_sidecars.dart'));
       expect(packageJob, contains('name: release-runtime'));
+    });
+
+    test('caches both standard and shortened Cargokit build layouts', () {
+      final desktopBuild = File(
+        '.github/workflows/desktop-build.yml',
+      ).readAsStringSync();
+      final warmCache = File(
+        '.github/workflows/warm-cache.yml',
+      ).readAsStringSync();
+      final release = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final cachePaths = RegExp(
+        r'path: \|\s+build/\*\*/cargokit_build\s+build/\*\*/ck',
+      );
+
+      expect(cachePaths.allMatches(desktopBuild), hasLength(1));
+      expect(cachePaths.allMatches(warmCache), hasLength(2));
+      expect(cachePaths.allMatches(release), hasLength(1));
+      expect(desktopBuild, contains(r'-name ck'));
     });
 
     test('gates publishing on complete desktop runtime packaging', () {

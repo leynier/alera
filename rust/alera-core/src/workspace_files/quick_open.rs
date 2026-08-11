@@ -71,11 +71,7 @@ fn start_workspace_quick_open_session_with_symlinks(
             include_internal_symlinks,
         )
     })?;
-    files.sort_by(|left, right| {
-        left.normalized_path
-            .cmp(&right.normalized_path)
-            .then_with(|| left.relative_path.cmp(&right.relative_path))
-    });
+    sort_quick_open_files(&mut files);
     let indexed_file_count = u32::try_from(files.len()).unwrap_or(u32::MAX);
     let id = Uuid::new_v4().to_string();
     let mut sessions = sessions().lock().map_err(|_| {
@@ -97,6 +93,14 @@ fn start_workspace_quick_open_session_with_symlinks(
         id,
         indexed_file_count,
     })
+}
+
+fn sort_quick_open_files(files: &mut [QuickOpenFile]) {
+    files.sort_by(|left, right| {
+        left.normalized_path
+            .cmp(&right.normalized_path)
+            .then_with(|| left.relative_path.cmp(&right.relative_path))
+    });
 }
 
 fn with_quick_open_build_gate<T>(

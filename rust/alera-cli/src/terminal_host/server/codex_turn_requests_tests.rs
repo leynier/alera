@@ -59,9 +59,7 @@ fn file_inputs_follow_the_resumed_thread_directory() {
 
     assert_eq!(
         cwd,
-        std::fs::canonicalize(resumed_path)
-            .unwrap()
-            .to_string_lossy()
+        dunce::canonicalize(resumed_path).unwrap().to_string_lossy()
     );
 }
 
