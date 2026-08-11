@@ -3,6 +3,7 @@ part of 'workspace_git_diff_panel.dart';
 class _SourceControlToolbar extends StatelessWidget {
   const _SourceControlToolbar({
     required this.messageController,
+    required this.messageFocusNode,
     required this.filterController,
     required this.viewMode,
     required this.groupMode,
@@ -28,6 +29,7 @@ class _SourceControlToolbar extends StatelessWidget {
   });
 
   final TextEditingController messageController;
+  final FocusNode messageFocusNode;
   final TextEditingController filterController;
   final GitDiffViewMode viewMode;
   final GitDiffGroupMode groupMode;
@@ -177,6 +179,7 @@ class _SourceControlToolbar extends StatelessWidget {
           const SizedBox(height: AleraTokens.space8),
           _CommitMessageField(
             controller: messageController,
+            focusNode: messageFocusNode,
             enabled: !busy,
             generating: generatingCommitMessage,
             onChanged: (_) => onMessageChanged(),

@@ -1463,9 +1463,21 @@ void main() {
       const EdgeInsets.fromLTRB(
         AleraTokens.space8,
         AleraTokens.space16,
-        AleraTokens.space8,
+        AleraTokens.space48,
         AleraTokens.space8,
       ),
+    );
+    final fieldRect = tester.getRect(_messageField());
+    final dictationRect = tester.getRect(
+      find.byKey(const ValueKey<String>('source-control-dictation-control')),
+    );
+    expect(
+      dictationRect.top - fieldRect.top,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      fieldRect.right - dictationRect.right,
+      lessThanOrEqualTo(AleraTokens.space12),
     );
   });
 
