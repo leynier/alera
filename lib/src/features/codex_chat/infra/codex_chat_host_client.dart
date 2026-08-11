@@ -4,8 +4,48 @@ class CodexChatHostClient {
   CodexChatHostClient(this._client);
 
   final RuntimeHostClient _client;
+  Future<Set<String>>? _runtimeCapabilities;
 
-  Stream<RuntimeHostEvent> get events => _client.runtimeEvents;
+  Stream<RuntimeHostEvent> get events => _client.runtimeEvents.map((event) {
+    if (event.name == aleraRuntimeHostConnectedEvent) {
+      _runtimeCapabilities = null;
+    }
+    return event;
+  });
+
+  Future<bool> supportsSessions() async {
+    final capabilities = await _capabilities();
+    return capabilities.contains(aleraRuntimeHostCodexSessionsCapability);
+  }
+
+  Future<bool> supportsTurnPolicy() async {
+    final capabilities = await _capabilities(retryAfterFailure: true);
+    return capabilities.contains(aleraRuntimeHostCodexTurnPolicyCapability);
+  }
+
+  Future<Set<String>> _capabilities({bool retryAfterFailure = false}) async {
+    final capabilities = await _capabilityRequest();
+    if (!retryAfterFailure || _runtimeCapabilities != null) {
+      return capabilities;
+    }
+    return _capabilityRequest();
+  }
+
+  Future<Set<String>> _capabilityRequest() {
+    final cached = _runtimeCapabilities;
+    if (cached != null) return cached;
+    final requestFuture = () async {
+      try {
+        final status = await request('status.get');
+        return asTerminalHostStringList(status['runtimeCapabilities']).toSet();
+      } on Object {
+        _runtimeCapabilities = null;
+        return const <String>{};
+      }
+    }();
+    _runtimeCapabilities = requestFuture;
+    return requestFuture;
+  }
 
   Future<Map<String, Object?>> request(
     String type, [
@@ -18,12 +58,78 @@ class CodexChatHostClient {
   }
 
   Future<Map<String, Object?>> openThread(String tabId) {
-    return request('codex.thread.open', <String, Object?>{'tabId': tabId});
+    return request('codex.thread.open', <String, Object?>{
+      'tabId': tabId,
+      'supportsMissingRolloutRecovery': true,
+    });
   }
+
+  Future<Map<String, Object?>> listThreads({
+    String? workspaceId,
+    String? searchTerm,
+    String? cursor,
+    int limit = 20,
+  }) => request('codex.thread.list', <String, Object?>{
+    'scope': workspaceId == null ? 'all' : 'workspace',
+    'workspaceId': ?workspaceId,
+    'searchTerm': ?searchTerm,
+    'cursor': ?cursor,
+    'limit': limit,
+  });
+
+  Future<Map<String, Object?>> resumeThread(
+    String tabId,
+    String threadId, {
+    String? cwd,
+    int limit = 20,
+  }) => request('codex.thread.resume', <String, Object?>{
+    'tabId': tabId,
+    'threadId': threadId,
+    'cwd': ?cwd,
+    'limit': limit,
+  });
+
+  Future<Map<String, Object?>> history(
+    String tabId, {
+    String? cursor,
+    int limit = 20,
+  }) => request('codex.thread.history', <String, Object?>{
+    'tabId': tabId,
+    'cursor': ?cursor,
+    'limit': limit,
+  });
+
+  Future<Map<String, Object?>> newThread(String tabId, {String? cwd}) =>
+      request('codex.thread.new', <String, Object?>{
+        'tabId': tabId,
+        'cwd': ?cwd,
+      });
+
+  Future<Map<String, Object?>> clearThread(String tabId, {String? cwd}) =>
+      request('codex.thread.clear', <String, Object?>{
+        'tabId': tabId,
+        'cwd': ?cwd,
+      });
 
   Future<Map<String, Object?>> snapshot(String tabId) {
     return request('codex.thread.snapshot', <String, Object?>{'tabId': tabId});
   }
+
+  Future<Map<String, Object?>> configureTab(
+    String tabId,
+    Map<String, Object?> configuration,
+  ) => request('codex.tab.configure', <String, Object?>{
+    'tabId': tabId,
+    'configuration': configuration,
+  });
+
+  Future<Map<String, Object?>> recoverThread(
+    String tabId, {
+    required String expectedThreadId,
+  }) => request('codex.thread.recover', <String, Object?>{
+    'tabId': tabId,
+    'expectedThreadId': expectedThreadId,
+  });
 
   Future<Map<String, Object?>> listModels() => request('codex.model.list');
 
@@ -39,6 +145,8 @@ class CodexChatHostClient {
   Future<Map<String, Object?>> startTurn(
     String tabId,
     List<Map<String, Object?>> input, {
+    required String? expectedThreadId,
+    required Map<String, Object?> userMessage,
     String? model,
     required String reasoningEffort,
     required String speedMode,
@@ -46,24 +154,60 @@ class CodexChatHostClient {
     required bool planMode,
     String? collaborationMode,
     String? clientUserMessageId,
-  }) {
+  }) async {
+    final effectiveCollaborationMode =
+        collaborationMode ?? (planMode ? 'plan' : 'default');
+    final supportsTurnPolicy = (await _capabilities(
+      retryAfterFailure: true,
+    )).contains(aleraRuntimeHostCodexTurnPolicyCapability);
+    final wirePermissionMode =
+        !supportsTurnPolicy && permissionMode == 'auto-review'
+        ? 'on-request'
+        : permissionMode;
     return request('codex.turn.start', <String, Object?>{
       'tabId': tabId,
+      'expectedThreadId': expectedThreadId,
       'input': input,
+      'userMessage': userMessage,
       if (model != null && model.isNotEmpty) 'model': model,
       'reasoning': <String, Object?>{'effort': reasoningEffort},
       'effort': reasoningEffort,
       'clientUserMessageId': ?clientUserMessageId,
       'serviceTier': speedMode == 'fast' ? 'fast' : null,
-      'approvalPolicy': permissionMode,
-      if (planMode || collaborationMode != null)
-        'collaborationMode': <String, Object?>{
-          'mode': collaborationMode ?? 'plan',
-          'settings': <String, Object?>{
-            if (model != null && model.isNotEmpty) 'model': model,
-            'reasoning_effort': reasoningEffort,
-          },
+      'approvalPolicy': supportsTurnPolicy
+          ? switch (permissionMode) {
+              'never' => 'never',
+              'untrusted' => 'untrusted',
+              _ => 'on-request',
+            }
+          : wirePermissionMode,
+      if (supportsTurnPolicy)
+        'approvalsReviewer': permissionMode == 'auto-review'
+            ? 'auto_review'
+            : 'user',
+      if (supportsTurnPolicy)
+        'sandboxPolicy': permissionMode == 'never'
+            ? <String, Object?>{'type': 'dangerFullAccess'}
+            : <String, Object?>{
+                'type': 'workspaceWrite',
+                'writableRoots': const <String>[],
+                'networkAccess': false,
+              },
+      'collaborationMode': <String, Object?>{
+        'mode': effectiveCollaborationMode,
+        'settings': <String, Object?>{
+          if (model != null && model.isNotEmpty) 'model': model,
+          'reasoning_effort': reasoningEffort,
         },
+      },
+      'configuration': <String, Object?>{
+        'selectedModel': model,
+        'reasoningEffort': reasoningEffort,
+        'speedMode': speedMode,
+        'permissionMode': wirePermissionMode,
+        'planMode': planMode,
+        'collaborationMode': effectiveCollaborationMode,
+      },
     });
   }
 
@@ -78,12 +222,14 @@ class CodexChatHostClient {
     String tabId,
     String turnId,
     List<Map<String, Object?>> input, {
+    required Map<String, Object?> userMessage,
     String? clientUserMessageId,
   }) {
     return request('codex.turn.steer', <String, Object?>{
       'tabId': tabId,
       'turnId': turnId,
       'input': input,
+      'userMessage': userMessage,
       'clientUserMessageId': ?clientUserMessageId,
     });
   }
@@ -103,6 +249,7 @@ class CodexChatHostClient {
     String tabId, {
     String target = 'uncommittedChanges',
     String? argument,
+    String? commitTitle,
     String? delivery,
   }) {
     final targetPayload = <String, Object?>{'type': target};
@@ -114,6 +261,9 @@ class CodexChatHostClient {
         _ => null,
       };
       if (key != null) targetPayload[key] = argument.trim();
+    }
+    if (target == 'commit' && commitTitle?.trim().isNotEmpty == true) {
+      targetPayload['title'] = commitTitle!.trim();
     }
     return request('codex.review.start', <String, Object?>{
       'tabId': tabId,
@@ -131,6 +281,12 @@ class CodexChatHostClient {
       'requestId': requestId,
       'result': ?result,
       'error': ?error,
+    });
+  }
+
+  Future<void> snoozeRequest(Object requestId) async {
+    await request('codex.request.snooze', <String, Object?>{
+      'requestId': requestId,
     });
   }
 }

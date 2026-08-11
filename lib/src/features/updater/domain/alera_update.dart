@@ -207,10 +207,14 @@ String? packageManagerUpgradeCommand({
     PackageInstallMethod.homebrewCask => 'brew upgrade --cask alera',
     PackageInstallMethod.scoop => 'scoop update alera',
     PackageInstallMethod.chocolatey => 'choco upgrade alera -y',
-    PackageInstallMethod.unmanaged => linuxPackageUpgradeCommand(
+    PackageInstallMethod.linuxSystemPackage => linuxPackageUpgradeCommand(
       update: update,
       channel: channel,
     ),
+    // An unmanaged Linux install is a directory the user extracted themselves,
+    // which `apt` and `dnf` know nothing about: offering their upgrade there
+    // either reports no change or upgrades a different copy.
+    PackageInstallMethod.unmanaged => null,
   };
 }
 

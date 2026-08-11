@@ -107,7 +107,7 @@ final class CodexChatControllerProvider
 }
 
 String _$codexChatControllerHash() =>
-    r'8ea4333f66d77fcc888de090f4a6c9af95c8fe35';
+    r'ac5ca127cfdc917c91c139005d238979b8c1b681';
 
 final class CodexChatControllerFamily extends $Family
     with

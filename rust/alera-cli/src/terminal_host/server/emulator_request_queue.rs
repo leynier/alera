@@ -7,6 +7,7 @@ use crate::terminal_host::emulator::EmulatorFailure;
 use crate::terminal_host::host_error::HostError;
 use crate::terminal_host::protocol::{error_response, ok_response};
 
+use super::codex_requests::CodexCleanupPlan;
 use super::emulator_request_payloads::{EmulatorRequestCompletion, PointerTransition};
 use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ServerActor, ServerCommand};
@@ -42,7 +43,10 @@ enum QueuedOperation {
         request_type: String,
         payload: Value,
     },
-    RuntimeMutation(RuntimeMutationRequest),
+    RuntimeMutation {
+        mutation: RuntimeMutationRequest,
+        codex_cleanup: Option<CodexCleanupPlan>,
+    },
     ParkAll,
     ReleaseClients {
         client_ids: Vec<u64>,
@@ -116,11 +120,12 @@ impl ServerActor {
         self.start_next_emulator_request();
     }
 
-    pub(super) fn start_runtime_mutation(
+    pub(super) fn start_runtime_mutation_after_codex_cleanup(
         &mut self,
         client_id: u64,
         request_id: i64,
         mutation: RuntimeMutationRequest,
+        codex_cleanup: Option<CodexCleanupPlan>,
     ) {
         if self.emulator_requests.outstanding() >= MAX_EMULATOR_REQUESTS {
             let error = HostError::state(
@@ -136,7 +141,10 @@ impl ServerActor {
             .push_back(QueuedEmulatorRequest {
                 client_id,
                 request_id,
-                operation: QueuedOperation::RuntimeMutation(mutation),
+                operation: QueuedOperation::RuntimeMutation {
+                    mutation,
+                    codex_cleanup,
+                },
                 queued_at: Instant::now(),
             });
         self.start_next_emulator_request();

@@ -1,6 +1,40 @@
 part of 'workspace_workbench_view_test.dart';
 
 void _registerWorkspaceWorkbenchViewTabTests() {
+  testWidgets('Codex tab context menu does not offer generic rename', (
+    tester,
+  ) async {
+    final terminal = _tab('terminal-1', title: 'Terminal');
+    final codex = _tab(
+      'codex-1',
+      title: 'Generated title',
+      kind: WorkspaceTabKind.codex,
+    );
+    await _pumpWorkbenchView(
+      tester,
+      tabs: <WorkspaceTabRecord>[codex, terminal],
+      terminalRuntime: terminalRuntime,
+      layout: WorkbenchLayout.single(
+        workspaceId: _workspaceId,
+        groupId: 'group-a',
+        tabIds: <String>[codex.id, terminal.id],
+      ),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+    );
+
+    await _openTabContextMenu(tester, 'Codex Chat');
+    expect(find.text('Change Title'), findsNothing);
+    expect(find.text('Close'), findsOneWidget);
+  });
+
   testWidgets('tab context menu closes sibling tabs', (tester) async {
     final tabs = <WorkspaceTabRecord>[
       _tab('tab-1', title: 'Terminal 1'),

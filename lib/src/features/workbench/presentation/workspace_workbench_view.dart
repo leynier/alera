@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/browser/presentation/browser_tab_surface.dart';
 import 'package:alera/src/features/codex_chat/presentation/codex_chat_surface.dart';
@@ -73,6 +74,17 @@ typedef UpdateWorkbenchSplitRatioCallback =
 typedef RenameWorkspaceTabCallback =
     Future<void> Function({required String tabId, required String title});
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
+
+@visibleForTesting
+String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
+    _workspaceTabTitle(tab);
+
+String _workspaceTabTitle(WorkspaceTabRecord tab) {
+  // The tab identifies the Codex surface. Conversation titles remain metadata
+  // for history and resume, rather than replacing this stable product label.
+  if (tab.kind == WorkspaceTabKind.codex) return 'Codex Chat';
+  return tab.title;
+}
 
 @visibleForTesting
 int splitRatioFlexForTesting(double ratio) =>

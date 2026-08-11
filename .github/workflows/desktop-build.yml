@@ -83,6 +83,9 @@ jobs:
           dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
             --platform "$PLATFORM" \
             --bundle "$bundle"
+          if [[ "$PLATFORM" == "macos" ]]; then
+            bash tool/release/verify_macos_arm64_only.sh "$bundle"
+          fi
 
       # The cargokit temp directory layout differs per platform and is only
       # confirmed for Linux, so report what was actually produced until the

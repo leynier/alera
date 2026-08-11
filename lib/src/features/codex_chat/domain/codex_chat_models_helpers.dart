@@ -1,5 +1,70 @@
 part of 'codex_chat_models.dart';
 
+String codexModelDisplayLabel(String value) {
+  final trimmed = value.trim();
+  final match = RegExp(
+    r'^gpt-(\d+(?:\.\d+)*)(?:[- ](.+))?$',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (match == null) return trimmed;
+  final version = match.group(1)!;
+  final suffix = match.group(2);
+  if (suffix == null || suffix.trim().isEmpty) return version;
+  final words = suffix
+      .split(RegExp(r'[- ]+'))
+      .where((word) => word.isNotEmpty)
+      .map(
+        (word) =>
+            '${word.substring(0, 1).toUpperCase()}'
+            '${word.substring(1).toLowerCase()}',
+      )
+      .join(' ');
+  return '$version $words';
+}
+
+extension CodexQuestionOptionPresentation on CodexQuestionOption {
+  bool get isRecommended =>
+      label.trim().toLowerCase().endsWith('(recommended)');
+
+  String get displayLabel => isRecommended
+      ? label
+            .trim()
+            .substring(0, label.trim().length - '(recommended)'.length)
+            .trim()
+      : label;
+}
+
+extension CodexPendingRequestPlanQuestion on CodexPendingRequest {
+  bool get isImplementPlanQuestion {
+    if (!isQuestion) return false;
+    final candidates = <Object?>[
+      params['title'],
+      params['question'],
+      params['prompt'],
+      params['message'],
+      for (final question in questions) question.question,
+    ];
+    final text = candidates
+        .whereType<String>()
+        .map((candidate) => candidate.trim())
+        .where((candidate) => candidate.isNotEmpty)
+        .toList(growable: false);
+    return text.any(_isPlanImplementationDecision) ||
+        _isPlanImplementationDecision(text.join(' '));
+  }
+}
+
+bool _isPlanImplementationDecision(String value) {
+  final normalized = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .trim();
+  return RegExp(
+    r'^(?:(?:do|would) you (?:want|like) (?:(?:me|codex|us) )?to |should (?:i|we|codex) |shall (?:i|we) )?implement (?:this|the) plan(?: now)?$',
+  ).hasMatch(normalized);
+}
+
 Map<String, Object?> _map(Object? value) {
   if (value is Map<String, Object?>) return value;
   if (value is Map) {

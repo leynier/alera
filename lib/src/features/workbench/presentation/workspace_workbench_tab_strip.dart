@@ -419,11 +419,15 @@ class _NewTabButton extends StatelessWidget {
         if (onCreateCodexTab != null)
           const AleraDropdownEntry<_NewTabMenuAction>(
             value: _NewTabMenuAction.codex,
-            label: 'New Codex',
-            leading: Icon(
-              AleraIcons.composer,
-              size: 16,
-              color: AleraTokens.foregroundMuted,
+            label: 'New Codex Chat',
+            leading: ExcludeSemantics(
+              child: AgentIdentityIcon(
+                key: ValueKey<String>('new-tab-codex-icon'),
+                agentType: AgentType.codex,
+                size: 16,
+                color: AleraTokens.foregroundMuted,
+                showTooltip: false,
+              ),
             ),
           ),
         if (onCreateBrowserTab != null)

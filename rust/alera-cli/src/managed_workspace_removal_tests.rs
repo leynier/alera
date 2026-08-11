@@ -1,13 +1,62 @@
 use std::path::Path;
 use std::process::Command as StdCommand;
 
-use alera_core::runtime::{Project, ProjectKind, RuntimeStore};
+use alera_core::runtime::{
+    Project, ProjectKind, RuntimeStore, Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
+};
 use chrono::Utc;
 
 use crate::managed_workspace::{
-    create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
-    ManagedWorkspaceRemoveRequest,
+    create_managed_workspace, remove_managed_workspace, validate_managed_workspace_removal,
+    ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
 };
+
+#[tokio::test]
+async fn rejects_main_workspace_during_removal_validation() {
+    let root = tempfile::tempdir().unwrap();
+    let repo = root.path().join("repo");
+    std::fs::create_dir(&repo).unwrap();
+    init_git_repo(&repo);
+    let store = seed_project(root.path(), &repo).await;
+    let now = Utc::now();
+    store
+        .upsert_workspace(Workspace {
+            id: "main-workspace".to_string(),
+            instance_id: "main-instance".to_string(),
+            host_id: LOCAL_HOST_ID.to_string(),
+            project_id: "project-1".to_string(),
+            name: "Main".to_string(),
+            branch: Some("main".to_string()),
+            path: repo.to_string_lossy().into_owned(),
+            created_at: now,
+            updated_at: now,
+            kind: WorkspaceKind::Main,
+            status: WorkspaceStatus::Active,
+            source_branch: None,
+            reuses_existing_branch: true,
+            is_pinned: false,
+            tag_ids: Vec::new(),
+            tag_names: Vec::new(),
+            parent_workspace_id: None,
+            child_count: 0,
+        })
+        .await
+        .unwrap();
+
+    let error = validate_managed_workspace_removal(
+        &store,
+        &ManagedWorkspaceRemoveRequest {
+            id: "main-workspace".to_string(),
+            delete_branch: None,
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("main workspace cannot be removed"));
+}
 
 #[tokio::test]
 async fn recovers_when_worktree_and_branch_are_missing() {

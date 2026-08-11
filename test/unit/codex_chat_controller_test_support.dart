@@ -6,14 +6,32 @@ Future<void> _settle() async {
 }
 
 final class _FakeCodexRuntimeClient implements RuntimeHostClient {
+  _FakeCodexRuntimeClient({
+    this.runtimeCapabilities = const <String>[
+      aleraRuntimeHostCodexSessionsCapability,
+      aleraRuntimeHostCodexTurnPolicyCapability,
+    ],
+    this.requestHandler,
+  });
+
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
   final List<_Request> requests = <_Request>[];
+  final Map<String, Map<String, Object?>> configurations =
+      <String, Map<String, Object?>>{};
+  final Map<String, Map<String, Object?>> recoveries =
+      <String, Map<String, Object?>>{};
   Map<String, Object?> skills = <String, Object?>{
     'data': <Object?>[
       <String, Object?>{'name': 'review', 'path': '/skills/review'},
     ],
   };
+  Map<String, Object?>? openSnapshot;
+  String? openThreadId;
+  Map<String, Object?>? historyResponse;
+  final List<String> runtimeCapabilities;
+  final Future<Object?>? Function(String type, Map<String, Object?> payload)?
+  requestHandler;
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
@@ -25,14 +43,47 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     requests.add(_Request(type, payload));
+    final handled = requestHandler?.call(type, payload);
+    if (handled != null) return handled;
     switch (type) {
+      case 'status.get':
+        return <String, Object?>{'runtimeCapabilities': runtimeCapabilities};
       case 'codex.thread.open':
+        final tabId = payload['tabId']! as String;
         return <String, Object?>{
+          'threadId': openThreadId,
+          'snapshot':
+              openSnapshot ??
+              <String, Object?>{
+                'events': const <Object?>[],
+                'timelineCells': const <Object?>[],
+                'pendingRequests': const <Object?>[],
+              },
+          'configuration': configurations[tabId],
+          'recovery': recoveries[tabId],
+        };
+      case 'codex.thread.history':
+        return historyResponse ?? const <String, Object?>{};
+      case 'codex.tab.configure':
+        final tabId = payload['tabId']! as String;
+        configurations[tabId] = Map<String, Object?>.from(
+          payload['configuration']! as Map,
+        );
+        return <String, Object?>{
+          'tabId': tabId,
+          'configuration': configurations[tabId],
+        };
+      case 'codex.thread.recover':
+        final tabId = payload['tabId']! as String;
+        recoveries.remove(tabId);
+        return <String, Object?>{
+          'threadId': null,
           'snapshot': <String, Object?>{
             'events': const <Object?>[],
             'timelineCells': const <Object?>[],
             'pendingRequests': const <Object?>[],
           },
+          'configuration': configurations[tabId],
         };
       case 'codex.model.list':
         return <String, Object?>{
@@ -88,6 +139,20 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
 final class _TestSettingsController extends SettingsController {
   @override
   AleraSettings build() => AleraSettings.defaults;
+
+  @override
+  Future<void> updateCodexChat(CodexChatSettings settings) async {
+    state = state.copyWith(codexChat: settings);
+  }
+}
+
+final class _AutoReviewTestSettingsController extends SettingsController {
+  @override
+  AleraSettings build() => AleraSettings.defaults.copyWith(
+    codexChat: AleraSettings.defaults.codexChat.copyWith(
+      permissionMode: 'auto-review',
+    ),
+  );
 
   @override
   Future<void> updateCodexChat(CodexChatSettings settings) async {

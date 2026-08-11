@@ -9,13 +9,9 @@ class _MobileCodexMarkdown extends StatelessWidget {
   Widget build(BuildContext context) => GptMarkdown(
     text,
     style: Theme.of(context).textTheme.bodyMedium,
-    onLinkTap: (url, _) => unawaited(_openMarkdownLink(url)),
+    onLinkTap: (url, _) => unawaited(_openMarkdownLink(context, url)),
   );
 }
 
-Future<void> _openMarkdownLink(String url) async {
-  final uri = Uri.tryParse(url);
-  if (uri != null && await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
+Future<void> _openMarkdownLink(BuildContext context, String url) =>
+    _openMobileCodexPath(context, url, parseLineReferences: true);

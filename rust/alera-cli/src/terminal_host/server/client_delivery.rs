@@ -107,11 +107,18 @@ impl ServerActor {
     }
 
     pub(super) fn client_write(&self, client_id: u64, message: Value) {
+        self.try_client_write(client_id, message);
+    }
+
+    pub(super) fn try_client_write(&self, client_id: u64, message: Value) -> bool {
         if let Some(client) = self.clients.get(&client_id) {
             if client.handle.send_control(message.into()).is_err() {
                 self.disconnect_client_soon(client_id);
+                return false;
             }
+            return true;
         }
+        false
     }
 
     pub(super) fn restart_runtime_after_client_write(&self, client_id: u64) {
@@ -119,6 +126,20 @@ impl ServerActor {
             if client
                 .handle
                 .send_control(ClientFrame::RestartRuntimeAfterWrite {
+                    inbox: self.inbox.clone(),
+                })
+                .is_err()
+            {
+                self.disconnect_client_soon(client_id);
+            }
+        }
+    }
+
+    pub(super) fn shutdown_runtime_after_client_write(&self, client_id: u64) {
+        if let Some(client) = self.clients.get(&client_id) {
+            if client
+                .handle
+                .send_control(ClientFrame::ShutdownRuntimeAfterWrite {
                     inbox: self.inbox.clone(),
                 })
                 .is_err()
@@ -172,6 +193,7 @@ impl ServerActor {
         self.handle_browser_client_disconnect(client_id);
         self.cancel_queued_emulator_requests(client_id);
         self.release_mobile_driver_for_client(client_id);
+        self.cancel_mobile_prompt_file_uploads(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
             self.flush_all_output(&session_id);
@@ -293,6 +315,7 @@ mod tests {
                     cloud_device_id: None,
                 },
             )]),
+            mobile_prompt_file_uploads: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),

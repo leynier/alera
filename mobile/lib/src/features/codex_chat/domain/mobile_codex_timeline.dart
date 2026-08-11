@@ -37,6 +37,10 @@ abstract final class MobileCodexTimelineReducer {
         .toString()
         .toLowerCase();
 
+    if (method == 'thread/compacted') {
+      return _reduceLegacyMobileContextCompaction(cells, turnId);
+    }
+
     if (rawMethod == 'codex/event/task_complete') {
       final text = _first(<Object?>[
         legacy['last_agent_message'],
@@ -190,6 +194,7 @@ abstract final class MobileCodexTimelineReducer {
           : method == 'item/completed'
           ? 'completed'
           : 'inProgress';
+      final details = _mobileCodexItemDetails(item);
       return _upsert(
         cells,
         _cell(
@@ -198,7 +203,9 @@ abstract final class MobileCodexTimelineReducer {
           turnId: turnId,
           kind: kind,
           status: status,
-          title: _titleFor(type, lower, item),
+          title: type.contains('contextcompaction')
+              ? mobileCodexContextCompactionTitle(status)
+              : _titleFor(type, lower, item),
           subtitle: _first(<Object?>[
             item['command'],
             item['name'],
@@ -210,16 +217,11 @@ abstract final class MobileCodexTimelineReducer {
             item['summary'],
             item['message'],
           ]),
-          detailsText: _first(<Object?>[
-            item['output'],
-            item['result'],
-            item['diff'],
-            item['commandOutput'],
-          ]),
+          detailsText: details.isEmpty ? null : details,
           isStreaming: method != 'item/completed',
           metadata: <String, Object?>{
             ...?current?.metadata,
-            'itemType': item['type'],
+            ..._mobileCodexItemMetadata(item),
             if (isAgent && phase.isNotEmpty) 'streamPhase': phase,
           },
         ),
@@ -257,9 +259,14 @@ abstract final class MobileCodexTimelineReducer {
           kind: 'toolCall',
           status: 'completed',
           title: lower.contains('enter')
-              ? 'Preparing review'
-              : 'Review finished',
+              ? 'Entered review mode'
+              : 'Exited review mode',
           detailsText: review.isEmpty ? null : review,
+          metadata: <String, Object?>{
+            'itemType': lower.contains('enter')
+                ? 'enteredReviewMode'
+                : 'exitedReviewMode',
+          },
         ),
       );
     }
@@ -431,55 +438,4 @@ String? _sourceFor(String lower) {
     return 'output';
   }
   return null;
-}
-
-String _kindFor(String type, String method) {
-  if (type.contains('agentmessage') || type.contains('assistant')) {
-    return 'assistantMessage';
-  }
-  if (type.contains('reason')) return 'reasoning';
-  if (type.contains('filechange') ||
-      type.contains('diff') ||
-      method.contains('filechange')) {
-    return 'diff';
-  }
-  if (type.contains('command') || method.contains('commandexecution')) {
-    return 'command';
-  }
-  if (type.contains('subagent') ||
-      type.contains('collab') ||
-      method.contains('subagent')) {
-    return 'subAgent';
-  }
-  if (type.contains('plan') || method.contains('/plan')) return 'plan';
-  if (type.contains('tool') || method.contains('tool') || method == 'output') {
-    return 'toolCall';
-  }
-  return 'progressText';
-}
-
-String _titleFor(String type, String method, Map<String, Object?> item) {
-  final explicit = _first(<Object?>[
-    item['title'],
-    item['name'],
-    item['command'],
-  ]);
-  if (explicit.isNotEmpty) return explicit;
-  if (type.contains('command') || method.contains('commandexecution')) {
-    return 'Command';
-  }
-  if (type.contains('filechange') || method.contains('filechange')) {
-    return 'File changes';
-  }
-  if (type.contains('reason')) return 'Reasoning';
-  if (type.contains('plan') || method.contains('/plan')) return 'Plan';
-  if (type.contains('tool') || method.contains('tool')) return 'Tool call';
-  return 'Codex activity';
-}
-
-String _rawFirst(Iterable<Object?> values) {
-  for (final value in values) {
-    if (value is String && value.trim().isNotEmpty) return value;
-  }
-  return '';
 }

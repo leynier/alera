@@ -79,6 +79,19 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    MobileWorkspaceFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        result: HostResult<Value>,
+    },
+    MobilePromptFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        upload_id: Option<String>,
+        result: HostResult<Value>,
+    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
@@ -173,6 +186,12 @@ pub enum ServerCommand {
     CodexPresenceTick,
     CodexFlush {
         tab_id: String,
+    },
+    CodexAutoResolve {
+        tab_id: String,
+        thread_id: String,
+        request_id: Value,
+        server_instance: std::sync::Arc<()>,
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),

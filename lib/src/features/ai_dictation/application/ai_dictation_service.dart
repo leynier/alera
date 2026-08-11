@@ -27,13 +27,13 @@ class AiDictationService extends ChangeNotifier {
        _targets = targets,
        _provider = provider,
        _modelStore = modelStore,
-       _recorder = recorder ?? AudioRecorder();
+       _recorder = recorder;
 
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;
   final AiDictationProvider _provider;
   final AiDictationModelStore _modelStore;
-  final AudioRecorder _recorder;
+  AudioRecorder? _recorder;
 
   String? _activeTargetId;
   String? _audioPath;
@@ -69,7 +69,8 @@ class AiDictationService extends ChangeNotifier {
         'Download the Whisper model in Settings before recording.',
       );
     }
-    if (!await _recorder.hasPermission()) {
+    final recorder = _recorder ??= AudioRecorder();
+    if (!await recorder.hasPermission()) {
       throw const AiDictationException(
         AiDictationErrorKind.permissionDenied,
         'Microphone permission is required for AI Dictation.',
@@ -80,7 +81,7 @@ class AiDictationService extends ChangeNotifier {
       directory.path,
       'alera-dictation-${DateTime.now().microsecondsSinceEpoch}.wav',
     );
-    await _recorder.start(
+    await recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.wav,
         sampleRate: 16000,
@@ -99,7 +100,8 @@ class AiDictationService extends ChangeNotifier {
       return null;
     }
     final targetId = _activeTargetId;
-    final path = await _recorder.stop() ?? _audioPath;
+    final recorder = _recorder;
+    final path = await recorder?.stop() ?? _audioPath;
     _recording = false;
     _transcribing = true;
     notifyListeners();
@@ -145,7 +147,7 @@ class AiDictationService extends ChangeNotifier {
       await _provider.cancel(requestId);
     }
     if (_recording) {
-      await _recorder.stop();
+      await _recorder?.stop();
     }
     _resetSession();
     if (path != null) {
@@ -167,7 +169,7 @@ class AiDictationService extends ChangeNotifier {
 
   @override
   void dispose() {
-    unawaited(_recorder.dispose());
+    unawaited(_recorder?.dispose() ?? Future<void>.value());
     super.dispose();
   }
 }

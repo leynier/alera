@@ -119,13 +119,36 @@ void main() {
 
     // Linux distribution is owned by apt and dnf, which are detected from the
     // artifact rather than from the path.
-    test('never attributes a Linux install to a desktop package manager', () {
-      final install = packageManagerInstallFromExecutablePath(
-        platform: 'linux',
-        executablePath: '/opt/alera/alera',
-      );
+    test(
+      'attributes the deb and rpm payload prefix to the system packages',
+      () {
+        final install = packageManagerInstallFromExecutablePath(
+          platform: 'linux',
+          executablePath: '/opt/alera/alera',
+        );
 
-      expect(install.method, PackageInstallMethod.unmanaged);
+        expect(install.method, PackageInstallMethod.linuxSystemPackage);
+        expect(install.isPackageManaged, isTrue);
+        // The deb and rpm upgrades need sudo, so they run in the command
+        // terminal rather than in a detached shell after the app has closed.
+        expect(install.canRunUpgrade, isFalse);
+      },
+    );
+
+    test('leaves a Linux tarball install unmanaged', () {
+      for (final path in const <String>[
+        '/home/leynier/.local/share/alera/alera',
+        '/home/leynier/projects/opt/alera/alera',
+      ]) {
+        expect(
+          packageManagerInstallFromExecutablePath(
+            platform: 'linux',
+            executablePath: path,
+          ).method,
+          PackageInstallMethod.unmanaged,
+          reason: path,
+        );
+      }
     });
 
     test('labels each manager for the update copy', () {
@@ -139,6 +162,12 @@ void main() {
         'Chocolatey',
       );
       expect(packageManagerLabel(PackageInstallMethod.unmanaged), isNull);
+      // The path proves the install is packaged but not by which manager, and
+      // the update's installer kind is what resolves apt against dnf.
+      expect(
+        packageManagerLabel(PackageInstallMethod.linuxSystemPackage),
+        isNull,
+      );
     });
   });
 
@@ -170,12 +199,12 @@ void main() {
       );
     });
 
-    test('keeps the Linux behavior for an unmanaged installation', () {
+    test('sends a packaged Linux install to its own manager', () {
       expect(
         packageManagerUpgradeCommand(
           update: _update(platform: 'linux', kind: 'deb'),
           channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.unmanaged,
+          installMethod: PackageInstallMethod.linuxSystemPackage,
         ),
         'sudo apt-get update && sudo apt-get install --only-upgrade alera',
       );
@@ -183,18 +212,26 @@ void main() {
         packageManagerUpgradeCommand(
           update: _update(platform: 'linux', kind: 'rpm'),
           channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.unmanaged,
+          installMethod: PackageInstallMethod.linuxSystemPackage,
         ),
         'sudo dnf upgrade alera',
       );
-      expect(
-        packageManagerUpgradeCommand(
-          update: _update(),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.unmanaged,
-        ),
-        isNull,
-      );
+    });
+
+    // apt and dnf know nothing about a directory the user extracted, so their
+    // upgrade would report no change or upgrade a different copy.
+    test('offers no manager command for an unmanaged installation', () {
+      for (final kind in const <String>['deb', 'rpm', 'tar.gz']) {
+        expect(
+          packageManagerUpgradeCommand(
+            update: _update(platform: 'linux', kind: kind),
+            channel: AleraUpdateChannel.stable,
+            installMethod: PackageInstallMethod.unmanaged,
+          ),
+          isNull,
+          reason: kind,
+        );
+      }
     });
 
     // Release candidates are GitHub assets only; no package manager carries

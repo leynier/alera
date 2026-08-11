@@ -188,17 +188,16 @@ class _SourceControlToolbar extends StatelessWidget {
           ),
           const SizedBox(height: AleraTokens.space8),
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: <Widget>[
-              Expanded(
-                child: _PrimaryActionButton(
-                  action: primaryAction,
-                  state: data,
-                  busy: busy,
-                  onPressed: primaryAction == null
-                      ? null
-                      : () => onPrimaryAction(primaryAction),
-                  onSelected: onSelectMenuAction,
-                ),
+              _PrimaryActionButton(
+                action: primaryAction,
+                state: data,
+                busy: busy,
+                onPressed: primaryAction == null
+                    ? null
+                    : () => onPrimaryAction(primaryAction),
+                onSelected: onSelectMenuAction,
               ),
             ],
           ),
@@ -445,14 +444,19 @@ class _PrimaryActionButton extends StatelessWidget {
             child: SizedBox(
               height: _height,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Expanded(
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: _height),
                     child: InkWell(
                       mouseCursor: enabled
                           ? SystemMouseCursors.click
                           : SystemMouseCursors.basic,
                       onTap: enabled ? onPressed : null,
-                      child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AleraTokens.space12,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[

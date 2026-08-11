@@ -214,6 +214,10 @@ async fn send_mobile_value(
         let _ = inbox.send(ServerCommand::RequestedRestart);
         return Ok(());
     }
+    if let ClientFrame::ShutdownRuntimeAfterWrite { inbox } = frame {
+        let _ = inbox.send(ServerCommand::RequestedShutdown);
+        return Ok(());
+    }
     if *binary {
         if let ClientFrame::Output { session_id, data } = frame {
             write

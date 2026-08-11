@@ -94,13 +94,13 @@ class WorkspaceTabService {
       id: _uuid.v4(),
       workspaceId: workspaceId,
       kind: WorkspaceTabKind.codex,
-      title: 'Codex',
+      title: 'Codex Chat',
       createdAt: now,
       updatedAt: now,
       payload: const <String, Object?>{},
     );
-    // The next ordinal is deliberately not used for Codex: the product name
-    // is stable until the user renames the thread or tab.
+    // The next ordinal is deliberately not used because Codex Chat has one
+    // stable product label regardless of its conversation metadata.
     if (existing.any((candidate) => candidate.id == tab.id)) {
       throw StateError('Could not allocate a unique Codex tab id.');
     }

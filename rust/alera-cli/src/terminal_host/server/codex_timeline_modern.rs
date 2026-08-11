@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use super::codex_timeline_cells::{new_cell, upsert_cell};
+use super::codex_timeline_cells::{complete_context_compaction, new_cell, upsert_cell};
 
 pub(super) fn reduce_modern_notification(
     cells: &mut Vec<Value>,
@@ -22,22 +22,7 @@ pub(super) fn reduce_modern_notification(
             true
         }
         "thread/compacted" if !turn_id.is_empty() => {
-            upsert_cell(
-                cells,
-                new_cell(
-                    &format!("compaction-{turn_id}"),
-                    turn_id,
-                    "toolCall",
-                    "completed",
-                    now,
-                    Some("Compacted context".to_string()),
-                    None,
-                    None,
-                    None,
-                    false,
-                    Some(json!({"itemType": "contextCompaction"})),
-                ),
-            );
+            complete_context_compaction(cells, turn_id, now);
             true
         }
         "model/rerouted" if !turn_id.is_empty() => {

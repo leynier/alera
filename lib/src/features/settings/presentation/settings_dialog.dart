@@ -23,6 +23,7 @@ import 'package:alera/src/features/text_actions/presentation/text_actions_settin
 import 'package:alera/src/features/settings/presentation/settings_dialog_content.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_quota.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
 import 'package:alera/src/features/settings/presentation/text_actions_search_entries.dart';

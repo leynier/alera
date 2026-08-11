@@ -21,13 +21,20 @@ class _CodexContextUsageIndicatorState
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlay;
   bool _hovered = false;
+  bool _overlayRebuildScheduled = false;
 
   double get _fraction => (widget.used / widget.limit).clamp(0.0, 1.0);
 
   @override
   void didUpdateWidget(covariant _CodexContextUsageIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _overlay?.markNeedsBuild();
+    final overlay = _overlay;
+    if (overlay == null || _overlayRebuildScheduled) return;
+    _overlayRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayRebuildScheduled = false;
+      if (mounted && identical(_overlay, overlay)) overlay.markNeedsBuild();
+    });
   }
 
   @override
@@ -74,11 +81,16 @@ class _CodexContextUsageIndicatorState
         },
         child: SizedBox.square(
           dimension: AleraTokens.space16,
-          child: CircularProgressIndicator(
-            value: _fraction,
-            strokeWidth: AleraTokens.strokeThin,
-            color: color,
-            backgroundColor: AleraTokens.border,
+          child: Center(
+            child: SizedBox.square(
+              dimension: AleraTokens.space12,
+              child: CircularProgressIndicator(
+                value: _fraction,
+                strokeWidth: AleraTokens.strokeThin,
+                color: color,
+                backgroundColor: AleraTokens.border,
+              ),
+            ),
           ),
         ),
       ),

@@ -1,59 +1,93 @@
 part of 'codex_chat_surface.dart';
 
+const EdgeInsets _codexTitledMenuPadding = EdgeInsets.fromLTRB(
+  AleraTokens.space12,
+  AleraTokens.space4,
+  AleraTokens.space12,
+  AleraTokens.space12,
+);
+
 class _CodexComposerControls extends StatelessWidget {
   const _CodexComposerControls({
-    required this.modelMenu,
-    required this.reasoningMenu,
     required this.state,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
     required this.onPermissionChanged,
     required this.onPlanChanged,
-    required this.onCollaborationChanged,
     required this.onAddAttachment,
     required this.onPaste,
     required this.onDraftItemSelected,
     required this.onCommand,
   });
 
-  final GlobalKey<PopupMenuButtonState<String>> modelMenu;
-  final GlobalKey<PopupMenuButtonState<String>> reasoningMenu;
   final CodexChatState state;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
   final ValueChanged<String> onPermissionChanged;
   final ValueChanged<bool> onPlanChanged;
-  final ValueChanged<String?> onCollaborationChanged;
   final Future<void> Function() onAddAttachment;
   final Future<void> Function() onPaste;
   final ValueChanged<CodexDraftItem> onDraftItemSelected;
   final ValueChanged<CodexComposerCommand> onCommand;
 
   @override
-  Widget build(BuildContext context) {
-    final selectedModel = state.selectedModelOption;
-    final efforts = selectedModel?.reasoningEfforts.isNotEmpty == true
-        ? selectedModel!.reasoningEfforts
-        : const <String>['low', 'medium', 'high', 'xhigh'];
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        PopupMenuButton<String>(
-          tooltip: 'Add Photos And Files',
-          onSelected: (value) => _handleAddAction(context, value),
-          itemBuilder: (context) => const <PopupMenuEntry<String>>[
-            PopupMenuItem(value: 'file', child: Text('Add Photos And Files')),
-            PopupMenuItem(value: 'paste', child: Text('Paste From Clipboard')),
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      PopupMenuButton<String>(
+        tooltip: 'Add Photos And Files',
+        onSelected: (value) => _handleAddAction(context, value),
+        itemBuilder: (context) => <PopupMenuEntry<String>>[
+          const _CodexDropdownEntry<String>(
+            value: 'file',
+            label: 'Add Photos And Files',
+            selected: false,
+          ),
+          const _CodexDropdownEntry<String>(
+            value: 'paste',
+            label: 'Paste From Clipboard',
+            selected: false,
+          ),
+          const PopupMenuDivider(),
+          const _CodexDropdownEntry<String>(
+            value: 'skill',
+            label: 'Add Skill',
+            selected: false,
+          ),
+          const _CodexDropdownEntry<String>(
+            value: 'app',
+            label: 'Add App',
+            selected: false,
+          ),
+          const PopupMenuDivider(),
+          const _CodexDropdownEntry<String>(
+            value: 'review',
+            label: 'Start Review',
+            selected: false,
+          ),
+          const _CodexDropdownEntry<String>(
+            value: 'compact',
+            label: 'Compact Context',
+            selected: false,
+          ),
+          if (state.supportsSessions) ...const <PopupMenuEntry<String>>[
             PopupMenuDivider(),
-            PopupMenuItem(value: 'skill', child: Text('Add Skill')),
-            PopupMenuItem(value: 'app', child: Text('Add App')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'review', child: Text('Start Review')),
-            PopupMenuItem(value: 'compact', child: Text('Compact Context')),
+            _CodexDropdownEntry<String>(
+              value: 'resume',
+              label: 'Resume Thread',
+              selected: false,
+            ),
+            _CodexDropdownEntry<String>(
+              value: 'new',
+              label: 'Start New Chat',
+              selected: false,
+            ),
+            _CodexDropdownEntry<String>(
+              value: 'clear',
+              label: 'Clear Chat',
+              selected: false,
+            ),
           ],
-          child: const Padding(
+        ],
+        child: const MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Padding(
             padding: EdgeInsets.all(AleraTokens.space4),
             child: Icon(
               AleraIcons.add,
@@ -62,115 +96,120 @@ class _CodexComposerControls extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: AleraTokens.space4),
-        PopupMenuButton<String>(
-          key: modelMenu,
-          tooltip: 'Choose Model',
-          constraints: const BoxConstraints(
-            minWidth: AleraTokens.contextMenuWidth,
-          ),
-          initialValue: state.selectedModel,
-          onSelected: onModelChanged,
-          itemBuilder: (context) => <PopupMenuEntry<String>>[
-            _CodexMenuHeader('Select Model'),
-            for (final model in state.models)
-              _CodexDropdownEntry<String>(
-                value: model.id,
-                label: model.label,
-                selected: model.id == state.selectedModel,
-              ),
-          ],
-          child: _CodexComposerChip(
-            label: selectedModel?.label ?? state.selectedModel ?? 'Model',
-          ),
-        ),
-        const SizedBox(width: AleraTokens.space6),
-        PopupMenuButton<String>(
-          key: reasoningMenu,
-          tooltip: 'Select Reasoning Effort',
-          initialValue: state.reasoningEffort,
-          onSelected: onReasoningChanged,
-          itemBuilder: (context) => <PopupMenuEntry<String>>[
-            _CodexMenuHeader('Select Reasoning Effort'),
-            for (final effort in efforts)
-              _CodexDropdownEntry<String>(
-                value: effort,
-                label: _choiceLabel(effort),
-                selected: effort == state.reasoningEffort,
-              ),
-          ],
-          child: _CodexComposerChip(label: _choiceLabel(state.reasoningEffort)),
-        ),
-        if (selectedModel?.supportsFastMode == true) ...<Widget>[
-          const SizedBox(width: AleraTokens.space6),
-          PopupMenuButton<String>(
-            tooltip: 'Select Speed Mode',
-            initialValue: state.speedMode,
-            onSelected: onSpeedChanged,
-            itemBuilder: (context) => <PopupMenuEntry<String>>[
-              _CodexMenuHeader('Select Speed Mode'),
-              for (final mode in const <String>['normal', 'fast'])
-                _CodexDropdownEntry<String>(
-                  value: mode,
-                  label: _choiceLabel(mode),
-                  selected: mode == state.speedMode,
-                ),
-            ],
-            child: _CodexComposerChip(label: _choiceLabel(state.speedMode)),
-          ),
-        ],
-        const SizedBox(width: AleraTokens.space6),
-        PopupMenuButton<String>(
+      ),
+      Theme(
+        data: Theme.of(context).copyWith(highlightColor: Colors.transparent),
+        child: PopupMenuButton<String>(
           tooltip: 'Choose Approval Mode',
-          initialValue: state.permissionMode,
-          onSelected: onPermissionChanged,
+          menuPadding: _codexTitledMenuPadding,
+          constraints: const BoxConstraints(
+            minWidth: AleraTokens.dialogCompactWidth,
+            maxWidth: AleraTokens.dialogCompactWidth,
+          ),
+          color: AleraTokens.surfaceElevated,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            side: const BorderSide(color: AleraTokens.border),
+          ),
+          clipBehavior: Clip.hardEdge,
+          initialValue:
+              state.permissionMode == 'on-request' ||
+                  state.permissionMode == 'auto-review' &&
+                      !state.supportsAutoReview
+              ? 'untrusted'
+              : state.permissionMode,
+          onSelected: (value) => _selectPermission(context, value),
           itemBuilder: (context) => <PopupMenuEntry<String>>[
-            _CodexMenuHeader('Select Approval Mode'),
-            _CodexDropdownEntry<String>(
-              value: 'on-request',
-              label: 'Ask First',
-              selected: state.permissionMode == 'on-request',
+            _CodexMenuHeader('How Should Codex Actions Be Approved?'),
+            _CodexPermissionEntry(
+              value: 'untrusted',
+              label: 'Ask For Approval',
+              description:
+                  'Always ask to edit external files and use the internet.',
+              icon: AleraIcons.insecure,
+              selected:
+                  state.permissionMode == 'untrusted' ||
+                  state.permissionMode == 'on-request' ||
+                  state.permissionMode == 'auto-review' &&
+                      !state.supportsAutoReview,
             ),
-            _CodexDropdownEntry<String>(
+            if (state.supportsAutoReview)
+              _CodexPermissionEntry(
+                value: 'auto-review',
+                label: 'Approve For Me',
+                description:
+                    'Only ask for actions detected as potentially unsafe.',
+                icon: AleraIcons.secure,
+                selected: state.permissionMode == 'auto-review',
+              ),
+            _CodexPermissionEntry(
               value: 'never',
               label: 'Full Access',
+              description:
+                  'Unrestricted access to the internet and any file on your computer.',
+              icon: AleraIcons.warning,
               selected: state.permissionMode == 'never',
+              warning: true,
             ),
           ],
-          child: _CodexComposerChip(
-            label: state.permissionMode == 'never'
-                ? 'Full Access'
-                : 'Ask First',
-            highlight: state.permissionMode == 'never',
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: _CodexComposerChip(
+              label: state.permissionMode == 'never'
+                  ? 'Full Access'
+                  : state.permissionMode == 'auto-review' &&
+                        state.supportsAutoReview
+                  ? 'Approve For Me'
+                  : 'Ask For Approval',
+              highlight: state.permissionMode == 'never',
+            ),
           ),
         ),
-        const SizedBox(width: AleraTokens.space6),
-        InkWell(
-          onTap: () => onPlanChanged(!state.planMode),
-          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space4,
-            ),
-            child: Text(
-              'Plan',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+      ),
+      InkWell(
+        key: const ValueKey<String>('codex-plan-mode'),
+        onTap: () => onPlanChanged(!state.planMode),
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AleraTokens.space2,
+            AleraTokens.space4,
+            AleraTokens.space8,
+            AleraTokens.space4,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                state.planMode ? AleraIcons.planActive : AleraIcons.plan,
+                size: AleraTokens.iconSm,
                 color: state.planMode
-                    ? AleraTokens.info
+                    ? AleraTokens.foreground
                     : AleraTokens.foregroundFaint,
-                fontWeight: state.planMode ? FontWeight.w600 : FontWeight.w400,
               ),
-            ),
+              const SizedBox(width: AleraTokens.space4),
+              Text(
+                'Plan',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: state.planMode
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundFaint,
+                  fontWeight: state.planMode
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
+              ),
+            ],
           ),
         ),
-        if (state.collaborationModes.isNotEmpty)
-          _CodexCollaborationMenu(
-            state: state,
-            onChanged: onCollaborationChanged,
-          ),
-      ],
-    );
+      ),
+    ],
+  );
+
+  Future<void> _selectPermission(BuildContext context, String value) async {
+    await _applyCodexPermissionSelection(context, value, onPermissionChanged);
   }
 
   Future<void> _handleAddAction(BuildContext context, String value) async {
@@ -187,6 +226,12 @@ class _CodexComposerControls extends StatelessWidget {
         onCommand(CodexComposerCommand.review);
       case 'compact':
         onCommand(CodexComposerCommand.compact);
+      case 'resume':
+        onCommand(CodexComposerCommand.resume);
+      case 'new':
+        onCommand(CodexComposerCommand.newChat);
+      case 'clear':
+        onCommand(CodexComposerCommand.clear);
     }
   }
 
@@ -225,15 +270,39 @@ class _CodexComposerControls extends StatelessWidget {
         name: name,
         path: connector,
         tokenText: '\$$name',
+        iconUrl: _catalogIconUrl(selected),
       ),
     );
   }
 }
 
+Future<void> _applyCodexPermissionSelection(
+  BuildContext context,
+  String value,
+  ValueChanged<String> onSelected,
+) async {
+  if (value != 'never') {
+    onSelected(value);
+    return;
+  }
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => const _CodexFullAccessDialog(),
+  );
+  if (confirmed == true) onSelected(value);
+}
+
 class _CodexComposerChip extends StatelessWidget {
-  const _CodexComposerChip({required this.label, this.highlight = false});
+  const _CodexComposerChip({
+    required this.label,
+    this.secondaryLabel,
+    this.leadingIcon,
+    this.highlight = false,
+  });
 
   final String label;
+  final String? secondaryLabel;
+  final IconData? leadingIcon;
   final bool highlight;
 
   @override
@@ -245,12 +314,27 @@ class _CodexComposerChip extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: highlight
-                ? AleraTokens.warning
-                : AleraTokens.foregroundMuted,
+        if (leadingIcon case final IconData icon) ...<Widget>[
+          Icon(icon, size: AleraTokens.iconXs, color: AleraTokens.foreground),
+          const SizedBox(width: AleraTokens.space4),
+        ],
+        Flexible(
+          child: Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                TextSpan(text: label, style: _labelStyle(context)),
+                if (secondaryLabel case final String secondary
+                    when secondary.isNotEmpty)
+                  TextSpan(
+                    text: ' $secondary',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: AleraTokens.space4),
@@ -262,95 +346,25 @@ class _CodexComposerChip extends StatelessWidget {
       ],
     ),
   );
+
+  TextStyle? _labelStyle(BuildContext context) =>
+      Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: highlight
+            ? AleraTokens.warning
+            : secondaryLabel == null
+            ? AleraTokens.foregroundMuted
+            : AleraTokens.foreground,
+      );
 }
 
 class _CodexMenuHeader extends PopupMenuItem<String> {
   _CodexMenuHeader(String label)
     : super(
         enabled: false,
-        height: AleraTokens.space32,
+        height: AleraTokens.space24,
+        padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Text(label, style: AleraTokens.labelFaintStyle),
       );
-}
-
-class _CodexDropdownEntry<T> extends PopupMenuEntry<T> {
-  const _CodexDropdownEntry({
-    required this.value,
-    required this.label,
-    required this.selected,
-  });
-
-  final T value;
-  final String label;
-  final bool selected;
-
-  @override
-  double get height => AleraTokens.codexMenuItemHeight;
-
-  @override
-  bool represents(T? value) => this.value == value;
-
-  @override
-  State<_CodexDropdownEntry<T>> createState() => _CodexDropdownEntryState<T>();
-}
-
-class _CodexDropdownEntryState<T> extends State<_CodexDropdownEntry<T>> {
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AleraTokens.space2 / 2),
-    child: InkWell(
-      autofocus: widget.selected,
-      onTap: () => Navigator.of(context).pop(widget.value),
-      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-          vertical: AleraTokens.space4,
-        ),
-        child: Row(
-          children: <Widget>[
-            Expanded(child: Text(widget.label)),
-            if (widget.selected)
-              const Icon(AleraIcons.check, size: AleraTokens.iconLg),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _CodexCollaborationMenu extends StatelessWidget {
-  const _CodexCollaborationMenu({required this.state, required this.onChanged});
-
-  final CodexChatState state;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final modes = <String>[
-      for (final mode in state.collaborationModes)
-        if (mode['mode']?.toString().trim() case final String name
-            when name.isNotEmpty)
-          name,
-    ];
-    return PopupMenuButton<String>(
-      tooltip: 'Collaboration Mode',
-      onSelected: onChanged,
-      itemBuilder: (context) => <PopupMenuEntry<String>>[
-        for (final mode in modes)
-          _CodexDropdownEntry<String>(
-            value: mode,
-            label: _choiceLabel(mode),
-            selected: mode == state.collaborationMode,
-          ),
-      ],
-      child: _CodexComposerChip(
-        label: state.collaborationMode == null
-            ? 'Collaboration'
-            : _choiceLabel(state.collaborationMode!),
-      ),
-    );
-  }
 }
 
 String? _catalogConnector(Map<String, Object?> item) {

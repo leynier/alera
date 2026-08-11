@@ -27,6 +27,7 @@ class WorkspaceTabSummary {
     if (hasManualTitle) {
       return title;
     }
+    if (isCodex) return 'Codex Chat';
     final automaticTitle = runtimeTitle?.trim() ?? '';
     if (automaticTitle.isEmpty || automaticTitle == 'Terminal') {
       return title;
