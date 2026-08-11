@@ -1,4 +1,7 @@
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
+
+#[cfg(windows)]
+use serde_json::Map;
 
 #[cfg(windows)]
 fn environment() -> Value {
