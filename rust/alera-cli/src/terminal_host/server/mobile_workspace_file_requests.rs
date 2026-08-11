@@ -391,6 +391,10 @@ fn workspace_file_error(error: alera_core::workspace_files::WorkspaceFileError) 
     HostError::state(error.to_string())
 }
 
+#[cfg(all(test, unix))]
+#[path = "mobile_workspace_file_requests_platform_tests.rs"]
+mod platform_tests;
+
 #[cfg(test)]
 mod tests {
     use super::super::actor_test_harness::test_actor;
@@ -471,22 +475,6 @@ mod tests {
         );
 
         assert!(result.is_err());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn absolute_files_preserve_literal_backslashes_in_file_names() {
-        let workspace = tempfile::tempdir().unwrap();
-        let file = workspace.path().join("foo\\bar.txt");
-        std::fs::write(&file, b"literal").unwrap();
-
-        let (_, relative) = absolute_workspace_file_target(
-            &file.to_string_lossy(),
-            vec![workspace.path().to_string_lossy().into_owned()],
-        )
-        .unwrap();
-
-        assert_eq!(relative, "foo\\bar.txt");
     }
 
     #[tokio::test]

@@ -4,14 +4,17 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{ChildKiller, MasterPty, PtySize};
 use serde_json::{json, Value};
 
 use crate::terminal_host::buffer::ScrollbackBuffer;
 use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHistoryStore};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
-use crate::terminal_host::resources::{seal_shell_process, ShellProcess};
+use crate::terminal_host::resources::ShellProcess;
+
+#[cfg(test)]
+use crate::terminal_host::resources::seal_shell_process;
 
 mod checkpoint_restore;
 #[cfg(test)]
@@ -20,6 +23,7 @@ mod input_queue;
 mod io_threads;
 mod output_backpressure;
 mod output_batching;
+mod pty_spawn;
 mod shell_tree_termination;
 #[cfg(test)]
 mod tests;
@@ -29,20 +33,12 @@ mod title_tracker;
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
 use io_threads::{spawn_reader, spawn_writer};
+use pty_spawn::{spawn_pty, SpawnedPty};
 use shell_tree_termination::kill_shell_tree;
 use title_tracker::TerminalTitleTracker;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
 static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
-
-struct SpawnedPty {
-    child: Box<dyn Child + Send + Sync>,
-    master: Box<dyn MasterPty + Send>,
-    reader: Box<dyn std::io::Read + Send>,
-    writer: Box<dyn std::io::Write + Send>,
-    killer: Box<dyn ChildKiller + Send + Sync>,
-    shell: Option<ShellProcess>,
-}
 
 fn next_session_instance_id() -> u64 {
     NEXT_SESSION_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)
@@ -488,57 +484,4 @@ impl Session {
             .await
             .map_err(|error| HostError::state(error.to_string()))
     }
-}
-
-fn spawn_pty(
-    launch: TerminalHostLaunch,
-    terminal_handle: String,
-    cols: u16,
-    rows: u16,
-) -> HostResult<SpawnedPty> {
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|error| HostError::state(error.to_string()))?;
-    let mut command = CommandBuilder::new(&launch.shell);
-    command.args(&launch.arguments);
-    // Session launch environments are explicit so terminals do not inherit
-    // stale variables from the long-running host process.
-    command.env_clear();
-    for (key, value) in &launch.environment {
-        command.env(key, value);
-    }
-    // Agents inside this PTY use the session id as their orchestration identity.
-    command.env("ALERA_TERMINAL_HANDLE", terminal_handle);
-    let child = pair
-        .slave
-        .spawn_command(command)
-        .map_err(|error| HostError::state(error.to_string()))?;
-    // The master must be the only remaining PTY endpoint owned by the host.
-    drop(pair.slave);
-    let killer = child.clone_killer();
-    // Capture identity before the reader owns the child so resource samples can
-    // prove that a later PID still belongs to this shell process.
-    let shell = child.process_id().and_then(seal_shell_process);
-    let reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|error| HostError::state(error.to_string()))?;
-    let writer = pair
-        .master
-        .take_writer()
-        .map_err(|error| HostError::state(error.to_string()))?;
-    Ok(SpawnedPty {
-        child,
-        master: pair.master,
-        reader,
-        writer,
-        killer,
-        shell,
-    })
 }
