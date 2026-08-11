@@ -345,7 +345,7 @@ impl ServerActor {
         }
         let inbox = self.inbox.clone();
         let reader_session_id = session_id.clone();
-        let session = Session::start(
+        let session = Box::pin(Session::start(
             session_id.clone(),
             workspace_id,
             tab_id,
@@ -358,7 +358,7 @@ impl ServerActor {
             initial_output_stream_bytes,
             &self.store,
             move |event| forward_pty_event(&inbox, &reader_session_id, event),
-        )
+        ))
         .await?;
         self.sessions.insert(session_id, session);
         Ok(())

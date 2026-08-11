@@ -233,10 +233,13 @@ mod tests {
         )
         .unwrap();
         assert_ne!(params["destinationPath"], "/tmp/driver");
-        assert!(params["destinationPath"]
-            .as_str()
-            .unwrap()
-            .ends_with(&format!("browser/artifacts/{REQUEST_ID}.png")));
+        assert!(
+            Path::new(params["destinationPath"].as_str().unwrap()).ends_with(
+                Path::new("browser")
+                    .join("artifacts")
+                    .join(format!("{REQUEST_ID}.png"))
+            )
+        );
         assert!(params.get("outputPath").is_none());
         assert_eq!(params["format"], "png");
     }

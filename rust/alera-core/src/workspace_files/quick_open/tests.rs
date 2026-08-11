@@ -59,12 +59,18 @@ fn preserves_exact_path_segment_ranking() {
 
 #[test]
 fn breaks_normalized_path_ties_with_the_original_path() {
-    let workspace = tempfile::tempdir().unwrap();
-    fs::write(workspace.path().join("a.dart"), "lower").unwrap();
-    fs::write(workspace.path().join("A.dart"), "upper").unwrap();
-    let session = start(&workspace);
-    assert_eq!(paths(&session, "", 20), ["A.dart", "a.dart"]);
-    stop_workspace_quick_open_session(session);
+    let mut files = vec![
+        QuickOpenFile::new("a.dart".to_string()),
+        QuickOpenFile::new("A.dart".to_string()),
+    ];
+    sort_quick_open_files(&mut files);
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.relative_path.as_str())
+            .collect::<Vec<_>>(),
+        ["A.dart", "a.dart"]
+    );
 }
 
 #[test]

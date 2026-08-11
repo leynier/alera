@@ -2,6 +2,8 @@
 //! binary, connects over the loopback socket it advertises, and drives the full
 //! request/event sequence the Dart app relies on.
 
+mod terminal_host_test_platform;
+
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::process::Child;
@@ -37,6 +39,24 @@ fn send(writer: &mut TcpStream, message: Value) {
     writer.write_all(&line).unwrap();
     writer.flush().unwrap();
 }
+
+#[cfg(windows)]
+fn answer_conpty_cursor_query(writer: &mut TcpStream, session_id: &str) {
+    send(
+        writer,
+        json!({
+            "id": 9_001,
+            "type": "write",
+            "payload": {
+                "sessionId": session_id,
+                "dataBase64": STANDARD.encode(b"\x1b[1;1R")
+            }
+        }),
+    );
+}
+
+#[cfg(not(windows))]
+fn answer_conpty_cursor_query(_writer: &mut TcpStream, _session_id: &str) {}
 
 fn read_message(reader: &mut BufReader<TcpStream>) -> Value {
     let mut line = String::new();
@@ -124,6 +144,7 @@ fn create_long_running_session(
     workspace_id: &str,
     tab_id: &str,
 ) {
+    let working_directory = terminal_host_test_platform::working_directory();
     send(
         writer,
         json!({
@@ -133,17 +154,14 @@ fn create_long_running_session(
                 "sessionId": session_id,
                 "workspaceId": workspace_id,
                 "tabId": tab_id,
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": ["-c", "sleep 30"],
-                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-                },
+                "workingDirectory": working_directory,
+                "launch": terminal_host_test_platform::long_running_launch(),
                 "cols": 80,
                 "rows": 24
             }
         }),
     );
+    answer_conpty_cursor_query(writer, session_id);
     let created = read_response(reader, id);
     assert_eq!(
         created["ok"],
@@ -330,17 +348,14 @@ fn full_protocol_sequence() {
                 "sessionId": "s1",
                 "workspaceId": "w1",
                 "tabId": "t1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": ["-c", "printf MARKER; exit 7"],
-                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::marker_exit_launch("MARKER", 7),
                 "cols": 80,
                 "rows": 24
             }
         }),
     );
+    answer_conpty_cursor_query(&mut writer, "s1");
 
     let mut output: Vec<u8> = Vec::new();
     let mut created = None;
@@ -393,17 +408,14 @@ fn full_protocol_sequence() {
                 "sessionId": "s1",
                 "workspaceId": "w1",
                 "tabId": "t1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": [],
-                    "environment": {"PATH": "/usr/bin:/bin"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::interactive_launch(),
                 "cols": 80,
                 "rows": 24
             }
         }),
     );
+    answer_conpty_cursor_query(&mut writer2, "s1");
     let reattach = read_message(&mut reader2);
     assert_eq!(reattach["id"], json!(1));
     assert_eq!(reattach["ok"], json!(true));
@@ -587,17 +599,14 @@ fn pauses_output_per_client_and_resumes_from_a_delta() {
                 "sessionId": "paused",
                 "workspaceId": "w1",
                 "tabId": "t1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": ["-c", "printf READY; IFS= read -r line; printf 'GOT:%s' \"$line\"; exit 0"],
-                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::input_echo_launch(),
                 "cols": 80,
                 "rows": 24
             }
         }),
     );
+    answer_conpty_cursor_query(&mut active_writer, "paused");
     let create = read_response(&mut active_reader, 1);
     assert_eq!(create["ok"], json!(true), "create failed: {create}");
 
@@ -615,12 +624,8 @@ fn pauses_output_per_client_and_resumes_from_a_delta() {
                 "sessionId": "paused",
                 "workspaceId": "w1",
                 "tabId": "t1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": [],
-                    "environment": {"PATH": "/usr/bin:/bin"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::interactive_launch(),
                 "cols": 80,
                 "rows": 24
             }
@@ -1297,17 +1302,14 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
                     "sessionId": "s1",
                     "workspaceId": "w1",
                     "tabId": "t1",
-                    "workingDirectory": "/tmp",
-                    "launch": {
-                        "shell": "/bin/sh",
-                        "arguments": ["-c", "printf FIRST; sleep 0.2; printf SECOND; exit 3"],
-                        "environment": {"PATH": "/usr/bin:/bin"}
-                    },
+                    "workingDirectory": terminal_host_test_platform::working_directory(),
+                    "launch": terminal_host_test_platform::delayed_markers_launch(),
                     "cols": 80,
                     "rows": 24
                 }
             }),
         );
+        answer_conpty_cursor_query(&mut writer, "s1");
         // Drain until the exit event, which triggers an immediate checkpoint.
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
@@ -1351,17 +1353,14 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
                     "sessionId": "s1",
                     "workspaceId": "w1",
                     "tabId": "t1",
-                    "workingDirectory": "/tmp",
-                    "launch": {
-                        "shell": "/bin/sh",
-                        "arguments": ["-c", "printf AFTER; exit 0"],
-                        "environment": {"PATH": "/usr/bin:/bin"}
-                    },
+                    "workingDirectory": terminal_host_test_platform::working_directory(),
+                    "launch": terminal_host_test_platform::marker_exit_launch("AFTER", 0),
                     "cols": 80,
                     "rows": 24
                 }
             }),
         );
+        answer_conpty_cursor_query(&mut writer, "s1");
         let restored = read_message(&mut reader);
         assert_eq!(restored["id"], json!(1));
         assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
@@ -1408,12 +1407,8 @@ fn remints_session_from_disk_after_restart_with_prior_scrollback() {
                 "sessionId": "s1",
                 "workspaceId": "w1",
                 "tabId": "t1",
-                "workingDirectory": "/tmp",
-                "launch": {
-                    "shell": "/bin/sh",
-                    "arguments": [],
-                    "environment": {"PATH": "/usr/bin:/bin"}
-                },
+                "workingDirectory": terminal_host_test_platform::working_directory(),
+                "launch": terminal_host_test_platform::interactive_launch(),
                 "cols": 80,
                 "rows": 24
             }

@@ -62,7 +62,7 @@ extension _AgentRuntimeOverlayShell on AgentRuntimeOverlayService {
           ? unquoted.text
           : _expandHome(unquoted.text);
       if (expanded.isNotEmpty) {
-        last = expanded;
+        last = p.normalize(expanded);
       }
     }
     return last;

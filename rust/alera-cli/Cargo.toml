@@ -47,6 +47,7 @@ tokio-tungstenite = "0.30"
 toml = "1.1"
 url = "2.5"
 dirs = "6"
+dunce = "1"
 regex = "1"
 axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"

@@ -18,9 +18,9 @@ void main() {
     );
 
     expect(handled, isTrue);
-    expect(files.readTextPaths, <String>['lib/main.dart']);
+    expect(files.readTextPaths, <String>[p.join('lib', 'main.dart')]);
     expect(files.resolvedPaths, isEmpty);
-    expect(opened, <String>['lib/main.dart']);
+    expect(opened, <String>[p.join('lib', 'main.dart')]);
   });
 
   test('resolves supported workspace previews before opening them', () async {
@@ -36,9 +36,9 @@ void main() {
     );
 
     expect(handled, isTrue);
-    expect(files.resolvedPaths, <String>['assets/image.png']);
+    expect(files.resolvedPaths, <String>[p.join('assets', 'image.png')]);
     expect(files.readTextPaths, isEmpty);
-    expect(opened, <String>['assets/image.png']);
+    expect(opened, <String>[p.join('assets', 'image.png')]);
   });
 
   test('leaves outside and unsupported files to the system launcher', () async {

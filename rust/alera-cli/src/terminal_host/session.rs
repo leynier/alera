@@ -4,7 +4,7 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use serde_json::{json, Value};
 
 use crate::terminal_host::buffer::ScrollbackBuffer;
@@ -35,6 +35,15 @@ use title_tracker::TerminalTitleTracker;
 const INPUT_QUEUE_CAPACITY: usize = 64;
 static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
 
+struct SpawnedPty {
+    child: Box<dyn Child + Send + Sync>,
+    master: Box<dyn MasterPty + Send>,
+    reader: Box<dyn std::io::Read + Send>,
+    writer: Box<dyn std::io::Write + Send>,
+    killer: Box<dyn ChildKiller + Send + Sync>,
+    shell: Option<ShellProcess>,
+}
+
 fn next_session_instance_id() -> u64 {
     NEXT_SESSION_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)
 }
@@ -47,6 +56,8 @@ fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
 #[derive(Debug)]
 pub enum PtyEvent {
     Output(Vec<u8>),
+    #[cfg(windows)]
+    ChildExited,
     Exit(i32),
     Error(String),
     InputWritten {
@@ -173,53 +184,24 @@ impl Session {
             .next_output_sequence(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let pty_system = native_pty_system();
-        let pair = pty_system
-            .openpty(PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|error| HostError::state(error.to_string()))?;
-
-        let mut command = CommandBuilder::new(&launch.shell);
-        command.args(&launch.arguments);
-        // Always pass the configured environment map explicitly so portable_pty
-        // clears the inherited environment and applies only these entries.
-        command.env_clear();
-        for (key, value) in &launch.environment {
-            command.env(key, value);
-        }
-        // The orchestration identity: agents inside this PTY self-identify in
-        // `alera orchestration` commands without an RPC round-trip. The handle
-        // is the session id, which is also the key the app uses for agent
-        // status entries.
-        command.env("ALERA_TERMINAL_HANDLE", &id);
-        // The working directory is persisted as session metadata; shell startup
-        // preparation owns any cwd changes that should happen inside the PTY.
-
-        let child = pair
-            .slave
-            .spawn_command(command)
-            .map_err(|error| HostError::state(error.to_string()))?;
-        // Drop the slave so the master observes EOF once the child exits.
-        drop(pair.slave);
-
-        let killer = child.clone_killer();
-        // Read before the child moves into the reader thread, which owns it
-        // until exit. This is the root the resource sampler walks down from,
-        // sealed with its start time so a later sweep can prove the pid still
-        // holds this shell.
-        let shell = child.process_id().and_then(seal_shell_process);
-        let reader = pair
-            .master
-            .try_clone_reader()
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let writer = pair
-            .master
-            .take_writer()
-            .map_err(|error| HostError::state(error.to_string()))?;
+        #[cfg(windows)]
+        let spawned = {
+            let launch = launch.clone();
+            let terminal_handle = id.clone();
+            tokio::task::spawn_blocking(move || spawn_pty(launch, terminal_handle, cols, rows))
+                .await
+                .map_err(|error| HostError::state(format!("PTY setup worker failed: {error}")))??
+        };
+        #[cfg(not(windows))]
+        let spawned = spawn_pty(launch.clone(), id.clone(), cols, rows)?;
+        let SpawnedPty {
+            child,
+            master,
+            reader,
+            writer,
+            killer,
+            shell,
+        } = spawned;
         let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
         let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(on_event);
 
@@ -243,7 +225,7 @@ impl Session {
             exit_code: None,
             ended_at: None,
             shell,
-            master: Some(pair.master),
+            master: Some(master),
             input_tx: Some(input_tx),
             killer: Some(killer),
             terminated: false,
@@ -367,6 +349,13 @@ impl Session {
         self.ended_at = Some(Utc::now());
         self.shell = None;
         Some(json!({ "sessionId": self.id, "exitCode": exit_code }))
+    }
+
+    #[cfg(windows)]
+    pub fn close_pty_after_child_exit(&mut self) {
+        self.input_tx = None;
+        self.master = None;
+        self.killer = None;
     }
 
     pub fn error_payload(&self, message: &str) -> Value {
@@ -499,4 +488,57 @@ impl Session {
             .await
             .map_err(|error| HostError::state(error.to_string()))
     }
+}
+
+fn spawn_pty(
+    launch: TerminalHostLaunch,
+    terminal_handle: String,
+    cols: u16,
+    rows: u16,
+) -> HostResult<SpawnedPty> {
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|error| HostError::state(error.to_string()))?;
+    let mut command = CommandBuilder::new(&launch.shell);
+    command.args(&launch.arguments);
+    // Session launch environments are explicit so terminals do not inherit
+    // stale variables from the long-running host process.
+    command.env_clear();
+    for (key, value) in &launch.environment {
+        command.env(key, value);
+    }
+    // Agents inside this PTY use the session id as their orchestration identity.
+    command.env("ALERA_TERMINAL_HANDLE", terminal_handle);
+    let child = pair
+        .slave
+        .spawn_command(command)
+        .map_err(|error| HostError::state(error.to_string()))?;
+    // The master must be the only remaining PTY endpoint owned by the host.
+    drop(pair.slave);
+    let killer = child.clone_killer();
+    // Capture identity before the reader owns the child so resource samples can
+    // prove that a later PID still belongs to this shell process.
+    let shell = child.process_id().and_then(seal_shell_process);
+    let reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|error| HostError::state(error.to_string()))?;
+    let writer = pair
+        .master
+        .take_writer()
+        .map_err(|error| HostError::state(error.to_string()))?;
+    Ok(SpawnedPty {
+        child,
+        master: pair.master,
+        reader,
+        writer,
+        killer,
+        shell,
+    })
 }

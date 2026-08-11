@@ -345,7 +345,10 @@ fn absolute_workspace_file_target(
         .and_then(|path| path.to_str())
         .filter(|path| !path.is_empty())
         .ok_or_else(|| HostError::state("Workspace file path is invalid."))?;
-    Ok((root, relative.to_string()))
+    let relative = relative.to_string();
+    #[cfg(windows)]
+    let relative = relative.replace('\\', "/");
+    Ok((root, relative))
 }
 
 fn open_validated_mobile_workspace_root(
@@ -468,6 +471,22 @@ mod tests {
         );
 
         assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn absolute_files_preserve_literal_backslashes_in_file_names() {
+        let workspace = tempfile::tempdir().unwrap();
+        let file = workspace.path().join("foo\\bar.txt");
+        std::fs::write(&file, b"literal").unwrap();
+
+        let (_, relative) = absolute_workspace_file_target(
+            &file.to_string_lossy(),
+            vec![workspace.path().to_string_lossy().into_owned()],
+        )
+        .unwrap();
+
+        assert_eq!(relative, "foo\\bar.txt");
     }
 
     #[tokio::test]

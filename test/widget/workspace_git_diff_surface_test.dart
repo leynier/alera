@@ -10,6 +10,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
@@ -278,7 +279,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'diff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'filePath': 'lib/main.dart',
         'area': GitChangeArea.unstaged,
       },
@@ -392,7 +393,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'commitDiff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'commitOid': 'abc123456789',
         'parentOid': 'def987654321',
         'filePath': 'lib/main.dart',

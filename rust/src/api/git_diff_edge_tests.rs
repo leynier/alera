@@ -441,6 +441,7 @@ fn git_commit_compare_ignores_copy_sources_outside_scoped_workspace() {
 }
 
 #[test]
+#[cfg(unix)]
 fn git_diff_treats_star_pathspec_characters_as_literals() {
     let repo = init_repo();
     std::fs::write(repo.path().join("*.txt"), "literal star\n").expect("write star file");

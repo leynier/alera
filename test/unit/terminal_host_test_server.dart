@@ -35,6 +35,7 @@ final class _TerminalHostTestServer {
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
   StreamSubscription<Socket>? _sub;
   Socket? _client;
+  final Set<Socket> _clients = <Socket>{};
   String token = 'existing-token';
   int acceptedConnections = 0;
   bool _binaryFrames = false;
@@ -65,6 +66,13 @@ final class _TerminalHostTestServer {
   void _accept(Socket socket) {
     acceptedConnections += 1;
     _client = socket;
+    _clients.add(socket);
+    unawaited(
+      socket.done.then<void>(
+        (_) => _clients.remove(socket),
+        onError: (Object _, StackTrace _) => _clients.remove(socket),
+      ),
+    );
     socket
         .cast<List<int>>()
         .transform(utf8.decoder)
@@ -154,11 +162,19 @@ final class _TerminalHostTestServer {
   /// Writes a response in whichever mode this connection negotiated. The hello
   /// response itself never goes through here: it must stay a line.
   void _respond(Socket socket, Map<String, Object?> message) {
-    if (_binaryFrames) {
-      socket.add(encodeTerminalHostJsonFrame(jsonEncode(message)));
+    if (!_clients.contains(socket)) {
       return;
     }
-    socket.writeln(jsonEncode(message));
+    try {
+      if (_binaryFrames) {
+        socket.add(encodeTerminalHostJsonFrame(jsonEncode(message)));
+        return;
+      }
+      socket.writeln(jsonEncode(message));
+    } catch (_) {
+      // Timeout tests intentionally close a wedged connection while delayed
+      // responses are still pending.
+    }
   }
 
   void send(Map<String, Object?> message) {
@@ -185,12 +201,22 @@ final class _TerminalHostTestServer {
   }
 
   void closeClient() {
-    _client?.destroy();
+    final client = _client;
+    if (client == null) {
+      return;
+    }
+    _clients.remove(client);
+    client.destroy();
   }
 
   Future<void> dispose() async {
     await _sub?.cancel();
-    _client?.destroy();
+    final clients = _clients.toList(growable: false);
+    _clients.clear();
+    _client = null;
+    for (final client in clients) {
+      client.destroy();
+    }
     await _server.close();
   }
 }
