@@ -1018,14 +1018,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.plan.outputs.desktop_tag }}
-        run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" "public/$ALERA_RUNTIME_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          bash tool/release/upload_release_assets.sh \
+            "$TAG" \
+            "$GITHUB_REPOSITORY" \
+            release-assets/* \
+            "public/$ALERA_ARCHIVE_FILE" \
+            "public/$ALERA_RUNTIME_ARCHIVE_FILE"
 
       - name: Upload mobile release assets
         if: needs.plan.outputs.mobile_should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.plan.outputs.mobile_tag }}
-        run: gh release upload "$TAG" mobile-release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          bash tool/release/upload_release_assets.sh \
+            "$TAG" \
+            "$GITHUB_REPOSITORY" \
+            mobile-release-assets/*
 
       - name: Attest desktop release assets
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1183,13 +1193,34 @@ jobs:
           PUSHED_MAIN: ${{ steps.push_refs.outputs.pushed_main }}
         run: |
           set +e
+          delete_unpublished_release() {
+            local tag="$1"
+            local max_attempts=3
+            for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+              if gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes; then
+                return 0
+              fi
+              if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                echo "::notice::Release $tag is already absent."
+                return 0
+              fi
+              if ((attempt < max_attempts)); then
+                echo "::warning::Failed to delete release $tag on attempt $attempt; retrying."
+                sleep "$((attempt * 2))"
+              fi
+            done
+            echo "::error::Failed to delete unpublished release $tag after $max_attempts attempts." >&2
+            return 1
+          }
+
+          cleanup_failed=false
           delete_refspecs=()
           if [[ "$DESKTOP_SHOULD_RELEASE" == "true" && "$DESKTOP_PUBLISHED" != "true" ]]; then
-            gh release delete "$DESKTOP_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_unpublished_release "$DESKTOP_TAG" || cleanup_failed=true
             delete_refspecs+=(":refs/tags/$DESKTOP_TAG")
           fi
           if [[ "$MOBILE_SHOULD_RELEASE" == "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
-            gh release delete "$MOBILE_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_unpublished_release "$MOBILE_TAG" || cleanup_failed=true
             delete_refspecs+=(":refs/tags/$MOBILE_TAG")
           fi
           if ((${#delete_refspecs[@]} > 0)); then
@@ -1197,6 +1228,9 @@ jobs:
           fi
           if [[ "$PUSHED_MAIN" == "true" && "$DESKTOP_PUBLISHED" != "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
             git push --force-with-lease origin HEAD~1:refs/heads/main
+          fi
+          if [[ "$cleanup_failed" == "true" ]]; then
+            exit 1
           fi
 
   # The desktop packages are downstream of a release that is already public:
