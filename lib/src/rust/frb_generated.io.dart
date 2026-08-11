@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/agent_hooks.dart';
+import 'api/ai_dictation.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
 import 'api/git_diff_blob.dart';
@@ -62,7 +63,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AgentHookEventDto dco_decode_agent_hook_event_dto(dynamic raw);
 
   @protected
+  AiDictationError dco_decode_ai_dictation_error(dynamic raw);
+
+  @protected
+  AiDictationErrorKind dco_decode_ai_dictation_error_kind(dynamic raw);
+
+  @protected
+  AiDictationRequest dco_decode_ai_dictation_request(dynamic raw);
+
+  @protected
+  AiDictationResult dco_decode_ai_dictation_result(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AiDictationRequest dco_decode_box_autoadd_ai_dictation_request(dynamic raw);
 
   @protected
   GitChangeArea dco_decode_box_autoadd_git_change_area(dynamic raw);
@@ -580,7 +596,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AiDictationError sse_decode_ai_dictation_error(SseDeserializer deserializer);
+
+  @protected
+  AiDictationErrorKind sse_decode_ai_dictation_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AiDictationRequest sse_decode_ai_dictation_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AiDictationResult sse_decode_ai_dictation_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AiDictationRequest sse_decode_box_autoadd_ai_dictation_request(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeArea sse_decode_box_autoadd_git_change_area(
@@ -1232,7 +1271,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_ai_dictation_error(
+    AiDictationError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ai_dictation_error_kind(
+    AiDictationErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ai_dictation_request(
+    AiDictationRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ai_dictation_result(
+    AiDictationResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_ai_dictation_request(
+    AiDictationRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_change_area(

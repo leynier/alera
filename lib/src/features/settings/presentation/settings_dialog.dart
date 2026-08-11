@@ -6,10 +6,12 @@ import 'package:alera/src/features/account/presentation/account_settings_pane.da
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/account_settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/browser_settings_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
@@ -189,6 +191,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       ),
       SettingsGroupSpec(id: 'workspaceIdentity', title: 'Workspace Identity'),
     ];
+    const aiDictationGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'local', title: 'Local Whisper'),
+      SettingsGroupSpec(id: 'privacy', title: 'Privacy'),
+    ];
     const terminalGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'typography', title: 'Typography'),
       SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
@@ -271,6 +277,20 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           settings: settings.aiTextGeneration,
           groupKeys: _paneKeys('aiText', aiTextGroups),
           onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
+        ),
+      ),
+      SettingsSectionData(
+        id: 'aiDictation',
+        title: 'AI Dictation',
+        description: 'Offline speech-to-text for Alera composers.',
+        icon: AleraIcons.mic,
+        entries: aiDictationSearchEntries,
+        groups: aiDictationGroups,
+        onReset: controller.resetAiDictation,
+        builder: (_) => AiDictationSettingsPane(
+          settings: settings.aiDictation,
+          groupKeys: _paneKeys('aiDictation', aiDictationGroups),
+          onChanged: controller.updateAiDictation,
         ),
       ),
       SettingsSectionData(

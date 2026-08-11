@@ -19,6 +19,7 @@ class AleraComposer extends StatefulWidget {
     this.onPaste,
     this.attachmentBar,
     this.footer,
+    this.leadingAction,
     this.hasAttachments = false,
     this.enabled = true,
     this.hintText = 'Write a prompt for this terminal',
@@ -38,6 +39,7 @@ class AleraComposer extends StatefulWidget {
   final Future<bool> Function()? onPaste;
   final Widget? attachmentBar;
   final Widget? footer;
+  final Widget? leadingAction;
   final bool hasAttachments;
   final bool enabled;
   final String hintText;
@@ -189,10 +191,18 @@ class _AleraComposerState extends State<AleraComposer> {
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: _TextActionsMenu(
-                          actions: widget.textActions,
-                          enabled: textActionsEnabled,
-                          onSelected: widget.onTextActionSelected,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            ?widget.leadingAction,
+                            if (widget.leadingAction != null)
+                              const SizedBox(width: AleraTokens.space4),
+                            _TextActionsMenu(
+                              actions: widget.textActions,
+                              enabled: textActionsEnabled,
+                              onSelected: widget.onTextActionSelected,
+                            ),
+                          ],
                         ),
                       ),
                     ),

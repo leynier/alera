@@ -2922,6 +2922,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       GeneralSettingsMapper.ensureInitialized();
       AgentSettingsMapper.ensureInitialized();
       AiTextGenerationSettingsMapper.ensureInitialized();
+      AiDictationSettingsMapper.ensureInitialized();
       TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       DiagnosticsSettingsMapper.ensureInitialized();
@@ -2955,6 +2956,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     _$aiTextGeneration,
     opt: true,
     def: AiTextGenerationSettings.defaults,
+  );
+  static AiDictationSettings _$aiDictation(AleraSettings v) => v.aiDictation;
+  static const Field<AleraSettings, AiDictationSettings> _f$aiDictation = Field(
+    'aiDictation',
+    _$aiDictation,
+    opt: true,
+    def: AiDictationSettings.defaults,
   );
   static TextActionsSettings _$textActions(AleraSettings v) => v.textActions;
   static const Field<AleraSettings, TextActionsSettings> _f$textActions = Field(
@@ -2998,6 +3006,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     #general: _f$general,
     #agents: _f$agents,
     #aiTextGeneration: _f$aiTextGeneration,
+    #aiDictation: _f$aiDictation,
     #textActions: _f$textActions,
     #editor: _f$editor,
     #diagnostics: _f$diagnostics,
@@ -3013,6 +3022,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       general: data.dec(_f$general),
       agents: data.dec(_f$agents),
       aiTextGeneration: data.dec(_f$aiTextGeneration),
+      aiDictation: data.dec(_f$aiDictation),
       textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
       diagnostics: data.dec(_f$diagnostics),
@@ -3092,6 +3102,8 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     AiTextGenerationSettings
   >
   get aiTextGeneration;
+  AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
+  get aiDictation;
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
   get textActions;
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
@@ -3110,6 +3122,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     GeneralSettings? general,
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
+    AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
@@ -3143,6 +3156,10 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   get aiTextGeneration =>
       $value.aiTextGeneration.copyWith.$chain((v) => call(aiTextGeneration: v));
   @override
+  AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
+  get aiDictation =>
+      $value.aiDictation.copyWith.$chain((v) => call(aiDictation: v));
+  @override
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
   get textActions =>
       $value.textActions.copyWith.$chain((v) => call(textActions: v));
@@ -3171,6 +3188,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     GeneralSettings? general,
     AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
+    AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
     DiagnosticsSettings? diagnostics,
@@ -3182,6 +3200,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
       if (general != null) #general: general,
       if (agents != null) #agents: agents,
       if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
+      if (aiDictation != null) #aiDictation: aiDictation,
       if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
       if (diagnostics != null) #diagnostics: diagnostics,
@@ -3195,6 +3214,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     general: data.get(#general, or: $value.general),
     agents: data.get(#agents, or: $value.agents),
     aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
+    aiDictation: data.get(#aiDictation, or: $value.aiDictation),
     textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),
     diagnostics: data.get(#diagnostics, or: $value.diagnostics),
