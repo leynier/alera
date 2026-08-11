@@ -40,9 +40,16 @@ Future<void> _pumpTerminalSurface(
   TerminalSessionHandle session,
 ) async {
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: SizedBox.expand(child: TerminalSurface(session: session)),
+    ProviderScope(
+      overrides: [
+        settingsControllerProvider.overrideWith(
+          () => _FakeSettingsController(AleraSettings.defaults),
+        ),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox.expand(child: TerminalSurface(session: session)),
+        ),
       ),
     ),
   );

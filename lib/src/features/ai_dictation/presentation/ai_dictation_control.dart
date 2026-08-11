@@ -10,9 +10,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AiDictationControl extends StatelessWidget {
-  const AiDictationControl({super.key, required this.targetId});
+  const AiDictationControl({
+    super.key,
+    required this.targetId,
+    this.enabled = true,
+  });
 
   final String targetId;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +45,10 @@ class AiDictationControl extends StatelessWidget {
               ? AleraTokens.onAccent
               : AleraTokens.foregroundMuted,
           backgroundColor: active ? AleraTokens.accent : null,
-          borderColor: active ? AleraTokens.accent : AleraTokens.border,
-          onPressed: busy ? null : () => unawaited(_toggle(service, active)),
+          borderRadius: AleraTokens.radiusPill,
+          onPressed: busy || !enabled
+              ? null
+              : () => unawaited(_toggle(service, active)),
         );
       },
     );

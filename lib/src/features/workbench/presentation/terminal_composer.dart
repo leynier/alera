@@ -59,7 +59,10 @@ class TerminalComposer extends StatelessWidget {
             }
           },
           onPaste: _pasteClipboard,
-          leadingAction: AiDictationControl(targetId: targetId),
+          trailingAction: AiDictationControl(
+            key: const ValueKey<String>('terminal-composer-dictation-control'),
+            targetId: targetId,
+          ),
           onSend: () => unawaited(_send(context)),
           onClose: composer.hide,
         ),

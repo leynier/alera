@@ -3,6 +3,7 @@ part of 'workspace_git_diff_panel.dart';
 class _CommitMessageField extends StatelessWidget {
   const _CommitMessageField({
     required this.controller,
+    required this.focusNode,
     required this.enabled,
     required this.generating,
     required this.onChanged,
@@ -10,6 +11,7 @@ class _CommitMessageField extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool enabled;
   final bool generating;
   final ValueChanged<String> onChanged;
@@ -19,7 +21,9 @@ class _CommitMessageField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final field = TextField(
+      key: const ValueKey<String>('source-control-message-field'),
       controller: controller,
+      focusNode: focusNode,
       contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
       enabled: enabled && !generating,
       minLines: 3,
@@ -39,7 +43,7 @@ class _CommitMessageField extends StatelessWidget {
         contentPadding: const EdgeInsets.fromLTRB(
           AleraTokens.space8,
           AleraTokens.space16,
-          AleraTokens.space8,
+          AleraTokens.space48,
           AleraTokens.space8,
         ),
         border: _messageBorder(AleraTokens.borderSubtle),
@@ -48,7 +52,15 @@ class _CommitMessageField extends StatelessWidget {
       ),
     );
     if (!generating) {
-      return field;
+      return AiDictationFieldOverlay(
+        controller: controller,
+        focusNode: focusNode,
+        initialPrompt:
+            'The user is writing a Git commit message for staged changes.',
+        controlKey: const ValueKey<String>('source-control-dictation-control'),
+        enabled: enabled,
+        child: field,
+      );
     }
     return Stack(
       children: <Widget>[

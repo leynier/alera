@@ -285,8 +285,6 @@ class _CodexComposerState extends State<_CodexComposer> {
                                     'codex-composer-controls-row',
                                   ),
                                   children: <Widget>[
-                                    AiDictationControl(targetId: targetId),
-                                    const SizedBox(width: AleraTokens.space6),
                                     Expanded(
                                       child: SingleChildScrollView(
                                         scrollDirection: Axis.horizontal,
@@ -346,6 +344,13 @@ class _CodexComposerState extends State<_CodexComposer> {
                                           ],
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(width: AleraTokens.space2),
+                                    AiDictationControl(
+                                      key: const ValueKey<String>(
+                                        'codex-dictation-control',
+                                      ),
+                                      targetId: targetId,
                                     ),
                                     const SizedBox(width: AleraTokens.space2),
                                     _buildActionButton(canSubmit: canSubmit),

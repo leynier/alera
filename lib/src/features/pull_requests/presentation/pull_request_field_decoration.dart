@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 InputDecoration pullRequestFieldDecoration(
   ThemeData theme, {
   required String hint,
+  bool hasTrailingControl = false,
 }) {
   return InputDecoration(
     isDense: true,
@@ -15,6 +16,13 @@ InputDecoration pullRequestFieldDecoration(
     hintStyle: theme.textTheme.bodySmall?.copyWith(
       color: AleraTokens.foregroundFaint,
     ),
-    contentPadding: const EdgeInsets.all(AleraTokens.space12),
+    contentPadding: hasTrailingControl
+        ? const EdgeInsets.fromLTRB(
+            AleraTokens.space12,
+            AleraTokens.space12,
+            AleraTokens.space48,
+            AleraTokens.space12,
+          )
+        : const EdgeInsets.all(AleraTokens.space12),
   );
 }

@@ -11,6 +11,7 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -75,6 +76,7 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
 
 class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   final TextEditingController _filterController = TextEditingController();
   final Set<String> _collapsedSections = <String>{};
   final Set<String> _collapsedTreeNodes = <String>{};
@@ -132,6 +134,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
     _commitMessageGenerationId += 1;
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _filterController.dispose();
     super.dispose();
   }
@@ -163,6 +166,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       children: <Widget>[
         _SourceControlToolbar(
           messageController: _messageController,
+          messageFocusNode: _messageFocusNode,
           filterController: _filterController,
           viewMode: widget.viewMode,
           groupMode: widget.groupMode,
