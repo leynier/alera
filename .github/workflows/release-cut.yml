@@ -1245,6 +1245,8 @@ jobs:
       - plan
       - publish
     if: >-
+      !cancelled() &&
+      needs.publish.result == 'success' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
       needs.plan.outputs.channel == 'stable'
     runs-on: ubuntu-latest
@@ -1353,6 +1355,8 @@ jobs:
       - plan
       - publish_packages
     if: >-
+      !cancelled() &&
+      needs.publish_packages.result == 'success' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
       needs.plan.outputs.channel == 'stable'
     runs-on: windows-latest
