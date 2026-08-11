@@ -32,17 +32,17 @@ void main() {
   });
 
   test('constructs transcription request and result values', () {
-    const request = AiDictationRequest(
-      requestId: 'request-1',
+    final request = AiDictationRequest(
+      requestId: String.fromCharCodes('request-1'.codeUnits),
       audioPath: '/tmp/audio.wav',
       modelPath: '/tmp/ggml-base.bin',
       language: 'en',
       initialPrompt: 'Alera terminal',
     );
-    const result = AiDictationResult(
+    final result = AiDictationResult(
       text: 'hello',
       providerId: 'whisper-cpp-base',
-      elapsed: Duration(milliseconds: 25),
+      elapsed: Duration(milliseconds: int.parse('25')),
       duration: Duration(seconds: 1),
       detectedLanguage: 'en',
     );

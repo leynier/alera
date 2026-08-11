@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
@@ -15,6 +16,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'mobile_codex_controller.g.dart';
 part 'mobile_codex_controller_configuration_helpers.dart';
 part 'mobile_codex_controller_helpers.dart';
+part 'mobile_codex_controller_identity.dart';
 part 'mobile_codex_controller_lifecycle.dart';
 part 'mobile_codex_controller_workspace.dart';
 part 'mobile_codex_controller_options.dart';
@@ -48,6 +50,9 @@ class MobileCodexController extends _$MobileCodexController
   String? _threadId;
   @override
   int _threadGeneration = 0;
+  int _accountCatalogueRevision = 0;
+  bool _accountCatalogueRefreshPending = false;
+  bool _accountCatalogueBuildAwaitingPublication = false;
 
   @override
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
@@ -65,8 +70,20 @@ class MobileCodexController extends _$MobileCodexController
   Future<void> _reloadCatalogue(String catalog) =>
       _reloadMobileCodexCatalogue(catalog);
 
+  void _registerAccountCatalogueReplay() {
+    listenSelf((previous, next) {
+      if (next is! AsyncData<MobileCodexState>) return;
+      _accountCatalogueBuildAwaitingPublication = false;
+      if (!_accountCatalogueRefreshPending) return;
+      _accountCatalogueRefreshPending = false;
+      unawaited(_reloadMobileCodexCatalogue('account'));
+    });
+  }
+
   @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
+    _accountCatalogueBuildAwaitingPublication = true;
+    _registerAccountCatalogueReplay();
     final client = await ref.watch(mobileCodexClientProvider(hostId).future);
     if (!client.supportsCodexChat) {
       throw UnsupportedError('This runtime host does not support Codex chat.');
@@ -93,7 +110,9 @@ class MobileCodexController extends _$MobileCodexController
           : MobileCodexThreadRecovery.fromJson(response['recovery']),
     );
     next = _applyMobileConfiguration(next, storedConfiguration);
-    next = await _loadCatalogues(client, next);
+    final initialCatalogues = await _loadInitialCatalogues(client, next);
+    next = initialCatalogues.state;
+    final initializedAccountRevision = initialCatalogues.revision;
     if (storedConfiguration == null) {
       try {
         final preferences = await ref
@@ -132,6 +151,15 @@ class MobileCodexController extends _$MobileCodexController
           stackTrace,
         );
       }
+    }
+    final pendingCatalogues = await _loadPendingAccountCatalogues(
+      client,
+      next,
+      initializedAccountRevision,
+    );
+    next = pendingCatalogues.state;
+    if (pendingCatalogues.revision == _accountCatalogueRevision) {
+      _accountCatalogueRefreshPending = false;
     }
     _scheduleDeferredThreadEventDrain();
     return next;

@@ -10,6 +10,7 @@ use super::codex_state::{
     active_turn_id, append_message_with_normalized, is_codex_tab, snapshot, snapshot_delta,
     tab_thread_id, thread_id_from_message,
 };
+use super::codex_tab_lifecycle::active_cwd;
 use super::ServerActor;
 
 // The current Codex protocol requires isBlocking and deprecates autoResolutionMs.
@@ -47,16 +48,59 @@ fn is_streaming_codex_message(message: &Value) -> bool {
     method.contains("delta") || method == "turn/diff/updated"
 }
 
+fn catalogue_invalidations(method: Option<&str>) -> &'static [&'static str] {
+    match method {
+        Some("skills/changed") => &["skills:"],
+        Some("app/list/updated") => &["apps:"],
+        Some("account/updated" | "account/login/completed" | "account/logout") => {
+            &["models", "collaborationModes"]
+        }
+        _ => &[],
+    }
+}
+
+fn catalogue_change(method: Option<&str>) -> Option<&'static str> {
+    match method {
+        Some("skills/changed") => Some("skills"),
+        Some("app/list/updated") => Some("apps"),
+        Some("account/updated" | "account/login/completed" | "account/logout") => Some("account"),
+        _ => None,
+    }
+}
+
+fn retained_timeline_window(previous: &Value, next: &Value) -> bool {
+    let next_cells = next
+        .get("timelineCells")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    previous
+        .get("timelineCells")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .all(|previous_cell| {
+            previous_cell.get("id").and_then(Value::as_str).map_or_else(
+                || next_cells.contains(previous_cell),
+                |id| {
+                    next_cells
+                        .iter()
+                        .any(|cell| cell.get("id").and_then(Value::as_str) == Some(id))
+                },
+            )
+        })
+}
+
 impl ServerActor {
     pub(super) async fn handle_codex_message(&mut self, message: Value) {
         let method = message.get("method").and_then(Value::as_str);
-        if matches!(method, Some("skills/changed" | "app/list/updated")) {
-            self.broadcast_authenticated(event(
-                "codexCatalogChanged",
-                json!({
-                    "catalog": if method == Some("skills/changed") { "skills" } else { "apps" },
-                }),
-            ));
+        if let Some(server) = self.codex.as_ref() {
+            for prefix in catalogue_invalidations(method) {
+                server.invalidate_catalogues(prefix).await;
+            }
+        }
+        if let Some(catalog) = catalogue_change(method) {
+            self.broadcast_authenticated(event("codexCatalogChanged", json!({"catalog": catalog})));
             return;
         }
         if method == Some("currentTime/read") {
@@ -270,6 +314,7 @@ impl ServerActor {
             }
         }
         let next_snapshot = snapshot(&next);
+        let retained_history_window = retained_timeline_window(&previous_snapshot, &next_snapshot);
         let delta = snapshot_delta(&previous_snapshot, &next_snapshot, &normalized_messages);
         let next_active_turn_id = active_turn_id(&next_snapshot);
         if let Some(payload) = next.payload.as_object_mut() {
@@ -302,6 +347,21 @@ impl ServerActor {
             .rev()
             .find_map(thread_id_from_message)
             .or_else(|| tab_thread_id(&saved));
+        if let (Some(server), Some(thread_id), Some(cwd)) = (
+            self.codex.as_ref(),
+            thread_id.as_deref(),
+            active_cwd(&saved),
+        ) {
+            server
+                .refresh_thread_hydration_revision(
+                    &saved.id,
+                    thread_id,
+                    &cwd,
+                    saved.updated_at,
+                    retained_history_window,
+                )
+                .await;
+        }
         self.broadcast_authenticated(event(
             "codexThreadChanged",
             json!({

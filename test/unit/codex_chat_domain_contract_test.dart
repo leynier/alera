@@ -222,6 +222,70 @@ void main() {
     expect(() => prompts[0] = 'Changed', throwsUnsupportedError);
   });
 
+  test('segmented timelines match canonical history identities', () {
+    final itemHistory = CodexTimelineCell.fromJson(<String, Object?>{
+      'id': 'history-item',
+      'itemId': 'shared-item',
+      'kind': 'assistantMessage',
+    });
+    final prefixedHistory = CodexTimelineCell.fromJson(<String, Object?>{
+      'id': 'history-prefixed',
+      'itemId': 'prefixed',
+      'kind': 'assistantMessage',
+    });
+    final idDerivedHistory = CodexTimelineCell.fromJson(<String, Object?>{
+      'id': 'item-from-id',
+      'kind': 'assistantMessage',
+    });
+    final timeline = CodexTimelineCells.segmented(
+      history: <CodexTimelineCell>[
+        itemHistory,
+        prefixedHistory,
+        idDerivedHistory,
+      ],
+      live: const <CodexTimelineCell>[],
+    );
+
+    expect(
+      timeline.historyContainsExactIdentity(
+        CodexTimelineCell.fromJson(<String, Object?>{
+          'id': 'replacement',
+          'itemId': 'shared-item',
+          'kind': 'assistantMessage',
+        }),
+      ),
+      isTrue,
+    );
+    expect(
+      timeline.historyContainsExactIdentity(
+        CodexTimelineCell.fromJson(<String, Object?>{
+          'id': 'replacement-from-id',
+          'itemId': 'from-id',
+          'kind': 'assistantMessage',
+        }),
+      ),
+      isTrue,
+    );
+    expect(
+      timeline.historyContainsExactIdentity(
+        CodexTimelineCell.fromJson(<String, Object?>{
+          'id': 'item-prefixed',
+          'kind': 'assistantMessage',
+        }),
+      ),
+      isTrue,
+    );
+    expect(
+      timeline.historyContainsExactIdentity(
+        CodexTimelineCell.fromJson(<String, Object?>{
+          'id': 'unrelated',
+          'kind': 'assistantMessage',
+        }),
+      ),
+      isFalse,
+    );
+  });
+
   test('snapshot deltas update and remove segmented history', () {
     final historyUser = _cell('history-user', 'userMessage', 'Earlier prompt');
     final historyAssistant = _cell(
@@ -297,6 +361,37 @@ void main() {
       historyOnlyUpdate.timelineCells[1].markdownText,
       'History-only update',
     );
+  });
+
+  test('snapshot delta promotion replaces a provisional timeline cell', () {
+    final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
+      'timelineCells': <Object?>[
+        <String, Object?>{
+          'id': 'progressText-turn-1',
+          'turnId': 'turn-1',
+          'kind': 'progressText',
+          'markdownText': 'Inspecting',
+        },
+      ],
+    });
+
+    final updated = snapshot.applyDelta(<String, Object?>{
+      'timelineRemovedIds': <String>['progressText-turn-1'],
+      'timelineUpserts': <Object?>[
+        <String, Object?>{
+          'id': 'item-commentary',
+          'itemId': 'commentary',
+          'turnId': 'turn-1',
+          'kind': 'progressText',
+          'markdownText': 'Inspecting files',
+        },
+      ],
+    });
+
+    expect(updated.timelineCells.map((cell) => cell.id), <String>[
+      'item-commentary',
+    ]);
+    expect(updated.timelineCells.single.markdownText, 'Inspecting files');
   });
 
   test('approval amendments preserve current and legacy wire contracts', () {

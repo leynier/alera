@@ -86,7 +86,18 @@ impl ServerActor {
                 })?;
             params = codex_skills_list_params(params, &tab, &workspace.path);
         }
-        self.codex_server_request("skills/list", params).await
+        let force_reload = params
+            .get("forceReload")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let cache_key = catalogue_cache_key("skills:", &params);
+        if force_reload {
+            let server = self.ensure_codex_server(None).await?;
+            server.invalidate_catalogues("skills:").await;
+            return self.codex_server_request("skills/list", params).await;
+        }
+        self.codex_server_cached_request(&cache_key, "skills/list", params)
+            .await
     }
 
     pub(super) async fn list_codex_apps(&mut self, payload: &Value) -> HostResult<Value> {
@@ -103,7 +114,9 @@ impl ServerActor {
                 }
             }
         }
-        self.codex_server_request("app/list", params).await
+        let cache_key = catalogue_cache_key("apps:", &params);
+        self.codex_server_cached_request(&cache_key, "app/list", params)
+            .await
     }
 
     pub(super) async fn list_codex_thread_items(&mut self, payload: &Value) -> HostResult<Value> {
@@ -143,6 +156,31 @@ impl ServerActor {
         if cwd_changed {
             set_active_cwd(&mut tab, &cwd);
         }
+        if !cwd_changed {
+            if let Some(server) = self.codex.as_ref() {
+                if let Some(hydration) = server
+                    .take_thread_hydration(&tab_id, thread_id, &cwd, tab.updated_at)
+                    .await
+                {
+                    if server
+                        .history_cursor_is_reusable(
+                            thread_id,
+                            hydration.history_next_cursor.as_deref(),
+                            20,
+                        )
+                        .await
+                    {
+                        return Ok(thread_open_response(
+                            &tab,
+                            Some(thread_id),
+                            None,
+                            hydration.history_next_cursor,
+                        ));
+                    }
+                    server.forget_thread_hydration(&tab_id).await;
+                }
+            }
+        }
         let server = self.ensure_codex_server(Some(&cwd)).await?;
         let response = match server
             .request("thread/resume", thread_resume_params(thread_id, &cwd, 20))
@@ -150,6 +188,7 @@ impl ServerActor {
         {
             Ok(response) => response,
             Err(error) if missing_rollout(&error.wire_message(), thread_id) => {
+                server.forget_thread_hydration(&tab_id).await;
                 let (next_thread_id, recovery) =
                     resolve_missing_rollout(&mut tab, thread_id, supports_missing_rollout_recovery);
                 let saved = self
@@ -185,11 +224,15 @@ impl ServerActor {
             .or_else(|| response.get("threadId"))
             .and_then(Value::as_str)
             .or(existing_thread.as_deref())
-            .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?;
+            .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?
+            .to_string();
         let stored_snapshot = snapshot(&tab);
         let history_page = server
-            .project_resumed_thread_history(thread_id, &response, 20)
+            .project_resumed_thread_history(&thread_id, &response, 20)
             .await?;
+        let history_next_cursor = history_page
+            .as_ref()
+            .and_then(|page| page.next_cursor.clone());
         let next_snapshot = response
             .get("snapshot")
             .filter(|value| value.is_object())
@@ -204,18 +247,27 @@ impl ServerActor {
             .and_then(|value| allowed_cwd(value, &workspaces))
             .unwrap_or(cwd);
         set_active_cwd(&mut tab, &response_cwd);
-        set_thread_and_snapshot(&mut tab, thread_id, next_snapshot);
+        set_thread_and_snapshot(&mut tab, &thread_id, next_snapshot);
         let saved = self
             .runtime_store
             .upsert_workspace_tab(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
+        server
+            .record_thread_hydration(
+                &saved.id,
+                &thread_id,
+                &response_cwd,
+                saved.updated_at,
+                history_next_cursor.clone(),
+            )
+            .await;
         Ok(thread_open_response(
             &saved,
-            Some(thread_id),
+            Some(&thread_id),
             None,
-            history_page.and_then(|page| page.next_cursor),
+            history_next_cursor,
         ))
     }
 
@@ -250,6 +302,9 @@ impl ServerActor {
 
     pub(super) async fn recover_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
         let tab_id = require_string_key(payload, "tabId")?;
+        if let Some(server) = self.codex.as_ref() {
+            server.forget_thread_hydration(&tab_id).await;
+        }
         let mut tab = self.codex_tab(&tab_id).await?;
         ensure_recovery_matches(payload, &tab)?;
         clear_thread_identity(&mut tab);
@@ -384,6 +439,11 @@ fn codex_skills_list_params(
             .or_insert(json!(false));
     }
     params
+}
+
+fn catalogue_cache_key(prefix: &str, params: &Value) -> String {
+    let encoded = serde_json::to_string(params).unwrap_or_else(|_| "{}".to_string());
+    format!("{prefix}{encoded}")
 }
 
 fn live_codex_review_branches(tab: &WorkspaceTabRecord, workspace_path: &str) -> HostResult<Value> {

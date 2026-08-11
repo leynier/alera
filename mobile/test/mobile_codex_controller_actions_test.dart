@@ -199,6 +199,22 @@ void main() {
         client.calls.where((call) => call.type == 'codex.apps.list'),
         hasLength(2),
       );
+      client.emit(
+        const MobileRuntimeEvent('codexCatalogChanged', <String, Object?>{
+          'catalog': 'account',
+        }),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        client.calls.where((call) => call.type == 'codex.model.list'),
+        hasLength(2),
+      );
+      expect(
+        client.calls.where(
+          (call) => call.type == 'codex.collaborationModes.list',
+        ),
+        hasLength(2),
+      );
       await controller.send('first');
       client.emit(
         const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{

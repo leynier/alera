@@ -86,6 +86,7 @@ mod client_accept_loop;
 mod client_delivery;
 mod codex_app_server;
 mod codex_app_server_history;
+mod codex_app_server_session_state;
 mod codex_event_routing;
 mod codex_events;
 mod codex_nonblocking_questions;

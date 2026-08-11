@@ -11,6 +11,64 @@ use super::*;
 use crate::terminal_host::server::actor_test_harness::test_actor;
 use crate::terminal_host::server::codex_state::set_thread_and_snapshot;
 
+#[test]
+fn dynamic_catalogues_are_invalidated_only_by_relevant_notifications() {
+    assert_eq!(
+        catalogue_invalidations(Some("skills/changed")),
+        &["skills:"]
+    );
+    assert_eq!(
+        catalogue_invalidations(Some("app/list/updated")),
+        &["apps:"]
+    );
+    for method in [
+        "account/updated",
+        "account/login/completed",
+        "account/logout",
+    ] {
+        assert_eq!(
+            catalogue_invalidations(Some(method)),
+            &["models", "collaborationModes"]
+        );
+    }
+    assert!(catalogue_invalidations(Some("turn/completed")).is_empty());
+    assert_eq!(catalogue_change(Some("skills/changed")), Some("skills"));
+    assert_eq!(catalogue_change(Some("app/list/updated")), Some("apps"));
+    assert_eq!(catalogue_change(Some("account/updated")), Some("account"));
+    assert_eq!(
+        catalogue_change(Some("account/login/completed")),
+        Some("account")
+    );
+    assert_eq!(catalogue_change(Some("account/logout")), Some("account"));
+    assert_eq!(catalogue_change(Some("turn/completed")), None);
+}
+
+#[test]
+fn timeline_window_retention_detects_bounded_cell_eviction() {
+    let previous = json!({
+        "timelineCells": [
+            {"id": "oldest", "markdownText": "Old"},
+            {"id": "current", "markdownText": "Before"}
+        ]
+    });
+    let updated = json!({
+        "timelineCells": [
+            {"id": "oldest", "markdownText": "Old"},
+            {"id": "current", "markdownText": "After"},
+            {"id": "new", "markdownText": "New"}
+        ]
+    });
+    let evicted = json!({
+        "timelineCells": [
+            {"id": "current", "markdownText": "After"},
+            {"id": "new", "markdownText": "New"}
+        ]
+    });
+
+    assert!(retained_timeline_window(&previous, &updated));
+    assert!(!retained_timeline_window(&previous, &evicted));
+}
+
 #[tokio::test]
 async fn explicit_old_thread_does_not_fall_back_to_a_retained_turn() {
     let dir = tempfile::tempdir().unwrap();
