@@ -307,6 +307,27 @@ void main() {
       expect(chocolateyJob, contains('choco push \$package'));
     });
 
+    test('publishes desktop packages when the mobile build is skipped', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final packageJob = workflow.substring(
+        workflow.indexOf('  publish_packages:'),
+        workflow.indexOf('  publish_chocolatey:'),
+      );
+      final chocolateyJob = workflow.substring(
+        workflow.indexOf('  publish_chocolatey:'),
+      );
+
+      expect(packageJob, contains('!cancelled()'));
+      expect(packageJob, contains("needs.publish.result == 'success'"));
+      expect(chocolateyJob, contains('!cancelled()'));
+      expect(
+        chocolateyJob,
+        contains("needs.publish_packages.result == 'success'"),
+      );
+    });
+
     test('cleans closed pull request caches without a checkout', () {
       final cleanup = File(
         '.github/workflows/cache-cleanup.yml',
