@@ -16,6 +16,8 @@ import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_attachment_types.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';

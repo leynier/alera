@@ -16,6 +16,8 @@ import 'package:alera/src/features/workbench/domain/workspace_parent_selection_o
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -99,6 +101,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
 
 class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   final TextEditingController _promptController = TextEditingController();
+  final FocusNode _promptFocusNode = FocusNode();
   NewWorkspaceMode _mode = NewWorkspaceMode.fromPrompt;
   Project? _project;
   AgentProfile? _profile;
@@ -128,6 +131,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   @override
   void dispose() {
     _promptController.dispose();
+    _promptFocusNode.dispose();
     super.dispose();
   }
 
