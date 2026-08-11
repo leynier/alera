@@ -53,6 +53,42 @@ void registerCodexChatControllerRequestTests() {
   });
 
   test(
+    'invalidates cached capabilities without active tab listeners',
+    () async {
+      var supportsSessions = false;
+      var statusAttempts = 0;
+      final client = _FakeCodexRuntimeClient(
+        requestHandler: (type, payload) {
+          if (type != 'status.get') return null;
+          statusAttempts += 1;
+          return Future<Object?>.value(<String, Object?>{
+            'runtimeCapabilities': <String>[
+              if (supportsSessions) aleraRuntimeHostCodexSessionsCapability,
+            ],
+          });
+        },
+      );
+      addTearDown(client.dispose);
+      final host = CodexChatHostClient(client);
+      addTearDown(host.dispose);
+
+      expect(await host.supportsSessions(), isFalse);
+
+      supportsSessions = true;
+      client.emit(
+        const RuntimeHostEvent(
+          aleraRuntimeHostConnectedEvent,
+          <String, Object?>{},
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await host.supportsSessions(), isTrue);
+      expect(statusAttempts, 2);
+    },
+  );
+
+  test(
     'controller retries session capability discovery after a transient failure',
     () async {
       var statusAttempts = 0;

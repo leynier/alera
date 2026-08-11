@@ -390,4 +390,89 @@ void registerCodexChatControllerCatalogueTests() {
       );
     },
   );
+
+  test('account refresh revalidates the desktop model safely', () async {
+    var catalogueRevision = 0;
+    Future<Object?>? requestHandler(String type, Map<String, Object?> payload) {
+      if (type != 'codex.model.list' || catalogueRevision == 0) return null;
+      if (catalogueRevision == 3) {
+        return Future<Object?>.error(StateError('model discovery failed'));
+      }
+      final models = catalogueRevision == 1
+          ? <Object?>[
+              <String, Object?>{
+                'id': 'gpt-current',
+                'displayName': 'Current Codex',
+              },
+              <String, Object?>{
+                'id': 'gpt-next',
+                'displayName': 'Next Codex',
+                'isDefault': true,
+              },
+            ]
+          : <Object?>[
+              <String, Object?>{
+                'id': 'gpt-next',
+                'displayName': 'Next Codex',
+                'isDefault': true,
+              },
+            ];
+      return Future<Object?>.value(<String, Object?>{'data': models});
+    }
+
+    final client = _FakeCodexRuntimeClient(requestHandler: requestHandler);
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-account-model');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    await _settle();
+
+    catalogueRevision = 1;
+    client.emit(
+      const RuntimeHostEvent('codexCatalogChanged', <String, Object?>{
+        'catalog': 'account',
+      }),
+    );
+    await _settle();
+    expect(container.read(provider).selectedModel, 'gpt-current');
+
+    catalogueRevision = 2;
+    client.emit(
+      const RuntimeHostEvent('codexCatalogChanged', <String, Object?>{
+        'catalog': 'account',
+      }),
+    );
+    await _settle();
+    expect(container.read(provider).selectedModel, 'gpt-next');
+    await container.read(provider.notifier).send('Use the available model');
+    expect(
+      client.requests
+          .lastWhere((request) => request.type == 'codex.turn.start')
+          .payload['model'],
+      'gpt-next',
+    );
+
+    catalogueRevision = 3;
+    client.emit(
+      const RuntimeHostEvent('codexCatalogChanged', <String, Object?>{
+        'catalog': 'account',
+      }),
+    );
+    await _settle();
+    expect(container.read(provider).selectedModel, 'gpt-next');
+    expect(container.read(provider).models.single.id, 'gpt-next');
+  });
 }

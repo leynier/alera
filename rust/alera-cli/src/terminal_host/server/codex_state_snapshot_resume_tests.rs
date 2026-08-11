@@ -246,3 +246,200 @@ fn resume_preserves_repeated_same_text_steering_messages_in_complete_history() {
 
     assert_eq!(user_ids, vec!["user-turn-1", "user-client-2"]);
 }
+
+#[test]
+fn resume_reconciles_progress_text_with_remapped_item_ids() {
+    let stored = resumed_snapshot(
+        vec![json!({
+            "id": "item-live-progress",
+            "turnId": "turn-1",
+            "kind": "progressText",
+            "markdownText": "Inspecting files",
+            "metadata": {"streamPhase": "commentary"}
+        })],
+        true,
+    );
+    let resumed = resumed_snapshot(
+        vec![json!({
+            "id": "item-rollout-progress",
+            "turnId": "turn-1",
+            "kind": "progressText",
+            "markdownText": "Inspecting   files",
+            "metadata": {"streamPhase": "commentary"}
+        })],
+        true,
+    );
+
+    let merged = merge_resume_snapshot(&stored, resumed);
+    let progress = merged["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|cell| cell["kind"] == "progressText")
+        .collect::<Vec<_>>();
+
+    assert_eq!(progress.len(), 1);
+    assert_eq!(progress[0]["id"], "item-rollout-progress");
+}
+
+#[test]
+fn resume_reconciles_a_legacy_agent_cell_without_stream_phase() {
+    let stored = resumed_snapshot(
+        vec![json!({
+            "id": "item-live-answer",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Finished"
+        })],
+        false,
+    );
+    let resumed = resumed_snapshot(
+        vec![json!({
+            "id": "item-rollout-answer",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Finished",
+            "metadata": {"streamPhase": "final_answer"}
+        })],
+        false,
+    );
+
+    let merged = merge_resume_snapshot(&stored, resumed);
+    let answers = merged["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|cell| cell["kind"] == "assistantMessage")
+        .collect::<Vec<_>>();
+
+    assert_eq!(answers.len(), 1);
+    assert_eq!(answers[0]["id"], "item-rollout-answer");
+}
+
+#[test]
+fn resume_reconciles_an_explicit_phase_with_phase_less_history() {
+    let stored = resumed_snapshot(
+        vec![json!({
+            "id": "item-live-answer",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Finished",
+            "metadata": {"streamPhase": "final_answer"}
+        })],
+        false,
+    );
+    let resumed = resumed_snapshot(
+        vec![json!({
+            "id": "item-rollout-answer",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Finished"
+        })],
+        false,
+    );
+
+    let merged = merge_resume_snapshot(&stored, resumed);
+    let answers = merged["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|cell| cell["kind"] == "assistantMessage")
+        .collect::<Vec<_>>();
+
+    assert_eq!(answers.len(), 1);
+    assert_eq!(answers[0]["id"], "item-rollout-answer");
+}
+
+#[test]
+fn phase_less_history_does_not_claim_ambiguous_explicit_phases() {
+    let stored = resumed_snapshot(
+        vec![
+            json!({
+                "id": "item-live-commentary",
+                "turnId": "turn-1",
+                "kind": "assistantMessage",
+                "markdownText": "Done",
+                "metadata": {"streamPhase": "commentary"}
+            }),
+            json!({
+                "id": "item-live-answer",
+                "turnId": "turn-1",
+                "kind": "assistantMessage",
+                "markdownText": "Done",
+                "metadata": {"streamPhase": "final_answer"}
+            }),
+        ],
+        false,
+    );
+    let resumed = resumed_snapshot(
+        vec![json!({
+            "id": "item-rollout-phase-less",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Done"
+        })],
+        false,
+    );
+
+    let merged = merge_resume_snapshot(&stored, resumed);
+    let ids = merged["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|cell| cell["kind"] == "assistantMessage")
+        .map(|cell| cell["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ids,
+        vec![
+            "item-rollout-phase-less",
+            "item-live-commentary",
+            "item-live-answer"
+        ]
+    );
+}
+
+#[test]
+fn resume_keeps_explicit_agent_stream_phases_distinct() {
+    let stored = resumed_snapshot(
+        vec![
+            json!({
+                "id": "item-live-commentary",
+                "turnId": "turn-1",
+                "kind": "assistantMessage",
+                "markdownText": "Done",
+                "metadata": {"streamPhase": "commentary"}
+            }),
+            json!({
+                "id": "item-live-answer",
+                "turnId": "turn-1",
+                "kind": "assistantMessage",
+                "markdownText": "Done",
+                "metadata": {"streamPhase": "final_answer"}
+            }),
+        ],
+        false,
+    );
+    let resumed = resumed_snapshot(
+        vec![json!({
+            "id": "item-rollout-answer",
+            "turnId": "turn-1",
+            "kind": "assistantMessage",
+            "markdownText": "Done",
+            "metadata": {"streamPhase": "final_answer"}
+        })],
+        false,
+    );
+
+    let merged = merge_resume_snapshot(&stored, resumed);
+    let ids = merged["timelineCells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|cell| cell["kind"] == "assistantMessage")
+        .map(|cell| cell["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, vec!["item-live-commentary", "item-rollout-answer"]);
+}

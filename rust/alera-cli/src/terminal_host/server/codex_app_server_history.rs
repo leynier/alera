@@ -49,7 +49,10 @@ impl ThreadHistoryCache {
         }
         entry.pages.get(cursor).cloned()
     }
-
+    fn cursor_is_reusable(&self, thread_id: &str, cursor: &str, limit: usize) -> bool {
+        self.get(thread_id, cursor, limit).is_some()
+            || decode_history_cursor(cursor).is_ok_and(|decoded| decoded.page_cursor.is_some())
+    }
     fn insert(
         &mut self,
         thread_id: &str,
@@ -147,8 +150,20 @@ impl ThreadHistoryCache {
         self.order.retain(|value| value != thread_id);
     }
 }
-
 impl CodexAppServer {
+    pub(super) async fn history_cursor_is_reusable(
+        &self,
+        thread_id: &str,
+        cursor: Option<&str>,
+        limit: usize,
+    ) -> bool {
+        let Some(cursor) = cursor else { return true };
+        self.thread_history
+            .lock()
+            .await
+            .cursor_is_reusable(thread_id, cursor, limit)
+    }
+
     pub(super) async fn project_resumed_thread_history(
         &self,
         thread_id: &str,

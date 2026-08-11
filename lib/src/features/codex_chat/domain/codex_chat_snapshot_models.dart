@@ -15,6 +15,13 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
        _historyIndexById = Map<String, int>.unmodifiable(<String, int>{
          for (var index = 0; index < history.length; index++)
            history[index].id: index,
+       }),
+       _historyItemIds = Set<String>.unmodifiable(<String>{
+         for (final cell in history)
+           if (cell.itemId?.isNotEmpty == true) cell.itemId!,
+         for (final cell in history)
+           if (cell.id.startsWith('item-') && cell.id.length > 5)
+             cell.id.substring(5),
        });
 
   CodexTimelineCells._withLive(
@@ -22,12 +29,14 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
     List<CodexTimelineCell> live,
     this._historyPromptHistory,
     this._historyIndexById,
+    this._historyItemIds,
   ) : _live = List<CodexTimelineCell>.unmodifiable(live);
 
   final List<CodexTimelineCell> _history;
   final List<CodexTimelineCell> _live;
   final List<String> _historyPromptHistory;
   final Map<String, int> _historyIndexById;
+  final Set<String> _historyItemIds;
 
   List<CodexTimelineCell> get history => _history;
   List<CodexTimelineCell> get live => _live;
@@ -35,6 +44,16 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
   Map<String, int> get historyIndexes => _historyIndexById;
 
   int? historyIndexFor(String id) => _historyIndexById[id];
+
+  bool historyContainsExactIdentity(CodexTimelineCell cell) {
+    if (_historyIndexById.containsKey(cell.id)) return true;
+    final itemId = cell.itemId?.isNotEmpty == true
+        ? cell.itemId
+        : cell.id.startsWith('item-') && cell.id.length > 5
+        ? cell.id.substring(5)
+        : null;
+    return itemId != null && _historyItemIds.contains(itemId);
+  }
 
   List<String> promptHistoryWithLive(List<CodexTimelineCell> live) =>
       CodexPromptHistory._withLive(
@@ -48,6 +67,7 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
         live,
         _historyPromptHistory,
         _historyIndexById,
+        _historyItemIds,
       );
 
   @override

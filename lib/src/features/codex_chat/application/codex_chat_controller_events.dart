@@ -3,6 +3,14 @@ part of 'codex_chat_controller.dart';
 // Event handling is split from the notifier to keep the controller focused.
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
+const _deferredThreadContextKeys = <String>{
+  'configuration',
+  'cwd',
+  'historyNextCursor',
+  'recovery',
+  'threadId',
+};
+
 extension CodexChatControllerEvents on CodexChatController {
   void _onRuntimeEvent(RuntimeHostEvent event) {
     if (event.name == aleraRuntimeHostConnectedEvent) {
@@ -26,6 +34,48 @@ extension CodexChatControllerEvents on CodexChatController {
     if (event.name != 'codexThreadChanged' || event.payload['tabId'] != tabId) {
       return;
     }
+    if (_opening) {
+      _deferRuntimeThreadEvent(event);
+      return;
+    }
+    _applyRuntimeThreadEvent(event);
+  }
+
+  void _deferRuntimeThreadEvent(RuntimeHostEvent event) {
+    if (event.payload['snapshot'] is Map) {
+      final payload = Map<String, Object?>.of(event.payload);
+      final eventThreadId = payload.containsKey('threadId')
+          ? _string(payload['threadId'])
+          : _threadId;
+      for (final deferred in _deferredThreadEvents.reversed) {
+        final deferredThreadId = deferred.payload.containsKey('threadId')
+            ? _string(deferred.payload['threadId'])
+            : _threadId;
+        if (eventThreadId != deferredThreadId) {
+          break;
+        }
+        for (final key in _deferredThreadContextKeys) {
+          if (!payload.containsKey(key) && deferred.payload.containsKey(key)) {
+            payload[key] = deferred.payload[key];
+          }
+        }
+      }
+      _deferredThreadEvents
+        ..clear()
+        ..add(RuntimeHostEvent(event.name, payload));
+      return;
+    }
+    _deferredThreadEvents.add(event);
+    const deferredEventLimit = 64;
+    if (_deferredThreadEvents.length > deferredEventLimit) {
+      _deferredThreadEvents.removeRange(
+        0,
+        _deferredThreadEvents.length - deferredEventLimit,
+      );
+    }
+  }
+
+  void _applyRuntimeThreadEvent(RuntimeHostEvent event) {
     var configured = _applyConfiguration(state, event.payload['configuration']);
     if (event.payload.containsKey('recovery')) {
       configured = configured.copyWith(

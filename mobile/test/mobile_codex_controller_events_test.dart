@@ -123,14 +123,15 @@ void main() {
     );
     expect(turnCall.payload['expectedThreadId'], 'thread-recovered');
   });
-  test('mobile controller consumes snapshot delta broadcasts', () async {
+  test('snapshot delta promotion replaces a provisional mobile cell', () async {
     final client = FakeMobileCodexClient(
       timelineCells: const <Object?>[
         <String, Object?>{
-          'id': 'user',
-          'kind': 'userMessage',
-          'status': 'completed',
-          'markdownText': 'Hello',
+          'id': 'progressText-turn-1',
+          'turnId': 'turn-1',
+          'kind': 'progressText',
+          'status': 'inProgress',
+          'markdownText': 'Inspecting',
         },
       ],
     );
@@ -160,14 +161,16 @@ void main() {
         'snapshotDelta': <String, Object?>{
           'timelineUpserts': <Object?>[
             <String, Object?>{
-              'id': 'assistant',
-              'kind': 'assistantMessage',
+              'id': 'item-commentary',
+              'itemId': 'commentary',
+              'turnId': 'turn-1',
+              'kind': 'progressText',
               'status': 'inProgress',
-              'markdownText': 'Working',
+              'markdownText': 'Inspecting files',
               'isStreaming': true,
             },
           ],
-          'timelineRemovedIds': <Object?>[],
+          'timelineRemovedIds': <Object?>['progressText-turn-1'],
           'eventsAppend': <Object?>[],
           'activeTurnId': 'turn-1',
         },
@@ -177,9 +180,9 @@ void main() {
 
     final state = container.read(provider).value!;
     expect(state.timelineCells.map((cell) => cell.id), <String>[
-      'user',
-      'assistant',
+      'item-commentary',
     ]);
+    expect(state.timelineCells.single.markdownText, 'Inspecting files');
     expect(state.activeTurnId, 'turn-1');
   });
   test(

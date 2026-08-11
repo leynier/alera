@@ -147,8 +147,13 @@ pub(super) fn new_cell(
     streaming: bool,
     metadata: Option<Value>,
 ) -> Value {
+    let item_id = id
+        .strip_prefix("item-")
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
     json!({
         "id": id,
+        "itemId": item_id,
         "turnId": if turn_id.is_empty() { Value::Null } else { Value::String(turn_id.to_string()) },
         "kind": kind,
         "status": status,
@@ -166,13 +171,14 @@ pub(super) fn new_cell(
 }
 
 pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
-    let Some(id) = next.get("id").and_then(Value::as_str) else {
+    let Some(id) = next.get("id").and_then(Value::as_str).map(str::to_string) else {
         return;
     };
-    let Some(index) = cells
+    let index = cells
         .iter()
-        .position(|cell| cell.get("id").and_then(Value::as_str) == Some(id))
-    else {
+        .position(|cell| cell.get("id").and_then(Value::as_str) == Some(id.as_str()))
+        .or_else(|| provisional_cell_index(cells, &next));
+    let Some(index) = index else {
         cells.push(next);
         return;
     };
@@ -183,6 +189,8 @@ pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
         return;
     };
     for key in [
+        "id",
+        "itemId",
         "turnId",
         "kind",
         "status",
@@ -206,6 +214,36 @@ pub(super) fn upsert_cell(cells: &mut Vec<Value>, next: Value) {
         metadata.extend(incoming.clone());
     }
     existing.insert("metadata".to_string(), Value::Object(metadata));
+}
+
+fn provisional_cell_index(cells: &[Value], next: &Value) -> Option<usize> {
+    next.get("itemId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())?;
+    let turn_id = next
+        .get("turnId")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())?;
+    let kind = next
+        .get("kind")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())?;
+    provisional_cell_ids(kind, turn_id)
+        .into_iter()
+        .find_map(|provisional_id| {
+            cells.iter().position(|cell| {
+                cell.get("id").and_then(Value::as_str) == Some(provisional_id.as_str())
+                    && cell.get("itemId").and_then(Value::as_str).is_none()
+            })
+        })
+}
+
+pub(super) fn provisional_cell_ids(kind: &str, turn_id: &str) -> Vec<String> {
+    let mut ids = vec![format!("{kind}-{turn_id}")];
+    if kind == "assistantMessage" {
+        ids.push(format!("assistant-{turn_id}"));
+    }
+    ids
 }
 
 pub(super) fn complete_context_compaction(cells: &mut Vec<Value>, turn_id: &str, now: &str) {

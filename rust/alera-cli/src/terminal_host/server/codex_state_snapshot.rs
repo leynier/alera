@@ -4,8 +4,10 @@ use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 
 use super::codex_resume_identity::{
-    complete_history_turn_ids, is_assistant_message, message_identity_key, message_turn_id,
+    complete_history_turn_ids, is_agent_text, message_identity_key, message_turn_id,
+    phase_agnostic_agent_message_identity_key,
 };
+use super::codex_resume_reconciliation::{cell_indexes, matching_cell_index};
 use super::{
     active_turn_id, CODEX_SNAPSHOT_VERSION, MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CELLS,
     MAX_SNAPSHOT_EVENTS,
@@ -100,10 +102,11 @@ pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value])
         })
         .cloned()
         .collect::<Vec<_>>();
-    // Timeline reducers only append or upsert cells. A missing cell here is an
-    // eviction from the bounded live window, not a semantic deletion from a
+    // A canonical item ID replaces its provisional stream ID in place. Older
+    // clients reconcile only by ID, so the delta must retire that alias.
+    // Other missing cells are bounded-window evictions and stay retained by a
     // client's expanded history.
-    let timeline_removed_ids = Vec::new();
+    let timeline_removed_ids = promoted_provisional_ids(&previous_cells, next_cells);
     let mut delta = Map::from_iter([
         (
             "timelineUpserts".to_string(),
@@ -150,6 +153,43 @@ pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value])
         );
     }
     Value::Object(delta)
+}
+
+fn promoted_provisional_ids(
+    previous_cells: &HashMap<&str, &Value>,
+    next_cells: &[Value],
+) -> Vec<Value> {
+    let mut removed = HashSet::new();
+    next_cells
+        .iter()
+        .filter_map(|cell| {
+            let id = cell_id(cell)?;
+            let item_id = cell.get("itemId").and_then(Value::as_str)?;
+            if item_id.is_empty() || id != format!("item-{item_id}") {
+                return None;
+            }
+            let turn_id = cell.get("turnId").and_then(Value::as_str)?;
+            let kind = cell.get("kind").and_then(Value::as_str)?;
+            if turn_id.is_empty() || kind.is_empty() {
+                return None;
+            }
+            Some(
+                super::codex_timeline_cells::provisional_cell_ids(kind, turn_id)
+                    .into_iter()
+                    .filter(|provisional_id| {
+                        previous_cells
+                            .get(provisional_id.as_str())
+                            .is_some_and(|previous| {
+                                previous.get("itemId").and_then(Value::as_str).is_none()
+                            })
+                    })
+                    .filter(|provisional_id| removed.insert(provisional_id.clone()))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .flatten()
+        .map(Value::String)
+        .collect()
 }
 
 pub(in crate::terminal_host::server) fn merge_resume_snapshot(
@@ -210,7 +250,7 @@ fn merge_cells_in_resumed_order(
     let mut claimed_stored = HashSet::new();
     let mut matches = Vec::with_capacity(resumed.len());
     for cell in &resumed {
-        let index = matching_cell_index(&stored_indexes, &claimed_stored, cell);
+        let index = matching_cell_index(stored, &stored_indexes, &claimed_stored, cell);
         if let Some(index) = index {
             claimed_stored.insert(index);
         }
@@ -222,10 +262,15 @@ fn merge_cells_in_resumed_order(
                 claimed_stored.extend(indexes);
             }
         }
-        if is_assistant_message(cell)
+        if is_agent_text(cell)
             && message_turn_id(cell).is_some_and(|turn_id| complete_history_turns.contains(turn_id))
         {
             if let Some(key) = message_identity_key(cell) {
+                if let Some(indexes) = stored_indexes.get(&key) {
+                    claimed_stored.extend(indexes);
+                }
+            }
+            if let Some(key) = phase_agnostic_agent_message_identity_key(cell) {
                 if let Some(indexes) = stored_indexes.get(&key) {
                     claimed_stored.extend(indexes);
                 }
@@ -267,72 +312,6 @@ fn merge_cells_in_resumed_order(
             .cloned(),
     );
     merged
-}
-
-fn cell_indexes(cells: &[Value]) -> HashMap<String, Vec<usize>> {
-    let mut indexes = HashMap::new();
-    for (index, cell) in cells.iter().enumerate() {
-        index_cell(&mut indexes, cell, index);
-    }
-    indexes
-}
-
-fn index_cell(indexes: &mut HashMap<String, Vec<usize>>, cell: &Value, index: usize) {
-    if let Some(id) = cell_id(cell) {
-        indexes.entry(format!("id:{id}")).or_default().push(index);
-    }
-    if let Some(turn_id) = legacy_user_message_turn_id(cell) {
-        indexes
-            .entry(format!("legacy-user-turn:{turn_id}"))
-            .or_default()
-            .push(index);
-    }
-    if let Some(key) = message_identity_key(cell) {
-        indexes.entry(key).or_default().push(index);
-    }
-}
-
-fn matching_cell_index(
-    indexes: &HashMap<String, Vec<usize>>,
-    claimed: &HashSet<usize>,
-    cell: &Value,
-) -> Option<usize> {
-    let candidates = [
-        cell_id(cell).map(|id| format!("id:{id}")),
-        user_message_turn_id(cell).map(|turn_id| format!("legacy-user-turn:{turn_id}")),
-        message_identity_key(cell),
-    ];
-    candidates
-        .into_iter()
-        .flatten()
-        .find_map(|key| first_unclaimed_index(indexes, claimed, &key))
-}
-
-fn first_unclaimed_index(
-    indexes: &HashMap<String, Vec<usize>>,
-    claimed: &HashSet<usize>,
-    key: &str,
-) -> Option<usize> {
-    indexes
-        .get(key)
-        .into_iter()
-        .flatten()
-        .copied()
-        .find(|index| !claimed.contains(index))
-}
-
-fn legacy_user_message_turn_id(cell: &Value) -> Option<&str> {
-    let turn_id = user_message_turn_id(cell)?;
-    cell_id(cell)
-        .and_then(|id| id.strip_prefix("user-"))
-        .is_some_and(|legacy_turn_id| legacy_turn_id == turn_id)
-        .then_some(turn_id)
-}
-
-fn user_message_turn_id(cell: &Value) -> Option<&str> {
-    (cell.get("kind").and_then(Value::as_str) == Some("userMessage"))
-        .then(|| cell.get("turnId").and_then(Value::as_str))
-        .flatten()
 }
 
 fn is_alera_owned_cell(cell: &Value) -> bool {

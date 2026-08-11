@@ -15,6 +15,10 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
   Future<void> _sendNow(Map<String, Object?> message);
   Future<void> _reloadCatalogue(String catalog);
 
+  MobileCodexState? get _currentState => state.value;
+
+  bool get _isMounted => ref.mounted;
+
   void _onEvent(MobileRuntimeEvent event) {
     if (event.name == 'codexCatalogChanged') {
       final catalog = event.payload['catalog']?.toString();
@@ -82,6 +86,13 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
         ..addAll(retained);
     }
     _deferredThreadEvents.add(event);
+    const deferredEventLimit = 64;
+    if (_deferredThreadEvents.length > deferredEventLimit) {
+      _deferredThreadEvents.removeRange(
+        0,
+        _deferredThreadEvents.length - deferredEventLimit,
+      );
+    }
   }
 
   void _scheduleDeferredThreadEventDrain() {

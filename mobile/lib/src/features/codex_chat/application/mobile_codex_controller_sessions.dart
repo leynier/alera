@@ -126,9 +126,16 @@ extension MobileCodexControllerSessions on MobileCodexController {
     if (!ref.mounted) return;
     final current = state.value;
     if (current == null) return;
+    final accountRevision = _accountCatalogueRevision;
     final loaded = await _loadCatalogues(client, current);
     if (!ref.mounted) return;
-    _update((latest) => _mergeMobileSessionCatalogues(latest, loaded));
+    _update(
+      (latest) => _mergeMobileSessionCatalogues(
+        latest,
+        loaded,
+        includeAccountCatalogues: accountRevision == _accountCatalogueRevision,
+      ),
+    );
   }
 
   void _beginMobileSessionTransition() {
@@ -186,20 +193,26 @@ extension MobileCodexControllerSessions on MobileCodexController {
 
 MobileCodexState _mergeMobileSessionCatalogues(
   MobileCodexState current,
-  MobileCodexState loaded,
-) {
-  final selectedModel =
-      loaded.models.any((model) => model.id == current.selectedModel)
+  MobileCodexState loaded, {
+  bool includeAccountCatalogues = true,
+  bool includeSkillsAndApps = true,
+}) {
+  final models = includeAccountCatalogues ? loaded.models : current.models;
+  final selectedModel = models.any((model) => model.id == current.selectedModel)
       ? current.selectedModel
-      : loaded.selectedModel;
-  final selectedOption = loaded.models
+      : includeAccountCatalogues
+      ? loaded.selectedModel
+      : current.selectedModel;
+  final selectedOption = models
       .where((model) => model.id == selectedModel)
       .firstOrNull;
   return current.copyWith(
-    models: loaded.models,
-    collaborationModes: loaded.collaborationModes,
-    skills: loaded.skills,
-    apps: loaded.apps,
+    models: models,
+    collaborationModes: includeAccountCatalogues
+        ? loaded.collaborationModes
+        : current.collaborationModes,
+    skills: includeSkillsAndApps ? loaded.skills : current.skills,
+    apps: includeSkillsAndApps ? loaded.apps : current.apps,
     selectedModel: selectedModel,
     reasoningEffort: _supportedEffort(selectedOption, current.reasoningEffort),
     speedMode: selectedOption?.supportsFastMode == false
@@ -273,11 +286,33 @@ MobileCodexState _mergeMobileSameThreadSnapshot(
   final eventKeys = <String>{
     for (final event in incoming.events) jsonEncode(event),
   };
-  final cellKeys = <String>{for (final cell in incoming.timelineCells) cell.id};
-  final mergedCells = <MobileCodexTimelineCell>[
+  final historyCells = <MobileCodexTimelineCell>[
     for (final cell in current.timelineCells)
-      if (!cellKeys.contains(cell.id)) cell,
-    ...incoming.timelineCells,
+      if (current.paginatedHistoryCellIds.contains(cell.id)) cell,
+  ];
+  final incomingLive = _mobileCellsWithoutClaimedMatches(
+    incoming.timelineCells,
+    historyCells,
+    replacedByExactHistory: (candidate) => _mobileHistoryContainsExactIdentity(
+      current.paginatedHistoryCellIds,
+      candidate,
+    ),
+  );
+  final currentLive = _mobileCellsWithoutClaimedMatches(
+    <MobileCodexTimelineCell>[
+      for (final cell in current.timelineCells)
+        if (!current.paginatedHistoryCellIds.contains(cell.id)) cell,
+    ],
+    historyCells,
+    replacedByExactHistory: (candidate) => _mobileHistoryContainsExactIdentity(
+      current.paginatedHistoryCellIds,
+      candidate,
+    ),
+  );
+  final mergedCells = <MobileCodexTimelineCell>[
+    ...historyCells,
+    ..._mobileCellsWithoutClaimedMatches(currentLive, incomingLive),
+    ...incomingLive,
   ];
   return current.copyWith(
     events: <Map<String, Object?>>[
@@ -302,20 +337,42 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
   Map<dynamic, dynamic> delta,
 ) {
   final updated = current.applySnapshotDelta(delta, deriveTimeline: false);
-  final incomingIds = <String>{
-    for (final cell in incoming.timelineCells) cell.id,
-  };
   final historyCells = <MobileCodexTimelineCell>[
     for (final cell in updated.timelineCells)
       if (updated.paginatedHistoryCellIds.contains(cell.id)) cell,
   ];
+  final incomingLive = _mobileCellsWithoutClaimedMatches(
+    incoming.timelineCells,
+    historyCells,
+    replacedByExactHistory: (candidate) => _mobileHistoryContainsExactIdentity(
+      updated.paginatedHistoryCellIds,
+      candidate,
+    ),
+  );
+  final updatedLive = _mobileCellsWithoutClaimedMatches(
+    <MobileCodexTimelineCell>[
+      for (final cell in updated.timelineCells)
+        if (!updated.paginatedHistoryCellIds.contains(cell.id)) cell,
+    ],
+    historyCells,
+    replacedByExactHistory: (candidate) => _mobileHistoryContainsExactIdentity(
+      updated.paginatedHistoryCellIds,
+      candidate,
+    ),
+  );
+  final currentLiveIds = <String>{
+    for (final cell in current.timelineCells)
+      if (!current.paginatedHistoryCellIds.contains(cell.id)) cell.id,
+  };
+  final incomingIds = <String>{for (final cell in incomingLive) cell.id};
   final liveCells = <MobileCodexTimelineCell>[
-    for (final cell in updated.timelineCells)
-      if (!updated.paginatedHistoryCellIds.contains(cell.id) &&
-          !incomingIds.contains(cell.id))
-        cell,
-    for (final cell in incoming.timelineCells)
-      if (!updated.paginatedHistoryCellIds.contains(cell.id)) cell,
+    ..._mobileCellsWithoutClaimedMatches(<MobileCodexTimelineCell>[
+      for (final cell in updatedLive)
+        if (!(incomingIds.contains(cell.id) &&
+            !currentLiveIds.contains(cell.id)))
+          cell,
+    ], incomingLive),
+    ...incomingLive,
   ];
   const retainedLiveCellLimit = 480;
   final boundedLiveCells = liveCells.length <= retainedLiveCellLimit
@@ -344,4 +401,15 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
       activeTurnId: activeTurnId,
     ),
   );
+}
+
+bool _mobileHistoryContainsExactIdentity(
+  Set<String> historyCellIds,
+  MobileCodexTimelineCell candidate,
+) {
+  if (historyCellIds.contains(candidate.id)) return true;
+  final itemId = candidate.itemId;
+  return itemId != null &&
+      itemId.isNotEmpty &&
+      historyCellIds.contains('item-$itemId');
 }

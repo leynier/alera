@@ -81,6 +81,37 @@ void registerCodexTimelineLegacyTests(DateTime now) {
     expect(repeated, hasLength(cells.length));
   });
 
+  test('replaces a legacy assistant provisional with its canonical item', () {
+    var cells = CodexTimelineReducer.reduce(
+      <CodexTimelineCell>[],
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'delta': 'Complete answer',
+      }),
+      now: now,
+    );
+    expect(cells.single.id, 'assistant-turn-1');
+
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/completed', <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{
+          'id': 'answer-1',
+          'type': 'agentMessage',
+          'text': 'Complete answer',
+        },
+      }),
+      now: now,
+    );
+
+    expect(cells, hasLength(1));
+    expect(cells.single.id, 'item-answer-1');
+    expect(cells.single.itemId, 'answer-1');
+    expect(cells.single.markdownText, 'Complete answer');
+    expect(cells.single.status, CodexTimelineStatus.completed);
+  });
+
   test('parses structured questions and session approval actions', () {
     final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
       'pendingRequests': <Object?>[

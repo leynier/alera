@@ -33,6 +33,36 @@ fn thread_history_cache_reuses_and_bounds_projected_histories() {
 }
 
 #[test]
+fn history_cursor_reuse_requires_local_cache_or_a_native_continuation() {
+    let mut cache = ThreadHistoryCache::default();
+    let local_cursor = cache
+        .insert("thread-0", &history_response(0, 2, 8), 1, None, None, None)
+        .and_then(|page| page.next_cursor)
+        .unwrap();
+    assert!(cache.cursor_is_reusable("thread-0", &local_cursor, 1));
+
+    for index in 1..=MAX_CACHED_THREAD_HISTORIES {
+        cache.insert(
+            &format!("thread-{index}"),
+            &history_response(index, 2, 8),
+            1,
+            None,
+            None,
+            None,
+        );
+    }
+    assert!(!cache.cursor_is_reusable("thread-0", &local_cursor, 1));
+
+    let native_cursor = encode_history_cursor(AppServerHistoryCursor {
+        page_cursor: Some("native-older".to_string()),
+        local_cursor: None,
+        next_page_cursor: None,
+        inclusive_turn_id: None,
+    });
+    assert!(cache.cursor_is_reusable("thread-0", &native_cursor, 1));
+}
+
+#[test]
 fn oversized_thread_history_retains_bounded_pages_without_a_reread_gap() {
     let mut cache = ThreadHistoryCache::default();
     let response = history_response(1, 80, 128 * 1024);

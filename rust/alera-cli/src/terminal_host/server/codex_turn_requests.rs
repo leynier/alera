@@ -91,6 +91,17 @@ impl ServerActor {
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;
             if created_thread {
+                if let Some(server) = self.codex.as_ref() {
+                    server
+                        .record_thread_hydration(
+                            &tab.id,
+                            &thread_id,
+                            &current_cwd,
+                            tab.updated_at,
+                            None,
+                        )
+                        .await;
+                }
                 self.refresh_codex_presence(&tab);
                 self.schedule_codex_presence_changed();
                 self.broadcast_workspace_tabs_changed(Some(&tab.workspace_id));

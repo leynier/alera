@@ -166,6 +166,83 @@ void registerCodexChatControllerSessionTests() {
     },
   );
 
+  test('does not inherit old thread context across a null boundary', () async {
+    final open = Completer<Object?>();
+    final client = _FakeCodexRuntimeClient(
+      requestHandler: (type, payload) =>
+          type == 'codex.thread.open' ? open.future : null,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-null-thread-boundary');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    while (!client.requests.any(
+      (request) => request.type == 'codex.thread.open',
+    )) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-null-thread-boundary',
+        'threadId': 'thread-old',
+        'historyNextCursor': 'old-cursor',
+        'recovery': <String, Object?>{
+          'kind': 'missingRollout',
+          'message': 'Old recovery',
+        },
+        'snapshot': <String, Object?>{
+          'timelineCells': <Object?>[],
+          'pendingRequests': <Object?>[],
+        },
+      }),
+    );
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-null-thread-boundary',
+        'threadId': null,
+        'snapshot': <String, Object?>{
+          'timelineCells': <Object?>[
+            <String, Object?>{
+              'id': 'new-context',
+              'kind': 'assistantMessage',
+              'status': 'completed',
+              'markdownText': 'New context',
+            },
+          ],
+          'pendingRequests': <Object?>[],
+        },
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+    open.complete(<String, Object?>{
+      'threadId': 'thread-old',
+      'snapshot': <String, Object?>{
+        'timelineCells': const <Object?>[],
+        'pendingRequests': const <Object?>[],
+      },
+    });
+    await _settle();
+
+    final state = container.read(provider);
+    expect(state.snapshot.timelineCells.single.id, 'new-context');
+    expect(state.historyNextCursor, isNull);
+    expect(state.recovery, isNull);
+  });
+
   test('gates desktop session commands on the live host capability', () async {
     final currentClient = _FakeCodexRuntimeClient();
     final oldClient = _FakeCodexRuntimeClient(runtimeCapabilities: const []);

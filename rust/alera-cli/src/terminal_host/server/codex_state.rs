@@ -21,6 +21,8 @@ mod codex_history_projection;
 mod codex_markdown;
 #[path = "codex_resume_identity.rs"]
 mod codex_resume_identity;
+#[path = "codex_resume_reconciliation.rs"]
+mod codex_resume_reconciliation;
 #[path = "codex_review_history.rs"]
 mod codex_review_history;
 #[path = "codex_review_transition.rs"]
@@ -44,15 +46,13 @@ use codex_state_snapshot::{
     bound_snapshot, ensure_payload_object, normalize_snapshot, trim_events, update_context_usage,
 };
 
-pub(super) use codex_state_accessors::{
-    clear_review_transition, persist_snapshot, render_markdown, trim_cells,
-};
-pub(super) use codex_state_snapshot::merge_resume_snapshot;
-pub(super) use codex_state_snapshot::snapshot_delta;
-
 pub(super) use codex_history_projection::{
     latest_turn_page, older_turn_page, CodexTurnHistoryPage,
 };
+pub(super) use codex_state_accessors::{
+    clear_review_transition, persist_snapshot, render_markdown, trim_cells,
+};
+pub(super) use codex_state_snapshot::{merge_resume_snapshot, snapshot_delta};
 
 pub(super) const CODEX_SNAPSHOT_VERSION: i64 = 2;
 const MAX_SNAPSHOT_EVENTS: usize = 160;
@@ -487,6 +487,9 @@ mod review_transition_tests;
 #[cfg(test)]
 #[path = "codex_review_history_tests.rs"]
 mod review_history_tests;
+#[cfg(test)]
+#[path = "codex_state_snapshot_candidate_tests.rs"]
+mod snapshot_candidate_tests;
 #[cfg(test)]
 #[path = "codex_state_snapshot_resume_tests.rs"]
 mod snapshot_resume_tests;

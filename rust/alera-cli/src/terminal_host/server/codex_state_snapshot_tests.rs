@@ -113,6 +113,33 @@ fn snapshot_delta_only_upserts_changed_cells() {
 }
 
 #[test]
+fn snapshot_delta_retires_a_promoted_provisional_cell_id() {
+    let previous = json!({
+        "timelineCells": [{
+            "id": "progressText-turn-1",
+            "turnId": "turn-1",
+            "kind": "progressText",
+            "markdownText": "Inspecting"
+        }]
+    });
+    let next = json!({
+        "timelineCells": [{
+            "id": "item-commentary",
+            "itemId": "commentary",
+            "turnId": "turn-1",
+            "kind": "progressText",
+            "markdownText": "Inspecting files"
+        }]
+    });
+
+    let delta = snapshot_delta(&previous, &next, &[]);
+
+    assert_eq!(delta["timelineRemovedIds"], json!(["progressText-turn-1"]));
+    assert_eq!(delta["timelineUpserts"].as_array().unwrap().len(), 1);
+    assert_eq!(delta["timelineUpserts"][0]["id"], "item-commentary");
+}
+
+#[test]
 fn snapshot_delta_keeps_cells_evicted_from_the_bounded_live_window() {
     let previous = json!({
         "timelineCells": [
