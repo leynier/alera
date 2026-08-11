@@ -82,7 +82,7 @@ async fn read_capped(mut reader: impl AsyncRead + Unpin) -> std::io::Result<Vec<
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 

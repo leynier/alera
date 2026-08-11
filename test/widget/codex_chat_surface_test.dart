@@ -78,7 +78,7 @@ void main() {
       rawLink: 'readme.md:44',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'readme.md'));
+    expect(target?.path, p.normalize(p.join('/repo/workspace', 'readme.md')));
     expect(target?.line, 44);
   });
 
@@ -117,7 +117,7 @@ void main() {
       rawLink: 'Makefile:42',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'Makefile'));
+    expect(target?.path, p.normalize(p.join('/repo/workspace', 'Makefile')));
     expect(target?.line, 42);
   });
 
@@ -127,7 +127,10 @@ void main() {
       rawLink: 'release%20notes.md:44',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'release notes.md'));
+    expect(
+      target?.path,
+      p.normalize(p.join('/repo/workspace', 'release notes.md')),
+    );
     expect(target?.line, 44);
   });
 

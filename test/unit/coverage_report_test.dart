@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'dart_script_test_support.dart';
+
 void main() {
   test('coverage report gates maintained domain sources only', () async {
     final directory = await Directory.systemTemp.createTemp(
@@ -38,7 +40,7 @@ LH:0
 end_of_record
 ''');
 
-    final result = await Process.run('dart', <String>[
+    final result = await Process.run(dartScriptTestExecutable(), <String>[
       'tool/quality/coverage_report.dart',
       '--input',
       lcov.path,
@@ -216,7 +218,7 @@ File _writeLcov(Directory directory, String name, String contents) =>
     File('${directory.path}/$name')..writeAsStringSync(contents);
 
 Future<ProcessResult> _runReport(List<String> args) => Process.run(
-  'dart',
+  dartScriptTestExecutable(),
   <String>['tool/quality/coverage_report.dart', ...args],
   workingDirectory: Directory.current.path,
 );

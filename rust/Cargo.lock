@@ -65,6 +65,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs",
+ "dunce",
  "ed25519-dalek",
  "futures-util",
  "git2",

@@ -1,5 +1,7 @@
 //! Runtime-owned terminal lifecycle tests that do not connect a desktop client.
 
+#![cfg(unix)]
+
 use alera_core::child_process::windowless_command;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;

@@ -146,10 +146,10 @@ pub(in crate::terminal_host::server::codex_requests) fn allowed_cwd(
     candidate: &str,
     workspaces: &[Workspace],
 ) -> Option<String> {
-    let candidate = fs::canonicalize(candidate).ok()?;
+    let candidate = dunce::canonicalize(candidate).ok()?;
     workspaces
         .iter()
-        .filter_map(|workspace| fs::canonicalize(&workspace.path).ok())
+        .filter_map(|workspace| dunce::canonicalize(&workspace.path).ok())
         .find(|root| candidate.starts_with(root))
         .map(|_| candidate.to_string_lossy().into_owned())
 }

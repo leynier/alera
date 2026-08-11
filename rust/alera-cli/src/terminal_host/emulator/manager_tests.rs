@@ -37,12 +37,12 @@ fn install_visual_snapshot_fixture(manager: &mut EmulatorManager, directory: &Pa
             platform: EmulatorPlatform::Android,
             device_id: "android:test".into(),
             device_name: "Test".into(),
-            attached: AttachedDevice::Android(AndroidAttached {
+            attached: AttachedDevice::Android(Box::new(AndroidAttached {
                 device_name: "Test".into(),
                 serial: "emulator-5554".into(),
                 owned: false,
                 process: None,
-            }),
+            })),
             helper: None,
             stream_url: None,
             generation: 1,

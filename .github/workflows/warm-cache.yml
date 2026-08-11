@@ -72,7 +72,9 @@ jobs:
       - name: Restore cargokit build
         uses: actions/cache/restore@v6
         with:
-          path: build/**/cargokit_build
+          path: |
+            build/**/cargokit_build
+            build/**/ck
           key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
           restore-keys: |
             cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
@@ -89,7 +91,9 @@ jobs:
       - name: Save cargokit build
         uses: actions/cache/save@v6
         with:
-          path: build/**/cargokit_build
+          path: |
+            build/**/cargokit_build
+            build/**/ck
           key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-${{ github.sha }}
 
       - name: Report sccache statistics
