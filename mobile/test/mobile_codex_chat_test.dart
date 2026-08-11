@@ -73,6 +73,38 @@ void main() {
     );
   });
 
+  test('mobile replaces a legacy assistant provisional item', () {
+    var cells = MobileCodexTimelineReducer.reduce(
+      const <MobileCodexTimelineCell>[],
+      <String, Object?>{
+        'method': 'item/agentMessage/delta',
+        'params': <String, Object?>{
+          'turnId': 'turn-legacy',
+          'delta': 'Complete answer',
+        },
+      },
+    );
+    expect(cells.single.id, 'assistantMessage-turn-legacy');
+
+    cells = MobileCodexTimelineReducer.reduce(cells, <String, Object?>{
+      'method': 'item/completed',
+      'params': <String, Object?>{
+        'turnId': 'turn-legacy',
+        'item': <String, Object?>{
+          'id': 'answer',
+          'type': 'agentMessage',
+          'text': 'Complete answer',
+        },
+      },
+    });
+
+    expect(cells, hasLength(1));
+    expect(cells.single.id, 'item-answer');
+    expect(cells.single.itemId, 'answer');
+    expect(cells.single.displayText, 'Complete answer');
+    expect(cells.single.status, 'completed');
+  });
+
   test('mobile tracks context compaction once through completion', () {
     var cells = MobileCodexTimelineReducer.reduce(
       const <MobileCodexTimelineCell>[],

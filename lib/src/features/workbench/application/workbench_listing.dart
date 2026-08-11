@@ -60,7 +60,12 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       return activityCache[workspace.id];
     }
     final tabs = state.tabsFor(workspace.id);
-    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
+    final activity =
+        tabs.any(
+          (tab) =>
+              tab.kind == WorkspaceTabKind.terminal ||
+              tab.kind == WorkspaceTabKind.codex,
+        )
         ? agentActivityRank(
             attention: attentionOf(workspace),
             fallback: fallbackActivityOf(workspace),

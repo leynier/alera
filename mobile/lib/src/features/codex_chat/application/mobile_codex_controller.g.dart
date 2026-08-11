@@ -128,7 +128,7 @@ final class MobileCodexControllerProvider
 }
 
 String _$mobileCodexControllerHash() =>
-    r'f1600082763a62e70b9ebd7cab27fcd9e691d8ad';
+    r'15bb63b13432ee6471d2f038ed1f8b17275074b5';
 
 final class MobileCodexControllerFamily extends $Family
     with

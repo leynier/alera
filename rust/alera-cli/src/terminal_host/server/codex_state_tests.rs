@@ -404,3 +404,58 @@ fn commentary_phase_and_repeated_output_are_reduced_once() {
         "clean"
     );
 }
+
+#[test]
+fn canonical_item_identity_replaces_a_provisional_cell_in_place() {
+    let mut cells = vec![json!({
+        "id": "progressText-turn",
+        "turnId": "turn",
+        "kind": "progressText",
+        "markdownText": "Inspecting",
+        "metadata": {}
+    })];
+
+    codex_timeline_cells::upsert_cell(
+        &mut cells,
+        json!({
+            "id": "item-commentary",
+            "itemId": "commentary",
+            "turnId": "turn",
+            "kind": "progressText",
+            "markdownText": "Inspecting files",
+            "metadata": {"streamPhase": "commentary"}
+        }),
+    );
+
+    assert_eq!(cells.len(), 1);
+    assert_eq!(cells[0]["id"], "item-commentary");
+    assert_eq!(cells[0]["itemId"], "commentary");
+    assert_eq!(cells[0]["markdownText"], "Inspecting files");
+}
+
+#[test]
+fn canonical_assistant_identity_replaces_the_legacy_alias_in_place() {
+    let mut cells = vec![json!({
+        "id": "assistant-turn",
+        "turnId": "turn",
+        "kind": "assistantMessage",
+        "markdownText": "Done",
+        "metadata": {}
+    })];
+
+    codex_timeline_cells::upsert_cell(
+        &mut cells,
+        json!({
+            "id": "item-answer",
+            "itemId": "answer",
+            "turnId": "turn",
+            "kind": "assistantMessage",
+            "markdownText": "Done",
+            "metadata": {"streamPhase": "final_answer"}
+        }),
+    );
+
+    assert_eq!(cells.len(), 1);
+    assert_eq!(cells[0]["id"], "item-answer");
+    assert_eq!(cells[0]["itemId"], "answer");
+}

@@ -256,6 +256,21 @@ impl ServerActor {
             .upsert_workspace_tab(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
+        if let (Some(server), Some(thread_id), Some(cwd)) = (
+            self.codex.as_ref(),
+            tab_thread_id(&saved),
+            active_cwd(&saved),
+        ) {
+            server
+                .record_thread_hydration(
+                    &saved.id,
+                    &thread_id,
+                    &cwd,
+                    saved.updated_at,
+                    history_next_cursor.clone(),
+                )
+                .await;
+        }
         self.refresh_codex_presence(&saved);
         self.schedule_codex_presence_changed();
         self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));

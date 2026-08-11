@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alera/src/features/codex_chat/domain/codex_file_reference.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_timeline.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_timeline_identity.dart';
 import 'package:alera/src/features/codex_chat/infra/codex_chat_host_client.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -17,10 +18,18 @@ part 'codex_chat_controller_sessions.dart';
 part 'codex_chat_controller_catalogues.dart';
 part 'codex_chat_controller_request_responses.dart';
 part 'codex_chat_controller_events.dart';
+part 'codex_chat_controller_lifecycle.dart';
 
 @Riverpod(keepAlive: false)
 RuntimeHostClient codexChatRuntimeClient(Ref ref) =>
     ref.watch(runtimeHostClientProvider);
+
+@Riverpod(keepAlive: true)
+CodexChatHostClient codexChatHostClient(Ref ref) {
+  final host = CodexChatHostClient(ref.watch(codexChatRuntimeClientProvider));
+  ref.onDispose(host.dispose);
+  return host;
+}
 
 @Riverpod(keepAlive: false)
 class CodexChatController extends _$CodexChatController {
@@ -37,6 +46,9 @@ class CodexChatController extends _$CodexChatController {
   int _capabilityGeneration = 0;
   int _catalogueGeneration = 0;
   bool _recoveryPending = false;
+  final List<RuntimeHostEvent> _deferredThreadEvents = <RuntimeHostEvent>[];
+  bool _opening = false;
+  int _loadGeneration = 0;
 
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
 
@@ -51,7 +63,7 @@ class CodexChatController extends _$CodexChatController {
 
   @override
   CodexChatState build(String tabId) {
-    _host = CodexChatHostClient(ref.watch(codexChatRuntimeClientProvider));
+    _host = ref.watch(codexChatHostClientProvider);
     _events = _host.events.listen(_onRuntimeEvent);
     ref.onDispose(() {
       _interruptSafetyTimer?.cancel();
@@ -67,41 +79,6 @@ class CodexChatController extends _$CodexChatController {
       planMode: defaults.planMode,
       collaborationMode: defaults.planMode ? 'plan' : null,
     );
-  }
-
-  Future<void> _load() async {
-    try {
-      final openFuture = _host.openThread(tabId);
-      final open = await openFuture;
-      if (!ref.mounted) return;
-      _threadId = _string(open['threadId']);
-      _threadGeneration += 1;
-      final openSnapshot = CodexChatSnapshot.fromJson(open['snapshot']);
-      final storedConfiguration = open['configuration'];
-      state = _applyConfiguration(
-        state.copyWith(
-          loading: false,
-          snapshot: openSnapshot,
-          activeCwd: _string(open['cwd']),
-          historyNextCursor: _string(open['historyNextCursor']),
-          recovery: open['recovery'] == null
-              ? null
-              : CodexThreadRecovery.fromJson(open['recovery']),
-          error: null,
-        ),
-        storedConfiguration,
-      );
-      _drainQueuedMessageIfIdle();
-      await _refreshCapabilities();
-      if (!ref.mounted) return;
-      await _loadCatalogues();
-      if (storedConfiguration == null) {
-        _persistTabConfiguration();
-      }
-    } catch (error) {
-      if (!ref.mounted) return;
-      state = state.copyWith(loading: false, error: _safeError(error));
-    }
   }
 
   Future<void> _refreshCapabilities() async {

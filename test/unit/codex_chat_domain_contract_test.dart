@@ -299,6 +299,37 @@ void main() {
     );
   });
 
+  test('snapshot delta promotion replaces a provisional timeline cell', () {
+    final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
+      'timelineCells': <Object?>[
+        <String, Object?>{
+          'id': 'progressText-turn-1',
+          'turnId': 'turn-1',
+          'kind': 'progressText',
+          'markdownText': 'Inspecting',
+        },
+      ],
+    });
+
+    final updated = snapshot.applyDelta(<String, Object?>{
+      'timelineRemovedIds': <String>['progressText-turn-1'],
+      'timelineUpserts': <Object?>[
+        <String, Object?>{
+          'id': 'item-commentary',
+          'itemId': 'commentary',
+          'turnId': 'turn-1',
+          'kind': 'progressText',
+          'markdownText': 'Inspecting files',
+        },
+      ],
+    });
+
+    expect(updated.timelineCells.map((cell) => cell.id), <String>[
+      'item-commentary',
+    ]);
+    expect(updated.timelineCells.single.markdownText, 'Inspecting files');
+  });
+
   test('approval amendments preserve current and legacy wire contracts', () {
     final command = CodexPendingRequest(
       id: 1,

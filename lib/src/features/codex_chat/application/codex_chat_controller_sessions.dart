@@ -220,15 +220,23 @@ CodexChatSnapshot _mergeSameThreadSnapshot(
   final incomingLive = incoming.timelineCells is CodexTimelineCells
       ? (incoming.timelineCells as CodexTimelineCells).live
       : incoming.timelineCells;
-  final overlapsHistory = incomingLive.any(
-    (cell) => currentSegments.historyIndexFor(cell.id) != null,
+  final incomingWithoutHistory = codexTimelineCellsWithoutClaimedMatches(
+    incomingLive,
+    currentSegments.history,
+    replacedByExactHistory: currentSegments.historyContainsExactIdentity,
   );
-  final live = overlapsHistory
-      ? <CodexTimelineCell>[
-          for (final cell in incomingLive)
-            if (currentSegments.historyIndexFor(cell.id) == null) cell,
-        ]
-      : incomingLive;
+  final currentWithoutHistory = codexTimelineCellsWithoutClaimedMatches(
+    currentSegments.live,
+    currentSegments.history,
+    replacedByExactHistory: currentSegments.historyContainsExactIdentity,
+  );
+  final live = _boundedCodexLive(<CodexTimelineCell>[
+    ...codexTimelineCellsWithoutClaimedMatches(
+      currentWithoutHistory,
+      incomingWithoutHistory,
+    ),
+    ...incomingWithoutHistory,
+  ]);
   final mergedCells = currentSegments.withLive(live);
   return CodexChatSnapshot(
     events: incoming.events,
@@ -255,21 +263,36 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
   final incomingLive = incoming.timelineCells is CodexTimelineCells
       ? (incoming.timelineCells as CodexTimelineCells).live
       : incoming.timelineCells;
-  final incomingIds = <String>{for (final cell in incomingLive) cell.id};
-  final live = <CodexTimelineCell>[
-    for (final cell in segments?.live ?? updated.timelineCells)
-      if (!incomingIds.contains(cell.id) &&
-          (segments?.historyIndexFor(cell.id) == null))
+  final history = segments?.history ?? const <CodexTimelineCell>[];
+  final incomingWithoutHistory = codexTimelineCellsWithoutClaimedMatches(
+    incomingLive,
+    history,
+    replacedByExactHistory: segments?.historyContainsExactIdentity,
+  );
+  final updatedWithoutHistory = codexTimelineCellsWithoutClaimedMatches(
+    segments?.live ?? updated.timelineCells,
+    history,
+    replacedByExactHistory: segments?.historyContainsExactIdentity,
+  );
+  final currentLive = current.timelineCells is CodexTimelineCells
+      ? (current.timelineCells as CodexTimelineCells).live
+      : current.timelineCells;
+  final currentLiveIds = <String>{for (final cell in currentLive) cell.id};
+  final incomingIds = <String>{
+    for (final cell in incomingWithoutHistory) cell.id,
+  };
+  final updatedWithoutDeltaArtifacts = <CodexTimelineCell>[
+    for (final cell in updatedWithoutHistory)
+      if (!(incomingIds.contains(cell.id) && !currentLiveIds.contains(cell.id)))
         cell,
-    for (final cell in incomingLive)
-      if (segments?.historyIndexFor(cell.id) == null) cell,
   ];
-  const retainedLiveLimit = 480;
-  final boundedLive = live.length <= retainedLiveLimit
-      ? List<CodexTimelineCell>.unmodifiable(live)
-      : List<CodexTimelineCell>.unmodifiable(
-          live.sublist(live.length - retainedLiveLimit),
-        );
+  final boundedLive = _boundedCodexLive(<CodexTimelineCell>[
+    ...codexTimelineCellsWithoutClaimedMatches(
+      updatedWithoutDeltaArtifacts,
+      incomingWithoutHistory,
+    ),
+    ...incomingWithoutHistory,
+  ]);
   final mergedCells = segments == null
       ? boundedLive
       : segments.withLive(boundedLive);
@@ -292,5 +315,14 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,
+  );
+}
+
+List<CodexTimelineCell> _boundedCodexLive(List<CodexTimelineCell> cells) {
+  const retainedLiveLimit = 480;
+  return List<CodexTimelineCell>.unmodifiable(
+    cells.length <= retainedLiveLimit
+        ? cells
+        : cells.sublist(cells.length - retainedLiveLimit),
   );
 }

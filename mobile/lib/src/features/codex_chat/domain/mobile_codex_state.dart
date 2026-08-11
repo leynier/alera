@@ -68,8 +68,11 @@ class MobileCodexTimelineCell {
   final Map<String, Object?> metadata;
 
   MobileCodexTimelineCell copyWith({
+    String? id,
     String? kind,
     String? status,
+    String? itemId,
+    String? turnId,
     DateTime? updatedAt,
     String? title,
     String? subtitle,
@@ -80,11 +83,11 @@ class MobileCodexTimelineCell {
     bool? isCollapsed,
     Map<String, Object?>? metadata,
   }) => MobileCodexTimelineCell(
-    id: id,
+    id: id ?? this.id,
     kind: kind ?? this.kind,
     status: status ?? this.status,
-    itemId: itemId,
-    turnId: turnId,
+    itemId: itemId ?? this.itemId,
+    turnId: turnId ?? this.turnId,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     title: title ?? this.title,

@@ -34,7 +34,21 @@ List<CodexTimelineCell> _upsert(
   List<CodexTimelineCell> cells,
   CodexTimelineCell next,
 ) {
-  final index = cells.indexWhere((cell) => cell.id == next.id);
+  var index = cells.indexWhere((cell) => cell.id == next.id);
+  if (index < 0 && next.itemId != null && next.turnId != null) {
+    final provisionalIds = <String>{
+      '${next.kind.name}-${next.turnId}',
+      if (next.kind == CodexTimelineKind.assistantMessage ||
+          next.kind == CodexTimelineKind.progressText)
+        'assistant-${next.turnId}',
+    };
+    index = cells.indexWhere(
+      (cell) =>
+          provisionalIds.contains(cell.id) &&
+          cell.itemId == null &&
+          cell.kind == next.kind,
+    );
+  }
   if (index < 0) return <CodexTimelineCell>[...cells, next];
   final result = <CodexTimelineCell>[...cells];
   result[index] = CodexTimelineCell(
