@@ -8,11 +8,15 @@ import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +42,86 @@ class _PanelWorkbenchController extends WorkbenchController {
 }
 
 void main() {
+  testWidgets('places borderless dictation controls in pull request fields', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitBackendProvider.overrideWithValue(FakeGitBackend()),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: PullRequestComposer(
+                repoPath: '/repo',
+                headBranch: 'feat/dictation',
+                baseBranches: const <String>['main'],
+                suggestedBaseBranch: 'main',
+                canCreate: true,
+                busy: false,
+                suggestedReview: null,
+                createAction: PullRequestCreateAction.publish,
+                onCreate: (_) {},
+                onLink: (_) {},
+                onCreateActionChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final titleField = tester.getRect(
+      find.byKey(const ValueKey<String>('pull-request-title-field')),
+    );
+    final titleControl = tester.getRect(
+      find.byKey(
+        const ValueKey<String>('pull-request-title-dictation-control'),
+      ),
+    );
+    final descriptionField = tester.getRect(
+      find.byKey(const ValueKey<String>('pull-request-description-field')),
+    );
+    final descriptionControl = tester.getRect(
+      find.byKey(
+        const ValueKey<String>('pull-request-description-dictation-control'),
+      ),
+    );
+
+    expect(
+      titleField.right - titleControl.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      (titleControl.center.dy - titleField.center.dy).abs(),
+      lessThanOrEqualTo(AleraTokens.space4),
+    );
+    expect(
+      descriptionControl.top - descriptionField.top,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      descriptionField.right - descriptionControl.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+
+    final iconButton = tester.widget<AleraIconButton>(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey<String>('pull-request-description-dictation-control'),
+        ),
+        matching: find.byType(AleraIconButton),
+      ),
+    );
+    expect(iconButton.borderColor, isNull);
+    expect(iconButton.borderRadius, AleraTokens.radiusPill);
+  });
+
   testWidgets('keeps the review visible while Refresh shows loading', (
     tester,
   ) async {

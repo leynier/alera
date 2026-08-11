@@ -16,8 +16,7 @@ import 'package:alera/src/features/workbench/domain/workspace_parent_selection_o
 import 'package:alera/src/features/workbench/domain/terminal_image_paste.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_clipboard.dart';
 import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_client.dart';
-import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
-import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 

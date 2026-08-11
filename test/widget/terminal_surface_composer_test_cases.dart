@@ -21,6 +21,22 @@ void _registerTerminalSurfaceComposerTests() {
     expect(find.byTooltip('Hide Terminal Composer'), findsOneWidget);
     expect(find.text('Text Actions'), findsOneWidget);
 
+    final dictationRect = tester.getRect(
+      find.byKey(const ValueKey<String>('terminal-composer-dictation-control')),
+    );
+    final sendRect = tester.getRect(
+      find.byKey(const ValueKey<String>('composer-send-button')),
+    );
+    expect(dictationRect.right, lessThanOrEqualTo(sendRect.left));
+    expect(
+      sendRect.left - dictationRect.right,
+      lessThanOrEqualTo(AleraTokens.space8),
+    );
+    expect(
+      (dictationRect.center.dy - sendRect.center.dy).abs(),
+      lessThanOrEqualTo(AleraTokens.space2),
+    );
+
     await tester.enterText(find.byType(TextField), 'Review this change');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();

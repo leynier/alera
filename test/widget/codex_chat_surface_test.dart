@@ -308,6 +308,9 @@ void main() {
     final sendButton = tester.getRect(
       find.byKey(const ValueKey<String>('composer-action-button')),
     );
+    final dictationControl = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-dictation-control')),
+    );
     final contextIndicator = tester.getRect(
       find.byWidgetPredicate(
         (widget) => widget is CircularProgressIndicator && widget.value == 0.1,
@@ -319,6 +322,15 @@ void main() {
     expect(
       composerShell.right - sendButton.right,
       lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(dictationControl.right, lessThanOrEqualTo(sendButton.left));
+    expect(
+      sendButton.left - dictationControl.right,
+      lessThanOrEqualTo(AleraTokens.space4),
+    );
+    expect(
+      (dictationControl.center.dy - sendButton.center.dy).abs(),
+      lessThanOrEqualTo(AleraTokens.space2),
     );
     expect(
       modelConfiguration.left - contextIndicator.right,
