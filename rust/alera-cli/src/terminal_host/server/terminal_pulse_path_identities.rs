@@ -8,6 +8,11 @@ use notify::{Event, EventKind};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+#[cfg(windows)]
+type PathIdentityKey = String;
+#[cfg(not(windows))]
+type PathIdentityKey = PathBuf;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum PathIdentity {
     File,
@@ -16,7 +21,7 @@ pub(super) enum PathIdentity {
 
 pub(super) struct PathIdentityCache {
     root: PathBuf,
-    directories: HashSet<String>,
+    directories: HashSet<PathIdentityKey>,
     watch_directories: HashSet<PathBuf>,
 }
 
@@ -150,9 +155,7 @@ impl PathIdentityCache {
         let descendants = self
             .directories
             .iter()
-            .filter_map(|key| {
-                path_key_suffix(key, &from_key).map(|suffix| format!("{to_key}{suffix}"))
-            })
+            .filter_map(|key| renamed_path_key(key, &from_key, &to_key))
             .collect::<Vec<_>>();
         self.remove_path(from);
         self.remove_path(to);
@@ -171,7 +174,7 @@ impl PathIdentityCache {
             return;
         };
         self.directories
-            .retain(|candidate| path_key_suffix(candidate, &key).is_none());
+            .retain(|candidate| !path_key_is_self_or_descendant(candidate, &key));
     }
 
     fn is_directory(&self, path: &Path) -> bool {
@@ -179,11 +182,16 @@ impl PathIdentityCache {
             .is_some_and(|key| self.directories.contains(&key))
     }
 
-    fn key(&self, path: &Path) -> Option<String> {
+    fn key(&self, path: &Path) -> Option<PathIdentityKey> {
         let relative = path.strip_prefix(&self.root).ok()?;
+        #[cfg(not(windows))]
+        return Some(relative.to_path_buf());
+
+        #[cfg(windows)]
         let key = relative.to_string_lossy().replace('\\', "/");
         #[cfg(windows)]
         let key = key.to_lowercase();
+        #[cfg(windows)]
         Some(key)
     }
 
@@ -266,6 +274,38 @@ pub(super) fn repository_path_from_bytes(bytes: &[u8]) -> Option<PathBuf> {
     std::str::from_utf8(bytes).ok().map(PathBuf::from)
 }
 
+#[cfg(not(windows))]
+fn renamed_path_key(
+    candidate: &PathIdentityKey,
+    from: &PathIdentityKey,
+    to: &PathIdentityKey,
+) -> Option<PathIdentityKey> {
+    candidate
+        .strip_prefix(from)
+        .ok()
+        .map(|suffix| to.join(suffix))
+}
+
+#[cfg(windows)]
+fn renamed_path_key(
+    candidate: &PathIdentityKey,
+    from: &PathIdentityKey,
+    to: &PathIdentityKey,
+) -> Option<PathIdentityKey> {
+    path_key_suffix(candidate, from).map(|suffix| format!("{to}{suffix}"))
+}
+
+#[cfg(not(windows))]
+fn path_key_is_self_or_descendant(candidate: &PathIdentityKey, prefix: &PathIdentityKey) -> bool {
+    candidate.starts_with(prefix)
+}
+
+#[cfg(windows)]
+fn path_key_is_self_or_descendant(candidate: &PathIdentityKey, prefix: &PathIdentityKey) -> bool {
+    path_key_suffix(candidate, prefix).is_some()
+}
+
+#[cfg(windows)]
 fn path_key_suffix<'a>(candidate: &'a str, prefix: &str) -> Option<&'a str> {
     if candidate == prefix {
         return Some("");

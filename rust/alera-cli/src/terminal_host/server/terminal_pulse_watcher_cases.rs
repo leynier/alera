@@ -25,6 +25,38 @@ fn canonical_workspace_root_keeps_symlinked_events_git_relative() {
     assert!(event_is_relevant(&repository, &canonical_root, &event).unwrap());
 }
 
+#[cfg(unix)]
+#[test]
+fn path_identity_cache_keeps_distinct_native_unix_directories() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    let literal_backslash = dir.path().join("foo\\bar");
+    let nested = dir.path().join("foo").join("bar");
+    let non_utf8_one = dir.path().join(OsString::from_vec(vec![b'n', 0xff]));
+    let non_utf8_two = dir.path().join(OsString::from_vec(vec![b'n', 0xfe]));
+    for path in [&literal_backslash, &nested, &non_utf8_one, &non_utf8_two] {
+        std::fs::create_dir_all(path).unwrap();
+    }
+    let mut identities = PathIdentityCache::scan(dir.path(), &repository).unwrap();
+
+    let backslash_removal = Event::new(EventKind::Remove(notify::event::RemoveKind::Folder))
+        .add_path(literal_backslash.clone());
+    identities.apply_event(&backslash_removal, &[]);
+    assert!(!identities.contains_directory(&literal_backslash));
+    assert!(identities.contains_directory(&nested));
+    assert!(identities.contains_directory(&non_utf8_one));
+    assert!(identities.contains_directory(&non_utf8_two));
+
+    let non_utf8_removal = Event::new(EventKind::Remove(notify::event::RemoveKind::Folder))
+        .add_path(non_utf8_one.clone());
+    identities.apply_event(&non_utf8_removal, &[]);
+    assert!(!identities.contains_directory(&non_utf8_one));
+    assert!(identities.contains_directory(&non_utf8_two));
+}
+
 #[test]
 fn pathless_rescan_fails_closed_instead_of_using_existing_dirt() {
     let dir = tempfile::tempdir().unwrap();
