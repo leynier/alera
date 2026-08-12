@@ -77,6 +77,23 @@ void main() {
     expect(link!.uri, Uri.parse(url));
   });
 
+  test('resolves a line-ending url after an astral glyph', () {
+    final terminal = xterm.Terminal();
+    terminal.resize(200, 24);
+    const url = 'https://example.com';
+    terminal.write('${'😀'.padRight(135)}$url');
+
+    final link = resolveVisibleHttpLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(136, 0),
+    );
+
+    expect(link, isNotNull);
+    expect(link!.uri, Uri.parse(url));
+    expect(link.start, const xterm.CellOffset(135, 0));
+    expect(link.end, const xterm.CellOffset(154, 0));
+  });
+
   test('ignores offsets outside visible urls and trims ] and } suffixes', () {
     final terminal = xterm.Terminal();
     terminal.resize(80, 24);
