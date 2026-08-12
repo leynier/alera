@@ -25,6 +25,7 @@ abstract final class AppLogger {
   static io.Directory? _directory;
   static void Function(String) _consoleWriter = _writeToStdout;
   static bool _consoleAvailable = true;
+  static int _consoleGeneration = 0;
 
   static RotatingLogSink? get sink => _sink;
   static io.Directory? get logDirectory => _directory;
@@ -38,6 +39,7 @@ abstract final class AppLogger {
     Level level = Level.INFO,
     io.Directory? directory,
     void Function(String)? consoleWriter,
+    Future<void>? consoleDone,
   }) async {
     if (_configured) {
       return;
@@ -46,6 +48,19 @@ abstract final class AppLogger {
     Logger.root.level = level;
     _consoleWriter = consoleWriter ?? _writeToStdout;
     _consoleAvailable = true;
+    final consoleGeneration = ++_consoleGeneration;
+    final consoleCompletion =
+        consoleDone ?? (consoleWriter == null ? io.stdout.done : null);
+    if (consoleCompletion != null) {
+      unawaited(
+        consoleCompletion.then<void>(
+          (_) => _disableConsole(consoleGeneration),
+          onError: (Object _, StackTrace _) {
+            _disableConsole(consoleGeneration);
+          },
+        ),
+      );
+    }
 
     try {
       _directory = directory ?? await _defaultDirectory();
@@ -112,6 +127,12 @@ abstract final class AppLogger {
 
   static void _writeToStdout(String line) => io.stdout.writeln(line);
 
+  static void _disableConsole(int generation) {
+    if (_consoleGeneration == generation) {
+      _consoleAvailable = false;
+    }
+  }
+
   static void setLevel(Level level) => Logger.root.level = level;
 
   /// Records an error that reached a global handler rather than a logger.
@@ -132,6 +153,7 @@ abstract final class AppLogger {
     _directory = null;
     _consoleWriter = _writeToStdout;
     _consoleAvailable = true;
+    _consoleGeneration++;
     _configured = false;
     Logger.root.clearListeners();
   }
