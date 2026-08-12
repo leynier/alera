@@ -2,6 +2,7 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_error.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -17,6 +18,19 @@ void main() {
     expect(settings.enabled, isTrue);
     expect(settings.providerPolicy, AiDictationProviderPolicy.localOnly);
     expect(settings.timeoutSeconds, 30);
+    expect(settings.hostFallbackEnabled, isTrue);
+    expect(settings.providerFallbackEnabled, isFalse);
+  });
+
+  test('exposes selectable verified local Whisper models', () {
+    expect(
+      AiDictationModelStore.models.map((model) => model.id),
+      contains('whisper-base'),
+    );
+    expect(
+      AiDictationModelStore.modelForId('whisper-cpp-base'),
+      'whisper-base',
+    );
   });
 
   test('exposes exception details', () {

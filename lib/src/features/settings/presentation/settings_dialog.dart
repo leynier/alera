@@ -193,6 +193,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
     const aiDictationGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'local', title: 'Local Whisper'),
+      SettingsGroupSpec(id: 'fallback', title: 'Fallback Providers'),
       SettingsGroupSpec(id: 'privacy', title: 'Privacy'),
     ];
     const terminalGroups = <SettingsGroupSpec>[
