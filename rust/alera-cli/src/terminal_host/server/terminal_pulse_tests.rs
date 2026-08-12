@@ -73,6 +73,28 @@ fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
     assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
 }
 
+#[cfg(unix)]
+#[test]
+fn native_unix_directory_names_keep_populated_create_events_relevant() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    let names = [
+        std::ffi::OsString::from_vec(vec![b'd', 0xff]),
+        std::ffi::OsString::from("literal\\slash"),
+    ];
+
+    for name in names {
+        let directory = dir.path().join(name);
+        fs::create_dir(&directory).unwrap();
+        fs::write(directory.join("new.txt"), "untracked").unwrap();
+        let event = Event::new(EventKind::Create(CreateKind::Folder)).add_path(directory);
+
+        assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
+    }
+}
+
 #[test]
 fn empty_directories_are_not_git_relevant() {
     let dir = tempfile::tempdir().unwrap();

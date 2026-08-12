@@ -136,7 +136,7 @@ fn workspace_git_status_snapshot(
         let relative = root.strip_prefix(workdir).map_err(|_| {
             HostError::state("Terminal Pulse workspace is outside its Git working tree.")
         })?;
-        options.pathspec(relative.to_string_lossy().replace('\\', "/"));
+        options.pathspec(relative);
     }
     let statuses = repository
         .statuses(Some(&mut options))
@@ -203,7 +203,8 @@ fn directories_have_git_changes(
             .include_untracked(true)
             .recurse_untracked_dirs(true)
             .include_ignored(false)
-            .pathspec(relative.to_string_lossy().replace('\\', "/"));
+            .disable_pathspec_match(true)
+            .pathspec(relative);
         if repository
             .statuses(Some(&mut options))
             .map_err(git_query_error)?
@@ -215,4 +216,35 @@ fn directories_have_git_changes(
         }
     }
     Ok(false)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::os::unix::ffi::OsStringExt;
+
+    use super::*;
+
+    #[test]
+    fn non_utf8_subdirectory_workspace_snapshot_preserves_ignored_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let repository = Repository::init(dir.path()).unwrap();
+        let workspace = dir
+            .path()
+            .join(std::ffi::OsString::from_vec(vec![b'w', 0xff]));
+        std::fs::create_dir(&workspace).unwrap();
+        let gitignore = workspace.join(".gitignore");
+        std::fs::write(&gitignore, "ignored.txt\n").unwrap();
+        let mut index = repository.index().unwrap();
+        index
+            .add_path(gitignore.strip_prefix(dir.path()).unwrap())
+            .unwrap();
+        index.write().unwrap();
+        let ignored = workspace.join("ignored.txt");
+        std::fs::write(&ignored, "ignored").unwrap();
+
+        let paths = ignored_git_status_paths(&repository, &workspace).unwrap();
+        let relative = ignored.strip_prefix(dir.path()).unwrap();
+
+        assert!(paths.contains(relative));
+    }
 }

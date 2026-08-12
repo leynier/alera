@@ -35,7 +35,6 @@ pub(super) fn event_is_git_relevant(
         let Ok(relative) = path.strip_prefix(workdir) else {
             continue;
         };
-        let git_path = relative.to_string_lossy().replace('\\', "/");
         let directory_like = identity == PathIdentity::Directory;
         if directory_like {
             if path_is_ignored(repository, relative, true, ignored_prefixes)? {
@@ -56,7 +55,8 @@ pub(super) fn event_is_git_relevant(
                 .include_untracked(true)
                 .recurse_untracked_dirs(true)
                 .include_ignored(false)
-                .pathspec(git_path);
+                .disable_pathspec_match(true)
+                .pathspec(relative);
             if repository
                 .statuses(Some(&mut options))
                 .map_err(git_query_error)?
