@@ -149,6 +149,45 @@ impl ServerActor {
         if let Some(error) = error {
             payload["error"] = Value::String(error.to_string());
         }
-        self.broadcast_authenticated(event("terminalPulseChanged", payload));
+        self.broadcast_authenticated_local(event("terminalPulseChanged", payload));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+    use crate::terminal_host::client::ClientHandle;
+    use crate::terminal_host::server::actor_test_harness::{
+        local_client, mobile_client, test_actor,
+    };
+
+    #[tokio::test]
+    async fn pulse_state_with_terminal_input_is_broadcast_only_to_local_clients() {
+        let dir = tempfile::tempdir().unwrap();
+        let (local_handle, mut local_receiver) = ClientHandle::test_channels();
+        let (mobile_handle, mut mobile_receiver) = ClientHandle::test_channels();
+        let actor = test_actor(
+            &dir,
+            HashMap::from([
+                (1, local_client(local_handle)),
+                (2, mobile_client(mobile_handle, "phone-1")),
+            ]),
+            HashMap::new(),
+        )
+        .await;
+
+        actor.broadcast_terminal_pulse_changed(
+            "session-1",
+            &TerminalPulseConfiguration::default(),
+            true,
+            None,
+        );
+
+        let local = local_receiver.recv().await.unwrap().as_json().unwrap();
+        assert_eq!(local["event"], "terminalPulseChanged");
+        assert_eq!(local["payload"]["configuration"]["command"], "r");
+        assert!(mobile_receiver.try_recv().is_err());
     }
 }

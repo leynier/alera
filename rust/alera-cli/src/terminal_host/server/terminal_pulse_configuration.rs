@@ -104,7 +104,7 @@ impl ServerActor {
                         .await;
                 let git_config_environment = GitConfigEnvironment::from_variables(&environment);
                 let setup_cancelled = Arc::new(AtomicBool::new(false));
-                let mut watcher_task = tokio::task::spawn_blocking({
+                let watcher_task = tokio::task::spawn_blocking({
                     let watcher_inbox = inbox.clone();
                     let watcher_workspace_id = workspace_id.clone();
                     let setup_cancelled = Arc::clone(&setup_cancelled);
@@ -120,19 +120,7 @@ impl ServerActor {
                     }
                 });
                 let result =
-                    match tokio::time::timeout(WATCHER_START_TIMEOUT, &mut watcher_task).await {
-                        Err(_) => {
-                            setup_cancelled.store(true, Ordering::Release);
-                            let _ = watcher_task.await;
-                            Err(HostError::state(
-                                "Terminal Pulse watcher setup timed out before it could be armed.",
-                            ))
-                        }
-                        Ok(Err(error)) => Err(HostError::state(format!(
-                            "Terminal Pulse watcher task failed: {error}"
-                        ))),
-                        Ok(Ok(result)) => result,
-                    };
+                    await_watcher_start(watcher_task, setup_cancelled, WATCHER_START_TIMEOUT).await;
                 let _ = inbox.send(ServerCommand::TerminalPulseWatcherStarted {
                     workspace_id,
                     generation,
@@ -258,5 +246,83 @@ impl ServerActor {
                 ),
             );
         }
+    }
+}
+
+async fn await_watcher_start<T: Send + 'static>(
+    mut watcher_task: tokio::task::JoinHandle<HostResult<T>>,
+    setup_cancelled: Arc<AtomicBool>,
+    start_timeout: Duration,
+) -> HostResult<T> {
+    match tokio::time::timeout(start_timeout, &mut watcher_task).await {
+        Err(_) => {
+            setup_cancelled.store(true, Ordering::Release);
+            tokio::spawn(async move {
+                let _ = watcher_task.await;
+            });
+            Err(HostError::state(
+                "Terminal Pulse watcher setup timed out before it could be armed.",
+            ))
+        }
+        Ok(Err(error)) => Err(HostError::state(format!(
+            "Terminal Pulse watcher task failed: {error}"
+        ))),
+        Ok(Ok(result)) => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct DropProbe(Arc<AtomicBool>);
+
+    impl Drop for DropProbe {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Release);
+        }
+    }
+
+    #[tokio::test]
+    async fn watcher_timeout_returns_before_and_discards_the_late_result() {
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let dropped = Arc::new(AtomicBool::new(false));
+        let task_dropped = Arc::clone(&dropped);
+        let task = tokio::task::spawn_blocking(move || {
+            release_rx.recv().unwrap();
+            Ok::<_, HostError>(DropProbe(task_dropped))
+        });
+
+        let result = tokio::time::timeout(
+            Duration::from_millis(200),
+            await_watcher_start(task, Arc::clone(&cancelled), Duration::from_millis(10)),
+        )
+        .await
+        .expect("watcher timeout must not await its blocking task");
+
+        assert!(result.unwrap_err().wire_message().contains("timed out"));
+        assert!(cancelled.load(Ordering::Acquire));
+        release_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !dropped.load(Ordering::Acquire) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("late watcher result must be discarded by the reaper");
+    }
+
+    #[tokio::test]
+    async fn watcher_setup_completed_before_timeout_returns_its_result() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let task = tokio::task::spawn_blocking(|| Ok::<_, HostError>("watching"));
+
+        let result =
+            await_watcher_start(task, Arc::clone(&cancelled), Duration::from_secs(1)).await;
+
+        assert_eq!(result.unwrap(), "watching");
+        assert!(!cancelled.load(Ordering::Acquire));
     }
 }

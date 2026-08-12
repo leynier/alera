@@ -172,6 +172,17 @@ impl ServerActor {
         }
     }
 
+    pub(super) fn broadcast_authenticated_local(&self, message: Value) {
+        for (client_id, client) in &self.clients {
+            if client.authenticated
+                && client.kind == ClientKind::Local
+                && client.handle.send_control(message.clone().into()).is_err()
+            {
+                self.disconnect_client_soon(*client_id);
+            }
+        }
+    }
+
     pub(super) fn broadcast_authenticated_mobile(&self, message: Value) {
         for (client_id, client) in &self.clients {
             if client.authenticated
