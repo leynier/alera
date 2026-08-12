@@ -143,6 +143,8 @@ pub const RUNTIME_HOST_AUTOMATIONS_CAPABILITY: &str = "automationsV1";
 /// Native Codex chat tabs are additive. Clients advertise support for the tab
 /// kind separately so an older client never attempts to decode it.
 pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
+/// Codex goals are additive and bridged through the app-server thread goal API.
+pub const RUNTIME_HOST_CODEX_GOALS_CAPABILITY: &str = "codexGoalsV1";
 /// Native Codex session management is additive. Desktop clients negotiate it
 /// before exposing thread list, resume, new, and clear actions.
 pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";

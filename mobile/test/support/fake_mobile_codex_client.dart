@@ -26,6 +26,7 @@ final class FakeMobileCodexClient
     this.recovery,
     this.supportsCodexSessions = true,
     this.supportsCodexTurnPolicy = true,
+    this.supportsCodexGoals = false,
   });
 
   final List<Object?>? timelineCells;
@@ -80,6 +81,8 @@ final class FakeMobileCodexClient
   final bool supportsCodexSessions;
   @override
   final bool supportsCodexTurnPolicy;
+  @override
+  final bool supportsCodexGoals;
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final List<MobileCodexCall> calls = <MobileCodexCall>[];
@@ -93,7 +96,6 @@ final class FakeMobileCodexClient
 
   @override
   bool get supportsCodexChat => true;
-
   @override
   bool get supportsCodexWorkspaceFiles => workspaceFiles.isNotEmpty;
 

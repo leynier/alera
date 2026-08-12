@@ -146,6 +146,7 @@ class _CodexControllerFooter extends ConsumerWidget {
     final showComposer =
         !showQuestionDock ||
         (view.pendingQuestions.isNotEmpty && !view.hasBlockingQuestion);
+    final goal = state.supportsGoals ? state.snapshot.goal : null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,38 +231,88 @@ class _CodexControllerFooter extends ConsumerWidget {
                   ),
           ),
         if (showComposer)
-          _CodexComposer(
-            controller: composerController,
-            focusNode: composerFocus,
-            busy: state.busy,
-            interrupting: state.interrupting,
-            mcpInitializing: view.mcpInitializing,
-            blockedMessage: state.recovery == null
-                ? null
-                : 'Continue in a new thread to resume.',
-            attachments: attachments,
-            draftItems: draftItems,
-            savedPrompts: savedPrompts,
-            state: state,
-            promptHistory: state.snapshot.promptHistory,
-            workspacePath: state.activeCwd ?? workspacePath,
-            workspaceFiles: workspaceFiles,
-            onModelChanged: controller.setModel,
-            onReasoningChanged: controller.setReasoning,
-            onSpeedChanged: controller.setSpeed,
-            onPermissionChanged: controller.setPermissionMode,
-            onPlanChanged: controller.setPlanMode,
-            onCollaborationChanged: controller.setCollaborationMode,
-            onDraftItemSelected: onDraftItemSelected,
-            onCommand: (command) => onCommand(state, command),
-            onSend: onSend,
-            onStop: controller.stop,
-            onAddAttachment: onAddAttachment,
-            onPaste: onPaste,
-            onDropAttachments: onDropAttachments,
-            onRemoveAttachment: onRemoveAttachment,
-            onOpenAttachment: onOpenAttachment,
-            onRemoveDraftItem: onRemoveDraftItem,
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AleraTokens.codexConversationMaxWidth,
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: goal == null ? 0 : AleraTokens.space32,
+                    ),
+                    child: _CodexComposer(
+                      controller: composerController,
+                      focusNode: composerFocus,
+                      busy: state.busy,
+                      interrupting: state.interrupting,
+                      mcpInitializing: view.mcpInitializing,
+                      blockedMessage: state.recovery == null
+                          ? null
+                          : 'Continue in a new thread to resume.',
+                      attachments: attachments,
+                      draftItems: draftItems,
+                      savedPrompts: savedPrompts,
+                      state: state,
+                      promptHistory: state.snapshot.promptHistory,
+                      workspacePath: state.activeCwd ?? workspacePath,
+                      workspaceFiles: workspaceFiles,
+                      onModelChanged: controller.setModel,
+                      onReasoningChanged: controller.setReasoning,
+                      onSpeedChanged: controller.setSpeed,
+                      onPermissionChanged: controller.setPermissionMode,
+                      onPlanChanged: controller.setPlanMode,
+                      onCollaborationChanged: controller.setCollaborationMode,
+                      onDraftItemSelected: onDraftItemSelected,
+                      onCommand: (command) => onCommand(state, command),
+                      onSend: onSend,
+                      onStop: controller.stop,
+                      onAddAttachment: onAddAttachment,
+                      onPaste: onPaste,
+                      onDropAttachments: onDropAttachments,
+                      onRemoveAttachment: onRemoveAttachment,
+                      onOpenAttachment: onOpenAttachment,
+                      onRemoveDraftItem: onRemoveDraftItem,
+                    ),
+                  ),
+                  if (goal != null)
+                    Positioned(
+                      top: 0,
+                      left: AleraTokens.space16,
+                      right: AleraTokens.space16,
+                      child: _CodexGoalBar(
+                        goal: goal,
+                        turnActive: state.snapshot.activeTurnId != null,
+                        onEdit: () async {
+                          final objective = await _showCodexGoalEditor(
+                            context,
+                            initialObjective: goal.objective,
+                          );
+                          if (objective != null) {
+                            await controller.editGoal(objective);
+                          }
+                        },
+                        onPauseResume: goal.status.canPause
+                            ? () => unawaited(
+                                controller.updateGoalStatus(
+                                  CodexThreadGoalStatus.paused,
+                                ),
+                              )
+                            : goal.status.canResume
+                            ? () => unawaited(
+                                controller.updateGoalStatus(
+                                  CodexThreadGoalStatus.active,
+                                ),
+                              )
+                            : null,
+                        onClear: () => unawaited(controller.clearGoal()),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
       ],
     );

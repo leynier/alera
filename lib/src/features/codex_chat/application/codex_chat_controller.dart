@@ -19,6 +19,7 @@ part 'codex_chat_controller_catalogues.dart';
 part 'codex_chat_controller_request_responses.dart';
 part 'codex_chat_controller_events.dart';
 part 'codex_chat_controller_lifecycle.dart';
+part 'codex_chat_controller_goals.dart';
 
 @Riverpod(keepAlive: false)
 RuntimeHostClient codexChatRuntimeClient(Ref ref) =>
@@ -45,6 +46,8 @@ class CodexChatController extends _$CodexChatController {
   int _threadGeneration = 0;
   int _capabilityGeneration = 0;
   int _catalogueGeneration = 0;
+  bool _goalCapabilityAdvertised = false;
+  bool _goalsAvailable = true;
   bool _recoveryPending = false;
   final List<RuntimeHostEvent> _deferredThreadEvents = <RuntimeHostEvent>[];
   bool _opening = false;
@@ -88,7 +91,9 @@ class CodexChatController extends _$CodexChatController {
       supportsSessions = await _host.supportsSessions();
     }
     final supportsAutoReview = await _host.supportsTurnPolicy();
+    final supportsGoals = await _host.supportsGoals();
     if (!ref.mounted || generation != _capabilityGeneration) return;
+    _goalCapabilityAdvertised = supportsGoals;
     final permissionMode =
         !supportsAutoReview && state.permissionMode == 'auto-review'
         ? 'on-request'
@@ -97,6 +102,7 @@ class CodexChatController extends _$CodexChatController {
     state = state.copyWith(
       supportsSessions: supportsSessions,
       supportsAutoReview: supportsAutoReview,
+      supportsGoals: supportsGoals && _goalsAvailable,
       permissionMode: permissionMode,
     );
     if (permissionChanged) {

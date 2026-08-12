@@ -1,6 +1,18 @@
 part of 'mobile_codex_controller.dart';
 
+// ignore_for_file: invalid_use_of_protected_member
+
 extension _MobileCodexControllerCatalogues on MobileCodexController {
+  void _registerAccountCatalogueReplay() {
+    listenSelf((previous, next) {
+      if (next is! AsyncData<MobileCodexState>) return;
+      _accountCatalogueBuildAwaitingPublication = false;
+      if (!_accountCatalogueRefreshPending) return;
+      _accountCatalogueRefreshPending = false;
+      unawaited(_reloadMobileCodexCatalogue('account'));
+    });
+  }
+
   Future<void> _reloadMobileCodexCatalogue(String catalog) async {
     final client = _client;
     if (client == null) return;

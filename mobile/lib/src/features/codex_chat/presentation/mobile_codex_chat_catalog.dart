@@ -144,6 +144,13 @@ class _MobileComposerCatalogState extends State<_MobileComposerCatalog> {
       _invalidateWorkspaceSearch();
       final query = token.query.toLowerCase();
       final builtIns = <_MobileCatalogItem>[
+        if (widget.chatController.supportsGoals)
+          const _MobileCatalogItem(
+            title: 'Goal',
+            subtitle: 'Set or manage a long-running goal.',
+            replacement: '/goal ',
+            kind: 'Command',
+          ),
         if (widget
             .chatController
             .supportsSessions) ...const <_MobileCatalogItem>[

@@ -143,6 +143,50 @@ pub(super) fn append_user_input(
     next
 }
 
+pub(super) fn append_goal_user_input(
+    tab: &mut WorkspaceTabRecord,
+    objective: &str,
+    client_user_message_id: &str,
+) -> Value {
+    let previous_active_turn_id = snapshot(tab).get("activeTurnId").cloned();
+    let turn_id = format!("goal-{client_user_message_id}");
+    let input = json!([{"type": "text", "text": objective}]);
+    let mut next = append_user_input(
+        tab,
+        &input,
+        None,
+        &turn_id,
+        Some(client_user_message_id),
+        false,
+    );
+    if let Some(object) = next.as_object_mut() {
+        match previous_active_turn_id {
+            Some(active_turn_id) => {
+                object.insert("activeTurnId".to_string(), active_turn_id);
+            }
+            None => {
+                object.remove("activeTurnId");
+            }
+        }
+        let cell_id = format!("user-{client_user_message_id}");
+        if let Some(cell) = object
+            .get_mut("timelineCells")
+            .and_then(Value::as_array_mut)
+            .and_then(|cells| {
+                cells
+                    .iter_mut()
+                    .find(|cell| cell.get("id").and_then(Value::as_str) == Some(cell_id.as_str()))
+            })
+        {
+            if let Some(metadata) = cell.get_mut("metadata").and_then(Value::as_object_mut) {
+                metadata.insert("isGoal".to_string(), Value::Bool(true));
+            }
+        }
+    }
+    persist_snapshot(tab, next.clone());
+    next
+}
+
 fn visible_text(input: &Value, user_message: Option<&Value>) -> String {
     if let Some(text) = user_message
         .and_then(|message| message.get("text"))
@@ -305,6 +349,30 @@ mod tests {
         assert_eq!(cell["metadata"]["attachments"][0]["path"], "/tmp/data.csv");
         assert_eq!(cell["metadata"]["clientUserMessageId"], "message-1");
         assert_eq!(saved["activeTurnId"], "turn-1");
+    }
+
+    #[test]
+    fn goal_presentation_is_owned_by_alera_without_claiming_an_active_turn() {
+        let mut record = tab();
+
+        append_goal_user_input(&mut record, "Ship the release", "goal-message");
+
+        let saved = snapshot(&record);
+        let cell = &saved["timelineCells"][0];
+        assert_eq!(cell["markdownText"], "Ship the release");
+        assert_eq!(cell["metadata"]["isGoal"], true);
+        assert_eq!(cell["metadata"]["clientUserMessageId"], "goal-message");
+        assert!(saved.get("activeTurnId").is_none());
+    }
+
+    #[test]
+    fn goal_presentation_preserves_an_existing_active_turn() {
+        let mut record = tab();
+        record.payload["codexSnapshot"]["activeTurnId"] = json!("turn-active");
+
+        append_goal_user_input(&mut record, "Refine the release", "goal-message");
+
+        assert_eq!(snapshot(&record)["activeTurnId"], "turn-active");
     }
 
     #[test]

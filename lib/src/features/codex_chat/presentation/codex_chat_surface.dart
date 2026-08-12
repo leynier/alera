@@ -64,6 +64,7 @@ part 'codex_chat_surface_composer_quick_open.dart';
 part 'codex_chat_resume_picker.dart';
 part 'codex_chat_surface_saved_prompts.dart';
 part 'codex_chat_surface_dialogs.dart';
+part 'codex_chat_surface_goal.dart';
 part 'codex_chat_review_dialog.dart';
 part 'codex_chat_surface_draft_actions.dart';
 part 'codex_chat_surface_link_handling.dart';

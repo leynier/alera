@@ -92,6 +92,18 @@ extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
     CodexComposerCommand command,
   ) async {
     switch (command) {
+      case CodexComposerCommand.goal:
+        final objective = await _showCodexGoalEditor(
+          context,
+          initialObjective: state.snapshot.goal?.objective ?? '',
+        );
+        if (objective != null) {
+          if (state.snapshot.goal == null) {
+            await controller.setGoal(objective, recordUserMessage: true);
+          } else {
+            await controller.editGoal(objective);
+          }
+        }
       case CodexComposerCommand.newChat:
         if (state.supportsSessions) {
           await controller.newThread();

@@ -178,6 +178,9 @@ class MobileRuntimeClient
   bool get supportsCodexChat =>
       _runtimeCapabilities.contains(codexChatTabCapability);
   @override
+  bool get supportsCodexGoals =>
+      _runtimeCapabilities.contains(codexGoalsCapability);
+  @override
   bool get supportsCodexSessions =>
       _runtimeCapabilities.contains(mobileCodexSessionsCapability);
   @override

@@ -82,6 +82,7 @@ extension _CodexComposerQuickOpen on _CodexComposerState {
         _commands = codexComposerEntries(
           widget.savedPrompts,
           supportsSessions: widget.state.supportsSessions,
+          supportsGoals: widget.state.supportsGoals,
         ).where((command) => command.matches(query)).toList(growable: false);
         _selectedIndex = 0;
       });

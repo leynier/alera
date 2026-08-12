@@ -42,6 +42,7 @@ const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String codexChatTabCapability = 'codexChatTabV1';
+const String codexGoalsCapability = 'codexGoalsV1';
 const String mobileCodexSessionsCapability = 'mobileCodexSessionsV1';
 const String codexTurnPolicyCapability = 'codexTurnPolicyV2';
 const String mobileCodexWorkspaceFilesCapability =
@@ -124,6 +125,7 @@ abstract interface class MobileTerminalClient {
 /// and older hosts continue to exercise terminal parity unchanged.
 abstract interface class MobileCodexClient {
   bool get supportsCodexChat;
+  bool get supportsCodexGoals;
   bool get supportsCodexSessions;
   bool get supportsCodexTurnPolicy;
   Stream<MobileRuntimeEvent> get events;

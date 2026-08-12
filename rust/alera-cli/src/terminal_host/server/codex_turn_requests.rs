@@ -23,6 +23,44 @@ use super::{copy_optional, turn_params};
 
 impl ServerActor {
     pub(super) async fn start_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
+        let (tab, thread_id, current_cwd) = self.materialize_codex_thread(payload).await?;
+        let original_input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
+        let app_server_input = super::super::codex_workspace_inputs::normalize_legacy_codex_inputs(
+            original_input.clone(),
+            &current_cwd,
+        )
+        .await?;
+        let mut turn_payload = payload.clone();
+        turn_payload["cwd"] = Value::String(current_cwd);
+        let params = turn_params(&turn_payload, &thread_id, app_server_input);
+        let client_user_message_id = params
+            .get("clientUserMessageId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let result = self.codex_server_request("turn/start", params).await?;
+        let turn_id = result
+            .pointer("/turn/id")
+            .or_else(|| result.get("turnId"))
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("queued-{}", Uuid::new_v4()));
+        self.persist_codex_user_input(
+            &tab.id,
+            &original_input,
+            payload.get("userMessage"),
+            &turn_id,
+            client_user_message_id.as_deref(),
+            false,
+        )
+        .await;
+        Ok(result)
+    }
+
+    pub(in crate::terminal_host::server) async fn materialize_codex_thread(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<(WorkspaceTabRecord, String, String)> {
         let mut tab = self
             .codex_tab(&require_string_key(payload, "tabId")?)
             .await?;
@@ -116,37 +154,7 @@ impl ServerActor {
                 .await?;
             }
         }
-        let original_input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
-        let app_server_input = super::super::codex_workspace_inputs::normalize_legacy_codex_inputs(
-            original_input.clone(),
-            &current_cwd,
-        )
-        .await?;
-        let mut turn_payload = payload.clone();
-        turn_payload["cwd"] = Value::String(current_cwd);
-        let params = turn_params(&turn_payload, &thread_id, app_server_input);
-        let client_user_message_id = params
-            .get("clientUserMessageId")
-            .and_then(Value::as_str)
-            .map(str::to_string);
-        let result = self.codex_server_request("turn/start", params).await?;
-        let turn_id = result
-            .pointer("/turn/id")
-            .or_else(|| result.get("turnId"))
-            .and_then(Value::as_str)
-            .filter(|value| !value.trim().is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("queued-{}", Uuid::new_v4()));
-        self.persist_codex_user_input(
-            &tab.id,
-            &original_input,
-            payload.get("userMessage"),
-            &turn_id,
-            client_user_message_id.as_deref(),
-            false,
-        )
-        .await;
-        Ok(result)
+        Ok((tab, thread_id, current_cwd))
     }
 
     pub(super) async fn interrupt_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {

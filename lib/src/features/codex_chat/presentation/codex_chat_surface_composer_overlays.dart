@@ -1,6 +1,7 @@
 part of 'codex_chat_surface.dart';
 
 enum CodexComposerCommand {
+  goal('goal', 'Set or manage a long-running goal'),
   newChat('new', 'Start a new Codex chat'),
   clear('clear', 'Clear the current chat and start a new one'),
   compact('compact', 'Compact the current context'),
@@ -22,6 +23,7 @@ enum CodexComposerCommand {
   final String description;
 
   IconData get icon => switch (this) {
+    CodexComposerCommand.goal => Icons.track_changes_outlined,
     CodexComposerCommand.newChat ||
     CodexComposerCommand.clear => AleraIcons.forward,
     CodexComposerCommand.resume => AleraIcons.restore,
@@ -70,9 +72,11 @@ class CodexComposerEntry {
 List<CodexComposerEntry> codexComposerEntries(
   List<native.CodexSavedPrompt> savedPrompts, {
   required bool supportsSessions,
+  required bool supportsGoals,
 }) => <CodexComposerEntry>[
   for (final command in codexComposerCommands)
-    if (supportsSessions || command != CodexComposerCommand.resume)
+    if ((supportsSessions || command != CodexComposerCommand.resume) &&
+        (supportsGoals || command != CodexComposerCommand.goal))
       CodexComposerEntry.builtin(command),
   for (final prompt in savedPrompts) CodexComposerEntry.saved(prompt),
 ];
