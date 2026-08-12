@@ -451,11 +451,74 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Tune Windows build environment
         if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
+
+      - name: Configure Windows ARM64 native toolchain
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installationPath = & $vswhere `
+            -latest `
+            -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 `
+            -property installationPath
+          if (-not $installationPath) {
+            throw 'Visual Studio ARM64 build tools are unavailable.'
+          }
+
+          $devCmd = Join-Path $installationPath 'Common7\Tools\VsDevCmd.bat'
+          $devEnvironment = & cmd.exe /d /s /c `
+            "`"$devCmd`" -no_logo -arch=arm64 -host_arch=x64 && set"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to resolve the Visual Studio ARM64 environment.'
+          }
+
+          $environment = @{}
+          foreach ($line in $devEnvironment) {
+            $separator = $line.IndexOf('=')
+            if ($separator -gt 0) {
+              $environment[$line.Substring(0, $separator)] = $line.Substring($separator + 1)
+            }
+          }
+          foreach ($name in @('INCLUDE', 'LIB', 'LIBPATH')) {
+            if (-not $environment[$name]) {
+              throw "Visual Studio did not provide $name for ARM64."
+            }
+            "$name=$($environment[$name])" | Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+          }
+
+          $linker = Join-Path `
+            $environment['VCToolsInstallDir'] `
+            'bin\Hostx64\arm64\link.exe'
+          $ninja = Join-Path `
+            $installationPath `
+            'Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
+          $clangCl = (Get-Command clang-cl.exe -ErrorAction Stop).Source
+          foreach ($path in @($linker, $ninja, $clangCl)) {
+            if (-not (Test-Path $path -PathType Leaf)) {
+              throw "Required Windows ARM64 tool is unavailable: $path"
+            }
+          }
+
+          @(
+            "CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=$linker"
+            'CMAKE_GENERATOR_aarch64_pc_windows_msvc=Ninja'
+            "CMAKE_MAKE_PROGRAM=$ninja"
+            "CC_aarch64_pc_windows_msvc=$clangCl"
+            "CXX_aarch64_pc_windows_msvc=$clangCl"
+          ) | Out-File `
+            -FilePath $env:GITHUB_ENV `
+            -Encoding utf8 `
+            -Append
 
       - name: Setup Rust and sccache
         uses: ./.github/actions/setup-rust-sccache
