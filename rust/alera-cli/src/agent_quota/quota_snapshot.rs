@@ -20,6 +20,52 @@ struct QuotaSnapshot {
 }
 
 impl QuotaSnapshot {
+    fn ok(
+        provider: &str,
+        account_id: &str,
+        display_name: &str,
+        windows: Vec<QuotaWindow>,
+        buckets: Vec<QuotaBucket>,
+    ) -> Self {
+        Self {
+            provider: provider.to_string(),
+            account_id: account_id.to_string(),
+            display_name: display_name.to_string(),
+            status: "ok".to_string(),
+            updated_at: now_millis(),
+            error: None,
+            windows,
+            buckets,
+            amounts: Vec::new(),
+            data_quality: None,
+            scope: None,
+            rate_limit_reset_credits: None,
+        }
+    }
+
+    fn estimated(
+        provider: &str,
+        account_id: &str,
+        display_name: &str,
+        windows: Vec<QuotaWindow>,
+        amounts: Vec<QuotaAmount>,
+    ) -> Self {
+        Self {
+            provider: provider.to_string(),
+            account_id: account_id.to_string(),
+            display_name: display_name.to_string(),
+            status: "ok".to_string(),
+            updated_at: now_millis(),
+            error: None,
+            windows,
+            buckets: Vec::new(),
+            amounts,
+            data_quality: Some("estimated".to_string()),
+            scope: Some("host".to_string()),
+            rate_limit_reset_credits: None,
+        }
+    }
+
     fn unavailable(
         provider: &str,
         account_id: &str,
@@ -64,26 +110,4 @@ impl QuotaSnapshot {
         }
     }
 
-    fn ok(
-        provider: &str,
-        account_id: &str,
-        display_name: &str,
-        windows: Vec<QuotaWindow>,
-        buckets: Vec<QuotaBucket>,
-    ) -> Self {
-        Self {
-            provider: provider.to_string(),
-            account_id: account_id.to_string(),
-            display_name: display_name.to_string(),
-            status: "ok".to_string(),
-            updated_at: now_millis(),
-            error: None,
-            windows,
-            buckets,
-            amounts: Vec::new(),
-            data_quality: None,
-            scope: None,
-            rate_limit_reset_credits: None,
-        }
-    }
 }
