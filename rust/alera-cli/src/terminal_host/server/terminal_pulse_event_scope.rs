@@ -26,6 +26,13 @@ pub(super) fn path_is_rename_source(event: &Event, path_index: usize) -> bool {
         ) && path_index == 0
 }
 
+pub(super) fn event_can_remove_paths(event: &Event) -> bool {
+    matches!(
+        event.kind,
+        EventKind::Remove(_) | EventKind::Modify(ModifyKind::Name(_))
+    )
+}
+
 pub(in crate::terminal_host::server::terminal_pulse) fn retain_workspace_paths(
     root: &Path,
     event: &mut Event,

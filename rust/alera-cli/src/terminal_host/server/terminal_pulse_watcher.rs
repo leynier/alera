@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
-use git2::{ErrorCode, Repository, Status, StatusOptions};
+use git2::{Repository, StatusOptions};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -15,13 +15,18 @@ use super::ServerCommand;
 
 #[path = "terminal_pulse_event_scope.rs"]
 pub(super) mod event_scope;
+#[path = "terminal_pulse_git_ignore_sources.rs"]
+mod git_ignore_sources;
+#[path = "terminal_pulse_git_relevance.rs"]
+mod git_relevance;
 #[path = "terminal_pulse_watch_reconciliation.rs"]
 mod reconciliation;
 
 use event_scope::{
-    event_invalidates_workspace_root, path_is_in_workspace, path_is_rename_source,
-    retain_workspace_paths,
+    event_can_remove_paths, event_invalidates_workspace_root, retain_workspace_paths,
 };
+use git_ignore_sources::{refresh_git_ignore_source_watches, reopen_repository, GitIgnoreSources};
+use git_relevance::event_is_git_relevant;
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
@@ -51,6 +56,8 @@ struct WorkspacePulseWorker {
     repository: Repository,
     root: PathBuf,
     watched_directories: HashSet<PathBuf>,
+    git_ignore_sources: Arc<RwLock<GitIgnoreSources>>,
+    git_ignore_watch_directories: HashSet<PathBuf>,
     failure_reported: Arc<AtomicBool>,
 }
 
@@ -66,7 +73,7 @@ impl WorkspacePulseWatcher {
                 "Terminal Pulse workspace could not be resolved: {error}"
             ))
         })?;
-        let repository = Repository::discover(&root).map_err(|error| {
+        let mut repository = Repository::discover(&root).map_err(|error| {
             HostError::state(format!("Terminal Pulse requires a Git workspace: {error}"))
         })?;
         if repository.workdir().is_none() {
@@ -89,6 +96,7 @@ impl WorkspacePulseWatcher {
                 ))
             })?;
         let git_exclude_file = git_exclude_directory.join("exclude");
+        let git_ignore_sources = Arc::new(RwLock::new(GitIgnoreSources::discover(&repository)?));
         let worker_repository = Repository::discover(&root).map_err(git_query_error)?;
         let cancelled = Arc::new(AtomicBool::new(false));
         let event_sequence = Arc::new(AtomicU64::new(0));
@@ -112,8 +120,10 @@ impl WorkspacePulseWatcher {
         let callback_git_metadata_directory = git_metadata_directory.clone();
         let callback_git_exclude_file = git_exclude_file.clone();
         let callback_ancestor_ignore_files = ancestor_ignore_files.clone();
+        let callback_git_ignore_sources = Arc::clone(&git_ignore_sources);
         let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
         let callback_wake_tx = wake_tx.clone();
+        let mut git_rules_dirty = false;
         let mut watcher = RecommendedWatcher::new(
             move |event: notify::Result<Event>| {
                 if callback_cancelled.load(Ordering::Relaxed) {
@@ -151,7 +161,28 @@ impl WorkspacePulseWatcher {
                     path_is_git_index_event(&callback_git_metadata_directory, path)
                         || path == &callback_git_exclude_file
                         || callback_ancestor_ignore_files.contains(path)
+                        || callback_git_ignore_sources
+                            .read()
+                            .is_ok_and(|sources| sources.contains(path))
                 });
+                if git_rules_changed {
+                    git_rules_dirty = true;
+                } else if std::mem::take(&mut git_rules_dirty) {
+                    match reopen_repository(&repository) {
+                        Ok(refreshed) => repository = refreshed,
+                        Err(error) => {
+                            callback_cancelled.store(true, Ordering::Relaxed);
+                            report_watcher_failure(
+                                &callback_identity,
+                                &callback_failure_reported,
+                                &callback_inbox,
+                                error.wire_message(),
+                            );
+                            let _ = callback_wake_tx.try_send(());
+                            return;
+                        }
+                    }
+                }
                 if !event.need_rescan() {
                     retain_workspace_paths(&callback_root, &mut event);
                     if event.paths.is_empty() && !git_rules_changed {
@@ -230,6 +261,22 @@ impl WorkspacePulseWatcher {
                 .watch(directory, RecursiveMode::NonRecursive)
                 .map_err(watcher_error)?;
         }
+        let mut git_ignore_watch_directories = HashSet::from([
+            git_metadata_directory.clone(),
+            git_exclude_directory.clone(),
+        ]);
+        git_ignore_watch_directories.extend(
+            ancestor_ignore_files
+                .iter()
+                .filter_map(|path| path.parent().map(Path::to_path_buf)),
+        );
+        refresh_git_ignore_source_watches(
+            &git_ignore_sources,
+            &mut git_ignore_watch_directories,
+            &initial_watch_directories,
+            &mut watcher,
+            &worker_repository,
+        )?;
 
         let worker = thread::Builder::new()
             .name(format!("terminal-pulse-{}", identity.workspace_id))
@@ -246,6 +293,8 @@ impl WorkspacePulseWatcher {
                     repository: worker_repository,
                     root,
                     watched_directories: initial_watch_directories,
+                    git_ignore_sources,
+                    git_ignore_watch_directories,
                     failure_reported,
                 }
                 .run()
@@ -289,11 +338,15 @@ fn watcher_config() -> Config {
     Config::default().with_follow_symlinks(false)
 }
 
-fn event_requires_watch_reconcile(event: &Event, identities: &PathIdentityCache) -> bool {
-    event.paths.iter().any(|path| {
-        path.file_name().is_some_and(|name| name == ".gitignore")
-            || identities.identity_for_event(&event.kind, path) == PathIdentity::Directory
-    })
+pub(super) fn event_requires_watch_reconcile(
+    event: &Event,
+    identities: &PathIdentityCache,
+) -> bool {
+    event_can_remove_paths(event)
+        || event.paths.iter().any(|path| {
+            path.file_name().is_some_and(|name| name == ".gitignore")
+                || identities.identity_for_event(&event.kind, path) == PathIdentity::Directory
+        })
 }
 
 fn path_is_git_index_event(git_metadata_directory: &Path, path: &Path) -> bool {
@@ -359,112 +412,6 @@ pub(super) fn event_is_relevant_with_identities(
         &mut HashSet::new(),
         path_identities,
     )
-}
-
-fn event_is_git_relevant(
-    repository: &Repository,
-    root: &Path,
-    event: &Event,
-    ignored_prefixes: &mut HashSet<PathBuf>,
-    path_identities: &mut PathIdentityCache,
-) -> HostResult<bool> {
-    let Some(workdir) = repository.workdir() else {
-        return Ok(false);
-    };
-    let identities = event
-        .paths
-        .iter()
-        .map(|path| path_identities.identity_for_event(&event.kind, path))
-        .collect::<Vec<_>>();
-    path_identities.apply_event(event, &identities);
-    for (path_index, (path, identity)) in event.paths.iter().zip(identities).enumerate() {
-        if !path_is_in_workspace(root, path) {
-            continue;
-        }
-        let Ok(relative) = path.strip_prefix(workdir) else {
-            continue;
-        };
-        let git_path = relative.to_string_lossy().replace('\\', "/");
-        let directory_prefix = format!("{git_path}/");
-        let directory_like = identity == PathIdentity::Directory;
-        if directory_like {
-            if path_is_ignored(repository, relative, true, ignored_prefixes)? {
-                let index = repository.index().map_err(git_query_error)?;
-                if index.get_path(relative, 0).is_some()
-                    || index.iter().any(|entry| {
-                        std::str::from_utf8(&entry.path)
-                            .is_ok_and(|entry_path| entry_path.starts_with(&directory_prefix))
-                    })
-                {
-                    return Ok(true);
-                }
-                continue;
-            }
-            let mut options = StatusOptions::new();
-            options
-                .include_untracked(true)
-                .recurse_untracked_dirs(true)
-                .include_ignored(false)
-                .pathspec(git_path);
-            if repository
-                .statuses(Some(&mut options))
-                .map_err(git_query_error)?
-                .iter()
-                .next()
-                .is_some()
-            {
-                return Ok(true);
-            }
-            if path_is_rename_source(event, path_index)
-                || is_missing_ambiguous_rename(&event.kind, path)
-            {
-                return Ok(true);
-            }
-            continue;
-        }
-        match repository.status_file(relative) {
-            Ok(status) if status.contains(Status::IGNORED) => continue,
-            Ok(_) => return Ok(true),
-            Err(error) if error.code() == ErrorCode::Ambiguous => return Ok(true),
-            Err(error) if error.code() == ErrorCode::NotFound => {
-                if !path_is_ignored(repository, relative, directory_like, ignored_prefixes)? {
-                    return Ok(true);
-                }
-            }
-            Err(error) => return Err(git_query_error(error)),
-        }
-    }
-    Ok(false)
-}
-
-fn path_is_ignored(
-    repository: &Repository,
-    relative: &Path,
-    check_as_directory: bool,
-    ignored_prefixes: &mut HashSet<PathBuf>,
-) -> HostResult<bool> {
-    if ignored_prefixes
-        .iter()
-        .any(|prefix| relative.starts_with(prefix))
-    {
-        return Ok(true);
-    }
-    if repository
-        .status_should_ignore(relative)
-        .map_err(git_query_error)?
-    {
-        ignored_prefixes.insert(relative.to_path_buf());
-        return Ok(true);
-    }
-    if check_as_directory
-        && repository
-            .status_should_ignore(&relative.join(".alera-terminal-pulse-entry"))
-            .map_err(git_query_error)?
-    {
-        ignored_prefixes.insert(relative.to_path_buf());
-        return Ok(true);
-    }
-    Ok(false)
 }
 
 fn report_watcher_failure(

@@ -122,6 +122,29 @@ fn workspace_root_removal_and_rename_invalidate_the_watcher() {
 }
 
 #[test]
+fn source_events_reconcile_even_without_a_cached_directory_identity() {
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    let identities = PathIdentityCache::scan(dir.path(), &repository).unwrap();
+    let missing = dir.path().join("uncached/removed");
+
+    for kind in [
+        EventKind::Remove(notify::event::RemoveKind::Any),
+        EventKind::Modify(notify::event::ModifyKind::Name(
+            notify::event::RenameMode::From,
+        )),
+        EventKind::Modify(notify::event::ModifyKind::Name(
+            notify::event::RenameMode::Any,
+        )),
+    ] {
+        assert!(super::watcher::event_requires_watch_reconcile(
+            &Event::new(kind).add_path(missing.clone()),
+            &identities,
+        ));
+    }
+}
+
+#[test]
 fn git_index_errors_fail_closed() {
     let dir = tempfile::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();

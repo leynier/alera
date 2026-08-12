@@ -12,6 +12,23 @@ impl WorkspacePulseWorker {
                 return;
             }
             if self.reconcile_requested.swap(false, Ordering::AcqRel) {
+                self.repository = match reopen_repository(&self.repository) {
+                    Ok(repository) => repository,
+                    Err(error) => {
+                        self.fail(error);
+                        return;
+                    }
+                };
+                if let Err(error) = refresh_git_ignore_source_watches(
+                    &self.git_ignore_sources,
+                    &mut self.git_ignore_watch_directories,
+                    &self.watched_directories,
+                    &mut self.watcher,
+                    &self.repository,
+                ) {
+                    self.fail(error);
+                    return;
+                }
                 let additions = match reconcile_watch_directories(
                     &mut self.watcher,
                     &self.repository,

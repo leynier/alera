@@ -40,6 +40,9 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
     let (wake_tx, wake_rx) = mpsc::sync_channel(1);
     let pending_event_sequence = Arc::new(AtomicU64::new(0));
     let cancelled = Arc::new(AtomicBool::new(false));
+    let git_ignore_sources = Arc::new(RwLock::new(
+        GitIgnoreSources::discover(&repository).unwrap(),
+    ));
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     let worker = thread::spawn({
         let pending_event_sequence = Arc::clone(&pending_event_sequence);
@@ -61,6 +64,8 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
                 repository,
                 root: root.clone(),
                 watched_directories: HashSet::from([root]),
+                git_ignore_sources,
+                git_ignore_watch_directories: HashSet::new(),
                 failure_reported: Arc::new(AtomicBool::new(false)),
             }
             .run()
