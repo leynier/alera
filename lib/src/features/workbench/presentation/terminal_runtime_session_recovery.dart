@@ -64,7 +64,6 @@ Future<void> _reconnectTerminalSession(
 }
 
 Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
-  handle._markTerminalPulseDisarmed();
   final session = handle._ptySession;
   if (session is RecoverableTerminalPtySession && session.supportsRestart) {
     await _recoverTerminalSession(

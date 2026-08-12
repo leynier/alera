@@ -1,5 +1,7 @@
 part of 'terminal_host_client.dart';
 
+const Duration _terminalPulseSetupTimeout = Duration(seconds: 30);
+
 mixin _TerminalPulseHostClientSupport implements TerminalPulseHostClient {
   _TerminalHostConnection? get _terminalConnection;
 
@@ -7,8 +9,9 @@ mixin _TerminalPulseHostClientSupport implements TerminalPulseHostClient {
 
   Future<Map<String, Object?>> _terminalRequestMap(
     String type,
-    Map<String, Object?> payload,
-  );
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  });
 
   bool get supportsDeferredInput =>
       _terminalConnection?.supportsDeferredInput ??
@@ -51,7 +54,7 @@ mixin _TerminalPulseHostClientSupport implements TerminalPulseHostClient {
         'sessionId': sessionId,
         'configuration': configuration.toJson(),
         'armed': armed,
-      }),
+      }, timeout: _terminalPulseSetupTimeout),
     );
   }
 }

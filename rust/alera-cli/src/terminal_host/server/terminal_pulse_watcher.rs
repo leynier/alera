@@ -79,6 +79,7 @@ impl WorkspacePulseWatcher {
             generation,
             inbox,
             GitConfigEnvironment::from_process(),
+            Arc::new(AtomicBool::new(false)),
         )
     }
 
@@ -88,6 +89,7 @@ impl WorkspacePulseWatcher {
         generation: u64,
         inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
         git_config_environment: GitConfigEnvironment,
+        cancelled: Arc<AtomicBool>,
     ) -> HostResult<Self> {
         let root = dunce::canonicalize(&root).map_err(|error| {
             HostError::state(format!(
@@ -102,8 +104,10 @@ impl WorkspacePulseWatcher {
                 "Terminal Pulse requires a Git workspace with a working tree.",
             ));
         }
+        ensure_setup_active(&cancelled)?;
         let mut repository = prepare_repository(repository, &git_config_environment)?;
-        let mut path_identities = PathIdentityCache::scan(&root, &repository)?;
+        let mut path_identities =
+            PathIdentityCache::scan_with_cancellation(&root, &repository, &cancelled)?;
         let initial_watch_directories = path_identities.watch_directories().clone();
         let ancestor_ignore_files = ancestor_gitignore_files(&root, &repository)?;
         let git_metadata_directory = dunce::canonicalize(repository.path()).map_err(|error| {
@@ -126,7 +130,7 @@ impl WorkspacePulseWatcher {
             Repository::discover(&root).map_err(git_query_error)?,
             &git_config_environment,
         )?;
-        let cancelled = Arc::new(AtomicBool::new(false));
+        ensure_setup_active(&cancelled)?;
         let event_sequence = Arc::new(AtomicU64::new(0));
         let pending_event_sequence = Arc::new(AtomicU64::new(0));
         let callback_cancelled = Arc::clone(&cancelled);
@@ -271,6 +275,7 @@ impl WorkspacePulseWatcher {
         )
         .map_err(watcher_error)?;
         for directory in &initial_watch_directories {
+            ensure_setup_active(&cancelled)?;
             watcher
                 .watch(directory, RecursiveMode::NonRecursive)
                 .map_err(watcher_error)?;
@@ -307,6 +312,7 @@ impl WorkspacePulseWatcher {
             &worker_repository,
             &git_config_environment,
         )?;
+        ensure_setup_active(&cancelled)?;
 
         let worker = thread::Builder::new()
             .name(format!("terminal-pulse-{}", identity.workspace_id))
@@ -349,6 +355,15 @@ impl WorkspacePulseWatcher {
     pub(super) fn generation(&self) -> u64 {
         self.generation
     }
+}
+
+fn ensure_setup_active(cancelled: &AtomicBool) -> HostResult<()> {
+    if cancelled.load(Ordering::Acquire) {
+        return Err(HostError::state(
+            "Terminal Pulse watcher setup was cancelled.",
+        ));
+    }
+    Ok(())
 }
 
 impl Drop for WorkspacePulseWatcher {

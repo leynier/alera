@@ -74,6 +74,36 @@ void _registerTerminalRuntimePulseTests() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  test('failed restart preserves the armed pulse state', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final pty = _FakeRecoverablePulseTerminalPtySession(
+      Completer<TerminalPulseState>(),
+      initialStatus: _armedPulseState,
+      restartError: StateError('restart failed'),
+    );
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[pty],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    try {
+      await session.ensureStarted();
+      expect(session.terminalPulseState.value.armed, isTrue);
+
+      await session.restart();
+
+      expect(session.terminalPulseState.value.armed, isTrue);
+      expect(session.errorMessage, contains('restart failed'));
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }
 
 const TerminalPulseState _pulseState = TerminalPulseState(
@@ -85,15 +115,28 @@ const TerminalPulseState _pulseState = TerminalPulseState(
   armed: false,
 );
 
+const TerminalPulseState _armedPulseState = TerminalPulseState(
+  configuration: TerminalPulseConfiguration(
+    command: 'r',
+    appendEnter: true,
+    delayMilliseconds: 2000,
+  ),
+  armed: true,
+);
+
 class _FakeRecoverablePulseTerminalPtySession extends _FakeTerminalPtySession
     implements RecoverableTerminalPtySession, TerminalPulsePtySession {
   _FakeRecoverablePulseTerminalPtySession(
     this.delayedStatus, {
     this.delayInitialStatus = false,
+    this.initialStatus = _pulseState,
+    this.restartError,
   });
 
   final Completer<TerminalPulseState> delayedStatus;
   final bool delayInitialStatus;
+  final TerminalPulseState initialStatus;
+  final Object? restartError;
   int statusCalls = 0;
 
   @override
@@ -106,13 +149,18 @@ class _FakeRecoverablePulseTerminalPtySession extends _FakeTerminalPtySession
   Future<void> reconnect() async {}
 
   @override
-  Future<void> restartProcess() async {}
+  Future<void> restartProcess() async {
+    final error = restartError;
+    if (error != null) {
+      throw error;
+    }
+  }
 
   @override
   Future<TerminalPulseState> terminalPulseStatus() {
     statusCalls += 1;
     return !delayInitialStatus && statusCalls == 1
-        ? Future<TerminalPulseState>.value(_pulseState)
+        ? Future<TerminalPulseState>.value(initialStatus)
         : delayedStatus.future;
   }
 

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -41,6 +41,26 @@ impl GitConfigEnvironment {
         }
     }
 
+    pub(in crate::terminal_host::server::terminal_pulse) fn from_variables(
+        variables: &BTreeMap<String, String>,
+    ) -> Self {
+        let path = |name: &str| {
+            variables
+                .get(name)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        };
+        Self::new(
+            path("HOME"),
+            path("XDG_CONFIG_HOME"),
+            path("GIT_CONFIG_GLOBAL"),
+            path("GIT_CONFIG_SYSTEM"),
+            variables
+                .get("GIT_CONFIG_NOSYSTEM")
+                .is_some_and(|value| !value.is_empty() && value != "0"),
+        )
+    }
+
     #[cfg(test)]
     pub(super) fn from_process() -> Self {
         Self::new(
@@ -68,32 +88,35 @@ impl GitIgnoreSources {
         repository: &Repository,
         environment: &GitConfigEnvironment,
     ) -> HostResult<Self> {
-        let mut files = HashSet::new();
-        files.insert(repository.path().join("config"));
-        files.insert(repository.commondir().join("config"));
-        files.insert(repository.path().join("config.worktree"));
-        files.insert(repository.commondir().join("config.worktree"));
+        let mut config_files = HashSet::new();
+        config_files.insert(repository.path().join("config"));
+        config_files.insert(repository.commondir().join("config"));
+        config_files.insert(repository.path().join("config.worktree"));
+        config_files.insert(repository.commondir().join("config.worktree"));
         if !environment.no_system_config {
-            files.extend(
+            config_files.extend(
                 environment
                     .system_config
                     .clone()
                     .or_else(|| Config::find_system().ok()),
             );
         }
-        files.extend(
+        config_files.extend(
             environment
                 .global_config
                 .clone()
                 .or_else(|| environment.home().map(|home| home.join(".gitconfig")))
                 .or_else(|| Config::find_global().ok()),
         );
+        let mut files = HashSet::new();
         if let Some(xdg) = environment.xdg_directory() {
-            files.insert(xdg.join("git/config"));
+            config_files.insert(xdg.join("git/config"));
             files.insert(xdg.join("git/ignore"));
         } else if let Ok(xdg) = Config::find_xdg() {
-            files.insert(xdg);
+            config_files.insert(xdg);
         }
+        collect_config_includes(&mut config_files, environment)?;
+        files.extend(config_files);
         let config = repository.config().map_err(git_source_error)?;
         match config.get_path("core.excludesFile") {
             Ok(path) => {
@@ -102,23 +125,102 @@ impl GitIgnoreSources {
             Err(error) if error.code() == ErrorCode::NotFound => {}
             Err(error) => return Err(git_source_error(error)),
         }
+        let files: HashSet<PathBuf> = files.into_iter().map(normalize_source_path).collect();
         let directories = files
             .iter()
-            .filter_map(|path| path.parent())
-            .filter(|path| path.is_dir())
-            .map(Path::to_path_buf)
+            .filter_map(|path| nearest_existing_directory(path.parent()?))
             .collect();
         Ok(Self { files, directories })
     }
 
     pub(super) fn contains(&self, path: &Path) -> bool {
         self.files.contains(path)
+            || self.files.iter().any(|source| source.starts_with(path))
             || path
                 .file_name()
                 .and_then(|name| name.to_str())
                 .and_then(|name| name.strip_suffix(".lock"))
                 .is_some_and(|name| self.files.contains(&path.with_file_name(name)))
     }
+}
+
+fn collect_config_includes(
+    files: &mut HashSet<PathBuf>,
+    environment: &GitConfigEnvironment,
+) -> HostResult<()> {
+    let mut pending = files
+        .iter()
+        .filter(|path| path.is_file())
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut inspected = HashSet::new();
+    while let Some(config_path) = pending.pop() {
+        if !inspected.insert(config_path.clone()) {
+            continue;
+        }
+        let config = Config::open(&config_path).map_err(git_source_error)?;
+        for pattern in ["^include\\.path$", "^includeif\\..*\\.path$"] {
+            let mut entries = config.entries(Some(pattern)).map_err(git_source_error)?;
+            while let Some(entry) = entries.next() {
+                let entry = entry.map_err(git_source_error)?;
+                if entry.include_depth() != 0 || !entry.has_value() {
+                    continue;
+                }
+                let value = entry.value().map_err(git_source_error)?;
+                let include = resolve_include_path(&config_path, value, environment);
+                if files.insert(include.clone()) && include.is_file() {
+                    pending.push(include);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn resolve_include_path(
+    config_path: &Path,
+    value: &str,
+    environment: &GitConfigEnvironment,
+) -> PathBuf {
+    if let Some(relative) = value.strip_prefix("~/") {
+        if let Some(home) = environment.home() {
+            return home.join(relative);
+        }
+    }
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        return path;
+    }
+    config_path
+        .parent()
+        .map_or(path.clone(), |parent| parent.join(path))
+}
+
+fn nearest_existing_directory(path: &Path) -> Option<PathBuf> {
+    let mut candidate = Some(path);
+    while let Some(directory) = candidate {
+        if directory.is_dir() {
+            return Some(directory.to_path_buf());
+        }
+        candidate = directory.parent();
+    }
+    None
+}
+
+fn normalize_source_path(path: PathBuf) -> PathBuf {
+    if let Ok(canonical) = dunce::canonicalize(&path) {
+        return canonical;
+    }
+    let mut ancestor = path.parent();
+    while let Some(candidate) = ancestor {
+        if let Ok(canonical) = dunce::canonicalize(candidate) {
+            return path
+                .strip_prefix(candidate)
+                .map_or(path.clone(), |suffix| canonical.join(suffix));
+        }
+        ancestor = candidate.parent();
+    }
+    path
 }
 
 pub(super) fn prepare_repository(

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use git2::Repository;
 use notify::event::{ModifyKind, RenameMode};
@@ -21,6 +22,15 @@ pub(super) struct PathIdentityCache {
 
 impl PathIdentityCache {
     pub(super) fn scan(root: &Path, repository: &Repository) -> HostResult<Self> {
+        Self::scan_with_cancellation(root, repository, &AtomicBool::new(false))
+    }
+
+    pub(super) fn scan_with_cancellation(
+        root: &Path,
+        repository: &Repository,
+        cancelled: &AtomicBool,
+    ) -> HostResult<Self> {
+        ensure_scan_active(cancelled)?;
         let tracked_directories = tracked_parent_directories(root, repository)?;
         let mut cache = Self {
             root: root.to_path_buf(),
@@ -29,8 +39,10 @@ impl PathIdentityCache {
         };
         let mut pending = vec![root.to_path_buf()];
         while let Some(directory) = pending.pop() {
+            ensure_scan_active(cancelled)?;
             let entries = std::fs::read_dir(&directory).map_err(identity_scan_error)?;
             for entry in entries {
+                ensure_scan_active(cancelled)?;
                 let entry = entry.map_err(identity_scan_error)?;
                 if entry.file_name() == ".git" {
                     continue;
@@ -179,6 +191,15 @@ impl PathIdentityCache {
     pub(super) fn contains_directory(&self, path: &Path) -> bool {
         self.is_directory(path)
     }
+}
+
+fn ensure_scan_active(cancelled: &AtomicBool) -> HostResult<()> {
+    if cancelled.load(Ordering::Acquire) {
+        return Err(HostError::state(
+            "Terminal Pulse watcher setup was cancelled.",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn is_missing_ambiguous_rename(kind: &EventKind, path: &Path) -> bool {

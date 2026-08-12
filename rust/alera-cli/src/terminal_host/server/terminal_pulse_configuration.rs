@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
@@ -95,20 +97,17 @@ impl ServerActor {
             );
         }
         if let Some(generation) = self.terminal_pulses.reserve_watcher_start(&workspace_id) {
-            let git_config_environment = GitConfigEnvironment::new(
-                login_shell_path("HOME").await,
-                login_shell_path("XDG_CONFIG_HOME").await,
-                login_shell_path("GIT_CONFIG_GLOBAL").await,
-                login_shell_path("GIT_CONFIG_SYSTEM").await,
-                crate::login_shell_environment::login_shell_variable("GIT_CONFIG_NOSYSTEM")
-                    .await
-                    .is_some_and(|value| value != "0"),
-            );
             let inbox = self.inbox.clone();
             tokio::spawn(async move {
-                let watcher_task = tokio::task::spawn_blocking({
+                let environment =
+                    crate::login_shell_environment::login_shell_variables_with_process_overrides()
+                        .await;
+                let git_config_environment = GitConfigEnvironment::from_variables(&environment);
+                let setup_cancelled = Arc::new(AtomicBool::new(false));
+                let mut watcher_task = tokio::task::spawn_blocking({
                     let watcher_inbox = inbox.clone();
                     let watcher_workspace_id = workspace_id.clone();
+                    let setup_cancelled = Arc::clone(&setup_cancelled);
                     move || {
                         WorkspacePulseWatcher::start_blocking_with_environment(
                             watcher_workspace_id,
@@ -116,18 +115,24 @@ impl ServerActor {
                             generation,
                             watcher_inbox,
                             git_config_environment,
+                            setup_cancelled,
                         )
                     }
                 });
-                let result = match tokio::time::timeout(WATCHER_START_TIMEOUT, watcher_task).await {
-                    Err(_) => Err(HostError::state(
-                        "Terminal Pulse watcher setup timed out before it could be armed.",
-                    )),
-                    Ok(Err(error)) => Err(HostError::state(format!(
-                        "Terminal Pulse watcher task failed: {error}"
-                    ))),
-                    Ok(Ok(result)) => result,
-                };
+                let result =
+                    match tokio::time::timeout(WATCHER_START_TIMEOUT, &mut watcher_task).await {
+                        Err(_) => {
+                            setup_cancelled.store(true, Ordering::Release);
+                            let _ = watcher_task.await;
+                            Err(HostError::state(
+                                "Terminal Pulse watcher setup timed out before it could be armed.",
+                            ))
+                        }
+                        Ok(Err(error)) => Err(HostError::state(format!(
+                            "Terminal Pulse watcher task failed: {error}"
+                        ))),
+                        Ok(Ok(result)) => result,
+                    };
                 let _ = inbox.send(ServerCommand::TerminalPulseWatcherStarted {
                     workspace_id,
                     generation,
@@ -254,10 +259,4 @@ impl ServerActor {
             );
         }
     }
-}
-
-async fn login_shell_path(name: &str) -> Option<PathBuf> {
-    crate::login_shell_environment::login_shell_variable(name)
-        .await
-        .map(PathBuf::from)
 }

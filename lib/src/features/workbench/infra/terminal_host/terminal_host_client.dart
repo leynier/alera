@@ -253,20 +253,25 @@ final class SocketTerminalHostClient
   @override
   Future<Map<String, Object?>> _terminalRequestMap(
     String type,
-    Map<String, Object?> payload,
-  ) async {
-    return asTerminalHostMap(await _terminalRequest(type, payload), 'response');
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  }) async {
+    return asTerminalHostMap(
+      await _terminalRequest(type, payload, timeout: timeout),
+      'response',
+    );
   }
 
   Future<Object?> _terminalRequest(
     String type,
-    Map<String, Object?> payload,
-  ) async {
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  }) async {
     if (_disposed) {
       throw StateError('Terminal host client is disposed.');
     }
     final connection = await _connectTerminal();
-    return _requestOnConnection(connection, type, payload);
+    return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
   Future<Object?> _runtimeRequest(
