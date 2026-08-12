@@ -64,6 +64,13 @@ void main() {
     expect(item.copyWith().tokenStart, item.tokenStart);
   });
 
+  test('question parsing supplies a safe fallback prompt', () {
+    expect(
+      CodexQuestion.fromJson(const <String, Object?>{}, index: 3).question,
+      'Codex asked a question.',
+    );
+  });
+
   test('composer drafts preserve omitted values and report content', () {
     const empty = CodexComposerDraft();
     expect(empty.isEmpty, isTrue);
