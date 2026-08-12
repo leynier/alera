@@ -95,7 +95,7 @@ pub(super) async fn run_runtime_mutation(
     request: RuntimeMutationRequest,
     codex_cleanup: Option<CodexCleanupPlan>,
 ) -> RuntimeMutationOutcome {
-    let prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
+    let mut prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
         match cleanup.prepare().await {
             Ok(prepared) => Some(prepared),
             Err(error) => {
@@ -317,8 +317,11 @@ pub(super) async fn run_runtime_mutation(
     closed_session_tab_ids.sort_unstable();
     closed_session_tab_ids.dedup();
     if result.is_ok() {
-        if let Some(cleanup) = prepared_codex_cleanup.as_ref() {
-            cleanup.delete_threads_after_commit().await;
+        if let Some(cleanup) = prepared_codex_cleanup.as_mut() {
+            // The store mutation is the acknowledgement boundary. Codex can
+            // take up to its request timeout to delete a thread, and that
+            // best-effort cleanup must not hold tab removal responses open.
+            cleanup.delete_threads_after_commit();
         }
     }
     let pending_codex_cleanup = prepared_codex_cleanup
