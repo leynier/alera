@@ -102,7 +102,18 @@ impl ServerActor {
                 let environment =
                     crate::login_shell_environment::login_shell_variables_with_process_overrides()
                         .await;
-                let git_config_environment = GitConfigEnvironment::from_variables(&environment);
+                let git_config_environment =
+                    match GitConfigEnvironment::from_variables(&environment) {
+                        Ok(environment) => environment,
+                        Err(error) => {
+                            let _ = inbox.send(ServerCommand::TerminalPulseWatcherStarted {
+                                workspace_id,
+                                generation,
+                                result: Err(error),
+                            });
+                            return;
+                        }
+                    };
                 let setup_cancelled = Arc::new(AtomicBool::new(false));
                 let watcher_task = tokio::task::spawn_blocking({
                     let watcher_inbox = inbox.clone();

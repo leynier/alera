@@ -43,32 +43,48 @@ impl GitConfigEnvironment {
 
     pub(in crate::terminal_host::server::terminal_pulse) fn from_variables(
         variables: &BTreeMap<String, String>,
-    ) -> Self {
+    ) -> HostResult<Self> {
         let path = |name: &str| {
             variables
                 .get(name)
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from)
         };
-        Self::new(
+        Ok(Self::new(
             path("HOME"),
             path("XDG_CONFIG_HOME"),
             path("GIT_CONFIG_GLOBAL"),
             path("GIT_CONFIG_SYSTEM"),
             variables
                 .get("GIT_CONFIG_NOSYSTEM")
-                .is_some_and(|value| !value.is_empty() && value != "0"),
-        )
+                .map(|value| git_environment_boolean("GIT_CONFIG_NOSYSTEM", value))
+                .transpose()?
+                .unwrap_or(false),
+        ))
     }
 
     #[cfg(test)]
     pub(super) fn from_process() -> Self {
+        let no_system_config = std::env::var_os("GIT_CONFIG_NOSYSTEM")
+            .map(|value| {
+                value
+                    .into_string()
+                    .map_err(|_| {
+                        HostError::format(
+                            "Terminal Pulse cannot use a non-text Git boolean in GIT_CONFIG_NOSYSTEM.",
+                        )
+                    })
+                    .and_then(|value| git_environment_boolean("GIT_CONFIG_NOSYSTEM", &value))
+            })
+            .transpose()
+            .expect("the test Git environment should be valid")
+            .unwrap_or(false);
         Self::new(
             dirs::home_dir(),
             std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
             std::env::var_os("GIT_CONFIG_GLOBAL").map(PathBuf::from),
             std::env::var_os("GIT_CONFIG_SYSTEM").map(PathBuf::from),
-            std::env::var_os("GIT_CONFIG_NOSYSTEM").is_some_and(|value| value != "0"),
+            no_system_config,
         )
     }
 
@@ -81,6 +97,25 @@ impl GitConfigEnvironment {
             .clone()
             .or_else(|| self.home().map(|home| home.join(".config")))
     }
+}
+
+fn git_environment_boolean(name: &str, value: &str) -> HostResult<bool> {
+    let normalized = value.to_ascii_lowercase();
+    match normalized.as_str() {
+        "" | "false" | "no" | "off" => return Ok(false),
+        "true" | "yes" | "on" => return Ok(true),
+        _ => {}
+    }
+    let digits = normalized
+        .strip_prefix('+')
+        .or_else(|| normalized.strip_prefix('-'))
+        .unwrap_or(normalized.as_str());
+    if !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Ok(digits.bytes().any(|byte| byte != b'0'));
+    }
+    Err(HostError::format(format!(
+        "Terminal Pulse cannot use an invalid Git boolean in {name}."
+    )))
 }
 
 impl GitIgnoreSources {

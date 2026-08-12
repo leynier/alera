@@ -1,10 +1,36 @@
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use std::{sync::atomic::AtomicBool, sync::Arc};
 
 use git2::Repository;
 
 use super::super::{GitConfigEnvironment, WorkspacePulseWatcher};
-use super::xdg_source_paths;
+use super::{git_environment_boolean, xdg_source_paths};
+
+#[test]
+fn git_config_no_system_uses_git_boolean_values() {
+    for value in ["", "0", "00", "+0", "-0", "false", "FALSE", "no", "off"] {
+        assert!(!git_environment_boolean("GIT_CONFIG_NOSYSTEM", value).unwrap());
+    }
+    for value in ["1", "01", "-1", "true", "TRUE", "yes", "on"] {
+        assert!(git_environment_boolean("GIT_CONFIG_NOSYSTEM", value).unwrap());
+    }
+    assert!(git_environment_boolean("GIT_CONFIG_NOSYSTEM", "invalid").is_err());
+
+    let mut variables = BTreeMap::new();
+    variables.insert("GIT_CONFIG_NOSYSTEM".to_string(), "off".to_string());
+    assert!(
+        !GitConfigEnvironment::from_variables(&variables)
+            .unwrap()
+            .no_system_config
+    );
+    variables.insert("GIT_CONFIG_NOSYSTEM".to_string(), "on".to_string());
+    assert!(
+        GitConfigEnvironment::from_variables(&variables)
+            .unwrap()
+            .no_system_config
+    );
+}
 
 #[test]
 fn fallback_xdg_config_watches_its_sibling_ignore_file() {
