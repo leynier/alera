@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 final Logger _log = Logger('AleraCliSkillService');
 
 const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
+const String _aleraCliSkillAgentName = 'codex';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraComputerUseSkillName = 'computer-use';
@@ -95,6 +96,10 @@ List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
   aleraCliSkillRepositoryUrl,
   '--skill',
   skill.name,
+  // Explicit selection avoids the Skills CLI expanding Codex to project-only
+  // universal agents such as PromptScript during a global installation.
+  '--agent',
+  _aleraCliSkillAgentName,
   '--global',
   '--yes',
 ];

@@ -11,7 +11,7 @@ void main() {
           runner: AleraCliSkillRunner.auto,
           operatingSystem: 'linux',
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-cli --global --yes || bunx skills add https://github.com/leynier/alera --skill alera-cli --global --yes',
+        'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes || bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
     });
 
@@ -23,8 +23,8 @@ void main() {
       expect(
         command,
         'if (Get-Command npx -ErrorAction SilentlyContinue) '
-        '{ npx skills add https://github.com/leynier/alera --skill alera-cli --global --yes } '
-        'else { bunx skills add https://github.com/leynier/alera --skill alera-cli --global --yes }',
+        '{ npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes } '
+        'else { bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes }',
       );
       expect(command, isNot(contains('||')));
       expect(command, isNot(contains('\n')));
@@ -38,7 +38,7 @@ void main() {
 
       expect(command.split('; '), <String>[
         for (final skill in AleraAgentSkill.values)
-          'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --global --yes',
+          'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --agent codex --global --yes',
       ]);
       expect(command, isNot(contains('\n')));
     });
@@ -63,7 +63,7 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           operatingSystem: 'windows',
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-cli --global --yes',
+        'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
       expect(
         aleraCliSkillInstallCommand(
@@ -71,7 +71,7 @@ void main() {
           skill: AleraAgentSkill.orchestration,
           operatingSystem: 'windows',
         ),
-        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global --yes',
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
       );
     });
 
@@ -81,7 +81,7 @@ void main() {
           runner: AleraCliSkillRunner.bunx,
           skill: AleraAgentSkill.orchestration,
         ),
-        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global --yes',
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
       );
     });
 
@@ -91,7 +91,7 @@ void main() {
           runner: AleraCliSkillRunner.bunx,
           skill: AleraAgentSkill.computerUse,
         ),
-        'bunx skills add https://github.com/leynier/alera --skill computer-use --global --yes',
+        'bunx skills add https://github.com/leynier/alera --skill computer-use --agent codex --global --yes',
       );
     });
 
@@ -101,7 +101,7 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           skill: AleraAgentSkill.emulator,
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-emulator --global --yes',
+        'npx skills add https://github.com/leynier/alera --skill alera-emulator --agent codex --global --yes',
       );
     });
 
@@ -111,7 +111,7 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           skill: AleraAgentSkill.agentCanvas,
         ),
-        'npx skills add https://github.com/leynier/alera --skill agent-canvas --global --yes',
+        'npx skills add https://github.com/leynier/alera --skill agent-canvas --agent codex --global --yes',
       );
     });
 
@@ -140,6 +140,8 @@ void main() {
         'https://github.com/leynier/alera',
         '--skill',
         'alera-cli',
+        '--agent',
+        'codex',
         '--global',
         '--yes',
       ]);
