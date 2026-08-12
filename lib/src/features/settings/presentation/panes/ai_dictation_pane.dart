@@ -34,6 +34,7 @@ class _AiDictationSettingsPaneState
   }
 
   Future<void> _refreshModelStatus() async {
+    if (!mounted) return;
     final installed = await ref
         .read(aiDictationModelStoreProvider)
         .isInstalled();
