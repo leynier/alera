@@ -192,10 +192,23 @@ impl ServerActor {
             );
             return;
         }
+        let disarmed_configuration = if armed {
+            None
+        } else {
+            self.terminal_pulses.disarm(&pending.session_id)
+        };
         if let Err(error) = self
             .persist_terminal_pulse_configuration(&pending.tab_id, &pending.configuration)
             .await
         {
+            if let Some(configuration) = disarmed_configuration {
+                self.broadcast_terminal_pulse_changed(
+                    &pending.session_id,
+                    &configuration,
+                    false,
+                    None,
+                );
+            }
             self.client_write(
                 pending.client_id,
                 error_response(pending.request_id, &error),
@@ -209,8 +222,6 @@ impl ServerActor {
                 pending.session_instance_id,
                 pending.configuration.clone(),
             );
-        } else {
-            self.terminal_pulses.disarm(&pending.session_id);
         }
         self.broadcast_workspace_tabs_changed(Some(&pending.workspace_id));
         self.broadcast_terminal_pulse_changed(
@@ -273,7 +284,12 @@ async fn await_watcher_start<T: Send + 'static>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
+    use crate::terminal_host::client::ClientHandle;
+    use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
+    use crate::terminal_host::session::Session;
 
     #[derive(Debug)]
     struct DropProbe(Arc<AtomicBool>);
@@ -324,5 +340,52 @@ mod tests {
 
         assert_eq!(result.unwrap(), "watching");
         assert!(!cancelled.load(Ordering::Acquire));
+    }
+
+    #[tokio::test]
+    async fn failed_disarm_persistence_still_cancels_the_live_rule() {
+        let dir = tempfile::tempdir().unwrap();
+        let (client, mut receiver) = ClientHandle::test_channels();
+        let session = Session::driver_test_stub("session-1", 80, 24);
+        let session_instance_id = session.instance_id();
+        let mut actor = test_actor(
+            &dir,
+            HashMap::from([(1, local_client(client))]),
+            HashMap::from([("session-1".to_string(), session)]),
+        )
+        .await;
+        actor.terminal_pulses.arm(
+            "session-1".to_string(),
+            "workspace".to_string(),
+            session_instance_id,
+            TerminalPulseConfiguration::default(),
+        );
+        let active = Arc::clone(&actor.terminal_pulses.rules.get("session-1").unwrap().active);
+        actor.runtime_store.pool().close().await;
+
+        actor
+            .apply_terminal_pulse_configuration(
+                PendingTerminalPulseConfiguration {
+                    client_id: 1,
+                    request_id: 41,
+                    session_id: "session-1".to_string(),
+                    workspace_id: "workspace".to_string(),
+                    tab_id: "tab-session-1".to_string(),
+                    session_instance_id,
+                    configuration: TerminalPulseConfiguration::default(),
+                },
+                false,
+            )
+            .await;
+
+        assert!(!active.load(Ordering::Acquire));
+        assert!(!actor.terminal_pulses.rules.contains_key("session-1"));
+        let event = receiver.recv().await.unwrap().as_json().unwrap();
+        assert_eq!(event["event"], "terminalPulseChanged");
+        assert_eq!(event["payload"]["armed"], false);
+        let response = receiver.recv().await.unwrap().as_json().unwrap();
+        assert_eq!(response["id"], 41);
+        assert_eq!(response["ok"], false);
+        assert!(receiver.try_recv().is_err());
     }
 }
