@@ -14,6 +14,18 @@ pub(in crate::terminal_host::server::terminal_pulse) fn event_invalidates_worksp
         )
 }
 
+pub(super) fn path_is_rename_source(event: &Event, path_index: usize) -> bool {
+    matches!(event.kind, EventKind::Remove(_))
+        || matches!(
+            event.kind,
+            EventKind::Modify(ModifyKind::Name(RenameMode::From))
+        )
+        || matches!(
+            event.kind,
+            EventKind::Modify(ModifyKind::Name(RenameMode::Both))
+        ) && path_index == 0
+}
+
 pub(in crate::terminal_host::server::terminal_pulse) fn retain_workspace_paths(
     root: &Path,
     event: &mut Event,

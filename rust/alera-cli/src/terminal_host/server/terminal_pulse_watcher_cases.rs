@@ -72,6 +72,33 @@ fn paired_rename_leaving_the_workspace_becomes_a_source_event() {
 }
 
 #[test]
+fn paired_rename_into_an_ignored_directory_keeps_the_source_relevant() {
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    std::fs::write(dir.path().join(".gitignore"), "ignored/\n").unwrap();
+    let source = dir.path().join("visible");
+    let destination = dir.path().join("ignored");
+    std::fs::create_dir(&source).unwrap();
+    std::fs::write(source.join("new.txt"), "untracked").unwrap();
+    let mut identities = PathIdentityCache::scan(dir.path(), &repository).unwrap();
+    std::fs::rename(&source, &destination).unwrap();
+    let event = Event::new(EventKind::Modify(notify::event::ModifyKind::Name(
+        notify::event::RenameMode::Both,
+    )))
+    .add_path(source.clone())
+    .add_path(destination);
+
+    assert!(super::watcher::event_is_relevant_with_identities(
+        &repository,
+        dir.path(),
+        &event,
+        &mut identities,
+    )
+    .unwrap());
+    assert!(!identities.contains_directory(&source));
+}
+
+#[test]
 fn workspace_root_removal_and_rename_invalidate_the_watcher() {
     let root = std::path::Path::new("workspace");
     for kind in [

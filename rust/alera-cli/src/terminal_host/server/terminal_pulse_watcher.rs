@@ -18,7 +18,10 @@ pub(super) mod event_scope;
 #[path = "terminal_pulse_watch_reconciliation.rs"]
 mod reconciliation;
 
-use event_scope::{event_invalidates_workspace_root, path_is_in_workspace, retain_workspace_paths};
+use event_scope::{
+    event_invalidates_workspace_root, path_is_in_workspace, path_is_rename_source,
+    retain_workspace_paths,
+};
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
@@ -374,7 +377,7 @@ fn event_is_git_relevant(
         .map(|path| path_identities.identity_for_event(&event.kind, path))
         .collect::<Vec<_>>();
     path_identities.apply_event(event, &identities);
-    for (path, identity) in event.paths.iter().zip(identities) {
+    for (path_index, (path, identity)) in event.paths.iter().zip(identities).enumerate() {
         if !path_is_in_workspace(root, path) {
             continue;
         }
@@ -412,13 +415,8 @@ fn event_is_git_relevant(
             {
                 return Ok(true);
             }
-            if matches!(
-                event.kind,
-                EventKind::Remove(_)
-                    | EventKind::Modify(notify::event::ModifyKind::Name(
-                        notify::event::RenameMode::From
-                    ))
-            ) || is_missing_ambiguous_rename(&event.kind, path)
+            if path_is_rename_source(event, path_index)
+                || is_missing_ambiguous_rename(&event.kind, path)
             {
                 return Ok(true);
             }
