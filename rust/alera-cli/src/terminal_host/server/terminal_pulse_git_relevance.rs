@@ -7,7 +7,10 @@ use notify::Event;
 use crate::terminal_host::host_error::HostResult;
 
 use super::event_scope::{path_is_in_workspace, path_is_rename_source};
-use super::{git_query_error, is_missing_ambiguous_rename, PathIdentity, PathIdentityCache};
+use super::{
+    git_query_error, is_missing_ambiguous_rename, repository_path_from_bytes, PathIdentity,
+    PathIdentityCache,
+};
 
 pub(super) fn event_is_git_relevant(
     repository: &Repository,
@@ -33,15 +36,15 @@ pub(super) fn event_is_git_relevant(
             continue;
         };
         let git_path = relative.to_string_lossy().replace('\\', "/");
-        let directory_prefix = format!("{git_path}/");
         let directory_like = identity == PathIdentity::Directory;
         if directory_like {
             if path_is_ignored(repository, relative, true, ignored_prefixes)? {
                 let index = repository.index().map_err(git_query_error)?;
                 if index.get_path(relative, 0).is_some()
                     || index.iter().any(|entry| {
-                        std::str::from_utf8(&entry.path)
-                            .is_ok_and(|entry_path| entry_path.starts_with(&directory_prefix))
+                        repository_path_from_bytes(&entry.path).is_some_and(|entry_path| {
+                            entry_path != relative && entry_path.starts_with(relative)
+                        })
                     })
                 {
                     return Ok(true);

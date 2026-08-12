@@ -49,6 +49,30 @@ fn tracked_files_remain_relevant_inside_an_ignored_directory() {
     assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
 }
 
+#[cfg(unix)]
+#[test]
+fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    fs::write(dir.path().join(".gitignore"), "generated/\n").unwrap();
+    let generated = dir.path().join("generated");
+    fs::create_dir(&generated).unwrap();
+    let tracked = generated.join(std::ffi::OsString::from_vec(vec![b'f', 0xff]));
+    fs::write(&tracked, "tracked").unwrap();
+    let relative = tracked.strip_prefix(dir.path()).unwrap();
+    let mut index = repository.index().unwrap();
+    index.add_path(relative).unwrap();
+    index.write().unwrap();
+    fs::remove_dir_all(&generated).unwrap();
+
+    let event =
+        Event::new(EventKind::Remove(notify::event::RemoveKind::Folder)).add_path(generated);
+
+    assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
+}
+
 #[test]
 fn empty_directories_are_not_git_relevant() {
     let dir = tempfile::tempdir().unwrap();
