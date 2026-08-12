@@ -82,6 +82,10 @@ class CodexInputAttachment {
     this.origin = CodexInputAttachmentOrigin.attachment,
     this.tokenText,
     this.tokenStart,
+    this.annotationContext,
+    this.annotationUrl,
+    this.annotationTitle,
+    this.annotationCount,
   });
 
   final String? id;
@@ -95,6 +99,12 @@ class CodexInputAttachment {
   final CodexInputAttachmentOrigin origin;
   final String? tokenText;
   final int? tokenStart;
+  final String? annotationContext;
+  final String? annotationUrl;
+  final String? annotationTitle;
+  final int? annotationCount;
+
+  bool get isBrowserAnnotation => annotationContext != null;
 
   CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
       CodexInputAttachment(
@@ -109,6 +119,10 @@ class CodexInputAttachment {
         origin: origin,
         tokenText: tokenText,
         tokenStart: tokenStart,
+        annotationContext: annotationContext,
+        annotationUrl: annotationUrl,
+        annotationTitle: annotationTitle,
+        annotationCount: annotationCount,
       );
 }
 
