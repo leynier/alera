@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use git2::Repository;
 
-use super::super::WorkspacePulseWatcher;
+use super::super::{GitConfigEnvironment, WorkspacePulseWatcher};
 
 #[test]
 fn changing_the_active_global_exclude_reconciles_pruned_directories() {
@@ -47,6 +47,49 @@ fn repointing_core_excludes_file_reconciles_the_new_rules() {
     assert_file_changed(&mut commands, "core.excludesFile repoint");
     std::fs::write(fixture.workspace.join("ignored/visible.txt"), "visible").unwrap();
     assert_file_changed(&mut commands, "file visible through replacement exclude");
+}
+
+#[test]
+fn shell_xdg_config_controls_ignore_discovery_and_reconciliation() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    Repository::init(&workspace).unwrap();
+    let ignored = workspace.join("ignored");
+    std::fs::create_dir(&ignored).unwrap();
+    std::fs::write(ignored.join("hidden.txt"), "hidden").unwrap();
+
+    let xdg = root.path().join("shell-xdg");
+    std::fs::create_dir_all(xdg.join("git")).unwrap();
+    let exclude = root.path().join("shell-global-ignore");
+    std::fs::write(&exclude, "ignored/\n").unwrap();
+    std::fs::write(
+        xdg.join("git/config"),
+        format!("[core]\n\texcludesFile = {}\n", exclude.display()),
+    )
+    .unwrap();
+    let environment = GitConfigEnvironment::new(
+        Some(root.path().join("shell-home")),
+        Some(xdg),
+        None,
+        None,
+        false,
+    );
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher = WorkspacePulseWatcher::start_blocking_with_environment(
+        "workspace-1".to_string(),
+        workspace.clone(),
+        1,
+        inbox,
+        environment,
+    )
+    .unwrap();
+
+    std::fs::write(&exclude, "").unwrap();
+
+    assert_file_changed(&mut commands, "shell XDG exclude edit");
+    std::fs::write(ignored.join("visible.txt"), "visible").unwrap();
+    assert_file_changed(&mut commands, "file unignored through shell XDG config");
 }
 
 struct GlobalExcludeFixture {

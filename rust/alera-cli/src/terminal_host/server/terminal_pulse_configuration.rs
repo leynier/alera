@@ -6,6 +6,7 @@ use serde_json::Value;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
+use super::watcher::GitConfigEnvironment;
 use super::{
     terminal_pulse_state, PendingTerminalPulseConfiguration, ServerActor, ServerCommand,
     TerminalPulseConfiguration, WorkspacePulseWatcher,
@@ -94,17 +95,27 @@ impl ServerActor {
             );
         }
         if let Some(generation) = self.terminal_pulses.reserve_watcher_start(&workspace_id) {
+            let git_config_environment = GitConfigEnvironment::new(
+                login_shell_path("HOME").await,
+                login_shell_path("XDG_CONFIG_HOME").await,
+                login_shell_path("GIT_CONFIG_GLOBAL").await,
+                login_shell_path("GIT_CONFIG_SYSTEM").await,
+                crate::login_shell_environment::login_shell_variable("GIT_CONFIG_NOSYSTEM")
+                    .await
+                    .is_some_and(|value| value != "0"),
+            );
             let inbox = self.inbox.clone();
             tokio::spawn(async move {
                 let watcher_task = tokio::task::spawn_blocking({
                     let watcher_inbox = inbox.clone();
                     let watcher_workspace_id = workspace_id.clone();
                     move || {
-                        WorkspacePulseWatcher::start_blocking(
+                        WorkspacePulseWatcher::start_blocking_with_environment(
                             watcher_workspace_id,
                             workspace_root.expect("armed configuration has a workspace root"),
                             generation,
                             watcher_inbox,
+                            git_config_environment,
                         )
                     }
                 });
@@ -243,4 +254,10 @@ impl ServerActor {
             );
         }
     }
+}
+
+async fn login_shell_path(name: &str) -> Option<PathBuf> {
+    crate::login_shell_environment::login_shell_variable(name)
+        .await
+        .map(PathBuf::from)
 }

@@ -25,7 +25,10 @@ mod reconciliation;
 use event_scope::{
     event_can_remove_paths, event_invalidates_workspace_root, retain_workspace_paths,
 };
-use git_ignore_sources::{refresh_git_ignore_source_watches, reopen_repository, GitIgnoreSources};
+pub(super) use git_ignore_sources::GitConfigEnvironment;
+use git_ignore_sources::{
+    prepare_repository, refresh_git_ignore_source_watches, reopen_repository, GitIgnoreSources,
+};
 use git_relevance::event_is_git_relevant;
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
@@ -58,22 +61,40 @@ struct WorkspacePulseWorker {
     watched_directories: HashSet<PathBuf>,
     git_ignore_sources: Arc<RwLock<GitIgnoreSources>>,
     git_ignore_watch_directories: HashSet<PathBuf>,
+    git_config_environment: GitConfigEnvironment,
     failure_reported: Arc<AtomicBool>,
 }
 
 impl WorkspacePulseWatcher {
+    #[cfg(test)]
     pub(super) fn start_blocking(
         workspace_id: String,
         root: PathBuf,
         generation: u64,
         inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
     ) -> HostResult<Self> {
+        Self::start_blocking_with_environment(
+            workspace_id,
+            root,
+            generation,
+            inbox,
+            GitConfigEnvironment::from_process(),
+        )
+    }
+
+    pub(super) fn start_blocking_with_environment(
+        workspace_id: String,
+        root: PathBuf,
+        generation: u64,
+        inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
+        git_config_environment: GitConfigEnvironment,
+    ) -> HostResult<Self> {
         let root = dunce::canonicalize(&root).map_err(|error| {
             HostError::state(format!(
                 "Terminal Pulse workspace could not be resolved: {error}"
             ))
         })?;
-        let mut repository = Repository::discover(&root).map_err(|error| {
+        let repository = Repository::discover(&root).map_err(|error| {
             HostError::state(format!("Terminal Pulse requires a Git workspace: {error}"))
         })?;
         if repository.workdir().is_none() {
@@ -81,6 +102,7 @@ impl WorkspacePulseWatcher {
                 "Terminal Pulse requires a Git workspace with a working tree.",
             ));
         }
+        let mut repository = prepare_repository(repository, &git_config_environment)?;
         let mut path_identities = PathIdentityCache::scan(&root, &repository)?;
         let initial_watch_directories = path_identities.watch_directories().clone();
         let ancestor_ignore_files = ancestor_gitignore_files(&root, &repository)?;
@@ -96,8 +118,14 @@ impl WorkspacePulseWatcher {
                 ))
             })?;
         let git_exclude_file = git_exclude_directory.join("exclude");
-        let git_ignore_sources = Arc::new(RwLock::new(GitIgnoreSources::discover(&repository)?));
-        let worker_repository = Repository::discover(&root).map_err(git_query_error)?;
+        let git_ignore_sources = Arc::new(RwLock::new(GitIgnoreSources::discover(
+            &repository,
+            &git_config_environment,
+        )?));
+        let worker_repository = prepare_repository(
+            Repository::discover(&root).map_err(git_query_error)?,
+            &git_config_environment,
+        )?;
         let cancelled = Arc::new(AtomicBool::new(false));
         let event_sequence = Arc::new(AtomicU64::new(0));
         let pending_event_sequence = Arc::new(AtomicU64::new(0));
@@ -121,6 +149,7 @@ impl WorkspacePulseWatcher {
         let callback_git_exclude_file = git_exclude_file.clone();
         let callback_ancestor_ignore_files = ancestor_ignore_files.clone();
         let callback_git_ignore_sources = Arc::clone(&git_ignore_sources);
+        let callback_git_config_environment = git_config_environment.clone();
         let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
         let callback_wake_tx = wake_tx.clone();
         let mut git_rules_dirty = false;
@@ -168,7 +197,7 @@ impl WorkspacePulseWatcher {
                 if git_rules_changed {
                     git_rules_dirty = true;
                 } else if std::mem::take(&mut git_rules_dirty) {
-                    match reopen_repository(&repository) {
+                    match reopen_repository(&repository, &callback_git_config_environment) {
                         Ok(refreshed) => repository = refreshed,
                         Err(error) => {
                             callback_cancelled.store(true, Ordering::Relaxed);
@@ -276,6 +305,7 @@ impl WorkspacePulseWatcher {
             &initial_watch_directories,
             &mut watcher,
             &worker_repository,
+            &git_config_environment,
         )?;
 
         let worker = thread::Builder::new()
@@ -295,6 +325,7 @@ impl WorkspacePulseWatcher {
                     watched_directories: initial_watch_directories,
                     git_ignore_sources,
                     git_ignore_watch_directories,
+                    git_config_environment,
                     failure_reported,
                 }
                 .run()
