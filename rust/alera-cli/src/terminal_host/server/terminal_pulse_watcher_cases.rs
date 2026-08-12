@@ -3,6 +3,7 @@ use notify::{Event, EventKind};
 
 use super::path_identities::PathIdentityCache;
 use super::watcher::event_is_relevant;
+use super::watcher::event_scope::{event_invalidates_workspace_root, retain_workspace_paths};
 use super::{TerminalPulseManager, WorkspacePulseWatcher};
 
 #[cfg(unix)]
@@ -32,6 +33,65 @@ fn pathless_rescan_fails_closed_instead_of_using_existing_dirt() {
     let event = Event::new(EventKind::Other).set_flag(notify::event::Flag::Rescan);
 
     assert!(event_is_relevant(&repository, dir.path(), &event).is_err());
+}
+
+#[test]
+fn paired_rename_leaving_the_workspace_becomes_a_source_event() {
+    let dir = tempfile::tempdir().unwrap();
+    let repository = Repository::init(dir.path()).unwrap();
+    let root = dir.path().join("workspace");
+    let source = root.join("new-directory");
+    let destination = dir.path().join("moved-out");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::write(source.join("new.txt"), "untracked").unwrap();
+    let mut identities = PathIdentityCache::scan(&root, &repository).unwrap();
+    std::fs::rename(&source, &destination).unwrap();
+    let mut event = Event::new(EventKind::Modify(notify::event::ModifyKind::Name(
+        notify::event::RenameMode::Both,
+    )))
+    .add_path(source.clone())
+    .add_path(destination);
+
+    retain_workspace_paths(&root, &mut event);
+
+    assert!(matches!(
+        event.kind,
+        EventKind::Modify(notify::event::ModifyKind::Name(
+            notify::event::RenameMode::From
+        ))
+    ));
+    assert_eq!(event.paths.as_slice(), std::slice::from_ref(&source));
+    assert!(super::watcher::event_is_relevant_with_identities(
+        &repository,
+        &root,
+        &event,
+        &mut identities,
+    )
+    .unwrap());
+    assert!(!identities.contains_directory(&source));
+}
+
+#[test]
+fn workspace_root_removal_and_rename_invalidate_the_watcher() {
+    let root = std::path::Path::new("workspace");
+    for kind in [
+        EventKind::Remove(notify::event::RemoveKind::Folder),
+        EventKind::Modify(notify::event::ModifyKind::Name(
+            notify::event::RenameMode::From,
+        )),
+        EventKind::Modify(notify::event::ModifyKind::Name(
+            notify::event::RenameMode::Both,
+        )),
+    ] {
+        assert!(event_invalidates_workspace_root(
+            root,
+            &Event::new(kind).add_path(root.to_path_buf()),
+        ));
+    }
+    assert!(!event_invalidates_workspace_root(
+        root,
+        &Event::new(EventKind::Modify(notify::event::ModifyKind::Any)).add_path(root.to_path_buf()),
+    ));
 }
 
 #[test]

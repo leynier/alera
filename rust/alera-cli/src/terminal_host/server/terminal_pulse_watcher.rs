@@ -13,8 +13,12 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use super::path_identities::{is_missing_ambiguous_rename, PathIdentity, PathIdentityCache};
 use super::ServerCommand;
 
+#[path = "terminal_pulse_event_scope.rs"]
+pub(super) mod event_scope;
 #[path = "terminal_pulse_watch_reconciliation.rs"]
 mod reconciliation;
+
+use event_scope::{event_invalidates_workspace_root, path_is_in_workspace, retain_workspace_paths};
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
@@ -129,15 +133,24 @@ impl WorkspacePulseWatcher {
                 if matches!(event.kind, EventKind::Access(_)) {
                     return;
                 }
+                if event_invalidates_workspace_root(&callback_root, &event) {
+                    callback_cancelled.store(true, Ordering::Relaxed);
+                    report_watcher_failure(
+                        &callback_identity,
+                        &callback_failure_reported,
+                        &callback_inbox,
+                        "workspace root was removed or renamed",
+                    );
+                    let _ = callback_wake_tx.try_send(());
+                    return;
+                }
                 let git_rules_changed = event.paths.iter().any(|path| {
                     path_is_git_index_event(&callback_git_metadata_directory, path)
                         || path == &callback_git_exclude_file
                         || callback_ancestor_ignore_files.contains(path)
                 });
                 if !event.need_rescan() {
-                    event
-                        .paths
-                        .retain(|path| path_is_in_workspace(&callback_root, path));
+                    retain_workspace_paths(&callback_root, &mut event);
                     if event.paths.is_empty() && !git_rules_changed {
                         return;
                     }
@@ -475,16 +488,6 @@ fn git_query_error(error: git2::Error) -> HostError {
     HostError::state(format!(
         "Terminal Pulse could not inspect Git status: {error}"
     ))
-}
-
-fn path_is_in_workspace(root: &Path, path: &Path) -> bool {
-    let Ok(relative) = path.strip_prefix(root) else {
-        return false;
-    };
-    !relative.as_os_str().is_empty()
-        && !relative
-            .components()
-            .any(|component| component.as_os_str() == ".git")
 }
 
 fn watcher_error(error: notify::Error) -> HostError {
