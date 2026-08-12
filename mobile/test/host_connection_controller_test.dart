@@ -329,6 +329,94 @@ void main() {
     expect(helloCount, 2);
   });
 
+  test('An unavailable host becomes retryable state and reconnects', () async {
+    final reservation = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final address = reservation.address;
+    final port = reservation.port;
+    await reservation.close(force: true);
+
+    HttpServer? recoveryServer;
+    StreamSubscription<HttpRequest>? serverSubscription;
+    final sockets = <WebSocket>[];
+    addTearDown(() async {
+      for (final socket in sockets) {
+        await socket.close();
+      }
+      await serverSubscription?.cancel();
+      await recoveryServer?.close(force: true);
+    });
+
+    final repository = MemoryHostRepository();
+    await repository.savePairedHost(
+      PairedHostProfile(
+        id: 'runtime-1',
+        displayName: 'Alera Host',
+        endpoint: 'ws://${address.address}:$port',
+        runtimeId: 'runtime-1',
+        deviceId: 'device-1',
+        pairedAt: DateTime.now().toUtc(),
+      ),
+      'token-1',
+    );
+    final container = ProviderContainer(
+      overrides: [
+        hostRepositoryProvider.overrideWithValue(repository),
+        cloudAccountRepositoryProvider.overrideWithValue(
+          _InstallationRepository(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final observedErrors = <Object>[];
+    final unreachable = Completer<Object>();
+    final connection = container.listen(
+      hostConnectionControllerProvider('runtime-1'),
+      (_, next) {
+        final error = next.error;
+        if (error != null) {
+          observedErrors.add(error);
+          if (!unreachable.isCompleted) {
+            unreachable.complete(error);
+          }
+        }
+      },
+    );
+    addTearDown(connection.close);
+
+    expect(
+      await unreachable.future.timeout(const Duration(seconds: 5)),
+      isA<HostUnreachableException>(),
+    );
+
+    recoveryServer = await HttpServer.bind(address, port);
+    serverSubscription = recoveryServer.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket);
+      socket.listen((raw) {
+        final message = jsonDecode(raw as String) as Map<String, Object?>;
+        socket.add(
+          jsonEncode(<String, Object?>{
+            'id': message['id'],
+            'ok': true,
+            'payload': <String, Object?>{},
+          }),
+        );
+      });
+    });
+
+    await _waitUntil(
+      () => container
+          .read(hostConnectionControllerProvider('runtime-1'))
+          .hasValue,
+    );
+
+    expect(observedErrors, contains(isA<HostUnreachableException>()));
+    expect(
+      container.read(hostConnectionControllerProvider('runtime-1')).hasError,
+      isFalse,
+    );
+  });
+
   test('Fails when the host is not paired', () async {
     final container = ProviderContainer(
       overrides: [

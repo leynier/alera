@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -297,7 +298,7 @@ void main() {
       client
           .request('mobile.status.get')
           .timeout(const Duration(milliseconds: 250)),
-      throwsA(isA<StateError>()),
+      throwsA(isA<RuntimeConnectionLost>()),
     );
   });
 
