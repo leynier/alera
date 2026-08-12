@@ -21,17 +21,19 @@ class AiDictationService extends ChangeNotifier {
     required AiDictationSettings Function() settings,
     required AiDictationTargetRegistry targets,
     required AiDictationProvider provider,
+    this.fallbackProviders = const <AiDictationProvider>[],
     required AiDictationModelStore modelStore,
     AudioRecorder? recorder,
-  }) : _settings = settings,
-       _targets = targets,
-       _provider = provider,
-       _modelStore = modelStore,
-       _recorder = recorder;
+  })  : _settings = settings,
+        _targets = targets,
+        _provider = provider,
+        _modelStore = modelStore,
+        _recorder = recorder;
 
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;
   final AiDictationProvider _provider;
+  final List<AiDictationProvider> fallbackProviders;
   final AiDictationModelStore _modelStore;
   AudioRecorder? _recorder;
 
@@ -63,7 +65,10 @@ class AiDictationService extends ChangeNotifier {
         'The dictation text field is no longer available.',
       );
     }
-    if (!await _modelStore.isInstalled()) {
+    final localReady = await _modelStore.isInstalled(settings.localModelId);
+    final hasFallback =
+        settings.hostFallbackEnabled || settings.providerFallbackEnabled;
+    if (!localReady && !hasFallback) {
       throw const AiDictationException(
         AiDictationErrorKind.modelUnavailable,
         'Download the Whisper model in Settings before recording.',
@@ -116,15 +121,51 @@ class AiDictationService extends ChangeNotifier {
     _requestId = requestId;
     try {
       final settings = _settings();
-      final result = await _provider.transcribe(
-        AiDictationRequest(
-          requestId: requestId,
-          audioPath: path,
-          modelPath: await _modelStore.modelPath(),
-          language: settings.language,
-          initialPrompt: _targets.targetFor(targetId)?.initialPrompt,
-        ),
+      final localReady = await _modelStore.isInstalled(settings.localModelId);
+      final request = AiDictationRequest(
+        requestId: requestId,
+        audioPath: path,
+        modelPath: localReady
+            ? await _modelStore.modelPath(settings.localModelId)
+            : '',
+        language: settings.language,
+        initialPrompt: _targets.targetFor(targetId)?.initialPrompt,
+        providerModel: settings.remoteModel,
+        providerApiKey: Platform.environment['OPENAI_API_KEY'],
+        providerBaseUrl: settings.remoteBaseUrl,
+        timeout: Duration(seconds: settings.timeoutSeconds),
       );
+      final candidates = <AiDictationProvider>[
+        if (localReady) _provider,
+        if (settings.providerPolicy != AiDictationProviderPolicy.localOnly)
+          ...fallbackProviders,
+      ];
+      AiDictationResult? result;
+      AiDictationException? lastError;
+      for (final candidate in candidates) {
+        if (candidate.id == 'runtime-whisper' &&
+            !settings.hostFallbackEnabled) {
+          continue;
+        }
+        if (candidate.id == 'openai-compatible' &&
+            !settings.providerFallbackEnabled) {
+          continue;
+        }
+        try {
+          result = await candidate.transcribe(request);
+          break;
+        } on AiDictationException catch (error) {
+          lastError = error;
+          if (!_canFallback(error.kind)) rethrow;
+        }
+      }
+      if (result == null) {
+        throw lastError ??
+            const AiDictationException(
+              AiDictationErrorKind.transcription,
+              'No configured dictation provider is available.',
+            );
+      }
       if (!_targets.insert(targetId, result.text)) {
         throw const AiDictationException(
           AiDictationErrorKind.targetUnavailable,
@@ -140,6 +181,10 @@ class AiDictationService extends ChangeNotifier {
       }
     }
   }
+
+  bool _canFallback(AiDictationErrorKind kind) =>
+      kind == AiDictationErrorKind.modelUnavailable ||
+      kind == AiDictationErrorKind.transcription;
 
   Future<void> cancel() async {
     final path = _audioPath;

@@ -49,6 +49,7 @@ pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSess
 pub const RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY: &str = "mobilePromptFileUploadV1";
 pub const RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY: &str =
     "mobilePromptAttachmentReadV1";
+pub const RUNTIME_HOST_AI_DICTATION_CAPABILITY: &str = "aiDictationV1";
 /// Desktop account management backed by the Alera cloud identity service.
 /// Account verbs remain unavailable to paired mobile clients.
 pub const RUNTIME_HOST_ACCOUNT_CAPABILITY: &str = "aleraAccountV1";

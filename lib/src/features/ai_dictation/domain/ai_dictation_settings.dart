@@ -5,6 +5,9 @@ part 'ai_dictation_settings.mapper.dart';
 @MappableEnum()
 enum AiDictationProviderPolicy { localOnly, localPreferred }
 
+@MappableEnum()
+enum AiDictationFallbackProvider { openAiCompatible }
+
 @MappableClass()
 class AiDictationSettings with AiDictationSettingsMappable {
   const AiDictationSettings({
@@ -12,8 +15,11 @@ class AiDictationSettings with AiDictationSettingsMappable {
     this.providerPolicy = AiDictationProviderPolicy.localPreferred,
     this.language,
     this.localModelId = 'whisper-cpp-base',
+    this.hostFallbackEnabled = true,
+    this.providerFallbackEnabled = false,
     this.remoteBaseUrl,
     this.remoteModel,
+    this.remoteProvider = AiDictationFallbackProvider.openAiCompatible,
     this.timeoutSeconds = 60,
     this.remoteConsentVersion,
   });
@@ -22,8 +28,11 @@ class AiDictationSettings with AiDictationSettingsMappable {
   final AiDictationProviderPolicy providerPolicy;
   final String? language;
   final String localModelId;
+  final bool hostFallbackEnabled;
+  final bool providerFallbackEnabled;
   final String? remoteBaseUrl;
   final String? remoteModel;
+  final AiDictationFallbackProvider remoteProvider;
   final int timeoutSeconds;
   final int? remoteConsentVersion;
 

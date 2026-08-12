@@ -21,4 +21,10 @@ const List<SettingsSearchEntry> aiDictationSearchEntries =
         keywords: <String>['offline', 'model', 'download', 'privacy'],
         groupId: 'local',
       ),
+      SettingsSearchEntry(
+        title: 'Dictation Fallbacks',
+        description: 'Configure runtime and OpenAI-compatible speech providers.',
+        keywords: <String>['remote', 'runtime', 'provider', 'openai', 'fallback'],
+        groupId: 'fallback',
+      ),
     ];
