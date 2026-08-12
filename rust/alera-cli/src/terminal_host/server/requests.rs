@@ -763,12 +763,15 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
                 let title = require_string_key(payload, "title")?;
-                let value =
-                    json_result(self.runtime_store.rename_workspace_tab(&id, &title).await)?;
-                self.broadcast_workspace_tabs_changed(
-                    value.get("workspaceId").and_then(Value::as_str),
-                );
-                Ok(value)
+                let tab = self
+                    .runtime_store
+                    .rename_workspace_tab(&id, &title)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let workspace_id = tab.workspace_id.clone();
+                let tab = self.workspace_tab_for_client(client_id, tab);
+                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
+                Ok(json!(tab))
             }
             "linkedReview.find" => {
                 self.require_auth(client_id)?;

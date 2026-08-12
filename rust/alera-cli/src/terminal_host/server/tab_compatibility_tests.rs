@@ -35,15 +35,19 @@ async fn request(
             .to_string(),
         )
         .await;
-    let response = receiver
-        .recv()
-        .await
-        .expect("the client should receive a response")
-        .as_json()
-        .expect("the response should be JSON");
-    assert_eq!(response["id"], request_id);
-    assert_eq!(response["ok"], true);
-    response["payload"].clone()
+    loop {
+        let response = receiver
+            .recv()
+            .await
+            .expect("the client should receive a response")
+            .as_json()
+            .expect("the response should be JSON");
+        if response["id"] != request_id {
+            continue;
+        }
+        assert_eq!(response["ok"], true);
+        return response["payload"].clone();
+    }
 }
 
 fn emulator_tab() -> WorkspaceTabRecord {
@@ -158,22 +162,67 @@ async fn tab_reads_redact_terminal_pulse_from_mobile_clients() {
         &mut mobile_rx,
     )
     .await;
+    let mobile_rename = request(
+        &mut actor,
+        2,
+        5,
+        "tab.rename",
+        json!({"id": "terminal-1", "title": "Mobile Flutter"}),
+        &mut mobile_rx,
+    )
+    .await;
+    let local_rename = request(
+        &mut actor,
+        1,
+        6,
+        "tab.rename",
+        json!({"id": "terminal-1", "title": "Desktop Flutter"}),
+        &mut local_rx,
+    )
+    .await;
 
     assert_eq!(local_list[0]["payload"]["terminalPulse"]["command"], "r");
     assert_eq!(local_find["payload"]["terminalPulse"]["command"], "r");
     assert_eq!(mobile_list[0]["payload"]["terminalPulse"], Value::Null);
     assert_eq!(mobile_find["payload"]["terminalPulse"], Value::Null);
+    assert_eq!(mobile_rename["payload"]["terminalPulse"], Value::Null);
+    assert_eq!(local_rename["payload"]["terminalPulse"]["command"], "r");
     assert_eq!(mobile_list[0]["payload"]["shell"], "zsh");
     assert_eq!(mobile_find["payload"]["shell"], "zsh");
-    assert_eq!(
-        actor
-            .runtime_store
-            .find_workspace_tab("terminal-1")
-            .await
-            .unwrap(),
-        Some(tab),
-        "client projection must not redact the stored Terminal Pulse configuration",
-    );
+    let stored = actor
+        .runtime_store
+        .find_workspace_tab("terminal-1")
+        .await
+        .unwrap()
+        .expect("the renamed tab should remain stored");
+    assert_eq!(stored.title, "Desktop Flutter");
+    assert_eq!(stored.payload["terminalPulse"], tab.payload["terminalPulse"]);
+}
+
+#[tokio::test]
+async fn terminal_attach_and_restart_responses_use_client_tab_projection() {
+    let dir = tempfile::tempdir().unwrap();
+    let (local_handle, _local_rx) = ClientHandle::test_channels();
+    let (mobile_handle, _mobile_rx) = ClientHandle::test_channels();
+    let actor = test_actor(
+        &dir,
+        HashMap::from([
+            (1, local_client(local_handle)),
+            (2, mobile_client(mobile_handle, "phone")),
+        ]),
+        HashMap::new(),
+    )
+    .await;
+    let tab = terminal_pulse_tab();
+    let attachment = json!({"sessionId": "session-1"});
+
+    let mobile = actor.terminal_tab_response_for_client(2, tab.clone(), attachment.clone());
+    let local = actor.terminal_tab_response_for_client(1, tab, attachment);
+
+    assert_eq!(mobile["tab"]["payload"]["terminalPulse"], Value::Null);
+    assert_eq!(mobile["tab"]["payload"]["shell"], "zsh");
+    assert_eq!(mobile["attachment"]["sessionId"], "session-1");
+    assert_eq!(local["tab"]["payload"]["terminalPulse"]["command"], "r");
 }
 
 #[tokio::test]
