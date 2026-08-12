@@ -154,6 +154,7 @@ mod tab_compatibility_tests;
 mod terminal_driver;
 mod terminal_input_requests;
 mod terminal_launch_defaults;
+mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_startup_commands;
@@ -229,6 +230,7 @@ struct ServerActor {
     orchestration_activity_last_recorded: HashMap<String, Instant>,
     coordinators: HashMap<String, CoordinatorHandle>,
     resources: ResourceMonitorState,
+    terminal_pulses: terminal_pulse::TerminalPulseManager,
     browser: BrowserBroker,
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
@@ -598,6 +600,35 @@ impl ServerActor {
                 session_id,
                 session_instance_id,
             } => self.handle_terminal_startup_submit(session_id, session_instance_id),
+            ServerCommand::TerminalPulseFileChanged {
+                workspace_id,
+                watcher_generation,
+                event_sequence,
+            } => self.handle_terminal_pulse_file_changed(
+                &workspace_id,
+                watcher_generation,
+                event_sequence,
+            ),
+            ServerCommand::TerminalPulseWatcherStarted {
+                workspace_id,
+                generation,
+                result,
+            } => {
+                self.handle_terminal_pulse_watcher_started(workspace_id, generation, result)
+                    .await
+            }
+            ServerCommand::TerminalPulseWatcherFailed {
+                workspace_id,
+                watcher_generation,
+                error,
+            } => {
+                self.handle_terminal_pulse_watcher_failed(&workspace_id, watcher_generation, &error)
+            }
+            ServerCommand::TerminalPulseDue {
+                session_id,
+                session_instance_id,
+                generation,
+            } => self.handle_terminal_pulse_due(session_id, session_instance_id, generation),
             ServerCommand::ProjectCloneChanged { job_id } => {
                 self.handle_project_clone_changed(job_id)
             }
@@ -1074,6 +1105,7 @@ impl ServerActor {
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
+            self.terminal_pulses.disarm(&session_id);
             self.cleanup_orchestration_for_closed_session(&session_id, "terminal host shut down")
                 .await;
             self.flush_all_output(&session_id);
@@ -1146,6 +1178,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1223,6 +1256,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1318,6 +1352,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1408,6 +1443,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1520,6 +1556,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1605,6 +1642,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
@@ -1681,6 +1719,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,

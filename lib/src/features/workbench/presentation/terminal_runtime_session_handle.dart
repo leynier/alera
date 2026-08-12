@@ -1,7 +1,7 @@
 part of 'terminal_runtime.dart';
 
 class _XtermTerminalSessionHandle extends TerminalSessionHandle
-    with _TerminalSearchSessionSupport {
+    with _TerminalSearchSessionSupport, _TerminalSessionCapabilitiesSupport {
   _XtermTerminalSessionHandle(
     this._workspace,
     this._tab,
@@ -28,6 +28,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   }
 
   Workspace _workspace;
+  @override
   WorkspaceTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
@@ -69,6 +70,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   late final StreamSubscription<String> _decodedOutputSub;
 
   final _TerminalOutputPipeline _output = _TerminalOutputPipeline();
+  @override
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
@@ -159,12 +161,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   TerminalSessionOperation? get operation => _operation;
 
   @override
-  bool get canRestart {
-    final session = _ptySession;
-    return session is RecoverableTerminalPtySession && session.supportsRestart;
-  }
-
-  @override
   String? get errorMessage => _errorMessage;
 
   _XtermTerminalSessionHandle sync({
@@ -179,6 +175,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         _tab.hasManualTitle != tab.hasManualTitle;
     _workspace = workspace;
     _tab = tab;
+    _syncTerminalPulseConfiguration(tab);
     _titleNotifier.value = displayTitle;
     if (metadataChanged) {
       // sync() is invoked from build(); defer the notification so listening
@@ -432,6 +429,17 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         }
         _ptySession = session;
         _ptySessionSub = sub;
+        bool isCurrent() =>
+            !_disposed &&
+            _activePtyGeneration == generation &&
+            identical(_ptySession, session);
+        await _refreshTerminalPulseState(session, isCurrent: isCurrent);
+        if (!isCurrent()) {
+          unawaited(sub.cancel());
+          session.dispose();
+          _prunePtyGenerationState();
+          return false;
+        }
         if (!_outputVisible) {
           _syncPtyOutputVisibility();
         }
@@ -503,6 +511,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         );
       case TerminalPtyErrorEvent(:final error):
         _setTerminalHostError(error);
+      case TerminalPtyPulseChangedEvent(:final state):
+        _handleTerminalPulseChanged(state);
     }
   }
 
@@ -515,6 +525,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
       return;
     }
     _running = false;
+    _markTerminalPulseDisarmed();
     _flushPendingTerminalOutputNow();
     _writeToTerminal(terminalInteractionModeReset);
     _writeToTerminal('\n[process exited: $exitCode]\n');
@@ -543,6 +554,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     _handleTerminalSelectionChanged(this);
   }
 
+  @override
   void _notifyInteraction(String message, {bool error = false}) {
     _publishTerminalInteraction(this, message, error: error);
   }
@@ -590,18 +602,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   void _clearPendingTerminalOutput() {
     _output.cancelDeferredFlush();
     _output.clear();
-  }
-
-  void _setTerminalHostError(Object error) {
-    if (_disposed) {
-      return;
-    }
-    final message = 'Terminal host unavailable: $error';
-    if (_errorMessage == message) {
-      return;
-    }
-    _errorMessage = message;
-    notifyListeners();
   }
 
   Future<void> _stopPtySession({required bool suppressExit}) async {

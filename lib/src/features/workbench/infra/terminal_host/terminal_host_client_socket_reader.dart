@@ -132,6 +132,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsOrchestration: control.supportsOrchestration,
       supportsTerminalRestart: control.supportsTerminalRestart,
       supportsDeferredInput: control.supportsDeferredInput,
+      supportsTerminalPulse: control.supportsTerminalPulse,
     );
   }
   final socket = await Socket.connect(
@@ -145,5 +146,6 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsOrchestration: control.supportsOrchestration,
     supportsTerminalRestart: control.supportsTerminalRestart,
     supportsDeferredInput: control.supportsDeferredInput,
+    supportsTerminalPulse: control.supportsTerminalPulse,
   );
 }

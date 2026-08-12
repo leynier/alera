@@ -199,6 +199,10 @@ impl ServerActor {
             }
             | PtyWriteCompletion::StartupSubmit {
                 session_instance_id,
+            }
+            | PtyWriteCompletion::TerminalPulse {
+                session_instance_id,
+                ..
             } => {
                 let current = self.sessions.get(&session_id).map(Session::instance_id);
                 if let Some(message) = error.filter(|_| current == Some(session_instance_id)) {
@@ -222,6 +226,7 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
+        self.disarm_terminal_pulse(&session_id);
         self.queue_terminal_exit_push(&session_id, Some(exit_code))
             .await;
         let reason = format!("terminal exited with code {exit_code}");
@@ -282,6 +287,7 @@ impl ServerActor {
         &mut self,
         session_id: &str,
     ) -> HostResult<bool> {
+        self.disarm_terminal_pulse(session_id);
         let metadata = self
             .sessions
             .get(session_id)

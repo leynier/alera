@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
@@ -73,6 +74,41 @@ abstract interface class TerminalHostClient {
   Future<Map<String, TerminalSessionDriver>> listTerminalDrivers();
 
   void dispose();
+}
+
+abstract interface class TerminalPulseHostClient {
+  bool get supportsTerminalPulse;
+
+  Future<TerminalPulseState> terminalPulseStatus(String sessionId);
+
+  Future<TerminalPulseState> configureTerminalPulse({
+    required String sessionId,
+    required TerminalPulseConfiguration configuration,
+    required bool armed,
+  });
+}
+
+final class TerminalPulseState {
+  const TerminalPulseState({
+    required this.configuration,
+    required this.armed,
+    this.statusKnown = true,
+    this.error,
+  });
+
+  factory TerminalPulseState.fromJson(Map<String, Object?> json) {
+    return TerminalPulseState(
+      configuration: TerminalPulseConfiguration.fromJson(json['configuration']),
+      armed: json['armed'] == true,
+      statusKnown: json['armed'] is bool,
+      error: json['error'] as String?,
+    );
+  }
+
+  final TerminalPulseConfiguration configuration;
+  final bool armed;
+  final bool statusKnown;
+  final String? error;
 }
 
 final class TerminalHostRequestTimeoutException implements Exception {
@@ -293,6 +329,12 @@ final class TerminalHostDriverChangedEvent extends TerminalHostEvent {
   final TerminalSessionDriver driver;
   final int cols;
   final int rows;
+}
+
+final class TerminalHostPulseChangedEvent extends TerminalHostEvent {
+  const TerminalHostPulseChangedEvent(super.sessionId, this.state);
+
+  final TerminalPulseState state;
 }
 
 /// Broadcast event names surfaced on the runtime host event stream.

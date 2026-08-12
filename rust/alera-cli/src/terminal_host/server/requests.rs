@@ -434,6 +434,11 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 Ok(self.terminal_driver_list_payload())
             }
+            "terminal.pulse.status" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, "terminal.pulse.status")?;
+                self.terminal_pulse_status(payload).await
+            }
             "setOutputPaused" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
