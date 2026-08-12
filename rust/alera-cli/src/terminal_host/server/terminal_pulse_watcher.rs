@@ -10,7 +10,9 @@ use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watche
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::path_identities::{is_missing_ambiguous_rename, PathIdentity, PathIdentityCache};
+use super::path_identities::{
+    is_missing_ambiguous_rename, repository_path_from_bytes, PathIdentity, PathIdentityCache,
+};
 use super::ServerCommand;
 
 #[path = "terminal_pulse_event_scope.rs"]
@@ -30,6 +32,7 @@ use git_ignore_sources::{
     prepare_repository, refresh_git_ignore_source_watches, reopen_repository, GitIgnoreSources,
 };
 use git_relevance::event_is_git_relevant;
+use reconciliation::ignored_git_status_paths;
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
@@ -62,6 +65,7 @@ struct WorkspacePulseWorker {
     git_ignore_sources: Arc<RwLock<GitIgnoreSources>>,
     git_ignore_watch_directories: HashSet<PathBuf>,
     git_config_environment: GitConfigEnvironment,
+    ignored_git_status_paths: HashSet<PathBuf>,
     failure_reported: Arc<AtomicBool>,
 }
 
@@ -312,6 +316,7 @@ impl WorkspacePulseWatcher {
             &worker_repository,
             &git_config_environment,
         )?;
+        let ignored_git_status_paths = ignored_git_status_paths(&worker_repository, &root)?;
         ensure_setup_active(&cancelled)?;
 
         let worker = thread::Builder::new()
@@ -332,6 +337,7 @@ impl WorkspacePulseWatcher {
                     git_ignore_sources,
                     git_ignore_watch_directories,
                     git_config_environment,
+                    ignored_git_status_paths,
                     failure_reported,
                 }
                 .run()

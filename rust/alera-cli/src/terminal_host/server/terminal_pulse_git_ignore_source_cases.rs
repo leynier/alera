@@ -25,6 +25,76 @@ fn changing_the_active_global_exclude_reconciles_pruned_directories() {
 }
 
 #[test]
+fn unignoring_an_existing_file_in_a_watched_directory_reports_a_change() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let repository = Repository::init(&workspace).unwrap();
+    let exclude = root.path().join("global-ignore");
+    std::fs::write(&exclude, "visible.txt\n").unwrap();
+    repository
+        .config()
+        .unwrap()
+        .set_str("core.excludesFile", exclude.to_str().unwrap())
+        .unwrap();
+    std::fs::write(workspace.join("visible.txt"), "existing").unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher =
+        WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
+            .unwrap();
+
+    std::fs::write(&exclude, "").unwrap();
+
+    assert_file_changed(&mut commands, "existing file unignored by global rules");
+}
+
+#[test]
+fn repository_exclude_unignores_an_existing_root_file() {
+    let root = tempfile::tempdir().unwrap();
+    let repository = Repository::init(root.path()).unwrap();
+    let exclude = repository.commondir().join("info/exclude");
+    std::fs::write(&exclude, "visible.txt\n").unwrap();
+    std::fs::write(root.path().join("visible.txt"), "existing").unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher = WorkspacePulseWatcher::start_blocking(
+        "workspace-1".to_string(),
+        root.path().to_path_buf(),
+        1,
+        inbox,
+    )
+    .unwrap();
+
+    std::fs::write(&exclude, "").unwrap();
+
+    assert_file_changed(&mut commands, "existing file unignored by repository rules");
+}
+
+#[test]
+fn equivalent_ignore_rule_changes_do_not_report_existing_dirt() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let repository = Repository::init(&workspace).unwrap();
+    let exclude = root.path().join("global-ignore");
+    std::fs::write(&exclude, "ignored.txt\n").unwrap();
+    repository
+        .config()
+        .unwrap()
+        .set_str("core.excludesFile", exclude.to_str().unwrap())
+        .unwrap();
+    std::fs::write(workspace.join("ignored.txt"), "ignored").unwrap();
+    std::fs::write(workspace.join("untracked.txt"), "existing dirt").unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher =
+        WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
+            .unwrap();
+
+    std::fs::write(&exclude, "ignored.*\n").unwrap();
+
+    assert_no_file_changed(&mut commands, "equivalent global ignore rule edit");
+}
+
+#[test]
 fn repointing_core_excludes_file_reconciles_the_new_rules() {
     let fixture = GlobalExcludeFixture::new("ignored/\n");
     let replacement = fixture.root.path().join("replacement-ignore");

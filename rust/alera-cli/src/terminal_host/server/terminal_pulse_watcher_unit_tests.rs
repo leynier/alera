@@ -68,6 +68,7 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
                 git_ignore_sources,
                 git_ignore_watch_directories: HashSet::new(),
                 git_config_environment,
+                ignored_git_status_paths: HashSet::new(),
                 failure_reported: Arc::new(AtomicBool::new(false)),
             }
             .run()

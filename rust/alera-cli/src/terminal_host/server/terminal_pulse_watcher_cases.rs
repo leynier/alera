@@ -313,6 +313,25 @@ fn ancestor_ignore_changes_reconcile_subdirectory_workspaces() {
 }
 
 #[test]
+fn ancestor_ignore_unignores_an_existing_subdirectory_workspace_file() {
+    let dir = tempfile::tempdir().unwrap();
+    Repository::init(dir.path()).unwrap();
+    let gitignore = dir.path().join(".gitignore");
+    std::fs::write(&gitignore, "workspace/visible.txt\n").unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    std::fs::write(workspace.join("visible.txt"), "existing").unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher =
+        WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
+            .unwrap();
+
+    std::fs::write(&gitignore, "").unwrap();
+
+    assert_file_changed(&mut commands);
+}
+
+#[test]
 fn ambiguous_removal_below_ignored_directory_remains_relevant() {
     let dir = tempfile::tempdir().unwrap();
     let repository = Repository::init(dir.path()).unwrap();

@@ -43,9 +43,22 @@ impl WorkspacePulseWorker {
                         return;
                     }
                 };
+                let status_snapshot =
+                    match workspace_git_status_snapshot(&self.repository, &self.root) {
+                        Ok(snapshot) => snapshot,
+                        Err(error) => {
+                            self.fail(error);
+                            return;
+                        }
+                    };
+                let newly_unignored = self
+                    .ignored_git_status_paths
+                    .iter()
+                    .any(|path| status_snapshot.changed.contains(path));
+                self.ignored_git_status_paths = status_snapshot.ignored;
                 match directories_have_git_changes(&self.repository, &additions) {
-                    Ok(true) => self.record_change(),
-                    Ok(false) => {}
+                    Ok(has_changes) if newly_unignored || has_changes => self.record_change(),
+                    Ok(_) => {}
                     Err(error) => {
                         self.fail(error);
                         return;
@@ -86,6 +99,59 @@ impl WorkspacePulseWorker {
             error.wire_message(),
         );
     }
+}
+
+struct WorkspaceGitStatusSnapshot {
+    ignored: HashSet<PathBuf>,
+    changed: HashSet<PathBuf>,
+}
+
+pub(super) fn ignored_git_status_paths(
+    repository: &Repository,
+    root: &Path,
+) -> HostResult<HashSet<PathBuf>> {
+    Ok(workspace_git_status_snapshot(repository, root)?.ignored)
+}
+
+fn workspace_git_status_snapshot(
+    repository: &Repository,
+    root: &Path,
+) -> HostResult<WorkspaceGitStatusSnapshot> {
+    let Some(workdir) = repository.workdir() else {
+        return Ok(WorkspaceGitStatusSnapshot {
+            ignored: HashSet::new(),
+            changed: HashSet::new(),
+        });
+    };
+    let mut options = StatusOptions::new();
+    options
+        .include_untracked(true)
+        .include_ignored(true)
+        .recurse_untracked_dirs(false)
+        .recurse_ignored_dirs(false)
+        .disable_pathspec_match(true);
+    if root != workdir {
+        let relative = root.strip_prefix(workdir).map_err(|_| {
+            HostError::state("Terminal Pulse workspace is outside its Git working tree.")
+        })?;
+        options.pathspec(relative.to_string_lossy().replace('\\', "/"));
+    }
+    let statuses = repository
+        .statuses(Some(&mut options))
+        .map_err(git_query_error)?;
+    let mut ignored = HashSet::new();
+    let mut changed = HashSet::new();
+    for entry in statuses.iter() {
+        let Some(path) = repository_path_from_bytes(entry.path_bytes()) else {
+            continue;
+        };
+        if entry.status().is_ignored() {
+            ignored.insert(path);
+        } else if entry.status() != git2::Status::CURRENT {
+            changed.insert(path);
+        }
+    }
+    Ok(WorkspaceGitStatusSnapshot { ignored, changed })
 }
 
 fn reconcile_watch_directories(

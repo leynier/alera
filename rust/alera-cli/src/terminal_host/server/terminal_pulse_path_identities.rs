@@ -238,7 +238,7 @@ fn tracked_parent_directories(
     })?;
     let mut directories = HashSet::new();
     for entry in index.iter() {
-        let Some(relative) = index_entry_path(&entry.path) else {
+        let Some(relative) = repository_path_from_bytes(&entry.path) else {
             continue;
         };
         let absolute = workdir.join(relative);
@@ -255,14 +255,14 @@ fn tracked_parent_directories(
 }
 
 #[cfg(unix)]
-fn index_entry_path(bytes: &[u8]) -> Option<PathBuf> {
+pub(super) fn repository_path_from_bytes(bytes: &[u8]) -> Option<PathBuf> {
     use std::os::unix::ffi::OsStringExt;
 
     Some(PathBuf::from(std::ffi::OsString::from_vec(bytes.to_vec())))
 }
 
 #[cfg(not(unix))]
-fn index_entry_path(bytes: &[u8]) -> Option<PathBuf> {
+pub(super) fn repository_path_from_bytes(bytes: &[u8]) -> Option<PathBuf> {
     std::str::from_utf8(bytes).ok().map(PathBuf::from)
 }
 
