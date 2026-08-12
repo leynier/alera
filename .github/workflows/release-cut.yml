@@ -515,7 +515,7 @@ jobs:
             "CMAKE_MAKE_PROGRAM=$ninja"
             "CC_aarch64_pc_windows_msvc=$clangCl"
             "CXX_aarch64_pc_windows_msvc=$clangCl"
-            'CXXFLAGS_aarch64_pc_windows_msvc=/EHsc'
+            'CXXFLAGS_aarch64_pc_windows_msvc=-Xclang -fexceptions -Xclang -fcxx-exceptions'
           ) | Out-File `
             -FilePath $env:GITHUB_ENV `
             -Encoding utf8 `

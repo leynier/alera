@@ -13,6 +13,7 @@ runs:
         components: rustfmt, clippy
 
     - name: Install sccache
+      continue-on-error: true
       uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
       with:
         version: v0.15.0
@@ -22,6 +23,11 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        if ! command -v sccache >/dev/null 2>&1; then
+          echo "::warning::sccache could not be installed; continuing without a Rust compiler cache."
+          exit 0
+        fi
+
         {
           echo "RUSTC_WRAPPER=sccache"
           echo "CARGO_INCREMENTAL=0"
