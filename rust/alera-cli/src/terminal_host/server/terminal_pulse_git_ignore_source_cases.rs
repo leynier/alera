@@ -3,8 +3,8 @@ use std::{sync::atomic::AtomicBool, sync::Arc};
 
 use git2::Repository;
 
-use super::xdg_source_paths;
 use super::super::{GitConfigEnvironment, WorkspacePulseWatcher};
+use super::xdg_source_paths;
 
 #[test]
 fn fallback_xdg_config_watches_its_sibling_ignore_file() {
@@ -13,7 +13,10 @@ fn fallback_xdg_config_watches_its_sibling_ignore_file() {
 
     let paths = xdg_source_paths(&environment, Some(config.clone())).unwrap();
 
-    assert_eq!(paths, (config, std::path::PathBuf::from("fallback/git/ignore")));
+    assert_eq!(
+        paths,
+        (config, std::path::PathBuf::from("fallback/git/ignore"))
+    );
 }
 
 #[test]
@@ -324,13 +327,9 @@ fn replacing_an_ignore_source_directory_renews_its_watch() {
         .set_str("core.excludesFile", exclude.to_str().unwrap())
         .unwrap();
     let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
-    let _watcher = WorkspacePulseWatcher::start_blocking(
-        "workspace-1".to_string(),
-        workspace,
-        1,
-        inbox,
-    )
-    .unwrap();
+    let _watcher =
+        WorkspacePulseWatcher::start_blocking("workspace-1".to_string(), workspace, 1, inbox)
+            .unwrap();
 
     std::fs::remove_dir_all(&source_directory).unwrap();
     std::fs::create_dir(&source_directory).unwrap();

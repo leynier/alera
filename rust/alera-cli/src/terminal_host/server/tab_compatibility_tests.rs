@@ -196,7 +196,10 @@ async fn tab_reads_redact_terminal_pulse_from_mobile_clients() {
         .unwrap()
         .expect("the renamed tab should remain stored");
     assert_eq!(stored.title, "Desktop Flutter");
-    assert_eq!(stored.payload["terminalPulse"], tab.payload["terminalPulse"]);
+    assert_eq!(
+        stored.payload["terminalPulse"],
+        tab.payload["terminalPulse"]
+    );
 }
 
 #[tokio::test]

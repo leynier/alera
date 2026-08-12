@@ -309,8 +309,7 @@ impl WorkspacePulseWatcher {
                 .iter()
                 .filter_map(|path| path.parent().map(Path::to_path_buf)),
         );
-        let mut git_ignore_watch_directories =
-            persistent_git_ignore_watch_directories.clone();
+        let mut git_ignore_watch_directories = persistent_git_ignore_watch_directories.clone();
         refresh_git_ignore_source_watches(
             &git_ignore_sources,
             &mut git_ignore_watch_directories,

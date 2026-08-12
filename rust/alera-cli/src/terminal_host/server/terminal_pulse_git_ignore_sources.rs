@@ -109,9 +109,7 @@ impl GitIgnoreSources {
                 .or_else(|| Config::find_global().ok()),
         );
         let mut files = HashSet::new();
-        if let Some((config, ignore)) =
-            xdg_source_paths(environment, Config::find_xdg().ok())
-        {
+        if let Some((config, ignore)) = xdg_source_paths(environment, Config::find_xdg().ok()) {
             config_files.insert(config);
             files.insert(ignore);
         }
