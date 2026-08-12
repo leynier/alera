@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -113,6 +114,67 @@ void main() {
       expect(records.single['level'], 'SEVERE');
       expect(records.single['logger'], 'Zone');
       expect(records.single['error'], contains('boom'));
+    });
+
+    test(
+      'keeps file logging after the console handle becomes invalid',
+      () async {
+        var consoleWrites = 0;
+        await AppLogger.configure(
+          directory: root,
+          consoleWriter: (_) {
+            consoleWrites++;
+            throw const FileSystemException(
+              'writeFrom failed',
+              '',
+              OSError('The handle is invalid', 6),
+            );
+          },
+        );
+
+        expect(
+          () => AppLogger.recordError(
+            StateError('boom'),
+            StackTrace.fromString('#0 zoneFrame'),
+            context: 'Zone',
+          ),
+          returnsNormally,
+        );
+        Logger('Workbench').info('file sink remains available');
+
+        final records = await readRecords();
+        expect(consoleWrites, 1);
+        expect(records, hasLength(2));
+        expect(records.first['logger'], 'Zone');
+        expect(records.last['msg'], 'file sink remains available');
+      },
+    );
+
+    test('handles asynchronous console sink failures', () async {
+      var consoleWrites = 0;
+      final consoleDone = Completer<void>();
+      await AppLogger.configure(
+        directory: root,
+        consoleWriter: (_) => consoleWrites++,
+        consoleDone: consoleDone.future,
+      );
+
+      Logger('Workbench').info('before console failure');
+      consoleDone.completeError(
+        const FileSystemException(
+          'writeFrom failed',
+          '',
+          OSError('The handle is invalid', 6),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      Logger('Workbench').info('after console failure');
+
+      final records = await readRecords();
+      expect(consoleWrites, 1);
+      expect(records, hasLength(2));
+      expect(records.first['msg'], 'before console failure');
+      expect(records.last['msg'], 'after console failure');
     });
 
     test('honors the configured level', () async {
