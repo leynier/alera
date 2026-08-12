@@ -426,7 +426,7 @@ impl ServerActor {
                         "terminal.reclaim is only available to desktop clients.",
                     ));
                 }
-                let session_id = self.require_session(payload)?;
+                let session_id = self.require_session_id(payload)?;
                 let restored = self.reclaim_terminal_for_desktop(&session_id);
                 Ok(json!({ "restored": restored }))
             }
