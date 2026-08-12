@@ -58,7 +58,10 @@ void main() {
 
     await tester.tap(find.text('Copy'));
     await tester.pump();
-    expect(clipboardText, contains('--skill alera-cli --global --yes'));
+    expect(
+      clipboardText,
+      contains('--skill alera-cli --agent codex --global --yes'),
+    );
     expect(runtime.lastTab, isNull);
 
     final mouse = await tester.createGesture(
@@ -88,7 +91,7 @@ void main() {
     await tester.pump();
     expect(
       clipboardText,
-      'bunx skills add https://github.com/leynier/alera --skill alera-cli --global --yes',
+      'bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
     );
     expect(runtime.lastTab, isNull);
 
@@ -98,7 +101,7 @@ void main() {
     expect(find.text('Install Alera CLI Skill'), findsOneWidget);
     expect(
       runtime.lastTab?.initialCommand,
-      'bunx skills add https://github.com/leynier/alera --skill alera-cli --global --yes',
+      'bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
     );
 
     // The dialog owns the session: closing it terminates the shell tree.
@@ -251,7 +254,10 @@ void main() {
     final command = runtime.lastTab?.initialCommand;
     expect(command, isNotNull);
     for (final skill in AleraAgentSkill.values) {
-      expect(command, contains('--skill ${skill.name} --global --yes'));
+      expect(
+        command,
+        contains('--skill ${skill.name} --agent codex --global --yes'),
+      );
     }
     expect(command, isNot(contains('\n')));
     expect(service.skills, isEmpty);
@@ -296,7 +302,10 @@ void main() {
 
     expect(clipboardText, isNotNull);
     for (final skill in AleraAgentSkill.values) {
-      expect(clipboardText, contains('--skill ${skill.name} --global --yes'));
+      expect(
+        clipboardText,
+        contains('--skill ${skill.name} --agent codex --global --yes'),
+      );
     }
     expect(runtime.lastTab, isNull);
   });
