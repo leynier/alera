@@ -128,6 +128,13 @@ void registerCodexChatControllerHistoryTests() {
             'status': 'completed',
             'markdownText': 'Recent prompt',
           },
+          <String, Object?>{
+            'id': 'goal-message',
+            'kind': 'userMessage',
+            'status': 'completed',
+            'markdownText': 'Ship the release',
+            'metadata': <String, Object?>{'isGoal': true},
+          },
         ],
       }
       ..historyResponse = <String, Object?>{
@@ -168,6 +175,159 @@ void registerCodexChatControllerHistoryTests() {
       'Older prompt',
       'Recent prompt',
     ]);
+  });
+
+  test('authoritative same-thread snapshots clear stale goals', () async {
+    const goal = <String, Object?>{
+      'threadId': 'thread-goal',
+      'objective': 'Ship the release',
+      'status': 'active',
+      'tokenBudget': null,
+      'tokensUsed': 10,
+      'timeUsedSeconds': 20,
+      'createdAt': 1,
+      'updatedAt': 2,
+    };
+    final client =
+        _FakeCodexRuntimeClient(
+            runtimeCapabilities: const <String>[
+              aleraRuntimeHostCodexSessionsCapability,
+              aleraRuntimeHostCodexTurnPolicyCapability,
+              aleraRuntimeHostCodexGoalsCapability,
+            ],
+            requestHandler: (type, payload) => switch (type) {
+              'codex.goal.get' => Future<Object?>.value(<String, Object?>{
+                'goal': goal,
+              }),
+              _ => null,
+            },
+          )
+          ..openThreadId = 'thread-goal'
+          ..openSnapshot = <String, Object?>{
+            'goal': goal,
+            'timelineCells': const <Object?>[],
+          }
+          ..historyResponse = const <String, Object?>{
+            'snapshot': <String, Object?>{
+              'timelineCells': <Object?>[
+                <String, Object?>{
+                  'id': 'older',
+                  'kind': 'userMessage',
+                  'status': 'completed',
+                  'markdownText': 'Older prompt',
+                },
+              ],
+            },
+          };
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-goal-snapshot');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    await _settle();
+    await container.read(provider.notifier).loadHistory(cursor: 'older');
+    expect(container.read(provider).snapshot.goal, isNotNull);
+
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-goal-snapshot',
+        'threadId': 'thread-goal',
+        'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
+      }),
+    );
+    await _settle();
+
+    expect(container.read(provider).snapshot.goal, isNull);
+  });
+
+  test('goal replacement does not roll back into a new thread', () async {
+    const goal = <String, Object?>{
+      'threadId': 'thread-old',
+      'objective': 'Old objective',
+      'status': 'paused',
+      'tokenBudget': null,
+      'tokensUsed': 10,
+      'timeUsedSeconds': 20,
+      'createdAt': 1,
+      'updatedAt': 2,
+    };
+    final replacement = Completer<Object?>();
+    var setRequests = 0;
+    final client =
+        _FakeCodexRuntimeClient(
+            runtimeCapabilities: const <String>[
+              aleraRuntimeHostCodexSessionsCapability,
+              aleraRuntimeHostCodexTurnPolicyCapability,
+              aleraRuntimeHostCodexGoalsCapability,
+            ],
+            requestHandler: (type, payload) => switch (type) {
+              'codex.goal.get' => Future<Object?>.value(<String, Object?>{
+                'goal': goal,
+              }),
+              'codex.goal.clear' => Future<Object?>.value(
+                const <String, Object?>{'cleared': true},
+              ),
+              'codex.goal.set' => () {
+                setRequests += 1;
+                return replacement.future;
+              }(),
+              _ => null,
+            },
+          )
+          ..openThreadId = 'thread-old'
+          ..openSnapshot = <String, Object?>{
+            'goal': goal,
+            'timelineCells': const <Object?>[],
+          };
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = codexChatControllerProvider('tab-goal-race');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    await _settle();
+
+    final replacing = container
+        .read(provider.notifier)
+        .replaceGoal('New objective');
+    await _settle();
+    expect(setRequests, 1);
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-goal-race',
+        'threadId': 'thread-new',
+        'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
+      }),
+    );
+    await _settle();
+    replacement.completeError(StateError('replacement failed'));
+
+    expect(await replacing, isFalse);
+    expect(setRequests, 1);
+    expect(container.read(provider).snapshot.goal, isNull);
   });
 
   test(

@@ -33,6 +33,11 @@ class CodexChatHostClient {
     return capabilities.contains(aleraRuntimeHostCodexTurnPolicyCapability);
   }
 
+  Future<bool> supportsGoals() async {
+    final capabilities = await _capabilities(retryAfterFailure: true);
+    return capabilities.contains(aleraRuntimeHostCodexGoalsCapability);
+  }
+
   Future<Set<String>> _capabilities({bool retryAfterFailure = false}) async {
     final capabilities = await _capabilityRequest();
     if (!retryAfterFailure || _runtimeCapabilities != null) {
@@ -124,6 +129,37 @@ class CodexChatHostClient {
   Future<Map<String, Object?>> snapshot(String tabId) {
     return request('codex.thread.snapshot', <String, Object?>{'tabId': tabId});
   }
+
+  Future<Map<String, Object?>> getGoal(String tabId) =>
+      request('codex.goal.get', <String, Object?>{'tabId': tabId});
+
+  Future<Map<String, Object?>> setGoal(
+    String tabId, {
+    required String? expectedThreadId,
+    String? objective,
+    String? status,
+    int? tokenBudget,
+    bool recordUserMessage = false,
+    String? clientUserMessageId,
+    Map<String, Object?>? configuration,
+  }) => request('codex.goal.set', <String, Object?>{
+    'tabId': tabId,
+    'expectedThreadId': expectedThreadId,
+    'objective': ?objective,
+    'status': ?status,
+    'tokenBudget': ?tokenBudget,
+    'recordUserMessage': recordUserMessage,
+    'clientUserMessageId': ?clientUserMessageId,
+    'configuration': ?configuration,
+  });
+
+  Future<Map<String, Object?>> clearGoal(
+    String tabId, {
+    required String? expectedThreadId,
+  }) => request('codex.goal.clear', <String, Object?>{
+    'tabId': tabId,
+    'expectedThreadId': expectedThreadId,
+  });
 
   Future<Map<String, Object?>> configureTab(
     String tabId,

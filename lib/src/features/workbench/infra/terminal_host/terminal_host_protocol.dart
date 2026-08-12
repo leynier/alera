@@ -32,6 +32,7 @@ const String aleraRuntimeHostBrowserCertificateTrustCapability =
 const String aleraRuntimeHostMobileEmulatorCapability = 'mobileEmulatorV1';
 const String aleraMobileEmulatorTabKind = 'mobileEmulator';
 const String aleraRuntimeHostCodexChatCapability = 'codexChatTabV1';
+const String aleraRuntimeHostCodexGoalsCapability = 'codexGoalsV1';
 const String aleraRuntimeHostCodexSessionsCapability = 'codexSessionsV1';
 const String aleraRuntimeHostCodexTurnPolicyCapability = 'codexTurnPolicyV2';
 const String aleraCodexTabKind = 'codex';

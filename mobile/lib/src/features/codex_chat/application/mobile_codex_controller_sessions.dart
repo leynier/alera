@@ -328,6 +328,7 @@ MobileCodexState _mergeMobileSameThreadSnapshot(
     contextLimit: incoming.contextLimit,
     title: incoming.title,
     mcpInitializing: incoming.mcpInitializing,
+    goal: incoming.goal,
   );
 }
 
@@ -396,6 +397,7 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
     contextLimit: incoming.contextLimit,
     title: incoming.title,
     mcpInitializing: mobileCodexHasInitializingMcp(retainedCells),
+    goal: incoming.goal,
     presentationRows: MobileCodexTimelineProjection.project(
       retainedCells,
       activeTurnId: activeTurnId,

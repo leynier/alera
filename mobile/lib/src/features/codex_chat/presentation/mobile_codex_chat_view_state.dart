@@ -1,13 +1,14 @@
 part of 'mobile_codex_chat_screen.dart';
 
 class _MobileFooterState {
-  _MobileFooterState(this.state)
+  _MobileFooterState(this.state, {required this.supportsGoals})
     : _progressSignature = _mobileProgressSignature(
         state.timelineCells,
         state.activeTurnId,
       );
 
   final MobileCodexState state;
+  final bool supportsGoals;
   final String _progressSignature;
 
   @override
@@ -36,6 +37,8 @@ class _MobileFooterState {
       state.interrupting == other.state.interrupting &&
       state.mcpInitializing == other.state.mcpInitializing &&
       state.error == other.state.error &&
+      state.goal == other.state.goal &&
+      supportsGoals == other.supportsGoals &&
       state.shouldShowImplementPlan == other.state.shouldShowImplementPlan &&
       _progressSignature == other._progressSignature;
 
@@ -64,6 +67,8 @@ class _MobileFooterState {
     state.interrupting,
     state.mcpInitializing,
     state.error,
+    state.goal,
+    supportsGoals,
     state.shouldShowImplementPlan,
     _progressSignature,
   ]);

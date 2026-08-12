@@ -134,8 +134,9 @@ extension _CodexComposerLogic on _CodexComposerState {
       return;
     }
     final command = entry.builtin!;
-    if (command == CodexComposerCommand.rename) {
-      _replaceActive(RegExp(r'^/\S*$'), '/rename ');
+    if (command == CodexComposerCommand.rename ||
+        command == CodexComposerCommand.goal) {
+      _replaceActive(RegExp(r'^/\S*$'), '/${command.name} ');
       return;
     }
     if (command == CodexComposerCommand.mention) {

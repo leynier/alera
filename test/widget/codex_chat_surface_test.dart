@@ -49,9 +49,11 @@ part 'codex_chat_surface_session_state_test_cases.dart';
 part 'codex_chat_surface_timeline_request_test_cases.dart';
 part 'codex_chat_surface_review_dialog_test_cases.dart';
 part 'codex_chat_surface_recovery_test_cases.dart';
+part 'codex_chat_surface_goal_test_cases.dart';
 
 void main() {
   _registerCodexChatSurfaceRecoveryTests();
+  _registerCodexChatSurfaceGoalTests();
   test('allows only standard external URI schemes', () {
     for (final value in <String>[
       'https://example.com/path',

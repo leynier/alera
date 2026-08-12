@@ -89,6 +89,7 @@ mod codex_app_server_history;
 mod codex_app_server_session_state;
 mod codex_event_routing;
 mod codex_events;
+mod codex_goal_requests;
 mod codex_nonblocking_questions;
 mod codex_presence;
 mod codex_requests;

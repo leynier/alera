@@ -32,6 +32,7 @@ class CodexChatState {
     this.interrupting = false,
     this.supportsSessions = false,
     this.supportsAutoReview = false,
+    this.supportsGoals = false,
     this.snapshot = const CodexChatSnapshot(),
     this.activeCwd,
     this.historyNextCursor,
@@ -55,6 +56,7 @@ class CodexChatState {
   final bool interrupting;
   final bool supportsSessions;
   final bool supportsAutoReview;
+  final bool supportsGoals;
   final CodexChatSnapshot snapshot;
   final String? activeCwd;
   final String? historyNextCursor;
@@ -87,6 +89,7 @@ class CodexChatState {
     bool? interrupting,
     bool? supportsSessions,
     bool? supportsAutoReview,
+    bool? supportsGoals,
     CodexChatSnapshot? snapshot,
     Object? activeCwd = _keepActiveCwd,
     Object? historyNextCursor = _keepHistoryNextCursor,
@@ -109,6 +112,7 @@ class CodexChatState {
     interrupting: interrupting ?? this.interrupting,
     supportsSessions: supportsSessions ?? this.supportsSessions,
     supportsAutoReview: supportsAutoReview ?? this.supportsAutoReview,
+    supportsGoals: supportsGoals ?? this.supportsGoals,
     snapshot: snapshot ?? this.snapshot,
     activeCwd: identical(activeCwd, _keepActiveCwd)
         ? this.activeCwd

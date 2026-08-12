@@ -5,6 +5,7 @@ part of 'mobile_runtime_client.dart';
 /// [MobileCodexClient].
 mixin MobileRuntimeCodexRequests {
   bool get supportsCodexChat;
+  bool get supportsCodexGoals;
 
   Future<Map<String, Object?>> requestMap(
     String type, [
@@ -28,5 +29,15 @@ mixin MobileRuntimeCodexRequests {
       );
     }
     return requestMap(type, payload);
+  }
+
+  Future<Map<String, Object?>> codexGoalRequest(
+    String type,
+    Map<String, Object?> payload,
+  ) {
+    if (!supportsCodexGoals) {
+      throw UnsupportedError('This runtime host does not support Codex goals.');
+    }
+    return codexRequest(type, payload);
   }
 }
