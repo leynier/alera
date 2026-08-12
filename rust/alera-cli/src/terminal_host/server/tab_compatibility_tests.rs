@@ -79,6 +79,103 @@ fn codex_tab() -> WorkspaceTabRecord {
     }
 }
 
+fn terminal_pulse_tab() -> WorkspaceTabRecord {
+    let now = "2026-07-27T12:34:56.789Z"
+        .parse::<chrono::DateTime<Utc>>()
+        .unwrap();
+    WorkspaceTabRecord {
+        id: "terminal-1".to_string(),
+        workspace_id: "workspace-1".to_string(),
+        kind: "terminal".to_string(),
+        title: "Flutter".to_string(),
+        created_at: now,
+        updated_at: now,
+        payload: json!({
+            "terminalPulse": {
+                "command": "r",
+                "appendEnter": true,
+                "delayMs": 2_000,
+            },
+            "shell": "zsh",
+        }),
+    }
+}
+
+#[tokio::test]
+async fn tab_reads_redact_terminal_pulse_from_mobile_clients() {
+    let dir = tempfile::tempdir().unwrap();
+    let (local_handle, mut local_rx) = ClientHandle::test_channels();
+    let (mobile_handle, mut mobile_rx) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([
+            (1, local_client(local_handle)),
+            (2, mobile_client(mobile_handle, "phone")),
+        ]),
+        HashMap::new(),
+    )
+    .await;
+    let tab = terminal_pulse_tab();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(tab.clone())
+        .await
+        .unwrap();
+
+    let local_list = request(
+        &mut actor,
+        1,
+        1,
+        "tab.list",
+        json!({"workspaceId": "workspace-1"}),
+        &mut local_rx,
+    )
+    .await;
+    let local_find = request(
+        &mut actor,
+        1,
+        2,
+        "tab.find",
+        json!({"id": "terminal-1"}),
+        &mut local_rx,
+    )
+    .await;
+    let mobile_list = request(
+        &mut actor,
+        2,
+        3,
+        "tab.list",
+        json!({"workspaceId": "workspace-1"}),
+        &mut mobile_rx,
+    )
+    .await;
+    let mobile_find = request(
+        &mut actor,
+        2,
+        4,
+        "tab.find",
+        json!({"id": "terminal-1"}),
+        &mut mobile_rx,
+    )
+    .await;
+
+    assert_eq!(local_list[0]["payload"]["terminalPulse"]["command"], "r");
+    assert_eq!(local_find["payload"]["terminalPulse"]["command"], "r");
+    assert_eq!(mobile_list[0]["payload"]["terminalPulse"], Value::Null);
+    assert_eq!(mobile_find["payload"]["terminalPulse"], Value::Null);
+    assert_eq!(mobile_list[0]["payload"]["shell"], "zsh");
+    assert_eq!(mobile_find["payload"]["shell"], "zsh");
+    assert_eq!(
+        actor
+            .runtime_store
+            .find_workspace_tab("terminal-1")
+            .await
+            .unwrap(),
+        Some(tab),
+        "client projection must not redact the stored Terminal Pulse configuration",
+    );
+}
+
 #[tokio::test]
 async fn tab_reads_hide_codex_from_clients_without_tab_support() {
     let dir = tempfile::tempdir().unwrap();

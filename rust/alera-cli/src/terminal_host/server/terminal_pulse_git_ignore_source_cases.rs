@@ -70,6 +70,40 @@ fn repository_exclude_unignores_an_existing_root_file() {
 }
 
 #[test]
+fn ignore_source_keeps_its_watch_when_its_directory_becomes_ignored() {
+    let root = tempfile::tempdir().unwrap();
+    let repository = Repository::init(root.path()).unwrap();
+    let config_directory = root.path().join("config");
+    std::fs::create_dir(&config_directory).unwrap();
+    let exclude = config_directory.join("exclude");
+    std::fs::write(&exclude, "visible.txt\n").unwrap();
+    repository
+        .config()
+        .unwrap()
+        .set_str("core.excludesFile", "config/exclude")
+        .unwrap();
+    std::fs::write(root.path().join("visible.txt"), "existing").unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher = WorkspacePulseWatcher::start_blocking(
+        "workspace-1".to_string(),
+        root.path().to_path_buf(),
+        1,
+        inbox,
+    )
+    .unwrap();
+
+    std::fs::write(root.path().join(".gitignore"), "config/\n").unwrap();
+    wait_for_git_source_reconciliation();
+    drain_commands(&mut commands);
+    std::fs::write(&exclude, "").unwrap();
+
+    assert_file_changed(
+        &mut commands,
+        "exclude edit inside a newly ignored directory",
+    );
+}
+
+#[test]
 fn equivalent_ignore_rule_changes_do_not_report_existing_dirt() {
     let root = tempfile::tempdir().unwrap();
     let workspace = root.path().join("workspace");

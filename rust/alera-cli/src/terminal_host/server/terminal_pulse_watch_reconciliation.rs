@@ -36,6 +36,7 @@ impl WorkspacePulseWorker {
                     &self.repository,
                     &self.root,
                     &mut self.watched_directories,
+                    &self.git_ignore_watch_directories,
                 ) {
                     Ok(additions) => additions,
                     Err(error) => {
@@ -159,6 +160,7 @@ fn reconcile_watch_directories(
     repository: &Repository,
     root: &Path,
     watched_directories: &mut HashSet<PathBuf>,
+    git_ignore_watch_directories: &HashSet<PathBuf>,
 ) -> HostResult<Vec<PathBuf>> {
     let identities = PathIdentityCache::scan(root, repository)?;
     let desired = identities.watch_directories();
@@ -176,7 +178,9 @@ fn reconcile_watch_directories(
             .map_err(watcher_error)?;
     }
     for directory in removals {
-        let _ = watcher.unwatch(&directory);
+        if !git_ignore_watch_directories.contains(&directory) {
+            let _ = watcher.unwatch(&directory);
+        }
     }
     watched_directories.clone_from(desired);
     Ok(additions)

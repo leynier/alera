@@ -25,7 +25,7 @@ mod path_identities;
 use watcher::event_is_relevant;
 pub(super) use watcher::WorkspacePulseWatcher;
 
-const TERMINAL_PULSE_PAYLOAD_KEY: &str = "terminalPulse";
+pub(super) const TERMINAL_PULSE_PAYLOAD_KEY: &str = "terminalPulse";
 const DEFAULT_DELAY_MS: u64 = 2_000;
 const MIN_DELAY_MS: u64 = 100;
 const MAX_DELAY_MS: u64 = 3_600_000;
