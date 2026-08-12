@@ -25,6 +25,10 @@ void main() {
       origin: CodexInputAttachmentOrigin.mention,
       tokenText: '@docs/read me.md',
       tokenStart: 4,
+      annotationContext: 'Selected page text',
+      annotationUrl: 'https://example.test/docs',
+      annotationTitle: 'Docs',
+      annotationCount: 2,
     );
     final copiedAttachment = attachment.copyWith(
       sizeBytes: 20,
@@ -38,11 +42,23 @@ void main() {
     expect(copiedAttachment.origin, attachment.origin);
     expect(copiedAttachment.tokenText, attachment.tokenText);
     expect(copiedAttachment.tokenStart, attachment.tokenStart);
+    expect(copiedAttachment.annotationContext, attachment.annotationContext);
+    expect(copiedAttachment.annotationUrl, attachment.annotationUrl);
+    expect(copiedAttachment.annotationTitle, attachment.annotationTitle);
+    expect(copiedAttachment.annotationCount, attachment.annotationCount);
+    expect(copiedAttachment.isBrowserAnnotation, isTrue);
     expect(copiedAttachment.sizeBytes, 20);
     expect(copiedAttachment.isDirectory, isTrue);
     final unchangedAttachment = attachment.copyWith();
     expect(unchangedAttachment.sizeBytes, attachment.sizeBytes);
     expect(unchangedAttachment.isDirectory, attachment.isDirectory);
+    expect(
+      const CodexInputAttachment(
+        path: 'plain.txt',
+        isImage: false,
+      ).isBrowserAnnotation,
+      isFalse,
+    );
 
     const item = CodexDraftItem(
       id: 'skill',
