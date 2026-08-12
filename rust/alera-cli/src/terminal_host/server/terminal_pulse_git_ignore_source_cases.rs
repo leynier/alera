@@ -3,7 +3,18 @@ use std::{sync::atomic::AtomicBool, sync::Arc};
 
 use git2::Repository;
 
+use super::xdg_source_paths;
 use super::super::{GitConfigEnvironment, WorkspacePulseWatcher};
+
+#[test]
+fn fallback_xdg_config_watches_its_sibling_ignore_file() {
+    let environment = GitConfigEnvironment::new(None, None, None, None, false);
+    let config = std::path::PathBuf::from("fallback/git/config");
+
+    let paths = xdg_source_paths(&environment, Some(config.clone())).unwrap();
+
+    assert_eq!(paths, (config, std::path::PathBuf::from("fallback/git/ignore")));
+}
 
 #[test]
 fn changing_the_active_global_exclude_reconciles_pruned_directories() {
@@ -292,6 +303,43 @@ fn future_exclude_source_is_observed_from_its_existing_ancestor() {
     std::fs::write(ignored.join("hidden.txt"), "hidden").unwrap();
 
     assert_no_file_changed(&mut commands, "newly created exclude source");
+}
+
+#[test]
+fn replacing_an_ignore_source_directory_renews_its_watch() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = root.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let repository = Repository::init(&workspace).unwrap();
+    let ignored = workspace.join("ignored");
+    std::fs::create_dir(&ignored).unwrap();
+    std::fs::write(ignored.join("hidden.txt"), "hidden").unwrap();
+    let source_directory = root.path().join("ignore-config");
+    std::fs::create_dir(&source_directory).unwrap();
+    let exclude = source_directory.join("exclude");
+    std::fs::write(&exclude, "ignored/\n").unwrap();
+    repository
+        .config()
+        .unwrap()
+        .set_str("core.excludesFile", exclude.to_str().unwrap())
+        .unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let _watcher = WorkspacePulseWatcher::start_blocking(
+        "workspace-1".to_string(),
+        workspace,
+        1,
+        inbox,
+    )
+    .unwrap();
+
+    std::fs::remove_dir_all(&source_directory).unwrap();
+    std::fs::create_dir(&source_directory).unwrap();
+    std::fs::write(&exclude, "ignored/\n").unwrap();
+    wait_for_git_source_reconciliation();
+    drain_commands(&mut commands);
+    std::fs::write(&exclude, "").unwrap();
+
+    assert_file_changed(&mut commands, "edit in a recreated ignore source directory");
 }
 
 #[test]

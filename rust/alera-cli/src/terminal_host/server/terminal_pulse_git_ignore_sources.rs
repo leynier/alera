@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use git2::{Config, ConfigLevel, ErrorCode, Repository};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{ErrorKind as NotifyErrorKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -109,11 +109,11 @@ impl GitIgnoreSources {
                 .or_else(|| Config::find_global().ok()),
         );
         let mut files = HashSet::new();
-        if let Some(xdg) = environment.xdg_directory() {
-            config_files.insert(xdg.join("git/config"));
-            files.insert(xdg.join("git/ignore"));
-        } else if let Ok(xdg) = Config::find_xdg() {
-            config_files.insert(xdg);
+        if let Some((config, ignore)) =
+            xdg_source_paths(environment, Config::find_xdg().ok())
+        {
+            config_files.insert(config);
+            files.insert(ignore);
         }
         collect_config_includes(&mut config_files, environment)?;
         files.extend(config_files);
@@ -142,6 +142,18 @@ impl GitIgnoreSources {
                 .and_then(|name| name.strip_suffix(".lock"))
                 .is_some_and(|name| self.files.contains(&path.with_file_name(name)))
     }
+}
+
+fn xdg_source_paths(
+    environment: &GitConfigEnvironment,
+    fallback_config: Option<PathBuf>,
+) -> Option<(PathBuf, PathBuf)> {
+    let config = environment
+        .xdg_directory()
+        .map(|directory| directory.join("git/config"))
+        .or(fallback_config)?;
+    let ignore = config.parent()?.join("ignore");
+    Some((config, ignore))
 }
 
 fn collect_config_includes(
@@ -311,25 +323,41 @@ pub(super) fn reopen_repository(
 pub(super) fn refresh_git_ignore_source_watches(
     sources: &Arc<RwLock<GitIgnoreSources>>,
     watched: &mut HashSet<PathBuf>,
+    persistent_watches: &HashSet<PathBuf>,
     workspace_watches: &HashSet<PathBuf>,
     watcher: &mut RecommendedWatcher,
     repository: &Repository,
     environment: &GitConfigEnvironment,
 ) -> HostResult<()> {
     let next = GitIgnoreSources::discover(repository, environment)?;
-    let additions = next
+    let previous_directories = sources
+        .read()
+        .map_err(|_| HostError::state("Terminal Pulse Git ignore source lock failed."))?
         .directories
-        .difference(watched)
-        .cloned()
-        .collect::<Vec<_>>();
-    for directory in additions {
-        if !workspace_watches.contains(&directory) {
+        .clone();
+    for directory in &previous_directories {
+        if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
+            match watcher.unwatch(directory) {
+                Ok(()) => {}
+                Err(error)
+                    if matches!(
+                        error.kind,
+                        NotifyErrorKind::PathNotFound | NotifyErrorKind::WatchNotFound
+                    ) => {}
+                Err(error) => return Err(watcher_error(error)),
+            }
+        }
+    }
+    for directory in &next.directories {
+        if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
             watcher
-                .watch(&directory, RecursiveMode::NonRecursive)
+                .watch(directory, RecursiveMode::NonRecursive)
                 .map_err(watcher_error)?;
         }
-        watched.insert(directory);
     }
+    watched.clear();
+    watched.extend(persistent_watches.iter().cloned());
+    watched.extend(next.directories.iter().cloned());
     *sources
         .write()
         .map_err(|_| HostError::state("Terminal Pulse Git ignore source lock failed."))? = next;

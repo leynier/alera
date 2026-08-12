@@ -23,6 +23,7 @@ impl WorkspacePulseWorker {
                 if let Err(error) = refresh_git_ignore_source_watches(
                     &self.git_ignore_sources,
                     &mut self.git_ignore_watch_directories,
+                    &self.persistent_git_ignore_watch_directories,
                     &self.watched_directories,
                     &mut self.watcher,
                     &self.repository,

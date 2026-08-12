@@ -64,6 +64,7 @@ struct WorkspacePulseWorker {
     watched_directories: HashSet<PathBuf>,
     git_ignore_sources: Arc<RwLock<GitIgnoreSources>>,
     git_ignore_watch_directories: HashSet<PathBuf>,
+    persistent_git_ignore_watch_directories: HashSet<PathBuf>,
     git_config_environment: GitConfigEnvironment,
     ignored_git_status_paths: HashSet<PathBuf>,
     failure_reported: Arc<AtomicBool>,
@@ -299,18 +300,21 @@ impl WorkspacePulseWatcher {
                 .watch(directory, RecursiveMode::NonRecursive)
                 .map_err(watcher_error)?;
         }
-        let mut git_ignore_watch_directories = HashSet::from([
+        let mut persistent_git_ignore_watch_directories = HashSet::from([
             git_metadata_directory.clone(),
             git_exclude_directory.clone(),
         ]);
-        git_ignore_watch_directories.extend(
+        persistent_git_ignore_watch_directories.extend(
             ancestor_ignore_files
                 .iter()
                 .filter_map(|path| path.parent().map(Path::to_path_buf)),
         );
+        let mut git_ignore_watch_directories =
+            persistent_git_ignore_watch_directories.clone();
         refresh_git_ignore_source_watches(
             &git_ignore_sources,
             &mut git_ignore_watch_directories,
+            &persistent_git_ignore_watch_directories,
             &initial_watch_directories,
             &mut watcher,
             &worker_repository,
@@ -336,6 +340,7 @@ impl WorkspacePulseWatcher {
                     watched_directories: initial_watch_directories,
                     git_ignore_sources,
                     git_ignore_watch_directories,
+                    persistent_git_ignore_watch_directories,
                     git_config_environment,
                     ignored_git_status_paths,
                     failure_reported,
