@@ -160,6 +160,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   Future<void> _saveQueue = Future<void>.value();
   bool _started = false;
   bool _closing = false;
+  bool _closeCommitted = false;
   bool _closed = false;
 
   /// Optional gate invoked before the window is destroyed. Return `false` to
@@ -271,6 +272,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
       _logWarningIfActive('app window close gate failed', error, stackTrace);
       return;
     }
+    _closeCommitted = true;
     try {
       await flush();
     } catch (error, stackTrace) {
@@ -304,7 +306,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     StackTrace stackTrace,
   ) {
     // Desktop stdio may already be invalid once a committed close starts.
-    if (_closing || _closed) {
+    if (_closeCommitted || _closed) {
       return;
     }
     _logger.warning(message, error, stackTrace);

@@ -65,6 +65,46 @@ void main() {
       expect(window.preventCloseValues, <bool>[true, false]);
     });
 
+    test('reports save failures while the close gate is pending', () async {
+      final saveStarted = Completer<void>();
+      final finishSave = Completer<void>();
+      final gate = Completer<bool>();
+      final repository = _RecordingStateRepository()
+        ..saveStarted = saveStarted
+        ..saveBarrier = finishSave.future
+        ..saveError = StateError('disk full');
+      final window = _RecordingWindowController();
+      final logger = Logger.detached('pending-close');
+      final records = <LogRecord>[];
+      final subscription = logger.onRecord.listen(records.add);
+      addTearDown(subscription.cancel);
+      var gateCalls = 0;
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: repository,
+        window: window,
+        saveDebounce: Duration.zero,
+        logger: logger,
+        closeGate: () {
+          gateCalls += 1;
+          return gate.future;
+        },
+      );
+      await coordinator.start();
+
+      window.emit((listener) => listener.onWindowResized());
+      await saveStarted.future;
+      window.emit((listener) => listener.onWindowClose());
+      finishSave.complete();
+      await _waitFor(() => records.isNotEmpty);
+      gate.complete(false);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(records.single.message, 'failed to save app window state');
+      expect(window.destroyCalls, 0);
+      window.emit((listener) => listener.onWindowClose());
+      await _waitFor(() => gateCalls == 2);
+    });
+
     test('closes once and ignores post-close state work', () async {
       final repository = _RecordingStateRepository();
       final window = _RecordingWindowController();
@@ -103,6 +143,8 @@ void main() {
 class _RecordingStateRepository implements AppWindowStateRepository {
   AppWindowState? state;
   Object? saveError;
+  Completer<void>? saveStarted;
+  Future<void>? saveBarrier;
   final List<AppWindowState> saved = <AppWindowState>[];
 
   @override
@@ -115,6 +157,8 @@ class _RecordingStateRepository implements AppWindowStateRepository {
 
   @override
   Future<void> save(AppWindowState state) async {
+    saveStarted?.complete();
+    await saveBarrier;
     final error = saveError;
     if (error != null) {
       throw error;
