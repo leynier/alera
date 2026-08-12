@@ -208,6 +208,13 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.queue_terminal_input(client_id, request_id, payload)
             }
+            "terminal.pulse.configure" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_terminal_pulse_configuration(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
             "agentQuota.snapshot" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

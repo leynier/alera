@@ -28,6 +28,8 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
 
   ValueNotifier<String> get _titleNotifier;
 
+  ValueNotifier<TerminalPulseState> get _terminalPulseNotifier;
+
   ValueNotifier<TerminalRestoreProgress?> get _restoreProgress;
 
   Osc8TerminalLinkTracker get _osc8LinkTracker;
@@ -102,6 +104,7 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
     _scrollController.dispose();
     _focusNode.dispose();
     _titleNotifier.dispose();
+    _terminalPulseNotifier.dispose();
     _restoreProgress.dispose();
     composerController.dispose();
     super.dispose();

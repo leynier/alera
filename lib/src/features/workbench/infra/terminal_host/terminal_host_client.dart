@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
@@ -25,12 +26,16 @@ part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
 part 'terminal_host_client_session_events.dart';
+part 'terminal_host_client_terminal_pulse.dart';
 part 'terminal_host_client_socket_reader.dart';
 part 'terminal_host_control_file.dart';
 
 final class SocketTerminalHostClient
-    with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
-    implements TerminalHostClient, RuntimeHostClient {
+    with
+        _TerminalHostClientHeartbeat,
+        _TerminalHostClientSessionEvents,
+        _TerminalPulseHostClientSupport
+    implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
@@ -71,9 +76,11 @@ final class SocketTerminalHostClient
   final Map<int, _PendingHostRequest> _pending = <int, _PendingHostRequest>{};
 
   Future<_TerminalHostConnection>? _terminalConnectionFuture;
+  @override
   _TerminalHostConnection? _terminalConnection;
   StreamSubscription<Object?>? _terminalLineSub;
   Future<_TerminalHostConnection>? _runtimeConnectionFuture;
+  @override
   _TerminalHostConnection? _runtimeConnection;
   StreamSubscription<Object?>? _runtimeLineSub;
   int _nextRequestId = 1;
@@ -93,12 +100,6 @@ final class SocketTerminalHostClient
   bool get supportsTerminalRestart =>
       _terminalConnection?.supportsTerminalRestart ??
       _runtimeConnection?.supportsTerminalRestart ??
-      false;
-
-  @override
-  bool get supportsDeferredInput =>
-      _terminalConnection?.supportsDeferredInput ??
-      _runtimeConnection?.supportsDeferredInput ??
       false;
 
   @override
@@ -249,22 +250,28 @@ final class SocketTerminalHostClient
     });
   }
 
+  @override
   Future<Map<String, Object?>> _terminalRequestMap(
     String type,
-    Map<String, Object?> payload,
-  ) async {
-    return asTerminalHostMap(await _terminalRequest(type, payload), 'response');
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  }) async {
+    return asTerminalHostMap(
+      await _terminalRequest(type, payload, timeout: timeout),
+      'response',
+    );
   }
 
   Future<Object?> _terminalRequest(
     String type,
-    Map<String, Object?> payload,
-  ) async {
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  }) async {
     if (_disposed) {
       throw StateError('Terminal host client is disposed.');
     }
     final connection = await _connectTerminal();
-    return _requestOnConnection(connection, type, payload);
+    return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
   Future<Object?> _runtimeRequest(

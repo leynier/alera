@@ -112,6 +112,7 @@ pub(super) async fn test_actor(
         orchestration_activity_last_recorded: HashMap::new(),
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
+        terminal_pulses: Default::default(),
         browser: BrowserBroker::default(),
         emulators: None,
         codex: None,

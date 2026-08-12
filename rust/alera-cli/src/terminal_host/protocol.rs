@@ -102,6 +102,7 @@ pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresenc
 // Advertised once callers can explicitly replace a terminal process while
 // preserving its handle and scrollback. Older hosts remain attachable.
 pub const RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY: &str = "terminalRestartV1";
+pub const RUNTIME_HOST_TERMINAL_PULSE_CAPABILITY: &str = "terminalPulseV1";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 /// The host can replace its own sidecar process through `host.restart`.
 ///

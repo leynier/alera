@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
@@ -85,6 +85,10 @@ pub enum PtyWriteCompletion {
     },
     StartupSubmit {
         session_instance_id: u64,
+    },
+    TerminalPulse {
+        session_instance_id: u64,
+        active: Arc<AtomicBool>,
     },
 }
 
