@@ -23,8 +23,14 @@ void main() {
   });
 
   test('exposes selectable verified local Whisper models', () {
-    expect(AiDictationModelStore.models.map((model) => model.id), contains('whisper-base'));
-    expect(AiDictationModelStore.modelForId('whisper-cpp-base'), 'whisper-base');
+    expect(
+      AiDictationModelStore.models.map((model) => model.id),
+      contains('whisper-base'),
+    );
+    expect(
+      AiDictationModelStore.modelForId('whisper-cpp-base'),
+      'whisper-base',
+    );
   });
 
   test('exposes exception details', () {

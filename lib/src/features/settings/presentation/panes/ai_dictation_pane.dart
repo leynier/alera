@@ -45,12 +45,16 @@ class _AiDictationSettingsPaneState
   }
 
   Future<void> _downloadModel() async {
-    await ref.read(aiDictationModelStoreProvider).download(id: widget.settings.localModelId);
+    await ref
+        .read(aiDictationModelStoreProvider)
+        .download(id: widget.settings.localModelId);
     await _refreshModelStatus();
   }
 
   Future<void> _removeModel() async {
-    await ref.read(aiDictationModelStoreProvider).remove(widget.settings.localModelId);
+    await ref
+        .read(aiDictationModelStoreProvider)
+        .remove(widget.settings.localModelId);
     await _refreshModelStatus();
   }
 
@@ -81,8 +85,14 @@ class _AiDictationSettingsPaneState
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 trailing: DropdownButton<String>(
-                  value: AiDictationModelStore.models
-                      .any((model) => model.id == AiDictationModelStore.modelForId(settings.localModelId))
+                  value:
+                      AiDictationModelStore.models.any(
+                        (model) =>
+                            model.id ==
+                            AiDictationModelStore.modelForId(
+                              settings.localModelId,
+                            ),
+                      )
                       ? AiDictationModelStore.modelForId(settings.localModelId)
                       : AiDictationModelStore.models.first.id,
                   items: <DropdownMenuItem<String>>[
@@ -129,33 +139,49 @@ class _AiDictationSettingsPaneState
           key: widget.groupKeys['fallback'],
           child: AleraSettingsGroup(
             title: 'Fallback Providers',
-            description: 'Use the connected runtime first, then an OpenAI-compatible provider when local transcription is unavailable.',
+            description:
+                'Use the connected runtime first, then an OpenAI-compatible provider when local transcription is unavailable.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Host Whisper Fallback',
-                description: 'Send recordings to the connected runtime for local Whisper transcription.',
+                description:
+                    'Send recordings to the connected runtime for local Whisper transcription.',
                 value: settings.hostFallbackEnabled,
-                onChanged: (value) => widget.onChanged(settings.copyWith(hostFallbackEnabled: value)),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(hostFallbackEnabled: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'OpenAI-Compatible Fallback',
-                description: 'Use the configured speech-to-text endpoint after local and host fallback fail.',
+                description:
+                    'Use the configured speech-to-text endpoint after local and host fallback fail.',
                 value: settings.providerFallbackEnabled,
-                onChanged: (value) => widget.onChanged(settings.copyWith(providerFallbackEnabled: value)),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(providerFallbackEnabled: value),
+                ),
               ),
               SettingsTextRow(
                 title: 'Provider URL',
                 description: 'Base URL such as https://api.openai.com.',
                 value: settings.remoteBaseUrl ?? '',
                 hintText: 'https://api.openai.com',
-                onChanged: (value) => widget.onChanged(settings.copyWith(remoteBaseUrl: value.trim().isEmpty ? null : value.trim())),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    remoteBaseUrl: value.trim().isEmpty ? null : value.trim(),
+                  ),
+                ),
               ),
               SettingsTextRow(
                 title: 'Provider Model',
-                description: 'Model sent in the multipart transcription request.',
+                description:
+                    'Model sent in the multipart transcription request.',
                 value: settings.remoteModel ?? '',
                 hintText: 'gpt-4o-mini-transcribe',
-                onChanged: (value) => widget.onChanged(settings.copyWith(remoteModel: value.trim().isEmpty ? null : value.trim())),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    remoteModel: value.trim().isEmpty ? null : value.trim(),
+                  ),
+                ),
               ),
             ],
           ),

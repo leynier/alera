@@ -61,7 +61,8 @@ class AppSettingsScreen extends StatelessWidget {
                 trailing: const Icon(AleraIcons.chevronRight, size: 16),
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
-                      builder: (_) => const MobileAiDictationSettingsScreen()),
+                    builder: (_) => const MobileAiDictationSettingsScreen(),
+                  ),
                 ),
               ),
             ),
@@ -98,15 +99,15 @@ class AppSettingsScreen extends StatelessWidget {
                     Text(
                       'Mobile Companion',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AleraTokens.foregroundMuted,
-                          ),
+                        color: AleraTokens.foregroundMuted,
+                      ),
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
                     Text(
                       'Pair with desktop hosts to manage workspaces, terminals, and agent quotas from this phone.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AleraTokens.foregroundMuted,
-                          ),
+                        color: AleraTokens.foregroundMuted,
+                      ),
                     ),
                   ],
                 ),

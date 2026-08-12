@@ -24,11 +24,11 @@ class AiDictationService extends ChangeNotifier {
     this.fallbackProviders = const <AiDictationProvider>[],
     required AiDictationModelStore modelStore,
     AudioRecorder? recorder,
-  })  : _settings = settings,
-        _targets = targets,
-        _provider = provider,
-        _modelStore = modelStore,
-        _recorder = recorder;
+  }) : _settings = settings,
+       _targets = targets,
+       _provider = provider,
+       _modelStore = modelStore,
+       _recorder = recorder;
 
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;

@@ -25,27 +25,26 @@ class MobileAiDictationSettings {
     String? providerBaseUrl,
     String? providerModel,
     String? language,
-  }) =>
-      MobileAiDictationSettings(
-        enabled: enabled ?? this.enabled,
-        localModelId: localModelId ?? this.localModelId,
-        hostFallbackEnabled: hostFallbackEnabled ?? this.hostFallbackEnabled,
-        providerFallbackEnabled:
-            providerFallbackEnabled ?? this.providerFallbackEnabled,
-        providerBaseUrl: providerBaseUrl ?? this.providerBaseUrl,
-        providerModel: providerModel ?? this.providerModel,
-        language: language ?? this.language,
-      );
+  }) => MobileAiDictationSettings(
+    enabled: enabled ?? this.enabled,
+    localModelId: localModelId ?? this.localModelId,
+    hostFallbackEnabled: hostFallbackEnabled ?? this.hostFallbackEnabled,
+    providerFallbackEnabled:
+        providerFallbackEnabled ?? this.providerFallbackEnabled,
+    providerBaseUrl: providerBaseUrl ?? this.providerBaseUrl,
+    providerModel: providerModel ?? this.providerModel,
+    language: language ?? this.language,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'enabled': enabled,
-        'localModelId': localModelId,
-        'hostFallbackEnabled': hostFallbackEnabled,
-        'providerFallbackEnabled': providerFallbackEnabled,
-        'providerBaseUrl': providerBaseUrl,
-        'providerModel': providerModel,
-        'language': language,
-      };
+    'enabled': enabled,
+    'localModelId': localModelId,
+    'hostFallbackEnabled': hostFallbackEnabled,
+    'providerFallbackEnabled': providerFallbackEnabled,
+    'providerBaseUrl': providerBaseUrl,
+    'providerModel': providerModel,
+    'language': language,
+  };
 
   factory MobileAiDictationSettings.fromJson(Map<String, Object?> json) =>
       MobileAiDictationSettings(

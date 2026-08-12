@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 class AiDictationModelStore {
   AiDictationModelStore({http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   static const legacyModelId = 'whisper-cpp-base';
   static const modelId = 'whisper-base';
@@ -88,8 +88,10 @@ class AiDictationModelStore {
     return (await marker.readAsString()).trim() == expected;
   }
 
-  Future<String> download(
-      {String? id, void Function(double progress)? onProgress}) async {
+  Future<String> download({
+    String? id,
+    void Function(double progress)? onProgress,
+  }) async {
     final model = modelFor(id ?? modelId);
     final destination = await modelPath(model.id);
     final modelDirectory = Directory(p.dirname(destination));
@@ -100,8 +102,9 @@ class AiDictationModelStore {
     final marker = File('$destination.sha256');
     var installed = false;
     try {
-      final response =
-          await _client.send(http.Request('GET', Uri.parse(model.uri)));
+      final response = await _client.send(
+        http.Request('GET', Uri.parse(model.uri)),
+      );
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException(
           'Whisper model download failed: ${response.statusCode}.',

@@ -10,7 +10,7 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart'
 
 class OpenAiCompatibleAiDictationProvider implements AiDictationProvider {
   OpenAiCompatibleAiDictationProvider({http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final http.Client _client;
 

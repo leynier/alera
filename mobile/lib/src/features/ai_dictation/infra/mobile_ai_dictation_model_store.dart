@@ -11,18 +11,25 @@ class MobileAiDictationModelStore {
   static const modelSha256 =
       '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe';
   MobileAiDictationModelStore({http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
   final http.Client _client;
 
   Future<String> path() async {
     final root = await getApplicationSupportDirectory();
     return p.join(
-        root.path, 'models', 'ai-dictation', modelId, 'ggml-base.bin');
+      root.path,
+      'models',
+      'ai-dictation',
+      modelId,
+      'ggml-base.bin',
+    );
   }
 
   Future<bool> isInstalled() async {
     final file = File(await path());
-    if (!await file.exists()) return false;
+    if (!await file.exists()) {
+      return false;
+    }
     return sha256.convert(await file.readAsBytes()).toString() == modelSha256;
   }
 
@@ -30,17 +37,20 @@ class MobileAiDictationModelStore {
     final destination = await path();
     await Directory(p.dirname(destination)).create(recursive: true);
     final staging = File('$destination.download');
-    final response =
-        await _client.send(http.Request('GET', Uri.parse(modelUrl)));
-    if (response.statusCode != 200)
+    final response = await _client.send(
+      http.Request('GET', Uri.parse(modelUrl)),
+    );
+    if (response.statusCode != 200) {
       throw HttpException('Whisper model download failed.');
+    }
     final sink = staging.openWrite();
     var received = 0;
     await for (final chunk in response.stream) {
       received += chunk.length;
       sink.add(chunk);
-      if (response.contentLength != null && response.contentLength! > 0)
+      if (response.contentLength != null && response.contentLength! > 0) {
         onProgress?.call(received / response.contentLength!);
+      }
     }
     await sink.close();
     if (await File(destination).exists()) await File(destination).delete();

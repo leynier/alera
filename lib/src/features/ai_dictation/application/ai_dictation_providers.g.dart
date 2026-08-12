@@ -12,20 +12,24 @@ part of 'ai_dictation_providers.dart';
 @ProviderFor(aiDictationTargetRegistry)
 final aiDictationTargetRegistryProvider = AiDictationTargetRegistryProvider._();
 
-final class AiDictationTargetRegistryProvider extends $FunctionalProvider<
-    AiDictationTargetRegistry,
-    AiDictationTargetRegistry,
-    AiDictationTargetRegistry> with $Provider<AiDictationTargetRegistry> {
+final class AiDictationTargetRegistryProvider
+    extends
+        $FunctionalProvider<
+          AiDictationTargetRegistry,
+          AiDictationTargetRegistry,
+          AiDictationTargetRegistry
+        >
+    with $Provider<AiDictationTargetRegistry> {
   AiDictationTargetRegistryProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'aiDictationTargetRegistryProvider',
-          isAutoDispose: false,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aiDictationTargetRegistryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$aiDictationTargetRegistryHash();
@@ -34,8 +38,7 @@ final class AiDictationTargetRegistryProvider extends $FunctionalProvider<
   @override
   $ProviderElement<AiDictationTargetRegistry> $createElement(
     $ProviderPointer pointer,
-  ) =>
-      $ProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
   AiDictationTargetRegistry create(Ref ref) {
@@ -57,20 +60,24 @@ String _$aiDictationTargetRegistryHash() =>
 @ProviderFor(aiDictationModelStore)
 final aiDictationModelStoreProvider = AiDictationModelStoreProvider._();
 
-final class AiDictationModelStoreProvider extends $FunctionalProvider<
-    AiDictationModelStore,
-    AiDictationModelStore,
-    AiDictationModelStore> with $Provider<AiDictationModelStore> {
+final class AiDictationModelStoreProvider
+    extends
+        $FunctionalProvider<
+          AiDictationModelStore,
+          AiDictationModelStore,
+          AiDictationModelStore
+        >
+    with $Provider<AiDictationModelStore> {
   AiDictationModelStoreProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'aiDictationModelStoreProvider',
-          isAutoDispose: false,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aiDictationModelStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$aiDictationModelStoreHash();
@@ -79,8 +86,7 @@ final class AiDictationModelStoreProvider extends $FunctionalProvider<
   @override
   $ProviderElement<AiDictationModelStore> $createElement(
     $ProviderPointer pointer,
-  ) =>
-      $ProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
   AiDictationModelStore create(Ref ref) {
@@ -102,20 +108,24 @@ String _$aiDictationModelStoreHash() =>
 @ProviderFor(aiDictationService)
 final aiDictationServiceProvider = AiDictationServiceProvider._();
 
-final class AiDictationServiceProvider extends $FunctionalProvider<
-    AiDictationService,
-    AiDictationService,
-    AiDictationService> with $Provider<AiDictationService> {
+final class AiDictationServiceProvider
+    extends
+        $FunctionalProvider<
+          AiDictationService,
+          AiDictationService,
+          AiDictationService
+        >
+    with $Provider<AiDictationService> {
   AiDictationServiceProvider._()
-      : super(
-          from: null,
-          argument: null,
-          retry: null,
-          name: r'aiDictationServiceProvider',
-          isAutoDispose: false,
-          dependencies: null,
-          $allTransitiveDependencies: null,
-        );
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aiDictationServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
   @override
   String debugGetCreateSourceHash() => _$aiDictationServiceHash();
@@ -124,8 +134,7 @@ final class AiDictationServiceProvider extends $FunctionalProvider<
   @override
   $ProviderElement<AiDictationService> $createElement(
     $ProviderPointer pointer,
-  ) =>
-      $ProviderElement(pointer);
+  ) => $ProviderElement(pointer);
 
   @override
   AiDictationService create(Ref ref) {
