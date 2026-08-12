@@ -196,6 +196,7 @@ CodexChatSnapshot _mergeHistory(
       for (final cell in mergedCells)
         if (cell.kind == CodexTimelineKind.userMessage &&
             cell.metadata[CodexTimelineMetadata.isSteering] != true &&
+            cell.metadata[CodexTimelineMetadata.isGoal] != true &&
             (cell.markdownText ?? '').trim().isNotEmpty)
           cell.markdownText!.trim(),
     ]),
@@ -204,6 +205,7 @@ CodexChatSnapshot _mergeHistory(
     contextUsed: current.contextUsed,
     contextLimit: current.contextLimit,
     title: current.title ?? page.title,
+    goal: current.goal,
   );
 }
 
@@ -248,6 +250,7 @@ CodexChatSnapshot _mergeSameThreadSnapshot(
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,
+    goal: incoming.goal,
   );
 }
 
@@ -301,6 +304,7 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
           for (final cell in boundedLive)
             if (cell.kind == CodexTimelineKind.userMessage &&
                 cell.metadata[CodexTimelineMetadata.isSteering] != true &&
+                cell.metadata[CodexTimelineMetadata.isGoal] != true &&
                 (cell.markdownText ?? '').trim().isNotEmpty)
               cell.markdownText!.trim(),
         ])
@@ -315,6 +319,7 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,
+    goal: incoming.goal,
   );
 }
 

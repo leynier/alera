@@ -63,6 +63,30 @@ Widget _buildMobileCodexFooter(
   );
   Widget buildQueue() =>
       _MobileQueueBar(messages: state.queuedMessages, controller: controller);
+  Widget buildGoal() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
+    child: _MobileCodexGoalBar(
+      goal: state.goal!,
+      turnActive: state.activeTurnId != null,
+      onEdit: () async {
+        final objective = await _showMobileCodexGoalEditor(
+          context,
+          initialObjective: state.goal!.objective,
+        );
+        if (objective != null) await controller.editGoal(objective);
+      },
+      onPauseResume: state.goal!.status.canPause
+          ? () => unawaited(
+              controller.updateGoalStatus(MobileCodexGoalStatus.paused),
+            )
+          : state.goal!.status.canResume
+          ? () => unawaited(
+              controller.updateGoalStatus(MobileCodexGoalStatus.active),
+            )
+          : null,
+      onClear: () => unawaited(controller.clearGoal()),
+    ),
+  );
   Widget buildComposer() => _MobileComposer(
     controller: owner._composer,
     focusNode: owner._composerFocus,
@@ -119,6 +143,7 @@ Widget _buildMobileCodexFooter(
           children: <Widget>[
             buildUpperContent(),
             if (state.queuedMessages.isNotEmpty) buildQueue(),
+            if (controller.supportsGoals && state.goal != null) buildGoal(),
             buildComposer(),
           ],
         ),
@@ -137,6 +162,7 @@ Widget _buildMobileCodexFooter(
           child: SingleChildScrollView(child: buildUpperContent()),
         ),
         if (state.queuedMessages.isNotEmpty) buildQueue(),
+        if (controller.supportsGoals && state.goal != null) buildGoal(),
         buildComposer(),
       ],
     ),

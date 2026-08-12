@@ -29,6 +29,8 @@ extension CodexChatControllerLifecycle on CodexChatController {
       _drainQueuedMessageIfIdle();
       await _refreshCapabilities();
       if (!ref.mounted || generation != _loadGeneration) return;
+      await _refreshGoal();
+      if (!ref.mounted || generation != _loadGeneration) return;
       await _loadCatalogues();
       if (storedConfiguration == null) _persistTabConfiguration();
     } catch (error) {

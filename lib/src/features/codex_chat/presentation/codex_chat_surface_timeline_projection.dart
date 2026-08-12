@@ -94,6 +94,7 @@ class _CodexFooterViewState {
           state.interrupting == other.state.interrupting &&
           state.supportsSessions == other.state.supportsSessions &&
           state.supportsAutoReview == other.state.supportsAutoReview &&
+          state.supportsGoals == other.state.supportsGoals &&
           identical(state.models, other.state.models) &&
           identical(state.collaborationModes, other.state.collaborationModes) &&
           identical(state.skills, other.state.skills) &&
@@ -112,6 +113,7 @@ class _CodexFooterViewState {
           state.snapshot.activeTurnId == other.state.snapshot.activeTurnId &&
           state.snapshot.contextUsed == other.state.snapshot.contextUsed &&
           state.snapshot.contextLimit == other.state.snapshot.contextLimit &&
+          state.snapshot.goal == other.state.snapshot.goal &&
           identical(
             state.snapshot.promptHistory,
             other.state.snapshot.promptHistory,
@@ -130,6 +132,7 @@ class _CodexFooterViewState {
     state.interrupting,
     state.supportsSessions,
     state.supportsAutoReview,
+    state.supportsGoals,
     identityHashCode(state.models),
     identityHashCode(state.collaborationModes),
     identityHashCode(state.skills),
@@ -148,6 +151,7 @@ class _CodexFooterViewState {
     state.snapshot.activeTurnId,
     state.snapshot.contextUsed,
     state.snapshot.contextLimit,
+    state.snapshot.goal,
     identityHashCode(state.snapshot.promptHistory),
     Object.hashAll(pendingQuestions),
     hasBlockingQuestion,

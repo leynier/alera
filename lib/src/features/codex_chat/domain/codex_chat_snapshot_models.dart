@@ -133,6 +133,7 @@ class CodexChatSnapshot {
     this.contextUsed,
     this.contextLimit,
     this.title,
+    this.goal,
   });
 
   factory CodexChatSnapshot.fromJson(Object? value) {
@@ -172,6 +173,7 @@ class CodexChatSnapshot {
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
       title: _string(json['title']),
+      goal: json['goal'] is Map ? CodexThreadGoal.fromJson(json['goal']) : null,
     );
   }
 
@@ -328,6 +330,11 @@ class CodexChatSnapshot {
           ? _int(json['contextLimit'])
           : contextLimit,
       title: json.containsKey('title') ? _string(json['title']) : title,
+      goal: json.containsKey('goal')
+          ? json['goal'] is Map
+                ? CodexThreadGoal.fromJson(json['goal'])
+                : null
+          : goal,
     );
   }
 
@@ -340,6 +347,7 @@ class CodexChatSnapshot {
   final int? contextUsed;
   final int? contextLimit;
   final String? title;
+  final CodexThreadGoal? goal;
 
   bool get isBusy => activeTurnId != null;
 
@@ -413,6 +421,7 @@ class CodexChatSnapshot {
     if (contextUsed != null) 'contextUsed': contextUsed,
     if (contextLimit != null) 'contextLimit': contextLimit,
     if (title != null) 'title': title,
+    if (goal != null) 'goal': goal!.toJson(),
   };
 }
 
@@ -421,6 +430,7 @@ List<String> _codexPromptHistory(List<CodexTimelineCell> cells) =>
       for (final cell in cells)
         if (cell.kind == CodexTimelineKind.userMessage &&
             cell.metadata[CodexTimelineMetadata.isSteering] != true &&
+            cell.metadata[CodexTimelineMetadata.isGoal] != true &&
             (cell.markdownText ?? '').trim().isNotEmpty)
           cell.markdownText!.trim(),
     ]);

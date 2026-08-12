@@ -23,6 +23,8 @@ part 'mobile_codex_controller_options.dart';
 part 'mobile_codex_controller_review.dart';
 part 'mobile_codex_controller_sessions.dart';
 part 'mobile_codex_controller_catalogues.dart';
+part 'mobile_codex_controller_goals.dart';
+part 'mobile_codex_controller_capabilities.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
@@ -53,15 +55,11 @@ class MobileCodexController extends _$MobileCodexController
   int _accountCatalogueRevision = 0;
   bool _accountCatalogueRefreshPending = false;
   bool _accountCatalogueBuildAwaitingPublication = false;
+  bool _goalsAvailable = true;
+  bool _goalRefreshPending = false;
 
   @override
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
-
-  bool get supportsSessions => _client?.supportsCodexSessions == true;
-
-  bool get supportsTurnPolicy => _client?.supportsCodexTurnPolicy == true;
-
-  int get threadGeneration => _threadGeneration;
 
   @override
   Timer? get _interruptSafetyTimerValue => _interruptSafetyTimer;
@@ -70,15 +68,8 @@ class MobileCodexController extends _$MobileCodexController
   Future<void> _reloadCatalogue(String catalog) =>
       _reloadMobileCodexCatalogue(catalog);
 
-  void _registerAccountCatalogueReplay() {
-    listenSelf((previous, next) {
-      if (next is! AsyncData<MobileCodexState>) return;
-      _accountCatalogueBuildAwaitingPublication = false;
-      if (!_accountCatalogueRefreshPending) return;
-      _accountCatalogueRefreshPending = false;
-      unawaited(_reloadMobileCodexCatalogue('account'));
-    });
-  }
+  @override
+  Future<void> _retryGoalAvailability() => _refreshGoalAvailability();
 
   @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
@@ -109,6 +100,7 @@ class MobileCodexController extends _$MobileCodexController
           ? null
           : MobileCodexThreadRecovery.fromJson(response['recovery']),
     );
+    next = await _loadInitialGoal(client, next);
     next = _applyMobileConfiguration(next, storedConfiguration);
     final initialCatalogues = await _loadInitialCatalogues(client, next);
     next = initialCatalogues.state;

@@ -3,6 +3,23 @@ use chrono::Utc;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 
+pub(super) fn update_goal(object: &mut Map<String, Value>, message: &Value, method: &str) {
+    match method {
+        "thread/goal/updated" => {
+            if let Some(goal) = message
+                .pointer("/params/goal")
+                .filter(|goal| goal.is_object())
+            {
+                object.insert("goal".to_string(), goal.clone());
+            }
+        }
+        "thread/goal/cleared" => {
+            object.remove("goal");
+        }
+        _ => {}
+    }
+}
+
 use super::codex_resume_identity::{
     complete_history_turn_ids, is_agent_text, message_identity_key, message_turn_id,
     phase_agnostic_agent_message_identity_key,
@@ -138,7 +155,13 @@ pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value])
         delta.insert("eventsAppend".to_string(), Value::Array(Vec::new()));
         delta.insert("eventsReplace".to_string(), Value::Array(retained_events));
     }
-    for key in ["activeTurnId", "contextUsed", "contextLimit", "title"] {
+    for key in [
+        "activeTurnId",
+        "contextUsed",
+        "contextLimit",
+        "title",
+        "goal",
+    ] {
         delta.insert(
             key.to_string(),
             next.get(key).cloned().unwrap_or(Value::Null),
@@ -321,6 +344,7 @@ fn is_alera_owned_cell(cell: &Value) -> bool {
     cell.get("kind").and_then(Value::as_str) == Some("userMessage")
         && cell.get("metadata").is_some_and(|metadata| {
             metadata.get("clientUserMessageId").is_some()
+                || metadata.get("isGoal").and_then(Value::as_bool) == Some(true)
                 || metadata
                     .get("attachments")
                     .and_then(Value::as_array)
@@ -334,6 +358,7 @@ fn merge_resumed_cell(stored: &Value, mut resumed: Value) -> Value {
         && resumed.get("kind").and_then(Value::as_str) == Some("userMessage")
         && stored.get("metadata").is_some_and(|metadata| {
             metadata.get("clientUserMessageId").is_some()
+                || metadata.get("isGoal").and_then(Value::as_bool) == Some(true)
                 || metadata
                     .get("attachments")
                     .and_then(Value::as_array)
@@ -355,7 +380,7 @@ fn merge_resumed_cell(stored: &Value, mut resumed: Value) -> Value {
         .and_then(|value| value.as_object().cloned())
         .unwrap_or_default();
     if let Some(stored_metadata) = stored.get("metadata").and_then(Value::as_object) {
-        for key in ["attachments", "clientUserMessageId", "isSteering"] {
+        for key in ["attachments", "clientUserMessageId", "isSteering", "isGoal"] {
             if let Some(value) = stored_metadata.get(key) {
                 metadata.insert(key.to_string(), value.clone());
             }

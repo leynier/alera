@@ -14,6 +14,7 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
   set _threadGeneration(int value);
   Future<void> _sendNow(Map<String, Object?> message);
   Future<void> _reloadCatalogue(String catalog);
+  Future<void> _retryGoalAvailability();
 
   MobileCodexState? get _currentState => state.value;
 
@@ -39,6 +40,8 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
             error: _safeError(event.payload['error'] ?? 'Codex server failed.'),
           ),
         );
+      } else if (status == 'ready') {
+        unawaited(_retryGoalAvailability());
       }
       return;
     }

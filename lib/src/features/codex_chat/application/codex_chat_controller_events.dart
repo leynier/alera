@@ -14,7 +14,7 @@ const _deferredThreadContextKeys = <String>{
 extension CodexChatControllerEvents on CodexChatController {
   void _onRuntimeEvent(RuntimeHostEvent event) {
     if (event.name == aleraRuntimeHostConnectedEvent) {
-      if (!state.loading) unawaited(_refreshCapabilities());
+      if (!state.loading) unawaited(_refreshCapabilitiesAndGoal());
       return;
     }
     if (event.name == 'codexCatalogChanged') {
@@ -28,6 +28,8 @@ extension CodexChatControllerEvents on CodexChatController {
         state = state.copyWith(
           error: _safeError(event.payload['error'] ?? 'Codex server failed.'),
         );
+      } else if (status == 'ready') {
+        unawaited(_refreshGoal(retryUnavailable: true));
       }
       return;
     }
@@ -39,6 +41,11 @@ extension CodexChatControllerEvents on CodexChatController {
       return;
     }
     _applyRuntimeThreadEvent(event);
+  }
+
+  Future<void> _refreshCapabilitiesAndGoal() async {
+    await _refreshCapabilities();
+    await _refreshGoal(retryUnavailable: true);
   }
 
   void _deferRuntimeThreadEvent(RuntimeHostEvent event) {

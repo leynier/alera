@@ -222,6 +222,27 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
                       child: body,
                     ),
                   ),
+                if (cell.metadata['isGoal'] == true)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AleraTokens.space4),
+                    child: Row(
+                      key: const ValueKey<String>('mobile-codex-sent-as-goal'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const Icon(
+                          Icons.track_changes_outlined,
+                          size: AleraTokens.iconSm,
+                          color: AleraTokens.foregroundFaint,
+                        ),
+                        const SizedBox(width: AleraTokens.space4),
+                        Text(
+                          'Sent as goal',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: AleraTokens.foregroundFaint),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: AleraTokens.space8),
                 actions,
               ],

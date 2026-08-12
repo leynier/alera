@@ -42,6 +42,7 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
     final attachments = _attachments;
     final steering =
         widget.cell.metadata[CodexTimelineMetadata.isSteering] == true;
+    final goal = widget.cell.metadata[CodexTimelineMetadata.isGoal] == true;
     return Opacity(
       opacity: steering && widget.cell.isStreaming
           ? AleraTokens.codexSteeringOpacity
@@ -113,6 +114,27 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: AleraTokens.foregroundFaint,
                         ),
+                      ),
+                    ),
+                  if (goal)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AleraTokens.space4),
+                      child: Row(
+                        key: const ValueKey<String>('codex-sent-as-goal'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.track_changes_outlined,
+                            size: AleraTokens.iconSm,
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          Text(
+                            'Sent as goal',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: AleraTokens.foregroundFaint),
+                          ),
+                        ],
                       ),
                     ),
                   const SizedBox(height: AleraTokens.space8),

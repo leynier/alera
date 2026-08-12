@@ -46,6 +46,9 @@ impl ServerActor {
             "codex.thread.recover" => self.recover_codex_thread(payload).await,
             "codex.thread.snapshot" => self.codex_thread_snapshot(payload).await,
             "codex.thread.items.list" => self.list_codex_thread_items(payload).await,
+            "codex.goal.get" | "codex.thread.goal.get" => self.get_codex_goal(payload).await,
+            "codex.goal.set" | "codex.thread.goal.set" => self.set_codex_goal(payload).await,
+            "codex.goal.clear" | "codex.thread.goal.clear" => self.clear_codex_goal(payload).await,
             "codex.model.list" => {
                 self.codex_server_cached_request("models", "model/list", json!({}))
                     .await

@@ -68,6 +68,13 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     this.activeCwd,
     this.supportsSessions = false,
     this.supportsTurnPolicy = true,
+    this.supportsGoals = false,
+    this.goal,
+    this.includeGoalInOpenSnapshot = true,
+    this.goalGetFailures = 0,
+    this.goalGetFailureMessage = 'temporary goal read failure',
+    this.goalSetFailures = 0,
+    this.goalSetFailureMessage = 'temporary goal set failure',
     this.historyNextCursor,
     this.historyTimelineCells = const <Object?>[],
     this.historyGate,
@@ -89,6 +96,13 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final String? activeCwd;
   final bool supportsSessions;
   final bool supportsTurnPolicy;
+  final bool supportsGoals;
+  Map<String, Object?>? goal;
+  final bool includeGoalInOpenSnapshot;
+  int goalGetFailures;
+  final String goalGetFailureMessage;
+  int goalSetFailures;
+  final String goalSetFailureMessage;
   final String? historyNextCursor;
   final List<Object?> historyTimelineCells;
   final Completer<void>? historyGate;
@@ -105,6 +119,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final List<Map<String, Object?>> startTurnPayloads = <Map<String, Object?>>[];
   final List<Map<String, Object?>> responsePayloads = <Map<String, Object?>>[];
   final List<Map<String, Object?>> reviewPayloads = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> goalPayloads = <Map<String, Object?>>[];
   int recoveryRequests = 0;
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -124,6 +139,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
         'runtimeCapabilities': <String>[
           if (supportsSessions) aleraRuntimeHostCodexSessionsCapability,
           if (supportsTurnPolicy) aleraRuntimeHostCodexTurnPolicyCapability,
+          if (supportsGoals) aleraRuntimeHostCodexGoalsCapability,
         ],
       };
     }
@@ -147,6 +163,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
           },
         'recovery': recovery,
         'snapshot': <String, Object?>{
+          if (includeGoalInOpenSnapshot && goal != null) 'goal': goal,
           'timelineCells':
               timelineCells ??
               <Object?>[
@@ -210,6 +227,43 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
               ],
         },
       };
+    }
+    if (type == 'codex.goal.get') {
+      if (goalGetFailures > 0) {
+        goalGetFailures -= 1;
+        throw StateError(goalGetFailureMessage);
+      }
+      return <String, Object?>{'goal': goal};
+    }
+    if (type == 'codex.goal.set') {
+      goalPayloads.add(payload);
+      if (goalSetFailures > 0) {
+        goalSetFailures -= 1;
+        throw StateError(goalSetFailureMessage);
+      }
+      final objective =
+          payload['objective']?.toString() ??
+          goal?['objective']?.toString() ??
+          '';
+      final status =
+          payload['status']?.toString() ??
+          goal?['status']?.toString() ??
+          'active';
+      goal = <String, Object?>{
+        'threadId': 'thread-goal',
+        'objective': objective,
+        'status': status,
+        'tokenBudget': null,
+        'tokensUsed': goal?['tokensUsed'] ?? 0,
+        'timeUsedSeconds': goal?['timeUsedSeconds'] ?? 0,
+        'createdAt': 1,
+        'updatedAt': 2,
+      };
+      return <String, Object?>{'goal': goal};
+    }
+    if (type == 'codex.goal.clear') {
+      goal = null;
+      return <String, Object?>{'cleared': true};
     }
     if (type == 'codex.thread.list') {
       return threadListResponse ?? const <String, Object?>{'data': <Object?>[]};

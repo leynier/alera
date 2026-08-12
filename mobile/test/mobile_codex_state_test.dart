@@ -4,6 +4,31 @@ import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.
 import 'package:flutter_test/flutter_test.dart';
 
 void mobileCodexStateTests() {
+  test('projects goal snapshots and clears them through deltas', () {
+    final state = MobileCodexState.fromSnapshot(<String, Object?>{
+      'goal': <String, Object?>{
+        'threadId': 'thread-1',
+        'objective': 'Ship the release',
+        'status': 'paused',
+        'timeUsedSeconds': 186,
+        'updatedAt': 2,
+      },
+    });
+
+    expect(state.goal?.objective, 'Ship the release');
+    expect(state.goal?.status, MobileCodexGoalStatus.paused);
+    expect(state.goal?.timeUsedSeconds, 186);
+    expect(
+      state.applySnapshotDelta(const <String, Object?>{'goal': null}).goal,
+      isNull,
+    );
+    expect(
+      MobileCodexGoal.fromJson(state.goal?.toJson()),
+      state.goal,
+      reason: 'equivalent snapshots should not rebuild the footer',
+    );
+  });
+
   test(
     'mobile sharing accepts files above the preview limit within its cap',
     () {

@@ -405,6 +405,7 @@ pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         "codex/event/token_count" => "token_count",
         other => other,
     };
+    codex_state_snapshot::update_goal(object, message, method);
     if matches!(method, "turn/started" | "turn/created") {
         if let Some(turn_id) = turn_id_from_message(message) {
             object.insert("activeTurnId".to_string(), Value::String(turn_id));

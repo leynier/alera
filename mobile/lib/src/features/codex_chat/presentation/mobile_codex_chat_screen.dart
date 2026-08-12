@@ -61,6 +61,7 @@ part 'mobile_codex_chat_secondary.dart';
 part 'mobile_codex_chat_shimmer.dart';
 part 'mobile_codex_resume_picker.dart';
 part 'mobile_codex_chat_footer.dart';
+part 'mobile_codex_chat_goal.dart';
 part 'mobile_codex_chat_screen_actions.dart';
 part 'mobile_codex_chat_history_actions.dart';
 part 'mobile_codex_chat_submission_actions.dart';
@@ -454,7 +455,10 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
                   final state = ref
                       .watch(
                         provider.select(
-                          (value) => _MobileFooterState(value.value!),
+                          (value) => _MobileFooterState(
+                            value.value!,
+                            supportsGoals: controller.supportsGoals,
+                          ),
                         ),
                       )
                       .state;
