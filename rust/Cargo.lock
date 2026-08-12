@@ -98,6 +98,7 @@ dependencies = [
  "futures-util",
  "git2",
  "hex",
+ "hound",
  "if-addrs",
  "jsonschema",
  "keyring",
@@ -125,6 +126,7 @@ dependencies = [
  "uiautomation",
  "url",
  "uuid",
+ "whisper-rs",
  "windows 0.62.2",
 ]
 

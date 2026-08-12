@@ -941,6 +941,16 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.cancel_ai_text_generation(payload)
             }
+            "aiDictation.transcribe" | "mobile.aiDictation.transcribe" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::transcribe(payload).await
+            }
+            "aiDictation.cancel" | "mobile.aiDictation.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::cancel(payload)
+            }
             "agentProfile.upsert" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_upsert(payload).await

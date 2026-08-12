@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/accounts/presentation/accounts_screen.dart';
 import 'package:alera_mobile/src/features/diagnostics/presentation/diagnostics_screen.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -45,6 +46,22 @@ class AppSettingsScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => const TerminalKeysSettingsScreen(),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.spaceXl),
+            Text('AI', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.spaceSm),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.mic_none),
+                title: const Text('AI Dictation'),
+                subtitle: const Text('On this phone'),
+                trailing: const Icon(AleraIcons.chevronRight, size: 16),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MobileAiDictationSettingsScreen(),
                   ),
                 ),
               ),

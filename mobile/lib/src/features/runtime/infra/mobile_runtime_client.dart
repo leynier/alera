@@ -189,6 +189,26 @@ class MobileRuntimeClient
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
+  bool get supportsAiDictation =>
+      _runtimeCapabilities.contains(aiDictationCapability);
+
+  Future<Map<String, Object?>> transcribeMobileAudio({
+    required List<int> audio,
+    String? modelPath,
+    String? language,
+    String? initialPrompt,
+  }) {
+    if (!supportsAiDictation) {
+      throw UnsupportedError('Update the runtime to add host AI Dictation.');
+    }
+    return requestMap('mobile.aiDictation.transcribe', <String, Object?>{
+      'requestId': 'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}',
+      'audioBase64': base64Encode(audio),
+      'modelPath': modelPath,
+      'language': language,
+      'initialPrompt': initialPrompt,
+    });
+  }
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,

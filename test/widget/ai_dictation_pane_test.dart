@@ -121,22 +121,28 @@ class _FakeAiDictationModelStore implements AiDictationModelStore {
   }
 
   @override
-  Future<bool> isInstalled() async => installed;
+  AiDictationModel modelFor(String id) => AiDictationModelStore.models.first;
 
   @override
-  Future<String> download({void Function(double progress)? onProgress}) {
+  Future<bool> isInstalled([String? id]) async => installed;
+
+  @override
+  Future<String> download({
+    String? id,
+    void Function(double progress)? onProgress,
+  }) {
     downloadCount++;
     return _download.future;
   }
 
   @override
-  Future<void> remove() {
+  Future<void> remove([String? id]) {
     removeCount++;
     return _remove.future;
   }
 
   @override
-  Future<String> modelPath() async => 'ggml-base.bin';
+  Future<String> modelPath([String? id]) async => 'ggml-base.bin';
 
   @override
   void dispose() {}

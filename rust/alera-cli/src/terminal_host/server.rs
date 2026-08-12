@@ -59,6 +59,7 @@ mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod agent_profile_persona_discovery;
 mod ai_text_commit_message;
+mod ai_dictation_requests;
 mod ai_text_grok_plan;
 mod ai_text_model_discovery;
 mod ai_text_pull_request;
