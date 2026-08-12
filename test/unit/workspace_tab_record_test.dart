@@ -139,6 +139,26 @@ void main() {
     },
   );
 
+  test('terminal pulse configuration copies values and has a stable hash', () {
+    const original = TerminalPulseConfiguration();
+    const expected = TerminalPulseConfiguration(
+      command: 'R',
+      appendEnter: false,
+      delayMilliseconds: 1500,
+    );
+
+    expect(
+      original.copyWith(
+        command: 'R',
+        appendEnter: false,
+        delayMilliseconds: 1500,
+      ),
+      expected,
+    );
+    expect(original.copyWith(), original);
+    expect(expected.hashCode, expected.hashCode);
+  });
+
   test(
     'browser state uses the tab id as page identity and default profile',
     () {
