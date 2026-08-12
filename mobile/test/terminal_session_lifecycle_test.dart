@@ -147,6 +147,174 @@ void main() {
       );
     },
   );
+
+  test('Stale terminal write reattaches and retries once', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final container = ProviderContainer(
+      overrides: [
+        terminalClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+    final notifier = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+    );
+    await notifier.resize(48, 22);
+    client.writeErrors.add(
+      StateError('Terminal session is not attached: session-tab-1'),
+    );
+
+    await notifier.write(<int>[1, 2]);
+
+    expect(client.attachments, hasLength(2));
+    expect(client.attachments.last, (tabId: 'tab-1', cols: 48, rows: 22));
+    expect(
+      client.calls.where((call) => call.startsWith('write session-tab-1')),
+      hasLength(2),
+    );
+    expect(client.writes, <List<int>>[
+      <int>[1, 2],
+    ]);
+    expect(
+      container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
+      isA<AsyncData<TerminalTabSession>>(),
+    );
+  });
+
+  test(
+    'Stale terminal resize reattaches with the requested dimensions',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..resizeErrors.add(
+          StateError('Terminal session is not attached: session-tab-1'),
+        );
+      final container = ProviderContainer(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+      final notifier = container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+      );
+
+      await notifier.resize(48, 22);
+
+      expect(client.attachments, hasLength(2));
+      expect(client.attachments.last, (tabId: 'tab-1', cols: 48, rows: 22));
+      expect(
+        client.calls.where((call) => call == 'resize session-tab-1 48 22'),
+        hasLength(2),
+      );
+    },
+  );
+
+  test('Unrelated terminal write failures still propagate', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..writeErrors.add(StateError('write failed'));
+    final container = ProviderContainer(
+      overrides: [
+        terminalClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+    final notifier = container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+    );
+
+    await expectLater(
+      notifier.write(<int>[1]),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'write failed',
+        ),
+      ),
+    );
+
+    expect(client.attachments, hasLength(1));
+  });
+
+  test(
+    'Disposal during stale-session reattach discards the late result',
+    () async {
+      final attachCompletion = Completer<void>();
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..writeErrors.add(
+          StateError('Terminal session is not attached: session-tab-1'),
+        );
+      final container = ProviderContainer(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+      final notifier = container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').notifier,
+      );
+      client.attachCompletion = attachCompletion.future;
+
+      final write = notifier.write(<int>[1]);
+      await _waitUntil(() => client.attachments.length == 2);
+      subscription.close();
+      await pumpEventQueue();
+      attachCompletion.complete();
+
+      await write;
+      await _waitUntil(
+        () =>
+            client.calls
+                .where((call) => call == 'detach session-tab-1')
+                .length ==
+            2,
+      );
+      expect(client.writes, isEmpty);
+    },
+  );
 }
 
 class _TestAppLifecycleController extends AppLifecycleController {
