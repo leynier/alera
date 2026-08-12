@@ -121,6 +121,9 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsDeferredInput: capabilities.contains(
         aleraRuntimeHostTerminalDeferredInputCapability,
       ),
+      supportsTerminalPulse: capabilities.contains(
+        aleraRuntimeHostTerminalPulseCapability,
+      ),
     );
   } catch (_) {
     return null;

@@ -96,6 +96,70 @@ void main() {
   });
 
   test(
+    'terminal pulse configuration defaults and round-trips through payload',
+    () {
+      final now = DateTime.utc(2026, 8, 12);
+      final regular = WorkspaceTabRecord(
+        id: 'tab-1',
+        workspaceId: 'workspace-1',
+        title: 'Terminal 1',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final configured = WorkspaceTabRecord(
+        id: 'tab-2',
+        workspaceId: 'workspace-1',
+        title: 'Terminal 2',
+        createdAt: now,
+        updatedAt: now,
+        payload: <String, Object?>{
+          workspaceTabTerminalPulsePayloadKey: const TerminalPulseConfiguration(
+            command: 'R',
+            appendEnter: false,
+            delayMilliseconds: 1500,
+          ).toJson(),
+        },
+      );
+
+      expect(regular.terminalPulse, const TerminalPulseConfiguration());
+      expect(
+        configured.terminalPulse,
+        const TerminalPulseConfiguration(
+          command: 'R',
+          appendEnter: false,
+          delayMilliseconds: 1500,
+        ),
+      );
+      expect(
+        WorkspaceTabRecord.fromJson(
+          Map<String, Object?>.from(configured.toMap()),
+        ).terminalPulse,
+        configured.terminalPulse,
+      );
+    },
+  );
+
+  test('terminal pulse configuration copies values and has a stable hash', () {
+    const original = TerminalPulseConfiguration();
+    const expected = TerminalPulseConfiguration(
+      command: 'R',
+      appendEnter: false,
+      delayMilliseconds: 1500,
+    );
+
+    expect(
+      original.copyWith(
+        command: 'R',
+        appendEnter: false,
+        delayMilliseconds: 1500,
+      ),
+      expected,
+    );
+    expect(original.copyWith(), original);
+    expect(expected.hashCode, expected.hashCode);
+  });
+
+  test(
     'browser state uses the tab id as page identity and default profile',
     () {
       final now = DateTime.utc(2026, 7, 27);

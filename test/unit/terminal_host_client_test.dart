@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -49,6 +50,10 @@ void main() {
         .where((event) => event is TerminalHostErrorEvent)
         .cast<TerminalHostErrorEvent>()
         .first;
+    final pulseChangedEvent = client.events
+        .where((event) => event is TerminalHostPulseChangedEvent)
+        .cast<TerminalHostPulseChangedEvent>()
+        .first;
 
     final attachment = await client.createOrAttach(
       sessionId: 'session-1',
@@ -61,6 +66,7 @@ void main() {
     );
     expect(client.supportsTerminalRestart, isTrue);
     expect(client.supportsDeferredInput, isTrue);
+    expect(client.supportsTerminalPulse, isTrue);
     final restarted = await client.restart(
       sessionId: 'session-1',
       workspaceId: 'workspace-1',
@@ -78,6 +84,17 @@ void main() {
       deferredEnter: true,
     );
     await client.resize(sessionId: 'session-1', cols: 120, rows: 40);
+    final pulseStatus = await client.terminalPulseStatus('session-1');
+    final pulseConfiguration = const TerminalPulseConfiguration(
+      command: 'R',
+      appendEnter: false,
+      delayMilliseconds: 2500,
+    );
+    final configuredPulse = await client.configureTerminalPulse(
+      sessionId: 'session-1',
+      configuration: pulseConfiguration,
+      armed: true,
+    );
     final resume = await client.setOutputPaused(
       sessionId: 'session-1',
       paused: false,
@@ -100,6 +117,15 @@ void main() {
       'event': 'error',
       'payload': <String, Object?>{'sessionId': 'session-1', 'error': 'boom'},
     });
+    server.send(<String, Object?>{
+      'event': 'terminalPulseChanged',
+      'payload': <String, Object?>{
+        'sessionId': 'session-1',
+        'configuration': pulseConfiguration.toJson(),
+        'armed': false,
+        'error': 'Terminal Pulse watcher stopped: unavailable',
+      },
+    });
     final outputResyncEvent = _sendOutputResyncEvent(client, server);
 
     expect(launcher.starts, 1);
@@ -121,6 +147,8 @@ void main() {
       'write',
       'write',
       'resize',
+      'terminal.pulse.status',
+      'terminal.pulse.configure',
       'setOutputPaused',
       'detach',
       'terminate',
@@ -148,6 +176,16 @@ void main() {
     expect(writePayloads[0].containsKey('deferredEnter'), isFalse);
     expect(writePayloads[1]['dataBase64'], encodeTerminalHostBytes(<int>[3]));
     expect(writePayloads[1]['deferredEnter'], isTrue);
+    expect(pulseStatus.configuration, const TerminalPulseConfiguration());
+    expect(pulseStatus.armed, isFalse);
+    expect(pulseStatus.statusKnown, isTrue);
+    expect(configuredPulse.configuration, pulseConfiguration);
+    expect(configuredPulse.armed, isTrue);
+    expect(server.payloadFor('terminal.pulse.configure'), <String, Object?>{
+      'sessionId': 'session-1',
+      'configuration': pulseConfiguration.toJson(),
+      'armed': true,
+    });
     expect(server.payloadFor('setOutputPaused'), <String, Object?>{
       'sessionId': 'session-1',
       'paused': false,
@@ -155,6 +193,11 @@ void main() {
     expect((await outputEvent).data, <int>[65]);
     expect((await exitEvent).exitCode, 7);
     expect((await errorEvent).error, 'boom');
+    final pulseChanged = (await pulseChangedEvent).state;
+    expect(pulseChanged.configuration, pulseConfiguration);
+    expect(pulseChanged.armed, isFalse);
+    expect(pulseChanged.statusKnown, isTrue);
+    expect(pulseChanged.error, 'Terminal Pulse watcher stopped: unavailable');
     expect((await outputResyncEvent).sessionId, 'session-1');
 
     client.dispose();
@@ -1100,46 +1143,6 @@ Future<void> _writeControlFile({
   await File(
     p.join(runtimeDir.path, fileName),
   ).writeAsString(jsonEncode(payload));
-}
-
-final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
-  _FakeTerminalHostLauncher({required this.server, this.beforePublish});
-
-  final _TerminalHostTestServer server;
-  final Future<void>? beforePublish;
-  int starts = 0;
-  final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
-  final List<String> controlFilePaths = <String>[];
-
-  @override
-  Future<void> start({
-    required String runtimeDir,
-    required String controlFilePath,
-    required String token,
-    required TerminalHostConfig config,
-  }) async {
-    starts += 1;
-    configs.add(config);
-    controlFilePaths.add(controlFilePath);
-    server.token = token;
-    await beforePublish;
-    await File(controlFilePath).parent.create(recursive: true);
-    await File(controlFilePath).writeAsString(
-      jsonEncode(<String, Object?>{
-        'protocolVersion': aleraTerminalHostProtocolVersion,
-        'port': server.port,
-        'token': token,
-        'runtimeCapabilities': <String>[
-          aleraRuntimeHostCapability,
-          aleraRuntimeHostBootstrapCapability,
-          aleraRuntimeHostManagedWorkspaceCapability,
-          aleraRuntimeHostOrchestrationCapability,
-          aleraRuntimeHostTerminalRestartCapability,
-          aleraRuntimeHostTerminalDeferredInputCapability,
-        ],
-      }),
-    );
-  }
 }
 
 final class _QueuedTerminalHostLaunch {

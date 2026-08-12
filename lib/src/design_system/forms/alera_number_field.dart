@@ -8,7 +8,8 @@ const double _kStepperWidth = 26;
 const double _kStepperGroupHeight = 36;
 
 /// Numeric input paired with a stacked increment/decrement stepper. Commits on
-/// submit/blur, clamps to [min]/[max], and formats based on [step] precision.
+/// submit/blur, clamps to [min]/[max], and formats based on [step] precision
+/// unless [decimalPlaces] is provided.
 class AleraNumberField extends StatefulWidget {
   const AleraNumberField({
     super.key,
@@ -17,6 +18,8 @@ class AleraNumberField extends StatefulWidget {
     required this.max,
     required this.step,
     required this.onChanged,
+    this.controller,
+    this.decimalPlaces,
     this.suffix,
   });
 
@@ -24,6 +27,8 @@ class AleraNumberField extends StatefulWidget {
   final double min;
   final double max;
   final double step;
+  final TextEditingController? controller;
+  final int? decimalPlaces;
   final String? suffix;
   final ValueChanged<double> onChanged;
 
@@ -32,17 +37,30 @@ class AleraNumberField extends StatefulWidget {
 }
 
 class _AleraNumberFieldState extends State<AleraNumberField> {
-  late final TextEditingController _controller;
+  late TextEditingController _controller;
+  late bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _format(widget.value));
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ?? TextEditingController(text: _format(widget.value));
   }
 
   @override
   void didUpdateWidget(AleraNumberField oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      if (_ownsController) {
+        _controller.dispose();
+      }
+      _ownsController = widget.controller == null;
+      _controller =
+          widget.controller ??
+          TextEditingController(text: _format(widget.value));
+      return;
+    }
     if (widget.value != oldWidget.value) {
       _controller.text = _format(widget.value);
     }
@@ -50,13 +68,18 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
   String _format(double value) {
     if (value == value.roundToDouble()) {
       return value.round().toString();
+    }
+    if (widget.decimalPlaces case final decimalPlaces?) {
+      return value.toStringAsFixed(decimalPlaces);
     }
     if (widget.step < 0.1) {
       return value.toStringAsFixed(2);

@@ -19,6 +19,7 @@ import 'package:alera/src/features/workbench/domain/terminal_submit_payload.dart
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:ffi/ffi.dart';
@@ -34,6 +35,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_terminal_pulse.dart';
 part 'terminal_runtime_search.dart';
 part 'terminal_runtime_session_recovery.dart';
 part 'terminal_runtime_clipboard.dart';
@@ -106,6 +108,20 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
       isStarting ? TerminalSessionOperation.starting : null;
 
   bool get canRestart => false;
+
+  bool get supportsTerminalPulse => false;
+
+  ValueListenable<TerminalPulseState> get terminalPulseState =>
+      _terminalPulseUnavailable;
+
+  Future<void> configureTerminalPulse({
+    required TerminalPulseConfiguration configuration,
+    required bool armed,
+  }) async {
+    throw UnsupportedError(
+      'Terminal Pulse is not available for this terminal.',
+    );
+  }
 
   String? get errorMessage;
 
@@ -194,6 +210,13 @@ abstract interface class TerminalRuntime {
 /// Shared empty progress for handles that never restore a snapshot.
 final ValueNotifier<TerminalRestoreProgress?> _neverRestoring =
     ValueNotifier<TerminalRestoreProgress?>(null);
+final ValueNotifier<TerminalPulseState> _terminalPulseUnavailable =
+    ValueNotifier<TerminalPulseState>(
+      const TerminalPulseState(
+        configuration: TerminalPulseConfiguration(),
+        armed: false,
+      ),
+    );
 
 /// How much of a restored snapshot has reached the emulator.
 class TerminalRestoreProgress {
@@ -304,6 +327,17 @@ abstract interface class DeferredEnterTerminalPtySession
   bool writeBytesWithDeferredEnter(List<int> bytes);
 }
 
+abstract interface class TerminalPulsePtySession implements TerminalPtySession {
+  bool get supportsTerminalPulse;
+
+  Future<TerminalPulseState> terminalPulseStatus();
+
+  Future<TerminalPulseState> configureTerminalPulse({
+    required TerminalPulseConfiguration configuration,
+    required bool armed,
+  });
+}
+
 sealed class TerminalPtySessionEvent {
   const TerminalPtySessionEvent();
 }
@@ -343,6 +377,12 @@ final class TerminalPtyErrorEvent extends TerminalPtySessionEvent {
   const TerminalPtyErrorEvent(this.error);
 
   final Object error;
+}
+
+final class TerminalPtyPulseChangedEvent extends TerminalPtySessionEvent {
+  const TerminalPtyPulseChangedEvent(this.state);
+
+  final TerminalPulseState state;
 }
 
 class DefaultTerminalPtySessionFactory implements TerminalPtySessionFactory {

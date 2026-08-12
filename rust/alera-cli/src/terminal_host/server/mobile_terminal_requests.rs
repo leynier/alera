@@ -159,10 +159,7 @@ impl ServerActor {
                     payload,
                     &mut attachment,
                 );
-                Ok(json!({
-                    "tab": tab,
-                    "attachment": attachment,
-                }))
+                Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
             }
             Err(error) => {
                 let _ = self.runtime_store.remove_workspace_tab(&tab.id).await;
@@ -232,10 +229,7 @@ impl ServerActor {
             .create_or_attach(client_id, &attachment_payload)
             .await?;
         self.claim_mobile_terminal_viewport(client_id, &session_id, payload, &mut attachment);
-        Ok(json!({
-            "tab": tab,
-            "attachment": attachment,
-        }))
+        Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
     }
 
     pub(super) async fn restart_mobile_terminal(
@@ -279,10 +273,22 @@ impl ServerActor {
             .restart_terminal(client_id, &attachment_payload)
             .await?;
         self.claim_mobile_terminal_viewport(client_id, &session_id, payload, &mut attachment);
-        Ok(json!({
+        Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
+    }
+
+    pub(super) fn terminal_tab_response_for_client(
+        &self,
+        client_id: u64,
+        tab: WorkspaceTabRecord,
+        attachment: Value,
+    ) -> Value {
+        let tab = self
+            .workspace_tab_for_client(client_id, tab)
+            .expect("terminal tabs are supported by every client");
+        json!({
             "tab": tab,
             "attachment": attachment,
-        }))
+        })
     }
 }
 

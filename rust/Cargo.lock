@@ -75,6 +75,7 @@ dependencies = [
  "jsonschema",
  "keyring",
  "libc",
+ "notify",
  "objc2-application-services",
  "objc2-core-foundation",
  "png",

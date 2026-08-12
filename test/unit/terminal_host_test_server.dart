@@ -152,6 +152,25 @@ final class _TerminalHostTestServer {
       });
       return;
     }
+    if (type == 'terminal.pulse.status' || type == 'terminal.pulse.configure') {
+      final configuration = type == 'terminal.pulse.configure'
+          ? payload['configuration']
+          : const <String, Object?>{
+              'command': 'r',
+              'appendEnter': true,
+              'delayMs': 2000,
+            };
+      _respond(socket, <String, Object?>{
+        'id': id,
+        'ok': true,
+        'payload': <String, Object?>{
+          'configuration': configuration,
+          'armed':
+              type == 'terminal.pulse.configure' && payload['armed'] == true,
+        },
+      });
+      return;
+    }
     _respond(socket, <String, Object?>{
       'id': id,
       'ok': true,
@@ -218,5 +237,46 @@ final class _TerminalHostTestServer {
       client.destroy();
     }
     await _server.close();
+  }
+}
+
+final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
+  _FakeTerminalHostLauncher({required this.server, this.beforePublish});
+
+  final _TerminalHostTestServer server;
+  final Future<void>? beforePublish;
+  int starts = 0;
+  final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
+  final List<String> controlFilePaths = <String>[];
+
+  @override
+  Future<void> start({
+    required String runtimeDir,
+    required String controlFilePath,
+    required String token,
+    required TerminalHostConfig config,
+  }) async {
+    starts += 1;
+    configs.add(config);
+    controlFilePaths.add(controlFilePath);
+    server.token = token;
+    await beforePublish;
+    await File(controlFilePath).parent.create(recursive: true);
+    await File(controlFilePath).writeAsString(
+      jsonEncode(<String, Object?>{
+        'protocolVersion': aleraTerminalHostProtocolVersion,
+        'port': server.port,
+        'token': token,
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostCapability,
+          aleraRuntimeHostBootstrapCapability,
+          aleraRuntimeHostManagedWorkspaceCapability,
+          aleraRuntimeHostOrchestrationCapability,
+          aleraRuntimeHostTerminalRestartCapability,
+          aleraRuntimeHostTerminalDeferredInputCapability,
+          aleraRuntimeHostTerminalPulseCapability,
+        ],
+      }),
+    );
   }
 }

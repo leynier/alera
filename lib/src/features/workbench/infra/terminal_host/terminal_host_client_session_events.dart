@@ -100,6 +100,14 @@ mixin _TerminalHostClientSessionEvents {
           sessionId,
           TerminalHostDriverChangedEvent.fromPayload(sessionId, payload),
         );
+      case 'terminalPulseChanged':
+        _emitHostEvent(
+          sessionId,
+          TerminalHostPulseChangedEvent(
+            sessionId,
+            TerminalPulseState.fromJson(payload),
+          ),
+        );
     }
   }
 }

@@ -81,6 +81,7 @@ pub async fn run_terminal_host_server(
         orchestration_activity_last_recorded: HashMap::new(),
         coordinators: HashMap::new(),
         resources: ResourceMonitorState::default(),
+        terminal_pulses: Default::default(),
         browser: BrowserBroker::default(),
         emulators,
         codex: None,

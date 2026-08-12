@@ -41,6 +41,18 @@ pub(crate) async fn login_shell_variables() -> Option<BTreeMap<String, String>> 
     resolve_login_shell_variables(false).await
 }
 
+/// Login-shell variables with explicit process values taking precedence.
+///
+/// Unlike [`login_shell_command_environment`], this never returns `None`: on
+/// Windows or after a failed shell probe, callers still receive the process
+/// environment. It is intended for host-side lookups that need one coherent
+/// snapshot without repeatedly probing a cold shell cache.
+pub(crate) async fn login_shell_variables_with_process_overrides() -> BTreeMap<String, String> {
+    let mut variables = login_shell_variables().await.unwrap_or_default();
+    variables.extend(env::vars());
+    variables
+}
+
 /// Re-probe the user's login shell, replacing both caches, and report how many
 /// PATH entries and variables the refresh produced. Lets a tool installed or a
 /// variable exported mid-session take effect without restarting the host.
