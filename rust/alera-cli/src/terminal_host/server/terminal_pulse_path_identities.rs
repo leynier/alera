@@ -98,6 +98,19 @@ impl PathIdentityCache {
                     self.remove_path(path);
                 }
             }
+            EventKind::Modify(ModifyKind::Name(RenameMode::Any)) => {
+                for (path, identity) in event.paths.iter().zip(identities) {
+                    // macOS reports each rename side as Any, so a missing path
+                    // is the source side and must leave the identity cache.
+                    if is_missing_ambiguous_rename(&event.kind, path) {
+                        self.remove_path(path);
+                    } else if *identity == PathIdentity::Directory {
+                        self.insert_directory(path);
+                    } else {
+                        self.remove_path(path);
+                    }
+                }
+            }
             _ => {
                 for (path, identity) in event.paths.iter().zip(identities) {
                     if *identity == PathIdentity::Directory {
@@ -166,6 +179,14 @@ impl PathIdentityCache {
     pub(super) fn contains_directory(&self, path: &Path) -> bool {
         self.is_directory(path)
     }
+}
+
+pub(super) fn is_missing_ambiguous_rename(kind: &EventKind, path: &Path) -> bool {
+    matches!(kind, EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
+        && matches!(
+            std::fs::symlink_metadata(path),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        )
 }
 
 fn directory_is_ignored(repository: &Repository, path: &Path) -> HostResult<bool> {

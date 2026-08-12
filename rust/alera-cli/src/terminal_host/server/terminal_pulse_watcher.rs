@@ -10,7 +10,7 @@ use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watche
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::path_identities::{PathIdentity, PathIdentityCache};
+use super::path_identities::{is_missing_ambiguous_rename, PathIdentity, PathIdentityCache};
 use super::ServerCommand;
 
 #[path = "terminal_pulse_watch_reconciliation.rs"]
@@ -405,7 +405,8 @@ fn event_is_git_relevant(
                     | EventKind::Modify(notify::event::ModifyKind::Name(
                         notify::event::RenameMode::From
                     ))
-            ) {
+            ) || is_missing_ambiguous_rename(&event.kind, path)
+            {
                 return Ok(true);
             }
             continue;

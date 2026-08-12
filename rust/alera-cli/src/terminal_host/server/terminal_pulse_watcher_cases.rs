@@ -237,6 +237,12 @@ fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
                 notify::event::RenameMode::From,
             )),
         ),
+        (
+            "moved-macos",
+            EventKind::Modify(notify::event::ModifyKind::Name(
+                notify::event::RenameMode::Any,
+            )),
+        ),
     ] {
         let directory = dir.path().join(name);
         std::fs::create_dir(&directory).unwrap();
@@ -244,7 +250,7 @@ fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
         let identities = PathIdentityCache::scan(dir.path(), &repository).unwrap();
         std::fs::remove_dir_all(&directory).unwrap();
         let mut identities = identities;
-        let event = Event::new(kind).add_path(directory);
+        let event = Event::new(kind).add_path(directory.clone());
         assert!(super::watcher::event_is_relevant_with_identities(
             &repository,
             dir.path(),
@@ -252,6 +258,7 @@ fn ambiguous_untracked_directory_removal_and_move_out_are_relevant() {
             &mut identities,
         )
         .unwrap());
+        assert!(!identities.contains_directory(&directory));
     }
 
     let ignored = dir.path().join("ignored");

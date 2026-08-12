@@ -1263,4 +1263,8 @@ fn host_shutdown_busy_message(
 }
 
 #[cfg(test)]
+#[path = "requests/access_cases.rs"]
+mod access_cases;
+
+#[cfg(test)]
 mod tests;
