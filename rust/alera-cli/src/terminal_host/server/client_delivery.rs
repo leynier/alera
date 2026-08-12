@@ -26,11 +26,16 @@ impl ServerActor {
         self.require_request_allowed(client_id, request_type)
     }
 
-    pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
+    pub(super) fn require_session_id(&self, payload: &Value) -> HostResult<String> {
         let session_id = match payload.get("sessionId") {
             Some(Value::String(value)) => value.clone(),
             _ => return Err(HostError::format("Terminal session id is required.")),
         };
+        Ok(session_id)
+    }
+
+    pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
+        let session_id = self.require_session_id(payload)?;
         if !self.sessions.contains_key(&session_id) {
             return Err(HostError::state(format!(
                 "Terminal session is not attached: {session_id}"

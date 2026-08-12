@@ -16,6 +16,38 @@ use crate::terminal_host::protocol::{
 };
 
 #[tokio::test]
+async fn terminal_reclaim_treats_a_missing_session_as_already_released() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::local_client(handle),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "terminal.reclaim",
+                "payload": {"sessionId": "stale-session"},
+            })
+            .to_string(),
+        )
+        .await;
+
+    let response = receiver.recv().await.unwrap().as_json().unwrap();
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["payload"]["restored"], false);
+}
+
+#[tokio::test]
 async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
