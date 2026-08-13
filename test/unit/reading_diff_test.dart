@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -52,9 +53,18 @@ void main() {
       changedLines: 4,
       retainedChangedLines: 1,
       agentLabel: 'Codex',
+      model: 'gpt-5.5',
+      effort: 'medium',
+      chunkSummaries: const <ReadingDiffChunkSummary>[
+        ReadingDiffChunkSummary(index: 0, summary: 'Chunk behavior.'),
+      ],
     );
     expect(result.retainedFraction, 0.25);
+    expect(result.chunkCount, 1);
     expect(result.asCached().fromCache, isTrue);
+    expect(result.asCached().model, 'gpt-5.5');
+    expect(result.asCached().effort, 'medium');
+    expect(result.asCached().chunkSummaries.single.summary, 'Chunk behavior.');
     expect(
       ReadingDiffResult(
         diff: Uint8List(0),
@@ -98,6 +108,14 @@ void main() {
     expect(repairing.label, 'Repairing chunk 2 of 4');
     expect(combining.label, 'Combining 4 chunks');
     expect(combining.fraction, 1);
+    expect(
+      generating.description,
+      'The agent is proposing safe elisions; Rust validates the plan.',
+    );
+    expect(
+      repairing.description,
+      'Rust rejected the plan; the agent is replacing it once.',
+    );
   });
 
   test(
@@ -157,6 +175,12 @@ void main() {
         changedLines: 3,
         retainedChangedLines: 2,
         agentLabel: 'Claude Code',
+        model: 'sonnet',
+        effort: 'high',
+        chunkSummaries: const <ReadingDiffChunkSummary>[
+          ReadingDiffChunkSummary(index: 0, summary: 'First chunk.'),
+          ReadingDiffChunkSummary(index: 1, summary: 'Second chunk.'),
+        ],
       );
 
       await cache.write('cache-key', result('First.'));
@@ -165,10 +189,48 @@ void main() {
       expect(cached?.summary, 'Second.');
       expect(cached?.diff, <int>[0, 255, 10]);
       expect(cached?.fromCache, isTrue);
+      expect(cached?.model, 'sonnet');
+      expect(cached?.effort, 'high');
+      expect(cached?.chunkCount, 2);
+      expect(cached?.chunkSummaries.last.summary, 'Second chunk.');
       final files = await Directory(
         '${directory.path}${Platform.pathSeparator}reading-diffs',
       ).list().toList();
       expect(files, hasLength(1));
     },
   );
+
+  test('file cache continues to read version one results', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reading-diff-legacy-test-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final cacheDirectory = Directory(
+      '${directory.path}${Platform.pathSeparator}reading-diffs',
+    );
+    await cacheDirectory.create(recursive: true);
+    await File(
+      '${cacheDirectory.path}${Platform.pathSeparator}legacy.json',
+    ).writeAsString(
+      jsonEncode(<String, Object>{
+        'version': 1,
+        'diff': base64Encode(<int>[1, 2, 3]),
+        'summary': 'Legacy result.',
+        'changedLines': 2,
+        'retainedChangedLines': 1,
+        'agentLabel': 'Codex',
+      }),
+    );
+    final cache = FileReadingDiffCache(
+      directoryProvider: () async => directory,
+    );
+
+    final cached = await cache.read('legacy');
+
+    expect(cached?.summary, 'Legacy result.');
+    expect(cached?.model, isNull);
+    expect(cached?.chunkSummaries, isEmpty);
+    expect(cached?.chunkCount, isNull);
+    expect(cached?.fromCache, isTrue);
+  });
 }

@@ -28,12 +28,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Only the displayed diff'), findsOneWidget);
+    expect(find.textContaining('behavioral overview'), findsOneWidget);
+    expect(find.textContaining('not a bug or security review'), findsOneWidget);
     expect(find.text('Diff Only'), findsOneWidget);
     expect(find.text('Antigravity'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
   });
 
-  testWidgets('reading view shows summary, retention, cache and diff rows', (
+  testWidgets('reading view separates overview from the condensed diff', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -48,6 +50,18 @@ void main() {
               changedLines: 4,
               retainedChangedLines: 2,
               agentLabel: 'Codex',
+              model: 'gpt-5.5',
+              effort: 'high',
+              chunkSummaries: const <ReadingDiffChunkSummary>[
+                ReadingDiffChunkSummary(
+                  index: 0,
+                  summary: 'Update the command flow.',
+                ),
+                ReadingDiffChunkSummary(
+                  index: 1,
+                  summary: 'Cover the updated flow with tests.',
+                ),
+              ],
               fromCache: true,
             ),
           ),
@@ -55,10 +69,22 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Keep the behavioral change. Kept 2/4 changed lines (cached).'),
-      findsOneWidget,
-    );
+    expect(find.text('Keep the behavioral change.'), findsOneWidget);
+    expect(find.text('Codex'), findsOneWidget);
+    expect(find.text('gpt-5.5'), findsOneWidget);
+    expect(find.text('high Effort'), findsOneWidget);
+    expect(find.text('2 Chunks'), findsOneWidget);
+    expect(find.text('Kept 2/4 Changed Lines'), findsOneWidget);
+    expect(find.text('Cached Result'), findsOneWidget);
+    expect(find.text('Chunk Analysis'), findsOneWidget);
+    expect(find.text('Chunk 1 of 2'), findsOneWidget);
+    expect(find.text('Update the command flow.'), findsOneWidget);
+    expect(find.textContaining('does not identify bugs'), findsOneWidget);
+    expect(find.text('+new'), findsNothing);
+
+    await tester.tap(find.text('Condensed Diff'));
+    await tester.pumpAndSettle();
+
     expect(find.text('+new'), findsOneWidget);
     expect(find.text('-old'), findsOneWidget);
   });
@@ -82,6 +108,12 @@ void main() {
     );
 
     expect(find.text('Generating chunk 2 of 3'), findsOneWidget);
+    expect(
+      find.text(
+        'The agent is proposing safe elisions; Rust validates the plan.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Claude Code · sonnet'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);

@@ -124,6 +124,7 @@ class ReadingDiffService {
     _pending.add(lane);
     _canceled.remove(lane);
     final compiled = <rust.ReadingDiffCompiledChunk>[];
+    final chunkSummaries = <ReadingDiffChunkSummary>[];
     var agentLabel = preparation.agent.label;
     try {
       for (final chunk in preparation.compiler.chunks) {
@@ -183,6 +184,12 @@ class ReadingDiffService {
           }
         }
         agentLabel = plan.agentLabel;
+        chunkSummaries.add(
+          ReadingDiffChunkSummary(
+            index: chunk.index.toInt(),
+            summary: result.summary,
+          ),
+        );
         compiled.add(
           rust.ReadingDiffCompiledChunk(
             index: chunk.index,
@@ -208,6 +215,9 @@ class ReadingDiffService {
         changedLines: merged.changedLines,
         retainedChangedLines: merged.retainedChangedLines,
         agentLabel: agentLabel,
+        model: preparation.model,
+        effort: preparation.effort,
+        chunkSummaries: chunkSummaries,
       );
       await cache.write(preparation.cacheKey, result);
       return result;

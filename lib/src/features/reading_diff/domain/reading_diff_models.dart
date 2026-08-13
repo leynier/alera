@@ -61,6 +61,9 @@ class ReadingDiffResult {
     required this.changedLines,
     required this.retainedChangedLines,
     required this.agentLabel,
+    this.model,
+    this.effort,
+    this.chunkSummaries = const <ReadingDiffChunkSummary>[],
     this.fromCache = false,
   });
 
@@ -69,7 +72,12 @@ class ReadingDiffResult {
   final int changedLines;
   final int retainedChangedLines;
   final String agentLabel;
+  final String? model;
+  final String? effort;
+  final List<ReadingDiffChunkSummary> chunkSummaries;
   final bool fromCache;
+
+  int? get chunkCount => chunkSummaries.isEmpty ? null : chunkSummaries.length;
 
   double get retainedFraction =>
       changedLines == 0 ? 1 : retainedChangedLines / changedLines;
@@ -80,6 +88,16 @@ class ReadingDiffResult {
     changedLines: changedLines,
     retainedChangedLines: retainedChangedLines,
     agentLabel: agentLabel,
+    model: model,
+    effort: effort,
+    chunkSummaries: chunkSummaries,
     fromCache: true,
   );
+}
+
+class ReadingDiffChunkSummary {
+  const ReadingDiffChunkSummary({required this.index, required this.summary});
+
+  final int index;
+  final String summary;
 }

@@ -40,6 +40,13 @@ class ReadingDiffGenerationProgressView extends StatelessWidget {
                     progress.label,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  const SizedBox(height: AleraTokens.space2),
+                  Text(
+                    progress.description,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
                   if (detail.isNotEmpty) ...<Widget>[
                     const SizedBox(height: AleraTokens.space2),
                     Text(

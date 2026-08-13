@@ -36,4 +36,17 @@ class ReadingDiffGenerationProgress {
     ReadingDiffGenerationStage.combining =>
       'Combining $totalChunks ${totalChunks == 1 ? 'chunk' : 'chunks'}',
   };
+
+  String get description => switch (stage) {
+    ReadingDiffGenerationStage.preparing =>
+      'Loading the immutable diff and splitting it at safe boundaries.',
+    ReadingDiffGenerationStage.cached =>
+      'Using a previously generated and validated result.',
+    ReadingDiffGenerationStage.generating =>
+      'The agent is proposing safe elisions; Rust validates the plan.',
+    ReadingDiffGenerationStage.repairing =>
+      'Rust rejected the plan; the agent is replacing it once.',
+    ReadingDiffGenerationStage.combining =>
+      'Rust is merging the validated chunks into the final reading diff.',
+  };
 }

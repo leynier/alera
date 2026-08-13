@@ -15,6 +15,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
     final theme = Theme.of(context);
     return AleraDialog(
       maxWidth: AleraTokens.sidebarMaxWidth,
+      maxHeight: AleraTokens.dialogMaxHeight,
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
@@ -34,36 +35,58 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AleraTokens.space12),
-            Text(
-              'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. Only the displayed diff is provided to the agent.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Text(
+                      'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. Only the displayed diff is provided to the agent.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                    const SizedBox(height: AleraTokens.space8),
+                    Text(
+                      'The result opens with a behavioral overview and a condensed, non-applicable diff. It is not a bug or security review.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                    const SizedBox(height: AleraTokens.space16),
+                    _ReadingDiffDetail(
+                      label: 'Agent',
+                      value: preparation.agent.label,
+                    ),
+                    _ReadingDiffDetail(
+                      label: 'Model',
+                      value: preparation.model,
+                    ),
+                    _ReadingDiffDetail(
+                      label: 'Effort',
+                      value: preparation.effort ?? 'Agent Default',
+                    ),
+                    _ReadingDiffDetail(
+                      label: 'Access',
+                      value:
+                          preparation.accessPolicy ==
+                              AgentTaskAccessPolicy.repositoryReadOnly
+                          ? 'Repository Read Only'
+                          : 'Diff Only',
+                    ),
+                    _ReadingDiffDetail(
+                      label: 'Diff Size',
+                      value: _formatBytes(preparation.rawBytes),
+                    ),
+                    _ReadingDiffDetail(
+                      label: 'Chunks',
+                      value: preparation.chunkCount.toString(),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: AleraTokens.space16),
-            _ReadingDiffDetail(label: 'Agent', value: preparation.agent.label),
-            _ReadingDiffDetail(label: 'Model', value: preparation.model),
-            _ReadingDiffDetail(
-              label: 'Effort',
-              value: preparation.effort ?? 'Agent Default',
-            ),
-            _ReadingDiffDetail(
-              label: 'Access',
-              value:
-                  preparation.accessPolicy ==
-                      AgentTaskAccessPolicy.repositoryReadOnly
-                  ? 'Repository Read Only'
-                  : 'Diff Only',
-            ),
-            _ReadingDiffDetail(
-              label: 'Diff Size',
-              value: _formatBytes(preparation.rawBytes),
-            ),
-            _ReadingDiffDetail(
-              label: 'Chunks',
-              value: preparation.chunkCount.toString(),
-            ),
-            const SizedBox(height: AleraTokens.space20),
+            const SizedBox(height: AleraTokens.space12),
             Wrap(
               alignment: WrapAlignment.end,
               spacing: AleraTokens.space8,
