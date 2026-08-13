@@ -173,9 +173,16 @@ final class _PendingHostRequest {
   final Completer<Object?> completer;
 }
 
+final class _RuntimeMutationInProgressError extends StateError {
+  _RuntimeMutationInProgressError() : super(_runtimeMutationInProgressMessage);
+}
+
 enum _HostConnectionRole { terminal, runtime }
 
 const Duration _terminalHostConnectTimeout = Duration(seconds: 2);
 const Duration _terminalHostRequestTimeout = Duration(seconds: 10);
+const Duration _runtimeMutationRetryDelay = Duration(milliseconds: 50);
+const String _runtimeMutationInProgressMessage =
+    'A runtime mutation is in progress. Wait for it to finish and retry.';
 const String _orchestrationHostRestartRequiredMessage =
     'The running terminal host does not support orchestration. Restart Alera to replace the terminal host before using orchestration.';

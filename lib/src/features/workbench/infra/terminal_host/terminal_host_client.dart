@@ -293,7 +293,7 @@ final class SocketTerminalHostClient
     String type,
     Map<String, Object?> payload, {
     Duration? timeout,
-  }) => _sendTerminalHostRequest(
+  }) => _sendTerminalHostRequestWithMutationRetry(
     this,
     connection,
     type,
@@ -686,7 +686,7 @@ final class SocketTerminalHostClient
       completer.complete(message['payload']);
     } else {
       completer.completeError(
-        StateError((message['error'] as String?) ?? 'Terminal host error.'),
+        _terminalHostRequestError(message['error'] as String?),
       );
     }
   }

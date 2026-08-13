@@ -1,5 +1,8 @@
 part of 'terminal_host_client_test.dart';
 
+const String _runtimeMutationBusyMessage =
+    'A runtime mutation is in progress. Wait for it to finish and retry.';
+
 final class _TerminalHostTestServer {
   _TerminalHostTestServer._(
     this._server, {
@@ -7,13 +10,17 @@ final class _TerminalHostTestServer {
     this.closeForType,
     this.beforeResponse,
     this.negotiateBinaryFrames = false,
-  });
+    this._runtimeMutationBusyForType,
+    int runtimeMutationBusyResponses = 0,
+  }) : _remainingRuntimeMutationBusyResponses = runtimeMutationBusyResponses;
 
   static Future<_TerminalHostTestServer> start({
     String? errorForType,
     String? closeForType,
     Future<void> Function(String type)? beforeResponse,
     bool negotiateBinaryFrames = false,
+    String? runtimeMutationBusyForType,
+    int runtimeMutationBusyResponses = 0,
   }) async {
     final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final server = _TerminalHostTestServer._(
@@ -22,6 +29,8 @@ final class _TerminalHostTestServer {
       closeForType: closeForType,
       beforeResponse: beforeResponse,
       negotiateBinaryFrames: negotiateBinaryFrames,
+      runtimeMutationBusyForType: runtimeMutationBusyForType,
+      runtimeMutationBusyResponses: runtimeMutationBusyResponses,
     );
     server._sub = socket.listen(server._accept, onError: (_) {});
     return server;
@@ -32,6 +41,8 @@ final class _TerminalHostTestServer {
   final String? closeForType;
   final Future<void> Function(String type)? beforeResponse;
   final bool negotiateBinaryFrames;
+  final String? _runtimeMutationBusyForType;
+  int _remainingRuntimeMutationBusyResponses;
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
   StreamSubscription<Socket>? _sub;
   Socket? _client;
@@ -118,6 +129,16 @@ final class _TerminalHostTestServer {
     }
     if (type == closeForType) {
       socket.destroy();
+      return;
+    }
+    if (type == _runtimeMutationBusyForType &&
+        _remainingRuntimeMutationBusyResponses > 0) {
+      _remainingRuntimeMutationBusyResponses -= 1;
+      _respond(socket, <String, Object?>{
+        'id': id,
+        'ok': false,
+        'error': _runtimeMutationBusyMessage,
+      });
       return;
     }
     if (type == errorForType) {

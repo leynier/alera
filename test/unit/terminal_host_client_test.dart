@@ -15,6 +15,7 @@ part 'terminal_host_client_resilience_cases.dart';
 part 'terminal_host_client_timeout_cases.dart';
 part 'terminal_host_client_binary_frames_cases.dart';
 part 'terminal_host_client_protocol_mismatch_cases.dart';
+part 'terminal_host_client_runtime_mutation_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
@@ -22,7 +23,7 @@ void main() {
   _registerTerminalHostClientTimeoutTests();
   _registerTerminalHostClientBinaryFrameTests();
   _registerTerminalHostClientProtocolMismatchTests();
-
+  _registerTerminalHostClientRuntimeMutationTests();
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
