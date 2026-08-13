@@ -176,6 +176,7 @@ class _RecordingProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     starts.add(_Invocation(executable, arguments));
     if (writeHandoffOnStart) {

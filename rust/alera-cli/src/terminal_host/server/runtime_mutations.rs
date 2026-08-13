@@ -4,6 +4,7 @@ use alera_core::runtime::RuntimeStore;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
+use crate::hosted_review_retention;
 use crate::managed_workspace::{remove_managed_workspace, ManagedWorkspaceRemoveRequest};
 use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -12,6 +13,8 @@ use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
 use super::codex_requests::CodexCleanupPlan;
 use super::codex_runtime_cleanup::CodexCleanupEntry;
 
+#[path = "runtime_mutation_hosted_review_retention.rs"]
+mod hosted_review_retentions;
 #[cfg(test)]
 mod tests;
 
@@ -95,6 +98,8 @@ pub(super) async fn run_runtime_mutation(
     request: RuntimeMutationRequest,
     codex_cleanup: Option<CodexCleanupPlan>,
 ) -> RuntimeMutationOutcome {
+    let hosted_review_retentions =
+        hosted_review_retentions::for_request(&runtime_store, &request).await;
     let mut prepared_codex_cleanup = if let Some(cleanup) = codex_cleanup {
         match cleanup.prepare().await {
             Ok(prepared) => Some(prepared),
@@ -323,6 +328,9 @@ pub(super) async fn run_runtime_mutation(
             // best-effort cleanup must not hold tab removal responses open.
             cleanup.delete_threads_after_commit();
         }
+    }
+    if result.is_ok() || effect_on_error.is_some() {
+        hosted_review_retention::release(hosted_review_retentions);
     }
     let pending_codex_cleanup = prepared_codex_cleanup
         .map(|cleanup| cleanup.into_entries())

@@ -104,6 +104,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
             ...(plan.exactEnvironment ?? environment),
             if (plan.exactEnvironment == null) ...plan.environmentOverrides,
           },
+          includeParentEnvironment: plan.exactEnvironment == null,
         );
       } catch (_) {
         throw AiTextGenerationException(

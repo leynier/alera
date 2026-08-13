@@ -2163,6 +2163,7 @@ fn wire__crate__api__process__process_start_impl(
             let api_working_directory = <Option<String>>::sse_decode(&mut deserializer);
             let api_environment =
                 <Option<std::collections::HashMap<String, String>>>::sse_decode(&mut deserializer);
+            let api_include_parent_environment = <bool>::sse_decode(&mut deserializer);
             let api_events = <StreamSink<
                 crate::api::process::ProcessEvent,
                 flutter_rust_bridge::for_generated::SseCodec,
@@ -2176,6 +2177,7 @@ fn wire__crate__api__process__process_start_impl(
                             api_arguments,
                             api_working_directory,
                             api_environment,
+                            api_include_parent_environment,
                             api_events,
                         );
                     })?;

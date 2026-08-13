@@ -22,14 +22,29 @@ bool supportsDiffOnlyAiTextAgent(AiTextGenerationAgent agent) {
   };
 }
 
+List<AiTextGenerationAgent> get diffOnlyAiTextAgents => aiTextAgentSpecs.values
+    .where((spec) => spec.diffOnlyAccess != AiTextDiffOnlyAccess.unsupported)
+    .map((spec) => spec.agent)
+    .toList(growable: false);
+
+AiTextGenerationAgent readingDiffAgentForSettings(
+  AiTextGenerationSettings settings,
+) {
+  final prompt = settings.promptSettingsFor(
+    AiTextGenerationOperation.readingDiff,
+  );
+  final configured = prompt.agent ?? settings.agent;
+  if (supportsDiffOnlyAiTextAgent(configured)) {
+    return configured;
+  }
+  return AiTextGenerationAgent.codex;
+}
+
 void requireDiffOnlyAiTextAgent(AiTextGenerationAgent agent) {
   if (supportsDiffOnlyAiTextAgent(agent)) {
     return;
   }
-  final supported = aiTextAgentSpecs.values
-      .where((spec) => spec.diffOnlyAccess != AiTextDiffOnlyAccess.unsupported)
-      .map((spec) => spec.label)
-      .join(', ');
+  final supported = diffOnlyAiTextAgents.map((agent) => agent.label).join(', ');
   throw AiTextGenerationException(
     '${agent.label} cannot guarantee diff-only access. Choose one of: $supported.',
   );

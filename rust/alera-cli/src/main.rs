@@ -19,6 +19,7 @@ mod computer_output;
 mod computer_use;
 mod emulator_commands;
 mod host_tools;
+mod hosted_review_retention;
 mod login_shell_environment;
 mod managed_workspace;
 #[cfg(test)]
@@ -585,7 +586,10 @@ async fn run_tab_command(command: TabCommand) -> i32 {
             let payload = json!({ "id": id });
             let removed_id = id.clone();
             match runtime_host_or_store_unit(&runtime, "tab.remove", &payload, |store| async move {
-                store.remove_workspace_tab(&id).await
+                let retentions = hosted_review_retention::for_tab(&store, &id).await;
+                store.remove_workspace_tab(&id).await?;
+                hosted_review_retention::release(retentions);
+                Ok(())
             })
             .await
             {

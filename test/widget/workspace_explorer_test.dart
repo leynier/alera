@@ -1176,6 +1176,7 @@ class _NoopProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) {
     throw UnimplementedError();
   }

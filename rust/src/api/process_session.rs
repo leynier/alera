@@ -43,7 +43,23 @@ pub(super) fn run(
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
 ) -> Result<ProcessRunResult, String> {
-    let mut command = build_command(&executable, &arguments, working_directory, environment);
+    run_with_environment_mode(executable, arguments, working_directory, environment, true)
+}
+
+fn run_with_environment_mode(
+    executable: String,
+    arguments: Vec<String>,
+    working_directory: Option<String>,
+    environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
+) -> Result<ProcessRunResult, String> {
+    let mut command = build_command(
+        &executable,
+        &arguments,
+        working_directory,
+        environment,
+        include_parent_environment,
+    );
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -60,14 +76,30 @@ pub(super) fn run(
     })
 }
 
+#[cfg(test)]
+pub(super) fn run_without_parent_environment_for_tests(
+    executable: String,
+    arguments: Vec<String>,
+    environment: HashMap<String, String>,
+) -> Result<ProcessRunResult, String> {
+    run_with_environment_mode(executable, arguments, None, Some(environment), false)
+}
+
 pub(super) fn start(
     executable: String,
     arguments: Vec<String>,
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
     events: StreamSink<ProcessEvent>,
 ) {
-    let mut command = build_command(&executable, &arguments, working_directory, environment);
+    let mut command = build_command(
+        &executable,
+        &arguments,
+        working_directory,
+        environment,
+        include_parent_environment,
+    );
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -193,6 +225,7 @@ fn build_command(
     arguments: &[String],
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
 ) -> Command {
     #[cfg(windows)]
     let executable = resolve_windows_executable(
@@ -228,8 +261,10 @@ fn build_command(
     if let Some(working_directory) = working_directory {
         command.current_dir(working_directory);
     }
+    if !include_parent_environment {
+        command.env_clear();
+    }
     if let Some(environment) = environment {
-        // Additive, like `Process.run(includeParentEnvironment: true)`.
         command.envs(environment);
     }
     // The shell does not necessarily exec the command it was given, so killing
@@ -420,7 +455,7 @@ pub(super) fn wait_for_exit_in_tests(
     kill: std::sync::Arc<Notify>,
     delay: std::time::Duration,
 ) -> Result<i32, String> {
-    let mut command = build_command(executable, arguments, None, None);
+    let mut command = build_command(executable, arguments, None, None, true);
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

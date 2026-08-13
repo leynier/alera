@@ -33,7 +33,7 @@ class ReadingDiffService {
       throw const AiTextGenerationException('AI text generation is disabled.');
     }
     final operation = AiTextGenerationOperation.readingDiff;
-    final agent = request.settings.agentFor(operation);
+    final agent = readingDiffAgentForSettings(request.settings);
     final spec = aiTextAgentSpecs[agent];
     if (spec == null && agent != AiTextGenerationAgent.custom) {
       throw AiTextGenerationException(

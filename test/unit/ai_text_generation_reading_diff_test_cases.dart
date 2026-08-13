@@ -1,6 +1,30 @@
 part of 'ai_text_generation_service_test.dart';
 
 void _registerAiTextReadingDiffTests() {
+  test('falls back to Codex for an unsupported inherited reading agent', () {
+    expect(
+      readingDiffAgentForSettings(
+        const AiTextGenerationSettings(agent: AiTextGenerationAgent.cursor),
+      ),
+      AiTextGenerationAgent.codex,
+    );
+    expect(
+      readingDiffAgentForSettings(
+        const AiTextGenerationSettings(
+          agent: AiTextGenerationAgent.cursor,
+          promptSettingsByOperation:
+              <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
+                AiTextGenerationOperation.readingDiff:
+                    AiTextGenerationPromptSettings(
+                      agent: AiTextGenerationAgent.claude,
+                    ),
+              },
+        ),
+      ),
+      AiTextGenerationAgent.claude,
+    );
+  });
+
   test('runs Codex with a schema and reads its structured result file', () async {
     final process = _FakeProcessRunner(
       stdout:
@@ -40,6 +64,7 @@ void _registerAiTextReadingDiffTests() {
     expect(process.arguments, isNot(contains('-s')));
     expect(process.environment, containsPair('CODEX_HOME', '/codex-home'));
     expect(process.environment, isNot(contains('OPENAI_API_KEY')));
+    expect(process.includeParentEnvironment, isFalse);
     expect(process.outputSchemaText, '{"type":"object"}');
     expect(result.text, contains('"version":1'));
   });

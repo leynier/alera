@@ -14,6 +14,94 @@ use crate::terminal_host::server::codex_tab_lifecycle::{active_cwd, set_active_c
 use super::{run_runtime_mutation, RuntimeMutationEffect, RuntimeMutationRequest};
 
 #[tokio::test]
+async fn removing_tab_releases_its_hosted_review_refs() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_path = dir.path().join("repo");
+    let repository = git2::Repository::init(&repo_path).unwrap();
+    let object = repository.blob(b"review object").unwrap();
+    let retention_id = "0123456789abcdef0123456789abcdef";
+    for role in ["base", "head"] {
+        repository
+            .reference(
+                &format!("refs/alera/hosted-reviews/tabs/{retention_id}/{role}"),
+                object,
+                true,
+                "test",
+            )
+            .unwrap();
+    }
+    let store = RuntimeStore::open(&dir.path().join("runtime"))
+        .await
+        .unwrap();
+    let now = Utc::now();
+    store
+        .upsert_project(Project {
+            id: "project".into(),
+            name: "Project".into(),
+            repo_path: repo_path.to_string_lossy().into_owned(),
+            created_at: now,
+            updated_at: now,
+            kind: ProjectKind::GitRepository,
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workspace(Workspace {
+            id: "workspace".into(),
+            instance_id: "instance".into(),
+            host_id: LOCAL_HOST_ID.into(),
+            project_id: "project".into(),
+            name: "Workspace".into(),
+            branch: None,
+            path: repo_path.to_string_lossy().into_owned(),
+            created_at: now,
+            updated_at: now,
+            kind: WorkspaceKind::Main,
+            status: WorkspaceStatus::Active,
+            source_branch: None,
+            reuses_existing_branch: false,
+            is_pinned: false,
+            tag_ids: Vec::new(),
+            tag_names: Vec::new(),
+            parent_workspace_id: None,
+            child_count: 0,
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "diff-tab".into(),
+            workspace_id: "workspace".into(),
+            kind: "gitDiff".into(),
+            title: "Pull Request Diff".into(),
+            payload: json!({"gitDiffHostedReviewRetentionId": retention_id}),
+            created_at: now,
+            updated_at: now,
+        })
+        .await
+        .unwrap();
+
+    let outcome = run_runtime_mutation(
+        None,
+        store,
+        RuntimeMutationRequest::RemoveTab {
+            tab_id: "diff-tab".into(),
+        },
+        None,
+    )
+    .await;
+
+    assert!(outcome.result.is_ok());
+    for role in ["base", "head"] {
+        assert!(repository
+            .find_reference(&format!(
+                "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
+            ))
+            .is_err());
+    }
+}
+
+#[tokio::test]
 async fn sleep_reports_committed_effect_when_activity_recording_fails() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();

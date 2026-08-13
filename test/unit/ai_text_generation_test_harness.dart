@@ -21,6 +21,7 @@ class _FakeProcessRunner implements ProcessRunner {
   String? executable;
   List<String> arguments = const <String>[];
   Map<String, String>? environment;
+  bool? includeParentEnvironment;
   String? workingDirectory;
   String? promptFilePath;
   String? promptFileText;
@@ -48,6 +49,7 @@ class _FakeProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     started = true;
     startCount += 1;
@@ -86,6 +88,7 @@ class _FakeProcessRunner implements ProcessRunner {
     this.environment = environment == null
         ? null
         : Map<String, String>.from(environment);
+    this.includeParentEnvironment = includeParentEnvironment;
     return StartedProcess(
       stdinWrite: (data) => _stdin.write(utf8.decode(data)),
       stdinClose: () => stdinClosed = true,

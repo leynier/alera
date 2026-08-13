@@ -358,6 +358,7 @@ abstract class RustLibApi extends BaseApi {
     required List<String> arguments,
     String? workingDirectory,
     Map<String, String>? environment,
+    required bool includeParentEnvironment,
   });
 
   Future<bool> crateApiProcessProcessWriteStdin({
@@ -2503,6 +2504,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required List<String> arguments,
     String? workingDirectory,
     Map<String, String>? environment,
+    required bool includeParentEnvironment,
   }) {
     final events = RustStreamSink<ProcessEvent>();
     unawaited(
@@ -2514,6 +2516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             sse_encode_list_String(arguments, serializer);
             sse_encode_opt_String(workingDirectory, serializer);
             sse_encode_opt_Map_String_String_None(environment, serializer);
+            sse_encode_bool(includeParentEnvironment, serializer);
             sse_encode_StreamSink_process_event_Sse(events, serializer);
             pdeCallFfi(
               generalizedFrbRustBinding,
@@ -2532,6 +2535,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             arguments,
             workingDirectory,
             environment,
+            includeParentEnvironment,
             events,
           ],
           apiImpl: this,
@@ -2549,6 +2553,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "arguments",
           "workingDirectory",
           "environment",
+          "includeParentEnvironment",
           "events",
         ],
       );

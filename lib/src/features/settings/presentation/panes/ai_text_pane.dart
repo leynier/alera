@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -192,7 +193,9 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     AiTextGenerationSettings settings,
     AiTextGenerationOperation operation,
   ) {
-    final agent = settings.agentFor(operation);
+    final agent = operation == AiTextGenerationOperation.readingDiff
+        ? readingDiffAgentForSettings(settings)
+        : settings.agentFor(operation);
     if (agent == AiTextGenerationAgent.custom) {
       return const <Widget>[];
     }
@@ -253,7 +256,16 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     AiTextGenerationOperation operation,
   ) {
     final promptSettings = settings.promptSettingsFor(operation);
-    final agent = settings.agentFor(operation);
+    final isReadingDiff = operation == AiTextGenerationOperation.readingDiff;
+    final globalSupported = supportsDiffOnlyAiTextAgent(settings.agent);
+    final agent = isReadingDiff
+        ? readingDiffAgentForSettings(settings)
+        : settings.agentFor(operation);
+    final configuredAgent = promptSettings.agent ?? settings.agent;
+    final effectivePromptAgent =
+        isReadingDiff && !supportsDiffOnlyAiTextAgent(configuredAgent)
+        ? agent
+        : promptSettings.agent;
     final inheritedModel = modelForAgent(
       agent,
       settings.modelFor(agent) ?? defaultModelIdForAgent(agent, settings),
@@ -265,9 +277,15 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
       AiTextPromptAgentRow(
         operation: operation,
         globalAgent: settings.agent,
-        value: promptSettings.agent,
+        value: effectivePromptAgent,
+        allowedAgents: isReadingDiff
+            ? diffOnlyAiTextAgents
+            : AiTextGenerationAgent.values,
+        allowGlobal: !isReadingDiff || globalSupported,
         onChanged: (agent) {
-          final previousAgent = settings.agentFor(operation);
+          final previousAgent = isReadingDiff
+              ? readingDiffAgentForSettings(settings)
+              : settings.agentFor(operation);
           final nextAgent = agent ?? settings.agent;
           _updatePromptSettings(
             settings,
@@ -296,7 +314,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
               settings,
               operation,
               AiTextGenerationPromptSettings(
-                agent: promptSettings.agent,
+                agent: effectivePromptAgent,
                 model: model,
               ),
             );
