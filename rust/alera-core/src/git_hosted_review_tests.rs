@@ -4,7 +4,7 @@ use git2::{BranchType, IndexAddOption, Oid, Repository, Signature};
 
 use super::{
     fetch_hosted_review_range, persist_hosted_review_range, release_hosted_review_range,
-    sweep_hosted_review_ranges,
+    sweep_hosted_review_ranges, HostedReviewFetch,
 };
 
 #[test]
@@ -64,15 +64,16 @@ fn fetches_exact_hosted_base_and_head_objects() {
     let advanced_base = commit(&seed, "advance base");
     push(&seed, "refs/heads/main:refs/heads/main");
 
-    let range = fetch_hosted_review_range(
-        client_directory.path().to_string_lossy().as_ref(),
-        "origin",
-        "main",
-        &head.to_string(),
-        Some(&base.to_string()),
-        None,
-        Some("refs/pull/7/head"),
-    )
+    let range = fetch_hosted_review_range(HostedReviewFetch {
+        repo_path: client_directory.path().to_string_lossy().as_ref(),
+        remote_name: "origin",
+        base_branch: "main",
+        head_sha: &head.to_string(),
+        head_remote: None,
+        comparison_base_sha: Some(&base.to_string()),
+        merge_commit_sha: None,
+        review_ref: Some("refs/pull/7/head"),
+    })
     .expect("hosted range");
 
     assert_ne!(advanced_base, base);
@@ -125,6 +126,67 @@ fn fetches_exact_hosted_base_and_head_objects() {
 }
 
 #[test]
+fn fetches_fork_head_from_its_source_repository() {
+    let target_directory = tempfile::tempdir().expect("target tempdir");
+    let target = Repository::init_bare(target_directory.path()).expect("target remote");
+    target
+        .set_head("refs/heads/main")
+        .expect("target default branch");
+    let fork_directory = tempfile::tempdir().expect("fork tempdir");
+    let fork = Repository::init_bare(fork_directory.path()).expect("fork remote");
+    fork.set_head("refs/heads/main")
+        .expect("fork default branch");
+
+    let seed_directory = tempfile::tempdir().expect("seed tempdir");
+    let seed = Repository::init(seed_directory.path()).expect("seed repository");
+    seed.set_head("refs/heads/main").expect("main branch");
+    fs::write(seed_directory.path().join("base.txt"), "base\n").expect("base file");
+    let base = commit(&seed, "base");
+    seed.remote("target", target_directory.path().to_string_lossy().as_ref())
+        .expect("target remote");
+    seed.remote("fork", fork_directory.path().to_string_lossy().as_ref())
+        .expect("fork remote");
+    seed.find_remote("target")
+        .expect("target")
+        .push(&["refs/heads/main:refs/heads/main"], None)
+        .expect("push target main");
+
+    let base_commit = seed.find_commit(base).expect("base commit");
+    seed.branch("feature", &base_commit, false)
+        .expect("feature branch");
+    drop(base_commit);
+    seed.set_head("refs/heads/feature").expect("feature head");
+    seed.checkout_head(None).expect("feature checkout");
+    fs::write(seed_directory.path().join("feature.txt"), "fork\n").expect("feature file");
+    let head = commit(&seed, "fork feature");
+    seed.find_remote("fork")
+        .expect("fork")
+        .push(&["refs/heads/feature:refs/heads/feature"], None)
+        .expect("push fork feature");
+
+    let client_directory = tempfile::tempdir().expect("client tempdir");
+    Repository::clone(
+        target_directory.path().to_string_lossy().as_ref(),
+        client_directory.path(),
+    )
+    .expect("client clone");
+    let range = fetch_hosted_review_range(HostedReviewFetch {
+        repo_path: client_directory.path().to_string_lossy().as_ref(),
+        remote_name: "origin",
+        base_branch: "main",
+        head_sha: &head.to_string(),
+        head_remote: Some(fork_directory.path().to_string_lossy().as_ref()),
+        comparison_base_sha: Some(&base.to_string()),
+        merge_commit_sha: None,
+        review_ref: Some("refs/heads/feature"),
+    })
+    .expect("fork hosted range");
+
+    assert_eq!(range.base_oid, base.to_string());
+    assert_eq!(range.head_oid, head.to_string());
+}
+
+#[test]
 fn derives_the_pre_merge_base_when_the_target_contains_the_review_head() {
     let remote_directory = tempfile::tempdir().expect("remote tempdir");
     let remote = Repository::init_bare(remote_directory.path()).expect("bare remote");
@@ -162,15 +224,16 @@ fn derives_the_pre_merge_base_when_the_target_contains_the_review_head() {
         client_directory.path(),
     )
     .expect("client clone");
-    let range = fetch_hosted_review_range(
-        client_directory.path().to_string_lossy().as_ref(),
-        "origin",
-        "main",
-        &head.to_string(),
-        None,
-        Some(&merge.to_string()),
-        Some("refs/pull/8/head"),
-    )
+    let range = fetch_hosted_review_range(HostedReviewFetch {
+        repo_path: client_directory.path().to_string_lossy().as_ref(),
+        remote_name: "origin",
+        base_branch: "main",
+        head_sha: &head.to_string(),
+        head_remote: None,
+        comparison_base_sha: None,
+        merge_commit_sha: Some(&merge.to_string()),
+        review_ref: Some("refs/pull/8/head"),
+    })
     .expect("merged hosted range");
 
     assert_eq!(range.base_oid, pre_merge_base.to_string());
@@ -221,15 +284,16 @@ fn unshallows_when_the_review_merge_base_is_outside_the_boundary() {
     assert!(client.is_shallow());
     drop(client);
 
-    let range = fetch_hosted_review_range(
-        client_directory.path().to_string_lossy().as_ref(),
-        "origin",
-        "main",
-        &head.to_string(),
-        None,
-        None,
-        Some("refs/pull/9/head"),
-    )
+    let range = fetch_hosted_review_range(HostedReviewFetch {
+        repo_path: client_directory.path().to_string_lossy().as_ref(),
+        remote_name: "origin",
+        base_branch: "main",
+        head_sha: &head.to_string(),
+        head_remote: None,
+        comparison_base_sha: None,
+        merge_commit_sha: None,
+        review_ref: Some("refs/pull/9/head"),
+    })
     .expect("shallow hosted range");
     let refreshed = Repository::open(client_directory.path()).expect("refreshed client");
 

@@ -306,10 +306,15 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     }
     Map<String, String>? exactEnvironment;
     if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
+      final authCredentialsStore =
+          spec.diffOnlyAccess == AiTextDiffOnlyAccess.codexRestrictedFilesystem
+          ? await codexAuthCredentialsStore(environment)
+          : null;
       final execution = planDiffOnlyAiTextExecution(
         spec: spec,
         arguments: args,
         environment: <String, String>{...environment, ...environmentOverrides},
+        codexAuthCredentialsStore: authCredentialsStore,
       );
       args = execution.arguments;
       exactEnvironment = execution.environment;

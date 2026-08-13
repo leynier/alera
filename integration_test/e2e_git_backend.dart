@@ -185,6 +185,7 @@ class E2eGitBackend implements GitBackend {
     required String remote,
     required String baseBranch,
     required String headSha,
+    String? headRemote,
     String? comparisonBaseSha,
     String? mergeCommitSha,
     String? reviewRef,

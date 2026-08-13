@@ -100,6 +100,65 @@ void _registerAiTextReadingDiffTests() {
     expect(result.text, contains('"version":1'));
   });
 
+  test(
+    'preserves Codex keyring authentication in the isolated process',
+    () async {
+      final codexHome = await Directory.systemTemp.createTemp(
+        'alera-codex-keyring-',
+      );
+      addTearDown(() => codexHome.delete(recursive: true));
+      await File(
+        p.join(codexHome.path, 'config.toml'),
+      ).writeAsString('cli_auth_credentials_store = "keyring"\n');
+      final process = _FakeProcessRunner(
+        stdout:
+            '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+      );
+      final runner = CliAiTextAgentRunner(
+        processRunner: process,
+        commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
+          value: <String, String>{
+            'PATH': '/usr/bin',
+            'CODEX_HOME': codexHome.path,
+            'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus',
+            'XDG_RUNTIME_DIR': '/run/user/1000',
+            'OPENAI_API_KEY': 'must-not-leak',
+          },
+        ),
+      );
+
+      await runner.run(
+        const AiTextAgentRunRequest(
+          settings: AiTextGenerationSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'reading-diff-codex-keyring',
+          workingDirectory: '/repo',
+          agent: AiTextGenerationAgent.codex,
+          accessPolicy: AgentTaskAccessPolicy.diffOnly,
+          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          outputSchema: '{"type":"object"}',
+        ),
+      );
+
+      expect(
+        process.arguments,
+        contains('cli_auth_credentials_store="keyring"'),
+      );
+      expect(
+        process.environment,
+        containsPair(
+          'DBUS_SESSION_BUS_ADDRESS',
+          'unix:path=/run/user/1000/bus',
+        ),
+      );
+      expect(
+        process.environment,
+        containsPair('XDG_RUNTIME_DIR', '/run/user/1000'),
+      );
+      expect(process.environment, isNot(contains('OPENAI_API_KEY')));
+    },
+  );
+
   test('extracts Codex message from a multiline JSON error', () async {
     final process = _FakeProcessRunner(
       stdout: '',

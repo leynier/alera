@@ -69,9 +69,28 @@ class _WorkspaceGitDiffSurfaceState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.tab.id != widget.tab.id ||
-        oldWidget.tab.payload != widget.tab.payload) {
+        _diffSelectionChanged(oldWidget.tab, widget.tab)) {
       _load();
     }
+  }
+
+  bool _diffSelectionChanged(
+    WorkspaceTabRecord previous,
+    WorkspaceTabRecord current,
+  ) {
+    return previous.kind != current.kind ||
+        previous.filePath != current.filePath ||
+        previous.gitDiffOldPath != current.gitDiffOldPath ||
+        previous.gitDiffRoot != current.gitDiffRoot ||
+        previous.gitDiffScope != current.gitDiffScope ||
+        previous.gitDiffArea != current.gitDiffArea ||
+        previous.gitDiffSource != current.gitDiffSource ||
+        previous.gitDiffCommitOid != current.gitDiffCommitOid ||
+        previous.gitDiffParentOid != current.gitDiffParentOid ||
+        previous.gitDiffCompareRef != current.gitDiffCompareRef ||
+        previous.gitDiffPullRequestNumber != current.gitDiffPullRequestNumber ||
+        previous.gitDiffHostedReviewRetentionId !=
+            current.gitDiffHostedReviewRetentionId;
   }
 
   @override

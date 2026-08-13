@@ -214,6 +214,7 @@ abstract class RustLibApi extends BaseApi {
     required String remoteName,
     required String baseBranch,
     required String headSha,
+    String? headRemote,
     String? comparisonBaseSha,
     String? mergeCommitSha,
     String? reviewRef,
@@ -1366,6 +1367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String remoteName,
     required String baseBranch,
     required String headSha,
+    String? headRemote,
     String? comparisonBaseSha,
     String? mergeCommitSha,
     String? reviewRef,
@@ -1378,6 +1380,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(remoteName, serializer);
           sse_encode_String(baseBranch, serializer);
           sse_encode_String(headSha, serializer);
+          sse_encode_opt_String(headRemote, serializer);
           sse_encode_opt_String(comparisonBaseSha, serializer);
           sse_encode_opt_String(mergeCommitSha, serializer);
           sse_encode_opt_String(reviewRef, serializer);
@@ -1399,6 +1402,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           remoteName,
           baseBranch,
           headSha,
+          headRemote,
           comparisonBaseSha,
           mergeCommitSha,
           reviewRef,
@@ -1417,6 +1421,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "remoteName",
           "baseBranch",
           "headSha",
+          "headRemote",
           "comparisonBaseSha",
           "mergeCommitSha",
           "reviewRef",

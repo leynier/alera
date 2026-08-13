@@ -171,6 +171,7 @@ class _VisiblePullRequestsPanelState
         remote: remote,
         baseBranch: baseRef,
         headSha: headRef,
+        headRemote: review.headRepositoryUrl,
         comparisonBaseSha: review.comparisonBaseSha,
         mergeCommitSha: review.mergeCommitSha,
         reviewRef: switch (review.provider) {

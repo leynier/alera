@@ -13,6 +13,7 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import 'fake_git_backend.dart';
 

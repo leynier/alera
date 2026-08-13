@@ -925,6 +925,7 @@ fn wire__crate__api__git__git_hosted_review__git_fetch_hosted_review_range_impl(
             let api_remote_name = <String>::sse_decode(&mut deserializer);
             let api_base_branch = <String>::sse_decode(&mut deserializer);
             let api_head_sha = <String>::sse_decode(&mut deserializer);
+            let api_head_remote = <Option<String>>::sse_decode(&mut deserializer);
             let api_comparison_base_sha = <Option<String>>::sse_decode(&mut deserializer);
             let api_merge_commit_sha = <Option<String>>::sse_decode(&mut deserializer);
             let api_review_ref = <Option<String>>::sse_decode(&mut deserializer);
@@ -937,6 +938,7 @@ fn wire__crate__api__git__git_hosted_review__git_fetch_hosted_review_range_impl(
                             api_remote_name,
                             api_base_branch,
                             api_head_sha,
+                            api_head_remote,
                             api_comparison_base_sha,
                             api_merge_commit_sha,
                             api_review_ref,

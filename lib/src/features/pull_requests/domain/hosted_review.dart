@@ -29,6 +29,7 @@ class HostedReview with HostedReviewMappable {
     this.baseBranch,
     this.headBranch,
     this.headSha,
+    this.headRepositoryUrl,
     this.comparisonBaseSha,
     this.mergeCommitSha,
     this.mergeable = HostedReviewMergeable.unknown,
@@ -44,6 +45,7 @@ class HostedReview with HostedReviewMappable {
   final String? baseBranch;
   final String? headBranch;
   final String? headSha;
+  final String? headRepositoryUrl;
   final String? comparisonBaseSha;
   final String? mergeCommitSha;
   final HostedReviewMergeable mergeable;

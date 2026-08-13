@@ -12,15 +12,30 @@ pub struct GitHostedReviewRange {
     pub retention_id: String,
 }
 
+pub struct HostedReviewFetch<'a> {
+    pub repo_path: &'a str,
+    pub remote_name: &'a str,
+    pub base_branch: &'a str,
+    pub head_sha: &'a str,
+    pub head_remote: Option<&'a str>,
+    pub comparison_base_sha: Option<&'a str>,
+    pub merge_commit_sha: Option<&'a str>,
+    pub review_ref: Option<&'a str>,
+}
+
 pub fn fetch_hosted_review_range(
-    repo_path: &str,
-    remote_name: &str,
-    base_branch: &str,
-    head_sha: &str,
-    comparison_base_sha: Option<&str>,
-    merge_commit_sha: Option<&str>,
-    review_ref: Option<&str>,
+    request: HostedReviewFetch<'_>,
 ) -> Result<GitHostedReviewRange, GitError> {
+    let HostedReviewFetch {
+        repo_path,
+        remote_name,
+        base_branch,
+        head_sha,
+        head_remote,
+        comparison_base_sha,
+        merge_commit_sha,
+        review_ref,
+    } = request;
     let repo = open_repo(repo_path)?;
     repo.find_remote(remote_name).map_err(|_| {
         GitError::new(
@@ -28,6 +43,10 @@ pub fn fetch_hosted_review_range(
             format!("hosted review remote not found: {remote_name}"),
         )
     })?;
+    let head_remote = head_remote
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(remote_name);
     if !Branch::name_is_valid(base_branch).map_err(GitError::from_git2)? {
         return Err(GitError::new(GitErrorKind::InvalidBranchName, base_branch));
     }
@@ -54,10 +73,10 @@ pub fn fetch_hosted_review_range(
 
         let primary_head = review_ref.unwrap_or(head_sha);
         let head_source = if let Err(primary_error) =
-            fetch_ref(repo_path, remote_name, primary_head, &head_target)
+            fetch_ref(repo_path, head_remote, primary_head, &head_target)
         {
             if review_ref.is_none()
-                || fetch_ref(repo_path, remote_name, head_sha, &head_target).is_err()
+                || fetch_ref(repo_path, head_remote, head_sha, &head_target).is_err()
             {
                 return Err(primary_error);
             }
@@ -83,6 +102,7 @@ pub fn fetch_hosted_review_range(
                 fetch_review_history(
                     repo_path,
                     remote_name,
+                    head_remote,
                     &base_source,
                     &base_target,
                     head_source,
@@ -216,7 +236,8 @@ fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(),
 
 fn fetch_review_history(
     path: &str,
-    remote: &str,
+    base_remote: &str,
+    head_remote: &str,
     base_source: &str,
     base_target: &str,
     head_source: &str,
@@ -231,8 +252,17 @@ fn fetch_review_history(
             "--unshallow",
             "--no-tags",
             "--no-write-fetch-head",
-            remote,
+            base_remote,
             &base_refspec,
+        ],
+    )?;
+    git_cli_in_path(
+        path,
+        &[
+            "fetch",
+            "--no-tags",
+            "--no-write-fetch-head",
+            head_remote,
             &head_refspec,
         ],
     )

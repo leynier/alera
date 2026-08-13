@@ -49,6 +49,65 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     expect(service.canceled.single.filePath, 'lib/old.dart');
   });
 
+  testWidgets(
+    'unrelated tab metadata does not cancel reading diff generation',
+    (tester) async {
+      final backend = FakeGitBackend()
+        ..gitDiffResult = const GitDiffResult(
+          files: <GitDiffFile>[
+            GitDiffFile(
+              path: 'lib/main.dart',
+              area: GitChangeArea.unstaged,
+              status: GitChangeStatus.modified,
+              lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+              added: 1,
+              removed: 1,
+            ),
+          ],
+        );
+      final service = _BlockingReadingDiffService(backend);
+      final tab = _diffTab(filePath: 'lib/main.dart', title: 'main.dart');
+
+      await _pumpDiffSurface(
+        tester,
+        backend: backend,
+        tab: tab,
+        readingDiffService: service,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Generate Reading Diff'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Generate Reading Diff').last);
+      await tester.pump();
+
+      final reconstructed = WorkspaceTabRecord(
+        id: tab.id,
+        workspaceId: tab.workspaceId,
+        kind: tab.kind,
+        title: 'Renamed While Generating',
+        createdAt: tab.createdAt,
+        updatedAt: tab.updatedAt.add(const Duration(seconds: 1)),
+        payload: <String, Object?>{
+          ...tab.payload,
+          workspaceTabManualTitlePayloadKey: true,
+        },
+      );
+      await _pumpDiffSurface(
+        tester,
+        backend: backend,
+        tab: reconstructed,
+        readingDiffService: service,
+      );
+      await tester.pump();
+
+      expect(service.canceled, isEmpty);
+      expect(find.byTooltip('Cancel Reading Diff'), findsOneWidget);
+      await tester.tap(find.byTooltip('Cancel Reading Diff'));
+      await tester.pump();
+      expect(service.canceled, hasLength(1));
+    },
+  );
+
   testWidgets('diff surface keeps reading diff failures visible', (
     tester,
   ) async {

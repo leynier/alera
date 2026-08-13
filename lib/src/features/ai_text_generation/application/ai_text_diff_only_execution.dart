@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:path/path.dart' as p;
+import 'package:toml/toml.dart';
 
 class AiTextDiffOnlyExecution {
   const AiTextDiffOnlyExecution({
@@ -79,6 +81,7 @@ AiTextDiffOnlyExecution planDiffOnlyAiTextExecution({
   required AiTextAgentSpec spec,
   required List<String> arguments,
   required Map<String, String> environment,
+  String? codexAuthCredentialsStore,
 }) {
   switch (spec.diffOnlyAccess) {
     case AiTextDiffOnlyAccess.unsupported:
@@ -91,13 +94,55 @@ AiTextDiffOnlyExecution planDiffOnlyAiTextExecution({
       );
     case AiTextDiffOnlyAccess.codexRestrictedFilesystem:
       return AiTextDiffOnlyExecution(
-        arguments: _codexDiffOnlyArguments(arguments),
+        arguments: _codexDiffOnlyArguments(
+          arguments,
+          authCredentialsStore: codexAuthCredentialsStore,
+        ),
         environment: _codexSubscriptionEnvironment(environment),
       );
   }
 }
 
-List<String> _codexDiffOnlyArguments(List<String> arguments) {
+Future<String?> codexAuthCredentialsStore(
+  Map<String, String> environment,
+) async {
+  final configuredHome = environment['CODEX_HOME']?.trim();
+  final userHome = (environment['HOME'] ?? environment['USERPROFILE'])?.trim();
+  final codexHome = configuredHome != null && configuredHome.isNotEmpty
+      ? configuredHome
+      : userHome != null && userHome.isNotEmpty
+      ? p.join(userHome, '.codex')
+      : null;
+  if (codexHome == null) {
+    return null;
+  }
+  try {
+    final file = File(p.join(codexHome, 'config.toml'));
+    if (!await file.exists()) {
+      return null;
+    }
+    final document = TomlDocument.parse(await file.readAsString()).toMap();
+    final value = document['cli_auth_credentials_store'];
+    return value is String && _codexAuthCredentialStores.contains(value)
+        ? value
+        : null;
+  } catch (_) {
+    // Invalid or unreadable user configuration must not expose more of it to
+    // the isolated process. Codex's default file store remains the fallback.
+    return null;
+  }
+}
+
+const Set<String> _codexAuthCredentialStores = <String>{
+  'auto',
+  'file',
+  'keyring',
+};
+
+List<String> _codexDiffOnlyArguments(
+  List<String> arguments, {
+  required String? authCredentialsStore,
+}) {
   final secured = List<String>.from(arguments);
   final sandboxIndex = secured.indexOf('-s');
   if (sandboxIndex >= 0 && sandboxIndex + 1 < secured.length) {
@@ -107,6 +152,10 @@ List<String> _codexDiffOnlyArguments(List<String> arguments) {
     '--ignore-user-config',
     '--ignore-rules',
     '--strict-config',
+    if (authCredentialsStore != null) ...<String>[
+      '-c',
+      'cli_auth_credentials_store="$authCredentialsStore"',
+    ],
     '-c',
     'default_permissions="alera_diff_only"',
     '-c',
@@ -160,6 +209,8 @@ const Set<String> codexDiffOnlyEnvironmentVariableNames = <String>{
   'CODEX_HOME',
   'CODEX_SQLITE_HOME',
   'COMSPEC',
+  'DBUS_SESSION_BUS_ADDRESS',
+  'GNOME_KEYRING_CONTROL',
   'HOME',
   'HTTPS_PROXY',
   'HTTP_PROXY',
@@ -184,6 +235,7 @@ const Set<String> codexDiffOnlyEnvironmentVariableNames = <String>{
   'XDG_CACHE_HOME',
   'XDG_CONFIG_HOME',
   'XDG_DATA_HOME',
+  'XDG_RUNTIME_DIR',
   'XDG_STATE_HOME',
   'all_proxy',
   'https_proxy',
