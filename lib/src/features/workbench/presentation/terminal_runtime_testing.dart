@@ -63,6 +63,15 @@ void flushTerminalOutputForTesting(TerminalSessionHandle session) {
   );
 }
 
+@visibleForTesting
+void resizeTerminalForTesting(
+  TerminalSessionHandle session,
+  int width,
+  int height,
+) {
+  (session as _XtermTerminalSessionHandle)._terminal.resize(width, height);
+}
+
 /// Delivers a scheduled frame with production visibility checks intact.
 @visibleForTesting
 void deliverTerminalOutputFrameForTesting(TerminalSessionHandle session) {
