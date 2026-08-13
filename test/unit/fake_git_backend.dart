@@ -579,6 +579,24 @@ class FakeGitBackend
   }
 
   @override
+  Future<GitHostedReviewRange> fetchHostedReviewRange({
+    required String path,
+    required String baseBranch,
+    required String headSha,
+    String? reviewRef,
+  }) async {
+    calls.add(
+      GitBackendCall('fetchHostedReviewRange', <String, Object?>{
+        'path': path,
+        'baseBranch': baseBranch,
+        'headSha': headSha,
+        'reviewRef': reviewRef,
+      }),
+    );
+    return GitHostedReviewRange(baseOid: baseBranch, headOid: headSha);
+  }
+
+  @override
   Future<void> pull(String path) async {
     calls.add(GitBackendCall('pull', <String, Object?>{'path': path}));
     final error = pullError;

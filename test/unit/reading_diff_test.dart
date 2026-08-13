@@ -7,6 +7,7 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 import 'package:flutter_test/flutter_test.dart';
@@ -116,6 +117,22 @@ void main() {
       repairing.description,
       'Rust rejected the plan; the agent is replacing it once.',
     );
+  });
+
+  test('custom command participates in the reading diff cache identity', () {
+    String key(String command) => buildReadingDiffCacheKey(
+      rubricVersion: 'rubric-v1',
+      schemaVersion: 1,
+      agent: AiTextGenerationAgent.custom,
+      model: 'custom',
+      effort: null,
+      instructions: '',
+      customCommand: command,
+      rawDiff: const <int>[1, 2, 3],
+    );
+
+    expect(key('agent-one {prompt}'), isNot(key('agent-two {prompt}')));
+    expect(key(' agent-one {prompt} '), key('agent-one {prompt}'));
   });
 
   test(

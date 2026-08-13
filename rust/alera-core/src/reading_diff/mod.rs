@@ -4,11 +4,12 @@
 mod chunk;
 mod compiler;
 mod diff;
+mod imports;
 mod plan;
 mod prompt;
 
 pub use chunk::{merge_chunks, prepare, CompiledChunk, PreparedDiff, ReadingDiffChunk};
-pub use compiler::{compile, CompileResult};
+pub use compiler::{compile, compile_with_source, CompileResult};
 pub use plan::Plan;
 pub use prompt::{plan_schema, RUBRIC_VERSION, SCHEMA_VERSION};
 

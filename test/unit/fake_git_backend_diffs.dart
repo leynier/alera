@@ -42,6 +42,7 @@ mixin _FakeGitBackendDiffs {
   Future<Uint8List> readingDiffPatch({
     required String path,
     String? filePath,
+    String? oldPath,
     GitChangeArea? area,
     String? commitOid,
     String? parentOid,
@@ -51,6 +52,7 @@ mixin _FakeGitBackendDiffs {
       GitBackendCall('readingDiffPatch', <String, Object?>{
         'path': path,
         'filePath': filePath,
+        'oldPath': oldPath,
         'area': area,
         'commitOid': commitOid,
         'parentOid': parentOid,

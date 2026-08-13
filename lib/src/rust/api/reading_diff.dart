@@ -12,6 +12,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Uint8List> gitReadingDiffPatch({
   required String path,
   String? filePath,
+  String? oldPath,
   GitChangeArea? area,
   String? commitOid,
   String? parentOid,
@@ -19,6 +20,7 @@ Future<Uint8List> gitReadingDiffPatch({
 }) => RustLib.instance.api.crateApiReadingDiffGitReadingDiffPatch(
   path: path,
   filePath: filePath,
+  oldPath: oldPath,
   area: area,
   commitOid: commitOid,
   parentOid: parentOid,
@@ -35,16 +37,20 @@ Future<ReadingDiffPreparation> prepareReadingDiff({
 
 Future<ReadingDiffCompileResult> compileReadingDiffPlan({
   required List<int> diff,
+  required List<int> sourceDiff,
   required String planJson,
 }) => RustLib.instance.api.crateApiReadingDiffCompileReadingDiffPlan(
   diff: diff,
+  sourceDiff: sourceDiff,
   planJson: planJson,
 );
 
 Future<ReadingDiffCompileResult> mergeReadingDiffChunks({
   required List<ReadingDiffCompiledChunk> chunks,
+  required List<int> sourceDiff,
 }) => RustLib.instance.api.crateApiReadingDiffMergeReadingDiffChunks(
   chunks: chunks,
+  sourceDiff: sourceDiff,
 );
 
 class ReadingDiffChunk {

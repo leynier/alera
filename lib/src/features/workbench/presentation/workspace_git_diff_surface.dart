@@ -53,6 +53,7 @@ class _WorkspaceGitDiffSurfaceState
   String? _readingDiffError;
   String? _readingDiffAgentLabel;
   String? _readingDiffModel;
+  ReadingDiffRequest? _activeReadingDiffRequest;
   int _readingDiffGeneration = 0;
 
   @override
@@ -73,8 +74,9 @@ class _WorkspaceGitDiffSurfaceState
 
   @override
   void dispose() {
-    if (_readingDiffBusy) {
-      ref.read(readingDiffServiceProvider).cancel(_readingDiffRequest());
+    final activeRequest = _activeReadingDiffRequest;
+    if (activeRequest != null) {
+      ref.read(readingDiffServiceProvider).cancel(activeRequest);
     }
     super.dispose();
   }
@@ -287,10 +289,14 @@ class _WorkspaceGitDiffSurfaceState
     final sourceFilePath = sourceControlScope.toSourceRelativePath(
       widget.tab.filePath,
     );
+    final sourceOldPath = sourceControlScope.toSourceRelativePath(
+      widget.tab.gitDiffOldPath,
+    );
     return ReadingDiffRequest(
       workspacePath: sourceControlScope.path,
       settings: ref.read(settingsControllerProvider).aiTextGeneration,
       filePath: scope == WorkspaceGitDiffScope.all ? null : sourceFilePath,
+      oldPath: scope == WorkspaceGitDiffScope.all ? null : sourceOldPath,
       area: scope == WorkspaceGitDiffScope.file ? widget.tab.gitDiffArea : null,
       commitOid: _isCommitBackedDiff ? widget.tab.gitDiffCommitOid : null,
       parentOid: _isCommitBackedDiff ? widget.tab.gitDiffParentOid : null,
@@ -350,6 +356,7 @@ class _WorkspaceGitDiffSurfaceState
           );
         });
       }
+      _activeReadingDiffRequest = request;
       final result = await service.generate(
         preparation,
         onProgress: (progress) {
@@ -379,6 +386,9 @@ class _WorkspaceGitDiffSurfaceState
         });
       }
     } finally {
+      if (identical(_activeReadingDiffRequest, request)) {
+        _activeReadingDiffRequest = null;
+      }
       if (mounted && generation == _readingDiffGeneration) {
         setState(() {
           _readingDiffBusy = false;
@@ -389,8 +399,10 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   void _cancelReadingDiff() {
-    if (_readingDiffBusy) {
-      ref.read(readingDiffServiceProvider).cancel(_readingDiffRequest());
+    final activeRequest = _activeReadingDiffRequest;
+    if (activeRequest != null) {
+      ref.read(readingDiffServiceProvider).cancel(activeRequest);
+      _activeReadingDiffRequest = null;
     }
     _readingDiffGeneration += 1;
     if (mounted && _readingDiffBusy) {

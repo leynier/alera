@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Ported and modified from Meat revision f39f41dfe7b5b37a12b35fdfbaecc7e779855bd3.
 
-use super::compiler::CompileResult;
+use super::compiler::{validate_merged_move_symmetry, CompileResult};
 use super::diff::{numbered, parse};
 use super::{ReadingDiffError, RUBRIC_VERSION, SCHEMA_VERSION};
 
@@ -75,7 +75,10 @@ pub fn prepare(
     })
 }
 
-pub fn merge_chunks(mut chunks: Vec<CompiledChunk>) -> Result<CompileResult, ReadingDiffError> {
+pub fn merge_chunks(
+    mut chunks: Vec<CompiledChunk>,
+    source_diff: &[u8],
+) -> Result<CompileResult, ReadingDiffError> {
     if chunks.is_empty() {
         return Err(ReadingDiffError::new(
             "No reading diff chunks were compiled.",
@@ -104,6 +107,7 @@ pub fn merge_chunks(mut chunks: Vec<CompiledChunk>) -> Result<CompileResult, Rea
             retained_changed_lines.saturating_add(chunk.result.retained_changed_lines);
     }
     summaries.dedup();
+    validate_merged_move_symmetry(source_diff, &reading_diff)?;
     Ok(CompileResult {
         reading_diff,
         summary: summaries.join(" "),

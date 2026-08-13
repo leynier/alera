@@ -109,6 +109,7 @@ abstract interface class GitBackend {
   Future<Uint8List> readingDiffPatch({
     required String path,
     String? filePath,
+    String? oldPath,
     GitChangeArea? area,
     String? commitOid,
     String? parentOid,
@@ -206,6 +207,15 @@ abstract interface class GitBackend {
   Future<String> amendCommit({required String path, required String message});
 
   Future<void> fetch(String path);
+
+  /// Fetches the exact base and head objects for a hosted review and returns
+  /// immutable commit IDs for local range resolution.
+  Future<GitHostedReviewRange> fetchHostedReviewRange({
+    required String path,
+    required String baseBranch,
+    required String headSha,
+    String? reviewRef,
+  });
 
   Future<void> pull(String path);
 

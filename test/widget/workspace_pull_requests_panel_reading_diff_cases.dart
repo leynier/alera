@@ -70,6 +70,18 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
     await tester.pumpAndSettle();
 
     expect(
+      git.calls
+          .where((call) => call.method == 'fetchHostedReviewRange')
+          .single
+          .args,
+      <String, Object?>{
+        'path': '/repo',
+        'baseBranch': 'main',
+        'headSha': 'head-385',
+        'reviewRef': 'refs/pull/385/head',
+      },
+    );
+    expect(
       git.calls.where((call) => call.method == 'rangeContext').single.args,
       <String, Object?>{
         'path': '/repo',

@@ -1,5 +1,12 @@
 part of 'git_diff_models.dart';
 
+class GitHostedReviewRange {
+  const GitHostedReviewRange({required this.baseOid, required this.headOid});
+
+  final String baseOid;
+  final String headOid;
+}
+
 /// One commit on the range from merge-base(base, HEAD) to HEAD.
 class GitRangeCommit {
   const GitRangeCommit({

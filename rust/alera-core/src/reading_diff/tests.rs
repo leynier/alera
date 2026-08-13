@@ -141,29 +141,118 @@ fn elides_imports_and_protects_python_suite_owners() {
 }
 
 #[test]
+fn rejects_partial_python_expressions_and_elides_multiline_imports() {
+    let expression = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -0,0 +1,3 @@\n+result = call(\n+    argument,\n+)\n";
+    let partial = r#"{"version":1,"remove":[{"start_line":5,"end_line":5}],"replace":[],"fold":[],"summary":"x"}"#;
+    assert!(compile(expression, partial)
+        .unwrap_err()
+        .message
+        .contains("Python expression"));
+
+    let imports = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -0,0 +1,5 @@\n+from package import (\n+    First,\n+    Second,\n+)\n+value = First()\n";
+    let result = compile(
+        imports,
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Use the imported value."}"#,
+    )
+    .expect("multiline import");
+    let text = String::from_utf8(result.reading_diff).expect("utf8");
+    assert!(!text.contains("from package import"));
+    assert!(!text.contains("First,"));
+    assert!(!text.contains("Second,"));
+    assert!(text.contains("+value = First()"));
+}
+
+#[test]
+fn rejects_asymmetric_moves_after_chunk_merge() {
+    const OLD: &[u8] = b"diff --git a/old.txt b/old.txt\n--- a/old.txt\n+++ b/old.txt\n@@ -1 +0,0 @@\n-this exact line moved\n";
+    const NEW: &[u8] = b"diff --git a/new.txt b/new.txt\n--- a/new.txt\n+++ b/new.txt\n@@ -0,0 +1 @@\n+this exact line moved\n";
+    let source = [OLD, NEW].concat();
+    let remove_old = r#"{"version":1,"remove":[{"start_line":5,"end_line":5}],"replace":[],"fold":[],"summary":"Move the line."}"#;
+    assert!(compile_with_source(OLD, &source, remove_old)
+        .unwrap_err()
+        .message
+        .contains("another chunk"));
+    let old_result = compile(OLD, remove_old).expect("single-sided chunk");
+    let new_result = compile(
+        NEW,
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Move the line."}"#,
+    )
+    .expect("retained chunk");
+    assert!(merge_chunks(
+        vec![
+            CompiledChunk {
+                index: 0,
+                result: old_result,
+            },
+            CompiledChunk {
+                index: 1,
+                result: new_result,
+            },
+        ],
+        &source,
+    )
+    .unwrap_err()
+    .message
+    .contains("split across chunks"));
+}
+
+#[test]
+fn allows_symmetric_automatic_import_elision_across_chunks() {
+    const OLD: &[u8] = b"diff --git a/old.py b/old.py\n--- a/old.py\n+++ b/old.py\n@@ -1 +0,0 @@\n-from package import moved_symbol\n";
+    const NEW: &[u8] = b"diff --git a/new.py b/new.py\n--- a/new.py\n+++ b/new.py\n@@ -0,0 +1 @@\n+from package import moved_symbol\n";
+    let source = [OLD, NEW].concat();
+    let plan = r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Move the import."}"#;
+    let old_result = compile_with_source(OLD, &source, plan).expect("old import chunk");
+    let new_result = compile_with_source(NEW, &source, plan).expect("new import chunk");
+
+    let merged = merge_chunks(
+        vec![
+            CompiledChunk {
+                index: 0,
+                result: old_result,
+            },
+            CompiledChunk {
+                index: 1,
+                result: new_result,
+            },
+        ],
+        &source,
+    )
+    .expect("symmetric automatic elision");
+
+    assert_eq!(merged.retained_changed_lines, 0);
+}
+
+#[test]
 fn merges_chunks_by_index_and_accumulates_stats() {
-    let merged = merge_chunks(vec![
-        CompiledChunk {
-            index: 1,
-            result: CompileResult {
-                reading_diff: b"second".to_vec(),
-                summary: "Second.".to_string(),
-                changed_lines: 3,
-                retained_changed_lines: 2,
+    const FIRST: &[u8] = b"diff --git a/first.txt b/first.txt\n--- a/first.txt\n+++ b/first.txt\n@@ -1 +1 @@\n-old first\n+new first\n";
+    const SECOND: &[u8] = b"diff --git a/second.txt b/second.txt\n--- a/second.txt\n+++ b/second.txt\n@@ -1 +1 @@\n-old second\n+new second\n";
+    let source = [FIRST, SECOND].concat();
+    let merged = merge_chunks(
+        vec![
+            CompiledChunk {
+                index: 1,
+                result: CompileResult {
+                    reading_diff: SECOND.to_vec(),
+                    summary: "Second.".to_string(),
+                    changed_lines: 3,
+                    retained_changed_lines: 2,
+                },
             },
-        },
-        CompiledChunk {
-            index: 0,
-            result: CompileResult {
-                reading_diff: b"first\n".to_vec(),
-                summary: "First.".to_string(),
-                changed_lines: 2,
-                retained_changed_lines: 1,
+            CompiledChunk {
+                index: 0,
+                result: CompileResult {
+                    reading_diff: FIRST.to_vec(),
+                    summary: "First.".to_string(),
+                    changed_lines: 2,
+                    retained_changed_lines: 1,
+                },
             },
-        },
-    ])
+        ],
+        &source,
+    )
     .expect("complete chunks");
-    assert_eq!(merged.reading_diff, b"first\nsecond\n");
+    assert_eq!(merged.reading_diff, source);
     assert_eq!(merged.summary, "First. Second.");
     assert_eq!(merged.changed_lines, 5);
     assert_eq!(merged.retained_changed_lines, 3);

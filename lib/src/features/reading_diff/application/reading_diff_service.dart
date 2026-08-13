@@ -48,6 +48,7 @@ class ReadingDiffService {
     final rawDiff = await gitBackend.readingDiffPatch(
       path: request.workspacePath,
       filePath: request.filePath,
+      oldPath: request.oldPath,
       area: request.area,
       commitOid: request.commitOid,
       parentOid: request.parentOid,
@@ -80,13 +81,16 @@ class ReadingDiffService {
         );
       }
     }
-    final cacheKey = sha256.convert(<int>[
-      ...utf8.encode(compiler.rubricVersion),
-      ...utf8.encode('|${compiler.schemaVersion}|${agent.key}|${model.id}|'),
-      ...utf8.encode(effort ?? ''),
-      ...utf8.encode('|$instructions|'),
-      ...rawDiff,
-    ]).toString();
+    final cacheKey = buildReadingDiffCacheKey(
+      rubricVersion: compiler.rubricVersion,
+      schemaVersion: compiler.schemaVersion,
+      agent: agent,
+      model: model.id,
+      effort: effort,
+      instructions: instructions,
+      customCommand: request.settings.customCommand,
+      rawDiff: rawDiff,
+    );
     return ReadingDiffPreparation(
       request: request,
       rawDiff: rawDiff,
@@ -149,6 +153,7 @@ class ReadingDiffService {
         try {
           result = await rust.compileReadingDiffPlan(
             diff: chunk.rawDiff,
+            sourceDiff: preparation.rawDiff,
             planJson: plan.text,
           );
         } on rust.ReadingDiffError catch (error) {
@@ -175,6 +180,7 @@ class ReadingDiffService {
           try {
             result = await rust.compileReadingDiffPlan(
               diff: chunk.rawDiff,
+              sourceDiff: preparation.rawDiff,
               planJson: plan.text,
             );
           } on rust.ReadingDiffError catch (repairError) {
@@ -208,7 +214,10 @@ class ReadingDiffService {
           totalChunks: preparation.chunkCount,
         ),
       );
-      final merged = await rust.mergeReadingDiffChunks(chunks: compiled);
+      final merged = await rust.mergeReadingDiffChunks(
+        chunks: compiled,
+        sourceDiff: preparation.rawDiff,
+      );
       final result = ReadingDiffResult(
         diff: merged.readingDiff,
         summary: merged.summary,
@@ -271,8 +280,15 @@ class ReadingDiffService {
     }
   }
 
-  String _lane(ReadingDiffRequest request) =>
-      '${request.workspacePath}::${request.filePath ?? '*'}::${request.area?.key ?? 'all'}::${request.commitOid ?? request.baseRef ?? 'worktree'}';
+  String _lane(ReadingDiffRequest request) => jsonEncode(<String?>[
+    request.workspacePath,
+    request.filePath,
+    request.oldPath,
+    request.area?.key,
+    request.commitOid,
+    request.parentOid,
+    request.baseRef,
+  ]);
 }
 
 const int _defaultReadingDiffChunkBytes = 160 * 1024;
@@ -294,4 +310,32 @@ int _promptLimit(
 int _chunkLimit(int promptLimit) {
   final conservativeLimit = (promptLimit - 8192) ~/ 4;
   return conservativeLimit.clamp(4096, _defaultReadingDiffChunkBytes);
+}
+
+String buildReadingDiffCacheKey({
+  required String rubricVersion,
+  required int schemaVersion,
+  required AiTextGenerationAgent agent,
+  required String model,
+  required String? effort,
+  required String instructions,
+  required String customCommand,
+  required List<int> rawDiff,
+}) {
+  final identity = jsonEncode(<String, Object?>{
+    'rubricVersion': rubricVersion,
+    'schemaVersion': schemaVersion,
+    'agent': agent.key,
+    'model': model,
+    'effort': effort,
+    'instructions': instructions,
+    'customCommand': agent == AiTextGenerationAgent.custom
+        ? customCommand.trim()
+        : null,
+  });
+  return sha256.convert(<int>[
+    ...utf8.encode(identity),
+    0,
+    ...rawDiff,
+  ]).toString();
 }

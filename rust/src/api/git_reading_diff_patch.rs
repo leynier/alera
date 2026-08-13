@@ -1,13 +1,18 @@
 use git2::{Diff, DiffFindOptions, DiffFormat, DiffLineType, DiffOptions, Oid};
 
+#[path = "git_reading_diff_submodule.rs"]
+mod git_reading_diff_submodule;
+
 use super::{
     build_untracked_patch, diff_for_area, diff_for_commit_range, git_status, git_status_for_path,
     open_repo, read_untracked_text, GitChangeArea, GitError, GitErrorKind, GitPathContext,
 };
+use git_reading_diff_submodule::submodule_child_workdir;
 
 pub(crate) fn git_reading_diff_patch(
     path: String,
     file_path: Option<String>,
+    old_path: Option<String>,
     area: Option<GitChangeArea>,
     commit_oid: Option<String>,
     parent_oid: Option<String>,
@@ -55,6 +60,9 @@ pub(crate) fn git_reading_diff_patch(
         if let Some(file_path) = file_path.as_deref() {
             options.pathspec(paths.to_repo_path(file_path));
         }
+        if let Some(old_path) = old_path.as_deref() {
+            options.pathspec(paths.to_repo_path(old_path));
+        }
         let mut diff = repo
             .diff_tree_to_tree(Some(&base_tree), Some(&head_tree), Some(&mut options))
             .map_err(GitError::from_git2)?;
@@ -78,7 +86,11 @@ pub(crate) fn git_reading_diff_patch(
             .transpose()
             .map_err(GitError::from_git2)?;
         let repo_path = file_path.as_deref().map(|value| paths.to_repo_path(value));
-        let pathspecs = repo_path.as_deref().into_iter().collect::<Vec<_>>();
+        let old_repo_path = old_path.as_deref().map(|value| paths.to_repo_path(value));
+        let mut pathspecs = repo_path.as_deref().into_iter().collect::<Vec<_>>();
+        if let Some(old_repo_path) = old_repo_path.as_deref() {
+            pathspecs.push(old_repo_path);
+        }
         let mut diff = diff_for_commit_range(&repo, parent_oid, commit_oid, &pathspecs)?;
         return raw_patch(&mut diff, MAX_READING_DIFF_BYTES);
     }
@@ -106,28 +118,136 @@ pub(crate) fn git_reading_diff_patch(
             continue;
         }
         let repo_path = paths.to_repo_path(&entry.path);
+        if let Some(submodule) = &entry.submodule {
+            if submodule.commit_changed {
+                let mut diff = diff_for_area(&repo, &[repo_path.as_str()], entry.area)?;
+                append_limited_patch(&mut output, &mut diff, MAX_READING_DIFF_BYTES)?;
+            }
+            if entry.area == GitChangeArea::Unstaged
+                && submodule.inspectable
+                && (submodule.tracked_changes || submodule.untracked_changes)
+            {
+                let child_path = submodule_child_workdir(&path, &entry.path)?;
+                let child_patch =
+                    git_reading_diff_patch(child_path, None, None, None, None, None, None)?;
+                append_limited_bytes(
+                    &mut output,
+                    &prefix_submodule_patch(&child_patch, &entry.path),
+                    MAX_READING_DIFF_BYTES,
+                )?;
+            }
+            continue;
+        }
         if entry.area == GitChangeArea::Untracked {
             let value = read_untracked_text(&repo, &repo_path)?;
             if let Some(content) = value.content {
-                output.extend_from_slice(
+                append_limited_bytes(
+                    &mut output,
                     build_untracked_patch(&entry.path, &content, value.is_symlink).as_bytes(),
-                );
+                    MAX_READING_DIFF_BYTES,
+                )?;
+            } else {
+                append_limited_bytes(
+                    &mut output,
+                    untracked_placeholder_patch(&entry.path, value.is_binary, value.is_large)
+                        .as_bytes(),
+                    MAX_READING_DIFF_BYTES,
+                )?;
             }
         } else {
-            let mut diff = diff_for_area(&repo, &[repo_path.as_str()], entry.area)?;
-            output.extend_from_slice(&raw_patch(
-                &mut diff,
-                MAX_READING_DIFF_BYTES.saturating_sub(output.len()),
-            )?);
-        }
-        if output.len() > MAX_READING_DIFF_BYTES {
-            return Err(GitError::new(
-                GitErrorKind::Internal,
-                "reading diff input exceeds the 4 MiB safety limit",
-            ));
+            let old_repo_path = old_path
+                .as_deref()
+                .or(entry.old_path.as_deref())
+                .map(|value| paths.to_repo_path(value));
+            let mut pathspecs = vec![repo_path.as_str()];
+            if let Some(old_repo_path) = old_repo_path.as_deref() {
+                pathspecs.push(old_repo_path);
+            }
+            let mut diff = diff_for_area(&repo, &pathspecs, entry.area)?;
+            append_limited_patch(&mut output, &mut diff, MAX_READING_DIFF_BYTES)?;
         }
     }
     Ok(output)
+}
+
+fn append_limited_patch(
+    output: &mut Vec<u8>,
+    diff: &mut Diff<'_>,
+    limit: usize,
+) -> Result<(), GitError> {
+    let patch = raw_patch(diff, limit.saturating_sub(output.len()))?;
+    append_limited_bytes(output, &patch, limit)
+}
+
+fn append_limited_bytes(output: &mut Vec<u8>, value: &[u8], limit: usize) -> Result<(), GitError> {
+    if output.len().saturating_add(value.len()) > limit {
+        return Err(GitError::new(
+            GitErrorKind::Internal,
+            "reading diff input exceeds the 4 MiB safety limit",
+        ));
+    }
+    output.extend_from_slice(value);
+    Ok(())
+}
+
+fn untracked_placeholder_patch(path: &str, is_binary: bool, is_large: bool) -> String {
+    let description = if is_binary {
+        "Binary file"
+    } else if is_large {
+        "Large file above the 256 KiB text preview limit"
+    } else {
+        "Non-regular file"
+    };
+    format!(
+        "diff --git a/{path} b/{path}\nnew file mode 100644\n{description} /dev/null and b/{path} differ\n"
+    )
+}
+
+fn prefix_submodule_patch(patch: &[u8], prefix: &str) -> Vec<u8> {
+    let mut output = Vec::with_capacity(patch.len().saturating_add(prefix.len() * 4));
+    for line in patch.split_inclusive(|byte| *byte == b'\n') {
+        let structural = line.starts_with(b"diff --git ")
+            || line.starts_with(b"--- ")
+            || line.starts_with(b"+++ ")
+            || line.starts_with(b"rename from ")
+            || line.starts_with(b"rename to ")
+            || line.starts_with(b"copy from ")
+            || line.starts_with(b"copy to ")
+            || line.starts_with(b"Binary file ")
+            || line.starts_with(b"Binary files ")
+            || line.starts_with(b"Large file ");
+        if !structural {
+            output.extend_from_slice(line);
+            continue;
+        }
+        let text = prefix_submodule_header(&String::from_utf8_lossy(line), prefix);
+        output.extend_from_slice(text.as_bytes());
+    }
+    output
+}
+
+fn prefix_submodule_header(value: &str, prefix: &str) -> String {
+    let mut value = value.to_string();
+    let insertions = [
+        ("diff --git a/", format!("diff --git a/{prefix}/")),
+        ("diff --git \"a/", format!("diff --git \"a/{prefix}/")),
+        (" b/", format!(" b/{prefix}/")),
+        (" \"b/", format!(" \"b/{prefix}/")),
+        ("--- a/", format!("--- a/{prefix}/")),
+        ("--- \"a/", format!("--- \"a/{prefix}/")),
+        ("+++ b/", format!("+++ b/{prefix}/")),
+        ("+++ \"b/", format!("+++ \"b/{prefix}/")),
+        ("rename from ", format!("rename from {prefix}/")),
+        ("rename to ", format!("rename to {prefix}/")),
+        ("copy from ", format!("copy from {prefix}/")),
+        ("copy to ", format!("copy to {prefix}/")),
+        ("Binary files a/", format!("Binary files a/{prefix}/")),
+        ("Binary files \"a/", format!("Binary files \"a/{prefix}/")),
+    ];
+    for (needle, replacement) in insertions {
+        value = value.replacen(needle, &replacement, 1);
+    }
+    value
 }
 
 fn raw_patch(diff: &mut Diff<'_>, limit: usize) -> Result<Vec<u8>, GitError> {
@@ -165,100 +285,5 @@ fn raw_patch(diff: &mut Diff<'_>, limit: usize) -> Result<Vec<u8>, GitError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use git2::{IndexAddOption, Repository, Signature};
-
-    use super::*;
-
-    #[test]
-    fn extracts_worktree_staged_commit_and_range_patches() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let repository = Repository::init(directory.path()).expect("repository");
-        let file = directory.path().join("app.txt");
-        fs::write(&file, "before\n").expect("initial file");
-        let base = commit(&repository, "base");
-
-        fs::write(&file, "worktree\n").expect("worktree file");
-        let worktree = git_reading_diff_patch(
-            directory.path().to_string_lossy().to_string(),
-            Some("app.txt".to_string()),
-            Some(GitChangeArea::Unstaged),
-            None,
-            None,
-            None,
-        )
-        .expect("worktree patch");
-        assert!(worktree
-            .windows(b"+worktree".len())
-            .any(|row| row == b"+worktree"));
-
-        let mut index = repository.index().expect("index");
-        index
-            .add_path(std::path::Path::new("app.txt"))
-            .expect("stage");
-        index.write().expect("write index");
-        let staged = git_reading_diff_patch(
-            directory.path().to_string_lossy().to_string(),
-            None,
-            Some(GitChangeArea::Staged),
-            None,
-            None,
-            None,
-        )
-        .expect("staged patch");
-        assert!(staged
-            .windows(b"-before".len())
-            .any(|row| row == b"-before"));
-
-        let head = commit(&repository, "change");
-        let commit_patch = git_reading_diff_patch(
-            directory.path().to_string_lossy().to_string(),
-            None,
-            None,
-            Some(head.to_string()),
-            Some(base.to_string()),
-            None,
-        )
-        .expect("commit patch");
-        let range_patch = git_reading_diff_patch(
-            directory.path().to_string_lossy().to_string(),
-            None,
-            None,
-            None,
-            None,
-            Some(base.to_string()),
-        )
-        .expect("range patch");
-        assert_eq!(range_patch, commit_patch);
-    }
-
-    fn commit(repository: &Repository, message: &str) -> Oid {
-        let mut index = repository.index().expect("index");
-        index
-            .add_all(["*"], IndexAddOption::DEFAULT, None)
-            .expect("add files");
-        index.write().expect("write index");
-        let tree = repository
-            .find_tree(index.write_tree().expect("tree id"))
-            .expect("tree");
-        let signature = Signature::now("Alera", "alera@example.com").expect("signature");
-        let parent = repository
-            .head()
-            .ok()
-            .and_then(|head| head.target())
-            .map(|oid| repository.find_commit(oid).expect("parent"));
-        let parents = parent.iter().collect::<Vec<_>>();
-        repository
-            .commit(
-                Some("HEAD"),
-                &signature,
-                &signature,
-                message,
-                &tree,
-                &parents,
-            )
-            .expect("commit")
-    }
-}
+#[path = "git_reading_diff_patch_tests.rs"]
+mod tests;

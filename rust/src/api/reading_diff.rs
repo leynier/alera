@@ -47,13 +47,14 @@ impl From<reading_diff::ReadingDiffError> for ReadingDiffError {
 pub fn git_reading_diff_patch(
     path: String,
     file_path: Option<String>,
+    old_path: Option<String>,
     area: Option<GitChangeArea>,
     commit_oid: Option<String>,
     parent_oid: Option<String>,
     base_ref: Option<String>,
 ) -> Result<Vec<u8>, GitError> {
     super::git::git_diff_impl::git_reading_diff_patch::git_reading_diff_patch(
-        path, file_path, area, commit_oid, parent_oid, base_ref,
+        path, file_path, old_path, area, commit_oid, parent_oid, base_ref,
     )
 }
 
@@ -87,15 +88,17 @@ pub fn prepare_reading_diff(
 
 pub fn compile_reading_diff_plan(
     diff: Vec<u8>,
+    source_diff: Vec<u8>,
     plan_json: String,
 ) -> Result<ReadingDiffCompileResult, ReadingDiffError> {
-    reading_diff::compile(&diff, &plan_json)
+    reading_diff::compile_with_source(&diff, &source_diff, &plan_json)
         .map(ReadingDiffCompileResult::from)
         .map_err(Into::into)
 }
 
 pub fn merge_reading_diff_chunks(
     chunks: Vec<ReadingDiffCompiledChunk>,
+    source_diff: Vec<u8>,
 ) -> Result<ReadingDiffCompileResult, ReadingDiffError> {
     let chunks = chunks
         .into_iter()
@@ -109,7 +112,7 @@ pub fn merge_reading_diff_chunks(
             },
         })
         .collect();
-    reading_diff::merge_chunks(chunks)
+    reading_diff::merge_chunks(chunks, &source_diff)
         .map(ReadingDiffCompileResult::from)
         .map_err(Into::into)
 }

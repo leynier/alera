@@ -105,6 +105,7 @@ class E2eGitBackend implements GitBackend {
   Future<Uint8List> readingDiffPatch({
     required String path,
     String? filePath,
+    String? oldPath,
     GitChangeArea? area,
     String? commitOid,
     String? parentOid,
@@ -177,6 +178,14 @@ class E2eGitBackend implements GitBackend {
   @override
   Future<GitRepositoryState> repositoryState(String path) async =>
       const GitRepositoryState(branch: 'HEAD');
+
+  @override
+  Future<GitHostedReviewRange> fetchHostedReviewRange({
+    required String path,
+    required String baseBranch,
+    required String headSha,
+    String? reviewRef,
+  }) async => GitHostedReviewRange(baseOid: baseBranch, headOid: headSha);
 
   @override
   Future<void> stage({required String path, String? filePath}) async {}

@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use super::diff::{parse, source_body, LineKind, SourceLine};
+use super::imports::mandatory_import_mask;
 use super::plan::{LineRange, LineReplacement, Plan};
 use super::ReadingDiffError;
 
@@ -16,6 +17,14 @@ pub struct CompileResult {
 }
 
 pub fn compile(raw: &[u8], plan_json: &str) -> Result<CompileResult, ReadingDiffError> {
+    compile_with_source(raw, raw, plan_json)
+}
+
+pub fn compile_with_source(
+    raw: &[u8],
+    source_diff: &[u8],
+    plan_json: &str,
+) -> Result<CompileResult, ReadingDiffError> {
     let plan = Plan::parse(plan_json)?;
     let lines = parse(raw)?;
     if lines.is_empty() {
@@ -53,6 +62,7 @@ pub fn compile(raw: &[u8], plan_json: &str) -> Result<CompileResult, ReadingDiff
     }
 
     validate_move_symmetry(&lines, &hidden)?;
+    validate_cross_chunk_move_retention(source_diff, &lines, &hidden)?;
     let replacements = validate_replacements(&lines, &hidden, &plan.replace)?;
     hide_owned_no_newline_markers(&lines, &mut hidden);
 
@@ -89,6 +99,100 @@ pub fn compile(raw: &[u8], plan_json: &str) -> Result<CompileResult, ReadingDiff
         summary: plan.summary.trim().to_string(),
         changed_lines,
         retained_changed_lines,
+    })
+}
+
+fn validate_cross_chunk_move_retention(
+    source_diff: &[u8],
+    chunk_lines: &[SourceLine],
+    hidden: &[bool],
+) -> Result<(), ReadingDiffError> {
+    let source_lines = parse(source_diff)?;
+    let source_automatic = mandatory_import_mask(&source_lines);
+    let mut removed = HashMap::<Vec<u8>, usize>::new();
+    let mut added = HashMap::<Vec<u8>, usize>::new();
+    let mut automatic_removed = HashMap::<Vec<u8>, bool>::new();
+    let mut automatic_added = HashMap::<Vec<u8>, bool>::new();
+    for (index, line) in source_lines.iter().enumerate() {
+        let body = trim_ascii(source_body(line));
+        if body.len() < 12 {
+            continue;
+        }
+        match line.marker {
+            Some(b'-') => {
+                *removed.entry(body.to_vec()).or_default() += 1;
+                automatic_removed.insert(body.to_vec(), source_automatic[index]);
+            }
+            Some(b'+') => {
+                *added.entry(body.to_vec()).or_default() += 1;
+                automatic_added.insert(body.to_vec(), source_automatic[index]);
+            }
+            _ => {}
+        }
+    }
+    for (index, line) in chunk_lines.iter().enumerate() {
+        if !hidden[index] || !matches!(line.marker, Some(b'+' | b'-')) {
+            continue;
+        }
+        let body = trim_ascii(source_body(line));
+        if removed.get(body) != Some(&1) || added.get(body) != Some(&1) {
+            continue;
+        }
+        if automatic_removed.get(body) == Some(&true) && automatic_added.get(body) == Some(&true) {
+            continue;
+        }
+        let counterpart = if line.marker == Some(b'-') {
+            b'+'
+        } else {
+            b'-'
+        };
+        if !chunk_lines.iter().any(|candidate| {
+            candidate.marker == Some(counterpart) && trim_ascii(source_body(candidate)) == body
+        }) {
+            return Err(ReadingDiffError::new(
+                "Exact move rows whose counterpart is in another chunk must be retained.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_merged_move_symmetry(
+    source: &[u8],
+    reading_diff: &[u8],
+) -> Result<(), ReadingDiffError> {
+    let source_lines = parse(source)?;
+    let mut removed = HashMap::<Vec<u8>, usize>::new();
+    let mut added = HashMap::<Vec<u8>, usize>::new();
+    for line in &source_lines {
+        let body = trim_ascii(source_body(line));
+        if body.len() < 12 {
+            continue;
+        }
+        match line.marker {
+            Some(b'-') => *removed.entry(body.to_vec()).or_default() += 1,
+            Some(b'+') => *added.entry(body.to_vec()).or_default() += 1,
+            _ => {}
+        }
+    }
+    for (body, removed_count) in removed {
+        if removed_count != 1 || added.get(&body) != Some(&1) {
+            continue;
+        }
+        let retained_old = retains_changed_body(reading_diff, b'-', &body);
+        let retained_new = retains_changed_body(reading_diff, b'+', &body);
+        if retained_old != retained_new {
+            return Err(ReadingDiffError::new(
+                "Exact move rows split across chunks must be retained or elided symmetrically.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn retains_changed_body(reading_diff: &[u8], marker: u8, body: &[u8]) -> bool {
+    reading_diff.split(|byte| *byte == b'\n').any(|line| {
+        line.first() == Some(&marker) && trim_ascii(line.get(1..).unwrap_or_default()) == body
     })
 }
 
@@ -223,7 +327,9 @@ fn validate_replacements(
                 replacement.line
             )));
         }
-        if is_python_line(line) && changes_python_boundaries(&replacement.old, &replacement.new) {
+        if file_is_python(lines, line)
+            && changes_python_boundaries(&replacement.old, &replacement.new)
+        {
             return Err(ReadingDiffError::new(format!(
                 "replace[{index}] changes Python structural delimiters on line {}.",
                 replacement.line
@@ -261,28 +367,6 @@ fn validate_projection(old: &str, new: &str, index: usize) -> Result<(), Reading
         cursor += relative + piece.len();
     }
     Ok(())
-}
-
-fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
-    lines
-        .iter()
-        .map(|line| {
-            if line.kind != LineKind::HunkSource || !matches!(line.marker, Some(b'+' | b'-')) {
-                return false;
-            }
-            let text = String::from_utf8_lossy(source_body(line));
-            let trimmed = text.trim_start();
-            trimmed.starts_with("import ")
-                || trimmed.starts_with("export ")
-                || trimmed.starts_with("from ") && trimmed.contains(" import ")
-                || trimmed.starts_with("use ")
-                || trimmed.starts_with("pub use ")
-                || trimmed.starts_with("#include ")
-                || trimmed.starts_with("#include<")
-                || trimmed.starts_with("require(")
-                || trimmed.starts_with("const ") && trimmed.contains("require(")
-        })
-        .collect()
 }
 
 fn validate_move_symmetry(lines: &[SourceLine], hidden: &[bool]) -> Result<(), ReadingDiffError> {
@@ -327,7 +411,7 @@ fn protect_python_structure(
     let mut triples = [0usize; 2];
     for line_number in range.start_line..=range.end_line {
         let line = &lines[line_number - 1];
-        if !is_python_line(line) {
+        if !file_is_python(lines, line) {
             continue;
         }
         let body = String::from_utf8_lossy(source_body(line));
@@ -351,19 +435,20 @@ fn protect_python_structure(
     Ok(())
 }
 
-fn is_python_line(line: &SourceLine) -> bool {
-    // File ids are stable, so look at the source row itself only for conservative
-    // validation. Python syntax is distinctive enough to reject unsafe plans
-    // without guessing when another language is in use.
-    let body = String::from_utf8_lossy(source_body(line));
-    let trimmed = body.trim_start();
-    trimmed.starts_with('@')
-        || trimmed.starts_with("def ")
-        || trimmed.starts_with("class ")
-        || trimmed.starts_with("async def ")
-        || trimmed.starts_with("from ")
-        || trimmed.starts_with("import ")
-        || trimmed.ends_with(':')
+fn file_is_python(lines: &[SourceLine], line: &SourceLine) -> bool {
+    let Some(file_id) = line.file_id else {
+        return false;
+    };
+    lines.iter().any(|candidate| {
+        candidate.file_id == Some(file_id)
+            && candidate.text.starts_with(b"diff --git ")
+            && String::from_utf8_lossy(&candidate.text)
+                .split_whitespace()
+                .any(|path| {
+                    let path = path.trim_matches('"');
+                    path.ends_with(".py") || path.ends_with(".pyi")
+                })
+    })
 }
 
 fn changes_python_boundaries(old: &str, new: &str) -> bool {

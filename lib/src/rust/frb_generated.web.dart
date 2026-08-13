@@ -10,6 +10,7 @@ import 'api/agent_hooks.dart';
 import 'api/ai_dictation.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git/git_hosted_review.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
@@ -222,6 +223,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryResult dco_decode_git_history_result(dynamic raw);
+
+  @protected
+  GitHostedReviewRange dco_decode_git_hosted_review_range(dynamic raw);
 
   @protected
   GitRangeCommit dco_decode_git_range_commit(dynamic raw);
@@ -826,6 +830,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
+
+  @protected
+  GitHostedReviewRange sse_decode_git_hosted_review_range(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitRangeCommit sse_decode_git_range_commit(SseDeserializer deserializer);
@@ -1591,6 +1600,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_git_history_result(
     GitHistoryResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_hosted_review_range(
+    GitHostedReviewRange self,
     SseSerializer serializer,
   );
 

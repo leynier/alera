@@ -10,6 +10,7 @@ class ReadingDiffRequest {
     required this.workspacePath,
     required this.settings,
     this.filePath,
+    this.oldPath,
     this.area,
     this.commitOid,
     this.parentOid,
@@ -20,6 +21,7 @@ class ReadingDiffRequest {
   final String workspacePath;
   final AiTextGenerationSettings settings;
   final String? filePath;
+  final String? oldPath;
   final GitChangeArea? area;
   final String? commitOid;
   final String? parentOid;

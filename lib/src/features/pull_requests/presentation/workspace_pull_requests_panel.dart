@@ -155,9 +155,26 @@ class _VisiblePullRequestsPanelState
     }
     setState(() => _openingDiff = true);
     try {
-      final range = await ref
-          .read(gitBackendProvider)
-          .rangeContext(widget.repoPath, baseRef: baseRef, headRef: headRef);
+      final backend = ref.read(gitBackendProvider);
+      final objects = await backend.fetchHostedReviewRange(
+        path: widget.repoPath,
+        baseBranch: baseRef,
+        headSha: headRef,
+        reviewRef: switch (review.provider) {
+          GitHostingProvider.github => 'refs/pull/${review.number}/head',
+          GitHostingProvider.gitlab =>
+            'refs/merge-requests/${review.number}/head',
+          GitHostingProvider.azureDevops =>
+            review.headBranch == null || review.headBranch!.trim().isEmpty
+                ? null
+                : 'refs/heads/${review.headBranch!.trim()}',
+        },
+      );
+      final range = await backend.rangeContext(
+        widget.repoPath,
+        baseRef: objects.baseOid,
+        headRef: objects.headOid,
+      );
       final mergeBase = range.mergeBase;
       final headOid = range.headOid ?? headRef;
       if (mergeBase == null || mergeBase.isEmpty) {

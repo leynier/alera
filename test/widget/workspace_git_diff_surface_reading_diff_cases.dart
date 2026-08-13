@@ -1,6 +1,54 @@
 part of 'workspace_git_diff_surface_test.dart';
 
 void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
+  testWidgets('diff surface cancels the request from the replaced tab', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/old.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 0,
+          ),
+        ],
+      );
+    final service = _BlockingReadingDiffService(backend);
+    final oldTab = _diffTab(
+      filePath: 'lib/old.dart',
+      oldPath: 'lib/older.dart',
+      title: 'old.dart',
+    );
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      tab: oldTab,
+      readingDiffService: service,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate Reading Diff').last);
+    await tester.pump();
+    expect(service.started.single.filePath, 'lib/old.dart');
+    expect(service.started.single.oldPath, 'lib/older.dart');
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      tab: _diffTab(filePath: 'lib/new.dart', title: 'new.dart'),
+      readingDiffService: service,
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.canceled.single.filePath, 'lib/old.dart');
+  });
+
   testWidgets('diff surface keeps reading diff failures visible', (
     tester,
   ) async {
@@ -50,6 +98,42 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
   });
 }
 
+class _BlockingReadingDiffService extends ReadingDiffService {
+  _BlockingReadingDiffService(FakeGitBackend backend)
+    : super(
+        gitBackend: backend,
+        runner: const _FailingReadingDiffRunner(),
+        cache: const _EmptyReadingDiffCache(),
+      );
+
+  final List<ReadingDiffRequest> started = <ReadingDiffRequest>[];
+  final List<ReadingDiffRequest> canceled = <ReadingDiffRequest>[];
+  Completer<ReadingDiffResult>? _pending;
+
+  @override
+  Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) async =>
+      _preparation(request, cacheKey: request.filePath ?? 'all');
+
+  @override
+  Future<ReadingDiffResult> generate(
+    ReadingDiffPreparation preparation, {
+    void Function(ReadingDiffGenerationProgress progress)? onProgress,
+  }) {
+    started.add(preparation.request);
+    _pending = Completer<ReadingDiffResult>();
+    return _pending!.future;
+  }
+
+  @override
+  void cancel(ReadingDiffRequest request) {
+    canceled.add(request);
+    final pending = _pending;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(const AiTextGenerationCanceledException());
+    }
+  }
+}
+
 class _FailingReadingDiffRunner implements AgentTaskRunner {
   const _FailingReadingDiffRunner();
 
@@ -74,30 +158,35 @@ class _PreparedReadingDiffService extends ReadingDiffService {
 
   @override
   Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) async {
-    return ReadingDiffPreparation(
-      request: request,
-      rawDiff: Uint8List.fromList(<int>[1]),
-      compiler: rust.ReadingDiffPreparation(
-        rawBytes: BigInt.one,
-        schemaVersion: 1,
-        rubricVersion: 'rubric-v1',
-        planSchema: '{"type":"object"}',
-        chunks: <rust.ReadingDiffChunk>[
-          rust.ReadingDiffChunk(
-            index: 0,
-            rawDiff: Uint8List.fromList(<int>[1]),
-            numberedDiff: '1|diff --git a/a b/a',
-          ),
-        ],
-      ),
-      agent: AiTextGenerationAgent.codex,
-      model: 'gpt-5.5',
-      effort: 'low',
-      accessPolicy: AgentTaskAccessPolicy.diffOnly,
-      cacheKey: 'reading-diff-error',
-    );
+    return _preparation(request, cacheKey: 'reading-diff-error');
   }
 }
+
+ReadingDiffPreparation _preparation(
+  ReadingDiffRequest request, {
+  required String cacheKey,
+}) => ReadingDiffPreparation(
+  request: request,
+  rawDiff: Uint8List.fromList(<int>[1]),
+  compiler: rust.ReadingDiffPreparation(
+    rawBytes: BigInt.one,
+    schemaVersion: 1,
+    rubricVersion: 'rubric-v1',
+    planSchema: '{"type":"object"}',
+    chunks: <rust.ReadingDiffChunk>[
+      rust.ReadingDiffChunk(
+        index: 0,
+        rawDiff: Uint8List.fromList(<int>[1]),
+        numberedDiff: '1|diff --git a/a b/a',
+      ),
+    ],
+  ),
+  agent: AiTextGenerationAgent.codex,
+  model: 'gpt-5.5',
+  effort: 'low',
+  accessPolicy: AgentTaskAccessPolicy.diffOnly,
+  cacheKey: cacheKey,
+);
 
 class _EmptyReadingDiffCache implements ReadingDiffCache {
   const _EmptyReadingDiffCache();

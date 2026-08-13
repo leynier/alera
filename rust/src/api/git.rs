@@ -16,6 +16,8 @@ pub(in crate::api) mod git_diff_impl;
 pub(in crate::api) mod git_diff_paths;
 #[path = "git_history_impl.rs"]
 mod git_history_impl;
+#[path = "git_hosted_review.rs"]
+pub mod git_hosted_review;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
 
