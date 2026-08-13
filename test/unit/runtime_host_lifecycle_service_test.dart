@@ -1,18 +1,18 @@
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
-import 'package:alera/src/features/runtime_host/domain/runtime_host_quit_decision.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
-import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'runtime_host_lifecycle_fakes.dart';
+
 void main() {
   group('RuntimeHostLifecycleService', () {
     test('loadStatus reports stopped when probe returns null', () async {
-      final client = _FakeRuntimeClient(status: null);
+      final client = FakeRuntimeHostLifecycleClient(status: null);
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '1.3.0', commit: 'abc'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -26,7 +26,7 @@ void main() {
     });
 
     test('loadStatus reports update when bundled is newer', () async {
-      final client = _FakeRuntimeClient(
+      final client = FakeRuntimeHostLifecycleClient(
         status: <String, Object?>{
           'runtimeHostVersion': '1.2.0',
           'runtimeHostCommit': 'old',
@@ -37,7 +37,7 @@ void main() {
       );
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '1.3.0'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -52,10 +52,10 @@ void main() {
 
     test('start propagates a terminal host startup failure', () async {
       final error = TerminalHostStartupException(StateError('sidecar failed'));
-      final client = _FakeRuntimeClient(ensureStartedError: error);
+      final client = FakeRuntimeHostLifecycleClient(ensureStartedError: error);
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '1.3.0'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -66,235 +66,13 @@ void main() {
       expect(client.ensureStartedCalls, 1);
     });
 
-    test(
-      'prepareAppQuit skips shutdown when keepRuntimeOpen is true',
-      () async {
-        final client = _FakeRuntimeClient(
-          status: <String, Object?>{
-            'runtimeHostVersion': '1.2.0',
-            'persistent': false,
-          },
-        );
-        final service = RuntimeHostLifecycleService(
-          client: client,
-          bundledVersionProbe: _FakeBundledProbe(
-            const BundledSidecarVersion(version: '1.2.0'),
-          ),
-          readConfig: () => TerminalHostConfig.defaults,
-        );
-
-        final allowed = await service.prepareAppQuit(keepRuntimeOpen: true);
-
-        expect(allowed, isTrue);
-        expect(client.shutdownCalls, isEmpty);
-      },
-    );
-
-    test('prepareAppQuit skips shutdown for persistent hosts', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': true,
-        },
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, isEmpty);
-    });
-
-    test('prepareAppQuit leaves an active push runtime running', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-          'activePushSubscriptions': 1,
-        },
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, isEmpty);
-    });
-
-    test('prepareAppQuit soft-stops when status probe fails', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        probeThrows: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-        shutdownSettleTimeout: const Duration(milliseconds: 50),
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-    });
-
-    test('prepareAppQuit soft-stops an idle sidecar', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-        shutdownSettleTimeout: const Duration(milliseconds: 50),
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-    });
-
-    test('prepareAppQuit does not wait for detached host cleanup', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        shutdownLeavesHostRunning: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-        shutdownSettleTimeout: const Duration(seconds: 5),
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-      expect(await client.probeRuntimeStatus(), isNotNull);
-    });
-
-    test('prepareAppQuit cancels when busy quit is declined', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        busyOnSoftStop: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
-
-      final allowed = await service.prepareAppQuit(
-        keepRuntimeOpen: false,
-        confirmBusyQuit:
-            ({required String title, required String message}) async =>
-                RuntimeHostQuitDecision.cancel,
-      );
-
-      expect(allowed, isFalse);
-      expect(client.shutdownCalls, <bool>[false]);
-    });
-
-    test(
-      'prepareAppQuit leaves host running when busy quit chooses leave',
-      () async {
-        final client = _FakeRuntimeClient(
-          status: <String, Object?>{
-            'runtimeHostVersion': '1.2.0',
-            'persistent': false,
-          },
-          busyOnSoftStop: true,
-        );
-        final service = RuntimeHostLifecycleService(
-          client: client,
-          bundledVersionProbe: _FakeBundledProbe(
-            const BundledSidecarVersion(version: '1.2.0'),
-          ),
-          readConfig: () => TerminalHostConfig.defaults,
-        );
-
-        final allowed = await service.prepareAppQuit(
-          keepRuntimeOpen: false,
-          confirmBusyQuit:
-              ({required String title, required String message}) async =>
-                  RuntimeHostQuitDecision.leaveRuntimeOpen,
-        );
-
-        expect(allowed, isTrue);
-        expect(client.shutdownCalls, <bool>[false]);
-        expect(await client.probeRuntimeStatus(), isNotNull);
-      },
-    );
-
-    test('prepareAppQuit force-stops when busy quit chooses force', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        busyOnSoftStop: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-        shutdownSettleTimeout: const Duration(milliseconds: 50),
-      );
-
-      final allowed = await service.prepareAppQuit(
-        keepRuntimeOpen: false,
-        confirmBusyQuit:
-            ({required String title, required String message}) async =>
-                RuntimeHostQuitDecision.forceStop,
-      );
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false, true]);
-    });
-
     test('updateIfAvailable stops and starts when bundled is newer', () async {
-      final client = _FakeRuntimeClient(
+      final client = FakeRuntimeHostLifecycleClient(
         status: <String, Object?>{'runtimeHostVersion': '1.2.0'},
       );
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '1.3.0'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -308,7 +86,7 @@ void main() {
     });
 
     test('updateIfAvailable replaces a different same-version build', () async {
-      final client = _FakeRuntimeClient(
+      final client = FakeRuntimeHostLifecycleClient(
         status: <String, Object?>{
           'runtimeHostVersion': '0.1.0',
           'runtimeHostCommit': '1032e34',
@@ -316,7 +94,7 @@ void main() {
       );
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '0.1.0', commit: '9d848d7'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -330,7 +108,7 @@ void main() {
     });
 
     test('updateIfAvailable preserves a busy host when declined', () async {
-      final client = _FakeRuntimeClient(
+      final client = FakeRuntimeHostLifecycleClient(
         status: <String, Object?>{
           'runtimeHostVersion': '0.1.0',
           'runtimeHostCommit': 'old',
@@ -339,7 +117,7 @@ void main() {
       );
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -360,7 +138,7 @@ void main() {
     });
 
     test('updateIfAvailable force replaces a confirmed busy host', () async {
-      final client = _FakeRuntimeClient(
+      final client = FakeRuntimeHostLifecycleClient(
         status: <String, Object?>{
           'runtimeHostVersion': '0.1.0',
           'runtimeHostCommit': 'old',
@@ -369,7 +147,7 @@ void main() {
       );
       final service = RuntimeHostLifecycleService(
         client: client,
-        bundledVersionProbe: _FakeBundledProbe(
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
           const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
         ),
         readConfig: () => TerminalHostConfig.defaults,
@@ -392,7 +170,7 @@ void main() {
     test(
       'updateIfAvailable continues when force shutdown closes the connection',
       () async {
-        final client = _FakeRuntimeClient(
+        final client = FakeRuntimeHostLifecycleClient(
           status: <String, Object?>{
             'runtimeHostVersion': '0.1.0',
             'runtimeHostCommit': 'old',
@@ -402,7 +180,7 @@ void main() {
         );
         final service = RuntimeHostLifecycleService(
           client: client,
-          bundledVersionProbe: _FakeBundledProbe(
+          bundledVersionProbe: FakeBundledSidecarVersionProbe(
             const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
           ),
           readConfig: () => TerminalHostConfig.defaults,
@@ -424,22 +202,24 @@ void main() {
     );
 
     test(
-      'updateIfAvailable retries after a closed status probe then starts',
+      'updateIfAvailable continues when shutdown reports the host already gone',
       () async {
-        final client = _FakeRuntimeClient(
+        final client = FakeRuntimeHostLifecycleClient(
           status: <String, Object?>{
             'runtimeHostVersion': '0.1.0',
             'runtimeHostCommit': 'old',
           },
-          closedProbesAfterShutdown: 1,
+          shutdownErrorOnSoft: StateError(
+            'No live Alera runtime host is available.',
+          ),
         );
         final service = RuntimeHostLifecycleService(
           client: client,
-          bundledVersionProbe: _FakeBundledProbe(
+          bundledVersionProbe: FakeBundledSidecarVersionProbe(
             const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
           ),
           readConfig: () => TerminalHostConfig.defaults,
-          shutdownSettleTimeout: const Duration(milliseconds: 200),
+          shutdownSettleTimeout: const Duration(milliseconds: 50),
         );
 
         await service.updateIfAvailable();
@@ -450,9 +230,144 @@ void main() {
     );
 
     test(
+      'updateIfAvailable continues when shutdown returns a closed StateError',
+      () async {
+        final client = FakeRuntimeHostLifecycleClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '0.1.0',
+            'runtimeHostCommit': 'old',
+          },
+          shutdownErrorOnSoft: StateError(
+            'Terminal host connection closed during authentication.',
+          ),
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: FakeBundledSidecarVersionProbe(
+            const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+          shutdownSettleTimeout: const Duration(milliseconds: 50),
+        );
+
+        await service.updateIfAvailable();
+
+        expect(client.shutdownCalls, <bool>[false]);
+        expect(client.ensureStartedCalls, 1);
+      },
+    );
+
+    test('stop propagates an unexpected shutdown error', () async {
+      final client = FakeRuntimeHostLifecycleClient(
+        status: <String, Object?>{'runtimeHostVersion': '1.2.0'},
+        shutdownErrorOnSoft: StateError('permission denied'),
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
+          const BundledSidecarVersion(version: '1.2.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+      );
+
+      await expectLater(
+        service.stop(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('permission denied'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'updateIfAvailable retries after a closed status probe then starts',
+      () async {
+        final client = FakeRuntimeHostLifecycleClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '0.1.0',
+            'runtimeHostCommit': 'old',
+          },
+          probeErrorsAfterShutdown: const [
+            TerminalHostConnectionClosedException(),
+            TerminalHostRequestTimeoutException(
+              'status.get',
+              Duration(seconds: 10),
+            ),
+          ],
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: FakeBundledSidecarVersionProbe(
+            const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+          shutdownSettleTimeout: const Duration(milliseconds: 400),
+        );
+
+        await service.updateIfAvailable();
+
+        expect(client.shutdownCalls, <bool>[false]);
+        expect(client.ensureStartedCalls, 1);
+      },
+    );
+
+    test('updateIfAvailable treats a missing host probe as stopped', () async {
+      final client = FakeRuntimeHostLifecycleClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '0.1.0',
+          'runtimeHostCommit': 'old',
+        },
+        probeErrorsAfterShutdown: [
+          StateError('No live Alera runtime host is available.'),
+        ],
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
+          const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+        shutdownSettleTimeout: const Duration(milliseconds: 50),
+      );
+
+      await service.updateIfAvailable();
+
+      expect(client.ensureStartedCalls, 1);
+    });
+
+    test('stop propagates an unexpected status probe error', () async {
+      final client = FakeRuntimeHostLifecycleClient(
+        status: <String, Object?>{'runtimeHostVersion': '1.2.0'},
+        probeErrorsAfterShutdown: [StateError('status probe failed')],
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: FakeBundledSidecarVersionProbe(
+          const BundledSidecarVersion(version: '1.2.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+        shutdownSettleTimeout: const Duration(milliseconds: 50),
+      );
+
+      await expectLater(
+        service.stop(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('status probe failed'),
+          ),
+        ),
+      );
+    });
+
+    test(
       'updateIfAvailable does not start when the host stays up after shutdown',
       () async {
-        final client = _FakeRuntimeClient(
+        final client = FakeRuntimeHostLifecycleClient(
           status: <String, Object?>{
             'runtimeHostVersion': '1.2.0',
             'runtimeHostCommit': 'old',
@@ -461,7 +376,7 @@ void main() {
         );
         final service = RuntimeHostLifecycleService(
           client: client,
-          bundledVersionProbe: _FakeBundledProbe(
+          bundledVersionProbe: FakeBundledSidecarVersionProbe(
             const BundledSidecarVersion(version: '1.3.0', commit: 'new'),
           ),
           readConfig: () => TerminalHostConfig.defaults,
@@ -482,28 +397,6 @@ void main() {
       },
     );
 
-    test('prepareAppQuit treats a shutdown disconnect as success', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        shutdownErrorOnSoft: const TerminalHostConnectionClosedException(),
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
-
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
-
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-    });
-
     test('runtimeHostBusyMessage leads with agents', () {
       expect(
         runtimeHostBusyMessage(
@@ -520,88 +413,4 @@ void main() {
       );
     });
   });
-}
-
-final class _FakeBundledProbe implements BundledSidecarVersionProbe {
-  _FakeBundledProbe(this.version);
-
-  final BundledSidecarVersion version;
-
-  @override
-  Future<BundledSidecarVersion> probe() async => version;
-}
-
-final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
-  _FakeRuntimeClient({
-    this.status,
-    this.busyOnSoftStop = false,
-    this.probeThrows = false,
-    this.shutdownLeavesHostRunning = false,
-    this.ensureStartedError,
-    this.shutdownErrorOnSoft,
-    this.shutdownErrorOnForce,
-    this.closedProbesAfterShutdown = 0,
-  });
-
-  Map<String, Object?>? status;
-  final bool busyOnSoftStop;
-  final bool probeThrows;
-  final bool shutdownLeavesHostRunning;
-  final Object? ensureStartedError;
-  final Object? shutdownErrorOnSoft;
-  final Object? shutdownErrorOnForce;
-  int closedProbesAfterShutdown;
-  final List<bool> shutdownCalls = <bool>[];
-  int ensureStartedCalls = 0;
-  bool _stopped = false;
-
-  @override
-  Future<Map<String, Object?>?> probeRuntimeStatus() async {
-    if (probeThrows && !_stopped) {
-      throw StateError('status probe failed');
-    }
-    if (_stopped) {
-      if (closedProbesAfterShutdown > 0) {
-        closedProbesAfterShutdown -= 1;
-        throw const TerminalHostConnectionClosedException();
-      }
-      return null;
-    }
-    return status;
-  }
-
-  @override
-  Future<RuntimeHostShutdownResult> shutdownRuntime({
-    bool force = false,
-  }) async {
-    shutdownCalls.add(force);
-    if (!force && busyOnSoftStop) {
-      throw const RuntimeHostBusyException(
-        message:
-            'Runtime host has 1 active agent(s), 1 active terminal session(s) and 0 active background job(s).',
-        activeAgents: 1,
-        activeSessions: 1,
-      );
-    }
-    if (!shutdownLeavesHostRunning) {
-      _stopped = true;
-      status = null;
-    }
-    final shutdownError = force ? shutdownErrorOnForce : shutdownErrorOnSoft;
-    if (shutdownError != null) {
-      throw shutdownError;
-    }
-    return RuntimeHostShutdownResult(stopped: true, forced: force);
-  }
-
-  @override
-  Future<void> ensureStarted({required TerminalHostConfig config}) async {
-    ensureStartedCalls += 1;
-    final error = ensureStartedError;
-    if (error != null) {
-      throw error;
-    }
-    _stopped = false;
-    status ??= <String, Object?>{'runtimeHostVersion': '1.3.0'};
-  }
 }
