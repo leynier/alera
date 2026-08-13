@@ -385,4 +385,36 @@ ERROR: {
       ),
     );
   });
+
+  test('waits for a timed-out diff-only process before cleanup', () async {
+    final exit = Completer<int>();
+    final process = _FakeProcessRunner(
+      stdout: '',
+      exitCodeCompleter: exit,
+      completeExitOnKill: false,
+    );
+    final runner = CliAiTextAgentRunner(
+      processRunner: process,
+      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
+    );
+    final run = runner.run(
+      const AiTextAgentRunRequest(
+        settings: AiTextGenerationSettings(timeoutSeconds: 0),
+        prompt: 'Plan this diff.',
+        runId: 'reading-diff-timeout-cleanup',
+        workingDirectory: '/repo',
+        agent: AiTextGenerationAgent.pi,
+        accessPolicy: AgentTaskAccessPolicy.diffOnly,
+        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        outputSchema: '{"type":"object"}',
+      ),
+    );
+
+    await untilCalled(() => process.killed);
+    final directory = process.workingDirectory!;
+    expect(Directory(directory).existsSync(), isTrue);
+    exit.complete(143);
+    await expectLater(run, throwsA(isA<AiTextGenerationException>()));
+    expect(Directory(directory).existsSync(), isFalse);
+  });
 }

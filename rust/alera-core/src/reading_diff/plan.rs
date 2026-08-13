@@ -48,11 +48,28 @@ impl Plan {
                 "The reading diff summary is required.",
             ));
         }
-        if summary.contains(['\r', '\n']) || summary.len() > 500 {
+        if summary.contains(['\r', '\n']) || summary.chars().count() > 500 {
             return Err(ReadingDiffError::new(
-                "The reading diff summary must be one line of at most 500 bytes.",
+                "The reading diff summary must be one line of at most 500 characters.",
             ));
         }
         Ok(plan)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn summary_limit_matches_json_schema_unicode_length() {
+        let valid = format!(
+            r#"{{"version":1,"remove":[],"replace":[],"fold":[],"summary":"{}"}}"#,
+            "界".repeat(500)
+        );
+        assert!(Plan::parse(&valid).is_ok());
+
+        let oversized = valid.replace(&"界".repeat(500), &"界".repeat(501));
+        assert!(Plan::parse(&oversized).is_err());
     }
 }

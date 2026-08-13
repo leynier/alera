@@ -60,6 +60,23 @@ pub(crate) fn release(retentions: Vec<HostedReviewRetention>) {
     }
 }
 
+pub(crate) async fn remove_project(store: RuntimeStore, project_id: &str) -> anyhow::Result<()> {
+    let retentions = for_project(&store, project_id).await;
+    store.remove_project(project_id).await?;
+    release(retentions);
+    Ok(())
+}
+
+pub(crate) async fn remove_workspace(
+    store: RuntimeStore,
+    workspace_id: &str,
+) -> anyhow::Result<()> {
+    let retentions = for_workspace(&store, workspace_id).await;
+    store.remove_workspace(workspace_id, true).await?;
+    release(retentions);
+    Ok(())
+}
+
 pub(crate) async fn reconcile(store: &RuntimeStore) {
     let Ok(projects) = store.list_projects().await else {
         return;
@@ -176,6 +193,50 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn direct_store_cascade_removals_release_hosted_review_refs() {
+        for remove_project in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let repo_path = directory.path().join("project");
+            let repository = git2::Repository::init(&repo_path).unwrap();
+            let object = repository.blob(b"review object").unwrap();
+            let retention_id = "0123456789abcdef0123456789abcdef";
+            for role in ["base", "head"] {
+                repository
+                    .reference(
+                        &format!("refs/alera/hosted-reviews/tabs/{retention_id}/{role}"),
+                        object,
+                        true,
+                        "test",
+                    )
+                    .unwrap();
+            }
+            let store = RuntimeStore::open(&directory.path().join("runtime"))
+                .await
+                .unwrap();
+            insert_records(&store, &repo_path, &repo_path, retention_id).await;
+
+            if remove_project {
+                super::remove_project(store.clone(), "project")
+                    .await
+                    .unwrap();
+                assert!(store.find_project("project").await.unwrap().is_none());
+            } else {
+                super::remove_workspace(store.clone(), "workspace")
+                    .await
+                    .unwrap();
+                assert!(store.find_workspace("workspace").await.unwrap().is_none());
+            }
+            for role in ["base", "head"] {
+                assert!(repository
+                    .find_reference(&format!(
+                        "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
+                    ))
+                    .is_err());
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn release_falls_back_to_the_project_repo_after_worktree_removal() {
         let directory = tempfile::tempdir().unwrap();
         let project_repo_path = directory.path().join("project");
@@ -196,6 +257,46 @@ mod tests {
         let store = RuntimeStore::open(&directory.path().join("runtime"))
             .await
             .unwrap();
+        insert_records(
+            &store,
+            &project_repo_path,
+            &removed_worktree_path,
+            retention_id,
+        )
+        .await;
+
+        reconcile(&store).await;
+        for role in ["base", "head"] {
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
+                ))
+                .is_ok());
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/operations/{retention_id}/{role}"
+                ))
+                .is_err());
+        }
+
+        let retentions = for_tab(&store, "diff-tab").await;
+        release(retentions);
+
+        for role in ["base", "head"] {
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
+                ))
+                .is_err());
+        }
+    }
+
+    async fn insert_records(
+        store: &RuntimeStore,
+        project_repo_path: &Path,
+        workspace_path: &Path,
+        retention_id: &str,
+    ) {
         let now = Utc::now();
         store
             .upsert_project(Project {
@@ -216,7 +317,7 @@ mod tests {
                 project_id: "project".into(),
                 name: "Workspace".into(),
                 branch: None,
-                path: removed_worktree_path.to_string_lossy().into_owned(),
+                path: workspace_path.to_string_lossy().into_owned(),
                 created_at: now,
                 updated_at: now,
                 kind: WorkspaceKind::Linked,
@@ -243,30 +344,5 @@ mod tests {
             })
             .await
             .unwrap();
-
-        reconcile(&store).await;
-        for role in ["base", "head"] {
-            assert!(repository
-                .find_reference(&format!(
-                    "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
-                ))
-                .is_ok());
-            assert!(repository
-                .find_reference(&format!(
-                    "refs/alera/hosted-reviews/operations/{retention_id}/{role}"
-                ))
-                .is_err());
-        }
-
-        let retentions = for_tab(&store, "diff-tab").await;
-        release(retentions);
-
-        for role in ["base", "head"] {
-            assert!(repository
-                .find_reference(&format!(
-                    "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
-                ))
-                .is_err());
-        }
     }
 }

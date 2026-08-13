@@ -83,6 +83,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
 
     _AiTextAgentCommandPlan? plan;
     Directory? isolatedDirectory;
+    Future<int>? processExit;
     try {
       var environment = await commandEnvironmentResolver.environment();
       final requestedAgent = request.agent ?? request.settings.agent;
@@ -128,6 +129,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       }
       _pending.remove(request.runId);
       _running[request.runId] = process;
+      processExit = process.exitCode;
       if (plan.stdinPayload != null) {
         process.stdinWrite(utf8.encode(plan.stdinPayload!));
         process.stdinClose();
@@ -169,11 +171,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       await plan?.dispose();
       final directory = isolatedDirectory;
       if (directory != null) {
-        try {
-          if (await directory.exists()) {
-            await directory.delete(recursive: true);
-          }
-        } catch (_) {}
+        await _deleteIsolatedDirectory(directory, processExit);
       }
     }
   }
@@ -435,6 +433,29 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       caseSensitive: false,
     ).firstMatch(trimmed);
     return fenced?.group(1)?.trim() ?? trimmed;
+  }
+}
+
+Future<void> _deleteIsolatedDirectory(
+  Directory directory,
+  Future<int>? processExit,
+) async {
+  if (processExit != null) {
+    try {
+      await processExit.timeout(const Duration(seconds: 6));
+    } catch (_) {}
+  }
+  for (var attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+      return;
+    } catch (_) {
+      if (attempt < 2) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
   }
 }
 

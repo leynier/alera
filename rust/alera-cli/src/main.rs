@@ -283,7 +283,7 @@ async fn run_project_command(command: ProjectCommand) -> i32 {
                 &runtime,
                 "project.remove",
                 &payload,
-                |store| async move { store.remove_project(&id).await },
+                |store| async move { hosted_review_retention::remove_project(store, &id).await },
             )
             .await
             {
@@ -394,7 +394,7 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 &runtime,
                 "workspace.remove",
                 &payload,
-                |store| async move { store.remove_workspace(&id, true).await },
+                |store| async move { hosted_review_retention::remove_workspace(store, &id).await },
             )
             .await
             {
