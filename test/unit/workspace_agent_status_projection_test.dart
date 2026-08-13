@@ -117,6 +117,30 @@ void main() {
       expect(status, isNull);
     });
 
+    test('ranks a later working run above an earlier done run', () {
+      final doneTab = _tab('tab-done');
+      final workingTab = _tab('tab-working');
+      final runs = visibleWorkspaceAgentRuns(
+        tabs: <WorkspaceTabRecord>[doneTab, workingTab],
+        agentStatuses: <String, AgentStatusEntry>{
+          doneTab.terminalSessionId: _entry(doneTab, AgentStatusState.done),
+          workingTab.terminalSessionId: _entry(
+            workingTab,
+            AgentStatusState.working,
+          ),
+        },
+      );
+
+      expect(runs.map((run) => run.tab.id), <String>[
+        'tab-done',
+        'tab-working',
+      ]);
+      expect(
+        mostUrgentWorkspaceAgentRun(runs)?.status.state,
+        AgentStatusState.working,
+      );
+    });
+
     test('matches Codex tabs through their synthetic presence handle', () {
       final tab = _tab('codex-tab', kind: WorkspaceTabKind.codex);
       final handle = 'codex:${tab.id}';

@@ -32,20 +32,31 @@ AgentStatusEntry? aggregateWorkspaceAgentStatus({
   required Iterable<WorkspaceTabRecord> tabs,
   required Map<String, AgentStatusEntry> agentStatuses,
 }) {
-  final runs = visibleWorkspaceAgentRuns(
-    tabs: tabs,
-    agentStatuses: agentStatuses,
-  );
-  if (runs.isEmpty) {
+  return mostUrgentWorkspaceAgentRun(
+    visibleWorkspaceAgentRuns(tabs: tabs, agentStatuses: agentStatuses),
+  )?.status;
+}
+
+/// Picks the run that should drive the workspace glyph.
+///
+/// Visible runs stay in creation order so expanded sidebar rows do not
+/// reshuffle; this ranking is only for the single status shown beside the
+/// workspace name.
+WorkspaceAgentRun? mostUrgentWorkspaceAgentRun(
+  Iterable<WorkspaceAgentRun> runs,
+) {
+  final iterator = runs.iterator;
+  if (!iterator.moveNext()) {
     return null;
   }
-  var mostUrgent = runs.first;
-  for (final run in runs.skip(1)) {
+  var mostUrgent = iterator.current;
+  while (iterator.moveNext()) {
+    final run = iterator.current;
     if (_compareAgentRuns(run, mostUrgent) < 0) {
       mostUrgent = run;
     }
   }
-  return mostUrgent.status;
+  return mostUrgent;
 }
 
 AgentStatusEntry? matchingAgentStatusForTab({

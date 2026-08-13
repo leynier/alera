@@ -107,7 +107,7 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   final bool hasTerminalTabs;
 
   AgentStatusEntry? get aggregateStatus =>
-      agentRuns.isEmpty ? null : agentRuns.first.status;
+      mostUrgentWorkspaceAgentRun(agentRuns)?.status;
 
   final Project project;
   final Workspace workspace;

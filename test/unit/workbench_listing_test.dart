@@ -657,6 +657,53 @@ void main() {
     });
   });
 
+  group('buildSidebarRows · workspace status', () {
+    test(
+      'aggregate status prefers a later working agent over an earlier done one',
+      () {
+        final state = _fixtureState();
+        final first = state
+            .tabsFor('w-alera-main')
+            .firstWhere((tab) => tab.id == 't-1');
+        final second = state
+            .tabsFor('w-alera-main')
+            .firstWhere((tab) => tab.id == 't-2');
+        final rows = buildSidebarRows(
+          state,
+          agentStatuses: <String, AgentStatusEntry>{
+            first.terminalSessionId: AgentStatusEntry(
+              terminalSessionId: first.terminalSessionId,
+              workspaceId: first.workspaceId,
+              tabId: first.id,
+              agentType: AgentType.codex,
+              state: AgentStatusState.done,
+              prompt: 'Finished first',
+              updatedAt: _t0,
+              stateStartedAt: _t0,
+            ),
+            second.terminalSessionId: AgentStatusEntry(
+              terminalSessionId: second.terminalSessionId,
+              workspaceId: second.workspaceId,
+              tabId: second.id,
+              agentType: AgentType.claude,
+              state: AgentStatusState.working,
+              prompt: 'Still running',
+              updatedAt: _t0,
+              stateStartedAt: _t0,
+            ),
+          },
+        );
+        final main = rows.whereType<WorkbenchWorkspaceRow>().firstWhere(
+          (row) => row.workspace.id == 'w-alera-main',
+        );
+
+        expect(main.agentRuns.map((run) => run.tab.id), <String>['t-1', 't-2']);
+        expect(main.aggregateStatus?.state, AgentStatusState.working);
+        expect(main.aggregateStatus?.tabId, 't-2');
+      },
+    );
+  });
+
   group('countVisibleWorkspaces', () {
     test('counts every visible workspace ignoring group collapse', () {
       final state = _fixtureState();
