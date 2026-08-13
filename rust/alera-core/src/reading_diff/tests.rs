@@ -306,6 +306,25 @@ fn preserves_exported_declarations_but_elides_reexports() {
     )
     .expect("reexport");
     assert!(elided.reading_diff.is_empty());
+
+    let local_export = b"diff --git a/index.ts b/index.ts\n--- a/index.ts\n+++ b/index.ts\n@@ -0,0 +1 @@\n+export { Feature };\n";
+    let preserved = compile(
+        local_export,
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Expose the local feature."}"#,
+    )
+    .expect("local export");
+    assert_eq!(preserved.reading_diff, local_export);
+}
+
+#[test]
+fn preserves_import_shaped_prose_outside_source_files() {
+    let readme = b"diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -0,0 +1 @@\n+import data from a backup before upgrading\n";
+    let plan =
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Document the upgrade."}"#;
+
+    let result = compile(readme, plan).expect("README prose");
+
+    assert_eq!(result.reading_diff, readme);
 }
 
 #[test]

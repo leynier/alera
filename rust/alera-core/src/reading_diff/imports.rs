@@ -17,6 +17,10 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
         let body = String::from_utf8_lossy(source_body(line));
         if !starts_import(
             body.trim_start(),
+            line.allows_import_keyword,
+            line.allows_python_from_imports,
+            line.allows_js_reexports,
+            line.allows_c_includes,
             line.allows_common_js_imports,
             line.allows_rust_imports,
         ) {
@@ -60,13 +64,23 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
     hidden
 }
 
-fn starts_import(trimmed: &str, allows_common_js_imports: bool, allows_rust_imports: bool) -> bool {
-    trimmed.starts_with("import ")
-        || starts_reexport(trimmed)
-        || trimmed.starts_with("from ") && trimmed.contains(" import ")
+fn starts_import(
+    trimmed: &str,
+    allows_import_keyword: bool,
+    allows_python_from_imports: bool,
+    allows_js_reexports: bool,
+    allows_c_includes: bool,
+    allows_common_js_imports: bool,
+    allows_rust_imports: bool,
+) -> bool {
+    allows_import_keyword && trimmed.starts_with("import ")
+        || allows_js_reexports && starts_reexport(trimmed)
+        || allows_python_from_imports
+            && trimmed.starts_with("from ")
+            && trimmed.contains(" import ")
         || allows_rust_imports && (trimmed.starts_with("use ") || trimmed.starts_with("pub use "))
-        || trimmed.starts_with("#include ")
-        || trimmed.starts_with("#include<")
+        || allows_c_includes
+            && (trimmed.starts_with("#include ") || trimmed.starts_with("#include<"))
         || allows_common_js_imports
             && (trimmed.starts_with("require(")
                 || trimmed.starts_with("const ") && trimmed.contains("require("))
@@ -77,14 +91,21 @@ fn starts_reexport(trimmed: &str) -> bool {
         return false;
     };
     let rest = rest.trim_start();
-    if rest.starts_with('{') || rest.starts_with("* from ") {
+    if starts_brace_reexport(rest) || rest.starts_with("* from ") {
         return true;
     }
     let Some(rest) = rest.strip_prefix("type") else {
         return false;
     };
     let rest = rest.trim_start();
-    rest.starts_with('{') || rest.starts_with("* from ")
+    starts_brace_reexport(rest) || rest.starts_with("* from ")
+}
+
+fn starts_brace_reexport(value: &str) -> bool {
+    value.starts_with('{')
+        && value
+            .rfind('}')
+            .is_some_and(|end| value[end + 1..].trim_start().starts_with("from "))
 }
 
 fn delimiter_balances(value: &str) -> [i32; 3] {

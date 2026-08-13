@@ -18,6 +18,10 @@ pub(crate) struct SourceLine {
     pub marker: Option<u8>,
     pub file_id: Option<usize>,
     pub hunk_id: Option<usize>,
+    pub allows_import_keyword: bool,
+    pub allows_python_from_imports: bool,
+    pub allows_js_reexports: bool,
+    pub allows_c_includes: bool,
     pub allows_common_js_imports: bool,
     pub allows_rust_imports: bool,
 }
@@ -29,6 +33,8 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
     let mut next_file = 0usize;
     let mut next_hunk = 0usize;
     let mut remaining: Option<(usize, usize)> = None;
+    let mut old_import_syntax = ImportSyntax::default();
+    let mut new_import_syntax = ImportSyntax::default();
     let mut old_allows_common_js_imports = false;
     let mut new_allows_common_js_imports = false;
     let mut old_allows_rust_imports = false;
@@ -47,16 +53,20 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             next_file += 1;
             hunk_id = None;
             remaining = None;
+            old_import_syntax = ImportSyntax::default();
+            new_import_syntax = ImportSyntax::default();
             old_allows_common_js_imports = false;
             new_allows_common_js_imports = false;
             old_allows_rust_imports = false;
             new_allows_rust_imports = false;
         }
         if let Some(path) = text.strip_prefix(b"--- ") {
+            old_import_syntax = import_syntax_for_path(path);
             old_allows_common_js_imports = is_common_js_path(path);
             old_allows_rust_imports = is_rust_path(path);
         }
         if let Some(path) = text.strip_prefix(b"+++ ") {
+            new_import_syntax = import_syntax_for_path(path);
             new_allows_common_js_imports = is_common_js_path(path);
             new_allows_rust_imports = is_rust_path(path);
         }
@@ -114,6 +124,15 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
         }
         line.kind = LineKind::HunkSource;
         line.marker = Some(marker);
+        let import_syntax = match marker {
+            b'-' => old_import_syntax,
+            b'+' => new_import_syntax,
+            _ => old_import_syntax.intersection(new_import_syntax),
+        };
+        line.allows_import_keyword = import_syntax.import_keyword;
+        line.allows_python_from_imports = import_syntax.python_from;
+        line.allows_js_reexports = import_syntax.js_reexport;
+        line.allows_c_includes = import_syntax.c_include;
         line.allows_common_js_imports = match marker {
             b'-' => old_allows_common_js_imports,
             b'+' => new_allows_common_js_imports,
@@ -155,6 +174,10 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             marker: None,
             file_id: None,
             hunk_id: None,
+            allows_import_keyword: false,
+            allows_python_from_imports: false,
+            allows_js_reexports: false,
+            allows_c_includes: false,
             allows_common_js_imports: false,
             allows_rust_imports: false,
         });
@@ -168,11 +191,60 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             marker: None,
             file_id: None,
             hunk_id: None,
+            allows_import_keyword: false,
+            allows_python_from_imports: false,
+            allows_js_reexports: false,
+            allows_c_includes: false,
             allows_common_js_imports: false,
             allows_rust_imports: false,
         });
     }
     result
+}
+
+#[derive(Clone, Copy, Default)]
+struct ImportSyntax {
+    import_keyword: bool,
+    python_from: bool,
+    js_reexport: bool,
+    c_include: bool,
+}
+
+impl ImportSyntax {
+    fn intersection(self, other: Self) -> Self {
+        Self {
+            import_keyword: self.import_keyword && other.import_keyword,
+            python_from: self.python_from && other.python_from,
+            js_reexport: self.js_reexport && other.js_reexport,
+            c_include: self.c_include && other.c_include,
+        }
+    }
+}
+
+fn import_syntax_for_path(path: &[u8]) -> ImportSyntax {
+    let python = path_has_extension(path, &[b"py", b"pyi"]);
+    let javascript = is_common_js_path(path);
+    let import_keyword = python
+        || javascript
+        || path_has_extension(
+            path,
+            &[
+                b"dart", b"java", b"kt", b"kts", b"go", b"swift", b"scala", b"groovy", b"cc",
+                b"cpp", b"cxx", b"ixx", b"cppm",
+            ],
+        );
+    let c_include = path_has_extension(
+        path,
+        &[
+            b"c", b"h", b"cc", b"cpp", b"cxx", b"hh", b"hpp", b"hxx", b"m", b"mm",
+        ],
+    );
+    ImportSyntax {
+        import_keyword,
+        python_from: python,
+        js_reexport: javascript,
+        c_include,
+    }
 }
 
 fn is_common_js_path(path: &[u8]) -> bool {
