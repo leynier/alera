@@ -13,6 +13,7 @@ pub(super) struct UntrackedText {
     pub(super) is_binary: bool,
     pub(super) is_large: bool,
     pub(super) is_symlink: bool,
+    pub(super) is_executable: bool,
 }
 
 pub(super) fn untracked_diff_file(
@@ -27,7 +28,14 @@ pub(super) fn untracked_diff_file(
     let patch = untracked
         .content
         .as_ref()
-        .map(|content| build_untracked_patch(&display_path, content, untracked.is_symlink))
+        .map(|content| {
+            build_untracked_patch(
+                &display_path,
+                content,
+                untracked.is_symlink,
+                untracked.is_executable,
+            )
+        })
         .unwrap_or_default();
     let (lines, line_preview_truncated) = diff_lines_from_patch(&patch);
     Ok(GitDiffFile {
@@ -74,11 +82,13 @@ pub(super) fn read_untracked_text_up_to(
             is_binary: false,
             is_large: false,
             is_symlink: true,
+            is_executable: false,
         });
     }
     if !metadata.is_file() {
-        return Ok(empty_untracked_text());
+        return Ok(empty_untracked_text(false));
     }
+    let is_executable = metadata_is_executable(&metadata);
     if metadata.len() > max_bytes {
         return Ok(UntrackedText {
             content: None,
@@ -86,15 +96,16 @@ pub(super) fn read_untracked_text_up_to(
             is_binary: false,
             is_large: true,
             is_symlink: false,
+            is_executable,
         });
     }
     let bytes = std::fs::read(&path)
         .map_err(|error| GitError::new(GitErrorKind::Internal, error.to_string()))?;
     if bytes.contains(&0) {
-        return Ok(binary_untracked_text());
+        return Ok(binary_untracked_text(is_executable));
     }
     let Ok(content) = String::from_utf8(bytes) else {
-        return Ok(binary_untracked_text());
+        return Ok(binary_untracked_text(is_executable));
     };
     let added = count_text_lines(&content);
     Ok(UntrackedText {
@@ -103,32 +114,46 @@ pub(super) fn read_untracked_text_up_to(
         is_binary: false,
         is_large: false,
         is_symlink: false,
+        is_executable,
     })
 }
 
-fn empty_untracked_text() -> UntrackedText {
+fn empty_untracked_text(is_executable: bool) -> UntrackedText {
     UntrackedText {
         content: None,
         added: None,
         is_binary: false,
         is_large: false,
         is_symlink: false,
+        is_executable,
     }
 }
 
-fn binary_untracked_text() -> UntrackedText {
+fn binary_untracked_text(is_executable: bool) -> UntrackedText {
     UntrackedText {
         content: None,
         added: None,
         is_binary: true,
         is_large: false,
         is_symlink: false,
+        is_executable,
     }
 }
 
-pub(super) fn build_untracked_patch(file_path: &str, content: &str, is_symlink: bool) -> String {
+pub(super) fn build_untracked_patch(
+    file_path: &str,
+    content: &str,
+    is_symlink: bool,
+    is_executable: bool,
+) -> String {
     let added = count_text_lines(content);
-    let mode = if is_symlink { "120000" } else { "100644" };
+    let mode = if is_symlink {
+        "120000"
+    } else if is_executable {
+        "100755"
+    } else {
+        "100644"
+    };
     let mut patch = format!(
         "diff --git a/{file_path} b/{file_path}\nnew file mode {mode}\n--- /dev/null\n+++ b/{file_path}\n@@ -0,0 +1,{added} @@\n"
     );
@@ -141,6 +166,18 @@ pub(super) fn build_untracked_patch(file_path: &str, content: &str, is_symlink: 
         patch.push_str("\\ No newline at end of file\n");
     }
     patch
+}
+
+#[cfg(unix)]
+fn metadata_is_executable(metadata: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    metadata.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn metadata_is_executable(_metadata: &std::fs::Metadata) -> bool {
+    false
 }
 
 fn count_text_lines(content: &str) -> u32 {

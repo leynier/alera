@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -47,6 +48,7 @@ class _WorkspaceGitDiffSurfaceState
   Future<GitDiffResult>? _future;
   GitDiffResult? _loadedResult;
   ReadingDiffResult? _readingDiffResult;
+  Uint8List? _readingDiffOriginalSnapshot;
   bool _showReadingDiff = false;
   bool _readingDiffBusy = false;
   ReadingDiffGenerationProgress? _readingDiffProgress;
@@ -135,6 +137,11 @@ class _WorkspaceGitDiffSurfaceState
           Expanded(
             child: _showReadingDiff && _readingDiffResult != null
                 ? ReadingDiffView(result: _readingDiffResult!)
+                : _readingDiffOriginalSnapshot != null
+                ? ReadingDiffText(
+                    diff: _readingDiffOriginalSnapshot!,
+                    failureLabel: 'original diff snapshot',
+                  )
                 : FutureBuilder<GitDiffResult>(
                     future: _future,
                     builder: (context, snapshot) {
@@ -253,6 +260,7 @@ class _WorkspaceGitDiffSurfaceState
     setState(() {
       _loadedResult = null;
       _readingDiffResult = null;
+      _readingDiffOriginalSnapshot = null;
       _showReadingDiff = false;
       _readingDiffBusy = false;
       _readingDiffProgress = null;
@@ -330,6 +338,7 @@ class _WorkspaceGitDiffSurfaceState
       setState(() {
         _readingDiffAgentLabel = preparation.agent.label;
         _readingDiffModel = preparation.model;
+        _readingDiffOriginalSnapshot = preparation.rawDiff;
       });
       if (preparation.cachedResult == null) {
         setState(() {

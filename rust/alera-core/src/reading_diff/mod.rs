@@ -5,6 +5,7 @@ mod chunk;
 mod compiler;
 mod diff;
 mod imports;
+mod moves;
 mod plan;
 mod prompt;
 

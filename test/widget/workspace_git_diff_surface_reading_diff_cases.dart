@@ -90,10 +90,9 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     await tester.pumpAndSettle();
 
     expect(find.text('Reading diff generation failed'), findsOneWidget);
-    expect(find.byType(SelectableText), findsOneWidget);
     expect(
-      tester.widget<SelectableText>(find.byType(SelectableText)).data,
-      'Codex failed: Invalid schema for response format.',
+      find.text('Codex failed: Invalid schema for response format.'),
+      findsOneWidget,
     );
   });
 
@@ -174,8 +173,9 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     expect(find.byTooltip('Show Original Diff'), findsOneWidget);
     expect(find.byTooltip('Regenerate Reading Diff'), findsNothing);
     await tester.tap(find.byTooltip('Show Original Diff'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byTooltip('Show Reading Diff'), findsOneWidget);
+    expect(find.text('+snapshot-value'), findsOneWidget);
   });
 }
 
@@ -274,7 +274,15 @@ ReadingDiffPreparation _preparation(
   ReadingDiffResult? cachedResult,
 }) => ReadingDiffPreparation(
   request: request,
-  rawDiff: Uint8List.fromList(<int>[1]),
+  rawDiff: Uint8List.fromList(
+    'diff --git a/lib/main.dart b/lib/main.dart\n'
+            '--- a/lib/main.dart\n'
+            '+++ b/lib/main.dart\n'
+            '@@ -1 +1 @@\n'
+            '-old-value\n'
+            '+snapshot-value\n'
+        .codeUnits,
+  ),
   compiler: rust.ReadingDiffPreparation(
     rawBytes: BigInt.one,
     schemaVersion: 1,

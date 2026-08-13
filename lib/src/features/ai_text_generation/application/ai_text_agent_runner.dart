@@ -84,7 +84,18 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     _AiTextAgentCommandPlan? plan;
     Directory? isolatedDirectory;
     try {
-      final environment = await commandEnvironmentResolver.environment();
+      var environment = await commandEnvironmentResolver.environment();
+      final requestedAgent = request.agent ?? request.settings.agent;
+      if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly &&
+          requestedAgent == AiTextGenerationAgent.codex) {
+        final missing = codexDiffOnlyEnvironmentVariableNames
+            .where((name) => !environment.containsKey(name))
+            .toList(growable: false);
+        final hydrated = await commandEnvironmentResolver.environmentVariables(
+          missing,
+        );
+        environment = <String, String>{...hydrated, ...environment};
+      }
       plan = await _planCommand(request, environment);
       if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
         isolatedDirectory = await Directory.systemTemp.createTemp(

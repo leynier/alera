@@ -3,6 +3,10 @@ import 'dart:isolate';
 
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 
+const int readingDiffRepairReserveBytes = 4096;
+const int _readingDiffRejectedPlanBytes = 2048;
+const int _readingDiffCompilerErrorBytes = 512;
+
 Future<int?> firstOversizedReadingDiffPromptChunk({
   required rust.ReadingDiffPreparation preparation,
   required String customInstructions,
@@ -75,19 +79,39 @@ String buildReadingDiffRepairPrompt({
   required String rejectedPlan,
   required String compilerError,
 }) {
+  final boundedPlan = _truncateUtf8(
+    rejectedPlan,
+    _readingDiffRejectedPlanBytes,
+  );
+  final boundedError = _truncateUtf8(
+    compilerError,
+    _readingDiffCompilerErrorBytes,
+  );
   return '''
 $originalPrompt
 
 Your previous complete plan was rejected by the deterministic compiler:
 <compiler_error>
-$compilerError
+$boundedError
 </compiler_error>
 
 <rejected_plan>
-$rejectedPlan
+$boundedPlan
 </rejected_plan>
 
 Return a complete replacement plan against the original numbered coordinates. Do not return a patch or commentary.
 '''
       .trim();
+}
+
+String _truncateUtf8(String value, int maxBytes) {
+  final bytes = utf8.encode(value);
+  if (bytes.length <= maxBytes) {
+    return value;
+  }
+  var end = maxBytes;
+  while (end > 0 && (bytes[end] & 0xc0) == 0x80) {
+    end -= 1;
+  }
+  return '${utf8.decode(bytes.sublist(0, end), allowMalformed: false)}...';
 }

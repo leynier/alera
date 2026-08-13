@@ -134,6 +134,45 @@ ERROR: {
     );
   });
 
+  test('hydrates missing Codex variables before isolating the process', () async {
+    final process = _FakeProcessRunner(
+      stdout:
+          '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+    );
+    final runner = CliAiTextAgentRunner(
+      processRunner: process,
+      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+        variableValues: <String, String>{
+          'CODEX_HOME': '/login-shell/codex',
+          'HTTPS_PROXY': 'http://login-shell-proxy.example',
+        },
+      ),
+    );
+
+    await runner.run(
+      const AiTextAgentRunRequest(
+        settings: AiTextGenerationSettings(),
+        prompt: 'Plan this diff.',
+        runId: 'reading-diff-codex-hydrated',
+        workingDirectory: '/repo',
+        agent: AiTextGenerationAgent.codex,
+        accessPolicy: AgentTaskAccessPolicy.diffOnly,
+        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        outputSchema: '{"type":"object"}',
+      ),
+    );
+
+    expect(
+      process.environment,
+      containsPair('CODEX_HOME', '/login-shell/codex'),
+    );
+    expect(
+      process.environment,
+      containsPair('HTTPS_PROXY', 'http://login-shell-proxy.example'),
+    );
+    expect(process.includeParentEnvironment, isFalse);
+  });
+
   test('unwraps Claude structured output and disables persistence', () async {
     final process = _FakeProcessRunner(
       stdout:

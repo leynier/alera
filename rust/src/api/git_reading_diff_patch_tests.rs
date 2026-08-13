@@ -201,6 +201,35 @@ fn rejects_untracked_text_above_the_reading_diff_limit() {
     assert!(error.context.contains("4 MiB safety limit"));
 }
 
+#[cfg(unix)]
+#[test]
+fn preserves_untracked_executable_modes() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    Repository::init(directory.path()).expect("repository");
+    let script = directory.path().join("run.sh");
+    fs::write(&script, "#!/bin/sh\nexit 0\n").expect("script");
+    let mut permissions = fs::metadata(&script).expect("metadata").permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&script, permissions).expect("executable mode");
+
+    let patch = git_reading_diff_patch(
+        directory.path().to_string_lossy().to_string(),
+        None,
+        None,
+        Some(GitChangeArea::Untracked),
+        None,
+        None,
+        None,
+    )
+    .expect("untracked executable patch");
+
+    assert!(String::from_utf8(patch)
+        .expect("utf8 patch")
+        .contains("new file mode 100755"));
+}
+
 #[test]
 fn expands_dirty_submodule_worktrees() {
     let child_directory = tempfile::tempdir().expect("child tempdir");

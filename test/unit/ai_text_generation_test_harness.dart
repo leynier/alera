@@ -114,9 +114,11 @@ class _FakeProcessRunner implements ProcessRunner {
 class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
   const _FakeCommandEnvironmentResolver({
     this.value = const <String, String>{'PATH': '/usr/bin'},
+    this.variableValues = const <String, String>{},
   });
 
   final Map<String, String> value;
+  final Map<String, String> variableValues;
 
   @override
   Future<Map<String, String>> environment() async {
@@ -125,7 +127,10 @@ class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
 
   @override
   Future<Map<String, String>> environmentVariables(List<String> names) async =>
-      const <String, String>{};
+      <String, String>{
+        for (final name in names)
+          if (variableValues.containsKey(name)) name: variableValues[name]!,
+      };
 }
 
 class _DelayedDiffGitBackend extends FakeGitBackend {

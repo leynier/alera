@@ -150,13 +150,20 @@ pub(crate) fn git_reading_diff_patch(
             if let Some(content) = value.content {
                 append_limited_bytes(
                     &mut output,
-                    build_untracked_patch(&entry.path, &content, value.is_symlink).as_bytes(),
+                    build_untracked_patch(
+                        &entry.path,
+                        &content,
+                        value.is_symlink,
+                        value.is_executable,
+                    )
+                    .as_bytes(),
                     MAX_READING_DIFF_BYTES,
                 )?;
             } else {
                 append_limited_bytes(
                     &mut output,
-                    untracked_placeholder_patch(&entry.path, value.is_binary).as_bytes(),
+                    untracked_placeholder_patch(&entry.path, value.is_binary, value.is_executable)
+                        .as_bytes(),
                     MAX_READING_DIFF_BYTES,
                 )?;
             }
@@ -196,14 +203,15 @@ fn append_limited_bytes(output: &mut Vec<u8>, value: &[u8], limit: usize) -> Res
     Ok(())
 }
 
-fn untracked_placeholder_patch(path: &str, is_binary: bool) -> String {
+fn untracked_placeholder_patch(path: &str, is_binary: bool, is_executable: bool) -> String {
     let description = if is_binary {
         "Binary file"
     } else {
         "Non-regular file"
     };
+    let mode = if is_executable { "100755" } else { "100644" };
     format!(
-        "diff --git a/{path} b/{path}\nnew file mode 100644\n{description} /dev/null and b/{path} differ\n"
+        "diff --git a/{path} b/{path}\nnew file mode {mode}\n{description} /dev/null and b/{path} differ\n"
     )
 }
 

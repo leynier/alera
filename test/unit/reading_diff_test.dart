@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
@@ -17,6 +18,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_git_backend.dart';
 
 void main() {
+  test('reading diff resolves the effective model effort before caching', () {
+    const model = AiTextModel(
+      id: 'model',
+      label: 'Model',
+      defaultThinkingLevel: 'medium',
+    );
+    expect(
+      effectiveReadingDiffEffort(
+        AiTextGenerationSettings.defaults,
+        AiTextGenerationOperation.readingDiff,
+        model,
+      ),
+      'medium',
+    );
+    expect(
+      effectiveReadingDiffEffort(
+        const AiTextGenerationSettings(
+          selectedThinkingByOperation:
+              <AiTextGenerationOperation, Map<String, String>>{
+                AiTextGenerationOperation.readingDiff: <String, String>{
+                  'model': 'high',
+                },
+              },
+        ),
+        AiTextGenerationOperation.readingDiff,
+        model,
+      ),
+      'high',
+    );
+  });
+
   test(
     'reading diff preparation preserves expected Git failure details',
     () async {
@@ -218,6 +250,15 @@ void main() {
       );
       expect(repair, contains('missing summary'));
       expect(repair, contains('{"version":1}'));
+      final boundedRepair = buildReadingDiffRepairPrompt(
+        originalPrompt: prompt,
+        rejectedPlan: 'é' * 5000,
+        compilerError: 'failure' * 500,
+      );
+      expect(
+        utf8.encode(boundedRepair).length - utf8.encode(prompt).length,
+        lessThan(readingDiffRepairReserveBytes),
+      );
       expect(
         await firstOversizedReadingDiffPromptChunk(
           preparation: rust.ReadingDiffPreparation(

@@ -271,6 +271,16 @@ fn only_elides_common_js_require_calls_in_javascript_files() {
 }
 
 #[test]
+fn elides_exact_import_moves_symmetrically_across_file_types() {
+    let moved = b"diff --git a/old.rs b/old.rs\n--- a/old.rs\n+++ b/old.rs\n@@ -1 +0,0 @@\n-use crate::FeatureFlag;\ndiff --git a/readme.txt b/readme.txt\n--- a/readme.txt\n+++ b/readme.txt\n@@ -0,0 +1 @@\n+use crate::FeatureFlag;\n";
+    let plan = r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Move the example."}"#;
+
+    let result = compile(moved, plan).expect("symmetric automatic move");
+
+    assert!(result.reading_diff.is_empty());
+}
+
+#[test]
 fn preserves_exported_declarations_but_elides_reexports() {
     let declaration = b"diff --git a/config.ts b/config.ts\n\
 --- a/config.ts\n\

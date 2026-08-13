@@ -99,7 +99,7 @@ fn import_continues(value: &str, balances: [i32; 3]) -> bool {
     balances.iter().any(|balance| *balance != 0) || value.trim_end().ends_with('\\')
 }
 
-fn hide_import_only_sections(lines: &[SourceLine], hidden: &mut [bool]) {
+pub(crate) fn hide_import_only_sections(lines: &[SourceLine], hidden: &mut [bool]) {
     let hunk_ids = lines
         .iter()
         .filter_map(|line| line.hunk_id)

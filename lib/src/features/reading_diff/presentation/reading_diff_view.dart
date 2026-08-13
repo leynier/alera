@@ -22,21 +22,6 @@ class ReadingDiffView extends StatefulWidget {
 
 class _ReadingDiffViewState extends State<ReadingDiffView> {
   ReadingDiffViewMode _mode = ReadingDiffViewMode.overview;
-  late Future<_ReadingDiffLines> _condensedLines;
-
-  @override
-  void initState() {
-    super.initState();
-    _condensedLines = _decodeReadingDiffLines(widget.result.diff);
-  }
-
-  @override
-  void didUpdateWidget(covariant ReadingDiffView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.result.diff, widget.result.diff)) {
-      _condensedLines = _decodeReadingDiffLines(widget.result.diff);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +75,8 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
             ReadingDiffViewMode.overview => _ReadingDiffOverview(
               result: widget.result,
             ),
-            ReadingDiffViewMode.condensedDiff => _ReadingDiffText(
-              lines: _condensedLines,
+            ReadingDiffViewMode.condensedDiff => ReadingDiffText(
+              diff: widget.result.diff,
             ),
           },
         ),
@@ -211,22 +196,48 @@ class _ReadingDiffChunkSummaryCard extends StatelessWidget {
   }
 }
 
-class _ReadingDiffText extends StatelessWidget {
-  const _ReadingDiffText({required this.lines});
+class ReadingDiffText extends StatefulWidget {
+  const ReadingDiffText({
+    super.key,
+    required this.diff,
+    this.failureLabel = 'condensed diff',
+  });
 
-  final Future<_ReadingDiffLines> lines;
+  final List<int> diff;
+  final String failureLabel;
+
+  @override
+  State<ReadingDiffText> createState() => _ReadingDiffTextState();
+}
+
+class _ReadingDiffTextState extends State<ReadingDiffText> {
+  late Future<_ReadingDiffLines> _lines;
+
+  @override
+  void initState() {
+    super.initState();
+    _lines = _decodeReadingDiffLines(widget.diff);
+  }
+
+  @override
+  void didUpdateWidget(covariant ReadingDiffText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.diff, widget.diff)) {
+      _lines = _decodeReadingDiffLines(widget.diff);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_ReadingDiffLines>(
-      future: lines,
+      future: _lines,
       builder: (context, snapshot) {
         final lines = snapshot.data;
         if (lines == null) {
           if (snapshot.hasError) {
             return Center(
               child: SelectableText(
-                'Could not prepare the condensed diff: ${snapshot.error}',
+                'Could not prepare the ${widget.failureLabel}: ${snapshot.error}',
               ),
             );
           }
@@ -289,24 +300,29 @@ class _ReadingDiffText extends StatelessWidget {
 }
 
 Future<_ReadingDiffLines> _decodeReadingDiffLines(List<int> diff) {
-  return Isolate.run(() {
-    final text = const Utf8Decoder(allowMalformed: true).convert(diff);
-    var lineCount = 1;
-    for (final codeUnit in text.codeUnits) {
-      if (codeUnit == 0x0a) {
-        lineCount += 1;
-      }
+  if (diff.length <= 64 * 1024) {
+    return Future<_ReadingDiffLines>.value(_decodeReadingDiffLinesSync(diff));
+  }
+  return Isolate.run(() => _decodeReadingDiffLinesSync(diff));
+}
+
+_ReadingDiffLines _decodeReadingDiffLinesSync(List<int> diff) {
+  final text = const Utf8Decoder(allowMalformed: true).convert(diff);
+  var lineCount = 1;
+  for (final codeUnit in text.codeUnits) {
+    if (codeUnit == 0x0a) {
+      lineCount += 1;
     }
-    final starts = Uint32List(lineCount);
-    var line = 1;
-    for (var index = 0; index < text.length; index += 1) {
-      if (text.codeUnitAt(index) == 0x0a) {
-        starts[line] = index + 1;
-        line += 1;
-      }
+  }
+  final starts = Uint32List(lineCount);
+  var line = 1;
+  for (var index = 0; index < text.length; index += 1) {
+    if (text.codeUnitAt(index) == 0x0a) {
+      starts[line] = index + 1;
+      line += 1;
     }
-    return _ReadingDiffLines(text: text, starts: starts);
-  });
+  }
+  return _ReadingDiffLines(text: text, starts: starts);
 }
 
 class _ReadingDiffLines {

@@ -49,7 +49,11 @@ class ReadingDiffService {
           defaultModelIdForAgent(agent, request.settings),
       extraModels: discoveredModelsForAgent(request.settings, agent),
     );
-    final effort = request.settings.thinkingForOperation(operation, model.id);
+    final effort = effectiveReadingDiffEffort(
+      request.settings,
+      operation,
+      model,
+    );
     final Uint8List rawDiff;
     try {
       rawDiff = await gitBackend.readingDiffPatch(
@@ -82,7 +86,7 @@ class ReadingDiffService {
     final oversizedChunk = await firstOversizedReadingDiffPromptChunk(
       preparation: compiler,
       customInstructions: instructions,
-      maxBytes: promptLimit,
+      maxBytes: promptLimit - readingDiffRepairReserveBytes,
     );
     if (oversizedChunk != null) {
       throw AiTextGenerationException(
@@ -330,6 +334,14 @@ int _chunkLimit(int promptLimit) {
   final conservativeLimit = (promptLimit - 8192) ~/ 4;
   return conservativeLimit.clamp(4096, _defaultReadingDiffChunkBytes);
 }
+
+String? effectiveReadingDiffEffort(
+  AiTextGenerationSettings settings,
+  AiTextGenerationOperation operation,
+  AiTextModel model,
+) =>
+    settings.thinkingForOperation(operation, model.id) ??
+    model.defaultThinkingLevel;
 
 Future<String> buildReadingDiffCacheKey({
   required String rubricVersion,
