@@ -23,6 +23,20 @@ void _registerAiTextReadingDiffTests() {
       ),
       AiTextGenerationAgent.claude,
     );
+    const settings = AiTextGenerationSettings(
+      agent: AiTextGenerationAgent.cursor,
+      selectedModelByAgent: <AiTextGenerationAgent, String>{
+        AiTextGenerationAgent.cursor: 'cursor-composer',
+        AiTextGenerationAgent.codex: 'gpt-codex',
+      },
+    );
+    expect(
+      readingDiffModelForSettings(
+        settings,
+        readingDiffAgentForSettings(settings),
+      ),
+      'gpt-codex',
+    );
   });
 
   test('runs Codex with a schema and reads its structured result file', () async {
@@ -36,6 +50,8 @@ void _registerAiTextReadingDiffTests() {
         value: <String, String>{
           'PATH': '/usr/bin',
           'CODEX_HOME': '/codex-home',
+          'HTTPS_PROXY': 'http://proxy.example',
+          'no_proxy': 'localhost',
           'OPENAI_API_KEY': 'must-not-leak',
         },
       ),
@@ -63,6 +79,11 @@ void _registerAiTextReadingDiffTests() {
     );
     expect(process.arguments, isNot(contains('-s')));
     expect(process.environment, containsPair('CODEX_HOME', '/codex-home'));
+    expect(
+      process.environment,
+      containsPair('HTTPS_PROXY', 'http://proxy.example'),
+    );
+    expect(process.environment, containsPair('no_proxy', 'localhost'));
     expect(process.environment, isNot(contains('OPENAI_API_KEY')));
     expect(process.includeParentEnvironment, isFalse);
     expect(process.outputSchemaText, '{"type":"object"}');

@@ -117,13 +117,14 @@ mixin _WorkbenchControllerProjects
         for (final workspace in state.workspacesFor(projectId))
           ...state.tabsFor(workspace.id),
       ];
-      for (final workspace in state.workspacesFor(projectId)) {
+      final removedWorkspaces = state.workspacesFor(projectId);
+      await _projectsService.removeProject(projectId);
+      for (final workspace in removedWorkspaces) {
         _tabFocusHistory.forget(workspace.id);
         for (final tab in state.tabsFor(workspace.id)) {
           await _releaseHostedReviewTab(workspace, tab);
         }
       }
-      await _projectsService.removeProject(projectId);
       _removeCodexDrafts(removedTabs);
       state = state.copyWith(error: null);
     } catch (error) {
@@ -145,14 +146,18 @@ mixin _WorkbenchControllerProjects
           .map((tab) => tab.terminalSessionId)
           .where((id) => id.isNotEmpty)
           .toList(growable: false);
-      for (final tab in workspaceTabs) {
-        await _releaseHostedReviewTab(workspace, tab);
-      }
       await _workspaceService.removeWorkspace(
         project: project,
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(
+          workspace,
+          tab,
+          fallbackWorkspacePath: project.repoPath,
+        );
+      }
       _removeCodexDrafts(workspaceTabs);
       _tabFocusHistory.forget(workspace.id);
       ref

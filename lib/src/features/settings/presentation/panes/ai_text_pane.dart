@@ -262,10 +262,14 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
         ? readingDiffAgentForSettings(settings)
         : settings.agentFor(operation);
     final configuredAgent = promptSettings.agent ?? settings.agent;
-    final effectivePromptAgent =
-        isReadingDiff && !supportsDiffOnlyAiTextAgent(configuredAgent)
+    final usesReadingDiffFallback =
+        isReadingDiff && !supportsDiffOnlyAiTextAgent(configuredAgent);
+    final effectivePromptAgent = usesReadingDiffFallback
         ? agent
         : promptSettings.agent;
+    final effectivePromptModel = usesReadingDiffFallback
+        ? null
+        : promptSettings.model;
     final inheritedModel = modelForAgent(
       agent,
       settings.modelFor(agent) ?? defaultModelIdForAgent(agent, settings),
@@ -303,7 +307,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
           agent: agent,
           models: modelsForAgent(agent, settings),
           inheritedModel: inheritedModel,
-          value: promptSettings.model,
+          value: effectivePromptModel,
           discovering: discovery.loading,
           discoveryError: discovery.error,
           onRefreshModels: spec?.modelsCommand == null

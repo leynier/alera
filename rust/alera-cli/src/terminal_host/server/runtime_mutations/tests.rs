@@ -16,7 +16,9 @@ use super::{run_runtime_mutation, RuntimeMutationEffect, RuntimeMutationRequest}
 #[tokio::test]
 async fn removing_tab_releases_its_hosted_review_refs() {
     let dir = tempfile::tempdir().unwrap();
-    let repo_path = dir.path().join("repo");
+    let workspace_path = dir.path().join("workspace");
+    let repo_path = workspace_path.join("nested/repo");
+    std::fs::create_dir_all(&repo_path).unwrap();
     let repository = git2::Repository::init(&repo_path).unwrap();
     let object = repository.blob(b"review object").unwrap();
     let retention_id = "0123456789abcdef0123456789abcdef";
@@ -53,7 +55,7 @@ async fn removing_tab_releases_its_hosted_review_refs() {
             project_id: "project".into(),
             name: "Workspace".into(),
             branch: None,
-            path: repo_path.to_string_lossy().into_owned(),
+            path: workspace_path.to_string_lossy().into_owned(),
             created_at: now,
             updated_at: now,
             kind: WorkspaceKind::Main,
@@ -74,7 +76,10 @@ async fn removing_tab_releases_its_hosted_review_refs() {
             workspace_id: "workspace".into(),
             kind: "gitDiff".into(),
             title: "Pull Request Diff".into(),
-            payload: json!({"gitDiffHostedReviewRetentionId": retention_id}),
+            payload: json!({
+                "gitDiffRoot": "nested/repo",
+                "gitDiffHostedReviewRetentionId": retention_id,
+            }),
             created_at: now,
             updated_at: now,
         })

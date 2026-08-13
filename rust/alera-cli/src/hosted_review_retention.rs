@@ -1,5 +1,8 @@
+use std::path::{Component, Path};
+
 use alera_core::runtime::{RuntimeStore, WorkspaceTabRecord};
 
+const GIT_DIFF_ROOT_KEY: &str = "gitDiffRoot";
 const RETENTION_ID_KEY: &str = "gitDiffHostedReviewRetentionId";
 
 pub(crate) struct HostedReviewRetention {
@@ -63,10 +66,39 @@ async fn for_records(
         let Ok(Some(workspace)) = store.find_workspace(&tab.workspace_id).await else {
             continue;
         };
+        let Some(repo_path) = repo_path_for_tab(&workspace.path, &tab) else {
+            continue;
+        };
         retentions.push(HostedReviewRetention {
-            repo_path: workspace.path,
+            repo_path,
             retention_id: retention_id.to_string(),
         });
     }
     retentions
+}
+
+fn repo_path_for_tab(workspace_path: &str, tab: &WorkspaceTabRecord) -> Option<String> {
+    let Some(relative_root) = tab
+        .payload
+        .get(GIT_DIFF_ROOT_KEY)
+        .and_then(|value| value.as_str())
+    else {
+        return Some(workspace_path.to_string());
+    };
+    if relative_root.trim().is_empty() {
+        return Some(workspace_path.to_string());
+    }
+    let relative_root = Path::new(relative_root);
+    if relative_root
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
+    {
+        return None;
+    }
+    Some(
+        Path::new(workspace_path)
+            .join(relative_root)
+            .to_string_lossy()
+            .into_owned(),
+    )
 }

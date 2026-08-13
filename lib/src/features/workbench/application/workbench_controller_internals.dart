@@ -108,8 +108,9 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
 
   Future<void> _releaseHostedReviewTab(
     Workspace workspace,
-    WorkspaceTabRecord tab,
-  ) async {
+    WorkspaceTabRecord tab, {
+    String? fallbackWorkspacePath,
+  }) async {
     final retentionId = tab.gitDiffHostedReviewRetentionId;
     if (tab.gitDiffSource != WorkspaceGitDiffSource.pullRequest ||
         retentionId == null) {
@@ -119,6 +120,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
       workspace: workspace,
       relativeRoot: tab.gitDiffRoot,
       retentionId: retentionId,
+      fallbackWorkspacePath: fallbackWorkspacePath,
     );
   }
 
@@ -126,6 +128,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     required Workspace workspace,
     required String? relativeRoot,
     required String retentionId,
+    String? fallbackWorkspacePath,
   }) async {
     final path = relativeRoot == null
         ? workspace.path
@@ -138,7 +141,26 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
           .read(gitBackendProvider)
           .releaseHostedReviewRange(path: path, retentionId: retentionId);
     } catch (_) {
-      // A stale retention ref must never make a persisted tab impossible to close.
+      if (fallbackWorkspacePath == null ||
+          fallbackWorkspacePath == workspace.path) {
+        return;
+      }
+      final fallbackPath = relativeRoot == null
+          ? fallbackWorkspacePath
+          : sourceControlRootAbsolutePath(
+              workspacePath: fallbackWorkspacePath,
+              relativeRoot: relativeRoot,
+            );
+      try {
+        await ref
+            .read(gitBackendProvider)
+            .releaseHostedReviewRange(
+              path: fallbackPath,
+              retentionId: retentionId,
+            );
+      } catch (_) {
+        // A stale retention ref must never make a persisted tab impossible to close.
+      }
     }
   }
 

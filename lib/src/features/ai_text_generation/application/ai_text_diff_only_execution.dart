@@ -40,6 +40,20 @@ AiTextGenerationAgent readingDiffAgentForSettings(
   return AiTextGenerationAgent.codex;
 }
 
+String? readingDiffModelForSettings(
+  AiTextGenerationSettings settings,
+  AiTextGenerationAgent agent,
+) {
+  final prompt = settings.promptSettingsFor(
+    AiTextGenerationOperation.readingDiff,
+  );
+  final configuredAgent = prompt.agent ?? settings.agent;
+  if (configuredAgent != agent) {
+    return settings.modelFor(agent);
+  }
+  return prompt.model ?? settings.modelFor(agent);
+}
+
 void requireDiffOnlyAiTextAgent(AiTextGenerationAgent agent) {
   if (supportsDiffOnlyAiTextAgent(agent)) {
     return;
@@ -124,14 +138,18 @@ Map<String, String> _codexSubscriptionEnvironment(
 ) {
   const allowed = <String>{
     'APPDATA',
+    'ALL_PROXY',
     'CODEX_HOME',
     'CODEX_SQLITE_HOME',
     'COMSPEC',
     'HOME',
+    'HTTPS_PROXY',
+    'HTTP_PROXY',
     'LANG',
     'LC_ALL',
     'LOCALAPPDATA',
     'NO_COLOR',
+    'NO_PROXY',
     'PATH',
     'PATHEXT',
     'Path',
@@ -149,6 +167,10 @@ Map<String, String> _codexSubscriptionEnvironment(
     'XDG_CONFIG_HOME',
     'XDG_DATA_HOME',
     'XDG_STATE_HOME',
+    'all_proxy',
+    'https_proxy',
+    'http_proxy',
+    'no_proxy',
   };
   return <String, String>{
     for (final entry in environment.entries)

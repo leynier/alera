@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
@@ -12,6 +13,7 @@ import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:crypto/crypto.dart';
 
 class ReadingDiffService {
@@ -43,20 +45,25 @@ class ReadingDiffService {
     requireDiffOnlyAiTextAgent(agent);
     final model = modelForAgent(
       agent,
-      request.settings.modelForOperation(operation) ??
+      readingDiffModelForSettings(request.settings, agent) ??
           defaultModelIdForAgent(agent, request.settings),
       extraModels: discoveredModelsForAgent(request.settings, agent),
     );
     final effort = request.settings.thinkingForOperation(operation, model.id);
-    final rawDiff = await gitBackend.readingDiffPatch(
-      path: request.workspacePath,
-      filePath: request.filePath,
-      oldPath: request.oldPath,
-      area: request.area,
-      commitOid: request.commitOid,
-      parentOid: request.parentOid,
-      baseRef: request.baseRef,
-    );
+    final Uint8List rawDiff;
+    try {
+      rawDiff = await gitBackend.readingDiffPatch(
+        path: request.workspacePath,
+        filePath: request.filePath,
+        oldPath: request.oldPath,
+        area: request.area,
+        commitOid: request.commitOid,
+        parentOid: request.parentOid,
+        baseRef: request.baseRef,
+      );
+    } on GitException catch (error) {
+      throw AiTextGenerationException(error.context);
+    }
     if (rawDiff.isEmpty) {
       throw const AiTextGenerationException('No diff is available to read.');
     }
@@ -216,10 +223,15 @@ class ReadingDiffService {
           totalChunks: preparation.chunkCount,
         ),
       );
-      final merged = await rust.mergeReadingDiffChunks(
-        chunks: compiled,
-        sourceDiff: preparation.rawDiff,
-      );
+      final rust.ReadingDiffCompileResult merged;
+      try {
+        merged = await rust.mergeReadingDiffChunks(
+          chunks: compiled,
+          sourceDiff: preparation.rawDiff,
+        );
+      } on rust.ReadingDiffError catch (error) {
+        throw AiTextGenerationException(error.message);
+      }
       _throwIfCanceled(lane);
       final result = ReadingDiffResult(
         diff: merged.readingDiff,

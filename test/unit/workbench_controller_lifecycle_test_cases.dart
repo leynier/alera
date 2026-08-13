@@ -262,6 +262,33 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(release.args['path'], p.join(workspace.path, 'packages', 'app'));
   });
 
+  test('failed project removal keeps hosted review refs retained', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    await _controller.openGitPullRequestDiffTab(
+      workspace: workspace,
+      pullRequestNumber: 385,
+      commitOid: 'head-385',
+      parentOid: 'base-385',
+      retentionId: 'retention-failed-removal',
+    );
+    _harness.projectRepository.removeError = StateError('cannot remove');
+
+    await expectLater(
+      _controller.removeProject(_harness.project.id),
+      throwsStateError,
+    );
+
+    expect(
+      _harness.gitBackend.calls.where(
+        (call) =>
+            call.method == 'releaseHostedReviewRange' &&
+            call.args['retentionId'] == 'retention-failed-removal',
+      ),
+      isEmpty,
+    );
+  });
+
   test('opens markdown viewer tabs in the active group', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

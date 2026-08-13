@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
@@ -10,9 +11,42 @@ import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.
 import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fake_git_backend.dart';
+
 void main() {
+  test(
+    'reading diff preparation preserves expected Git failure details',
+    () async {
+      final git = FakeGitBackend()
+        ..readingDiffPatchError = const GitInternalException(
+          'Reading diff input exceeds the 4 MiB safety limit.',
+        );
+      final service = ReadingDiffService(
+        gitBackend: git,
+        runner: _UnusedAgentTaskRunner(),
+      );
+
+      await expectLater(
+        service.prepare(
+          ReadingDiffRequest(
+            workspacePath: '/repo',
+            settings: AiTextGenerationSettings.defaults,
+          ),
+        ),
+        throwsA(
+          isA<AiTextGenerationException>().having(
+            (error) => error.message,
+            'message',
+            contains('4 MiB safety limit'),
+          ),
+        ),
+      );
+    },
+  );
+
   test('reading diff models expose preparation and cached result state', () {
     final compiler = rust.ReadingDiffPreparation(
       rawBytes: BigInt.from(42),
@@ -311,5 +345,15 @@ class _FailingReadingDiffCache implements ReadingDiffCache {
   @override
   Future<void> write(String key, ReadingDiffResult result) async {
     throw const FileSystemException('disk full');
+  }
+}
+
+class _UnusedAgentTaskRunner implements AgentTaskRunner {
+  @override
+  void cancel(String runId) {}
+
+  @override
+  Future<AiTextAgentRunResult> run(AiTextAgentRunRequest request) {
+    throw StateError('The runner should not be used.');
   }
 }
