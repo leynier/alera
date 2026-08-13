@@ -1,6 +1,6 @@
 use std::fs;
 
-use git2::{IndexAddOption, Oid, Repository, Signature};
+use git2::{BranchType, IndexAddOption, Oid, Repository, Signature};
 
 use super::{fetch_hosted_review_range, release_hosted_review_range};
 
@@ -37,6 +37,23 @@ fn fetches_exact_hosted_base_and_head_objects() {
         client_directory.path(),
     )
     .expect("client clone");
+    let client = Repository::open(client_directory.path()).expect("client repository");
+    let unrelated_remote = tempfile::tempdir().expect("unrelated remote tempdir");
+    Repository::init_bare(unrelated_remote.path()).expect("unrelated bare remote");
+    client
+        .remote(
+            "upstream",
+            unrelated_remote.path().to_string_lossy().as_ref(),
+        )
+        .expect("upstream remote");
+    client
+        .reference("refs/remotes/upstream/main", base, true, "test upstream")
+        .expect("upstream tracking reference");
+    client
+        .find_branch("main", BranchType::Local)
+        .expect("client main")
+        .set_upstream(Some("upstream/main"))
+        .expect("main tracks upstream");
 
     seed.set_head("refs/heads/main").expect("return to main");
     seed.checkout_head(None).expect("main checkout");
@@ -46,6 +63,7 @@ fn fetches_exact_hosted_base_and_head_objects() {
 
     let range = fetch_hosted_review_range(
         client_directory.path().to_string_lossy().as_ref(),
+        "origin",
         "main",
         &head.to_string(),
         Some("refs/pull/7/head"),
@@ -55,7 +73,6 @@ fn fetches_exact_hosted_base_and_head_objects() {
     assert_eq!(range.base_oid, advanced_base.to_string());
     assert_eq!(range.head_oid, head.to_string());
     assert_eq!(range.retention_id.len(), 32);
-    let client = Repository::open(client_directory.path()).expect("client repository");
     let hosted_refs = client
         .references()
         .expect("client references")

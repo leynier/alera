@@ -9,11 +9,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 Future<GitHostedReviewRange> gitFetchHostedReviewRange({
   required String path,
+  required String remoteName,
   required String baseBranch,
   required String headSha,
   String? reviewRef,
 }) => RustLib.instance.api.crateApiGitGitHostedReviewGitFetchHostedReviewRange(
   path: path,
+  remoteName: remoteName,
   baseBranch: baseBranch,
   headSha: headSha,
   reviewRef: reviewRef,

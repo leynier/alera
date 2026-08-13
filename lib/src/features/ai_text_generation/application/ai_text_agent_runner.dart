@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
@@ -100,8 +101,8 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
           plan.args,
           workingDirectory: isolatedDirectory?.path ?? request.workingDirectory,
           environment: <String, String>{
-            ...environment,
-            ...plan.environmentOverrides,
+            ...(plan.exactEnvironment ?? environment),
+            if (plan.exactEnvironment == null) ...plan.environmentOverrides,
           },
         );
       } catch (_) {
@@ -180,6 +181,9 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
   ) async {
     final settings = request.settings;
     final agent = request.agent ?? settings.agent;
+    if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
+      requireDiffOnlyAiTextAgent(agent);
+    }
     if (agent == AiTextGenerationAgent.custom) {
       return _planCustomCommand(settings.customCommand, request.prompt);
     }
@@ -231,7 +235,12 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
         if (agent == AiTextGenerationAgent.grok) {
           final grokHome = Directory(p.join(promptDirectory.path, 'grok-home'));
           await grokHome.create();
-          await _copyGrokRuntimeConfiguration(grokHome, environment);
+          await _copyGrokRuntimeConfiguration(
+            grokHome,
+            environment,
+            authenticationOnly:
+                request.accessPolicy == AgentTaskAccessPolicy.diffOnly,
+          );
           environmentOverrides['GROK_HOME'] = grokHome.path;
         }
       } catch (_) {
@@ -284,6 +293,16 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
           args = <String>[...args, '--json-schema', schema];
       }
     }
+    Map<String, String>? exactEnvironment;
+    if (request.accessPolicy == AgentTaskAccessPolicy.diffOnly) {
+      final execution = planDiffOnlyAiTextExecution(
+        spec: spec,
+        arguments: args,
+        environment: <String, String>{...environment, ...environmentOverrides},
+      );
+      args = execution.arguments;
+      exactEnvironment = execution.environment;
+    }
     return _AiTextAgentCommandPlan(
       binary: spec.binary,
       args: args,
@@ -293,6 +312,7 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       label: spec.label,
       promptDirectory: promptDirectory,
       environmentOverrides: environmentOverrides,
+      exactEnvironment: exactEnvironment,
       outputFile: outputFile,
     );
   }
@@ -308,8 +328,9 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
 
   Future<void> _copyGrokRuntimeConfiguration(
     Directory isolatedHome,
-    Map<String, String> environment,
-  ) async {
+    Map<String, String> environment, {
+    required bool authenticationOnly,
+  }) async {
     final configuredHome = environment['GROK_HOME']?.trim();
     final userHome = (environment['HOME'] ?? environment['USERPROFILE'])
         ?.trim();
@@ -321,12 +342,16 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     if (sourceHome == null) {
       return;
     }
-    for (final fileName in const <String>[
-      'auth.json',
-      'config.toml',
-      'managed_config.toml',
-      'requirements.toml',
-    ]) {
+    final fileNames = authenticationOnly
+        ? const <String>['auth.json']
+        : const <String>[
+            'auth.json',
+            'config.toml',
+            'managed_config.toml',
+            'requirements.toml',
+          ];
+    // Reading Diff excludes configuration that can enable plugins or MCPs.
+    for (final fileName in fileNames) {
       final source = File(p.join(sourceHome, fileName));
       if (await source.exists()) {
         await source.copy(p.join(isolatedHome.path, fileName));
@@ -408,6 +433,7 @@ class _AiTextAgentCommandPlan {
     required this.stdinPayload,
     required this.label,
     this.environmentOverrides = const <String, String>{},
+    this.exactEnvironment,
     this.promptDirectory,
     this.outputFile,
   });
@@ -417,6 +443,7 @@ class _AiTextAgentCommandPlan {
   final String? stdinPayload;
   final String label;
   final Map<String, String> environmentOverrides;
+  final Map<String, String>? exactEnvironment;
   final Directory? promptDirectory;
   final File? outputFile;
 

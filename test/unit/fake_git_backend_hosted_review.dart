@@ -5,6 +5,7 @@ mixin _FakeGitBackendHostedReview {
 
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
+    required String remote,
     required String baseBranch,
     required String headSha,
     String? reviewRef,
@@ -12,6 +13,7 @@ mixin _FakeGitBackendHostedReview {
     calls.add(
       GitBackendCall('fetchHostedReviewRange', <String, Object?>{
         'path': path,
+        'remote': remote,
         'baseBranch': baseBranch,
         'headSha': headSha,
         'reviewRef': reviewRef,

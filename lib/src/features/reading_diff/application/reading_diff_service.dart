@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -39,6 +40,7 @@ class ReadingDiffService {
         '${agent.label} does not support AI text generation.',
       );
     }
+    requireDiffOnlyAiTextAgent(agent);
     final model = modelForAgent(
       agent,
       request.settings.modelForOperation(operation) ??
@@ -70,17 +72,15 @@ class ReadingDiffService {
       throw AiTextGenerationException(error.message);
     }
     final instructions = request.settings.instructionsFor(operation);
-    for (final chunk in compiler.chunks) {
-      final prompt = buildReadingDiffPrompt(
-        preparation: compiler,
-        chunk: chunk,
-        customInstructions: instructions,
+    final oversizedChunk = await firstOversizedReadingDiffPromptChunk(
+      preparation: compiler,
+      customInstructions: instructions,
+      maxBytes: promptLimit,
+    );
+    if (oversizedChunk != null) {
+      throw AiTextGenerationException(
+        '${agent.label} cannot receive diff chunk ${oversizedChunk + 1} within its safe prompt limit.',
       );
-      if (utf8.encode(prompt).length > promptLimit) {
-        throw AiTextGenerationException(
-          '${agent.label} cannot receive this diff hunk within its safe prompt limit.',
-        );
-      }
     }
     final cacheKey = await buildReadingDiffCacheKey(
       rubricVersion: compiler.rubricVersion,
@@ -220,6 +220,7 @@ class ReadingDiffService {
         chunks: compiled,
         sourceDiff: preparation.rawDiff,
       );
+      _throwIfCanceled(lane);
       final result = ReadingDiffResult(
         diff: merged.readingDiff,
         summary: merged.summary,
@@ -231,6 +232,10 @@ class ReadingDiffService {
         chunkSummaries: chunkSummaries,
       );
       await cache.writeBestEffort(preparation.cacheKey, result);
+      if (_canceled.contains(lane)) {
+        await cache.removeBestEffort(preparation.cacheKey);
+        _throwIfCanceled(lane);
+      }
       return result;
     } finally {
       _pending.remove(lane);

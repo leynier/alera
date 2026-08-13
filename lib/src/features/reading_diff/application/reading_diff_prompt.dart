@@ -1,4 +1,39 @@
+import 'dart:convert';
+import 'dart:isolate';
+
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
+
+Future<int?> firstOversizedReadingDiffPromptChunk({
+  required rust.ReadingDiffPreparation preparation,
+  required String customInstructions,
+  required int maxBytes,
+}) {
+  return Isolate.run(
+    () => _firstOversizedReadingDiffPromptChunk(
+      preparation: preparation,
+      customInstructions: customInstructions,
+      maxBytes: maxBytes,
+    ),
+  );
+}
+
+int? _firstOversizedReadingDiffPromptChunk({
+  required rust.ReadingDiffPreparation preparation,
+  required String customInstructions,
+  required int maxBytes,
+}) {
+  for (final chunk in preparation.chunks) {
+    final prompt = buildReadingDiffPrompt(
+      preparation: preparation,
+      chunk: chunk,
+      customInstructions: customInstructions,
+    );
+    if (utf8.encode(prompt).length > maxBytes) {
+      return chunk.index.toInt();
+    }
+  }
+  return null;
+}
 
 String buildReadingDiffPrompt({
   required rust.ReadingDiffPreparation preparation,

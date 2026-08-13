@@ -212,6 +212,7 @@ abstract interface class GitBackend {
   /// immutable commit IDs for local range resolution.
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
+    required String remote,
     required String baseBranch,
     required String headSha,
     String? reviewRef,

@@ -1,0 +1,142 @@
+import 'dart:io';
+
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+
+class AiTextDiffOnlyExecution {
+  const AiTextDiffOnlyExecution({
+    required this.arguments,
+    required this.environment,
+  });
+
+  final List<String> arguments;
+  final Map<String, String> environment;
+}
+
+bool supportsDiffOnlyAiTextAgent(AiTextGenerationAgent agent) {
+  return switch (aiTextAgentSpecs[agent]?.diffOnlyAccess) {
+    AiTextDiffOnlyAccess.toolFree ||
+    AiTextDiffOnlyAccess.codexRestrictedFilesystem => true,
+    AiTextDiffOnlyAccess.unsupported || null => false,
+  };
+}
+
+void requireDiffOnlyAiTextAgent(AiTextGenerationAgent agent) {
+  if (supportsDiffOnlyAiTextAgent(agent)) {
+    return;
+  }
+  final supported = aiTextAgentSpecs.values
+      .where((spec) => spec.diffOnlyAccess != AiTextDiffOnlyAccess.unsupported)
+      .map((spec) => spec.label)
+      .join(', ');
+  throw AiTextGenerationException(
+    '${agent.label} cannot guarantee diff-only access. Choose one of: $supported.',
+  );
+}
+
+AiTextDiffOnlyExecution planDiffOnlyAiTextExecution({
+  required AiTextAgentSpec spec,
+  required List<String> arguments,
+  required Map<String, String> environment,
+}) {
+  switch (spec.diffOnlyAccess) {
+    case AiTextDiffOnlyAccess.unsupported:
+      requireDiffOnlyAiTextAgent(spec.agent);
+      throw StateError('Unreachable diff-only agent policy.');
+    case AiTextDiffOnlyAccess.toolFree:
+      return AiTextDiffOnlyExecution(
+        arguments: <String>[...arguments, ...spec.diffOnlyArgs],
+        environment: environment,
+      );
+    case AiTextDiffOnlyAccess.codexRestrictedFilesystem:
+      return AiTextDiffOnlyExecution(
+        arguments: _codexDiffOnlyArguments(arguments),
+        environment: _codexSubscriptionEnvironment(environment),
+      );
+  }
+}
+
+List<String> _codexDiffOnlyArguments(List<String> arguments) {
+  final secured = List<String>.from(arguments);
+  final sandboxIndex = secured.indexOf('-s');
+  if (sandboxIndex >= 0 && sandboxIndex + 1 < secured.length) {
+    secured.removeRange(sandboxIndex, sandboxIndex + 2);
+  }
+  secured.addAll(<String>[
+    '--ignore-user-config',
+    '--ignore-rules',
+    '--strict-config',
+    '-c',
+    'default_permissions="alera_diff_only"',
+    '-c',
+    'permissions.alera_diff_only={filesystem={":minimal"="read",":workspace_roots"="read"},network={enabled=false}}',
+    '-c',
+    'approval_policy="never"',
+    '-c',
+    'shell_environment_policy.inherit="none"',
+    '-c',
+    'web_search="disabled"',
+    if (Platform.isWindows) ...<String>['-c', 'windows.sandbox="elevated"'],
+    for (final feature in _disabledCodexDiffOnlyFeatures) ...<String>[
+      '--disable',
+      feature,
+    ],
+  ]);
+  return secured;
+}
+
+const List<String> _disabledCodexDiffOnlyFeatures = <String>[
+  'apps',
+  'browser_use',
+  'browser_use_external',
+  'browser_use_full_cdp_access',
+  'computer_use',
+  'hooks',
+  'image_generation',
+  'in_app_browser',
+  'memories',
+  'multi_agent',
+  'plugins',
+  'remote_plugin',
+  'skill_search',
+  'tool_suggest',
+  'view_image',
+];
+
+Map<String, String> _codexSubscriptionEnvironment(
+  Map<String, String> environment,
+) {
+  const allowed = <String>{
+    'APPDATA',
+    'CODEX_HOME',
+    'CODEX_SQLITE_HOME',
+    'COMSPEC',
+    'HOME',
+    'LANG',
+    'LC_ALL',
+    'LOCALAPPDATA',
+    'NO_COLOR',
+    'PATH',
+    'PATHEXT',
+    'Path',
+    'SSL_CERT_DIR',
+    'SSL_CERT_FILE',
+    'SystemRoot',
+    'TEMP',
+    'TERM',
+    'TMP',
+    'TMPDIR',
+    'TZ',
+    'USERPROFILE',
+    'WINDIR',
+    'XDG_CACHE_HOME',
+    'XDG_CONFIG_HOME',
+    'XDG_DATA_HOME',
+    'XDG_STATE_HOME',
+  };
+  return <String, String>{
+    for (final entry in environment.entries)
+      if (allowed.contains(entry.key)) entry.key: entry.value,
+  };
+}

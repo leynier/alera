@@ -40,12 +40,14 @@ mixin _RustGitBackendHostedReview {
 
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
+    required String remote,
     required String baseBranch,
     required String headSha,
     String? reviewRef,
   }) => _guard(() async {
     final range = await hosted_review_rust.gitFetchHostedReviewRange(
       path: path,
+      remoteName: remote,
       baseBranch: baseBranch,
       headSha: headSha,
       reviewRef: reviewRef,

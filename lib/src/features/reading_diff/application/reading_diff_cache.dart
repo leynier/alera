@@ -11,6 +11,8 @@ abstract interface class ReadingDiffCache {
   Future<ReadingDiffResult?> read(String key);
 
   Future<void> write(String key, ReadingDiffResult result);
+
+  Future<void> remove(String key);
 }
 
 extension ReadingDiffCachePersistence on ReadingDiffCache {
@@ -19,6 +21,14 @@ extension ReadingDiffCachePersistence on ReadingDiffCache {
       await write(key, result);
     } on Object {
       // Generation already consumed quota, so cache I/O must not discard it.
+    }
+  }
+
+  Future<void> removeBestEffort(String key) async {
+    try {
+      await remove(key);
+    } on Object {
+      // Cancellation must still win when stale cache cleanup fails.
     }
   }
 }
@@ -59,6 +69,14 @@ class FileReadingDiffCache implements ReadingDiffCache {
       if (await temporary.exists()) {
         await temporary.delete();
       }
+    }
+  }
+
+  @override
+  Future<void> remove(String key) async {
+    final file = await _file(key);
+    if (await file.exists()) {
+      await file.delete();
     }
   }
 

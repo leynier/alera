@@ -182,6 +182,7 @@ class E2eGitBackend implements GitBackend {
   @override
   Future<GitHostedReviewRange> fetchHostedReviewRange({
     required String path,
+    required String remote,
     required String baseBranch,
     required String headSha,
     String? reviewRef,

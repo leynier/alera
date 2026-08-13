@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Ported and modified from Meat revision f39f41dfe7b5b37a12b35fdfbaecc7e779855bd3.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::diff::{parse, source_body, LineKind, SourceLine};
 use super::imports::mandatory_import_mask;
@@ -175,12 +175,29 @@ pub(crate) fn validate_merged_move_symmetry(
             _ => {}
         }
     }
+    let mut retained_removed = HashSet::<Vec<u8>>::new();
+    let mut retained_added = HashSet::<Vec<u8>>::new();
+    for line in reading_diff.split(|byte| *byte == b'\n') {
+        let Some(marker) = line.first() else {
+            continue;
+        };
+        let body = trim_ascii(line.get(1..).unwrap_or_default());
+        match marker {
+            b'-' => {
+                retained_removed.insert(body.to_vec());
+            }
+            b'+' => {
+                retained_added.insert(body.to_vec());
+            }
+            _ => {}
+        }
+    }
     for (body, removed_count) in removed {
         if removed_count != 1 || added.get(&body) != Some(&1) {
             continue;
         }
-        let retained_old = retains_changed_body(reading_diff, b'-', &body);
-        let retained_new = retains_changed_body(reading_diff, b'+', &body);
+        let retained_old = retained_removed.contains(&body);
+        let retained_new = retained_added.contains(&body);
         if retained_old != retained_new {
             return Err(ReadingDiffError::new(
                 "Exact move rows split across chunks must be retained or elided symmetrically.",
@@ -188,12 +205,6 @@ pub(crate) fn validate_merged_move_symmetry(
         }
     }
     Ok(())
-}
-
-fn retains_changed_body(reading_diff: &[u8], marker: u8, body: &[u8]) -> bool {
-    reading_diff.split(|byte| *byte == b'\n').any(|line| {
-        line.first() == Some(&marker) && trim_ascii(line.get(1..).unwrap_or_default()) == body
-    })
 }
 
 fn validate_range(

@@ -211,6 +211,7 @@ abstract class RustLibApi extends BaseApi {
   Future<GitHostedReviewRange>
   crateApiGitGitHostedReviewGitFetchHostedReviewRange({
     required String path,
+    required String remoteName,
     required String baseBranch,
     required String headSha,
     String? reviewRef,
@@ -1354,6 +1355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<GitHostedReviewRange>
   crateApiGitGitHostedReviewGitFetchHostedReviewRange({
     required String path,
+    required String remoteName,
     required String baseBranch,
     required String headSha,
     String? reviewRef,
@@ -1363,6 +1365,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(path, serializer);
+          sse_encode_String(remoteName, serializer);
           sse_encode_String(baseBranch, serializer);
           sse_encode_String(headSha, serializer);
           sse_encode_opt_String(reviewRef, serializer);
@@ -1379,7 +1382,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiGitGitHostedReviewGitFetchHostedReviewRangeConstMeta,
-        argValues: [path, baseBranch, headSha, reviewRef],
+        argValues: [path, remoteName, baseBranch, headSha, reviewRef],
         apiImpl: this,
       ),
     );
@@ -1389,7 +1392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiGitGitHostedReviewGitFetchHostedReviewRangeConstMeta =>
       const TaskConstMeta(
         debugName: "git_fetch_hosted_review_range",
-        argNames: ["path", "baseBranch", "headSha", "reviewRef"],
+        argNames: ["path", "remoteName", "baseBranch", "headSha", "reviewRef"],
       );
 
   @override

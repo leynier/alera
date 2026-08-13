@@ -922,6 +922,7 @@ fn wire__crate__api__git__git_hosted_review__git_fetch_hosted_review_range_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_path = <String>::sse_decode(&mut deserializer);
+            let api_remote_name = <String>::sse_decode(&mut deserializer);
             let api_base_branch = <String>::sse_decode(&mut deserializer);
             let api_head_sha = <String>::sse_decode(&mut deserializer);
             let api_review_ref = <Option<String>>::sse_decode(&mut deserializer);
@@ -931,6 +932,7 @@ fn wire__crate__api__git__git_hosted_review__git_fetch_hosted_review_range_impl(
                     let output_ok =
                         crate::api::git::git_hosted_review::git_fetch_hosted_review_range(
                             api_path,
+                            api_remote_name,
                             api_base_branch,
                             api_head_sha,
                             api_review_ref,

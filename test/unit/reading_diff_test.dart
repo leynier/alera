@@ -38,7 +38,7 @@ void main() {
       request: request,
       rawDiff: Uint8List.fromList(<int>[1]),
       compiler: compiler,
-      agent: AiTextGenerationAgent.agy,
+      agent: AiTextGenerationAgent.codex,
       model: 'agent-model',
       effort: 'medium',
       accessPolicy: AgentTaskAccessPolicy.diffOnly,
@@ -147,7 +147,7 @@ void main() {
 
   test(
     'reading diff prompts preserve immutable coordinates and repair data',
-    () {
+    () async {
       final preparation = rust.ReadingDiffPreparation(
         rawBytes: BigInt.from(20),
         schemaVersion: 1,
@@ -184,6 +184,20 @@ void main() {
       );
       expect(repair, contains('missing summary'));
       expect(repair, contains('{"version":1}'));
+      expect(
+        await firstOversizedReadingDiffPromptChunk(
+          preparation: rust.ReadingDiffPreparation(
+            rawBytes: preparation.rawBytes,
+            schemaVersion: preparation.schemaVersion,
+            rubricVersion: preparation.rubricVersion,
+            planSchema: preparation.planSchema,
+            chunks: <rust.ReadingDiffChunk>[chunk],
+          ),
+          customInstructions: 'Keep security checks.',
+          maxBytes: 1,
+        ),
+        0,
+      );
     },
   );
 
@@ -225,6 +239,8 @@ void main() {
         '${directory.path}${Platform.pathSeparator}reading-diffs',
       ).list().toList();
       expect(files, hasLength(1));
+      await cache.remove('cache-key');
+      expect(await cache.read('cache-key'), isNull);
     },
   );
 
@@ -286,6 +302,11 @@ class _FailingReadingDiffCache implements ReadingDiffCache {
 
   @override
   Future<ReadingDiffResult?> read(String key) async => null;
+
+  @override
+  Future<void> remove(String key) async {
+    throw const FileSystemException('disk full');
+  }
 
   @override
   Future<void> write(String key, ReadingDiffResult result) async {

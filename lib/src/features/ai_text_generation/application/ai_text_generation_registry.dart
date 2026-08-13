@@ -4,8 +4,11 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 
 part 'grok_ai_text_generation.dart';
 part 'opencode_ai_text_generation.dart';
+part 'claude_ai_text_generation.dart';
 part 'ai_text_generation_model_labels.dart';
 part 'ai_text_generation_output_capabilities.dart';
+
+enum AiTextDiffOnlyAccess { unsupported, toolFree, codexRestrictedFilesystem }
 
 class AiThinkingLevel {
   const AiThinkingLevel({required this.id, required this.label});
@@ -68,6 +71,8 @@ class AiTextAgentSpec {
     this.nativeStructuredOutput = AiNativeStructuredOutput.none,
     this.supportsRepositoryRead = false,
     this.readOnlyGuarantee = false,
+    this.diffOnlyAccess = AiTextDiffOnlyAccess.unsupported,
+    this.diffOnlyArgs = const <String>[],
     this.maxPromptBytes = 1024 * 1024,
   });
 
@@ -82,6 +87,8 @@ class AiTextAgentSpec {
   final AiNativeStructuredOutput nativeStructuredOutput;
   final bool supportsRepositoryRead;
   final bool readOnlyGuarantee;
+  final AiTextDiffOnlyAccess diffOnlyAccess;
+  final List<String> diffOnlyArgs;
   final int maxPromptBytes;
   final List<String> Function({
     required String prompt,
@@ -122,49 +129,7 @@ const List<AiThinkingLevel> onOffThinkingLevels = <AiThinkingLevel>[
 
 final Map<AiTextGenerationAgent, AiTextAgentSpec>
 aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
-  AiTextGenerationAgent.claude: AiTextAgentSpec(
-    agent: AiTextGenerationAgent.claude,
-    binary: 'claude',
-    promptDelivery: AiPromptDelivery.stdin,
-    modelsCommand: null,
-    parseModels: parseLineModels,
-    models: const <AiTextModel>[
-      AiTextModel(id: 'haiku', label: 'Haiku'),
-      AiTextModel(
-        id: 'sonnet',
-        label: 'Sonnet',
-        thinkingLevels: claudeThinkingLevels,
-        defaultThinkingLevel: 'low',
-      ),
-      AiTextModel(
-        id: 'opus',
-        label: 'Opus',
-        thinkingLevels: claudeThinkingLevels,
-        defaultThinkingLevel: 'low',
-      ),
-    ],
-    defaultModelId: 'sonnet',
-    nativeStructuredOutput: AiNativeStructuredOutput.claudeJsonSchema,
-    supportsRepositoryRead: true,
-    readOnlyGuarantee: true,
-    maxPromptBytes: 1024 * 1024,
-    buildArgs:
-        ({
-          required model,
-          thinkingLevel,
-          required prompt,
-          required timeoutSeconds,
-        }) => <String>[
-          '-p',
-          '--output-format',
-          'text',
-          '--model',
-          model,
-          '--permission-mode',
-          'plan',
-          if (thinkingLevel != null) ...<String>['--effort', thinkingLevel],
-        ],
-  ),
+  AiTextGenerationAgent.claude: claudeAiTextAgentSpec,
   AiTextGenerationAgent.codex: AiTextAgentSpec(
     agent: AiTextGenerationAgent.codex,
     binary: 'codex',
@@ -195,6 +160,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
     nativeStructuredOutput: AiNativeStructuredOutput.codexSchemaFile,
     supportsRepositoryRead: true,
     readOnlyGuarantee: true,
+    diffOnlyAccess: AiTextDiffOnlyAccess.codexRestrictedFilesystem,
     maxPromptBytes: 1024 * 1024,
     buildArgs:
         ({
@@ -236,6 +202,14 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.4',
+    diffOnlyAccess: AiTextDiffOnlyAccess.toolFree,
+    diffOnlyArgs: const <String>[
+      '--available-tools=',
+      '--excluded-tools=*',
+      '--disable-builtin-mcps',
+      '--no-ask-user',
+      '--no-auto-update',
+    ],
     maxPromptBytes: 24000,
     buildArgs:
         ({
@@ -329,6 +303,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
       ),
     ],
     defaultModelId: 'github-copilot/gpt-5.4-mini',
+    diffOnlyAccess: AiTextDiffOnlyAccess.toolFree,
     buildArgs:
         ({
           required model,

@@ -1,9 +1,7 @@
-use git2::{Branch, BranchType, Reference, Repository};
+use git2::{Branch, Reference, Repository};
 use uuid::Uuid;
 
-use super::{
-    configured_remote_for_tracking_branch, git_cli_in_path, open_repo, GitError, GitErrorKind,
-};
+use super::{git_cli_in_path, open_repo, GitError, GitErrorKind};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitHostedReviewRange {
@@ -14,11 +12,18 @@ pub struct GitHostedReviewRange {
 
 pub fn fetch_hosted_review_range(
     repo_path: &str,
+    remote_name: &str,
     base_branch: &str,
     head_sha: &str,
     review_ref: Option<&str>,
 ) -> Result<GitHostedReviewRange, GitError> {
     let repo = open_repo(repo_path)?;
+    repo.find_remote(remote_name).map_err(|_| {
+        GitError::new(
+            GitErrorKind::RemoteNotFound,
+            format!("hosted review remote not found: {remote_name}"),
+        )
+    })?;
     if !Branch::name_is_valid(base_branch).map_err(GitError::from_git2)? {
         return Err(GitError::new(GitErrorKind::InvalidBranchName, base_branch));
     }
@@ -35,18 +40,17 @@ pub fn fetch_hosted_review_range(
             "invalid hosted review ref",
         ));
     }
-    let remote = hosted_review_remote(&repo, base_branch)?;
     let retention_id = Uuid::new_v4().simple().to_string();
     let base_source = format!("refs/heads/{base_branch}");
     let base_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/base");
     let head_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/head");
     let result = (|| {
-        fetch_ref(repo_path, &remote, &base_source, &base_target)?;
+        fetch_ref(repo_path, remote_name, &base_source, &base_target)?;
 
         let primary_head = review_ref.unwrap_or(head_sha);
-        if let Err(primary_error) = fetch_ref(repo_path, &remote, primary_head, &head_target) {
+        if let Err(primary_error) = fetch_ref(repo_path, remote_name, primary_head, &head_target) {
             if review_ref.is_none()
-                || fetch_ref(repo_path, &remote, head_sha, &head_target).is_err()
+                || fetch_ref(repo_path, remote_name, head_sha, &head_target).is_err()
             {
                 return Err(primary_error);
             }
@@ -148,34 +152,6 @@ fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) {
         if let Ok(mut reference) = repo.find_reference(name) {
             let _ = reference.delete();
         }
-    }
-}
-
-fn hosted_review_remote(repo: &Repository, base_branch: &str) -> Result<String, GitError> {
-    if let Ok(branch) = repo.find_branch(base_branch, BranchType::Local) {
-        if let Ok(upstream) = branch.upstream() {
-            if let Some(name) = upstream.name().map_err(GitError::from_git2)? {
-                if let Some(remote) = configured_remote_for_tracking_branch(repo, name)? {
-                    return Ok(remote);
-                }
-            }
-        }
-    }
-    if repo.find_remote("origin").is_ok() {
-        return Ok("origin".to_string());
-    }
-    let remotes = repo.remotes().map_err(GitError::from_git2)?;
-    let names = remotes
-        .iter()
-        .filter_map(Result::ok)
-        .flatten()
-        .collect::<Vec<_>>();
-    match names.as_slice() {
-        [remote] => Ok((*remote).to_string()),
-        _ => Err(GitError::new(
-            GitErrorKind::RemoteNotFound,
-            "could not determine the hosted review remote",
-        )),
     }
 }
 

@@ -10,12 +10,14 @@ pub struct GitHostedReviewRange {
 
 pub fn git_fetch_hosted_review_range(
     path: String,
+    remote_name: String,
     base_branch: String,
     head_sha: String,
     review_ref: Option<String>,
 ) -> Result<GitHostedReviewRange, GitError> {
     let range = core_git::hosted_review::fetch_hosted_review_range(
         &path,
+        &remote_name,
         &base_branch,
         &head_sha,
         review_ref.as_deref(),

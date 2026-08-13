@@ -15,6 +15,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_revie
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -159,8 +160,15 @@ class _VisiblePullRequestsPanelState
     GitHostedReviewRange? retainedRange;
     var handedToWorkbench = false;
     try {
+      final remote = preferredHostingRemoteName(
+        await backend.listRemotes(widget.repoPath),
+      );
+      if (remote == null) {
+        throw StateError('The pull request remote could not be resolved.');
+      }
       final objects = await backend.fetchHostedReviewRange(
         path: widget.repoPath,
+        remote: remote,
         baseBranch: baseRef,
         headSha: headRef,
         reviewRef: switch (review.provider) {

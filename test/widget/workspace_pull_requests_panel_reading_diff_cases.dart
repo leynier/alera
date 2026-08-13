@@ -76,6 +76,7 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
           .args,
       <String, Object?>{
         'path': '/repo',
+        'remote': 'origin',
         'baseBranch': 'main',
         'headSha': 'head-385',
         'reviewRef': 'refs/pull/385/head',
