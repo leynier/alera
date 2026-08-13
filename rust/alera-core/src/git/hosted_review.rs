@@ -1,4 +1,6 @@
-use git2::{Branch, Reference, Repository};
+use std::collections::HashSet;
+
+use git2::{Branch, Reference};
 use uuid::Uuid;
 
 use super::{git_cli_in_path, open_repo, GitError, GitErrorKind};
@@ -69,14 +71,15 @@ pub fn fetch_hosted_review_range(
                 "the hosted review changed while its diff was opening",
             ));
         }
-        retain_hosted_review_objects(&refreshed, &retention_id, base_oid, head_oid)?;
         Ok(GitHostedReviewRange {
             base_oid: base_oid.to_string(),
             head_oid: head_oid.to_string(),
             retention_id: retention_id.clone(),
         })
     })();
-    cleanup_temporary_refs(repo_path, [&base_target, &head_target]);
+    if result.is_err() {
+        cleanup_temporary_refs(repo_path, [&base_target, &head_target]);
+    }
     result
 }
 
@@ -97,31 +100,73 @@ fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(),
 pub fn release_hosted_review_range(repo_path: &str, retention_id: &str) -> Result<(), GitError> {
     validate_retention_id(retention_id)?;
     let repo = open_repo(repo_path)?;
+    for namespace in ["tabs", "operations"] {
+        for role in ["base", "head"] {
+            let name = hosted_ref_name(namespace, retention_id, role);
+            if let Ok(mut reference) = repo.find_reference(&name) {
+                reference.delete().map_err(GitError::from_git2)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn persist_hosted_review_range(repo_path: &str, retention_id: &str) -> Result<(), GitError> {
+    validate_retention_id(retention_id)?;
+    let repo = open_repo(repo_path)?;
     for role in ["base", "head"] {
         let name = retained_ref_name(retention_id, role);
-        if let Ok(mut reference) = repo.find_reference(&name) {
+        if repo.find_reference(&name).is_err() {
+            let operation = operation_ref_name(retention_id, role);
+            let object_id = repo
+                .refname_to_id(&operation)
+                .map_err(GitError::from_git2)?;
+            repo.reference(
+                &name,
+                object_id,
+                true,
+                "alera: retain object for a persisted hosted review tab",
+            )
+            .map_err(GitError::from_git2)?;
+        }
+    }
+    for role in ["base", "head"] {
+        if let Ok(mut reference) = repo.find_reference(&operation_ref_name(retention_id, role)) {
             reference.delete().map_err(GitError::from_git2)?;
         }
     }
     Ok(())
 }
 
-fn retain_hosted_review_objects(
-    repo: &Repository,
-    retention_id: &str,
-    base_oid: git2::Oid,
-    head_oid: git2::Oid,
+pub fn sweep_hosted_review_ranges(
+    repo_path: &str,
+    retained_ids: &[String],
 ) -> Result<(), GitError> {
-    validate_retention_id(retention_id)?;
-    for (role, object_id) in [("base", base_oid), ("head", head_oid)] {
-        let name = retained_ref_name(retention_id, role);
-        repo.reference(
-            &name,
-            object_id,
-            true,
-            "alera: retain object for a persisted hosted review tab",
-        )
-        .map_err(GitError::from_git2)?;
+    let repo = open_repo(repo_path)?;
+    let retained = retained_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
+    let mut stale_names = Vec::<String>::new();
+    for namespace in ["operations", "tabs"] {
+        let pattern = format!("refs/alera/hosted-reviews/{namespace}/*/*");
+        let references = repo
+            .references_glob(&pattern)
+            .map_err(GitError::from_git2)?;
+        for reference in references.filter_map(Result::ok) {
+            let Ok(name) = reference.name() else {
+                continue;
+            };
+            let retention_id = name.rsplit('/').nth(1).unwrap_or_default();
+            if namespace == "operations" || !retained.contains(retention_id) {
+                stale_names.push(name.to_string());
+            }
+        }
+    }
+    for name in stale_names {
+        if let Ok(mut reference) = repo.find_reference(&name) {
+            reference.delete().map_err(GitError::from_git2)?;
+        }
     }
     Ok(())
 }
@@ -141,7 +186,15 @@ fn validate_retention_id(retention_id: &str) -> Result<(), GitError> {
 }
 
 fn retained_ref_name(retention_id: &str, role: &str) -> String {
-    format!("refs/alera/hosted-reviews/tabs/{retention_id}/{role}")
+    hosted_ref_name("tabs", retention_id, role)
+}
+
+fn operation_ref_name(retention_id: &str, role: &str) -> String {
+    hosted_ref_name("operations", retention_id, role)
+}
+
+fn hosted_ref_name(namespace: &str, retention_id: &str, role: &str) -> String {
+    format!("refs/alera/hosted-reviews/{namespace}/{retention_id}/{role}")
 }
 
 fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) {

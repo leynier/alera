@@ -60,15 +60,17 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             old_allows_rust_imports = false;
             new_allows_rust_imports = false;
         }
-        if let Some(path) = text.strip_prefix(b"--- ") {
-            old_import_syntax = import_syntax_for_path(path);
-            old_allows_common_js_imports = is_common_js_path(path);
-            old_allows_rust_imports = is_rust_path(path);
-        }
-        if let Some(path) = text.strip_prefix(b"+++ ") {
-            new_import_syntax = import_syntax_for_path(path);
-            new_allows_common_js_imports = is_common_js_path(path);
-            new_allows_rust_imports = is_rust_path(path);
+        if remaining.is_none() {
+            if let Some(path) = text.strip_prefix(b"--- ") {
+                old_import_syntax = import_syntax_for_path(path);
+                old_allows_common_js_imports = is_common_js_path(path);
+                old_allows_rust_imports = is_rust_path(path);
+            }
+            if let Some(path) = text.strip_prefix(b"+++ ") {
+                new_import_syntax = import_syntax_for_path(path);
+                new_allows_common_js_imports = is_common_js_path(path);
+                new_allows_rust_imports = is_rust_path(path);
+            }
         }
         if text.starts_with(b"@@@") {
             return Err(ReadingDiffError::new(format!(

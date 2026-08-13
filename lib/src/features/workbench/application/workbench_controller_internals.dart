@@ -164,6 +164,22 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
+  Future<void> _persistHostedReviewRetention({
+    required Workspace workspace,
+    required String? relativeRoot,
+    required String retentionId,
+  }) {
+    final path = relativeRoot == null
+        ? workspace.path
+        : sourceControlRootAbsolutePath(
+            workspacePath: workspace.path,
+            relativeRoot: relativeRoot,
+          );
+    return ref
+        .read(gitBackendProvider)
+        .persistHostedReviewRange(path: path, retentionId: retentionId);
+  }
+
   void _releaseHostedReviewTabsInBackground(
     Workspace workspace,
     Iterable<WorkspaceTabRecord> tabs,

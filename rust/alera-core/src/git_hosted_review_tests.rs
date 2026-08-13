@@ -2,7 +2,10 @@ use std::fs;
 
 use git2::{BranchType, IndexAddOption, Oid, Repository, Signature};
 
-use super::{fetch_hosted_review_range, release_hosted_review_range};
+use super::{
+    fetch_hosted_review_range, persist_hosted_review_range, release_hosted_review_range,
+    sweep_hosted_review_ranges,
+};
 
 #[test]
 fn fetches_exact_hosted_base_and_head_objects() {
@@ -82,14 +85,26 @@ fn fetches_exact_hosted_base_and_head_objects() {
         .collect::<Vec<_>>();
     assert_eq!(hosted_refs.len(), 2);
     assert!(hosted_refs.contains(&format!(
-        "refs/alera/hosted-reviews/tabs/{}/base",
+        "refs/alera/hosted-reviews/operations/{}/base",
         range.retention_id
     )));
     assert!(hosted_refs.contains(&format!(
-        "refs/alera/hosted-reviews/tabs/{}/head",
+        "refs/alera/hosted-reviews/operations/{}/head",
         range.retention_id
     )));
     assert!(client.find_commit(head).is_ok());
+
+    persist_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("persist hosted range");
+    assert!(client
+        .find_reference(&format!(
+            "refs/alera/hosted-reviews/tabs/{}/head",
+            range.retention_id
+        ))
+        .is_ok());
 
     release_hosted_review_range(
         client_directory.path().to_string_lossy().as_ref(),
@@ -104,6 +119,45 @@ fn fetches_exact_hosted_base_and_head_objects() {
         .filter(|name| name.starts_with("refs/alera/hosted-reviews/"))
         .count();
     assert_eq!(remaining, 0);
+}
+
+#[test]
+fn sweeps_unowned_hosted_review_refs() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let repository = Repository::init(directory.path()).expect("repository");
+    let object = repository.blob(b"review").expect("object");
+    let retained = "00000000000000000000000000000001";
+    let stale = "00000000000000000000000000000002";
+    for (namespace, retention_id) in [("tabs", retained), ("tabs", stale), ("operations", stale)] {
+        for role in ["base", "head"] {
+            repository
+                .reference(
+                    &format!("refs/alera/hosted-reviews/{namespace}/{retention_id}/{role}"),
+                    object,
+                    true,
+                    "test",
+                )
+                .expect("hosted ref");
+        }
+    }
+
+    sweep_hosted_review_ranges(
+        directory.path().to_string_lossy().as_ref(),
+        &[retained.into()],
+    )
+    .expect("sweep");
+
+    assert!(repository
+        .find_reference(&format!("refs/alera/hosted-reviews/tabs/{retained}/head"))
+        .is_ok());
+    assert!(repository
+        .find_reference(&format!("refs/alera/hosted-reviews/tabs/{stale}/head"))
+        .is_err());
+    assert!(repository
+        .find_reference(&format!(
+            "refs/alera/hosted-reviews/operations/{stale}/head"
+        ))
+        .is_err());
 }
 
 fn push(repository: &Repository, refspec: &str) {

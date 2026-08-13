@@ -73,7 +73,7 @@ fn starts_import(
     allows_common_js_imports: bool,
     allows_rust_imports: bool,
 ) -> bool {
-    allows_import_keyword && trimmed.starts_with("import ")
+    allows_import_keyword && starts_static_import(trimmed, allows_js_reexports)
         || allows_js_reexports && starts_reexport(trimmed)
         || allows_python_from_imports
             && trimmed.starts_with("from ")
@@ -84,6 +84,14 @@ fn starts_import(
         || allows_common_js_imports
             && (trimmed.starts_with("require(")
                 || trimmed.starts_with("const ") && trimmed.contains("require("))
+}
+
+fn starts_static_import(trimmed: &str, javascript: bool) -> bool {
+    let Some(rest) = trimmed.strip_prefix("import ") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    !rest.is_empty() && (!javascript || !rest.starts_with(['(', '/']))
 }
 
 fn starts_reexport(trimmed: &str) -> bool {

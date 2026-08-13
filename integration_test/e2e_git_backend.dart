@@ -199,6 +199,12 @@ class E2eGitBackend implements GitBackend {
   }) async {}
 
   @override
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) async {}
+
+  @override
   Future<void> stage({required String path, String? filePath}) async {}
 
   @override

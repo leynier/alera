@@ -237,6 +237,15 @@ void _registerWorkbenchControllerLifecycleTests() {
 
     expect(reused.id, first.id);
     expect(
+      _harness.gitBackend.calls.any(
+        (call) =>
+            call.method == 'persistHostedReviewRange' &&
+            call.args['retentionId'] == 'retention-1' &&
+            call.args['path'] == p.join(workspace.path, 'packages', 'app'),
+      ),
+      isTrue,
+    );
+    expect(
       _harness.gitBackend.calls.where(
         (call) =>
             call.method == 'releaseHostedReviewRange' &&

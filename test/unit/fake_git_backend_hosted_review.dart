@@ -37,4 +37,16 @@ mixin _FakeGitBackendHostedReview {
       }),
     );
   }
+
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) async {
+    calls.add(
+      GitBackendCall('persistHostedReviewRange', <String, Object?>{
+        'path': path,
+        'retentionId': retentionId,
+      }),
+    );
+  }
 }

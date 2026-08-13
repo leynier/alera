@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Component, Path};
 
 use alera_core::runtime::{RuntimeStore, WorkspaceTabRecord};
@@ -56,6 +57,52 @@ pub(crate) fn release(retentions: Vec<HostedReviewRetention>) {
                 );
             }
         }
+    }
+}
+
+pub(crate) async fn reconcile(store: &RuntimeStore) {
+    let Ok(projects) = store.list_projects().await else {
+        return;
+    };
+    let Ok(workspaces) = store.list_all_workspaces().await else {
+        return;
+    };
+    let mut repo_paths = projects
+        .into_iter()
+        .map(|project| project.repo_path)
+        .chain(workspaces.iter().map(|workspace| workspace.path.clone()))
+        .collect::<HashSet<_>>();
+    let mut retentions = Vec::new();
+    for workspace in workspaces {
+        let Ok(tabs) = store.list_workspace_tabs(&workspace.id).await else {
+            continue;
+        };
+        retentions.extend(for_records(store, tabs).await);
+    }
+    let retained_ids = retentions
+        .iter()
+        .map(|retention| retention.retention_id.clone())
+        .collect::<HashSet<_>>();
+    for retention in &retentions {
+        repo_paths.insert(retention.repo_path.clone());
+        let persisted = alera_core::git::hosted_review::persist_hosted_review_range(
+            &retention.repo_path,
+            &retention.retention_id,
+        );
+        if persisted.is_err() {
+            if let Some(fallback) = &retention.fallback_repo_path {
+                repo_paths.insert(fallback.clone());
+                let _ = alera_core::git::hosted_review::persist_hosted_review_range(
+                    fallback,
+                    &retention.retention_id,
+                );
+            }
+        }
+    }
+    let retained_ids = retained_ids.into_iter().collect::<Vec<_>>();
+    for repo_path in repo_paths {
+        let _ =
+            alera_core::git::hosted_review::sweep_hosted_review_ranges(&repo_path, &retained_ids);
     }
 }
 
@@ -139,7 +186,7 @@ mod tests {
         for role in ["base", "head"] {
             repository
                 .reference(
-                    &format!("refs/alera/hosted-reviews/tabs/{retention_id}/{role}"),
+                    &format!("refs/alera/hosted-reviews/operations/{retention_id}/{role}"),
                     object,
                     true,
                     "test",
@@ -196,6 +243,20 @@ mod tests {
             })
             .await
             .unwrap();
+
+        reconcile(&store).await;
+        for role in ["base", "head"] {
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/tabs/{retention_id}/{role}"
+                ))
+                .is_ok());
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/operations/{retention_id}/{role}"
+                ))
+                .is_err());
+        }
 
         let retentions = for_tab(&store, "diff-tab").await;
         release(retentions);

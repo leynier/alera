@@ -33,3 +33,8 @@ pub fn git_release_hosted_review_range(path: String, retention_id: String) -> Re
     core_git::hosted_review::release_hosted_review_range(&path, &retention_id)?;
     Ok(())
 }
+
+pub fn git_persist_hosted_review_range(path: String, retention_id: String) -> Result<(), GitError> {
+    core_git::hosted_review::persist_hosted_review_range(&path, &retention_id)?;
+    Ok(())
+}

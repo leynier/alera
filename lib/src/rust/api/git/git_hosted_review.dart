@@ -30,6 +30,15 @@ Future<void> gitReleaseHostedReviewRange({
       retentionId: retentionId,
     );
 
+Future<void> gitPersistHostedReviewRange({
+  required String path,
+  required String retentionId,
+}) =>
+    RustLib.instance.api.crateApiGitGitHostedReviewGitPersistHostedReviewRange(
+      path: path,
+      retentionId: retentionId,
+    );
+
 class GitHostedReviewRange {
   final String baseOid;
   final String headOid;

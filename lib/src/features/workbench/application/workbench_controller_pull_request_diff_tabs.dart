@@ -13,6 +13,7 @@ mixin _WorkbenchControllerPullRequestDiffTabs
     String? targetGroupId,
   }) async {
     var retainedByTab = false;
+    WorkspaceTabRecord? newTab;
     try {
       final previousTabs = state.tabsFor(workspace.id);
       final layout = _layoutForMutation(workspace.id, previousTabs);
@@ -25,17 +26,26 @@ mixin _WorkbenchControllerPullRequestDiffTabs
         retentionId: retentionId,
         subject: subject,
       );
-      retainedByTab = tab.gitDiffHostedReviewRetentionId == retentionId;
-      if (!retainedByTab) {
+      final alreadyOpen = previousTabs.any(
+        (candidate) => candidate.id == tab.id,
+      );
+      if (!alreadyOpen) {
+        newTab = tab;
+      }
+      if (tab.gitDiffHostedReviewRetentionId == retentionId) {
+        await _persistHostedReviewRetention(
+          workspace: workspace,
+          relativeRoot: gitDiffRoot,
+          retentionId: retentionId,
+        );
+        retainedByTab = true;
+      } else {
         await _releaseHostedReviewRetention(
           workspace: workspace,
           relativeRoot: gitDiffRoot,
           retentionId: retentionId,
         );
       }
-      final alreadyOpen = previousTabs.any(
-        (candidate) => candidate.id == tab.id,
-      );
       final tabs = alreadyOpen
           ? previousTabs
           : <WorkspaceTabRecord>[...previousTabs, tab];
@@ -52,6 +62,9 @@ mixin _WorkbenchControllerPullRequestDiffTabs
       return tab;
     } catch (error) {
       if (!retainedByTab) {
+        if (newTab case final tab?) {
+          await _workspaceTabService.closeTab(tab.id);
+        }
         await _releaseHostedReviewRetention(
           workspace: workspace,
           relativeRoot: gitDiffRoot,

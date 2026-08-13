@@ -68,4 +68,14 @@ mixin _RustGitBackendHostedReview {
       retentionId: retentionId,
     ),
   );
+
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) => _guard(
+    () => hosted_review_rust.gitPersistHostedReviewRange(
+      path: path,
+      retentionId: retentionId,
+    ),
+  );
 }

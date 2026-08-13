@@ -218,6 +218,12 @@ abstract interface class GitBackend {
     String? reviewRef,
   });
 
+  /// Promotes fetched objects after the hosted-review tab is persisted.
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  });
+
   /// Releases the exact objects retained while a hosted-review tab was open.
   Future<void> releaseHostedReviewRange({
     required String path,

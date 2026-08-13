@@ -353,13 +353,24 @@ fn rejects_partial_python_expressions_and_elides_multiline_imports() {
 fn does_not_apply_python_rules_to_non_python_paths_containing_spaces() {
     let prose = b"diff --git a/docs/example.py notes.txt b/docs/example.py notes.txt\n--- a/docs/example.py notes.txt\t\n+++ b/docs/example.py notes.txt\t\n@@ -1 +1 @@\n-old heading:\n+new heading:\n";
     let plan = r#"{"version":1,"remove":[{"start_line":5,"end_line":5}],"replace":[],"fold":[],"summary":"Update the heading."}"#;
-
     let result = compile(prose, plan).expect("non-Python prose");
-
     assert!(!result
         .reading_diff
         .windows(13)
         .any(|row| row == b"-old heading:"));
+}
+
+#[test]
+fn keeps_language_capabilities_for_header_shaped_rows_and_dynamic_imports() {
+    let diff = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1,2 +1,2 @@\n--- value\n-@decorator\n+value\n+@replacement\n";
+    let plan = r#"{"version":1,"remove":[{"start_line":6,"end_line":6}],"replace":[],"fold":[],"summary":"Keep decorators."}"#;
+    let error = compile(diff, plan).expect_err("Python decorator removal");
+    assert!(error.message.contains("Python decorator"));
+    let diff = b"diff --git a/app.js b/app.js\nnew file mode 100644\n--- /dev/null\n+++ b/app.js\n@@ -0,0 +1 @@\n+import ('./setup.js');\n";
+    let plan =
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Load setup dynamically."}"#;
+    let result = compile(diff, plan).expect("dynamic import");
+    assert_eq!(result.reading_diff, diff);
 }
 
 #[test]
