@@ -215,6 +215,8 @@ abstract interface class GitBackend {
     required String remote,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   });
 

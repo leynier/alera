@@ -22,6 +22,7 @@ HostedReview mapAzureReview(
   final isDraft = json['isDraft'] as bool? ?? false;
   final createdBy = json['createdBy'];
   final lastMerge = json['lastMergeSourceCommit'];
+  final lastMergeTarget = json['lastMergeTargetCommit'];
   return HostedReview(
     provider: GitHostingProvider.azureDevops,
     number: number,
@@ -36,6 +37,9 @@ HostedReview mapAzureReview(
     headBranch: shortAzureRef(json['sourceRefName'] as String?),
     headSha: lastMerge is Map<String, Object?>
         ? lastMerge['commitId'] as String?
+        : null,
+    comparisonBaseSha: lastMergeTarget is Map<String, Object?>
+        ? lastMergeTarget['commitId'] as String?
         : null,
     mergeable: _mapMergeable(json['mergeStatus'] as String?),
   );

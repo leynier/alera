@@ -13,6 +13,8 @@ pub fn git_fetch_hosted_review_range(
     remote_name: String,
     base_branch: String,
     head_sha: String,
+    comparison_base_sha: Option<String>,
+    merge_commit_sha: Option<String>,
     review_ref: Option<String>,
 ) -> Result<GitHostedReviewRange, GitError> {
     let range = core_git::hosted_review::fetch_hosted_review_range(
@@ -20,6 +22,8 @@ pub fn git_fetch_hosted_review_range(
         &remote_name,
         &base_branch,
         &head_sha,
+        comparison_base_sha.as_deref(),
+        merge_commit_sha.as_deref(),
         review_ref.as_deref(),
     )?;
     Ok(GitHostedReviewRange {

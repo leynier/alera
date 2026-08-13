@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use git2::{Branch, Reference};
+use git2::{Branch, Oid, Reference, Repository};
 use uuid::Uuid;
 
 use super::{git_cli_in_path, open_repo, GitError, GitErrorKind};
@@ -17,6 +17,8 @@ pub fn fetch_hosted_review_range(
     remote_name: &str,
     base_branch: &str,
     head_sha: &str,
+    comparison_base_sha: Option<&str>,
+    merge_commit_sha: Option<&str>,
     review_ref: Option<&str>,
 ) -> Result<GitHostedReviewRange, GitError> {
     let repo = open_repo(repo_path)?;
@@ -29,12 +31,12 @@ pub fn fetch_hosted_review_range(
     if !Branch::name_is_valid(base_branch).map_err(GitError::from_git2)? {
         return Err(GitError::new(GitErrorKind::InvalidBranchName, base_branch));
     }
-    if !matches!(head_sha.len(), 40 | 64) || !head_sha.bytes().all(|byte| byte.is_ascii_hexdigit())
-    {
-        return Err(GitError::new(
-            GitErrorKind::Internal,
-            "invalid hosted head SHA",
-        ));
+    validate_hosted_sha(head_sha, "head")?;
+    if let Some(value) = comparison_base_sha {
+        validate_hosted_sha(value, "comparison base")?;
+    }
+    if let Some(value) = merge_commit_sha {
+        validate_hosted_sha(value, "merge commit")?;
     }
     if review_ref.is_some_and(|value| !Reference::is_valid_name(value)) {
         return Err(GitError::new(
@@ -46,22 +48,53 @@ pub fn fetch_hosted_review_range(
     let base_source = format!("refs/heads/{base_branch}");
     let base_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/base");
     let head_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/head");
+    let candidate_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/candidate");
     let result = (|| {
         fetch_ref(repo_path, remote_name, &base_source, &base_target)?;
 
         let primary_head = review_ref.unwrap_or(head_sha);
-        if let Err(primary_error) = fetch_ref(repo_path, remote_name, primary_head, &head_target) {
+        let head_source = if let Err(primary_error) =
+            fetch_ref(repo_path, remote_name, primary_head, &head_target)
+        {
             if review_ref.is_none()
                 || fetch_ref(repo_path, remote_name, head_sha, &head_target).is_err()
             {
                 return Err(primary_error);
             }
+            head_sha
+        } else {
+            primary_head
+        };
+
+        let candidate_source = comparison_base_sha.or(merge_commit_sha);
+        if let Some(source) = candidate_source {
+            let _ = fetch_ref(repo_path, remote_name, source, &candidate_target);
+        }
+
+        if !hosted_range_is_connected(
+            repo_path,
+            &base_target,
+            &head_target,
+            comparison_base_sha,
+            merge_commit_sha,
+        )? {
+            let shallow = open_repo(repo_path)?.is_shallow();
+            if shallow {
+                fetch_review_history(
+                    repo_path,
+                    remote_name,
+                    &base_source,
+                    &base_target,
+                    head_source,
+                    &head_target,
+                )?;
+                if let Some(source) = candidate_source {
+                    let _ = fetch_ref(repo_path, remote_name, source, &candidate_target);
+                }
+            }
         }
 
         let refreshed = open_repo(repo_path)?;
-        let base_oid = refreshed
-            .refname_to_id(&base_target)
-            .map_err(GitError::from_git2)?;
         let head_oid = refreshed
             .refname_to_id(&head_target)
             .map_err(GitError::from_git2)?;
@@ -71,6 +104,27 @@ pub fn fetch_hosted_review_range(
                 "the hosted review changed while its diff was opening",
             ));
         }
+        let base_oid = comparison_base_oid(
+            &refreshed,
+            &base_target,
+            head_oid,
+            comparison_base_sha,
+            merge_commit_sha,
+        )?;
+        refreshed
+            .merge_base(base_oid, head_oid)
+            .map_err(GitError::from_git2)?;
+        refreshed
+            .reference(
+                &base_target,
+                base_oid,
+                true,
+                "alera: freeze hosted review comparison base",
+            )
+            .map_err(GitError::from_git2)?;
+        if let Ok(mut reference) = refreshed.find_reference(&candidate_target) {
+            reference.delete().map_err(GitError::from_git2)?;
+        }
         Ok(GitHostedReviewRange {
             base_oid: base_oid.to_string(),
             head_oid: head_oid.to_string(),
@@ -78,9 +132,72 @@ pub fn fetch_hosted_review_range(
         })
     })();
     if result.is_err() {
-        cleanup_temporary_refs(repo_path, [&base_target, &head_target]);
+        cleanup_temporary_refs(repo_path, [&base_target, &head_target, &candidate_target]);
     }
     result
+}
+
+fn validate_hosted_sha(value: &str, role: &str) -> Result<(), GitError> {
+    if matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Ok(());
+    }
+    Err(GitError::new(
+        GitErrorKind::Internal,
+        format!("invalid hosted {role} SHA"),
+    ))
+}
+
+fn hosted_range_is_connected(
+    repo_path: &str,
+    base_target: &str,
+    head_target: &str,
+    comparison_base_sha: Option<&str>,
+    merge_commit_sha: Option<&str>,
+) -> Result<bool, GitError> {
+    let repo = open_repo(repo_path)?;
+    let Ok(head_oid) = repo.refname_to_id(head_target) else {
+        return Ok(false);
+    };
+    let Ok(base_oid) = comparison_base_oid(
+        &repo,
+        base_target,
+        head_oid,
+        comparison_base_sha,
+        merge_commit_sha,
+    ) else {
+        return Ok(false);
+    };
+    Ok(repo.merge_base(base_oid, head_oid).is_ok())
+}
+
+fn comparison_base_oid(
+    repo: &Repository,
+    base_target: &str,
+    head_oid: Oid,
+    comparison_base_sha: Option<&str>,
+    merge_commit_sha: Option<&str>,
+) -> Result<Oid, GitError> {
+    if let Some(value) = comparison_base_sha {
+        return Oid::from_str(value)
+            .and_then(|oid| repo.find_commit(oid).map(|commit| commit.id()))
+            .map_err(GitError::from_git2);
+    }
+    let current_base = repo
+        .refname_to_id(base_target)
+        .map_err(GitError::from_git2)?;
+    if let Some(value) = merge_commit_sha {
+        let contains_head = current_base == head_oid
+            || repo
+                .graph_descendant_of(current_base, head_oid)
+                .map_err(GitError::from_git2)?;
+        if contains_head {
+            return Oid::from_str(value)
+                .and_then(|oid| repo.find_commit(oid))
+                .and_then(|commit| commit.parent_id(0))
+                .map_err(GitError::from_git2);
+        }
+    }
+    Ok(current_base)
 }
 
 fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(), GitError> {
@@ -93,6 +210,30 @@ fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(),
             "--no-write-fetch-head",
             remote,
             &refspec,
+        ],
+    )
+}
+
+fn fetch_review_history(
+    path: &str,
+    remote: &str,
+    base_source: &str,
+    base_target: &str,
+    head_source: &str,
+    head_target: &str,
+) -> Result<(), GitError> {
+    let base_refspec = format!("+{base_source}:{base_target}");
+    let head_refspec = format!("+{head_source}:{head_target}");
+    git_cli_in_path(
+        path,
+        &[
+            "fetch",
+            "--unshallow",
+            "--no-tags",
+            "--no-write-fetch-head",
+            remote,
+            &base_refspec,
+            &head_refspec,
         ],
     )
 }

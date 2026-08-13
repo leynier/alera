@@ -171,6 +171,8 @@ class _VisiblePullRequestsPanelState
         remote: remote,
         baseBranch: baseRef,
         headSha: headRef,
+        comparisonBaseSha: review.comparisonBaseSha,
+        mergeCommitSha: review.mergeCommitSha,
         reviewRef: switch (review.provider) {
           GitHostingProvider.github => 'refs/pull/${review.number}/head',
           GitHostingProvider.gitlab =>

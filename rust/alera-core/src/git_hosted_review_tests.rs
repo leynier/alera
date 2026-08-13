@@ -69,11 +69,14 @@ fn fetches_exact_hosted_base_and_head_objects() {
         "origin",
         "main",
         &head.to_string(),
+        Some(&base.to_string()),
+        None,
         Some("refs/pull/7/head"),
     )
     .expect("hosted range");
 
-    assert_eq!(range.base_oid, advanced_base.to_string());
+    assert_ne!(advanced_base, base);
+    assert_eq!(range.base_oid, base.to_string());
     assert_eq!(range.head_oid, head.to_string());
     assert_eq!(range.retention_id.len(), 32);
     let hosted_refs = client
@@ -119,6 +122,127 @@ fn fetches_exact_hosted_base_and_head_objects() {
         .filter(|name| name.starts_with("refs/alera/hosted-reviews/"))
         .count();
     assert_eq!(remaining, 0);
+}
+
+#[test]
+fn derives_the_pre_merge_base_when_the_target_contains_the_review_head() {
+    let remote_directory = tempfile::tempdir().expect("remote tempdir");
+    let remote = Repository::init_bare(remote_directory.path()).expect("bare remote");
+    remote.set_head("refs/heads/main").expect("remote head");
+
+    let seed_directory = tempfile::tempdir().expect("seed tempdir");
+    let seed = Repository::init(seed_directory.path()).expect("seed repository");
+    seed.set_head("refs/heads/main").expect("main branch");
+    fs::write(seed_directory.path().join("base.txt"), "base\n").expect("base file");
+    let base = commit(&seed, "base");
+    seed.remote("origin", remote_directory.path().to_string_lossy().as_ref())
+        .expect("origin");
+    push(&seed, "refs/heads/main:refs/heads/main");
+
+    let base_commit = seed.find_commit(base).expect("base commit");
+    seed.branch("feature", &base_commit, false)
+        .expect("feature");
+    drop(base_commit);
+    seed.set_head("refs/heads/feature").expect("feature head");
+    seed.checkout_head(None).expect("feature checkout");
+    fs::write(seed_directory.path().join("feature.txt"), "feature\n").expect("feature file");
+    let head = commit(&seed, "feature");
+    push(&seed, "refs/heads/feature:refs/pull/8/head");
+
+    seed.set_head("refs/heads/main").expect("return to main");
+    seed.checkout_head(None).expect("main checkout");
+    fs::write(seed_directory.path().join("base.txt"), "advanced\n").expect("advance base");
+    let pre_merge_base = commit(&seed, "advance base");
+    let merge = merge_commit(&seed, pre_merge_base, head, "merge review");
+    push(&seed, "refs/heads/main:refs/heads/main");
+
+    let client_directory = tempfile::tempdir().expect("client tempdir");
+    Repository::clone(
+        remote_directory.path().to_string_lossy().as_ref(),
+        client_directory.path(),
+    )
+    .expect("client clone");
+    let range = fetch_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        "origin",
+        "main",
+        &head.to_string(),
+        None,
+        Some(&merge.to_string()),
+        Some("refs/pull/8/head"),
+    )
+    .expect("merged hosted range");
+
+    assert_eq!(range.base_oid, pre_merge_base.to_string());
+    assert_ne!(range.base_oid, range.head_oid);
+}
+
+#[test]
+fn unshallows_when_the_review_merge_base_is_outside_the_boundary() {
+    let remote_directory = tempfile::tempdir().expect("remote tempdir");
+    let remote = Repository::init_bare(remote_directory.path()).expect("bare remote");
+    remote.set_head("refs/heads/main").expect("remote head");
+
+    let seed_directory = tempfile::tempdir().expect("seed tempdir");
+    let seed = Repository::init(seed_directory.path()).expect("seed repository");
+    seed.set_head("refs/heads/main").expect("main branch");
+    seed.remote("origin", remote_directory.path().to_string_lossy().as_ref())
+        .expect("origin");
+    let mut branch_point = None;
+    for index in 1..=5 {
+        fs::write(seed_directory.path().join("base.txt"), format!("{index}\n")).expect("base file");
+        let oid = commit(&seed, &format!("base {index}"));
+        if index == 2 {
+            branch_point = Some(oid);
+        }
+    }
+    push(&seed, "refs/heads/main:refs/heads/main");
+    let branch_point = branch_point.expect("branch point");
+    let branch_commit = seed.find_commit(branch_point).expect("branch commit");
+    seed.branch("feature", &branch_commit, false)
+        .expect("feature");
+    drop(branch_commit);
+    seed.set_head("refs/heads/feature").expect("feature head");
+    seed.checkout_head(None).expect("feature checkout");
+    fs::write(seed_directory.path().join("feature.txt"), "feature\n").expect("feature file");
+    let head = commit(&seed, "feature");
+    push(&seed, "refs/heads/feature:refs/pull/9/head");
+
+    let client_directory = tempfile::tempdir().expect("client tempdir");
+    let remote_url = format!("file://{}", remote_directory.path().to_string_lossy());
+    let client = Repository::clone(&remote_url, client_directory.path()).expect("client clone");
+    let current_main = client
+        .refname_to_id("refs/heads/main")
+        .expect("current main");
+    fs::write(client.path().join("shallow"), format!("{current_main}\n"))
+        .expect("shallow boundary");
+    drop(client);
+    let client = Repository::open(client_directory.path()).expect("shallow client");
+    assert!(client.is_shallow());
+    drop(client);
+
+    let range = fetch_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        "origin",
+        "main",
+        &head.to_string(),
+        None,
+        None,
+        Some("refs/pull/9/head"),
+    )
+    .expect("shallow hosted range");
+    let refreshed = Repository::open(client_directory.path()).expect("refreshed client");
+
+    assert!(!refreshed.is_shallow());
+    assert_eq!(
+        refreshed
+            .merge_base(
+                Oid::from_str(&range.base_oid).expect("base oid"),
+                Oid::from_str(&range.head_oid).expect("head oid"),
+            )
+            .expect("merge base"),
+        branch_point,
+    );
 }
 
 #[test]
@@ -194,4 +318,21 @@ fn commit(repository: &Repository, message: &str) -> Oid {
             &parents,
         )
         .expect("commit")
+}
+
+fn merge_commit(repository: &Repository, base: Oid, head: Oid, message: &str) -> Oid {
+    let signature = Signature::now("Alera", "alera@example.com").expect("signature");
+    let base = repository.find_commit(base).expect("base parent");
+    let head = repository.find_commit(head).expect("head parent");
+    let tree = head.tree().expect("head tree");
+    repository
+        .commit(
+            Some("refs/heads/main"),
+            &signature,
+            &signature,
+            message,
+            &tree,
+            &[&base, &head],
+        )
+        .expect("merge commit")
 }

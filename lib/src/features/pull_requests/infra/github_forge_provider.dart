@@ -43,6 +43,7 @@ class GitHubForgeProvider
     'headRefName',
     'baseRefName',
     'headRefOid',
+    'mergeCommit',
     'author',
   ];
 

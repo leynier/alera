@@ -9,6 +9,7 @@ HostedReview mapGitHubReview(Map<String, Object?> json) {
   final state = (json['state'] as String? ?? 'OPEN').toUpperCase();
   final isDraft = json['isDraft'] as bool? ?? false;
   final author = json['author'];
+  final mergeCommit = json['mergeCommit'];
   return HostedReview(
     provider: GitHostingProvider.github,
     number: (json['number'] as num?)?.toInt() ?? 0,
@@ -20,6 +21,9 @@ HostedReview mapGitHubReview(Map<String, Object?> json) {
     baseBranch: json['baseRefName'] as String?,
     headBranch: json['headRefName'] as String?,
     headSha: json['headRefOid'] as String?,
+    mergeCommitSha: mergeCommit is Map<String, Object?>
+        ? mergeCommit['oid'] as String?
+        : null,
     mergeable: _mapMergeable(json['mergeable'] as String?),
   );
 }

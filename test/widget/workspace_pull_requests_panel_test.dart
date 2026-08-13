@@ -40,6 +40,8 @@ HostedReview _review(int number) => HostedReview(
   baseBranch: 'main',
   headBranch: 'feature',
   headSha: 'head-$number',
+  comparisonBaseSha: 'base-$number',
+  mergeCommitSha: 'merge-$number',
 );
 
 class _PanelWorkbenchController extends WorkbenchController {

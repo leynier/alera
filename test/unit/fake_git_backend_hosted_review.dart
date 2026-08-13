@@ -8,6 +8,8 @@ mixin _FakeGitBackendHostedReview {
     required String remote,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   }) async {
     calls.add(
@@ -16,6 +18,8 @@ mixin _FakeGitBackendHostedReview {
         'remote': remote,
         'baseBranch': baseBranch,
         'headSha': headSha,
+        'comparisonBaseSha': comparisonBaseSha,
+        'mergeCommitSha': mergeCommitSha,
         'reviewRef': reviewRef,
       }),
     );

@@ -12,12 +12,16 @@ Future<GitHostedReviewRange> gitFetchHostedReviewRange({
   required String remoteName,
   required String baseBranch,
   required String headSha,
+  String? comparisonBaseSha,
+  String? mergeCommitSha,
   String? reviewRef,
 }) => RustLib.instance.api.crateApiGitGitHostedReviewGitFetchHostedReviewRange(
   path: path,
   remoteName: remoteName,
   baseBranch: baseBranch,
   headSha: headSha,
+  comparisonBaseSha: comparisonBaseSha,
+  mergeCommitSha: mergeCommitSha,
   reviewRef: reviewRef,
 );
 

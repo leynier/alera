@@ -79,6 +79,8 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
         'remote': 'origin',
         'baseBranch': 'main',
         'headSha': 'head-385',
+        'comparisonBaseSha': 'base-385',
+        'mergeCommitSha': 'merge-385',
         'reviewRef': 'refs/pull/385/head',
       },
     );

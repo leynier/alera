@@ -185,6 +185,8 @@ class E2eGitBackend implements GitBackend {
     required String remote,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   }) async => GitHostedReviewRange(
     baseOid: baseBranch,

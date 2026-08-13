@@ -43,6 +43,8 @@ mixin _RustGitBackendHostedReview {
     required String remote,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   }) => _guard(() async {
     final range = await hosted_review_rust.gitFetchHostedReviewRange(
@@ -50,6 +52,8 @@ mixin _RustGitBackendHostedReview {
       remoteName: remote,
       baseBranch: baseBranch,
       headSha: headSha,
+      comparisonBaseSha: comparisonBaseSha,
+      mergeCommitSha: mergeCommitSha,
       reviewRef: reviewRef,
     );
     return GitHostedReviewRange(

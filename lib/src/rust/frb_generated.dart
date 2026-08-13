@@ -214,6 +214,8 @@ abstract class RustLibApi extends BaseApi {
     required String remoteName,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   });
 
@@ -1364,6 +1366,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String remoteName,
     required String baseBranch,
     required String headSha,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     String? reviewRef,
   }) {
     return handler.executeNormal(
@@ -1374,6 +1378,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(remoteName, serializer);
           sse_encode_String(baseBranch, serializer);
           sse_encode_String(headSha, serializer);
+          sse_encode_opt_String(comparisonBaseSha, serializer);
+          sse_encode_opt_String(mergeCommitSha, serializer);
           sse_encode_opt_String(reviewRef, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -1388,7 +1394,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiGitGitHostedReviewGitFetchHostedReviewRangeConstMeta,
-        argValues: [path, remoteName, baseBranch, headSha, reviewRef],
+        argValues: [
+          path,
+          remoteName,
+          baseBranch,
+          headSha,
+          comparisonBaseSha,
+          mergeCommitSha,
+          reviewRef,
+        ],
         apiImpl: this,
       ),
     );
@@ -1398,7 +1412,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiGitGitHostedReviewGitFetchHostedReviewRangeConstMeta =>
       const TaskConstMeta(
         debugName: "git_fetch_hosted_review_range",
-        argNames: ["path", "remoteName", "baseBranch", "headSha", "reviewRef"],
+        argNames: [
+          "path",
+          "remoteName",
+          "baseBranch",
+          "headSha",
+          "comparisonBaseSha",
+          "mergeCommitSha",
+          "reviewRef",
+        ],
       );
 
   @override
