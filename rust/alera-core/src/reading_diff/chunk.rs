@@ -113,16 +113,33 @@ pub fn merge_chunks(
     let mut summaries = Vec::new();
     let mut changed_lines = 0u32;
     let mut retained_changed_lines = 0u32;
+    let mut active_preamble = None::<Vec<u8>>;
+    let mut active_preamble_retained = false;
+    let mut previous_chunk_had_output = false;
     for chunk in chunks {
         let mut chunk_diff = chunk.result.reading_diff.as_slice();
-        if !chunk.continuation_preamble.is_empty() && !chunk_diff.is_empty() {
-            chunk_diff = chunk_diff
-                .strip_prefix(chunk.continuation_preamble.as_slice())
-                .ok_or_else(|| {
-                    ReadingDiffError::new(
-                        "A continued reading diff chunk changed its structural preamble.",
-                    )
-                })?;
+        if chunk.continuation_preamble.is_empty() {
+            active_preamble = None;
+            active_preamble_retained = false;
+        } else {
+            if active_preamble.as_deref() != Some(chunk.continuation_preamble.as_slice()) {
+                active_preamble = Some(chunk.continuation_preamble.clone());
+                active_preamble_retained = previous_chunk_had_output;
+            }
+            if !chunk_diff.is_empty() {
+                let without_preamble = chunk_diff
+                    .strip_prefix(chunk.continuation_preamble.as_slice())
+                    .ok_or_else(|| {
+                        ReadingDiffError::new(
+                            "A continued reading diff chunk changed its structural preamble.",
+                        )
+                    })?;
+                if active_preamble_retained {
+                    chunk_diff = without_preamble;
+                } else {
+                    active_preamble_retained = true;
+                }
+            }
         }
         if !reading_diff.is_empty() && !chunk_diff.is_empty() && !reading_diff.ends_with(b"\n") {
             reading_diff.push(b'\n');
@@ -132,6 +149,7 @@ pub fn merge_chunks(
         changed_lines = changed_lines.saturating_add(chunk.result.changed_lines);
         retained_changed_lines =
             retained_changed_lines.saturating_add(chunk.result.retained_changed_lines);
+        previous_chunk_had_output = !chunk.result.reading_diff.is_empty();
     }
     summaries.dedup();
     validate_merged_move_symmetry(source_diff, &reading_diff)?;
@@ -169,6 +187,7 @@ fn split_file_at_hunks(section: &[u8], limit: usize) -> Result<Vec<ChunkSource>,
     }
     let preamble = &section[..hunk_starts[0]];
     let mut result = Vec::new();
+    let mut chunk = preamble.to_vec();
     for (position, start) in hunk_starts.iter().copied().enumerate() {
         let end = hunk_starts
             .get(position + 1)
@@ -182,9 +201,21 @@ fn split_file_at_hunks(section: &[u8], limit: usize) -> Result<Vec<ChunkSource>,
                 limit
             )));
         }
-        let mut chunk = preamble.to_vec();
+        if chunk.len() > preamble.len() && chunk.len() + hunk.len() > limit {
+            let continuation_preamble = if result.is_empty() {
+                Vec::new()
+            } else {
+                preamble.to_vec()
+            };
+            result.push(ChunkSource {
+                raw_diff: std::mem::replace(&mut chunk, preamble.to_vec()),
+                continuation_preamble,
+            });
+        }
         chunk.extend_from_slice(hunk);
-        let continuation_preamble = if position == 0 {
+    }
+    if chunk.len() > preamble.len() {
+        let continuation_preamble = if result.is_empty() {
             Vec::new()
         } else {
             preamble.to_vec()

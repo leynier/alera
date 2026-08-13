@@ -67,6 +67,25 @@ fn chunks_only_at_file_or_hunk_boundaries() {
 }
 
 #[test]
+fn packs_adjacent_hunks_up_to_the_chunk_limit() {
+    let mut source =
+        String::from("diff --git a/many.txt b/many.txt\n--- a/many.txt\n+++ b/many.txt\n");
+    for index in 1..=30 {
+        let old = format!("old-{index}-{}", "a".repeat(70));
+        let new = format!("new-{index}-{}", "b".repeat(70));
+        source.push_str(&format!("@@ -{index} +{index} @@\n-{old}\n+{new}\n"));
+    }
+
+    let prepared = prepare(source.as_bytes(), Some(4096)).expect("packed hunks");
+
+    assert_eq!(prepared.chunks.len(), 2);
+    assert!(prepared
+        .chunks
+        .iter()
+        .all(|chunk| chunk.raw_diff.len() <= 4096));
+}
+
+#[test]
 fn reconstructs_split_files_once_and_preserves_the_final_eol() {
     let old = "o".repeat(1100);
     let new = "n".repeat(1100);
@@ -113,6 +132,42 @@ fn reconstructs_split_files_once_and_preserves_the_final_eol() {
     )
     .expect("merged missing final eol");
     assert_eq!(merged.reading_diff, no_final_eol);
+}
+
+#[test]
+fn retains_a_preamble_when_earlier_split_chunks_compile_empty() {
+    let import_name = "i".repeat(1000);
+    let body = "x".repeat(1500);
+    let source = format!(
+        "diff --git a/large.rs b/large.rs\n--- a/large.rs\n+++ b/large.rs\n\
+@@ -1 +1 @@\n-use crate::{import_name}_old;\n+use crate::{import_name}_new;\n\
+@@ -10 +10 @@\n-{body}a\n+{body}b\n\
+@@ -20 +20 @@\n-{body}c\n+{body}d\n"
+    );
+    let prepared = prepare(source.as_bytes(), Some(4096)).expect("split diff");
+    assert_eq!(prepared.chunks.len(), 3);
+    let plan = r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}"#;
+    let compiled = prepared
+        .chunks
+        .into_iter()
+        .map(|chunk| CompiledChunk {
+            index: chunk.index,
+            continuation_preamble: chunk.continuation_preamble,
+            result: compile(&chunk.raw_diff, plan).expect("compiled chunk"),
+        })
+        .collect();
+
+    let merged = merge_chunks(compiled, source.as_bytes()).expect("merged split diff");
+
+    assert!(merged.reading_diff.starts_with(b"diff --git a/large.rs"));
+    assert_eq!(
+        merged
+            .reading_diff
+            .windows(b"diff --git".len())
+            .filter(|window| *window == b"diff --git")
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -194,6 +249,8 @@ fn elides_imports_and_protects_python_suite_owners() {
 fn only_elides_common_js_require_calls_in_javascript_files() {
     let kotlin = b"diff --git a/Guard.kt b/Guard.kt\n--- a/Guard.kt\n+++ b/Guard.kt\n@@ -0,0 +1 @@\n+require(value > 0)\n";
     let javascript = b"diff --git a/index.js b/index.js\n--- a/index.js\n+++ b/index.js\n@@ -0,0 +1 @@\n+const fs = require('fs');\n";
+    let rust = b"diff --git a/main.rs b/main.rs\n--- a/main.rs\n+++ b/main.rs\n@@ -0,0 +1 @@\n+use crate::Feature;\n";
+    let sql = b"diff --git a/migration.sql b/migration.sql\n--- a/migration.sql\n+++ b/migration.sql\n@@ -1 +1 @@\n-use tenant_a;\n+use tenant_b;\n";
     let plan =
         r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep validation behavior."}"#;
 
@@ -201,6 +258,10 @@ fn only_elides_common_js_require_calls_in_javascript_files() {
     assert_eq!(kotlin_result.reading_diff, kotlin);
     let javascript_result = compile(javascript, plan).expect("CommonJS import");
     assert!(javascript_result.reading_diff.is_empty());
+    let rust_result = compile(rust, plan).expect("Rust import");
+    assert!(rust_result.reading_diff.is_empty());
+    let sql_result = compile(sql, plan).expect("SQL behavior");
+    assert_eq!(sql_result.reading_diff, sql);
 
     let renamed = b"diff --git a/index.js b/index.kt\n--- a/index.js\n+++ b/index.kt\n@@ -1 +1 @@\n-const fs = require('fs');\n+require(value > 0)\n";
     let renamed_result = compile(renamed, plan).expect("cross-language rename");

@@ -19,6 +19,7 @@ pub(crate) struct SourceLine {
     pub file_id: Option<usize>,
     pub hunk_id: Option<usize>,
     pub allows_common_js_imports: bool,
+    pub allows_rust_imports: bool,
 }
 
 pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
@@ -30,6 +31,8 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
     let mut remaining: Option<(usize, usize)> = None;
     let mut old_allows_common_js_imports = false;
     let mut new_allows_common_js_imports = false;
+    let mut old_allows_rust_imports = false;
+    let mut new_allows_rust_imports = false;
 
     for (index, line) in lines.iter_mut().enumerate() {
         let text = line.text.clone();
@@ -46,12 +49,16 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             remaining = None;
             old_allows_common_js_imports = false;
             new_allows_common_js_imports = false;
+            old_allows_rust_imports = false;
+            new_allows_rust_imports = false;
         }
         if let Some(path) = text.strip_prefix(b"--- ") {
             old_allows_common_js_imports = is_common_js_path(path);
+            old_allows_rust_imports = is_rust_path(path);
         }
         if let Some(path) = text.strip_prefix(b"+++ ") {
             new_allows_common_js_imports = is_common_js_path(path);
+            new_allows_rust_imports = is_rust_path(path);
         }
         if text.starts_with(b"@@@") {
             return Err(ReadingDiffError::new(format!(
@@ -112,6 +119,11 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             b'+' => new_allows_common_js_imports,
             _ => old_allows_common_js_imports && new_allows_common_js_imports,
         };
+        line.allows_rust_imports = match marker {
+            b'-' => old_allows_rust_imports,
+            b'+' => new_allows_rust_imports,
+            _ => old_allows_rust_imports && new_allows_rust_imports,
+        };
     }
     if remaining.is_some_and(|(old, new)| old != 0 || new != 0) {
         return Err(ReadingDiffError::new(
@@ -144,6 +156,7 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             file_id: None,
             hunk_id: None,
             allows_common_js_imports: false,
+            allows_rust_imports: false,
         });
         start = index + 1;
     }
@@ -156,30 +169,33 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             file_id: None,
             hunk_id: None,
             allows_common_js_imports: false,
+            allows_rust_imports: false,
         });
     }
     result
 }
 
 fn is_common_js_path(path: &[u8]) -> bool {
+    path_has_extension(
+        path,
+        &[b"js", b"cjs", b"mjs", b"jsx", b"ts", b"cts", b"mts", b"tsx"],
+    )
+}
+
+fn is_rust_path(path: &[u8]) -> bool {
+    path_has_extension(path, &[b"rs"])
+}
+
+fn path_has_extension(path: &[u8], extensions: &[&[u8]]) -> bool {
     let path = path.split(|byte| *byte == b'\t').next().unwrap_or(path);
     if path == b"/dev/null" {
         return false;
     }
     let path = path.strip_suffix(b"\"").unwrap_or(path);
     let extension = path.rsplit(|byte| *byte == b'.').next().unwrap_or_default();
-    [
-        b"js".as_slice(),
-        b"cjs",
-        b"mjs",
-        b"jsx",
-        b"ts",
-        b"cts",
-        b"mts",
-        b"tsx",
-    ]
-    .iter()
-    .any(|candidate| extension.eq_ignore_ascii_case(candidate))
+    extensions
+        .iter()
+        .any(|candidate| extension.eq_ignore_ascii_case(candidate))
 }
 
 fn parse_hunk_counts(line: &[u8]) -> Option<(usize, usize)> {

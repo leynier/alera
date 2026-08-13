@@ -96,6 +96,87 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
       'Codex failed: Invalid schema for response format.',
     );
   });
+
+  testWidgets('diff surface keeps cancel visible when AI Text is disabled', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 1,
+          ),
+        ],
+      );
+    final service = _BlockingReadingDiffService(backend);
+    final settingsController = _MutableSettingsController(
+      AleraSettings.defaults,
+    );
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      readingDiffService: service,
+      settingsController: settingsController,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate Reading Diff').last);
+    await tester.pump();
+
+    settingsController.setAiTextEnabled(false);
+    await tester.pump();
+
+    expect(find.byTooltip('Cancel Reading Diff'), findsOneWidget);
+    await tester.tap(find.byTooltip('Cancel Reading Diff'));
+    await tester.pump();
+    expect(service.canceled, hasLength(1));
+  });
+
+  testWidgets('diff surface keeps original toggle after AI Text is disabled', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 1,
+          ),
+        ],
+      );
+    final settingsController = _MutableSettingsController(
+      AleraSettings.defaults,
+    );
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      readingDiffService: _CachedReadingDiffService(backend),
+      settingsController: settingsController,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Show Original Diff'), findsOneWidget);
+
+    settingsController.setAiTextEnabled(false);
+    await tester.pump();
+
+    expect(find.byTooltip('Show Original Diff'), findsOneWidget);
+    expect(find.byTooltip('Regenerate Reading Diff'), findsNothing);
+    await tester.tap(find.byTooltip('Show Original Diff'));
+    await tester.pump();
+    expect(find.byTooltip('Show Reading Diff'), findsOneWidget);
+  });
 }
 
 class _BlockingReadingDiffService extends ReadingDiffService {
@@ -162,9 +243,35 @@ class _PreparedReadingDiffService extends ReadingDiffService {
   }
 }
 
+class _CachedReadingDiffService extends ReadingDiffService {
+  _CachedReadingDiffService(FakeGitBackend backend)
+    : super(
+        gitBackend: backend,
+        runner: const _FailingReadingDiffRunner(),
+        cache: const _EmptyReadingDiffCache(),
+      );
+
+  final ReadingDiffResult result = _readingDiffResult();
+
+  @override
+  Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) async =>
+      _preparation(
+        request,
+        cacheKey: 'cached-reading-diff',
+        cachedResult: result,
+      );
+
+  @override
+  Future<ReadingDiffResult> generate(
+    ReadingDiffPreparation preparation, {
+    void Function(ReadingDiffGenerationProgress progress)? onProgress,
+  }) async => result;
+}
+
 ReadingDiffPreparation _preparation(
   ReadingDiffRequest request, {
   required String cacheKey,
+  ReadingDiffResult? cachedResult,
 }) => ReadingDiffPreparation(
   request: request,
   rawDiff: Uint8List.fromList(<int>[1]),
@@ -187,6 +294,23 @@ ReadingDiffPreparation _preparation(
   effort: 'low',
   accessPolicy: AgentTaskAccessPolicy.diffOnly,
   cacheKey: cacheKey,
+  cachedResult: cachedResult,
+);
+
+ReadingDiffResult _readingDiffResult() => ReadingDiffResult(
+  diff: Uint8List.fromList(
+    'diff --git a/lib/main.dart b/lib/main.dart\n'
+            '--- a/lib/main.dart\n'
+            '+++ b/lib/main.dart\n'
+            '@@ -1 +1 @@\n'
+            '-old\n'
+            '+new\n'
+        .codeUnits,
+  ),
+  summary: 'Update the value.',
+  changedLines: 2,
+  retainedChangedLines: 2,
+  agentLabel: 'Codex',
 );
 
 class _EmptyReadingDiffCache implements ReadingDiffCache {

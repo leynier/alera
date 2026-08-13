@@ -54,7 +54,9 @@ class _GitDiffBar extends StatelessWidget {
                 ),
               ),
             ),
-            if (aiTextEnabled) ...<Widget>[
+            if (aiTextEnabled ||
+                readingDiffReady ||
+                readingDiffBusy) ...<Widget>[
               AleraIconButton(
                 tooltip: readingDiffBusy
                     ? 'Cancel Reading Diff'
@@ -74,7 +76,9 @@ class _GitDiffBar extends StatelessWidget {
                     ? onToggleReadingDiff
                     : onGenerateReadingDiff,
               ),
-              if (readingDiffReady && !readingDiffBusy) ...<Widget>[
+              if (aiTextEnabled &&
+                  readingDiffReady &&
+                  !readingDiffBusy) ...<Widget>[
                 const SizedBox(width: AleraTokens.space2),
                 AleraIconButton(
                   tooltip: 'Regenerate Reading Diff',

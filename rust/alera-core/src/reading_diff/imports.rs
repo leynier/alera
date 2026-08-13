@@ -15,7 +15,11 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
             continue;
         }
         let body = String::from_utf8_lossy(source_body(line));
-        if !starts_import(body.trim_start(), line.allows_common_js_imports) {
+        if !starts_import(
+            body.trim_start(),
+            line.allows_common_js_imports,
+            line.allows_rust_imports,
+        ) {
             index += 1;
             continue;
         }
@@ -56,12 +60,11 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
     hidden
 }
 
-fn starts_import(trimmed: &str, allows_common_js_imports: bool) -> bool {
+fn starts_import(trimmed: &str, allows_common_js_imports: bool, allows_rust_imports: bool) -> bool {
     trimmed.starts_with("import ")
         || starts_reexport(trimmed)
         || trimmed.starts_with("from ") && trimmed.contains(" import ")
-        || trimmed.starts_with("use ")
-        || trimmed.starts_with("pub use ")
+        || allows_rust_imports && (trimmed.starts_with("use ") || trimmed.starts_with("pub use "))
         || trimmed.starts_with("#include ")
         || trimmed.starts_with("#include<")
         || allows_common_js_imports
