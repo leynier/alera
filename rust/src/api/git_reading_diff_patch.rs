@@ -175,7 +175,7 @@ fn git_reading_diff_patch_with_prefix(
         if entry.area == GitChangeArea::Untracked {
             let value =
                 read_untracked_text_up_to(&repo, &repo_path, MAX_READING_DIFF_BYTES as u64)?;
-            if value.is_large {
+            if value.is_large && !value.is_binary {
                 return Err(GitError::new(
                     GitErrorKind::Internal,
                     "reading diff input exceeds the 4 MiB safety limit",

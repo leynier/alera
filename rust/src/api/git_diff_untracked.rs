@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use git2::Repository;
 
 use super::{
@@ -6,6 +8,7 @@ use super::{
 };
 
 const MAX_UNTRACKED_TEXT_BYTES: u64 = 256 * 1024;
+const BINARY_SAMPLE_BYTES: usize = 8 * 1024;
 
 pub(super) struct UntrackedText {
     pub(super) content: Option<String>,
@@ -90,10 +93,11 @@ pub(super) fn read_untracked_text_up_to(
     }
     let is_executable = metadata_is_executable(&metadata);
     if metadata.len() > max_bytes {
+        let is_binary = file_prefix_is_binary(&path)?;
         return Ok(UntrackedText {
             content: None,
             added: None,
-            is_binary: false,
+            is_binary,
             is_large: true,
             is_symlink: false,
             is_executable,
@@ -116,6 +120,22 @@ pub(super) fn read_untracked_text_up_to(
         is_symlink: false,
         is_executable,
     })
+}
+
+fn file_prefix_is_binary(path: &std::path::Path) -> Result<bool, GitError> {
+    let mut file = std::fs::File::open(path)
+        .map_err(|error| GitError::new(GitErrorKind::Internal, error.to_string()))?;
+    let mut sample = vec![0; BINARY_SAMPLE_BYTES];
+    let length = file
+        .read(&mut sample)
+        .map_err(|error| GitError::new(GitErrorKind::Internal, error.to_string()))?;
+    sample.truncate(length);
+    if sample.contains(&0) {
+        return Ok(true);
+    }
+    Ok(std::str::from_utf8(&sample)
+        .err()
+        .is_some_and(|error| error.error_len().is_some()))
 }
 
 fn empty_untracked_text(is_executable: bool) -> UntrackedText {

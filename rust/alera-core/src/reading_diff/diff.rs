@@ -60,6 +60,11 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             old_allows_rust_imports = false;
             new_allows_rust_imports = false;
         }
+        if text == b"-- " && remaining.is_some_and(|counts| counts == (0, 0)) {
+            file_id = None;
+            hunk_id = None;
+            remaining = None;
+        }
         if remaining.is_none() {
             if let Some(path) = text.strip_prefix(b"--- ") {
                 old_import_syntax = import_syntax_for_path(path);

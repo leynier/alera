@@ -201,6 +201,30 @@ fn rejects_untracked_text_above_the_reading_diff_limit() {
     assert!(error.context.contains("4 MiB safety limit"));
 }
 
+#[test]
+fn represents_untracked_binaries_above_the_reading_diff_limit() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    Repository::init(directory.path()).expect("repository");
+    let mut content = vec![b'x'; MAX_READING_DIFF_BYTES + 1];
+    content[0] = 0;
+    fs::write(directory.path().join("large.bin"), content).expect("large binary");
+
+    let patch = git_reading_diff_patch(
+        directory.path().to_string_lossy().to_string(),
+        None,
+        None,
+        Some(GitChangeArea::Untracked),
+        None,
+        None,
+        None,
+    )
+    .expect("large binary placeholder");
+
+    assert!(String::from_utf8(patch)
+        .expect("utf8 placeholder")
+        .contains("Binary file /dev/null and b/large.bin differ"));
+}
+
 #[cfg(unix)]
 #[test]
 fn preserves_untracked_executable_modes() {

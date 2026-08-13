@@ -18,6 +18,8 @@ use std::fmt::{Display, Formatter};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod regression_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadingDiffError {
