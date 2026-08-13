@@ -147,6 +147,8 @@ pub(super) fn build_untracked_patch(
     is_executable: bool,
 ) -> String {
     let added = count_text_lines(content);
+    let old_path = git_patch_path("a", file_path);
+    let new_path = git_patch_path("b", file_path);
     let mode = if is_symlink {
         "120000"
     } else if is_executable {
@@ -155,7 +157,7 @@ pub(super) fn build_untracked_patch(
         "100644"
     };
     let mut patch = format!(
-        "diff --git a/{file_path} b/{file_path}\nnew file mode {mode}\n--- /dev/null\n+++ b/{file_path}\n@@ -0,0 +1,{added} @@\n"
+        "diff --git {old_path} {new_path}\nnew file mode {mode}\n--- /dev/null\n+++ {new_path}\n@@ -0,0 +1,{added} @@\n"
     );
     for line in content.split_inclusive('\n') {
         patch.push('+');
@@ -166,6 +168,39 @@ pub(super) fn build_untracked_patch(
         patch.push_str("\\ No newline at end of file\n");
     }
     patch
+}
+
+pub(super) fn git_patch_path(prefix: &str, path: &str) -> String {
+    let value = format!("{prefix}/{path}");
+    if !value
+        .chars()
+        .any(|character| character.is_control() || matches!(character, '\\' | '"'))
+    {
+        return value;
+    }
+    let mut quoted = String::with_capacity(value.len().saturating_add(2));
+    quoted.push('"');
+    for character in value.chars() {
+        match character {
+            '\u{7}' => quoted.push_str("\\a"),
+            '\u{8}' => quoted.push_str("\\b"),
+            '\t' => quoted.push_str("\\t"),
+            '\n' => quoted.push_str("\\n"),
+            '\u{b}' => quoted.push_str("\\v"),
+            '\u{c}' => quoted.push_str("\\f"),
+            '\r' => quoted.push_str("\\r"),
+            '"' => quoted.push_str("\\\""),
+            '\\' => quoted.push_str("\\\\"),
+            control if control.is_control() => {
+                for byte in control.to_string().as_bytes() {
+                    quoted.push_str(&format!("\\{byte:03o}"));
+                }
+            }
+            value => quoted.push(value),
+        }
+    }
+    quoted.push('"');
+    quoted
 }
 
 #[cfg(unix)]

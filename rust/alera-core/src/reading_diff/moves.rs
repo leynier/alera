@@ -11,6 +11,7 @@ pub(crate) fn validate_cross_chunk_move_retention(
     source_diff: &[u8],
     chunk_lines: &[SourceLine],
     hidden: &[bool],
+    replacements: &HashMap<usize, Vec<u8>>,
 ) -> Result<(), ReadingDiffError> {
     let source_lines = parse(source_diff)?;
     let mut source_automatic = mandatory_import_mask(&source_lines);
@@ -37,11 +38,19 @@ pub(crate) fn validate_cross_chunk_move_retention(
         }
     }
     for (index, line) in chunk_lines.iter().enumerate() {
-        if !hidden[index] || !matches!(line.marker, Some(b'+' | b'-')) {
+        if !matches!(line.marker, Some(b'+' | b'-')) {
             continue;
         }
         let body = trim_ascii(source_body(line));
         if removed.get(body) != Some(&1) || added.get(body) != Some(&1) {
+            continue;
+        }
+        if replacements.contains_key(&index) {
+            return Err(ReadingDiffError::new(
+                "replace cannot abbreviate an exact move row.",
+            ));
+        }
+        if !hidden[index] {
             continue;
         }
         if automatic_removed.get(body) == Some(&true) && automatic_added.get(body) == Some(&true) {

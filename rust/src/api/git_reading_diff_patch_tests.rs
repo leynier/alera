@@ -231,6 +231,22 @@ fn preserves_untracked_executable_modes() {
 }
 
 #[test]
+fn quotes_unusual_untracked_paths_in_patch_headers() {
+    let path = "dir/line\nquote\"slash\\tab\t.txt";
+
+    let text = build_untracked_patch(path, "body\n", false, false);
+    let binary = untracked_placeholder_patch(path, true, false);
+
+    let quoted = "\"b/dir/line\\nquote\\\"slash\\\\tab\\t.txt\"";
+    assert!(text.contains(&format!("+++ {quoted}\n")));
+    assert!(text.contains(&format!(
+        "diff --git \"a/dir/line\\nquote\\\"slash\\\\tab\\t.txt\" {quoted}\n"
+    )));
+    assert!(!text.contains("dir/line\nquote"));
+    assert!(binary.contains(&format!("and {quoted} differ\n")));
+}
+
+#[test]
 fn expands_dirty_submodule_worktrees() {
     let child_directory = tempfile::tempdir().expect("child tempdir");
     let child = Repository::init(child_directory.path()).expect("child repository");

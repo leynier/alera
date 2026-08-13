@@ -396,6 +396,18 @@ fn rejects_asymmetric_moves_after_chunk_merge() {
 }
 
 #[test]
+fn rejects_replacements_on_exact_move_rows() {
+    let diff = b"diff --git a/old.txt b/old.txt\n--- a/old.txt\n+++ b/old.txt\n@@ -1 +0,0 @@\n-this exact line moved\ndiff --git a/new.txt b/new.txt\n--- a/new.txt\n+++ b/new.txt\n@@ -0,0 +1 @@\n+this exact line moved\n";
+    let plan = r#"{"version":1,"remove":[],"replace":[{"line":5,"old":"this exact line","new":"this...line"},{"line":10,"old":"exact line moved","new":"exact...moved"}],"fold":[],"summary":"Move the line."}"#;
+
+    let error = compile(diff, plan).expect_err("replaced exact move rows");
+
+    assert!(error
+        .message
+        .contains("cannot abbreviate an exact move row"));
+}
+
+#[test]
 fn allows_symmetric_automatic_import_elision_across_chunks() {
     const OLD: &[u8] = b"diff --git a/old.py b/old.py\n--- a/old.py\n+++ b/old.py\n@@ -1 +0,0 @@\n-from package import moved_symbol\n";
     const NEW: &[u8] = b"diff --git a/new.py b/new.py\n--- a/new.py\n+++ b/new.py\n@@ -0,0 +1 @@\n+from package import moved_symbol\n";

@@ -3,6 +3,7 @@ use git2::{Diff, DiffFindOptions, DiffFormat, DiffLineType, DiffOptions, Oid};
 #[path = "git_reading_diff_submodule.rs"]
 mod git_reading_diff_submodule;
 
+use super::git_diff_untracked::git_patch_path;
 use super::{
     build_untracked_patch, diff_for_area, diff_for_commit_range, git_status, git_status_for_path,
     open_repo, read_untracked_text_up_to, GitChangeArea, GitError, GitErrorKind, GitPathContext,
@@ -210,8 +211,10 @@ fn untracked_placeholder_patch(path: &str, is_binary: bool, is_executable: bool)
         "Non-regular file"
     };
     let mode = if is_executable { "100755" } else { "100644" };
+    let old_path = git_patch_path("a", path);
+    let new_path = git_patch_path("b", path);
     format!(
-        "diff --git a/{path} b/{path}\nnew file mode {mode}\n{description} /dev/null and b/{path} differ\n"
+        "diff --git {old_path} {new_path}\nnew file mode {mode}\n{description} /dev/null and {new_path} differ\n"
     )
 }
 

@@ -66,9 +66,9 @@ pub fn compile_with_source(
         );
     }
 
-    validate_move_symmetry(&lines, &hidden)?;
-    validate_cross_chunk_move_retention(source_diff, &lines, &hidden)?;
     let replacements = validate_replacements(&lines, &hidden, &plan.replace)?;
+    validate_move_symmetry(&lines, &hidden)?;
+    validate_cross_chunk_move_retention(source_diff, &lines, &hidden, &replacements)?;
     hide_owned_no_newline_markers(&lines, &mut hidden);
 
     let mut output = Vec::with_capacity(raw.len());
