@@ -389,6 +389,121 @@ void main() {
       expect(client.ensureStartedCalls, 1);
     });
 
+    test(
+      'updateIfAvailable continues when force shutdown closes the connection',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '0.1.0',
+            'runtimeHostCommit': 'old',
+          },
+          busyOnSoftStop: true,
+          shutdownErrorOnForce: const TerminalHostConnectionClosedException(),
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+          shutdownSettleTimeout: const Duration(milliseconds: 50),
+        );
+
+        await service.updateIfAvailable(
+          confirmForce:
+              ({
+                required String title,
+                required String message,
+                required String confirmLabel,
+              }) async => true,
+        );
+
+        expect(client.shutdownCalls, <bool>[false, true]);
+        expect(client.ensureStartedCalls, 1);
+      },
+    );
+
+    test(
+      'updateIfAvailable retries after a closed status probe then starts',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '0.1.0',
+            'runtimeHostCommit': 'old',
+          },
+          closedProbesAfterShutdown: 1,
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '0.1.0', commit: 'new'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+          shutdownSettleTimeout: const Duration(milliseconds: 200),
+        );
+
+        await service.updateIfAvailable();
+
+        expect(client.shutdownCalls, <bool>[false]);
+        expect(client.ensureStartedCalls, 1);
+      },
+    );
+
+    test(
+      'updateIfAvailable does not start when the host stays up after shutdown',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '1.2.0',
+            'runtimeHostCommit': 'old',
+          },
+          shutdownLeavesHostRunning: true,
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '1.3.0', commit: 'new'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+          shutdownSettleTimeout: const Duration(milliseconds: 50),
+        );
+
+        await expectLater(
+          service.updateIfAvailable(),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('did not stop in time'),
+            ),
+          ),
+        );
+        expect(client.ensureStartedCalls, 0);
+      },
+    );
+
+    test('prepareAppQuit treats a shutdown disconnect as success', () async {
+      final client = _FakeRuntimeClient(
+        status: <String, Object?>{
+          'runtimeHostVersion': '1.2.0',
+          'persistent': false,
+        },
+        shutdownErrorOnSoft: const TerminalHostConnectionClosedException(),
+      );
+      final service = RuntimeHostLifecycleService(
+        client: client,
+        bundledVersionProbe: _FakeBundledProbe(
+          const BundledSidecarVersion(version: '1.2.0'),
+        ),
+        readConfig: () => TerminalHostConfig.defaults,
+      );
+
+      final allowed = await service.prepareAppQuit(keepRuntimeOpen: false);
+
+      expect(allowed, isTrue);
+      expect(client.shutdownCalls, <bool>[false]);
+    });
+
     test('runtimeHostBusyMessage leads with agents', () {
       expect(
         runtimeHostBusyMessage(
@@ -423,6 +538,9 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
     this.probeThrows = false,
     this.shutdownLeavesHostRunning = false,
     this.ensureStartedError,
+    this.shutdownErrorOnSoft,
+    this.shutdownErrorOnForce,
+    this.closedProbesAfterShutdown = 0,
   });
 
   Map<String, Object?>? status;
@@ -430,6 +548,9 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
   final bool probeThrows;
   final bool shutdownLeavesHostRunning;
   final Object? ensureStartedError;
+  final Object? shutdownErrorOnSoft;
+  final Object? shutdownErrorOnForce;
+  int closedProbesAfterShutdown;
   final List<bool> shutdownCalls = <bool>[];
   int ensureStartedCalls = 0;
   bool _stopped = false;
@@ -440,6 +561,10 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
       throw StateError('status probe failed');
     }
     if (_stopped) {
+      if (closedProbesAfterShutdown > 0) {
+        closedProbesAfterShutdown -= 1;
+        throw const TerminalHostConnectionClosedException();
+      }
       return null;
     }
     return status;
@@ -461,6 +586,10 @@ final class _FakeRuntimeClient implements RuntimeHostLifecycleClient {
     if (!shutdownLeavesHostRunning) {
       _stopped = true;
       status = null;
+    }
+    final shutdownError = force ? shutdownErrorOnForce : shutdownErrorOnSoft;
+    if (shutdownError != null) {
+      throw shutdownError;
     }
     return RuntimeHostShutdownResult(stopped: true, forced: force);
   }
