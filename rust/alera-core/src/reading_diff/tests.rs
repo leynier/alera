@@ -331,6 +331,16 @@ fn rejects_partial_python_expressions_and_elides_multiline_imports() {
 }
 
 #[test]
+fn rejects_folds_that_overlap_automatic_import_elision() {
+    let imports = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -0,0 +1,2 @@\n+import alpha\n+import beta\n";
+    let fold = r#"{"version":1,"remove":[],"replace":[],"fold":[{"start_line":5,"end_line":6}],"summary":"Load dependencies."}"#;
+
+    let error = compile(imports, fold).expect_err("automatic fold overlap");
+
+    assert!(error.message.contains("overlaps automatic import elision"));
+}
+
+#[test]
 fn rejects_asymmetric_moves_after_chunk_merge() {
     const OLD: &[u8] = b"diff --git a/old.txt b/old.txt\n--- a/old.txt\n+++ b/old.txt\n@@ -1 +0,0 @@\n-this exact line moved\n";
     const NEW: &[u8] = b"diff --git a/new.txt b/new.txt\n--- a/new.txt\n+++ b/new.txt\n@@ -0,0 +1 @@\n+this exact line moved\n";

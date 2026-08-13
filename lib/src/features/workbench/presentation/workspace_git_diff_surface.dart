@@ -338,7 +338,6 @@ class _WorkspaceGitDiffSurfaceState
       setState(() {
         _readingDiffAgentLabel = preparation.agent.label;
         _readingDiffModel = preparation.model;
-        _readingDiffOriginalSnapshot = preparation.rawDiff;
       });
       if (preparation.cachedResult == null) {
         setState(() {
@@ -380,6 +379,7 @@ class _WorkspaceGitDiffSurfaceState
       }
       setState(() {
         _readingDiffResult = result;
+        _readingDiffOriginalSnapshot = preparation.rawDiff;
         _showReadingDiff = true;
         _readingDiffProgress = null;
         _readingDiffError = null;

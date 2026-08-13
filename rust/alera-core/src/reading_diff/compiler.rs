@@ -59,7 +59,7 @@ pub fn compile_with_source(
         }
         validate_fold(&lines, *range, index)?;
         protect_python_structure(&lines, *range, "fold", index)?;
-        claim_range(&mut hidden, &mut ownership, *range, "fold", index, true)?;
+        claim_range(&mut hidden, &mut ownership, *range, "fold", index, false)?;
         folded_at.insert(
             range.start_line - 1,
             fold_line(&lines[range.start_line - 1]),

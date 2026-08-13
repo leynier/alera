@@ -177,6 +177,44 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     expect(find.byTooltip('Show Reading Diff'), findsOneWidget);
     expect(find.text('+snapshot-value'), findsOneWidget);
   });
+
+  testWidgets('failed regeneration preserves the prior original snapshot', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 1,
+          ),
+        ],
+      );
+    final service = _RegenerationFailureReadingDiffService(backend);
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      readingDiffService: service,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Regenerate Reading Diff'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate Reading Diff').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Reading diff generation failed'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Show Original Diff'));
+    await tester.pumpAndSettle();
+    expect(find.text('+snapshot-value'), findsOneWidget);
+    expect(find.text('+replacement-snapshot'), findsNothing);
+  });
 }
 
 class _BlockingReadingDiffService extends ReadingDiffService {
@@ -268,10 +306,47 @@ class _CachedReadingDiffService extends ReadingDiffService {
   }) async => result;
 }
 
+class _RegenerationFailureReadingDiffService extends ReadingDiffService {
+  _RegenerationFailureReadingDiffService(FakeGitBackend backend)
+    : super(
+        gitBackend: backend,
+        runner: const _FailingReadingDiffRunner(),
+        cache: const _EmptyReadingDiffCache(),
+      );
+
+  final ReadingDiffResult result = _readingDiffResult();
+  var preparationCount = 0;
+
+  @override
+  Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) async {
+    preparationCount += 1;
+    return _preparation(
+      request,
+      cacheKey: 'regeneration-$preparationCount',
+      cachedResult: preparationCount == 1 ? result : null,
+      addedLine: preparationCount == 1
+          ? 'snapshot-value'
+          : 'replacement-snapshot',
+    );
+  }
+
+  @override
+  Future<ReadingDiffResult> generate(
+    ReadingDiffPreparation preparation, {
+    void Function(ReadingDiffGenerationProgress progress)? onProgress,
+  }) async {
+    if (preparationCount == 1) {
+      return result;
+    }
+    throw const AiTextGenerationException('Replacement generation failed.');
+  }
+}
+
 ReadingDiffPreparation _preparation(
   ReadingDiffRequest request, {
   required String cacheKey,
   ReadingDiffResult? cachedResult,
+  String addedLine = 'snapshot-value',
 }) => ReadingDiffPreparation(
   request: request,
   rawDiff: Uint8List.fromList(
@@ -280,7 +355,7 @@ ReadingDiffPreparation _preparation(
             '+++ b/lib/main.dart\n'
             '@@ -1 +1 @@\n'
             '-old-value\n'
-            '+snapshot-value\n'
+            '+$addedLine\n'
         .codeUnits,
   ),
   compiler: rust.ReadingDiffPreparation(
