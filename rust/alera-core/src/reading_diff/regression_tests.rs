@@ -3,7 +3,8 @@
 
 use super::compile;
 
-const EMPTY_PLAN: &str = r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}"#;
+const EMPTY_PLAN: &str =
+    r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}"#;
 
 #[test]
 fn preserves_behavior_after_an_import_on_the_same_row() {

@@ -28,11 +28,7 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
             continue;
         }
         let marker = line.marker;
-        let mut scan = scan_import_syntax(
-            &body,
-            [0; 3],
-            line.allows_python_from_imports,
-        );
+        let mut scan = scan_import_syntax(&body, [0; 3], line.allows_python_from_imports);
         if !scan.reliable || scan.has_trailing_statement {
             index += 1;
             continue;
@@ -54,11 +50,7 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
                 continue;
             }
             let next_body = String::from_utf8_lossy(source_body(next));
-            scan = scan_import_syntax(
-                &next_body,
-                scan.balances,
-                line.allows_python_from_imports,
-            );
+            scan = scan_import_syntax(&next_body, scan.balances, line.allows_python_from_imports);
             if !scan.reliable || scan.has_trailing_statement {
                 import_only = false;
                 break;
@@ -161,9 +153,7 @@ fn scan_import_syntax(
             index += 1;
             continue;
         }
-        if hash_comments && byte == b'#'
-            || byte == b'/' && bytes.get(index + 1) == Some(&b'/')
-        {
+        if hash_comments && byte == b'#' || byte == b'/' && bytes.get(index + 1) == Some(&b'/') {
             break;
         }
         if byte == b'/' && bytes.get(index + 1) == Some(&b'*') {

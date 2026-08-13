@@ -17,9 +17,9 @@ pub use prompt::{plan_schema, RUBRIC_VERSION, SCHEMA_VERSION};
 use std::fmt::{Display, Formatter};
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod regression_tests;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadingDiffError {
