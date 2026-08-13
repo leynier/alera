@@ -191,6 +191,25 @@ fn elides_imports_and_protects_python_suite_owners() {
 }
 
 #[test]
+fn only_elides_common_js_require_calls_in_javascript_files() {
+    let kotlin = b"diff --git a/Guard.kt b/Guard.kt\n--- a/Guard.kt\n+++ b/Guard.kt\n@@ -0,0 +1 @@\n+require(value > 0)\n";
+    let javascript = b"diff --git a/index.js b/index.js\n--- a/index.js\n+++ b/index.js\n@@ -0,0 +1 @@\n+const fs = require('fs');\n";
+    let plan =
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep validation behavior."}"#;
+
+    let kotlin_result = compile(kotlin, plan).expect("Kotlin precondition");
+    assert_eq!(kotlin_result.reading_diff, kotlin);
+    let javascript_result = compile(javascript, plan).expect("CommonJS import");
+    assert!(javascript_result.reading_diff.is_empty());
+
+    let renamed = b"diff --git a/index.js b/index.kt\n--- a/index.js\n+++ b/index.kt\n@@ -1 +1 @@\n-const fs = require('fs');\n+require(value > 0)\n";
+    let renamed_result = compile(renamed, plan).expect("cross-language rename");
+    let renamed_text = String::from_utf8(renamed_result.reading_diff).expect("UTF-8 diff");
+    assert!(!renamed_text.contains("const fs"));
+    assert!(renamed_text.contains("+require(value > 0)"));
+}
+
+#[test]
 fn preserves_exported_declarations_but_elides_reexports() {
     let declaration = b"diff --git a/config.ts b/config.ts\n\
 --- a/config.ts\n\

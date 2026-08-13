@@ -201,7 +201,9 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     }
     final model = modelForAgent(
       agent,
-      settings.modelForOperation(operation) ??
+      (operation == AiTextGenerationOperation.readingDiff
+              ? readingDiffModelForSettings(settings, agent)
+              : settings.modelForOperation(operation)) ??
           defaultModelIdForAgent(agent, settings),
       extraModels: discoveredModelsForAgent(settings, agent),
     );
@@ -296,7 +298,9 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
             operation,
             AiTextGenerationPromptSettings(
               agent: agent,
-              model: previousAgent == nextAgent ? promptSettings.model : null,
+              model: !usesReadingDiffFallback && previousAgent == nextAgent
+                  ? promptSettings.model
+                  : null,
             ),
           );
         },

@@ -229,6 +229,14 @@ fn writing_to_an_unknown_session_is_refused_instead_of_panicking() {
 }
 
 #[test]
+fn windows_cancellation_targets_the_whole_process_tree() {
+    assert_eq!(
+        super::process_session::windows_process_tree_kill_arguments(42),
+        args(&["/PID", "42", "/T", "/F"]),
+    );
+}
+
+#[test]
 fn a_notified_kill_ends_a_child_that_would_keep_waiting() {
     use std::sync::Arc;
     use std::time::Duration;

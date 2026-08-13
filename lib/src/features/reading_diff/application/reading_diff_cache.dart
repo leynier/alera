@@ -36,9 +36,14 @@ extension ReadingDiffCachePersistence on ReadingDiffCache {
 class FileReadingDiffCache implements ReadingDiffCache {
   const FileReadingDiffCache({
     this.directoryProvider = getApplicationSupportDirectory,
-  });
+    this.maxEntries = 20,
+    this.maxBytes = 64 * 1024 * 1024,
+  }) : assert(maxEntries > 0),
+       assert(maxBytes > 0);
 
   final Future<Directory> Function() directoryProvider;
+  final int maxEntries;
+  final int maxBytes;
 
   @override
   Future<ReadingDiffResult?> read(String key) async {
@@ -65,6 +70,7 @@ class FileReadingDiffCache implements ReadingDiffCache {
     try {
       await temporary.writeAsString(encoded, flush: true);
       await temporary.rename(file.path);
+      await _prune(file.parent, currentPath: file.path);
     } finally {
       if (await temporary.exists()) {
         await temporary.delete();
@@ -84,6 +90,58 @@ class FileReadingDiffCache implements ReadingDiffCache {
     final root = await directoryProvider();
     return File(p.join(root.path, 'reading-diffs', '$key.json'));
   }
+
+  Future<void> _prune(
+    Directory directory, {
+    required String currentPath,
+  }) async {
+    final entries = <_ReadingDiffCacheEntry>[];
+    await for (final entity in directory.list()) {
+      if (entity is! File || p.extension(entity.path) != '.json') {
+        continue;
+      }
+      final stat = await entity.stat();
+      entries.add(
+        _ReadingDiffCacheEntry(
+          file: entity,
+          bytes: stat.size,
+          modifiedAt: stat.modified,
+        ),
+      );
+    }
+    entries.sort((left, right) {
+      final leftIsCurrent = p.equals(left.file.path, currentPath);
+      final rightIsCurrent = p.equals(right.file.path, currentPath);
+      if (leftIsCurrent != rightIsCurrent) {
+        return leftIsCurrent ? -1 : 1;
+      }
+      return right.modifiedAt.compareTo(left.modifiedAt);
+    });
+    var retainedEntries = 0;
+    var retainedBytes = 0;
+    for (final entry in entries) {
+      final withinCount = retainedEntries < maxEntries;
+      final withinSize = retainedBytes + entry.bytes <= maxBytes;
+      if (withinCount && (withinSize || retainedEntries == 0)) {
+        retainedEntries += 1;
+        retainedBytes += entry.bytes;
+        continue;
+      }
+      await entry.file.delete();
+    }
+  }
+}
+
+class _ReadingDiffCacheEntry {
+  const _ReadingDiffCacheEntry({
+    required this.file,
+    required this.bytes,
+    required this.modifiedAt,
+  });
+
+  final File file;
+  final int bytes;
+  final DateTime modifiedAt;
 }
 
 ReadingDiffResult? _decodeReadingDiffResult(String encoded) {

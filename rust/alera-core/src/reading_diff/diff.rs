@@ -18,6 +18,7 @@ pub(crate) struct SourceLine {
     pub marker: Option<u8>,
     pub file_id: Option<usize>,
     pub hunk_id: Option<usize>,
+    pub allows_common_js_imports: bool,
 }
 
 pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
@@ -27,6 +28,8 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
     let mut next_file = 0usize;
     let mut next_hunk = 0usize;
     let mut remaining: Option<(usize, usize)> = None;
+    let mut old_allows_common_js_imports = false;
+    let mut new_allows_common_js_imports = false;
 
     for (index, line) in lines.iter_mut().enumerate() {
         let text = line.text.clone();
@@ -41,6 +44,14 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
             next_file += 1;
             hunk_id = None;
             remaining = None;
+            old_allows_common_js_imports = false;
+            new_allows_common_js_imports = false;
+        }
+        if let Some(path) = text.strip_prefix(b"--- ") {
+            old_allows_common_js_imports = is_common_js_path(path);
+        }
+        if let Some(path) = text.strip_prefix(b"+++ ") {
+            new_allows_common_js_imports = is_common_js_path(path);
         }
         if text.starts_with(b"@@@") {
             return Err(ReadingDiffError::new(format!(
@@ -96,6 +107,11 @@ pub(crate) fn parse(raw: &[u8]) -> Result<Vec<SourceLine>, ReadingDiffError> {
         }
         line.kind = LineKind::HunkSource;
         line.marker = Some(marker);
+        line.allows_common_js_imports = match marker {
+            b'-' => old_allows_common_js_imports,
+            b'+' => new_allows_common_js_imports,
+            _ => old_allows_common_js_imports && new_allows_common_js_imports,
+        };
     }
     if remaining.is_some_and(|(old, new)| old != 0 || new != 0) {
         return Err(ReadingDiffError::new(
@@ -127,6 +143,7 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             marker: None,
             file_id: None,
             hunk_id: None,
+            allows_common_js_imports: false,
         });
         start = index + 1;
     }
@@ -138,9 +155,31 @@ fn split_lines(raw: &[u8]) -> Vec<SourceLine> {
             marker: None,
             file_id: None,
             hunk_id: None,
+            allows_common_js_imports: false,
         });
     }
     result
+}
+
+fn is_common_js_path(path: &[u8]) -> bool {
+    let path = path.split(|byte| *byte == b'\t').next().unwrap_or(path);
+    if path == b"/dev/null" {
+        return false;
+    }
+    let path = path.strip_suffix(b"\"").unwrap_or(path);
+    let extension = path.rsplit(|byte| *byte == b'.').next().unwrap_or_default();
+    [
+        b"js".as_slice(),
+        b"cjs",
+        b"mjs",
+        b"jsx",
+        b"ts",
+        b"cts",
+        b"mts",
+        b"tsx",
+    ]
+    .iter()
+    .any(|candidate| extension.eq_ignore_ascii_case(candidate))
 }
 
 fn parse_hunk_counts(line: &[u8]) -> Option<(usize, usize)> {

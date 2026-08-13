@@ -26,6 +26,9 @@ const READ_CHUNK_BYTES: usize = 64 * 1024;
 /// How long output already in flight may take to drain once the child exited.
 const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_millis(250);
 
+#[cfg(windows)]
+const PROCESS_TREE_KILL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// A running command the Dart side still holds a handle to.
 struct Session {
     /// Dropped by `close_stdin`, which is what closes the child's stdin.
@@ -336,7 +339,7 @@ async fn wait_for_exit(child: &mut Child, kill: Arc<Notify>) -> Result<i32, Stri
                     .map_err(|error| error.to_string());
             }
             _ = kill.notified() => {
-                kill_group(child);
+                terminate_invocation(child).await;
                 let _ = child.start_kill();
             }
         }
@@ -344,10 +347,10 @@ async fn wait_for_exit(child: &mut Child, kill: Arc<Notify>) -> Result<i32, Stri
 }
 
 /// Signals everything the invocation started, not just the shell that fronts
-/// it. Windows has no equivalent here: `start_kill` reaches `cmd.exe` alone,
-/// which is what `Process.kill` did before this moved into Rust.
+/// it. `start_kill` remains the final fallback for a child that exits while the
+/// platform tree termination is being requested.
 #[allow(unused_variables)]
-fn kill_group(child: &Child) {
+async fn terminate_invocation(child: &Child) {
     #[cfg(unix)]
     if let Some(pid) = child.id() {
         // Safe: `kill` only reads the group id, and a group that already exited
@@ -356,6 +359,26 @@ fn kill_group(child: &Child) {
             libc::kill(-(pid as i32), libc::SIGKILL);
         }
     }
+    #[cfg(windows)]
+    if let Some(pid) = child.id() {
+        let mut command = windowless_async_command("taskkill.exe");
+        command
+            .args(windows_process_tree_kill_arguments(pid))
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let _ = tokio::time::timeout(PROCESS_TREE_KILL_TIMEOUT, command.status()).await;
+    }
+}
+
+#[cfg(any(windows, test))]
+pub(super) fn windows_process_tree_kill_arguments(pid: u32) -> Vec<String> {
+    vec![
+        "/PID".to_string(),
+        pid.to_string(),
+        "/T".to_string(),
+        "/F".to_string(),
+    ]
 }
 
 fn forward<R>(

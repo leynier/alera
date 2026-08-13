@@ -312,6 +312,32 @@ void main() {
     expect(cached?.fromCache, isTrue);
   });
 
+  test('file cache evicts old entries within its persistent bound', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reading-diff-bounded-cache-test-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final cache = FileReadingDiffCache(
+      directoryProvider: () async => directory,
+      maxEntries: 2,
+    );
+    ReadingDiffResult result(String summary) => ReadingDiffResult(
+      diff: Uint8List.fromList(<int>[1, 2, 3]),
+      summary: summary,
+      changedLines: 2,
+      retainedChangedLines: 1,
+      agentLabel: 'Codex',
+    );
+
+    await cache.write('oldest', result('Oldest.'));
+    await cache.write('middle', result('Middle.'));
+    await cache.write('current', result('Current.'));
+
+    expect(await cache.read('oldest'), isNull);
+    expect((await cache.read('middle'))?.summary, 'Middle.');
+    expect((await cache.read('current'))?.summary, 'Current.');
+  });
+
   test(
     'best-effort cache persistence does not lose generated output',
     () async {
