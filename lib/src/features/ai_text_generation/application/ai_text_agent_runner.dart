@@ -168,10 +168,11 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
       _pending.remove(request.runId);
       _running.remove(request.runId);
       _canceled.remove(request.runId);
+      await _waitForProcessExit(processExit);
       await plan?.dispose();
       final directory = isolatedDirectory;
       if (directory != null) {
-        await _deleteIsolatedDirectory(directory, processExit);
+        await _deleteTemporaryDirectory(directory);
       }
     }
   }
@@ -436,15 +437,15 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
   }
 }
 
-Future<void> _deleteIsolatedDirectory(
-  Directory directory,
-  Future<int>? processExit,
-) async {
+Future<void> _waitForProcessExit(Future<int>? processExit) async {
   if (processExit != null) {
     try {
       await processExit.timeout(const Duration(seconds: 6));
     } catch (_) {}
   }
+}
+
+Future<void> _deleteTemporaryDirectory(Directory directory) async {
   for (var attempt = 0; attempt < 3; attempt += 1) {
     try {
       if (await directory.exists()) {
@@ -485,10 +486,6 @@ class _AiTextAgentCommandPlan {
     if (directory == null) {
       return;
     }
-    try {
-      if (await directory.exists()) {
-        await directory.delete(recursive: true);
-      }
-    } catch (_) {}
+    await _deleteTemporaryDirectory(directory);
   }
 }

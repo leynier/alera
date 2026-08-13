@@ -386,7 +386,7 @@ ERROR: {
     );
   });
 
-  test('waits for a timed-out diff-only process before cleanup', () async {
+  test('waits for a timed-out process before deleting task files', () async {
     final exit = Completer<int>();
     final process = _FakeProcessRunner(
       stdout: '',
@@ -403,7 +403,7 @@ ERROR: {
         prompt: 'Plan this diff.',
         runId: 'reading-diff-timeout-cleanup',
         workingDirectory: '/repo',
-        agent: AiTextGenerationAgent.pi,
+        agent: AiTextGenerationAgent.codex,
         accessPolicy: AgentTaskAccessPolicy.diffOnly,
         outputContract: AgentTaskOutputContract.readingDiffPlanV1,
         outputSchema: '{"type":"object"}',
@@ -411,10 +411,15 @@ ERROR: {
     );
 
     await untilCalled(() => process.killed);
-    final directory = process.workingDirectory!;
-    expect(Directory(directory).existsSync(), isTrue);
+    final isolatedDirectory = process.workingDirectory!;
+    final schemaPath =
+        process.arguments[process.arguments.indexOf('--output-schema') + 1];
+    final promptDirectory = File(schemaPath).parent.path;
+    expect(Directory(isolatedDirectory).existsSync(), isTrue);
+    expect(Directory(promptDirectory).existsSync(), isTrue);
     exit.complete(143);
     await expectLater(run, throwsA(isA<AiTextGenerationException>()));
-    expect(Directory(directory).existsSync(), isFalse);
+    expect(Directory(isolatedDirectory).existsSync(), isFalse);
+    expect(Directory(promptDirectory).existsSync(), isFalse);
   });
 }
