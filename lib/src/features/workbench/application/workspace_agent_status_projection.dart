@@ -91,8 +91,8 @@ AgentStatusEntry? matchingAgentStatusForTab({
 // Urgency ranking for the aggregate workspace status only; row order stays
 // in creation order.
 int _compareAgentRuns(WorkspaceAgentRun a, WorkspaceAgentRun b) {
-  final aPriority = _workspaceStatusPriority(a.status.state);
-  final bPriority = _workspaceStatusPriority(b.status.state);
+  final aPriority = _workspaceStatusPriority(a.status);
+  final bPriority = _workspaceStatusPriority(b.status);
   if (aPriority != bPriority) {
     return bPriority.compareTo(aPriority);
   }
@@ -103,10 +103,16 @@ int _compareAgentRuns(WorkspaceAgentRun a, WorkspaceAgentRun b) {
   return a.tab.createdAt.compareTo(b.tab.createdAt);
 }
 
-int _workspaceStatusPriority(AgentStatusState state) {
-  return switch (state) {
-    AgentStatusState.blocked => 4,
-    AgentStatusState.waiting => 3,
+// Compact tray and Agent Activity treat interruption as attention, not as
+// a finished run. Ranking it above working/done keeps the glyph from
+// turning green (or spinning) over a leftover interrupted tab.
+int _workspaceStatusPriority(AgentStatusEntry status) {
+  if (status.interrupted ?? false) {
+    return 3;
+  }
+  return switch (status.state) {
+    AgentStatusState.blocked => 5,
+    AgentStatusState.waiting => 4,
     AgentStatusState.working => 2,
     AgentStatusState.done => 1,
   };

@@ -117,6 +117,34 @@ void main() {
       expect(status, isNull);
     });
 
+    test('ranks an interrupted run above later working and done runs', () {
+      final interruptedTab = _tab('tab-interrupted');
+      final workingTab = _tab('tab-working');
+      final doneTab = _tab('tab-done');
+      final runs = visibleWorkspaceAgentRuns(
+        tabs: <WorkspaceTabRecord>[interruptedTab, workingTab, doneTab],
+        agentStatuses: <String, AgentStatusEntry>{
+          interruptedTab.terminalSessionId: _entry(
+            interruptedTab,
+            AgentStatusState.done,
+            interrupted: true,
+          ),
+          workingTab.terminalSessionId: _entry(
+            workingTab,
+            AgentStatusState.working,
+            updatedAt: DateTime.utc(2026, 5, 26, 12),
+          ),
+          doneTab.terminalSessionId: _entry(
+            doneTab,
+            AgentStatusState.done,
+            updatedAt: DateTime.utc(2026, 5, 26, 12, 1),
+          ),
+        },
+      );
+
+      expect(mostUrgentWorkspaceAgentRun(runs)?.tab.id, interruptedTab.id);
+    });
+
     test('ranks a later working run above an earlier done run', () {
       final doneTab = _tab('tab-done');
       final workingTab = _tab('tab-working');
@@ -194,6 +222,7 @@ AgentStatusEntry _entry(
   DateTime? updatedAt,
   String? tabId,
   String? terminalSessionId,
+  bool? interrupted,
 }) {
   final timestamp = updatedAt ?? DateTime.utc(2026, 5, 26);
   return AgentStatusEntry(
@@ -205,5 +234,6 @@ AgentStatusEntry _entry(
     prompt: '',
     updatedAt: timestamp,
     stateStartedAt: timestamp,
+    interrupted: interrupted,
   );
 }
