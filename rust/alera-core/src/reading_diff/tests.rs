@@ -191,6 +191,34 @@ fn elides_imports_and_protects_python_suite_owners() {
 }
 
 #[test]
+fn preserves_exported_declarations_but_elides_reexports() {
+    let declaration = b"diff --git a/config.ts b/config.ts\n\
+--- a/config.ts\n\
++++ b/config.ts\n\
+@@ -1 +1 @@\n\
+-export const enabled = false;\n\
++export const enabled = true;\n";
+    let unchanged = compile(
+        declaration,
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Toggle the exported setting."}"#,
+    )
+    .expect("export declaration");
+    assert_eq!(unchanged.reading_diff, declaration);
+
+    let reexport = b"diff --git a/index.ts b/index.ts\n\
+--- a/index.ts\n\
++++ b/index.ts\n\
+@@ -0,0 +1 @@\n\
++export { Feature } from './feature';\n";
+    let elided = compile(
+        reexport,
+        r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Expose the feature."}"#,
+    )
+    .expect("reexport");
+    assert!(elided.reading_diff.is_empty());
+}
+
+#[test]
 fn rejects_partial_python_expressions_and_elides_multiline_imports() {
     let expression = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -0,0 +1,3 @@\n+result = call(\n+    argument,\n+)\n";
     let partial = r#"{"version":1,"remove":[{"start_line":5,"end_line":5}],"replace":[],"fold":[],"summary":"x"}"#;

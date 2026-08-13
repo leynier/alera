@@ -58,7 +58,7 @@ pub(crate) fn mandatory_import_mask(lines: &[SourceLine]) -> Vec<bool> {
 
 fn starts_import(trimmed: &str) -> bool {
     trimmed.starts_with("import ")
-        || trimmed.starts_with("export ")
+        || starts_reexport(trimmed)
         || trimmed.starts_with("from ") && trimmed.contains(" import ")
         || trimmed.starts_with("use ")
         || trimmed.starts_with("pub use ")
@@ -66,6 +66,21 @@ fn starts_import(trimmed: &str) -> bool {
         || trimmed.starts_with("#include<")
         || trimmed.starts_with("require(")
         || trimmed.starts_with("const ") && trimmed.contains("require(")
+}
+
+fn starts_reexport(trimmed: &str) -> bool {
+    let Some(rest) = trimmed.strip_prefix("export") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    if rest.starts_with('{') || rest.starts_with("* from ") {
+        return true;
+    }
+    let Some(rest) = rest.strip_prefix("type") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    rest.starts_with('{') || rest.starts_with("* from ")
 }
 
 fn delimiter_balances(value: &str) -> [i32; 3] {
