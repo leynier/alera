@@ -30,6 +30,7 @@ import '../unit/fake_git_backend.dart';
 
 part 'workspace_git_diff_surface_pull_request_cases.dart';
 part 'workspace_git_diff_surface_reading_diff_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_support.dart';
 part 'workspace_git_diff_surface_test_support.dart';
 
 void main() {

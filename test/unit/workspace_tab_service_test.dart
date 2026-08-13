@@ -580,61 +580,85 @@ void main() {
       expect(repository.tabs.single.title, 'app changes');
     });
 
-    test('does not retarget commit diff tabs after a folder move', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.addAll(<WorkspaceTabRecord>[
-          WorkspaceTabRecord(
-            id: 'working-tree-tab',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'app changes',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabGitDiffScopePayloadKey: 'all',
-              workspaceTabGitDiffRootPayloadKey: 'packages/app',
-            },
-          ),
-          WorkspaceTabRecord(
-            id: 'commit-tab',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'main.dart abc1234',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabGitDiffSourcePayloadKey: 'commit',
-              workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
-              workspaceTabGitDiffOldPathPayloadKey:
-                  'packages/app/lib/old_main.dart',
-              workspaceTabGitDiffScopePayloadKey: 'file',
-              workspaceTabGitDiffRootPayloadKey: 'packages/app',
-              workspaceTabGitDiffCommitOidPayloadKey: 'abc123456789',
-              workspaceTabGitDiffParentOidPayloadKey: 'def987654321',
-              workspaceTabGitDiffCompareRefPayloadKey: 'abc1234',
-            },
-          ),
-        ]);
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21, 1),
-      );
+    test(
+      'does not retarget commit-backed diff tabs after a folder move',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.addAll(<WorkspaceTabRecord>[
+            WorkspaceTabRecord(
+              id: 'working-tree-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'app changes',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffScopePayloadKey: 'all',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+              },
+            ),
+            WorkspaceTabRecord(
+              id: 'commit-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'main.dart abc1234',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffSourcePayloadKey: 'commit',
+                workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
+                workspaceTabGitDiffOldPathPayloadKey:
+                    'packages/app/lib/old_main.dart',
+                workspaceTabGitDiffScopePayloadKey: 'file',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+                workspaceTabGitDiffCommitOidPayloadKey: 'abc123456789',
+                workspaceTabGitDiffParentOidPayloadKey: 'def987654321',
+                workspaceTabGitDiffCompareRefPayloadKey: 'abc1234',
+              },
+            ),
+            WorkspaceTabRecord(
+              id: 'pull-request-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'Pull request #385',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffSourcePayloadKey: 'pullRequest',
+                workspaceTabGitDiffScopePayloadKey: 'all',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+                workspaceTabGitDiffCommitOidPayloadKey: 'head123',
+                workspaceTabGitDiffParentOidPayloadKey: 'base123',
+                workspaceTabGitDiffPullRequestNumberPayloadKey: 385,
+                workspaceTabGitDiffHostedReviewRetentionIdPayloadKey:
+                    '0123456789abcdef0123456789abcdef',
+              },
+            ),
+          ]);
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
 
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'packages',
-        newRelativePath: 'modules',
-      );
+        final result = await service.updateFileTabPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'packages',
+          newRelativePath: 'modules',
+        );
 
-      expect(result.updatedTabs.single.id, 'working-tree-tab');
-      expect(repository.tabs[0].gitDiffRoot, 'modules/app');
-      expect(repository.tabs[1].filePath, 'packages/app/lib/main.dart');
-      expect(
-        repository.tabs[1].gitDiffOldPath,
-        'packages/app/lib/old_main.dart',
-      );
-      expect(repository.tabs[1].gitDiffRoot, 'packages/app');
-    });
+        expect(result.updatedTabs.single.id, 'working-tree-tab');
+        expect(repository.tabs[0].gitDiffRoot, 'modules/app');
+        expect(repository.tabs[1].filePath, 'packages/app/lib/main.dart');
+        expect(
+          repository.tabs[1].gitDiffOldPath,
+          'packages/app/lib/old_main.dart',
+        );
+        expect(repository.tabs[1].gitDiffRoot, 'packages/app');
+        expect(repository.tabs[2].title, 'Pull request #385');
+        expect(repository.tabs[2].gitDiffRoot, 'packages/app');
+        expect(repository.tabs[2].gitDiffCommitOid, 'head123');
+      },
+    );
 
     test('updates git diff roots and file paths after a folder move', () async {
       final repository = _FakeWorkbenchRepository()

@@ -39,7 +39,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
       if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
         continue;
       }
-      if (tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+      if (_isCommitBackedGitDiff(tab)) {
         continue;
       }
       final root = tab.gitDiffRoot!;
@@ -85,8 +85,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     for (final originalTab in tabs) {
       final rootWasRetargeted = updatedById.containsKey(originalTab.id);
       final tab = updatedById[originalTab.id] ?? originalTab;
-      if (tab.kind == WorkspaceTabKind.gitDiff &&
-          tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+      if (_isCommitBackedGitDiff(tab)) {
         continue;
       }
       if (!_isFileTabKind(tab.kind)) {
@@ -192,6 +191,11 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     return tab.kind == WorkspaceTabKind.editor ||
         tab.kind == WorkspaceTabKind.pdf ||
         tab.kind == WorkspaceTabKind.markdownViewer;
+  }
+
+  bool _isCommitBackedGitDiff(WorkspaceTabRecord tab) {
+    return tab.kind == WorkspaceTabKind.gitDiff &&
+        tab.gitDiffSource != WorkspaceGitDiffSource.workingTree;
   }
 
   WorkspaceTabKind? _fileTabKindAfterPathMove({

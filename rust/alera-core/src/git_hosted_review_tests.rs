@@ -192,6 +192,65 @@ fn fetches_fork_head_from_its_source_repository() {
 
     assert_eq!(range.base_oid, base.to_string());
     assert_eq!(range.head_oid, head.to_string());
+    release_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("release fork hosted range");
+}
+
+#[test]
+fn fetches_an_exact_base_after_the_target_branch_is_deleted() {
+    let remote_directory = tempfile::tempdir().expect("remote tempdir");
+    let remote = Repository::init_bare(remote_directory.path()).expect("bare remote");
+    remote.set_head("refs/heads/main").expect("remote head");
+
+    let seed_directory = tempfile::tempdir().expect("seed tempdir");
+    let seed = Repository::init(seed_directory.path()).expect("seed repository");
+    seed.set_head("refs/heads/main").expect("main branch");
+    fs::write(seed_directory.path().join("base.txt"), "base\n").expect("base file");
+    let base = commit(&seed, "base");
+    seed.remote("origin", remote_directory.path().to_string_lossy().as_ref())
+        .expect("origin");
+    push(&seed, "refs/heads/main:refs/heads/main");
+
+    let base_commit = seed.find_commit(base).expect("base commit");
+    seed.branch("feature", &base_commit, false)
+        .expect("feature branch");
+    drop(base_commit);
+    seed.set_head("refs/heads/feature").expect("feature head");
+    seed.checkout_head(None).expect("feature checkout");
+    fs::write(seed_directory.path().join("feature.txt"), "feature\n").expect("feature file");
+    let head = commit(&seed, "feature");
+    push(&seed, "refs/heads/feature:refs/pull/10/head");
+
+    let client_directory = tempfile::tempdir().expect("client tempdir");
+    Repository::clone(
+        remote_directory.path().to_string_lossy().as_ref(),
+        client_directory.path(),
+    )
+    .expect("client clone");
+    push(&seed, ":refs/heads/main");
+
+    let range = fetch_hosted_review_range(HostedReviewFetch {
+        repo_path: client_directory.path().to_string_lossy().as_ref(),
+        remote_name: "origin",
+        base_branch: "main",
+        head_sha: &head.to_string(),
+        head_remote: None,
+        comparison_base_sha: Some(&base.to_string()),
+        merge_commit_sha: None,
+        review_ref: Some("refs/pull/10/head"),
+    })
+    .expect("hosted range with deleted base branch");
+
+    assert_eq!(range.base_oid, base.to_string());
+    assert_eq!(range.head_oid, head.to_string());
+    release_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("release deleted-base hosted range");
 }
 
 #[test]
@@ -334,7 +393,13 @@ fn sweeps_unowned_hosted_review_refs() {
     let object = repository.blob(b"review").expect("object");
     let retained = "00000000000000000000000000000001";
     let stale = "00000000000000000000000000000002";
-    for (namespace, retention_id) in [("tabs", retained), ("tabs", stale), ("operations", stale)] {
+    let active = "00000000000000000000000000000003";
+    for (namespace, retention_id) in [
+        ("tabs", retained),
+        ("tabs", stale),
+        ("operations", stale),
+        ("operations", active),
+    ] {
         for role in ["base", "head"] {
             repository
                 .reference(
@@ -346,10 +411,13 @@ fn sweeps_unowned_hosted_review_refs() {
                 .expect("hosted ref");
         }
     }
+    super::record_hosted_review_operation(directory.path().to_string_lossy().as_ref(), active)
+        .expect("record active operation");
 
     sweep_hosted_review_ranges(
         directory.path().to_string_lossy().as_ref(),
         &[retained.into()],
+        &[stale.into()],
     )
     .expect("sweep");
 
@@ -364,6 +432,13 @@ fn sweeps_unowned_hosted_review_refs() {
             "refs/alera/hosted-reviews/operations/{stale}/head"
         ))
         .is_err());
+    assert!(repository
+        .find_reference(&format!(
+            "refs/alera/hosted-reviews/operations/{active}/head"
+        ))
+        .is_ok());
+    release_hosted_review_range(directory.path().to_string_lossy().as_ref(), active)
+        .expect("release active operation");
 }
 
 fn push(repository: &Repository, refspec: &str) {

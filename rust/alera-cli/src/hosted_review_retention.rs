@@ -3,6 +3,11 @@ use std::path::{Component, Path};
 
 use alera_core::runtime::{RuntimeStore, WorkspaceTabRecord};
 
+#[path = "hosted_review_operation_liveness.rs"]
+mod operation_liveness;
+
+use operation_liveness::active_operation_ids;
+
 const GIT_DIFF_ROOT_KEY: &str = "gitDiffRoot";
 const RETENTION_ID_KEY: &str = "gitDiffHostedReviewRetentionId";
 
@@ -102,9 +107,16 @@ pub(crate) async fn reconcile(store: &RuntimeStore) {
         };
         retentions.extend(for_records(store, tabs).await);
     }
+    let active_operation_ids = active_operation_ids(&operations);
+    let stale_operation_ids = operations
+        .iter()
+        .filter(|operation| !active_operation_ids.contains(&operation.retention_id))
+        .map(|operation| operation.retention_id.clone())
+        .collect::<HashSet<_>>();
     let retained_ids = retentions
         .iter()
         .map(|retention| retention.retention_id.clone())
+        .chain(active_operation_ids)
         .collect::<HashSet<_>>();
     for retention in &retentions {
         repo_paths.insert(retention.repo_path.clone());
@@ -123,15 +135,23 @@ pub(crate) async fn reconcile(store: &RuntimeStore) {
         }
     }
     let retained_ids = retained_ids.into_iter().collect::<Vec<_>>();
+    let stale_operation_ids = stale_operation_ids.into_iter().collect::<Vec<_>>();
     let mut swept_repo_paths = HashSet::new();
     for repo_path in repo_paths {
-        if alera_core::git::hosted_review::sweep_hosted_review_ranges(&repo_path, &retained_ids)
-            .is_ok()
+        if alera_core::git::hosted_review::sweep_hosted_review_ranges(
+            &repo_path,
+            &retained_ids,
+            &stale_operation_ids,
+        )
+        .is_ok()
         {
             swept_repo_paths.insert(repo_path);
         }
     }
     for operation in operations {
+        if !stale_operation_ids.contains(&operation.retention_id) {
+            continue;
+        }
         if swept_repo_paths.contains(&operation.repo_path)
             || !Path::new(&operation.repo_path).exists()
         {
@@ -329,11 +349,11 @@ mod tests {
                 )
                 .unwrap();
         }
-        alera_core::git::hosted_review::record_hosted_review_operation(
+        write_operation_marker(
             repo_path.to_string_lossy().as_ref(),
             &retention_id,
-        )
-        .unwrap();
+            u32::MAX,
+        );
         let store = RuntimeStore::open(&directory.path().join("runtime"))
             .await
             .unwrap();
@@ -351,6 +371,67 @@ mod tests {
         assert!(!alera_core::git::hosted_review::hosted_review_operations()
             .iter()
             .any(|operation| operation.retention_id == retention_id));
+    }
+
+    #[tokio::test]
+    async fn reconcile_preserves_an_operation_owned_by_a_live_process() {
+        let directory = tempfile::tempdir().unwrap();
+        let repo_path = directory.path().join("project");
+        let repository = git2::Repository::init(&repo_path).unwrap();
+        let object = repository.blob(b"review object").unwrap();
+        let retention_id = uuid::Uuid::new_v4().simple().to_string();
+        for role in ["base", "head"] {
+            repository
+                .reference(
+                    &format!("refs/alera/hosted-reviews/operations/{retention_id}/{role}"),
+                    object,
+                    true,
+                    "test",
+                )
+                .unwrap();
+        }
+        alera_core::git::hosted_review::record_hosted_review_operation(
+            repo_path.to_string_lossy().as_ref(),
+            &retention_id,
+        )
+        .unwrap();
+        let store = RuntimeStore::open(&directory.path().join("runtime"))
+            .await
+            .unwrap();
+        insert_workspace_records(&store, &repo_path, &repo_path).await;
+
+        reconcile(&store).await;
+
+        for role in ["base", "head"] {
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/operations/{retention_id}/{role}"
+                ))
+                .is_ok());
+        }
+        assert!(alera_core::git::hosted_review::hosted_review_operations()
+            .iter()
+            .any(|operation| operation.retention_id == retention_id));
+        alera_core::git::hosted_review::release_hosted_review_range(
+            repo_path.to_string_lossy().as_ref(),
+            &retention_id,
+        )
+        .unwrap();
+    }
+
+    fn write_operation_marker(repo_path: &str, retention_id: &str, owner_pid: u32) {
+        let path =
+            std::env::temp_dir().join(format!("alera-hosted-review-operation-{retention_id}.json"));
+        std::fs::write(
+            path,
+            serde_json::to_vec(&json!({
+                "repoPath": repo_path,
+                "retentionId": retention_id,
+                "ownerPid": owner_pid,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
     }
 
     async fn insert_records(

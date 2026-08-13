@@ -430,14 +430,6 @@ class _WorkspaceGitDiffSurfaceState
     final activeRequest = _activeReadingDiffRequest;
     if (activeRequest != null) {
       ref.read(readingDiffServiceProvider).cancel(activeRequest);
-      _activeReadingDiffRequest = null;
-    }
-    _readingDiffGeneration += 1;
-    if (mounted && _readingDiffBusy) {
-      setState(() {
-        _readingDiffBusy = false;
-        _readingDiffProgress = null;
-      });
     }
   }
 
