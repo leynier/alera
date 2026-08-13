@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
@@ -15,12 +16,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'mobile_codex_controller.g.dart';
 part 'mobile_codex_controller_configuration_helpers.dart';
 part 'mobile_codex_controller_helpers.dart';
+part 'mobile_codex_controller_identity.dart';
 part 'mobile_codex_controller_lifecycle.dart';
 part 'mobile_codex_controller_workspace.dart';
 part 'mobile_codex_controller_options.dart';
 part 'mobile_codex_controller_review.dart';
 part 'mobile_codex_controller_sessions.dart';
 part 'mobile_codex_controller_catalogues.dart';
+part 'mobile_codex_controller_goals.dart';
+part 'mobile_codex_controller_capabilities.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
@@ -48,15 +52,14 @@ class MobileCodexController extends _$MobileCodexController
   String? _threadId;
   @override
   int _threadGeneration = 0;
+  int _accountCatalogueRevision = 0;
+  bool _accountCatalogueRefreshPending = false;
+  bool _accountCatalogueBuildAwaitingPublication = false;
+  bool _goalsAvailable = true;
+  bool _goalRefreshPending = false;
 
   @override
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
-
-  bool get supportsSessions => _client?.supportsCodexSessions == true;
-
-  bool get supportsTurnPolicy => _client?.supportsCodexTurnPolicy == true;
-
-  int get threadGeneration => _threadGeneration;
 
   @override
   Timer? get _interruptSafetyTimerValue => _interruptSafetyTimer;
@@ -66,7 +69,12 @@ class MobileCodexController extends _$MobileCodexController
       _reloadMobileCodexCatalogue(catalog);
 
   @override
+  Future<void> _retryGoalAvailability() => _refreshGoalAvailability();
+
+  @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
+    _accountCatalogueBuildAwaitingPublication = true;
+    _registerAccountCatalogueReplay();
     final client = await ref.watch(mobileCodexClientProvider(hostId).future);
     if (!client.supportsCodexChat) {
       throw UnsupportedError('This runtime host does not support Codex chat.');
@@ -92,8 +100,11 @@ class MobileCodexController extends _$MobileCodexController
           ? null
           : MobileCodexThreadRecovery.fromJson(response['recovery']),
     );
+    next = await _loadInitialGoal(client, next);
     next = _applyMobileConfiguration(next, storedConfiguration);
-    next = await _loadCatalogues(client, next);
+    final initialCatalogues = await _loadInitialCatalogues(client, next);
+    next = initialCatalogues.state;
+    final initializedAccountRevision = initialCatalogues.revision;
     if (storedConfiguration == null) {
       try {
         final preferences = await ref
@@ -132,6 +143,15 @@ class MobileCodexController extends _$MobileCodexController
           stackTrace,
         );
       }
+    }
+    final pendingCatalogues = await _loadPendingAccountCatalogues(
+      client,
+      next,
+      initializedAccountRevision,
+    );
+    next = pendingCatalogues.state;
+    if (pendingCatalogues.revision == _accountCatalogueRevision) {
+      _accountCatalogueRefreshPending = false;
     }
     _scheduleDeferredThreadEventDrain();
     return next;

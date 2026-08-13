@@ -49,6 +49,7 @@ pub const RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY: &str = "mobileCodexSess
 pub const RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY: &str = "mobilePromptFileUploadV1";
 pub const RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY: &str =
     "mobilePromptAttachmentReadV1";
+pub const RUNTIME_HOST_AI_DICTATION_CAPABILITY: &str = "aiDictationV1";
 /// Desktop account management backed by the Alera cloud identity service.
 /// Account verbs remain unavailable to paired mobile clients.
 pub const RUNTIME_HOST_ACCOUNT_CAPABILITY: &str = "aleraAccountV1";
@@ -100,6 +101,7 @@ pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresenc
 // Advertised once callers can explicitly replace a terminal process while
 // preserving its handle and scrollback. Older hosts remain attachable.
 pub const RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY: &str = "terminalRestartV1";
+pub const RUNTIME_HOST_TERMINAL_PULSE_CAPABILITY: &str = "terminalPulseV1";
 /// The client may ask, in its `hello`, to switch this connection to
 /// length-prefixed binary frames. Negotiated per client, so an older app and
 /// the `alera` CLI keep getting newline-delimited JSON from the same host.
@@ -150,6 +152,8 @@ pub const MOBILE_EMULATOR_TAB_KIND: &str = "mobileEmulator";
 /// Native Codex chat tabs are additive. Clients advertise support for the tab
 /// kind separately so an older client never attempts to decode it.
 pub const RUNTIME_HOST_CODEX_CHAT_CAPABILITY: &str = "codexChatTabV1";
+/// Codex goals are additive and bridged through the app-server thread goal API.
+pub const RUNTIME_HOST_CODEX_GOALS_CAPABILITY: &str = "codexGoalsV1";
 /// Native Codex session management is additive. Desktop clients negotiate it
 /// before exposing thread list, resume, new, and clear actions.
 pub const RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY: &str = "codexSessionsV1";

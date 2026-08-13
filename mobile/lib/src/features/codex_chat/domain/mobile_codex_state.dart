@@ -9,6 +9,7 @@ part 'mobile_codex_requests.dart';
 part 'mobile_codex_state_helpers.dart';
 part 'mobile_codex_projection.dart';
 part 'mobile_codex_thread_models.dart';
+part 'mobile_codex_goal.dart';
 
 @immutable
 class MobileCodexTimelineCell {
@@ -68,8 +69,11 @@ class MobileCodexTimelineCell {
   final Map<String, Object?> metadata;
 
   MobileCodexTimelineCell copyWith({
+    String? id,
     String? kind,
     String? status,
+    String? itemId,
+    String? turnId,
     DateTime? updatedAt,
     String? title,
     String? subtitle,
@@ -80,11 +84,11 @@ class MobileCodexTimelineCell {
     bool? isCollapsed,
     Map<String, Object?>? metadata,
   }) => MobileCodexTimelineCell(
-    id: id,
+    id: id ?? this.id,
     kind: kind ?? this.kind,
     status: status ?? this.status,
-    itemId: itemId,
-    turnId: turnId,
+    itemId: itemId ?? this.itemId,
+    turnId: turnId ?? this.turnId,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     title: title ?? this.title,
@@ -141,6 +145,7 @@ class MobileCodexState {
     this.interrupting = false,
     this.presentationRows = const <MobileCodexPresentationRow>[],
     this.recovery,
+    this.goal,
   });
 
   factory MobileCodexState.fromSnapshot(
@@ -186,6 +191,7 @@ class MobileCodexState {
               activeTurnId: activeTurnId,
             )
           : const <MobileCodexPresentationRow>[],
+      goal: json['goal'] is Map ? MobileCodexGoal.fromJson(json['goal']) : null,
     );
   }
 
@@ -258,6 +264,11 @@ class MobileCodexState {
           ? _int(json['contextLimit'])
           : contextLimit,
       title: json.containsKey('title') ? _string(json['title']) : title,
+      goal: json.containsKey('goal')
+          ? json['goal'] is Map
+                ? MobileCodexGoal.fromJson(json['goal'])
+                : null
+          : goal,
       promptHistory: cellsChanged && deriveTimeline
           ? mobileCodexPromptHistory(nextCells)
           : promptHistory,
@@ -301,6 +312,7 @@ class MobileCodexState {
   final bool interrupting;
   final List<MobileCodexPresentationRow> presentationRows;
   final MobileCodexThreadRecovery? recovery;
+  final MobileCodexGoal? goal;
 
   bool get busy => sending || interrupting || activeTurnId != null;
 
@@ -375,6 +387,7 @@ class MobileCodexState {
     bool? interrupting,
     List<MobileCodexPresentationRow>? presentationRows,
     Object? recovery = _keepRecovery,
+    Object? goal = _keepGoal,
   }) => MobileCodexState(
     events: events ?? this.events,
     timelineCells: timelineCells ?? this.timelineCells,
@@ -428,8 +441,11 @@ class MobileCodexState {
     recovery: identical(recovery, _keepRecovery)
         ? this.recovery
         : recovery as MobileCodexThreadRecovery?,
+    goal: identical(goal, _keepGoal) ? this.goal : goal as MobileCodexGoal?,
   );
 }
+
+const Object _keepGoal = Object();
 
 const Object _keep = Object();
 const Object _keepRecovery = Object();
@@ -440,6 +456,7 @@ List<String> mobileCodexPromptHistory(List<MobileCodexTimelineCell> cells) =>
       for (final cell in cells)
         if (cell.kind == 'userMessage' &&
             cell.metadata['isSteering'] != true &&
+            cell.metadata['isGoal'] != true &&
             (cell.markdownText ?? '').trim().isNotEmpty)
           cell.markdownText!.trim(),
     ]);

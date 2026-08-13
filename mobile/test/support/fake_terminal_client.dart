@@ -49,6 +49,8 @@ class FakeTerminalClient
   final List<List<int>> writes = <List<int>>[];
   final List<({String tabId, int cols, int rows})> attachments =
       <({String tabId, int cols, int rows})>[];
+  final List<Object> writeErrors = <Object>[];
+  final List<Object> resizeErrors = <Object>[];
   Future<void>? attachCompletion;
   Future<void>? removeTabCompletion;
   Future<void>? terminateCompletion;
@@ -263,12 +265,18 @@ class FakeTerminalClient
       'write $sessionId ${bytes.length} '
       'paste=$bracketedPaste enter=$deferredEnter',
     );
+    if (writeErrors.isNotEmpty) {
+      throw writeErrors.removeAt(0);
+    }
     writes.add(bytes);
   }
 
   @override
   Future<void> resizeTerminal(String sessionId, int cols, int rows) async {
     calls.add('resize $sessionId $cols $rows');
+    if (resizeErrors.isNotEmpty) {
+      throw resizeErrors.removeAt(0);
+    }
   }
 
   @override

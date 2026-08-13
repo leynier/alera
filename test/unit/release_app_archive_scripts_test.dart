@@ -7,6 +7,8 @@ import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'dart_script_test_support.dart';
+
 import '../../tool/release/latest_stable_release.dart' as latest_stable;
 import '../../tool/release/update_mobile_pubspec_version.dart'
     as mobile_version;
@@ -141,7 +143,7 @@ void main() {
       artifacts.first.writeAsStringSync('tampered');
 
       final verification = await Process.run(
-        'dart',
+        dartScriptTestExecutable(),
         <String>[
           'tool/release/verify_desktop_update_channel.dart',
           p.join(temp.path, 'public'),
@@ -305,7 +307,7 @@ Future<void> _runDartScript(
   Map<String, String>? environment,
 }) async {
   final result = await Process.run(
-    'dart',
+    dartScriptTestExecutable(),
     <String>[script, ...args],
     workingDirectory: Directory.current.path,
     environment: environment,

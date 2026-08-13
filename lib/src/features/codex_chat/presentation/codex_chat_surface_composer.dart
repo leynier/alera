@@ -185,215 +185,233 @@ class _CodexComposerState extends State<_CodexComposer> {
                     selectedIndex: _selectedIndex,
                     onSelected: _selectCatalogItem,
                   ),
-                Stack(
-                  children: <Widget>[
-                    AbsorbPointer(
-                      absorbing: _disabled,
-                      child: DecoratedBox(
-                        key: const ValueKey<String>('codex-composer-shell'),
-                        decoration: BoxDecoration(
-                          color: AleraTokens.surfaceVariant,
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusXl,
-                          ),
-                          border: Border.all(color: AleraTokens.border),
-                        ),
-                        child: Column(
-                          children: <Widget>[
-                            _CodexDraftItemBar(
-                              items: widget.draftItems,
-                              onRemove: widget.onRemoveDraftItem,
-                              onOpen: (item) => widget.onOpenAttachment(
-                                item.path,
-                                isImage: false,
-                              ),
-                            ),
-                            _CodexAttachmentBar(
-                              attachments: widget.attachments,
-                              draftItems: widget.draftItems,
-                              onRemoveAttachment: widget.onRemoveAttachment,
-                              onRemoveDraftItem: widget.onRemoveDraftItem,
-                              onOpen: widget.onOpenAttachment,
-                            ),
-                            CallbackShortcuts(
-                              bindings: <ShortcutActivator, VoidCallback>{
-                                const SingleActivator(
-                                  LogicalKeyboardKey.enter,
-                                ): () {
-                                  if (canSubmit) widget.onSend();
-                                },
-                                const SingleActivator(
-                                  LogicalKeyboardKey.enter,
-                                  shift: true,
-                                ): _insertLineBreak,
-                              },
-                              child: Scrollbar(
-                                controller: _composerScrollController,
-                                thumbVisibility: true,
-                                child: ScrollConfiguration(
-                                  behavior: ScrollConfiguration.of(
-                                    context,
-                                  ).copyWith(scrollbars: false),
-                                  child: TextField(
-                                    key: const ValueKey<String>(
-                                      'codex-composer-text-field',
-                                    ),
-                                    controller: widget.controller,
-                                    scrollController: _composerScrollController,
-                                    focusNode: widget.focusNode,
-                                    enabled: !widget.interrupting && !_disabled,
-                                    minLines: 2,
-                                    maxLines: 6,
-                                    textInputAction: TextInputAction.newline,
-                                    decoration: const InputDecoration(
-                                      hintText:
-                                          'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
-                                      filled: true,
-                                      fillColor: Colors.transparent,
-                                      hoverColor: Colors.transparent,
-                                      contentPadding: EdgeInsets.fromLTRB(
-                                        AleraTokens.space12,
-                                        AleraTokens.space16,
-                                        AleraTokens.space32,
-                                        AleraTokens.space8,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      disabledBorder: InputBorder.none,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AleraTokens.space8,
-                                0,
-                                AleraTokens.space8,
-                                AleraTokens.space6,
-                              ),
-                              child: Row(
-                                key: const ValueKey<String>(
-                                  'codex-composer-controls-row',
-                                ),
-                                children: <Widget>[
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: _CodexComposerControls(
-                                        state: widget.state,
-                                        onPermissionChanged:
-                                            widget.onPermissionChanged,
-                                        onPlanChanged: widget.onPlanChanged,
-                                        onAddAttachment: widget.onAddAttachment,
-                                        onPaste: widget.onPaste,
-                                        onDraftItemSelected:
-                                            widget.onDraftItemSelected,
-                                        onCommand: widget.onCommand,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AleraTokens.space6),
-                                  Flexible(
-                                    fit: FlexFit.loose,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: <Widget>[
-                                          if (contextUsed != null &&
-                                              contextLimit != null &&
-                                              contextUsed > 0 &&
-                                              contextLimit > 0) ...<Widget>[
-                                            _CodexContextUsageIndicator(
-                                              used: contextUsed,
-                                              limit: contextLimit,
-                                              onCompact: () => widget.onCommand(
-                                                CodexComposerCommand.compact,
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              width: AleraTokens.space2,
-                                            ),
-                                          ],
-                                          Flexible(
-                                            child:
-                                                _CodexModelConfigurationControl(
-                                                  state: widget.state,
-                                                  onModelChanged:
-                                                      widget.onModelChanged,
-                                                  onReasoningChanged:
-                                                      widget.onReasoningChanged,
-                                                  onSpeedChanged:
-                                                      widget.onSpeedChanged,
-                                                  onCollaborationChanged: widget
-                                                      .onCollaborationChanged,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AleraTokens.space2),
-                                  _buildActionButton(canSubmit: canSubmit),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (_disabled)
-                      Positioned.fill(
+                AiDictationTarget(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  initialPrompt:
+                      'The user is chatting with Codex about a software task.',
+                  builder: (context, targetId) => Stack(
+                    children: <Widget>[
+                      AbsorbPointer(
+                        absorbing: _disabled,
                         child: DecoratedBox(
-                          key: const ValueKey<String>(
-                            'codex-composer-mcp-loading',
-                          ),
+                          key: const ValueKey<String>('codex-composer-shell'),
                           decoration: BoxDecoration(
-                            color: AleraTokens.codexComposerDisabledOverlay,
+                            color: AleraTokens.surfaceVariant,
                             borderRadius: BorderRadius.circular(
                               AleraTokens.radiusXl,
                             ),
+                            border: Border.all(color: AleraTokens.border),
                           ),
-                          child: Center(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Icon(
-                                  widget.mcpInitializing
-                                      ? AleraIcons.host
-                                      : AleraIcons.warning,
-                                  size: AleraTokens.iconMd,
-                                  color: AleraTokens.foregroundMuted,
+                          child: Column(
+                            children: <Widget>[
+                              _CodexDraftItemBar(
+                                items: widget.draftItems,
+                                onRemove: widget.onRemoveDraftItem,
+                                onOpen: (item) => widget.onOpenAttachment(
+                                  item.path,
+                                  isImage: false,
                                 ),
-                                const SizedBox(width: AleraTokens.space8),
-                                if (widget.mcpInitializing)
-                                  _CodexShimmerText(
-                                    text: 'Initializing MCP servers...',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AleraTokens.foregroundMuted,
+                              ),
+                              _CodexAttachmentBar(
+                                attachments: widget.attachments,
+                                draftItems: widget.draftItems,
+                                onRemoveAttachment: widget.onRemoveAttachment,
+                                onRemoveDraftItem: widget.onRemoveDraftItem,
+                                onOpen: widget.onOpenAttachment,
+                              ),
+                              CallbackShortcuts(
+                                bindings: <ShortcutActivator, VoidCallback>{
+                                  const SingleActivator(
+                                    LogicalKeyboardKey.enter,
+                                  ): () {
+                                    if (canSubmit) widget.onSend();
+                                  },
+                                  const SingleActivator(
+                                    LogicalKeyboardKey.enter,
+                                    shift: true,
+                                  ): _insertLineBreak,
+                                },
+                                child: Scrollbar(
+                                  controller: _composerScrollController,
+                                  thumbVisibility: true,
+                                  child: ScrollConfiguration(
+                                    behavior: ScrollConfiguration.of(
+                                      context,
+                                    ).copyWith(scrollbars: false),
+                                    child: TextField(
+                                      key: const ValueKey<String>(
+                                        'codex-composer-text-field',
+                                      ),
+                                      controller: widget.controller,
+                                      scrollController:
+                                          _composerScrollController,
+                                      focusNode: widget.focusNode,
+                                      enabled:
+                                          !widget.interrupting && !_disabled,
+                                      minLines: 2,
+                                      maxLines: 6,
+                                      textInputAction: TextInputAction.newline,
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
+                                        filled: true,
+                                        fillColor: Colors.transparent,
+                                        hoverColor: Colors.transparent,
+                                        contentPadding: EdgeInsets.fromLTRB(
+                                          AleraTokens.space12,
+                                          AleraTokens.space16,
+                                          AleraTokens.space32,
+                                          AleraTokens.space8,
                                         ),
-                                  )
-                                else
-                                  Text(
-                                    widget.blockedMessage!,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AleraTokens.foregroundMuted,
-                                        ),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        disabledBorder: InputBorder.none,
+                                      ),
+                                    ),
                                   ),
-                              ],
-                            ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AleraTokens.space8,
+                                  0,
+                                  AleraTokens.space8,
+                                  AleraTokens.space6,
+                                ),
+                                child: Row(
+                                  key: const ValueKey<String>(
+                                    'codex-composer-controls-row',
+                                  ),
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: _CodexComposerControls(
+                                          state: widget.state,
+                                          onPermissionChanged:
+                                              widget.onPermissionChanged,
+                                          onPlanChanged: widget.onPlanChanged,
+                                          onAddAttachment:
+                                              widget.onAddAttachment,
+                                          onPaste: widget.onPaste,
+                                          onDraftItemSelected:
+                                              widget.onDraftItemSelected,
+                                          onCommand: widget.onCommand,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AleraTokens.space6),
+                                    Flexible(
+                                      fit: FlexFit.loose,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            if (contextUsed != null &&
+                                                contextLimit != null &&
+                                                contextUsed > 0 &&
+                                                contextLimit > 0) ...<Widget>[
+                                              _CodexContextUsageIndicator(
+                                                used: contextUsed,
+                                                limit: contextLimit,
+                                                onCompact: () =>
+                                                    widget.onCommand(
+                                                      CodexComposerCommand
+                                                          .compact,
+                                                    ),
+                                              ),
+                                              const SizedBox(
+                                                width: AleraTokens.space2,
+                                              ),
+                                            ],
+                                            Flexible(
+                                              child:
+                                                  _CodexModelConfigurationControl(
+                                                    state: widget.state,
+                                                    onModelChanged:
+                                                        widget.onModelChanged,
+                                                    onReasoningChanged: widget
+                                                        .onReasoningChanged,
+                                                    onSpeedChanged:
+                                                        widget.onSpeedChanged,
+                                                    onCollaborationChanged: widget
+                                                        .onCollaborationChanged,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AleraTokens.space2),
+                                    AiDictationControl(
+                                      key: const ValueKey<String>(
+                                        'codex-dictation-control',
+                                      ),
+                                      targetId: targetId,
+                                    ),
+                                    const SizedBox(width: AleraTokens.space2),
+                                    _buildActionButton(canSubmit: canSubmit),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
+                      if (_disabled)
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            key: const ValueKey<String>(
+                              'codex-composer-mcp-loading',
+                            ),
+                            decoration: BoxDecoration(
+                              color: AleraTokens.codexComposerDisabledOverlay,
+                              borderRadius: BorderRadius.circular(
+                                AleraTokens.radiusXl,
+                              ),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(
+                                    widget.mcpInitializing
+                                        ? AleraIcons.host
+                                        : AleraIcons.warning,
+                                    size: AleraTokens.iconMd,
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                                  const SizedBox(width: AleraTokens.space8),
+                                  if (widget.mcpInitializing)
+                                    _CodexShimmerText(
+                                      text: 'Initializing MCP servers...',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: AleraTokens.foregroundMuted,
+                                          ),
+                                    )
+                                  else
+                                    Text(
+                                      widget.blockedMessage!,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: AleraTokens.foregroundMuted,
+                                          ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),

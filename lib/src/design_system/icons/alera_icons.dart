@@ -36,6 +36,7 @@ abstract final class AleraIcons {
   static const IconData check = LucideIcons.check;
   static const IconData doneAll = LucideIcons.checkCheck;
   static const IconData send = LucideIcons.send;
+  static const IconData mic = LucideIcons.mic;
   static const IconData pin = LucideIcons.pin;
   static const IconData pinOff = LucideIcons.pinOff;
   static const IconData maximize = LucideIcons.maximize2;
@@ -170,6 +171,7 @@ abstract final class AleraIcons {
   static const IconData agent = LucideIcons.bot;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
+  static const IconData pulse = LucideIcons.activity;
   static const IconData profile = LucideIcons.circleUserRound;
   static const IconData devTools = LucideIcons.wrench;
   static const IconData warning = LucideIcons.triangleAlert;

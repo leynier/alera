@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
@@ -11,10 +12,13 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'terminal_host_test_fakes.dart';
 
 part 'terminal_host_pty_output_resync_cases.dart';
+part 'terminal_host_pty_pulse_cases.dart';
 part 'terminal_host_pty_refresh_cases.dart';
 part 'terminal_host_pty_resume_cases.dart';
 
 void main() {
+  _registerTerminalHostPtyPulseTests();
+
   test('factory creates sessions with the provided ids', () {
     final client = FakeTerminalHostClient(
       attachment: TerminalHostAttachment(

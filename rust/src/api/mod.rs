@@ -1,4 +1,5 @@
 pub mod agent_hooks;
+pub mod ai_dictation;
 pub mod clipboard;
 pub mod git;
 pub mod git_diff_blob;

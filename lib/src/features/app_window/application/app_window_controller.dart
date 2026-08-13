@@ -160,6 +160,8 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   Future<void> _saveQueue = Future<void>.value();
   bool _started = false;
   bool _closing = false;
+  bool _closeCommitted = false;
+  bool _closed = false;
 
   /// Optional gate invoked before the window is destroyed. Return `false` to
   /// cancel the close (for example when the user declines force-stopping the
@@ -169,7 +171,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   }
 
   Future<void> start() async {
-    if (_started) {
+    if (_started || _closed) {
       return;
     }
     _started = true;
@@ -186,12 +188,15 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     _debounceTimer = null;
     _window.removeListener(this);
     _started = false;
-    if (!_closing) {
+    if (!_closing && !_closed) {
       await _window.setPreventClose(false);
     }
   }
 
   Future<void> flush() async {
+    if (_closed) {
+      return;
+    }
     _debounceTimer?.cancel();
     _debounceTimer = null;
     await _saveCurrentState();
@@ -199,7 +204,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
 
   @override
   void onWindowClose() {
-    if (_closing) {
+    if (_closing || _closed) {
       return;
     }
     _closing = true;
@@ -237,7 +242,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   void onWindowLeaveFullScreen() => _saveSoon(immediate: true);
 
   void _saveSoon({bool immediate = false}) {
-    if (!_started || _closing) {
+    if (!_started || _closing || _closed) {
       return;
     }
     _debounceTimer?.cancel();
@@ -262,27 +267,57 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
         }
       }
     } catch (error, stackTrace) {
-      _logger.warning('app window close gate failed', error, stackTrace);
+      // Logging listeners are synchronous and may request another close.
       _closing = false;
+      _logWarningIfActive('app window close gate failed', error, stackTrace);
       return;
     }
+    _closeCommitted = true;
     try {
       await flush();
     } catch (error, stackTrace) {
-      _logger.warning(
+      _logWarningIfActive(
         'failed to flush app window state on close',
         error,
         stackTrace,
       );
     } finally {
-      _window.removeListener(this);
-      await _closeStrategy.close(_window);
+      await _finishClose();
     }
+  }
+
+  /// Marks teardown complete and destroys the window at most once.
+  Future<void> _finishClose() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    _closing = true;
+    _started = false;
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _window.removeListener(this);
+    await _closeStrategy.close(_window);
+  }
+
+  void _logWarningIfActive(
+    String message,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    // Desktop stdio may already be invalid once a committed close starts.
+    if (_closeCommitted || _closed) {
+      return;
+    }
+    _logger.warning(message, error, stackTrace);
   }
 
   Future<void> _saveCurrentState() {
     _saveQueue = _saveQueue
         .then((_) async {
+          if (_closed) {
+            return;
+          }
           final state = await _captureCurrentState();
           if (state == null || state == _lastState) {
             return;
@@ -291,7 +326,11 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
           await _repository.save(state);
         })
         .catchError((Object error, StackTrace stackTrace) {
-          _logger.warning('failed to save app window state', error, stackTrace);
+          _logWarningIfActive(
+            'failed to save app window state',
+            error,
+            stackTrace,
+          );
         });
     return _saveQueue;
   }

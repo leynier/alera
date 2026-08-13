@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1444543496;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1926778391;
 
 // Section: executor
 
@@ -74,6 +74,41 @@ fn wire__crate__api__git__branch_exists_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::branch_exists(api_repo_path, api_branch)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__ai_dictation__cancel_whisper_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "cancel_whisper",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_request_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::ai_dictation::cancel_whisper(api_request_id);
+                    })?;
                     Ok(output_ok)
                 })())
             }
@@ -2900,6 +2935,41 @@ fn wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
         },
     )
 }
+fn wire__crate__api__ai_dictation__transcribe_whisper_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "transcribe_whisper",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_request =
+                <crate::api::ai_dictation::AiDictationRequest>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::ai_dictation::AiDictationError>((move || {
+                    let output_ok = crate::api::ai_dictation::transcribe_whisper(api_request)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
 fn wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -3282,6 +3352,67 @@ impl SseDecode for crate::api::agent_hooks::AgentHookEventDto {
             hook_event_name: var_hookEventName,
             version: var_version,
             inferred_event_name: var_inferredEventName,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai_dictation::AiDictationError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind =
+            <crate::api::ai_dictation::AiDictationErrorKind>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::ai_dictation::AiDictationError {
+            kind: var_kind,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai_dictation::AiDictationErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::ai_dictation::AiDictationErrorKind::InvalidRequest,
+            1 => crate::api::ai_dictation::AiDictationErrorKind::Audio,
+            2 => crate::api::ai_dictation::AiDictationErrorKind::Model,
+            3 => crate::api::ai_dictation::AiDictationErrorKind::Cancelled,
+            4 => crate::api::ai_dictation::AiDictationErrorKind::Inference,
+            5 => crate::api::ai_dictation::AiDictationErrorKind::Io,
+            _ => unreachable!("Invalid variant for AiDictationErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai_dictation::AiDictationRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_requestId = <String>::sse_decode(deserializer);
+        let mut var_audioPath = <String>::sse_decode(deserializer);
+        let mut var_modelPath = <String>::sse_decode(deserializer);
+        let mut var_language = <Option<String>>::sse_decode(deserializer);
+        let mut var_initialPrompt = <Option<String>>::sse_decode(deserializer);
+        return crate::api::ai_dictation::AiDictationRequest {
+            request_id: var_requestId,
+            audio_path: var_audioPath,
+            model_path: var_modelPath,
+            language: var_language,
+            initial_prompt: var_initialPrompt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai_dictation::AiDictationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_detectedLanguage = <Option<String>>::sse_decode(deserializer);
+        let mut var_durationMillis = <i64>::sse_decode(deserializer);
+        return crate::api::ai_dictation::AiDictationResult {
+            text: var_text,
+            detected_language: var_detectedLanguage,
+            duration_millis: var_durationMillis,
         };
     }
 }
@@ -5138,292 +5269,299 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__git__branch_exists_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__workspace_search__cancel_workspace_search_impl(
+        2 => wire__crate__api__ai_dictation__cancel_whisper_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__workspace_search__cancel_workspace_search_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        3 => wire__crate__api__git__clone_repository_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__reading_diff__compile_reading_diff_plan_impl(
+        4 => wire__crate__api__git__clone_repository_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__reading_diff__compile_reading_diff_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__workspace_files__copy_workspace_entry_impl(
+        6 => wire__crate__api__workspace_files__copy_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__workspace_files__create_workspace_directory_impl(
+        7 => wire__crate__api__workspace_files__create_workspace_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__workspace_files__create_workspace_file_impl(
+        8 => wire__crate__api__workspace_files__create_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__workspace_files__delete_workspace_entry_impl(
+        9 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__workspace_files__delete_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__git__git_commit_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__git__git_commit_amend_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__git__git_commit_compare_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
+        13 => wire__crate__api__git__git_commit_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__git__git_commit_amend_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__git__git_commit_compare_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__git_explorer_status__git_explorer_status_snapshot_impl(
+        20 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__git_explorer_status__git_explorer_status_snapshot_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__git__git_history_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__git__git_range_context_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__reading_diff__git_reading_diff_patch_impl(
+        23 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__git__git_history_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__git__git_range_context_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__reading_diff__git_reading_diff_patch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__workspace_files__list_codex_saved_prompts_impl(
+        30 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__workspace_files__list_codex_saved_prompts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__workspace_files__list_workspace_children_impl(
+        45 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__workspace_files__list_workspace_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__reading_diff__merge_reading_diff_chunks_impl(
+        47 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__reading_diff__merge_reading_diff_chunks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+        49 => wire__crate__api__workspace_files__move_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__reading_diff__prepare_reading_diff_impl(
+        50 => wire__crate__api__reading_diff__prepare_reading_diff_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+        51 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__workspace_search__preview_workspace_replace_cancelable_impl(
+        52 => wire__crate__api__workspace_search__preview_workspace_replace_cancelable_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => {
+        53 => {
             wire__crate__api__process__process_close_stdin_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__process__process_kill_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__process__process_run_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
-        56 => {
+        54 => wire__crate__api__process__process_kill_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__process__process_run_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__process__process_start_impl(port, ptr, rust_vec_len, data_len),
+        57 => {
             wire__crate__api__process__process_write_stdin_impl(port, ptr, rust_vec_len, data_len)
         }
-        57 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        58 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        59 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        60 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        61 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        64 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        65 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
+        66 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__workspace_search__search_workspace_impl(
+        67 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
+        68 => wire__crate__api__workspace_search__search_workspace_cancelable_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
+        69 => wire__crate__api__workspace_files__search_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        70 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        71 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        72 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        73 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
+        74 => wire__crate__api__workspace_files__start_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        75 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        76 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        77 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
+        78 => wire__crate__api__workspace_files__stop_workspace_quick_open_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        79 => wire__crate__api__ai_dictation__transcribe_whisper_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        80 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        81 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        82 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        83 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        84 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        85 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5511,6 +5649,98 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::agent_hooks::AgentHookEventDt
     for crate::api::agent_hooks::AgentHookEventDto
 {
     fn into_into_dart(self) -> crate::api::agent_hooks::AgentHookEventDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai_dictation::AiDictationError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ai_dictation::AiDictationError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai_dictation::AiDictationError>
+    for crate::api::ai_dictation::AiDictationError
+{
+    fn into_into_dart(self) -> crate::api::ai_dictation::AiDictationError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai_dictation::AiDictationErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidRequest => 0.into_dart(),
+            Self::Audio => 1.into_dart(),
+            Self::Model => 2.into_dart(),
+            Self::Cancelled => 3.into_dart(),
+            Self::Inference => 4.into_dart(),
+            Self::Io => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ai_dictation::AiDictationErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai_dictation::AiDictationErrorKind>
+    for crate::api::ai_dictation::AiDictationErrorKind
+{
+    fn into_into_dart(self) -> crate::api::ai_dictation::AiDictationErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai_dictation::AiDictationRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.request_id.into_into_dart().into_dart(),
+            self.audio_path.into_into_dart().into_dart(),
+            self.model_path.into_into_dart().into_dart(),
+            self.language.into_into_dart().into_dart(),
+            self.initial_prompt.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ai_dictation::AiDictationRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai_dictation::AiDictationRequest>
+    for crate::api::ai_dictation::AiDictationRequest
+{
+    fn into_into_dart(self) -> crate::api::ai_dictation::AiDictationRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai_dictation::AiDictationResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.text.into_into_dart().into_dart(),
+            self.detected_language.into_into_dart().into_dart(),
+            self.duration_millis.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ai_dictation::AiDictationResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai_dictation::AiDictationResult>
+    for crate::api::ai_dictation::AiDictationResult
+{
+    fn into_into_dart(self) -> crate::api::ai_dictation::AiDictationResult {
         self
     }
 }
@@ -7321,6 +7551,54 @@ impl SseEncode for crate::api::agent_hooks::AgentHookEventDto {
         <Option<String>>::sse_encode(self.hook_event_name, serializer);
         <Option<String>>::sse_encode(self.version, serializer);
         <Option<String>>::sse_encode(self.inferred_event_name, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai_dictation::AiDictationError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::ai_dictation::AiDictationErrorKind>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai_dictation::AiDictationErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::ai_dictation::AiDictationErrorKind::InvalidRequest => 0,
+                crate::api::ai_dictation::AiDictationErrorKind::Audio => 1,
+                crate::api::ai_dictation::AiDictationErrorKind::Model => 2,
+                crate::api::ai_dictation::AiDictationErrorKind::Cancelled => 3,
+                crate::api::ai_dictation::AiDictationErrorKind::Inference => 4,
+                crate::api::ai_dictation::AiDictationErrorKind::Io => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::ai_dictation::AiDictationRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.request_id, serializer);
+        <String>::sse_encode(self.audio_path, serializer);
+        <String>::sse_encode(self.model_path, serializer);
+        <Option<String>>::sse_encode(self.language, serializer);
+        <Option<String>>::sse_encode(self.initial_prompt, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai_dictation::AiDictationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.text, serializer);
+        <Option<String>>::sse_encode(self.detected_language, serializer);
+        <i64>::sse_encode(self.duration_millis, serializer);
     }
 }
 

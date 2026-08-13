@@ -26,6 +26,7 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "terminal.create"
                 | "terminal.attach"
                 | "terminal.restart"
+                | "terminal.pulse.configure"
                 | "project.register"
                 | "project.rename"
                 | "project.upsert"
@@ -107,6 +108,7 @@ mod tests {
         for writer in [
             "tab.upsert",
             "createOrAttach",
+            "terminal.pulse.configure",
             "codex.turn.start",
             "codex.thread.resume",
             "codex.response",

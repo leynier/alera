@@ -22,12 +22,13 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
-part 'workspace_git_diff_surface_test_controller.dart';
 part 'workspace_git_diff_surface_pull_request_cases.dart';
 part 'workspace_git_diff_surface_reading_diff_cases.dart';
+part 'workspace_git_diff_surface_test_support.dart';
 
 void main() {
   _registerWorkspaceGitDiffSurfacePullRequestTests();
@@ -297,7 +298,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'diff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'filePath': 'lib/main.dart',
         'area': GitChangeArea.unstaged,
       },
@@ -411,7 +412,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'commitDiff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'commitOid': 'abc123456789',
         'parentOid': 'def987654321',
         'filePath': 'lib/main.dart',
@@ -421,84 +422,4 @@ void main() {
     expect(find.text('Commit · lib/main.dart'), findsOneWidget);
     expect(_openFileButton(tester).onPressed, isNull);
   });
-}
-
-Future<void> _pumpDiffSurface(
-  WidgetTester tester, {
-  required FakeGitBackend backend,
-  WorkbenchController? controller,
-  WorkspaceTabRecord? tab,
-  ReadingDiffService? readingDiffService,
-}) {
-  return tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        gitBackendProvider.overrideWithValue(backend),
-        settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
-        if (readingDiffService != null)
-          readingDiffServiceProvider.overrideWithValue(readingDiffService),
-        if (controller != null)
-          workbenchControllerProvider.overrideWith(() => controller),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: WorkspaceGitDiffSurface(
-              workspace: _workspace(),
-              tab: tab ?? _diffTab(),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-WorkspaceTabRecord _diffTab({
-  WorkspaceGitDiffSource source = WorkspaceGitDiffSource.workingTree,
-  WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
-  String? filePath = 'lib/large.dart',
-  String title = 'large.dart unstaged',
-  GitChangeArea? area = GitChangeArea.unstaged,
-  String? gitDiffRoot,
-  String? oldPath,
-  String? commitOid,
-  String? parentOid,
-  String? compareRef,
-}) {
-  final now = DateTime.utc(2026, 6, 6);
-  final payload = <String, Object?>{
-    workspaceTabGitDiffSourcePayloadKey: source.key,
-    workspaceTabGitDiffScopePayloadKey: scope.key,
-    workspaceTabFilePathPayloadKey: ?filePath,
-  };
-  if (area != null) {
-    payload[workspaceTabGitDiffAreaPayloadKey] = area.key;
-  }
-  if (oldPath != null) {
-    payload[workspaceTabGitDiffOldPathPayloadKey] = oldPath;
-  }
-  if (commitOid != null) {
-    payload[workspaceTabGitDiffCommitOidPayloadKey] = commitOid;
-  }
-  if (parentOid != null) {
-    payload[workspaceTabGitDiffParentOidPayloadKey] = parentOid;
-  }
-  if (compareRef != null) {
-    payload[workspaceTabGitDiffCompareRefPayloadKey] = compareRef;
-  }
-  if (gitDiffRoot != null) {
-    payload[workspaceTabGitDiffRootPayloadKey] = gitDiffRoot;
-  }
-  return WorkspaceTabRecord(
-    id: 'tab-1',
-    workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.gitDiff,
-    title: title,
-    createdAt: now,
-    updatedAt: now,
-    payload: payload,
-  );
 }

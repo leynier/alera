@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -157,6 +158,20 @@ void main() {
         throwsA(isA<http.ClientException>()),
       );
     });
+
+    test('treats disposal during lookup as lifecycle cancellation', () async {
+      final requestReceived = Completer<void>();
+      final server = await _servePending(requestReceived);
+      addTearDown(() => server.close());
+
+      final source = GitHubMobileReleaseSource(releasesUrl: server.url);
+      final lookup = source.latestRelease();
+      await requestReceived.future;
+
+      source.dispose();
+
+      await expectLater(lookup, completion(isNull));
+    });
   });
 }
 
@@ -167,6 +182,14 @@ Future<_StubServer> _serve(int statusCode, String body) async {
     request.response.headers.contentType = ContentType.json;
     request.response.write(body);
     await request.response.close();
+  });
+  return _StubServer(server);
+}
+
+Future<_StubServer> _servePending(Completer<void> requestReceived) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((request) {
+    if (!requestReceived.isCompleted) requestReceived.complete();
   });
   return _StubServer(server);
 }

@@ -169,6 +169,9 @@ class _ClaudeTryWithTuiButtonState
       return;
     }
     setState(() => _loading = true);
+    // The hover card can be disposed while the TUI request is in flight. Keep
+    // its longer-lived scope so the cached result still triggers a refresh.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final hostId = widget.hostId;
       final targets = ref.read(sshTargetsProvider).value ?? const <SshTarget>[];
@@ -183,11 +186,10 @@ class _ClaudeTryWithTuiButtonState
             accountId: widget.snapshot.accountId,
             displayName: widget.snapshot.displayName,
           );
-      ref.invalidate(agentQuotaStateProvider);
     } on Object {
       // Status bar refresh / next poll shows the updated error snapshot.
-      ref.invalidate(agentQuotaStateProvider);
     } finally {
+      container.invalidate(agentQuotaStateProvider);
       if (mounted) {
         setState(() => _loading = false);
       }

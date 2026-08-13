@@ -291,14 +291,18 @@ final class _LogicalTerminalLine {
         if (width < 1 || column + width > segmentEnd) {
           continue;
         }
-        text.writeCharCode(codePoint);
-        spans.add(
-          _CharacterCellSpan(
-            row: currentRow,
-            startX: column,
-            endXExclusive: column + width,
-          ),
+        final span = _CharacterCellSpan(
+          row: currentRow,
+          startX: column,
+          endXExclusive: column + width,
         );
+        text.writeCharCode(codePoint);
+        spans.add(span);
+        // RegExp match offsets use UTF-16 code units, so both halves of an
+        // astral code point must map back to the same terminal cell.
+        if (codePoint > 0xffff) {
+          spans.add(span);
+        }
       }
     }
     return _LogicalTerminalLine(text: text.toString(), spans: spans);

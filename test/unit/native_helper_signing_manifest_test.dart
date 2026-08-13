@@ -73,7 +73,9 @@ void main() {
   });
 
   test('refreshes helper hashes before sealing and re-verifies the app', () {
-    final macosSigning = File('tool/release/sign_macos.sh').readAsStringSync();
+    final macosSigning = File(
+      'tool/release/sign_macos.sh',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
     final release = File(
       '.github/workflows/release-cut.yml',
     ).readAsStringSync();

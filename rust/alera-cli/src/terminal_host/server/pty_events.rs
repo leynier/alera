@@ -6,6 +6,12 @@ impl ServerActor {
     pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
         match pty_event {
             PtyEvent::Output(data) => self.handle_pty_output(session_id, data).await,
+            #[cfg(windows)]
+            PtyEvent::ChildExited => {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.close_pty_after_child_exit();
+                }
+            }
             PtyEvent::Error(message) => {
                 self.flush_all_output(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {
@@ -193,6 +199,10 @@ impl ServerActor {
             }
             | PtyWriteCompletion::StartupSubmit {
                 session_instance_id,
+            }
+            | PtyWriteCompletion::TerminalPulse {
+                session_instance_id,
+                ..
             } => {
                 let current = self.sessions.get(&session_id).map(Session::instance_id);
                 if let Some(message) = error.filter(|_| current == Some(session_instance_id)) {
@@ -216,6 +226,7 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
+        self.disarm_terminal_pulse(&session_id);
         self.queue_terminal_exit_push(&session_id, Some(exit_code))
             .await;
         let reason = format!("terminal exited with code {exit_code}");
@@ -276,6 +287,7 @@ impl ServerActor {
         &mut self,
         session_id: &str,
     ) -> HostResult<bool> {
+        self.disarm_terminal_pulse(session_id);
         let metadata = self
             .sessions
             .get(session_id)

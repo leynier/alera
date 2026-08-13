@@ -110,6 +110,75 @@ void main() {
     expect(thread.recencyAt, DateTime.utc(2026, 8, 8, 12, 2));
   });
 
+  test('thread goals cover every wire status and serialization field', () {
+    const statuses = <String, CodexThreadGoalStatus>{
+      'active': CodexThreadGoalStatus.active,
+      'paused': CodexThreadGoalStatus.paused,
+      'blocked': CodexThreadGoalStatus.blocked,
+      'usageLimited': CodexThreadGoalStatus.usageLimited,
+      'budgetLimited': CodexThreadGoalStatus.budgetLimited,
+      'complete': CodexThreadGoalStatus.complete,
+    };
+
+    for (final entry in statuses.entries) {
+      final status = CodexThreadGoalStatus.fromWire(entry.key);
+      expect(status, entry.value);
+      expect(status.wireName, entry.key);
+      expect(status.canPause, status == CodexThreadGoalStatus.active);
+      expect(
+        status.canResume,
+        status == CodexThreadGoalStatus.paused ||
+            status == CodexThreadGoalStatus.blocked ||
+            status == CodexThreadGoalStatus.usageLimited,
+      );
+    }
+    expect(
+      CodexThreadGoalStatus.fromWire('futureStatus'),
+      CodexThreadGoalStatus.active,
+    );
+
+    final goal = CodexThreadGoal.fromJson(<String, Object?>{
+      'threadId': 'thread-1',
+      'objective': 'Ship Goal support',
+      'status': 'paused',
+      'tokenBudget': '5000',
+      'tokensUsed': '1200',
+      'timeUsedSeconds': '90',
+      'createdAt': 1786190400,
+      'updatedAt': 1786190490,
+    });
+    final equivalent = CodexThreadGoal.fromJson(goal.toJson());
+
+    expect(goal.threadId, 'thread-1');
+    expect(goal.objective, 'Ship Goal support');
+    expect(goal.status, CodexThreadGoalStatus.paused);
+    expect(goal.tokenBudget, 5000);
+    expect(goal.tokensUsed, 1200);
+    expect(goal.timeUsedSeconds, 90);
+    expect(goal.createdAt, DateTime.utc(2026, 8, 8, 12));
+    expect(goal.updatedAt, DateTime.utc(2026, 8, 8, 12, 1, 30));
+    expect(equivalent, goal);
+    expect(equivalent.hashCode, goal.hashCode);
+    expect(goal == goal, isTrue);
+    expect(goal == Object(), isFalse);
+
+    final defaults = CodexThreadGoal.fromJson(null);
+    expect(defaults.threadId, isEmpty);
+    expect(defaults.objective, isEmpty);
+    expect(defaults.status, CodexThreadGoalStatus.active);
+    expect(defaults.tokenBudget, isNull);
+    expect(defaults.tokensUsed, 0);
+    expect(defaults.timeUsedSeconds, 0);
+    expect(
+      defaults.createdAt,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+    expect(
+      defaults.updatedAt,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  });
+
   test(
     'pending requests expose approval, question and elicitation contracts',
     () {

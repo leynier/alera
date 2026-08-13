@@ -11,6 +11,8 @@ mod git_diff_edge_tests;
 mod git_explorer_status_tests;
 #[path = "git_range_tests.rs"]
 mod git_range_tests;
+#[path = "git_stage_pathspec_tests.rs"]
+mod git_stage_pathspec_tests;
 #[path = "git_submodule_tests.rs"]
 mod git_submodule_tests;
 
@@ -30,6 +32,7 @@ fn run_git_expect_failure(dir: &Path, args: &[&str]) {
 fn git_command(dir: &Path, args: &[&str]) -> Command {
     let mut command = Command::new("git");
     command
+        .args(["-c", "core.autocrlf=false"])
         .args(args)
         .current_dir(dir)
         .env("GIT_AUTHOR_NAME", "Test")
@@ -52,6 +55,7 @@ fn init_repo() -> tempfile::TempDir {
 fn configure_git_identity(dir: &Path) {
     run_git(dir, &["config", "user.name", "Test"]);
     run_git(dir, &["config", "user.email", "test@example.com"]);
+    run_git(dir, &["config", "core.autocrlf", "false"]);
 }
 
 fn path_str(path: &Path) -> String {
@@ -450,8 +454,10 @@ fn operates_from_subdirectory() {
 fn status_preserves_punctuation_and_control_character_paths() {
     let repo = init_repo();
     let comma_path = repo.path().join("comma,name.txt");
+    #[cfg(unix)]
     let newline_path = repo.path().join("line\nbreak.txt");
     std::fs::write(&comma_path, "comma\n").expect("write comma path");
+    #[cfg(unix)]
     std::fs::write(&newline_path, "newline\n").expect("write newline path");
 
     let status = git_status(path_str(repo.path())).unwrap();
@@ -461,6 +467,7 @@ fn status_preserves_punctuation_and_control_character_paths() {
             && entry.area == GitChangeArea::Untracked
             && entry.status == GitChangeStatus::Untracked
     }));
+    #[cfg(unix)]
     assert!(status.entries.iter().any(|entry| {
         entry.path == "line\nbreak.txt"
             && entry.area == GitChangeArea::Untracked
@@ -941,34 +948,6 @@ fn git_stage_unstage_commit_and_state_follow_index() {
     let state = git_repository_state(path_str(repo.path())).unwrap();
     assert_eq!(state.branch, "main");
     assert!(!state.has_conflicts);
-}
-
-#[test]
-fn git_stage_treats_selected_pathspec_characters_as_literals() {
-    let repo = init_repo();
-    std::fs::write(repo.path().join("*.txt"), "literal star\n").expect("write star file");
-    std::fs::write(repo.path().join("other.txt"), "other\n").expect("write other file");
-    run_git(repo.path(), &["add", "*.txt", "other.txt"]);
-    run_git(repo.path(), &["commit", "-m", "add pathspec files"]);
-
-    std::fs::write(repo.path().join("*.txt"), "literal star changed\n").expect("modify star file");
-    std::fs::write(repo.path().join("other.txt"), "other changed\n").expect("modify other file");
-
-    git_stage(path_str(repo.path()), Some("*.txt".to_string())).unwrap();
-
-    let status = git_status(path_str(repo.path())).unwrap();
-    assert!(status
-        .entries
-        .iter()
-        .any(|entry| entry.path == "*.txt" && entry.area == GitChangeArea::Staged));
-    assert!(status
-        .entries
-        .iter()
-        .any(|entry| entry.path == "other.txt" && entry.area == GitChangeArea::Unstaged));
-    assert!(!status
-        .entries
-        .iter()
-        .any(|entry| entry.path == "other.txt" && entry.area == GitChangeArea::Staged));
 }
 
 #[test]

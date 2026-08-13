@@ -152,6 +152,26 @@ pub enum ServerCommand {
         session_id: String,
         session_instance_id: u64,
     },
+    TerminalPulseFileChanged {
+        workspace_id: String,
+        watcher_generation: u64,
+        event_sequence: u64,
+    },
+    TerminalPulseWatcherStarted {
+        workspace_id: String,
+        generation: u64,
+        result: HostResult<super::terminal_pulse::WorkspacePulseWatcher>,
+    },
+    TerminalPulseWatcherFailed {
+        workspace_id: String,
+        watcher_generation: u64,
+        error: String,
+    },
+    TerminalPulseDue {
+        session_id: String,
+        session_instance_id: u64,
+        generation: u64,
+    },
     ProjectCloneChanged {
         job_id: String,
     },

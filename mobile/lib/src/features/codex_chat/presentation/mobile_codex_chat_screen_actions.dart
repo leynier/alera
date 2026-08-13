@@ -256,12 +256,49 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
   }) async {
     if (hasAttachments) return false;
     final match = RegExp(
-      r'^/(rename|new|clear|resume|review|compact)(?:\s+(.+))?$',
+      r'^/(goal|rename|new|clear|resume|review|compact)(?:\s+(.+))?$',
       caseSensitive: false,
     ).firstMatch(draftText.trim());
     if (match == null) return false;
     final command = match.group(1)!.toLowerCase();
     final argument = match.group(2)?.trim();
+    if (command == 'goal') {
+      if (!controller.supportsGoals) return false;
+      switch (argument?.toLowerCase()) {
+        case 'pause':
+          await controller.updateGoalStatus(MobileCodexGoalStatus.paused);
+        case 'resume':
+          await controller.updateGoalStatus(MobileCodexGoalStatus.active);
+        case 'clear':
+          await controller.clearGoal();
+        case 'edit':
+          final goal = state.goal;
+          if (goal != null) {
+            final edited = await _showMobileCodexGoalEditor(
+              context,
+              initialObjective: goal.objective,
+            );
+            if (edited != null) await controller.editGoal(edited);
+          }
+        default:
+          if (argument == null || argument.isEmpty) {
+            final edited = await _showMobileCodexGoalEditor(
+              context,
+              initialObjective: state.goal?.objective ?? '',
+            );
+            if (edited != null) {
+              if (state.goal == null) {
+                await controller.setGoal(edited, recordUserMessage: true);
+              } else {
+                await controller.editGoal(edited);
+              }
+            }
+          } else {
+            await controller.replaceGoal(argument, recordUserMessage: true);
+          }
+      }
+      return true;
+    }
     if (!controller.supportsSessions &&
         const <String>{'new', 'clear', 'resume'}.contains(command)) {
       return true;
@@ -303,12 +340,16 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
     String draftText, {
     required bool hasAttachments,
   }) {
-    if (controller.supportsSessions || hasAttachments) return false;
+    if (hasAttachments) return false;
     final match = RegExp(
-      r'^/(new|clear|resume)(?:\s+.*)?$',
+      r'^/(goal|new|clear|resume)(?:\s+.*)?$',
       caseSensitive: false,
-    ).hasMatch(draftText.trim());
-    return match;
+    ).firstMatch(draftText.trim());
+    if (match == null) return false;
+    return switch (match.group(1)!.toLowerCase()) {
+      'goal' => !controller.supportsGoals,
+      _ => !controller.supportsSessions,
+    };
   }
 
   bool _isMobileThreadSwitchCommand(
@@ -371,6 +412,21 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
           );
           return;
         }
+        if (!resolvedPrompt.expanded &&
+            state != null &&
+            _isMobileGoalCommand(
+              draftText,
+              hasAttachments: attachments.isNotEmpty,
+            ) &&
+            await _runTypedMobileSessionCommand(
+              controller,
+              state,
+              draftText,
+              hasAttachments: attachments.isNotEmpty,
+            )) {
+          if (mounted) _composerFocus.requestFocus();
+          return;
+        }
         if (resolvedPrompt.failed ||
             !resolvedPrompt.expanded &&
                 _isMobileTypedSessionCommand(
@@ -412,7 +468,14 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
   }) =>
       !hasAttachments &&
       RegExp(
-        r'^/(rename|new|clear|resume|review|compact)(?:\s+.*)?$',
+        r'^/(goal|rename|new|clear|resume|review|compact)(?:\s+.*)?$',
+        caseSensitive: false,
+      ).hasMatch(draftText.trim());
+
+  bool _isMobileGoalCommand(String draftText, {required bool hasAttachments}) =>
+      !hasAttachments &&
+      RegExp(
+        r'^/goal(?:\s+.*)?$',
         caseSensitive: false,
       ).hasMatch(draftText.trim());
 }

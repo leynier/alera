@@ -146,10 +146,10 @@ pub(in crate::terminal_host::server::codex_requests) fn allowed_cwd(
     candidate: &str,
     workspaces: &[Workspace],
 ) -> Option<String> {
-    let candidate = fs::canonicalize(candidate).ok()?;
+    let candidate = dunce::canonicalize(candidate).ok()?;
     workspaces
         .iter()
-        .filter_map(|workspace| fs::canonicalize(&workspace.path).ok())
+        .filter_map(|workspace| dunce::canonicalize(&workspace.path).ok())
         .find(|root| candidate.starts_with(root))
         .map(|_| candidate.to_string_lossy().into_owned())
 }
@@ -271,6 +271,7 @@ pub(in crate::terminal_host::server::codex_requests) fn reset_snapshot_for_new_t
     object.remove("contextUsed");
     object.remove("contextLimit");
     object.remove("title");
+    object.remove("goal");
     object.insert("events".to_string(), Value::Array(Vec::new()));
     object.insert("pendingRequests".to_string(), Value::Array(Vec::new()));
     if append_boundary {
@@ -339,6 +340,7 @@ mod tests {
             "contextUsed": 900,
             "contextLimit": 1000,
             "title": "Old thread",
+            "goal": {"threadId": "thread-old", "objective": "Old goal"},
             "events": [{"method": "turn/completed", "params": {"turn": {"id": "turn-old"}}}],
             "pendingRequests": [{"id": 1}],
             "timelineCells": [],
@@ -351,6 +353,7 @@ mod tests {
         assert!(value.get("contextUsed").is_none());
         assert!(value.get("contextLimit").is_none());
         assert!(value.get("title").is_none());
+        assert!(value.get("goal").is_none());
         assert_eq!(value["events"], json!([]));
         assert_eq!(value["pendingRequests"], json!([]));
         assert_eq!(value["timelineCells"][0]["kind"], "systemNotice");

@@ -21,6 +21,7 @@ abstract final class CodexTimelineMetadata {
   static const uiPlacement = 'uiPlacement';
   static const outsideWorked = 'outside_worked';
   static const isSteering = 'isSteering';
+  static const isGoal = 'isGoal';
 }
 
 @immutable

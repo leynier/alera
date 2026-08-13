@@ -400,11 +400,27 @@ abstract final class MobileCodexTimelineReducer {
     List<MobileCodexTimelineCell> cells,
     MobileCodexTimelineCell next,
   ) {
-    final index = cells.indexWhere((cell) => cell.id == next.id);
+    var index = cells.indexWhere((cell) => cell.id == next.id);
+    if (index < 0 && next.itemId != null && next.turnId != null) {
+      final provisionalIds = <String>{
+        '${next.kind}-${next.turnId}',
+        if (next.kind == 'assistantMessage' || next.kind == 'progressText')
+          'assistant-${next.turnId}',
+      };
+      index = cells.indexWhere(
+        (cell) =>
+            provisionalIds.contains(cell.id) &&
+            cell.itemId == null &&
+            cell.kind == next.kind,
+      );
+    }
     if (index < 0) return <MobileCodexTimelineCell>[...cells, next];
     final result = <MobileCodexTimelineCell>[...cells];
     final previous = result[index];
     result[index] = next.copyWith(
+      id: next.id,
+      itemId: next.itemId ?? previous.itemId,
+      turnId: next.turnId ?? previous.turnId,
       updatedAt: DateTime.now().toUtc(),
       title: next.title ?? previous.title,
       subtitle: next.subtitle ?? previous.subtitle,

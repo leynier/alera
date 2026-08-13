@@ -1,21 +1,28 @@
 part of 'codex_chat_controller.dart';
 
 extension on CodexChatController {
-  Future<List<CodexModelOption>> _loadModels() async {
+  Future<({bool authoritative, List<CodexModelOption> models})> _loadModels(
+    List<CodexModelOption> fallback,
+  ) async {
     try {
       final payload = await _host.listModels();
       final items = _items(payload);
       final models = <CodexModelOption>[
         for (final item in items) CodexModelOption.fromJson(item),
       ];
-      if (models.isNotEmpty) return models;
+      if (models.isNotEmpty) return (authoritative: true, models: models);
     } catch (_) {
       // Fall back below. The fallback is intentionally a current Codex set,
       // never a persisted model snapshot from an older app.
     }
-    return const <CodexModelOption>[
-      CodexModelOption(id: 'gpt-5.6-sol', label: '5.6 Sol'),
-    ];
+    return (
+      authoritative: false,
+      models: fallback.isNotEmpty
+          ? fallback
+          : const <CodexModelOption>[
+              CodexModelOption(id: 'gpt-5.6-sol', label: '5.6 Sol'),
+            ],
+    );
   }
 }
 

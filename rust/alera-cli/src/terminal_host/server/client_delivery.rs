@@ -26,11 +26,16 @@ impl ServerActor {
         self.require_request_allowed(client_id, request_type)
     }
 
-    pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
+    pub(super) fn require_session_id(&self, payload: &Value) -> HostResult<String> {
         let session_id = match payload.get("sessionId") {
             Some(Value::String(value)) => value.clone(),
             _ => return Err(HostError::format("Terminal session id is required.")),
         };
+        Ok(session_id)
+    }
+
+    pub(super) fn require_session(&self, payload: &Value) -> HostResult<String> {
+        let session_id = self.require_session_id(payload)?;
         if !self.sessions.contains_key(&session_id) {
             return Err(HostError::state(format!(
                 "Terminal session is not attached: {session_id}"
@@ -162,6 +167,17 @@ impl ServerActor {
     pub(super) fn broadcast_authenticated(&self, message: Value) {
         for (client_id, client) in &self.clients {
             if client.authenticated && client.handle.send_control(message.clone().into()).is_err() {
+                self.disconnect_client_soon(*client_id);
+            }
+        }
+    }
+
+    pub(super) fn broadcast_authenticated_local(&self, message: Value) {
+        for (client_id, client) in &self.clients {
+            if client.authenticated
+                && client.kind == ClientKind::Local
+                && client.handle.send_control(message.clone().into()).is_err()
+            {
                 self.disconnect_client_soon(*client_id);
             }
         }
@@ -324,6 +340,7 @@ mod tests {
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
             resources: ResourceMonitorState::default(),
+            terminal_pulses: Default::default(),
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,

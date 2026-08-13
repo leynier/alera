@@ -11,7 +11,9 @@ import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_pulse_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -177,6 +179,10 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         final operation = error == null ? widget.session.operation : null;
         final searchController = widget.session.searchController;
         final searchOpen = searchController?.isOpen == true;
+        final toolbarButtonCount =
+            2 +
+            (widget.session.supportsTerminalPulse ? 1 : 0) +
+            (hasCanvas ? 1 : 0);
         return DropTarget(
           enable: error == null,
           onDragDone: (details) {
@@ -247,6 +253,35 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                           mainAxisSize: MainAxisSize.min,
                           spacing: AleraTokens.space2,
                           children: <Widget>[
+                            if (widget.session.supportsTerminalPulse)
+                              ValueListenableBuilder<TerminalPulseState>(
+                                valueListenable:
+                                    widget.session.terminalPulseState,
+                                builder: (context, state, _) {
+                                  return AleraIconButton(
+                                    tooltip: !state.statusKnown
+                                        ? 'Configure Terminal Pulse - Status Unavailable'
+                                        : state.armed
+                                        ? 'Configure Terminal Pulse - Armed'
+                                        : 'Configure Terminal Pulse',
+                                    icon: AleraIcons.pulse,
+                                    iconColor: state.statusKnown && state.armed
+                                        ? AleraTokens.foreground
+                                        : AleraTokens.foregroundMuted,
+                                    backgroundColor:
+                                        state.statusKnown && state.armed
+                                        ? AleraTokens.accentSubtle
+                                        : AleraTokens.surfaceElevated,
+                                    borderColor: AleraTokens.borderSubtle,
+                                    onPressed: () => unawaited(
+                                      showTerminalPulseDialog(
+                                        context,
+                                        widget.session,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             AleraIconButton(
                               tooltip: widget.session.composerController.visible
                                   ? 'Hide Terminal Composer'
@@ -316,11 +351,9 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                         Positioned(
                           top: AleraTokens.space4,
                           left: AleraTokens.space16,
-                          // Leave room for the composer, refresh, and canvas toolbar.
+                          // Keep search clear of every visible terminal toolbar action.
                           right:
-                              AleraTokens.space48 +
-                              AleraTokens.space48 +
-                              AleraTokens.space48 +
+                              AleraTokens.space48 * toolbarButtonCount +
                               AleraTokens.space4,
                           child: Align(
                             alignment: Alignment.topRight,

@@ -7,6 +7,8 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
 
   @override
   bool get supportsCodexChat => true;
+  @override
+  bool get supportsCodexGoals => false;
 
   @override
   bool get supportsCodexSessions => true;

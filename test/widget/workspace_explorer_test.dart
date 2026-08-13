@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
@@ -470,7 +471,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(opener.revealedPaths, <String>['/repo/alera/readme.md']);
+    expect(opener.revealedPaths, <String>[p.join('/repo/alera', 'readme.md')]);
   });
 
   testWidgets('context menu focuses and clears source control root', (

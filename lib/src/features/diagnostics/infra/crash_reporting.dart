@@ -38,6 +38,8 @@ abstract final class CrashReporting {
     }
     // Host shutdown is expected when stopped from the status bar, by idle
     // sidecar shutdown, or while the app exits; keep it local, not a crash.
+    // A request timeout is deliberately excluded: its stable legacy message
+    // mentions closure, but a slow request is not evidence of a dead socket.
     if (event.throwable is TerminalHostConnectionClosedException ||
         event.exceptions?.any(
               (exception) =>

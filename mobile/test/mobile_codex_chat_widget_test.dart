@@ -40,6 +40,7 @@ part 'mobile_codex_chat_widget_review_regression_6_test_cases.dart';
 part 'mobile_codex_chat_widget_review_regression_7_test_cases.dart';
 part 'mobile_codex_chat_widget_review_transition_test_cases.dart';
 part 'mobile_codex_chat_widget_review_dialog_test_cases.dart';
+part 'mobile_codex_chat_widget_goal_test_cases.dart';
 
 void main() {
   _registerMobileCodexFoundationTests();
@@ -60,6 +61,7 @@ void main() {
   _registerMobileCodexReviewRegression7Tests();
   _registerMobileCodexReviewTransitionTests();
   _registerMobileCodexReviewDialogTests();
+  _registerMobileCodexGoalTests();
   testWidgets('mobile Codex chat phone golden', (tester) async {
     final client = FakeMobileCodexClient();
     addTearDown(client.dispose);

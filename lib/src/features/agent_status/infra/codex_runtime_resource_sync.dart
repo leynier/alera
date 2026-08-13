@@ -20,7 +20,7 @@ extension _CodexRuntimeHomeServiceResourceSync on CodexRuntimeHomeService {
     }
     target.parent.createSync(recursive: true);
     source.copySync(target.path);
-    if (_platform == ManagedAgentHookPlatform.posix) {
+    if (_platform == ManagedAgentHookPlatform.posix && !Platform.isWindows) {
       Process.runSync('chmod', <String>['600', target.path]);
     }
   }

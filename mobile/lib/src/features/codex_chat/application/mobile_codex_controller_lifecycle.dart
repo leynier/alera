@@ -14,6 +14,11 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
   set _threadGeneration(int value);
   Future<void> _sendNow(Map<String, Object?> message);
   Future<void> _reloadCatalogue(String catalog);
+  Future<void> _retryGoalAvailability();
+
+  MobileCodexState? get _currentState => state.value;
+
+  bool get _isMounted => ref.mounted;
 
   void _onEvent(MobileRuntimeEvent event) {
     if (event.name == 'codexCatalogChanged') {
@@ -35,6 +40,8 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
             error: _safeError(event.payload['error'] ?? 'Codex server failed.'),
           ),
         );
+      } else if (status == 'ready') {
+        unawaited(_retryGoalAvailability());
       }
       return;
     }
@@ -82,6 +89,13 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
         ..addAll(retained);
     }
     _deferredThreadEvents.add(event);
+    const deferredEventLimit = 64;
+    if (_deferredThreadEvents.length > deferredEventLimit) {
+      _deferredThreadEvents.removeRange(
+        0,
+        _deferredThreadEvents.length - deferredEventLimit,
+      );
+    }
   }
 
   void _scheduleDeferredThreadEventDrain() {

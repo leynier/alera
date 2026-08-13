@@ -108,25 +108,3 @@ class _EmptyReadingDiffCache implements ReadingDiffCache {
   @override
   Future<void> write(String key, ReadingDiffResult result) async {}
 }
-
-IconButton _openFileButton(WidgetTester tester) {
-  final finder = find.ancestor(
-    of: find.byIcon(AleraIcons.external),
-    matching: find.byType(IconButton),
-  );
-  return tester.widget<IconButton>(finder);
-}
-
-Workspace _workspace() {
-  final now = DateTime.utc(2026, 6, 6);
-  return Workspace(
-    id: 'workspace-1',
-    projectId: 'project-1',
-    name: 'Main',
-    path: '/tmp/project',
-    createdAt: now,
-    updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
-  );
-}

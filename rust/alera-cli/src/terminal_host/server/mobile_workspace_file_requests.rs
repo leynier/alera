@@ -345,7 +345,10 @@ fn absolute_workspace_file_target(
         .and_then(|path| path.to_str())
         .filter(|path| !path.is_empty())
         .ok_or_else(|| HostError::state("Workspace file path is invalid."))?;
-    Ok((root, relative.to_string()))
+    let relative = relative.to_string();
+    #[cfg(windows)]
+    let relative = relative.replace('\\', "/");
+    Ok((root, relative))
 }
 
 fn open_validated_mobile_workspace_root(
@@ -387,6 +390,10 @@ fn validated_mobile_workspace_root(candidate: &Path, roots: Vec<PathBuf>) -> Hos
 fn workspace_file_error(error: alera_core::workspace_files::WorkspaceFileError) -> HostError {
     HostError::state(error.to_string())
 }
+
+#[cfg(all(test, unix))]
+#[path = "mobile_workspace_file_requests_platform_tests.rs"]
+mod platform_tests;
 
 #[cfg(test)]
 mod tests {

@@ -46,10 +46,20 @@ impl ServerActor {
             "codex.thread.recover" => self.recover_codex_thread(payload).await,
             "codex.thread.snapshot" => self.codex_thread_snapshot(payload).await,
             "codex.thread.items.list" => self.list_codex_thread_items(payload).await,
-            "codex.model.list" => self.codex_server_request("model/list", json!({})).await,
-            "codex.collaborationModes.list" => {
-                self.codex_server_request("collaborationMode/list", json!({}))
+            "codex.goal.get" | "codex.thread.goal.get" => self.get_codex_goal(payload).await,
+            "codex.goal.set" | "codex.thread.goal.set" => self.set_codex_goal(payload).await,
+            "codex.goal.clear" | "codex.thread.goal.clear" => self.clear_codex_goal(payload).await,
+            "codex.model.list" => {
+                self.codex_server_cached_request("models", "model/list", json!({}))
                     .await
+            }
+            "codex.collaborationModes.list" => {
+                self.codex_server_cached_request(
+                    "collaborationModes",
+                    "collaborationMode/list",
+                    json!({}),
+                )
+                .await
             }
             "codex.skills.list" => self.list_codex_skills(payload).await,
             "codex.apps.list" => self.list_codex_apps(payload).await,
@@ -82,6 +92,31 @@ impl ServerActor {
             self.broadcast_codex_server_error(error.wire_message());
         }
         result
+    }
+
+    pub(super) async fn codex_server_cached_request(
+        &mut self,
+        cache_key: &str,
+        method: &str,
+        params: Value,
+    ) -> HostResult<Value> {
+        let server = self.ensure_codex_server(None).await?;
+        if let Some(cached) = server.cached_catalogue(cache_key).await {
+            return Ok(cached);
+        }
+        let result = server.request(method, params).await;
+        match result {
+            Ok(value) => {
+                server
+                    .cache_catalogue(cache_key.to_string(), value.clone())
+                    .await;
+                Ok(value)
+            }
+            Err(error) => {
+                self.broadcast_codex_server_error(error.wire_message());
+                Err(error)
+            }
+        }
     }
 
     pub(super) async fn ensure_codex_server(

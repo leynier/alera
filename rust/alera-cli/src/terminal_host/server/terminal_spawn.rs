@@ -275,6 +275,7 @@ impl ServerActor {
         initial_output_stream_bytes: u64,
         forced_agent_hook: Option<&str>,
     ) -> HostResult<()> {
+        self.disarm_terminal_pulse(&session_id);
         self.account_push.damper.reset_session(&session_id);
         let mut agent_settings = self
             .runtime_store
@@ -345,7 +346,7 @@ impl ServerActor {
         }
         let inbox = self.inbox.clone();
         let reader_session_id = session_id.clone();
-        let session = Session::start(
+        let session = Box::pin(Session::start(
             session_id.clone(),
             workspace_id,
             tab_id,
@@ -358,7 +359,7 @@ impl ServerActor {
             initial_output_stream_bytes,
             &self.store,
             move |event| forward_pty_event(&inbox, &reader_session_id, event),
-        )
+        ))
         .await?;
         self.sessions.insert(session_id, session);
         Ok(())
@@ -371,6 +372,7 @@ impl ServerActor {
         tab_id: &str,
         max_bytes: usize,
     ) -> (Vec<u8>, u64) {
+        self.disarm_terminal_pulse(session_id);
         if let Some(mut dead) = self.sessions.remove(session_id) {
             let scrollback = dead.buffer.to_bytes();
             let output_stream_bytes = dead.output_stream_range().1;

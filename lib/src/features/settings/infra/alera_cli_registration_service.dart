@@ -11,6 +11,8 @@ typedef AleraCliRegistrationSupportDirectoryResolver =
     Future<Directory> Function();
 typedef AleraCliRegistrationCommandEnvironmentResolverFactory =
     CommandEnvironmentResolver Function();
+typedef AleraCliRegistrationExecutableChecker =
+    Future<bool> Function(String path);
 
 enum AleraCliRegistrationState {
   installed,
@@ -76,6 +78,8 @@ class AleraCliRegistrationService {
     String? operatingSystem,
     this.homePath,
     this.localAppDataPath,
+    AleraCliRegistrationExecutableChecker? executableChecker,
+    String? pathListSeparator,
   }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
        _commandEnvironmentResolverFactory =
            commandEnvironmentResolverFactory ??
@@ -84,7 +88,13 @@ class AleraCliRegistrationService {
        _applicationSupportDirectory =
            applicationSupportDirectory ?? getApplicationSupportDirectory,
        _environment = environment ?? Platform.environment,
-       _operatingSystem = operatingSystem ?? Platform.operatingSystem;
+       _operatingSystem = operatingSystem ?? Platform.operatingSystem,
+       _executableChecker = executableChecker ?? _hostFileIsExecutable,
+       _pathListSeparator =
+           pathListSeparator ??
+           ((operatingSystem ?? Platform.operatingSystem) == 'windows'
+               ? ';'
+               : ':');
 
   static const String commandName = 'alera';
   static const String _wrapperMarker = 'ALERA_CLI_WRAPPER=1';
@@ -96,6 +106,8 @@ class AleraCliRegistrationService {
   _applicationSupportDirectory;
   final Map<String, String> _environment;
   final String _operatingSystem;
+  final AleraCliRegistrationExecutableChecker _executableChecker;
+  final String _pathListSeparator;
   final ProcessRunner processRunner;
   final String? homePath;
   final String? localAppDataPath;
@@ -323,8 +335,6 @@ class AleraCliRegistrationService {
         : normalized;
   }
 
-  String get _pathListSeparator => _operatingSystem == 'windows' ? ';' : ':';
-
   List<String> _commandCandidatePaths(String directory) {
     if (_operatingSystem == 'windows') {
       return <String>[
@@ -349,9 +359,7 @@ class AleraCliRegistrationService {
     if (_operatingSystem == 'windows') {
       return true;
     }
-    final stat = await File(path).stat();
-    const executeMask = 0x49;
-    return (stat.mode & executeMask) != 0;
+    return _executableChecker(path);
   }
 
   AleraCliRegistrationStatus _statusFor(
@@ -406,6 +414,12 @@ class AleraCliRegistrationService {
     ];
     return lines.join('\r\n');
   }
+}
+
+Future<bool> _hostFileIsExecutable(String path) async {
+  final stat = await File(path).stat();
+  const executeMask = 0x49;
+  return (stat.mode & executeMask) != 0;
 }
 
 class _AleraCliRegistrationSpec {

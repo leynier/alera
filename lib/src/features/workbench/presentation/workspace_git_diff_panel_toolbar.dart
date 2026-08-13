@@ -3,6 +3,7 @@ part of 'workspace_git_diff_panel.dart';
 class _SourceControlToolbar extends StatelessWidget {
   const _SourceControlToolbar({
     required this.messageController,
+    required this.messageFocusNode,
     required this.filterController,
     required this.viewMode,
     required this.groupMode,
@@ -28,6 +29,7 @@ class _SourceControlToolbar extends StatelessWidget {
   });
 
   final TextEditingController messageController;
+  final FocusNode messageFocusNode;
   final TextEditingController filterController;
   final GitDiffViewMode viewMode;
   final GitDiffGroupMode groupMode;
@@ -84,7 +86,7 @@ class _SourceControlToolbar extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              Flexible(
+              Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   reverse: true,
@@ -177,6 +179,7 @@ class _SourceControlToolbar extends StatelessWidget {
           const SizedBox(height: AleraTokens.space8),
           _CommitMessageField(
             controller: messageController,
+            focusNode: messageFocusNode,
             enabled: !busy,
             generating: generatingCommitMessage,
             onChanged: (_) => onMessageChanged(),
@@ -188,16 +191,17 @@ class _SourceControlToolbar extends StatelessWidget {
           ),
           const SizedBox(height: AleraTokens.space8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: <Widget>[
-              _PrimaryActionButton(
-                action: primaryAction,
-                state: data,
-                busy: busy,
-                onPressed: primaryAction == null
-                    ? null
-                    : () => onPrimaryAction(primaryAction),
-                onSelected: onSelectMenuAction,
+              Expanded(
+                child: _PrimaryActionButton(
+                  action: primaryAction,
+                  state: data,
+                  busy: busy,
+                  onPressed: primaryAction == null
+                      ? null
+                      : () => onPrimaryAction(primaryAction),
+                  onSelected: onSelectMenuAction,
+                ),
               ),
             ],
           ),
@@ -444,19 +448,14 @@ class _PrimaryActionButton extends StatelessWidget {
             child: SizedBox(
               height: _height,
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: _height),
+                  Expanded(
                     child: InkWell(
                       mouseCursor: enabled
                           ? SystemMouseCursors.click
                           : SystemMouseCursors.basic,
                       onTap: enabled ? onPressed : null,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AleraTokens.space12,
-                        ),
+                      child: Center(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[

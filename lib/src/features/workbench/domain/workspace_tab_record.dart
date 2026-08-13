@@ -43,6 +43,7 @@ const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
 const String workspaceTabAutoCloseOnSuccessPayloadKey = 'autoCloseOnSuccess';
+const String workspaceTabTerminalPulsePayloadKey = 'terminalPulse';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
@@ -229,6 +230,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   bool get autoCloseOnSuccess =>
       payload[workspaceTabAutoCloseOnSuccessPayloadKey] == true;
 
+  TerminalPulseConfiguration get terminalPulse =>
+      TerminalPulseConfiguration.fromJson(
+        payload[workspaceTabTerminalPulsePayloadKey],
+      );
+
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];
     return value is String && value.trim().isNotEmpty ? value : null;
@@ -310,4 +316,57 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
 
   factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>
       WorkspaceTabRecordMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+final class TerminalPulseConfiguration {
+  const TerminalPulseConfiguration({
+    this.command = 'r',
+    this.appendEnter = true,
+    this.delayMilliseconds = 2000,
+  });
+
+  factory TerminalPulseConfiguration.fromJson(Object? value) {
+    if (value is! Map) {
+      return const TerminalPulseConfiguration();
+    }
+    final command = value['command'];
+    final delayMilliseconds = value['delayMs'];
+    return TerminalPulseConfiguration(
+      command: command is String && command.isNotEmpty ? command : 'r',
+      appendEnter: value['appendEnter'] != false,
+      delayMilliseconds: delayMilliseconds is int && delayMilliseconds > 0
+          ? delayMilliseconds
+          : 2000,
+    );
+  }
+
+  final String command;
+  final bool appendEnter;
+  final int delayMilliseconds;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'command': command,
+    'appendEnter': appendEnter,
+    'delayMs': delayMilliseconds,
+  };
+
+  TerminalPulseConfiguration copyWith({
+    String? command,
+    bool? appendEnter,
+    int? delayMilliseconds,
+  }) => TerminalPulseConfiguration(
+    command: command ?? this.command,
+    appendEnter: appendEnter ?? this.appendEnter,
+    delayMilliseconds: delayMilliseconds ?? this.delayMilliseconds,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is TerminalPulseConfiguration &&
+      other.command == command &&
+      other.appendEnter == appendEnter &&
+      other.delayMilliseconds == delayMilliseconds;
+
+  @override
+  int get hashCode => Object.hash(command, appendEnter, delayMilliseconds);
 }

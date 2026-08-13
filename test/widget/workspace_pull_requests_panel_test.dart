@@ -8,12 +8,16 @@ import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +26,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_forge_provider.dart';
 import '../unit/fake_git_backend.dart';
+
+part 'workspace_pull_requests_panel_reading_diff_cases.dart';
 
 HostedReview _review(int number) => HostedReview(
   provider: GitHostingProvider.github,
@@ -76,6 +82,88 @@ class _PanelWorkbenchController extends WorkbenchController {
 }
 
 void main() {
+  _registerWorkspacePullRequestsPanelReadingDiffTests();
+
+  testWidgets('places borderless dictation controls in pull request fields', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gitBackendProvider.overrideWithValue(FakeGitBackend()),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: PullRequestComposer(
+                repoPath: '/repo',
+                headBranch: 'feat/dictation',
+                baseBranches: const <String>['main'],
+                suggestedBaseBranch: 'main',
+                canCreate: true,
+                busy: false,
+                suggestedReview: null,
+                createAction: PullRequestCreateAction.publish,
+                onCreate: (_) {},
+                onLink: (_) {},
+                onCreateActionChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final titleField = tester.getRect(
+      find.byKey(const ValueKey<String>('pull-request-title-field')),
+    );
+    final titleControl = tester.getRect(
+      find.byKey(
+        const ValueKey<String>('pull-request-title-dictation-control'),
+      ),
+    );
+    final descriptionField = tester.getRect(
+      find.byKey(const ValueKey<String>('pull-request-description-field')),
+    );
+    final descriptionControl = tester.getRect(
+      find.byKey(
+        const ValueKey<String>('pull-request-description-dictation-control'),
+      ),
+    );
+
+    expect(
+      titleField.right - titleControl.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      (titleControl.center.dy - titleField.center.dy).abs(),
+      lessThanOrEqualTo(AleraTokens.space4),
+    );
+    expect(
+      descriptionControl.top - descriptionField.top,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      descriptionField.right - descriptionControl.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+
+    final iconButton = tester.widget<AleraIconButton>(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey<String>('pull-request-description-dictation-control'),
+        ),
+        matching: find.byType(AleraIconButton),
+      ),
+    );
+    expect(iconButton.borderColor, isNull);
+    expect(iconButton.borderRadius, AleraTokens.radiusPill);
+  });
+
   testWidgets('keeps the review visible while Refresh shows loading', (
     tester,
   ) async {
@@ -260,93 +348,6 @@ void main() {
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(linkedReviews.store[workspace.id]?.dismissed, isFalse);
     expect(linkedReviews.store[workspace.id]?.number, 123);
-  });
-
-  testWidgets('opens the linked pull request diff from its exact hosted head', (
-    tester,
-  ) async {
-    final now = DateTime.utc(2026, 8, 10);
-    final workspace = Workspace(
-      id: 'workspace-1',
-      projectId: 'project-1',
-      name: 'Feature',
-      branch: 'feature',
-      path: '/repo',
-      createdAt: now,
-      updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
-    );
-    final review = _review(385);
-    final forge = FakeForgeProvider()..branchReview = review;
-    final git = FakeGitBackend()
-      ..remotesByName = <String, String?>{
-        'origin': 'https://github.com/leynier/alera.git',
-      }
-      ..gitRangeContextResult = const GitRangeContext(
-        baseRef: 'main',
-        headOid: 'hosted-head',
-        mergeBase: 'merge-base',
-        commits: <GitRangeCommit>[],
-        files: <GitRangeFile>[],
-        patch: '',
-      );
-    late _PanelWorkbenchController workbench;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          effectiveHostingProviderOverrideProvider.overrideWith(
-            (ref, projectId) async => null,
-          ),
-          gitBackendProvider.overrideWithValue(git),
-          forgeProviderRegistryProvider.overrideWithValue(
-            ForgeProviderRegistry(<ForgeProvider>[forge]),
-          ),
-          linkedReviewRepositoryProvider.overrideWithValue(
-            FakeLinkedReviewRepository(),
-          ),
-          workbenchControllerProvider.overrideWith(
-            () => workbench = _PanelWorkbenchController(),
-          ),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 360,
-              height: 640,
-              child: WorkspacePullRequestsPanel(
-                workspace: workspace,
-                repoPath: workspace.path,
-                gitDiffRoot: 'packages/app',
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Open Pull Request Diff'));
-    await tester.pumpAndSettle();
-
-    expect(
-      git.calls.where((call) => call.method == 'rangeContext').single.args,
-      <String, Object?>{
-        'path': '/repo',
-        'baseRef': 'main',
-        'commitLimit': 40,
-        'headRef': 'head-385',
-      },
-    );
-    expect(workbench.openedPullRequestDiffs, <Object>[
-      (
-        number: 385,
-        commitOid: 'hosted-head',
-        gitDiffRoot: 'packages/app',
-        parentOid: 'merge-base',
-      ),
-    ]);
   });
 
   testWidgets('shows the self-hosted forge in authentication guidance', (

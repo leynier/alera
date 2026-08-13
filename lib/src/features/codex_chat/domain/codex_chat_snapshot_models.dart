@@ -15,6 +15,13 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
        _historyIndexById = Map<String, int>.unmodifiable(<String, int>{
          for (var index = 0; index < history.length; index++)
            history[index].id: index,
+       }),
+       _historyItemIds = Set<String>.unmodifiable(<String>{
+         for (final cell in history)
+           if (cell.itemId?.isNotEmpty == true) cell.itemId!,
+         for (final cell in history)
+           if (cell.id.startsWith('item-') && cell.id.length > 5)
+             cell.id.substring(5),
        });
 
   CodexTimelineCells._withLive(
@@ -22,12 +29,14 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
     List<CodexTimelineCell> live,
     this._historyPromptHistory,
     this._historyIndexById,
+    this._historyItemIds,
   ) : _live = List<CodexTimelineCell>.unmodifiable(live);
 
   final List<CodexTimelineCell> _history;
   final List<CodexTimelineCell> _live;
   final List<String> _historyPromptHistory;
   final Map<String, int> _historyIndexById;
+  final Set<String> _historyItemIds;
 
   List<CodexTimelineCell> get history => _history;
   List<CodexTimelineCell> get live => _live;
@@ -35,6 +44,16 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
   Map<String, int> get historyIndexes => _historyIndexById;
 
   int? historyIndexFor(String id) => _historyIndexById[id];
+
+  bool historyContainsExactIdentity(CodexTimelineCell cell) {
+    if (_historyIndexById.containsKey(cell.id)) return true;
+    final itemId = cell.itemId?.isNotEmpty == true
+        ? cell.itemId
+        : cell.id.startsWith('item-') && cell.id.length > 5
+        ? cell.id.substring(5)
+        : null;
+    return itemId != null && _historyItemIds.contains(itemId);
+  }
 
   List<String> promptHistoryWithLive(List<CodexTimelineCell> live) =>
       CodexPromptHistory._withLive(
@@ -48,6 +67,7 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
         live,
         _historyPromptHistory,
         _historyIndexById,
+        _historyItemIds,
       );
 
   @override
@@ -113,6 +133,7 @@ class CodexChatSnapshot {
     this.contextUsed,
     this.contextLimit,
     this.title,
+    this.goal,
   });
 
   factory CodexChatSnapshot.fromJson(Object? value) {
@@ -152,6 +173,7 @@ class CodexChatSnapshot {
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
       title: _string(json['title']),
+      goal: json['goal'] is Map ? CodexThreadGoal.fromJson(json['goal']) : null,
     );
   }
 
@@ -308,6 +330,11 @@ class CodexChatSnapshot {
           ? _int(json['contextLimit'])
           : contextLimit,
       title: json.containsKey('title') ? _string(json['title']) : title,
+      goal: json.containsKey('goal')
+          ? json['goal'] is Map
+                ? CodexThreadGoal.fromJson(json['goal'])
+                : null
+          : goal,
     );
   }
 
@@ -320,6 +347,7 @@ class CodexChatSnapshot {
   final int? contextUsed;
   final int? contextLimit;
   final String? title;
+  final CodexThreadGoal? goal;
 
   bool get isBusy => activeTurnId != null;
 
@@ -393,6 +421,7 @@ class CodexChatSnapshot {
     if (contextUsed != null) 'contextUsed': contextUsed,
     if (contextLimit != null) 'contextLimit': contextLimit,
     if (title != null) 'title': title,
+    if (goal != null) 'goal': goal!.toJson(),
   };
 }
 
@@ -401,6 +430,7 @@ List<String> _codexPromptHistory(List<CodexTimelineCell> cells) =>
       for (final cell in cells)
         if (cell.kind == CodexTimelineKind.userMessage &&
             cell.metadata[CodexTimelineMetadata.isSteering] != true &&
+            cell.metadata[CodexTimelineMetadata.isGoal] != true &&
             (cell.markdownText ?? '').trim().isNotEmpty)
           cell.markdownText!.trim(),
     ]);

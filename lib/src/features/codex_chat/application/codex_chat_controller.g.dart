@@ -57,6 +57,54 @@ final class CodexChatRuntimeClientProvider
 String _$codexChatRuntimeClientHash() =>
     r'3d83da5bd040031693f5fa809a9ed04a332c97ae';
 
+@ProviderFor(codexChatHostClient)
+final codexChatHostClientProvider = CodexChatHostClientProvider._();
+
+final class CodexChatHostClientProvider
+    extends
+        $FunctionalProvider<
+          CodexChatHostClient,
+          CodexChatHostClient,
+          CodexChatHostClient
+        >
+    with $Provider<CodexChatHostClient> {
+  CodexChatHostClientProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'codexChatHostClientProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$codexChatHostClientHash();
+
+  @$internal
+  @override
+  $ProviderElement<CodexChatHostClient> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CodexChatHostClient create(Ref ref) {
+    return codexChatHostClient(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CodexChatHostClient value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CodexChatHostClient>(value),
+    );
+  }
+}
+
+String _$codexChatHostClientHash() =>
+    r'b9ee7179d5fe2711c61bee6cac1f6b15f58e3bdf';
+
 @ProviderFor(CodexChatController)
 final codexChatControllerProvider = CodexChatControllerFamily._();
 
@@ -107,7 +155,7 @@ final class CodexChatControllerProvider
 }
 
 String _$codexChatControllerHash() =>
-    r'308b3f1e1964acea3e39c01077fe99637372030f';
+    r'76484861cfd537acc730db2b5f6ee22d1a2000eb';
 
 final class CodexChatControllerFamily extends $Family
     with

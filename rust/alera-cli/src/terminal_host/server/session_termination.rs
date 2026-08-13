@@ -111,6 +111,9 @@ impl ServerActor {
                 project_id,
                 workspace_ids,
             } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspaces(&workspace_ids)
                     .await;
                 self.broadcast_authenticated(event("projectsChanged", json!({})));
@@ -119,6 +122,9 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
             }
             RuntimeMutationEffect::WorkspaceRemoved { workspace_id } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspace(&workspace_id)
                     .await;
                 self.broadcast_workspaces_changed(None);
@@ -128,6 +134,9 @@ impl ServerActor {
                 project_id,
                 workspace_ids,
             } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspaces(&workspace_ids)
                     .await;
                 self.broadcast_workspaces_changed(Some(&project_id));
@@ -137,6 +146,9 @@ impl ServerActor {
                 project_id,
                 workspace_id,
             } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspace(&workspace_id)
                     .await;
                 self.broadcast_workspaces_changed(Some(&project_id));
@@ -146,18 +158,27 @@ impl ServerActor {
                 tab_id,
                 workspace_id,
             } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.forget_thread_hydration(&tab_id).await;
+                }
                 self.remove_codex_presence(&tab_id);
                 self.handle_browser_tab_removed(&tab_id);
                 self.terminate_terminal_sessions_for_tab(&tab_id).await;
                 self.broadcast_workspace_tabs_changed(workspace_id.as_deref());
             }
             RuntimeMutationEffect::WorkspaceTabsRemoved { workspace_id } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspace(&workspace_id)
                     .await;
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
                 self.broadcast_authenticated(event("workbenchLayoutsChanged", json!({})));
             }
             RuntimeMutationEffect::WorkspaceSlept { workspace_id } => {
+                if let Some(server) = self.codex.as_ref() {
+                    server.clear_thread_hydrations().await;
+                }
                 self.terminate_terminal_sessions_for_workspace(&workspace_id)
                     .await;
                 self.broadcast_workspace_tabs_changed(Some(&workspace_id));
@@ -218,6 +239,7 @@ impl ServerActor {
         }
         let store = self.store.clone();
         for session_id in session_ids {
+            self.disarm_terminal_pulse(&session_id);
             self.queue_terminal_exit_push(&session_id, None).await;
             self.cleanup_orchestration_for_closed_session(
                 &session_id,

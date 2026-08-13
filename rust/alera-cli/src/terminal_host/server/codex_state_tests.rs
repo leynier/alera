@@ -404,3 +404,93 @@ fn commentary_phase_and_repeated_output_are_reduced_once() {
         "clean"
     );
 }
+
+#[test]
+fn canonical_item_identity_replaces_a_provisional_cell_in_place() {
+    let mut cells = vec![json!({
+        "id": "progressText-turn",
+        "turnId": "turn",
+        "kind": "progressText",
+        "markdownText": "Inspecting",
+        "metadata": {}
+    })];
+
+    codex_timeline_cells::upsert_cell(
+        &mut cells,
+        json!({
+            "id": "item-commentary",
+            "itemId": "commentary",
+            "turnId": "turn",
+            "kind": "progressText",
+            "markdownText": "Inspecting files",
+            "metadata": {"streamPhase": "commentary"}
+        }),
+    );
+
+    assert_eq!(cells.len(), 1);
+    assert_eq!(cells[0]["id"], "item-commentary");
+    assert_eq!(cells[0]["itemId"], "commentary");
+    assert_eq!(cells[0]["markdownText"], "Inspecting files");
+}
+
+#[test]
+fn goal_notifications_update_snapshot_without_creating_timeline_cells() {
+    let mut record = tab();
+    append_message(
+        &mut record,
+        json!({
+            "method": "thread/goal/updated",
+            "params": {
+                "threadId": "thread-1",
+                "goal": {
+                    "threadId": "thread-1",
+                    "objective": "Ship the release",
+                    "status": "active",
+                    "tokensUsed": 0,
+                    "timeUsedSeconds": 3,
+                    "createdAt": 1,
+                    "updatedAt": 2
+                }
+            }
+        }),
+    );
+    let saved = snapshot(&record);
+    assert_eq!(saved["goal"]["objective"], "Ship the release");
+    assert!(saved["timelineCells"].as_array().unwrap().is_empty());
+
+    append_message(
+        &mut record,
+        json!({
+            "method": "thread/goal/cleared",
+            "params": {"threadId": "thread-1"}
+        }),
+    );
+    assert!(snapshot(&record).get("goal").is_none());
+}
+
+#[test]
+fn canonical_assistant_identity_replaces_the_legacy_alias_in_place() {
+    let mut cells = vec![json!({
+        "id": "assistant-turn",
+        "turnId": "turn",
+        "kind": "assistantMessage",
+        "markdownText": "Done",
+        "metadata": {}
+    })];
+
+    codex_timeline_cells::upsert_cell(
+        &mut cells,
+        json!({
+            "id": "item-answer",
+            "itemId": "answer",
+            "turnId": "turn",
+            "kind": "assistantMessage",
+            "markdownText": "Done",
+            "metadata": {"streamPhase": "final_answer"}
+        }),
+    );
+
+    assert_eq!(cells.len(), 1);
+    assert_eq!(cells[0]["id"], "item-answer");
+    assert_eq!(cells[0]["itemId"], "answer");
+}

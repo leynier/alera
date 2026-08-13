@@ -1,5 +1,19 @@
 part of 'terminal_runtime.dart';
 
+extension _TerminalRecoveryState on _XtermTerminalSessionHandle {
+  void _setTerminalHostError(Object error) {
+    if (_disposed) {
+      return;
+    }
+    final message = 'Terminal host unavailable: $error';
+    if (_errorMessage == message) {
+      return;
+    }
+    _errorMessage = message;
+    _notifySessionListeners();
+  }
+}
+
 Future<void> _ensureTerminalSessionStarted(
   _XtermTerminalSessionHandle handle,
 ) async {
@@ -55,6 +69,7 @@ Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
     await _recoverTerminalSession(
       handle,
       operation: TerminalSessionOperation.restarting,
+      clearExitedGeneration: true,
       recover: () async {
         await session.restartProcess();
         if (!handle._disposed) {
@@ -83,6 +98,7 @@ Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
 Future<void> _recoverTerminalSession(
   _XtermTerminalSessionHandle handle, {
   required TerminalSessionOperation operation,
+  bool clearExitedGeneration = false,
   required Future<void> Function() recover,
 }) async {
   if (handle._disposed || handle._operation != null) {
@@ -92,13 +108,40 @@ Future<void> _recoverTerminalSession(
   handle._operation = operation;
   handle._starting = true;
   handle._notifySessionListeners();
+  final generationBeforeRecovery = handle._activePtyGeneration;
+  final restoredExitedGeneration =
+      clearExitedGeneration &&
+      generationBeforeRecovery != null &&
+      handle._exitedPtyGenerations.remove(generationBeforeRecovery);
   try {
     await recover();
     if (!handle._disposed) {
-      handle._running = true;
+      final generation = handle._activePtyGeneration;
+      final pulseSession = handle._ptySession;
+      if (pulseSession == null) {
+        handle._markTerminalPulseDisarmed();
+      } else {
+        await handle._refreshTerminalPulseState(
+          pulseSession,
+          isCurrent: () =>
+              !handle._disposed &&
+              generation != null &&
+              handle._activePtyGeneration == generation &&
+              identical(handle._ptySession, pulseSession),
+        );
+      }
+      handle._running =
+          generation != null &&
+          handle._activePtyGeneration == generation &&
+          identical(handle._ptySession, pulseSession) &&
+          !handle._exitedPtyGenerations.contains(generation);
     }
   } catch (error) {
     if (!handle._disposed) {
+      if (restoredExitedGeneration &&
+          handle._activePtyGeneration == generationBeforeRecovery) {
+        handle._exitedPtyGenerations.add(generationBeforeRecovery);
+      }
       handle._errorMessage = 'Terminal host unavailable: $error';
     }
   } finally {

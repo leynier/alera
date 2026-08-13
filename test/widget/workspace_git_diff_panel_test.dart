@@ -746,7 +746,7 @@ void main() {
     },
   );
 
-  testWidgets('primary source control action is compact and clickable', (
+  testWidgets('source control actions align with the content edges', (
     tester,
   ) async {
     final backend = FakeGitBackend()
@@ -775,9 +775,12 @@ void main() {
     );
     expect(splitButton, findsOneWidget);
     final splitButtonRect = tester.getRect(splitButton);
+    final messageFieldRect = tester.getRect(_messageField());
+    final refreshRect = tester.getRect(find.byTooltip('Refresh'));
     expect(splitButtonRect.height, 28);
-    expect(splitButtonRect.right, closeTo(412, 0.1));
-    expect(splitButtonRect.width, lessThan(240));
+    expect(splitButtonRect.left, closeTo(messageFieldRect.left, 0.1));
+    expect(splitButtonRect.right, closeTo(messageFieldRect.right, 0.1));
+    expect(refreshRect.right, closeTo(messageFieldRect.right, 0.1));
 
     final primaryAction = find.ancestor(
       of: find.text('Stage All'),
@@ -1460,9 +1463,21 @@ void main() {
       const EdgeInsets.fromLTRB(
         AleraTokens.space8,
         AleraTokens.space16,
-        AleraTokens.space8,
+        AleraTokens.space48,
         AleraTokens.space8,
       ),
+    );
+    final fieldRect = tester.getRect(_messageField());
+    final dictationRect = tester.getRect(
+      find.byKey(const ValueKey<String>('source-control-dictation-control')),
+    );
+    expect(
+      dictationRect.top - fieldRect.top,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      fieldRect.right - dictationRect.right,
+      lessThanOrEqualTo(AleraTokens.space12),
     );
   });
 

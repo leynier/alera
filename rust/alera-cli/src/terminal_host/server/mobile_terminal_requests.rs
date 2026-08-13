@@ -9,9 +9,10 @@ use crate::terminal_host::protocol::{
     int_or, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_AI_DICTATION_CAPABILITY, RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
+    RUNTIME_HOST_AUTOMATIONS_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
+    RUNTIME_HOST_CODEX_GOALS_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
     RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
@@ -74,8 +75,10 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
     RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
+    RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
     RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
+    RUNTIME_HOST_AI_DICTATION_CAPABILITY,
 ];
 
 impl ServerActor {
@@ -156,10 +159,7 @@ impl ServerActor {
                     payload,
                     &mut attachment,
                 );
-                Ok(json!({
-                    "tab": tab,
-                    "attachment": attachment,
-                }))
+                Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
             }
             Err(error) => {
                 let _ = self.runtime_store.remove_workspace_tab(&tab.id).await;
@@ -229,10 +229,7 @@ impl ServerActor {
             .create_or_attach(client_id, &attachment_payload)
             .await?;
         self.claim_mobile_terminal_viewport(client_id, &session_id, payload, &mut attachment);
-        Ok(json!({
-            "tab": tab,
-            "attachment": attachment,
-        }))
+        Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
     }
 
     pub(super) async fn restart_mobile_terminal(
@@ -276,10 +273,22 @@ impl ServerActor {
             .restart_terminal(client_id, &attachment_payload)
             .await?;
         self.claim_mobile_terminal_viewport(client_id, &session_id, payload, &mut attachment);
-        Ok(json!({
+        Ok(self.terminal_tab_response_for_client(client_id, tab, attachment))
+    }
+
+    pub(super) fn terminal_tab_response_for_client(
+        &self,
+        client_id: u64,
+        tab: WorkspaceTabRecord,
+        attachment: Value,
+    ) -> Value {
+        let tab = self
+            .workspace_tab_for_client(client_id, tab)
+            .expect("terminal tabs are supported by every client");
+        json!({
             "tab": tab,
             "attachment": attachment,
-        }))
+        })
     }
 }
 
@@ -355,6 +364,8 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.promptFile.complete"
             | "mobile.promptFile.cancel"
             | "mobile.promptAttachment.read"
+            | "mobile.aiDictation.transcribe"
+            | "mobile.aiDictation.cancel"
             | "tab.list"
             | "tab.find"
             | "tab.rename"
@@ -407,6 +418,9 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "codex.thread.recover"
             | "codex.thread.snapshot"
             | "codex.thread.items.list"
+            | "codex.goal.get"
+            | "codex.goal.set"
+            | "codex.goal.clear"
             | "codex.model.list"
             | "codex.collaborationModes.list"
             | "codex.skills.list"

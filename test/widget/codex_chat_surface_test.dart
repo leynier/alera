@@ -49,9 +49,11 @@ part 'codex_chat_surface_session_state_test_cases.dart';
 part 'codex_chat_surface_timeline_request_test_cases.dart';
 part 'codex_chat_surface_review_dialog_test_cases.dart';
 part 'codex_chat_surface_recovery_test_cases.dart';
+part 'codex_chat_surface_goal_test_cases.dart';
 
 void main() {
   _registerCodexChatSurfaceRecoveryTests();
+  _registerCodexChatSurfaceGoalTests();
   test('allows only standard external URI schemes', () {
     for (final value in <String>[
       'https://example.com/path',
@@ -78,7 +80,7 @@ void main() {
       rawLink: 'readme.md:44',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'readme.md'));
+    expect(target?.path, p.normalize(p.join('/repo/workspace', 'readme.md')));
     expect(target?.line, 44);
   });
 
@@ -117,7 +119,7 @@ void main() {
       rawLink: 'Makefile:42',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'Makefile'));
+    expect(target?.path, p.normalize(p.join('/repo/workspace', 'Makefile')));
     expect(target?.line, 42);
   });
 
@@ -127,7 +129,10 @@ void main() {
       rawLink: 'release%20notes.md:44',
     );
 
-    expect(target?.path, p.join('/repo/workspace', 'release notes.md'));
+    expect(
+      target?.path,
+      p.normalize(p.join('/repo/workspace', 'release notes.md')),
+    );
     expect(target?.line, 44);
   });
 
@@ -305,6 +310,9 @@ void main() {
     final sendButton = tester.getRect(
       find.byKey(const ValueKey<String>('composer-action-button')),
     );
+    final dictationControl = tester.getRect(
+      find.byKey(const ValueKey<String>('codex-dictation-control')),
+    );
     final contextIndicator = tester.getRect(
       find.byWidgetPredicate(
         (widget) => widget is CircularProgressIndicator && widget.value == 0.1,
@@ -316,6 +324,15 @@ void main() {
     expect(
       composerShell.right - sendButton.right,
       lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(dictationControl.right, lessThanOrEqualTo(sendButton.left));
+    expect(
+      sendButton.left - dictationControl.right,
+      lessThanOrEqualTo(AleraTokens.space4),
+    );
+    expect(
+      (dictationControl.center.dy - sendButton.center.dy).abs(),
+      lessThanOrEqualTo(AleraTokens.space2),
     );
     expect(
       modelConfiguration.left - contextIndicator.right,

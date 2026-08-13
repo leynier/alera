@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
 
 use alera_core::runtime::{RuntimeStore, Workspace, WorkspaceTabRecord};
 use serde_json::json;
@@ -29,8 +31,7 @@ pub(super) struct CodexCleanupEntry {
 }
 
 pub(super) struct PreparedCodexCleanup {
-    server: Option<CodexAppServer>,
-    _cleanup_receiver: Option<UnboundedReceiver<ServerCommand>>,
+    post_commit_cleanup: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
     entries: Vec<CodexCleanupEntry>,
 }
 
@@ -81,44 +82,64 @@ impl CodexCleanupPlan {
                 return Err(error);
             }
         }
+        let post_commit_cleanup =
+            prepare_post_commit_cleanup(server, cleanup_receiver, &self.entries);
         Ok(PreparedCodexCleanup {
-            server,
-            _cleanup_receiver: cleanup_receiver,
+            post_commit_cleanup,
             entries: self.entries,
         })
     }
 }
 
 impl PreparedCodexCleanup {
-    pub(super) async fn delete_threads_after_commit(&self) {
-        let mut deleted_threads = HashSet::new();
-        for entry in self.entries.iter().filter(|entry| entry.delete_thread) {
-            let Some(thread_id) = entry
-                .thread_id
-                .as_ref()
-                .filter(|thread_id| deleted_threads.insert((*thread_id).clone()))
-            else {
-                continue;
-            };
-            let Some(server) = self.server.as_ref() else {
-                continue;
-            };
-            if let Err(error) = server
-                .request("thread/delete", json!({"threadId": thread_id}))
-                .await
-            {
-                tracing::warn!(
-                    tab_id = %entry.tab_id,
-                    error = %error.wire_message(),
-                    "could not delete Codex thread after stopping active work"
-                );
-            }
+    pub(super) fn delete_threads_after_commit(&mut self) {
+        if let Some(cleanup) = self.post_commit_cleanup.take() {
+            drop(tokio::spawn(cleanup));
         }
     }
 
     pub(super) fn into_entries(self) -> Vec<CodexCleanupEntry> {
         self.entries
     }
+}
+
+fn prepare_post_commit_cleanup(
+    server: Option<CodexAppServer>,
+    cleanup_receiver: Option<UnboundedReceiver<ServerCommand>>,
+    entries: &[CodexCleanupEntry],
+) -> Option<Pin<Box<dyn Future<Output = ()> + Send>>> {
+    let server = server?;
+    let mut deleted_threads = HashSet::new();
+    let deletions = entries
+        .iter()
+        .filter(|entry| entry.delete_thread)
+        .filter_map(|entry| {
+            let thread_id = entry.thread_id.as_ref()?.clone();
+            deleted_threads
+                .insert(thread_id.clone())
+                .then(|| (entry.tab_id.clone(), thread_id))
+        })
+        .collect::<Vec<_>>();
+    if deletions.is_empty() {
+        return None;
+    }
+    Some(Box::pin(async move {
+        for (tab_id, thread_id) in deletions {
+            if let Err(error) = server
+                .request("thread/delete", json!({"threadId": thread_id}))
+                .await
+            {
+                tracing::warn!(
+                    tab_id = %tab_id,
+                    error = %error.wire_message(),
+                    "could not delete Codex thread after stopping active work"
+                );
+            }
+        }
+        // A temporary app-server sends notifications through this receiver.
+        // Keep it alive until every deletion has completed.
+        drop(cleanup_receiver);
+    }))
 }
 
 pub(in crate::terminal_host::server) async fn apply_cleanup_activity(
@@ -341,4 +362,40 @@ pub(super) fn stale_codex_interrupt(error: &HostError) -> bool {
 pub(super) fn codex_tab_uses_workspace(tab: &WorkspaceTabRecord, workspace: &Workspace) -> bool {
     tab.workspace_id == workspace.id
         || active_cwd(tab).is_some_and(|cwd| path_matches(&cwd, &workspace.path))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn post_commit_cleanup_does_not_delay_mutation_completion() {
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let (finished_tx, mut finished_rx) = tokio::sync::oneshot::channel();
+        let mut cleanup = PreparedCodexCleanup {
+            post_commit_cleanup: Some(Box::pin(async move {
+                started_tx.send(()).unwrap();
+                release_rx.await.unwrap();
+                finished_tx.send(()).unwrap();
+            })),
+            entries: Vec::new(),
+        };
+
+        cleanup.delete_threads_after_commit();
+        assert!(cleanup.post_commit_cleanup.is_none());
+        started_rx.await.unwrap();
+        assert_eq!(
+            finished_rx.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        );
+
+        release_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), finished_rx)
+            .await
+            .expect("post-commit cleanup should finish")
+            .expect("post-commit cleanup task should not stop early");
+    }
 }

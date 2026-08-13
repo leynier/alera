@@ -22,6 +22,7 @@ use crate::login_shell_environment::apply_login_shell_path;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::codex_app_server_history::ThreadHistoryCache;
+use super::codex_app_server_session_state::CodexAppServerSessionState;
 use super::ServerCommand;
 
 const CODEX_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
@@ -39,6 +40,7 @@ pub(super) struct CodexAppServer {
     _child: Arc<Mutex<Child>>,
     next_id: Arc<AtomicI64>,
     pub(super) thread_history: Arc<Mutex<ThreadHistoryCache>>,
+    pub(super) session_state: Arc<CodexAppServerSessionState>,
     instance: Arc<()>,
 }
 
@@ -80,6 +82,7 @@ impl CodexAppServer {
             _child: Arc::new(Mutex::new(child)),
             next_id: Arc::new(AtomicI64::new(1)),
             thread_history: Arc::new(Mutex::new(ThreadHistoryCache::default())),
+            session_state: Arc::new(CodexAppServerSessionState::default()),
             instance: Arc::new(()),
         };
         tokio::spawn(read_codex_messages(

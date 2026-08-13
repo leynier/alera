@@ -10,6 +10,8 @@ import 'package:alera/src/features/workbench/presentation/terminal_composer_atta
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 
 class TerminalComposer extends StatelessWidget {
   const TerminalComposer({
@@ -29,33 +31,41 @@ class TerminalComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     final composer = session.composerController;
     final textActionsScope = AleraTextActionsScope.maybeOf(context);
-    return AnimatedBuilder(
-      animation: composer,
-      builder: (context, _) => AleraComposer(
-        controller: composer.textController,
-        focusNode: composer.focusNode,
-        enabled: !composer.submitting,
-        hasAttachments: composer.attachments.isNotEmpty,
-        attachmentBar: TerminalComposerAttachmentBar(
-          attachments: composer.attachments,
-          onRemove: composer.removeAttachment,
-          onOpenFile: (path) => unawaited(_openFile(path)),
+    return AiDictationTarget(
+      controller: composer.textController,
+      focusNode: composer.focusNode,
+      builder: (context, targetId) => AnimatedBuilder(
+        animation: composer,
+        builder: (context, _) => AleraComposer(
+          controller: composer.textController,
+          focusNode: composer.focusNode,
           enabled: !composer.submitting,
+          hasAttachments: composer.attachments.isNotEmpty,
+          attachmentBar: TerminalComposerAttachmentBar(
+            attachments: composer.attachments,
+            onRemove: composer.removeAttachment,
+            onOpenFile: (path) => unawaited(_openFile(path)),
+            enabled: !composer.submitting,
+          ),
+          textActions: textActionsScope?.enabled == true
+              ? textActionsScope!.actions
+              : const [],
+          onTextActionSelected: (actionId) {
+            final focusContext = composer.focusNode.context;
+            final editableTextState = focusContext
+                ?.findAncestorStateOfType<EditableTextState>();
+            if (editableTextState != null) {
+              textActionsScope?.run(editableTextState, actionId);
+            }
+          },
+          onPaste: _pasteClipboard,
+          trailingAction: AiDictationControl(
+            key: const ValueKey<String>('terminal-composer-dictation-control'),
+            targetId: targetId,
+          ),
+          onSend: () => unawaited(_send(context)),
+          onClose: composer.hide,
         ),
-        textActions: textActionsScope?.enabled == true
-            ? textActionsScope!.actions
-            : const [],
-        onTextActionSelected: (actionId) {
-          final focusContext = composer.focusNode.context;
-          final editableTextState = focusContext
-              ?.findAncestorStateOfType<EditableTextState>();
-          if (editableTextState != null) {
-            textActionsScope?.run(editableTextState, actionId);
-          }
-        },
-        onPaste: _pasteClipboard,
-        onSend: () => unawaited(_send(context)),
-        onClose: composer.hide,
       ),
     );
   }

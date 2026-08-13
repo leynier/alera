@@ -9,7 +9,9 @@ use std::net::TcpStream;
 use std::process::Child;
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 use base64::engine::general_purpose::STANDARD;
+#[cfg(unix)]
 use base64::Engine as _;
 use serde_json::{json, Value};
 
