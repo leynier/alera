@@ -12,12 +12,52 @@ Future<T> _guardHostFuture<T>(Future<T> future) {
   return future;
 }
 
+Future<Object?> _sendTerminalHostRequestWithMutationRetry(
+  SocketTerminalHostClient client,
+  _TerminalHostConnection connection,
+  String type,
+  Map<String, Object?> payload, {
+  Duration? timeout,
+}) async {
+  final requestTimeout = timeout ?? _terminalHostRequestTimeout;
+  final elapsed = Stopwatch()..start();
+  while (true) {
+    if (client._disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    final remaining = requestTimeout - elapsed.elapsed;
+    if (remaining <= Duration.zero) {
+      client._noteRequestTimedOut(connection);
+      throw TerminalHostRequestTimeoutException(type, requestTimeout);
+    }
+    try {
+      return await _sendTerminalHostRequest(
+        client,
+        connection,
+        type,
+        payload,
+        timeout: remaining,
+        reportedTimeout: requestTimeout,
+      );
+    } on _RuntimeMutationInProgressError {
+      final delayRemaining = requestTimeout - elapsed.elapsed;
+      final delay = delayRemaining < _runtimeMutationRetryDelay
+          ? delayRemaining
+          : _runtimeMutationRetryDelay;
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+    }
+  }
+}
+
 Future<Object?> _sendTerminalHostRequest(
   SocketTerminalHostClient client,
   _TerminalHostConnection connection,
   String type,
   Map<String, Object?> payload, {
   Duration? timeout,
+  Duration? reportedTimeout,
 }) {
   final id = client._nextRequestId++;
   final completer = Completer<Object?>();
@@ -38,7 +78,10 @@ Future<Object?> _sendTerminalHostRequest(
       // host that is merely saturated. Real death is reported by the socket
       // itself, and by the heartbeat for a peer that is alive but wedged.
       client._noteRequestTimedOut(connection);
-      throw TerminalHostRequestTimeoutException(type, requestTimeout);
+      throw TerminalHostRequestTimeoutException(
+        type,
+        reportedTimeout ?? requestTimeout,
+      );
     },
   );
   unawaited(response.catchError((Object _) => null));
@@ -56,4 +99,12 @@ Future<Object?> _sendTerminalHostRequest(
     }
   }
   return response;
+}
+
+Object _terminalHostRequestError(String? responseMessage) {
+  final message = responseMessage ?? 'Terminal host error.';
+  if (message == _runtimeMutationInProgressMessage) {
+    return _RuntimeMutationInProgressError();
+  }
+  return StateError(message);
 }
