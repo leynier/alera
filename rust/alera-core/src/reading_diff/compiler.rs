@@ -295,7 +295,11 @@ fn protect_python_structure(
         }
         let body = String::from_utf8_lossy(source_body(line));
         let trimmed = body.trim_start();
-        if trimmed.starts_with('@') || trimmed.trim_end().ends_with(':') {
+        if trimmed.starts_with('@')
+            || python_code_before_comment(trimmed)
+                .trim_end()
+                .ends_with(':')
+        {
             return Err(ReadingDiffError::new(format!(
                 "{kind}[{index}] hides a Python decorator or suite owner on line {line_number}."
             )));
@@ -312,6 +316,39 @@ fn protect_python_structure(
         )));
     }
     Ok(())
+}
+
+fn python_code_before_comment(value: &str) -> &str {
+    let bytes = value.as_bytes();
+    let mut index = 0usize;
+    let mut quote = None;
+    let mut triple = false;
+    while index < bytes.len() {
+        match quote {
+            Some(_) if bytes[index] == b'\\' => {
+                index = (index + 2).min(bytes.len());
+            }
+            Some(active) if triple && bytes[index..].starts_with(&[active, active, active]) => {
+                quote = None;
+                triple = false;
+                index += 3;
+            }
+            Some(active) if !triple && bytes[index] == active => {
+                quote = None;
+                index += 1;
+            }
+            Some(_) => index += 1,
+            None if bytes[index] == b'#' => return &value[..index],
+            None if matches!(bytes[index], b'\'' | b'"') => {
+                let active = bytes[index];
+                triple = bytes[index..].starts_with(&[active, active, active]);
+                quote = Some(active);
+                index += if triple { 3 } else { 1 };
+            }
+            None => index += 1,
+        }
+    }
+    value
 }
 
 fn changes_python_boundaries(old: &str, new: &str) -> bool {

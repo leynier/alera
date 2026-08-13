@@ -196,6 +196,45 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     expect(service.canceled, hasLength(1));
   });
 
+  testWidgets('diff surface cancels before preparation opens confirmation', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 1,
+          ),
+        ],
+      );
+    final service = _BlockingPreparationReadingDiffService(backend);
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      readingDiffService: service,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pump();
+    expect(find.byTooltip('Cancel Reading Diff'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Cancel Reading Diff'));
+    await tester.pump();
+    expect(service.canceled, hasLength(1));
+
+    service.completePreparation();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Generate Reading Diff'), findsNothing);
+    expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
+  });
+
   testWidgets('diff surface blocks retry until cancellation completes', (
     tester,
   ) async {
@@ -228,6 +267,50 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     await tester.pump();
 
     await tester.tap(find.byTooltip('Cancel Reading Diff'));
+    await tester.pump();
+
+    expect(service.canceled, hasLength(1));
+    expect(find.byTooltip('Cancel Reading Diff'), findsOneWidget);
+    expect(find.byTooltip('Generate Reading Diff'), findsNothing);
+
+    service.completeCancellation();
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
+  });
+
+  testWidgets('diff refresh waits for reading diff cancellation', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            added: 1,
+            removed: 1,
+          ),
+        ],
+      );
+    final service = _BlockingReadingDiffService(
+      backend,
+      completeOnCancel: false,
+    );
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      readingDiffService: service,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Generate Reading Diff'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generate Reading Diff').last);
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Refresh'));
     await tester.pump();
 
     expect(service.canceled, hasLength(1));

@@ -45,6 +45,35 @@ class _BlockingReadingDiffService extends ReadingDiffService {
   }
 }
 
+class _BlockingPreparationReadingDiffService extends ReadingDiffService {
+  _BlockingPreparationReadingDiffService(FakeGitBackend backend)
+    : super(
+        gitBackend: backend,
+        runner: const _FailingReadingDiffRunner(),
+        cache: const _EmptyReadingDiffCache(),
+      );
+
+  final List<ReadingDiffRequest> canceled = <ReadingDiffRequest>[];
+  final Completer<ReadingDiffPreparation> _pending =
+      Completer<ReadingDiffPreparation>();
+  ReadingDiffRequest? _request;
+
+  @override
+  Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) {
+    _request = request;
+    return _pending.future;
+  }
+
+  @override
+  void cancel(ReadingDiffRequest request) {
+    canceled.add(request);
+  }
+
+  void completePreparation() {
+    _pending.complete(_preparation(_request!, cacheKey: 'preparation'));
+  }
+}
+
 class _FailingReadingDiffRunner implements AgentTaskRunner {
   const _FailingReadingDiffRunner();
 

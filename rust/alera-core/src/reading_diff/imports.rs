@@ -92,7 +92,7 @@ fn starts_import(
 
 fn starts_common_js_import(trimmed: &str) -> bool {
     if trimmed.starts_with("require(") {
-        return true;
+        return common_js_require_suffix_is_empty(trimmed);
     }
     let Some(declaration) = trimmed.strip_prefix("const ") else {
         return false;
@@ -297,7 +297,10 @@ pub(crate) fn hide_import_only_sections(lines: &[SourceLine], hidden: &mut [bool
             .filter(|(_, line)| line.file_id == Some(file_id) && line.text.starts_with(b"@@ "))
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
-        if !hunks.is_empty() && hunks.iter().all(|index| hidden[*index]) {
+        if !hunks.is_empty()
+            && hunks.iter().all(|index| hidden[*index])
+            && !has_structural_metadata(lines, file_id)
+        {
             for (index, line) in lines.iter().enumerate() {
                 if line.file_id == Some(file_id) {
                     hidden[index] = true;
@@ -305,4 +308,27 @@ pub(crate) fn hide_import_only_sections(lines: &[SourceLine], hidden: &mut [bool
             }
         }
     }
+}
+
+fn has_structural_metadata(lines: &[SourceLine], file_id: usize) -> bool {
+    lines.iter().any(|line| {
+        line.file_id == Some(file_id)
+            && line.hunk_id.is_none()
+            && [
+                b"old mode ".as_slice(),
+                b"new mode ".as_slice(),
+                b"deleted file mode ".as_slice(),
+                b"new file mode ".as_slice(),
+                b"similarity index ".as_slice(),
+                b"dissimilarity index ".as_slice(),
+                b"rename from ".as_slice(),
+                b"rename to ".as_slice(),
+                b"copy from ".as_slice(),
+                b"copy to ".as_slice(),
+                b"Binary files ".as_slice(),
+                b"GIT binary patch".as_slice(),
+            ]
+            .iter()
+            .any(|prefix| line.text.starts_with(prefix))
+    })
 }

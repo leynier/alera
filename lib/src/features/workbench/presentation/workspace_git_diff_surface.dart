@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workspace_git_diff_surface_rows.dart';
 part 'workspace_git_diff_surface_bar.dart';
+part 'workspace_git_diff_surface_loading.dart';
 
 class WorkspaceGitDiffSurface extends ConsumerStatefulWidget {
   const WorkspaceGitDiffSurface({
@@ -56,7 +57,12 @@ class _WorkspaceGitDiffSurfaceState
   String? _readingDiffAgentLabel;
   String? _readingDiffModel;
   ReadingDiffRequest? _activeReadingDiffRequest;
+  Completer<void>? _readingDiffCompletion;
+  bool _readingDiffCancelRequested = false;
   int _readingDiffGeneration = 0;
+  int _diffLoadGeneration = 0;
+
+  void _updateDiffState(VoidCallback update) => setState(update);
 
   @override
   void initState() {
@@ -236,80 +242,6 @@ class _WorkspaceGitDiffSurfaceState
     return true;
   }
 
-  void _load() {
-    _cancelReadingDiff();
-    _readingDiffGeneration += 1;
-    final backend = ref.read(gitBackendProvider);
-    final scope = widget.tab.gitDiffScope;
-    final filePath = widget.tab.filePath;
-    final sourceControlScope = _sourceControlScope;
-    final sourceFilePath = sourceControlScope.toSourceRelativePath(filePath);
-    final sourceOldPath = sourceControlScope.toSourceRelativePath(
-      widget.tab.gitDiffOldPath,
-    );
-    final area = widget.tab.gitDiffArea;
-    final nextFuture = _isCommitBackedDiff
-        ? _loadCommitDiff(
-            backend: backend,
-            sourceControlScope: sourceControlScope,
-            sourceFilePath: sourceFilePath,
-            sourceOldPath: sourceOldPath,
-          )
-        : switch (scope) {
-            WorkspaceGitDiffScope.all => backend.diffAll(
-              path: sourceControlScope.path,
-            ),
-            WorkspaceGitDiffScope.fileAll =>
-              sourceFilePath == null
-                  ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
-                  : backend.diffAll(
-                      path: sourceControlScope.path,
-                      filePath: sourceFilePath,
-                    ),
-            WorkspaceGitDiffScope.file =>
-              sourceFilePath == null || area == null
-                  ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
-                  : backend.diff(
-                      path: sourceControlScope.path,
-                      filePath: sourceFilePath,
-                      area: area,
-                    ),
-            null => Future<GitDiffResult>.value(const GitDiffResult(files: [])),
-          };
-    setState(() {
-      _loadedResult = null;
-      _readingDiffResult = null;
-      _readingDiffOriginalSnapshot = null;
-      _showReadingDiff = false;
-      _readingDiffBusy = false;
-      _readingDiffProgress = null;
-      _readingDiffError = null;
-      _readingDiffAgentLabel = null;
-      _readingDiffModel = null;
-      _future = nextFuture;
-    });
-    unawaited(
-      nextFuture.then(
-        (result) {
-          if (!mounted || _future != nextFuture) {
-            return;
-          }
-          setState(() {
-            _loadedResult = result;
-          });
-        },
-        onError: (_) {
-          if (!mounted || _future != nextFuture) {
-            return;
-          }
-          setState(() {
-            _loadedResult = null;
-          });
-        },
-      ),
-    );
-  }
-
   ReadingDiffRequest _readingDiffRequest({bool ignoreCache = false}) {
     final scope = widget.tab.gitDiffScope;
     final sourceControlScope = _sourceControlScope;
@@ -332,11 +264,15 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   Future<void> _generateReadingDiff({bool ignoreCache = false}) async {
-    if (_readingDiffBusy) {
+    if (_readingDiffBusy || _readingDiffCompletion != null) {
       return;
     }
     final request = _readingDiffRequest(ignoreCache: ignoreCache);
     final generation = ++_readingDiffGeneration;
+    final completion = Completer<void>();
+    _activeReadingDiffRequest = request;
+    _readingDiffCompletion = completion;
+    _readingDiffCancelRequested = false;
     setState(() {
       _readingDiffBusy = true;
       _readingDiffProgress = const ReadingDiffGenerationProgress(
@@ -351,7 +287,9 @@ class _WorkspaceGitDiffSurfaceState
     try {
       final service = ref.read(readingDiffServiceProvider);
       final preparation = await service.prepare(request);
-      if (!mounted || generation != _readingDiffGeneration) {
+      if (!mounted ||
+          generation != _readingDiffGeneration ||
+          _readingDiffCancelRequested) {
         return;
       }
       setState(() {
@@ -370,7 +308,8 @@ class _WorkspaceGitDiffSurfaceState
         );
         if (!mounted ||
             confirmed != true ||
-            generation != _readingDiffGeneration) {
+            generation != _readingDiffGeneration ||
+            _readingDiffCancelRequested) {
           return;
         }
         setState(() {
@@ -383,7 +322,6 @@ class _WorkspaceGitDiffSurfaceState
           );
         });
       }
-      _activeReadingDiffRequest = request;
       final result = await service.generate(
         preparation,
         onProgress: (progress) {
@@ -393,7 +331,9 @@ class _WorkspaceGitDiffSurfaceState
           setState(() => _readingDiffProgress = progress);
         },
       );
-      if (!mounted || generation != _readingDiffGeneration) {
+      if (!mounted ||
+          generation != _readingDiffGeneration ||
+          _readingDiffCancelRequested) {
         return;
       }
       setState(() {
@@ -416,6 +356,7 @@ class _WorkspaceGitDiffSurfaceState
     } finally {
       if (identical(_activeReadingDiffRequest, request)) {
         _activeReadingDiffRequest = null;
+        _readingDiffCancelRequested = false;
       }
       if (mounted && generation == _readingDiffGeneration) {
         setState(() {
@@ -423,12 +364,19 @@ class _WorkspaceGitDiffSurfaceState
           _readingDiffProgress = null;
         });
       }
+      if (identical(_readingDiffCompletion, completion)) {
+        _readingDiffCompletion = null;
+      }
+      if (!completion.isCompleted) {
+        completion.complete();
+      }
     }
   }
 
   void _cancelReadingDiff() {
     final activeRequest = _activeReadingDiffRequest;
-    if (activeRequest != null) {
+    if (activeRequest != null && !_readingDiffCancelRequested) {
+      _readingDiffCancelRequested = true;
       ref.read(readingDiffServiceProvider).cancel(activeRequest);
     }
   }

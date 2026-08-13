@@ -34,6 +34,38 @@ fn elides_single_common_js_import_declarations() {
 }
 
 #[test]
+fn preserves_behavior_chained_from_bare_common_js_requires() {
+    let diff = b"diff --git a/a.js b/a.js\n--- a/a.js\n+++ b/a.js\n@@ -1 +1 @@\n-require('./setup').initializeOld();\n+require('./setup').initializeNew();\n";
+
+    let result = compile(diff, EMPTY_PLAN).expect("behavioral CommonJS calls");
+
+    assert_eq!(result.reading_diff, diff);
+}
+
+#[test]
+fn preserves_mode_metadata_when_common_js_import_hunks_are_elided() {
+    let diff = b"diff --git a/a.js b/a.js\nold mode 100644\nnew mode 100755\n--- a/a.js\n+++ b/a.js\n@@ -1 +1 @@\n-const old = require('old');\n+const new = require('new');\n";
+
+    let result = compile(diff, EMPTY_PLAN).expect("mode and CommonJS import change");
+    let text = String::from_utf8(result.reading_diff).expect("utf8 result");
+
+    assert!(text.contains("old mode 100644"));
+    assert!(text.contains("new mode 100755"));
+    assert!(!text.contains("const old"));
+    assert!(!text.contains("const new"));
+}
+
+#[test]
+fn rejects_removing_python_suite_owners_with_inline_comments() {
+    let diff = b"diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n-def old():  # pragma: no cover\n+def new(value='#'):  # pragma: no cover\n     pass\n";
+    let plan = r#"{"version":1,"remove":[{"start_line":5,"end_line":6}],"replace":[],"fold":[],"summary":"Hide owner."}"#;
+
+    let error = compile(diff, plan).expect_err("suite owners must remain visible");
+
+    assert!(error.message.contains("suite owner"));
+}
+
+#[test]
 fn ignores_comment_and_string_delimiters_while_scanning_imports() {
     let diff = b"diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n-import old  # (\n-print(\")\")\n+import new  # (\n+print(\"changed)\")\n";
 
