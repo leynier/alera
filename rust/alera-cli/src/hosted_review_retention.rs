@@ -89,6 +89,12 @@ pub(crate) async fn reconcile(store: &RuntimeStore) {
         .map(|project| project.repo_path)
         .chain(workspaces.iter().map(|workspace| workspace.path.clone()))
         .collect::<HashSet<_>>();
+    let operations = alera_core::git::hosted_review::hosted_review_operations();
+    repo_paths.extend(
+        operations
+            .iter()
+            .map(|operation| operation.repo_path.clone()),
+    );
     let mut retentions = Vec::new();
     for workspace in workspaces {
         let Ok(tabs) = store.list_workspace_tabs(&workspace.id).await else {
@@ -117,9 +123,22 @@ pub(crate) async fn reconcile(store: &RuntimeStore) {
         }
     }
     let retained_ids = retained_ids.into_iter().collect::<Vec<_>>();
+    let mut swept_repo_paths = HashSet::new();
     for repo_path in repo_paths {
-        let _ =
-            alera_core::git::hosted_review::sweep_hosted_review_ranges(&repo_path, &retained_ids);
+        if alera_core::git::hosted_review::sweep_hosted_review_ranges(&repo_path, &retained_ids)
+            .is_ok()
+        {
+            swept_repo_paths.insert(repo_path);
+        }
+    }
+    for operation in operations {
+        if swept_repo_paths.contains(&operation.repo_path)
+            || !Path::new(&operation.repo_path).exists()
+        {
+            let _ = alera_core::git::hosted_review::clear_hosted_review_operation(
+                &operation.retention_id,
+            );
+        }
     }
 }
 
@@ -291,11 +310,74 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn reconcile_sweeps_journaled_operations_in_nested_repositories() {
+        let directory = tempfile::tempdir().unwrap();
+        let folder_path = directory.path().join("folder");
+        let repo_path = folder_path.join("packages/app");
+        std::fs::create_dir_all(&repo_path).unwrap();
+        let repository = git2::Repository::init(&repo_path).unwrap();
+        let object = repository.blob(b"review object").unwrap();
+        let retention_id = uuid::Uuid::new_v4().simple().to_string();
+        for role in ["base", "head"] {
+            repository
+                .reference(
+                    &format!("refs/alera/hosted-reviews/operations/{retention_id}/{role}"),
+                    object,
+                    true,
+                    "test",
+                )
+                .unwrap();
+        }
+        alera_core::git::hosted_review::record_hosted_review_operation(
+            repo_path.to_string_lossy().as_ref(),
+            &retention_id,
+        )
+        .unwrap();
+        let store = RuntimeStore::open(&directory.path().join("runtime"))
+            .await
+            .unwrap();
+        insert_workspace_records(&store, &folder_path, &folder_path).await;
+
+        reconcile(&store).await;
+
+        for role in ["base", "head"] {
+            assert!(repository
+                .find_reference(&format!(
+                    "refs/alera/hosted-reviews/operations/{retention_id}/{role}"
+                ))
+                .is_err());
+        }
+        assert!(!alera_core::git::hosted_review::hosted_review_operations()
+            .iter()
+            .any(|operation| operation.retention_id == retention_id));
+    }
+
     async fn insert_records(
         store: &RuntimeStore,
         project_repo_path: &Path,
         workspace_path: &Path,
         retention_id: &str,
+    ) {
+        insert_workspace_records(store, project_repo_path, workspace_path).await;
+        store
+            .upsert_workspace_tab(WorkspaceTabRecord {
+                id: "diff-tab".into(),
+                workspace_id: "workspace".into(),
+                kind: "gitDiff".into(),
+                title: "Pull Request Diff".into(),
+                payload: json!({RETENTION_ID_KEY: retention_id}),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            })
+            .await
+            .unwrap();
+    }
+
+    async fn insert_workspace_records(
+        store: &RuntimeStore,
+        project_repo_path: &Path,
+        workspace_path: &Path,
     ) {
         let now = Utc::now();
         store
@@ -329,18 +411,6 @@ mod tests {
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
                 child_count: 0,
-            })
-            .await
-            .unwrap();
-        store
-            .upsert_workspace_tab(WorkspaceTabRecord {
-                id: "diff-tab".into(),
-                workspace_id: "workspace".into(),
-                kind: "gitDiff".into(),
-                title: "Pull Request Diff".into(),
-                payload: json!({RETENTION_ID_KEY: retention_id}),
-                created_at: now,
-                updated_at: now,
             })
             .await
             .unwrap();

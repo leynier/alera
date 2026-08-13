@@ -123,13 +123,13 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
           '${plan.label} could not be started. Check that ${plan.binary} is installed and on PATH.',
         );
       }
+      processExit = process.exitCode;
       if (_canceled.contains(request.runId)) {
         process.kill();
         throw const AiTextGenerationCanceledException();
       }
       _pending.remove(request.runId);
       _running[request.runId] = process;
-      processExit = process.exitCode;
       if (plan.stdinPayload != null) {
         process.stdinWrite(utf8.encode(plan.stdinPayload!));
         process.stdinClose();

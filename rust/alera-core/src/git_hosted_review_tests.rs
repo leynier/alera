@@ -3,8 +3,8 @@ use std::fs;
 use git2::{BranchType, IndexAddOption, Oid, Repository, Signature};
 
 use super::{
-    fetch_hosted_review_range, persist_hosted_review_range, release_hosted_review_range,
-    sweep_hosted_review_ranges, HostedReviewFetch,
+    fetch_hosted_review_range, hosted_review_operations, persist_hosted_review_range,
+    release_hosted_review_range, sweep_hosted_review_ranges, HostedReviewFetch,
 };
 
 #[test]
@@ -80,6 +80,11 @@ fn fetches_exact_hosted_base_and_head_objects() {
     assert_eq!(range.base_oid, base.to_string());
     assert_eq!(range.head_oid, head.to_string());
     assert_eq!(range.retention_id.len(), 32);
+    let operations = hosted_review_operations();
+    assert!(operations.iter().any(|operation| {
+        operation.retention_id == range.retention_id
+            && operation.repo_path == client_directory.path().to_string_lossy()
+    }));
     let hosted_refs = client
         .references()
         .expect("client references")
@@ -103,6 +108,9 @@ fn fetches_exact_hosted_base_and_head_objects() {
         &range.retention_id,
     )
     .expect("persist hosted range");
+    assert!(!hosted_review_operations()
+        .iter()
+        .any(|operation| operation.retention_id == range.retention_id));
     assert!(client
         .find_reference(&format!(
             "refs/alera/hosted-reviews/tabs/{}/head",
@@ -238,6 +246,11 @@ fn derives_the_pre_merge_base_when_the_target_contains_the_review_head() {
 
     assert_eq!(range.base_oid, pre_merge_base.to_string());
     assert_ne!(range.base_oid, range.head_oid);
+    release_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("release merged hosted range");
 }
 
 #[test]
@@ -307,6 +320,11 @@ fn unshallows_when_the_review_merge_base_is_outside_the_boundary() {
             .expect("merge base"),
         branch_point,
     );
+    release_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("release shallow hosted range");
 }
 
 #[test]

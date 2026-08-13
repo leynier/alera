@@ -20,6 +20,7 @@ import 'fake_git_backend.dart';
 part 'ai_text_generation_grok_test_cases.dart';
 part 'ai_text_generation_agy_test_cases.dart';
 part 'ai_text_generation_reading_diff_test_cases.dart';
+part 'ai_text_generation_reading_diff_lifecycle_test_cases.dart';
 part 'ai_text_generation_prompt_override_test_cases.dart';
 part 'ai_text_generation_test_harness.dart';
 
@@ -28,6 +29,7 @@ void main() {
     _registerGrokAiTextGenerationTests();
     _registerAgyAiTextGenerationTests();
     _registerAiTextReadingDiffTests();
+    _registerAiTextReadingDiffLifecycleTests();
     _registerAiTextPromptOverrideTests();
 
     test('builds commit prompts with staged context and instructions', () {

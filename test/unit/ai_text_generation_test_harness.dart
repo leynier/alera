@@ -7,6 +7,7 @@ class _FakeProcessRunner implements ProcessRunner {
     this.exitCode = 0,
     this.exitCodeCompleter,
     this.completeExitOnKill = true,
+    this.startReturnGate,
   });
 
   final String stdout;
@@ -14,6 +15,7 @@ class _FakeProcessRunner implements ProcessRunner {
   final int exitCode;
   final Completer<int>? exitCodeCompleter;
   final bool completeExitOnKill;
+  final Completer<void>? startReturnGate;
   bool started = false;
   int startCount = 0;
   bool stdinClosed = false;
@@ -89,7 +91,7 @@ class _FakeProcessRunner implements ProcessRunner {
         ? null
         : Map<String, String>.from(environment);
     this.includeParentEnvironment = includeParentEnvironment;
-    return StartedProcess(
+    final process = StartedProcess(
       stdinWrite: (data) => _stdin.write(utf8.decode(data)),
       stdinClose: () => stdinClosed = true,
       stdout: Stream<List<int>>.value(utf8.encode(stdout)),
@@ -108,6 +110,8 @@ class _FakeProcessRunner implements ProcessRunner {
         return true;
       },
     );
+    await startReturnGate?.future;
+    return process;
   }
 }
 

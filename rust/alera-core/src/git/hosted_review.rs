@@ -1,6 +1,10 @@
 use std::collections::HashSet;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
 
 use git2::{Branch, Oid, Reference, Repository};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{git_cli_in_path, open_repo, GitError, GitErrorKind};
@@ -11,6 +15,22 @@ pub struct GitHostedReviewRange {
     pub head_oid: String,
     pub retention_id: String,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostedReviewOperation {
+    pub repo_path: String,
+    pub retention_id: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HostedReviewOperationMarker {
+    repo_path: String,
+    retention_id: String,
+}
+
+const OPERATION_MARKER_PREFIX: &str = "alera-hosted-review-operation-";
+const OPERATION_MARKER_SUFFIX: &str = ".json";
 
 pub struct HostedReviewFetch<'a> {
     pub repo_path: &'a str,
@@ -64,6 +84,7 @@ pub fn fetch_hosted_review_range(
         ));
     }
     let retention_id = Uuid::new_v4().simple().to_string();
+    record_hosted_review_operation(repo_path, &retention_id)?;
     let base_source = format!("refs/heads/{base_branch}");
     let base_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/base");
     let head_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/head");
@@ -151,10 +172,89 @@ pub fn fetch_hosted_review_range(
             retention_id: retention_id.clone(),
         })
     })();
-    if result.is_err() {
-        cleanup_temporary_refs(repo_path, [&base_target, &head_target, &candidate_target]);
+    if result.is_err()
+        && cleanup_temporary_refs(repo_path, [&base_target, &head_target, &candidate_target])
+    {
+        let _ = clear_hosted_review_operation(&retention_id);
     }
     result
+}
+
+pub fn hosted_review_operations() -> Vec<HostedReviewOperation> {
+    let Ok(entries) = fs::read_dir(std::env::temp_dir()) else {
+        return Vec::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name();
+            let name = name.to_str()?;
+            let retention_id = name
+                .strip_prefix(OPERATION_MARKER_PREFIX)?
+                .strip_suffix(OPERATION_MARKER_SUFFIX)?;
+            if validate_retention_id(retention_id).is_err() {
+                return None;
+            }
+            let encoded = fs::read(entry.path()).ok()?;
+            let marker = serde_json::from_slice::<HostedReviewOperationMarker>(&encoded).ok()?;
+            if marker.retention_id != retention_id || marker.repo_path.trim().is_empty() {
+                return None;
+            }
+            Some(HostedReviewOperation {
+                repo_path: marker.repo_path,
+                retention_id: marker.retention_id,
+            })
+        })
+        .collect()
+}
+
+pub fn clear_hosted_review_operation(retention_id: &str) -> Result<(), GitError> {
+    validate_retention_id(retention_id)?;
+    let path = operation_marker_path(retention_id);
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(hosted_review_io_error("clear operation marker", error)),
+    }
+}
+
+pub fn record_hosted_review_operation(repo_path: &str, retention_id: &str) -> Result<(), GitError> {
+    validate_retention_id(retention_id)?;
+    let marker = HostedReviewOperationMarker {
+        repo_path: repo_path.to_string(),
+        retention_id: retention_id.to_string(),
+    };
+    let encoded = serde_json::to_vec(&marker)
+        .map_err(|error| GitError::new(GitErrorKind::Internal, error.to_string()))?;
+    let path = operation_marker_path(retention_id);
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(&path)
+        .map_err(|error| hosted_review_io_error("create operation marker", error))?;
+    if let Err(error) = file.write_all(&encoded).and_then(|()| file.sync_all()) {
+        let _ = fs::remove_file(path);
+        return Err(hosted_review_io_error("write operation marker", error));
+    }
+    Ok(())
+}
+
+fn operation_marker_path(retention_id: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "{OPERATION_MARKER_PREFIX}{retention_id}{OPERATION_MARKER_SUFFIX}"
+    ))
+}
+
+fn hosted_review_io_error(action: &str, error: std::io::Error) -> GitError {
+    GitError::new(
+        GitErrorKind::Internal,
+        format!("could not {action}: {error}"),
+    )
 }
 
 fn validate_hosted_sha(value: &str, role: &str) -> Result<(), GitError> {
@@ -279,6 +379,7 @@ pub fn release_hosted_review_range(repo_path: &str, retention_id: &str) -> Resul
             }
         }
     }
+    clear_hosted_review_operation(retention_id)?;
     Ok(())
 }
 
@@ -306,6 +407,7 @@ pub fn persist_hosted_review_range(repo_path: &str, retention_id: &str) -> Resul
             reference.delete().map_err(GitError::from_git2)?;
         }
     }
+    clear_hosted_review_operation(retention_id)?;
     Ok(())
 }
 
@@ -368,15 +470,18 @@ fn hosted_ref_name(namespace: &str, retention_id: &str, role: &str) -> String {
     format!("refs/alera/hosted-reviews/{namespace}/{retention_id}/{role}")
 }
 
-fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) {
+fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) -> bool {
     let Ok(repo) = open_repo(path) else {
-        return;
+        return false;
     };
     for name in names {
         if let Ok(mut reference) = repo.find_reference(name) {
-            let _ = reference.delete();
+            if reference.delete().is_err() {
+                return false;
+            }
         }
     }
+    true
 }
 
 #[cfg(test)]
