@@ -16,6 +16,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter/material.dart';
@@ -154,8 +155,10 @@ class _VisiblePullRequestsPanelState
       return;
     }
     setState(() => _openingDiff = true);
+    final backend = ref.read(gitBackendProvider);
+    GitHostedReviewRange? retainedRange;
+    var handedToWorkbench = false;
     try {
-      final backend = ref.read(gitBackendProvider);
       final objects = await backend.fetchHostedReviewRange(
         path: widget.repoPath,
         baseBranch: baseRef,
@@ -170,6 +173,7 @@ class _VisiblePullRequestsPanelState
                 : 'refs/heads/${review.headBranch!.trim()}',
         },
       );
+      retainedRange = objects;
       final range = await backend.rangeContext(
         widget.repoPath,
         baseRef: objects.baseOid,
@@ -183,6 +187,7 @@ class _VisiblePullRequestsPanelState
       if (!mounted) {
         return;
       }
+      handedToWorkbench = true;
       await ref
           .read(workbenchControllerProvider.notifier)
           .openGitPullRequestDiffTab(
@@ -191,6 +196,7 @@ class _VisiblePullRequestsPanelState
             pullRequestNumber: review.number,
             commitOid: headOid,
             parentOid: mergeBase,
+            retentionId: objects.retentionId,
             subject: review.title,
           );
     } catch (error) {
@@ -202,6 +208,16 @@ class _VisiblePullRequestsPanelState
         );
       }
     } finally {
+      if (!handedToWorkbench && retainedRange != null) {
+        try {
+          await backend.releaseHostedReviewRange(
+            path: widget.repoPath,
+            retentionId: retainedRange.retentionId,
+          );
+        } catch (_) {
+          // The original open failure is more useful than a cleanup failure.
+        }
+      }
       if (mounted) {
         setState(() => _openingDiff = false);
       }

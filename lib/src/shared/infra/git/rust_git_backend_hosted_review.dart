@@ -50,6 +50,20 @@ mixin _RustGitBackendHostedReview {
       headSha: headSha,
       reviewRef: reviewRef,
     );
-    return GitHostedReviewRange(baseOid: range.baseOid, headOid: range.headOid);
+    return GitHostedReviewRange(
+      baseOid: range.baseOid,
+      headOid: range.headOid,
+      retentionId: range.retentionId,
+    );
   });
+
+  Future<void> releaseHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) => _guard(
+    () => hosted_review_rust.gitReleaseHostedReviewRange(
+      path: path,
+      retentionId: retentionId,
+    ),
+  );
 }

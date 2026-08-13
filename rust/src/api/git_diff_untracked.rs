@@ -50,6 +50,14 @@ pub(super) fn read_untracked_text(
     repo: &Repository,
     file_path: &str,
 ) -> Result<UntrackedText, GitError> {
+    read_untracked_text_up_to(repo, file_path, MAX_UNTRACKED_TEXT_BYTES)
+}
+
+pub(super) fn read_untracked_text_up_to(
+    repo: &Repository,
+    file_path: &str,
+    max_bytes: u64,
+) -> Result<UntrackedText, GitError> {
     let Some(workdir) = repo.workdir() else {
         return Err(GitError::new(GitErrorKind::NotARepository, file_path));
     };
@@ -71,7 +79,7 @@ pub(super) fn read_untracked_text(
     if !metadata.is_file() {
         return Ok(empty_untracked_text());
     }
-    if metadata.len() > MAX_UNTRACKED_TEXT_BYTES {
+    if metadata.len() > max_bytes {
         return Ok(UntrackedText {
             content: None,
             added: None,

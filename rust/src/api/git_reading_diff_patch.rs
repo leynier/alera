@@ -5,9 +5,11 @@ mod git_reading_diff_submodule;
 
 use super::{
     build_untracked_patch, diff_for_area, diff_for_commit_range, git_status, git_status_for_path,
-    open_repo, read_untracked_text, GitChangeArea, GitError, GitErrorKind, GitPathContext,
+    open_repo, read_untracked_text_up_to, GitChangeArea, GitError, GitErrorKind, GitPathContext,
 };
 use git_reading_diff_submodule::submodule_child_workdir;
+
+const MAX_READING_DIFF_BYTES: usize = 4 * 1024 * 1024;
 
 pub(crate) fn git_reading_diff_patch(
     path: String,
@@ -18,7 +20,6 @@ pub(crate) fn git_reading_diff_patch(
     parent_oid: Option<String>,
     base_ref: Option<String>,
 ) -> Result<Vec<u8>, GitError> {
-    const MAX_READING_DIFF_BYTES: usize = 4 * 1024 * 1024;
     let repo = open_repo(&path)?;
     let paths = GitPathContext::new(&repo, &path)?;
     if let Some(base_ref) = base_ref {
@@ -57,6 +58,7 @@ pub(crate) fn git_reading_diff_patch(
             .and_then(|commit| commit.tree())
             .map_err(GitError::from_git2)?;
         let mut options = DiffOptions::new();
+        options.disable_pathspec_match(true);
         if let Some(file_path) = file_path.as_deref() {
             options.pathspec(paths.to_repo_path(file_path));
         }
@@ -137,7 +139,14 @@ pub(crate) fn git_reading_diff_patch(
             continue;
         }
         if entry.area == GitChangeArea::Untracked {
-            let value = read_untracked_text(&repo, &repo_path)?;
+            let value =
+                read_untracked_text_up_to(&repo, &repo_path, MAX_READING_DIFF_BYTES as u64)?;
+            if value.is_large {
+                return Err(GitError::new(
+                    GitErrorKind::Internal,
+                    "reading diff input exceeds the 4 MiB safety limit",
+                ));
+            }
             if let Some(content) = value.content {
                 append_limited_bytes(
                     &mut output,
@@ -147,8 +156,7 @@ pub(crate) fn git_reading_diff_patch(
             } else {
                 append_limited_bytes(
                     &mut output,
-                    untracked_placeholder_patch(&entry.path, value.is_binary, value.is_large)
-                        .as_bytes(),
+                    untracked_placeholder_patch(&entry.path, value.is_binary).as_bytes(),
                     MAX_READING_DIFF_BYTES,
                 )?;
             }
@@ -188,11 +196,9 @@ fn append_limited_bytes(output: &mut Vec<u8>, value: &[u8], limit: usize) -> Res
     Ok(())
 }
 
-fn untracked_placeholder_patch(path: &str, is_binary: bool, is_large: bool) -> String {
+fn untracked_placeholder_patch(path: &str, is_binary: bool) -> String {
     let description = if is_binary {
         "Binary file"
-    } else if is_large {
-        "Large file above the 256 KiB text preview limit"
     } else {
         "Non-regular file"
     };

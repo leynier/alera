@@ -185,7 +185,17 @@ class E2eGitBackend implements GitBackend {
     required String baseBranch,
     required String headSha,
     String? reviewRef,
-  }) async => GitHostedReviewRange(baseOid: baseBranch, headOid: headSha);
+  }) async => GitHostedReviewRange(
+    baseOid: baseBranch,
+    headOid: headSha,
+    retentionId: '00000000000000000000000000000001',
+  );
+
+  @override
+  Future<void> releaseHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) async {}
 
   @override
   Future<void> stage({required String path, String? filePath}) async {}

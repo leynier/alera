@@ -2,7 +2,7 @@ use std::fs;
 
 use git2::{IndexAddOption, Oid, Repository, Signature};
 
-use super::fetch_hosted_review_range;
+use super::{fetch_hosted_review_range, release_hosted_review_range};
 
 #[test]
 fn fetches_exact_hosted_base_and_head_objects() {
@@ -54,6 +54,7 @@ fn fetches_exact_hosted_base_and_head_objects() {
 
     assert_eq!(range.base_oid, advanced_base.to_string());
     assert_eq!(range.head_oid, head.to_string());
+    assert_eq!(range.retention_id.len(), 32);
     let client = Repository::open(client_directory.path()).expect("client repository");
     let hosted_refs = client
         .references()
@@ -64,10 +65,28 @@ fn fetches_exact_hosted_base_and_head_objects() {
         .collect::<Vec<_>>();
     assert_eq!(hosted_refs.len(), 2);
     assert!(hosted_refs.contains(&format!(
-        "refs/alera/hosted-reviews/objects/{advanced_base}"
+        "refs/alera/hosted-reviews/tabs/{}/base",
+        range.retention_id
     )));
-    assert!(hosted_refs.contains(&format!("refs/alera/hosted-reviews/objects/{head}")));
+    assert!(hosted_refs.contains(&format!(
+        "refs/alera/hosted-reviews/tabs/{}/head",
+        range.retention_id
+    )));
     assert!(client.find_commit(head).is_ok());
+
+    release_hosted_review_range(
+        client_directory.path().to_string_lossy().as_ref(),
+        &range.retention_id,
+    )
+    .expect("release hosted range");
+    let remaining = client
+        .references()
+        .expect("client references after release")
+        .filter_map(Result::ok)
+        .filter_map(|reference| reference.name().ok().map(str::to_string))
+        .filter(|name| name.starts_with("refs/alera/hosted-reviews/"))
+        .count();
+    assert_eq!(remaining, 0);
 }
 
 fn push(repository: &Repository, refspec: &str) {

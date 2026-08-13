@@ -10,13 +10,17 @@ import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'fake_git_backend_defaults.dart';
 part 'fake_git_backend_diffs.dart';
+part 'fake_git_backend_hosted_review.dart';
 part 'fake_git_backend_status.dart';
 
 /// In-memory [GitBackend] for unit tests. Field names mirror the behaviours the
 /// previous `ProcessRunner` fakes configured, so tests can program repository
 /// state and failure injection without spawning git.
 class FakeGitBackend
-    with _FakeGitBackendStatus, _FakeGitBackendDiffs
+    with
+        _FakeGitBackendStatus,
+        _FakeGitBackendDiffs,
+        _FakeGitBackendHostedReview
     implements GitBackend {
   @override
   final List<GitBackendCall> calls = <GitBackendCall>[];
@@ -576,24 +580,6 @@ class FakeGitBackend
     if (error != null) {
       throw error;
     }
-  }
-
-  @override
-  Future<GitHostedReviewRange> fetchHostedReviewRange({
-    required String path,
-    required String baseBranch,
-    required String headSha,
-    String? reviewRef,
-  }) async {
-    calls.add(
-      GitBackendCall('fetchHostedReviewRange', <String, Object?>{
-        'path': path,
-        'baseBranch': baseBranch,
-        'headSha': headSha,
-        'reviewRef': reviewRef,
-      }),
-    );
-    return GitHostedReviewRange(baseOid: baseBranch, headOid: headSha);
   }
 
   @override

@@ -5,6 +5,7 @@ use super::GitError;
 pub struct GitHostedReviewRange {
     pub base_oid: String,
     pub head_oid: String,
+    pub retention_id: String,
 }
 
 pub fn git_fetch_hosted_review_range(
@@ -22,5 +23,11 @@ pub fn git_fetch_hosted_review_range(
     Ok(GitHostedReviewRange {
         base_oid: range.base_oid,
         head_oid: range.head_oid,
+        retention_id: range.retention_id,
     })
+}
+
+pub fn git_release_hosted_review_range(path: String, retention_id: String) -> Result<(), GitError> {
+    core_git::hosted_review::release_hosted_review_range(&path, &retention_id)?;
+    Ok(())
 }

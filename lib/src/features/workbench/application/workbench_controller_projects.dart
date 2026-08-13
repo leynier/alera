@@ -68,11 +68,15 @@ mixin _WorkbenchControllerProjects
 
   Future<void> sleepWorkspace(Workspace workspace) async {
     try {
+      final workspaceTabs = state.tabsFor(workspace.id);
       _closingTabWorkspaceIds.add(workspace.id);
       _workspaceIdsWithClearedLayout.add(workspace.id);
       _tabFocusHistory.forget(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
-      _removeCodexDrafts(state.tabsFor(workspace.id));
+      _removeCodexDrafts(workspaceTabs);
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(workspace, tab);
+      }
 
       final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
         state.tabsByWorkspace,
@@ -115,6 +119,9 @@ mixin _WorkbenchControllerProjects
       ];
       for (final workspace in state.workspacesFor(projectId)) {
         _tabFocusHistory.forget(workspace.id);
+        for (final tab in state.tabsFor(workspace.id)) {
+          await _releaseHostedReviewTab(workspace, tab);
+        }
       }
       await _projectsService.removeProject(projectId);
       _removeCodexDrafts(removedTabs);
@@ -138,6 +145,9 @@ mixin _WorkbenchControllerProjects
           .map((tab) => tab.terminalSessionId)
           .where((id) => id.isNotEmpty)
           .toList(growable: false);
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(workspace, tab);
+      }
       await _workspaceService.removeWorkspace(
         project: project,
         workspace: workspace,

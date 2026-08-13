@@ -512,6 +512,7 @@ void main() {
           pullRequestNumber: 385,
           commitOid: 'head123',
           parentOid: 'base123',
+          retentionId: 'retention-1',
           subject: 'feat: subscription-backed reading diffs',
         );
         final second = await service.openOrCreateGitPullRequestDiffTab(
@@ -519,12 +520,14 @@ void main() {
           pullRequestNumber: 385,
           commitOid: 'head123',
           parentOid: 'base123',
+          retentionId: 'retention-2',
         );
         final retargeted = await service.openOrCreateGitPullRequestDiffTab(
           workspaceId: 'workspace-1',
           pullRequestNumber: 385,
           commitOid: 'head123',
           parentOid: 'new-base456',
+          retentionId: 'retention-3',
         );
 
         expect(second.id, first.id);
@@ -535,6 +538,8 @@ void main() {
         expect(first.gitDiffPullRequestNumber, 385);
         expect(first.gitDiffCommitOid, 'head123');
         expect(first.gitDiffParentOid, 'base123');
+        expect(first.gitDiffHostedReviewRetentionId, 'retention-1');
+        expect(retargeted.gitDiffHostedReviewRetentionId, 'retention-3');
         expect(
           first.gitDiffCommitSubject,
           'feat: subscription-backed reading diffs',

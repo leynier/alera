@@ -217,6 +217,12 @@ abstract interface class GitBackend {
     String? reviewRef,
   });
 
+  /// Releases the exact objects retained while a hosted-review tab was open.
+  Future<void> releaseHostedReviewRange({
+    required String path,
+    required String retentionId,
+  });
+
   Future<void> pull(String path);
 
   Future<void> push(String path);

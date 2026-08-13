@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
@@ -20,6 +22,21 @@ class ReadingDiffView extends StatefulWidget {
 
 class _ReadingDiffViewState extends State<ReadingDiffView> {
   ReadingDiffViewMode _mode = ReadingDiffViewMode.overview;
+  late Future<_ReadingDiffLines> _condensedLines;
+
+  @override
+  void initState() {
+    super.initState();
+    _condensedLines = _decodeReadingDiffLines(widget.result.diff);
+  }
+
+  @override
+  void didUpdateWidget(covariant ReadingDiffView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.result.diff, widget.result.diff)) {
+      _condensedLines = _decodeReadingDiffLines(widget.result.diff);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +91,7 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
               result: widget.result,
             ),
             ReadingDiffViewMode.condensedDiff => _ReadingDiffText(
-              diff: widget.result.diff,
+              lines: _condensedLines,
             ),
           },
         ),
@@ -195,20 +212,38 @@ class _ReadingDiffChunkSummaryCard extends StatelessWidget {
 }
 
 class _ReadingDiffText extends StatelessWidget {
-  const _ReadingDiffText({required this.diff});
+  const _ReadingDiffText({required this.lines});
 
-  final List<int> diff;
+  final Future<_ReadingDiffLines> lines;
 
   @override
   Widget build(BuildContext context) {
-    final lines = const Utf8Decoder(
-      allowMalformed: true,
-    ).convert(diff).split(RegExp(r'\r?\n'));
+    return FutureBuilder<_ReadingDiffLines>(
+      future: lines,
+      builder: (context, snapshot) {
+        final lines = snapshot.data;
+        if (lines == null) {
+          if (snapshot.hasError) {
+            return Center(
+              child: SelectableText(
+                'Could not prepare the condensed diff: ${snapshot.error}',
+              ),
+            );
+          }
+          return const Center(child: CircularProgressIndicator());
+        }
+        return _buildLines(context, lines);
+      },
+    );
+  }
+
+  Widget _buildLines(BuildContext context, _ReadingDiffLines lines) {
+    final style = Theme.of(context).textTheme.bodySmall;
     return ListView.builder(
       itemCount: lines.length,
       itemExtent: AleraTokens.space20,
       itemBuilder: (context, index) {
-        final line = lines[index];
+        final line = lines.lineAt(index);
         return ColoredBox(
           color: _background(line),
           child: Padding(
@@ -218,7 +253,7 @@ class _ReadingDiffText extends StatelessWidget {
             child: SelectableText(
               line.isEmpty ? ' ' : line,
               maxLines: 1,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: style?.copyWith(
                 color: _foreground(line),
                 fontFamily: 'JetBrains Mono',
               ),
@@ -250,5 +285,44 @@ class _ReadingDiffText extends StatelessWidget {
       return AleraTokens.info;
     }
     return AleraTokens.foreground;
+  }
+}
+
+Future<_ReadingDiffLines> _decodeReadingDiffLines(List<int> diff) {
+  return Isolate.run(() {
+    final text = const Utf8Decoder(allowMalformed: true).convert(diff);
+    var lineCount = 1;
+    for (final codeUnit in text.codeUnits) {
+      if (codeUnit == 0x0a) {
+        lineCount += 1;
+      }
+    }
+    final starts = Uint32List(lineCount);
+    var line = 1;
+    for (var index = 0; index < text.length; index += 1) {
+      if (text.codeUnitAt(index) == 0x0a) {
+        starts[line] = index + 1;
+        line += 1;
+      }
+    }
+    return _ReadingDiffLines(text: text, starts: starts);
+  });
+}
+
+class _ReadingDiffLines {
+  const _ReadingDiffLines({required this.text, required this.starts});
+
+  final String text;
+  final Uint32List starts;
+
+  int get length => starts.length;
+
+  String lineAt(int index) {
+    final start = starts[index];
+    var end = index + 1 < starts.length ? starts[index + 1] - 1 : text.length;
+    if (end > start && text.codeUnitAt(end - 1) == 0x0d) {
+      end -= 1;
+    }
+    return text.substring(start, end);
   }
 }

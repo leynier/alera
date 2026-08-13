@@ -318,10 +318,15 @@ class WorkspaceTabService {
     required int pullRequestNumber,
     required String commitOid,
     required String parentOid,
+    required String retentionId,
     String? subject,
   }) async {
     if (pullRequestNumber <= 0) {
       throw StateError('Pull request number must be positive.');
+    }
+    final normalizedRetentionId = retentionId.trim();
+    if (normalizedRetentionId.isEmpty) {
+      throw StateError('Hosted review retention id must not be empty.');
     }
     final normalizedRoot = normalizeSourceControlRootRelativePath(gitDiffRoot);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
@@ -350,6 +355,8 @@ class WorkspaceTabService {
         workspaceTabGitDiffParentOidPayloadKey: parentOid,
         workspaceTabGitDiffCompareRefPayloadKey: '#$pullRequestNumber',
         workspaceTabGitDiffPullRequestNumberPayloadKey: pullRequestNumber,
+        workspaceTabGitDiffHostedReviewRetentionIdPayloadKey:
+            normalizedRetentionId,
         workspaceTabGitDiffCommitSubjectPayloadKey: ?subject,
         workspaceTabGitDiffRootPayloadKey: ?normalizedRoot,
       },

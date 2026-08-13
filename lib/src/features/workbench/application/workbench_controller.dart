@@ -41,6 +41,7 @@ part 'workbench_controller_browser.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
+part 'workbench_controller_pull_request_diff_tabs.dart';
 part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
@@ -52,6 +53,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerInternals,
         _WorkbenchControllerBrowser,
         _WorkbenchControllerTabOpening,
+        _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt

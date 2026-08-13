@@ -98,7 +98,7 @@ fn preserves_missing_final_newline_markers() {
 }
 
 #[test]
-fn preserves_rename_sources_and_untracked_placeholders() {
+fn preserves_rename_sources_and_complete_untracked_inputs() {
     let directory = tempfile::tempdir().expect("tempdir");
     let repository = Repository::init(directory.path()).expect("repository");
     fs::write(directory.path().join("old.txt"), "unchanged content\n").expect("old file");
@@ -158,7 +158,7 @@ fn preserves_rename_sources_and_untracked_placeholders() {
     fs::write(directory.path().join("binary.bin"), [0, 1, 2, 3]).expect("binary file");
     fs::write(
         directory.path().join("large.txt"),
-        vec![b'x'; 256 * 1024 + 1],
+        format!("{}complete tail\n", "x".repeat(256 * 1024)),
     )
     .expect("large file");
     let untracked = git_reading_diff_patch(
@@ -173,8 +173,32 @@ fn preserves_rename_sources_and_untracked_placeholders() {
     .expect("untracked patch");
     let untracked = String::from_utf8(untracked).expect("utf8 placeholders");
     assert!(untracked.contains("Binary file /dev/null and b/binary.bin differ"));
-    assert!(untracked.contains("Large file above the 256 KiB text preview limit"));
-    assert!(untracked.contains("b/large.txt differ"));
+    assert!(untracked.contains("diff --git a/large.txt b/large.txt"));
+    assert!(untracked.contains("complete tail"));
+}
+
+#[test]
+fn rejects_untracked_text_above_the_reading_diff_limit() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    Repository::init(directory.path()).expect("repository");
+    fs::write(
+        directory.path().join("too-large.txt"),
+        vec![b'x'; MAX_READING_DIFF_BYTES + 1],
+    )
+    .expect("large file");
+
+    let error = git_reading_diff_patch(
+        directory.path().to_string_lossy().to_string(),
+        None,
+        None,
+        Some(GitChangeArea::Untracked),
+        None,
+        None,
+        None,
+    )
+    .expect_err("oversized reading input");
+
+    assert!(error.context.contains("4 MiB safety limit"));
 }
 
 #[test]

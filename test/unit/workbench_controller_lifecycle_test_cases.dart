@@ -215,6 +215,53 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(drafts.read(tab.id).isEmpty, isTrue);
   });
 
+  test('hosted review refs follow their persisted pull request tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final first = await _controller.openGitPullRequestDiffTab(
+      workspace: workspace,
+      gitDiffRoot: 'packages/app',
+      pullRequestNumber: 385,
+      commitOid: 'head-385',
+      parentOid: 'base-385',
+      retentionId: 'retention-1',
+    );
+    final reused = await _controller.openGitPullRequestDiffTab(
+      workspace: workspace,
+      gitDiffRoot: 'packages/app',
+      pullRequestNumber: 385,
+      commitOid: 'head-385',
+      parentOid: 'base-385',
+      retentionId: 'retention-2',
+    );
+
+    expect(reused.id, first.id);
+    expect(
+      _harness.gitBackend.calls.where(
+        (call) =>
+            call.method == 'releaseHostedReviewRange' &&
+            call.args['retentionId'] == 'retention-2',
+      ),
+      isNotEmpty,
+    );
+
+    await _harness.workbenchRepository.removeWorkspaceTab(first.id);
+    await _flushUntil(
+      () => _harness.gitBackend.calls.any(
+        (call) =>
+            call.method == 'releaseHostedReviewRange' &&
+            call.args['retentionId'] == 'retention-1',
+      ),
+    );
+
+    final release = _harness.gitBackend.calls.lastWhere(
+      (call) =>
+          call.method == 'releaseHostedReviewRange' &&
+          call.args['retentionId'] == 'retention-1',
+    );
+    expect(release.args['path'], p.join(workspace.path, 'packages', 'app'));
+  });
+
   test('opens markdown viewer tabs in the active group', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

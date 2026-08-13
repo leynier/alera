@@ -19,14 +19,29 @@ Future<GitHostedReviewRange> gitFetchHostedReviewRange({
   reviewRef: reviewRef,
 );
 
+Future<void> gitReleaseHostedReviewRange({
+  required String path,
+  required String retentionId,
+}) =>
+    RustLib.instance.api.crateApiGitGitHostedReviewGitReleaseHostedReviewRange(
+      path: path,
+      retentionId: retentionId,
+    );
+
 class GitHostedReviewRange {
   final String baseOid;
   final String headOid;
+  final String retentionId;
 
-  const GitHostedReviewRange({required this.baseOid, required this.headOid});
+  const GitHostedReviewRange({
+    required this.baseOid,
+    required this.headOid,
+    required this.retentionId,
+  });
 
   @override
-  int get hashCode => baseOid.hashCode ^ headOid.hashCode;
+  int get hashCode =>
+      baseOid.hashCode ^ headOid.hashCode ^ retentionId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -34,5 +49,6 @@ class GitHostedReviewRange {
       other is GitHostedReviewRange &&
           runtimeType == other.runtimeType &&
           baseOid == other.baseOid &&
-          headOid == other.headOid;
+          headOid == other.headOid &&
+          retentionId == other.retentionId;
 }

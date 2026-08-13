@@ -20,6 +20,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +61,7 @@ class _PanelWorkbenchController extends WorkbenchController {
     required int pullRequestNumber,
     required String commitOid,
     required String parentOid,
+    required String retentionId,
     String? subject,
     String? targetGroupId,
   }) async {
@@ -77,6 +79,11 @@ class _PanelWorkbenchController extends WorkbenchController {
       title: 'Pull request #$pullRequestNumber',
       createdAt: now,
       updatedAt: now,
+      payload: <String, Object?>{
+        workspaceTabGitDiffSourcePayloadKey:
+            WorkspaceGitDiffSource.pullRequest.key,
+        workspaceTabGitDiffHostedReviewRetentionIdPayloadKey: retentionId,
+      },
     );
   }
 }

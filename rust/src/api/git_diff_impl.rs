@@ -24,7 +24,7 @@ pub(in crate::api) mod git_reading_diff_patch;
 
 use git_diff_combined::{append_combined_diff_file, git_diff_all_for_file};
 use git_diff_render::render_diff_for_path;
-use git_diff_untracked::{build_untracked_patch, read_untracked_text, untracked_diff_file};
+use git_diff_untracked::{build_untracked_patch, read_untracked_text_up_to, untracked_diff_file};
 
 #[path = "git_submodule_impl.rs"]
 mod git_submodule_impl;

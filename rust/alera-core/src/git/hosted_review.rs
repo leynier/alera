@@ -9,6 +9,7 @@ use super::{
 pub struct GitHostedReviewRange {
     pub base_oid: String,
     pub head_oid: String,
+    pub retention_id: String,
 }
 
 pub fn fetch_hosted_review_range(
@@ -35,10 +36,10 @@ pub fn fetch_hosted_review_range(
         ));
     }
     let remote = hosted_review_remote(&repo, base_branch)?;
-    let namespace = Uuid::new_v4().simple().to_string();
+    let retention_id = Uuid::new_v4().simple().to_string();
     let base_source = format!("refs/heads/{base_branch}");
-    let base_target = format!("refs/alera/hosted-reviews/{namespace}/base");
-    let head_target = format!("refs/alera/hosted-reviews/{namespace}/head");
+    let base_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/base");
+    let head_target = format!("refs/alera/hosted-reviews/operations/{retention_id}/head");
     let result = (|| {
         fetch_ref(repo_path, &remote, &base_source, &base_target)?;
 
@@ -64,10 +65,11 @@ pub fn fetch_hosted_review_range(
                 "the hosted review changed while its diff was opening",
             ));
         }
-        retain_hosted_review_objects(&refreshed, [base_oid, head_oid])?;
+        retain_hosted_review_objects(&refreshed, &retention_id, base_oid, head_oid)?;
         Ok(GitHostedReviewRange {
             base_oid: base_oid.to_string(),
             head_oid: head_oid.to_string(),
+            retention_id: retention_id.clone(),
         })
     })();
     cleanup_temporary_refs(repo_path, [&base_target, &head_target]);
@@ -88,12 +90,27 @@ fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(),
     )
 }
 
-fn retain_hosted_review_objects<const N: usize>(
+pub fn release_hosted_review_range(repo_path: &str, retention_id: &str) -> Result<(), GitError> {
+    validate_retention_id(retention_id)?;
+    let repo = open_repo(repo_path)?;
+    for role in ["base", "head"] {
+        let name = retained_ref_name(retention_id, role);
+        if let Ok(mut reference) = repo.find_reference(&name) {
+            reference.delete().map_err(GitError::from_git2)?;
+        }
+    }
+    Ok(())
+}
+
+fn retain_hosted_review_objects(
     repo: &Repository,
-    object_ids: [git2::Oid; N],
+    retention_id: &str,
+    base_oid: git2::Oid,
+    head_oid: git2::Oid,
 ) -> Result<(), GitError> {
-    for object_id in object_ids {
-        let name = format!("refs/alera/hosted-reviews/objects/{object_id}");
+    validate_retention_id(retention_id)?;
+    for (role, object_id) in [("base", base_oid), ("head", head_oid)] {
+        let name = retained_ref_name(retention_id, role);
         repo.reference(
             &name,
             object_id,
@@ -103,6 +120,24 @@ fn retain_hosted_review_objects<const N: usize>(
         .map_err(GitError::from_git2)?;
     }
     Ok(())
+}
+
+fn validate_retention_id(retention_id: &str) -> Result<(), GitError> {
+    if retention_id.len() == 32
+        && retention_id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        return Ok(());
+    }
+    Err(GitError::new(
+        GitErrorKind::Internal,
+        "invalid hosted review retention id",
+    ))
+}
+
+fn retained_ref_name(retention_id: &str, role: &str) -> String {
+    format!("refs/alera/hosted-reviews/tabs/{retention_id}/{role}")
 }
 
 fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) {
