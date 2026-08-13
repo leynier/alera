@@ -4,10 +4,14 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MobileAiDictationSettingsScreen extends StatefulWidget {
-  const MobileAiDictationSettingsScreen({super.key});
+  const MobileAiDictationSettingsScreen({super.key, this.modelStore});
+
+  final MobileAiDictationModels? modelStore;
+
   @override
   State<MobileAiDictationSettingsScreen> createState() =>
       _MobileAiDictationSettingsScreenState();
@@ -16,14 +20,18 @@ class MobileAiDictationSettingsScreen extends StatefulWidget {
 class _MobileAiDictationSettingsScreenState
     extends State<MobileAiDictationSettingsScreen> {
   MobileAiDictationSettings _settings = const MobileAiDictationSettings();
-  final _modelStore = MobileAiDictationModelStore();
+  late final MobileAiDictationModels _modelStore;
   bool _modelInstalled = false;
+  bool _modelDownloading = false;
+  String? _modelDownloadError;
   final _url = TextEditingController();
   final _model = TextEditingController();
+  final _logger = Logger('MobileAiDictationSettings');
 
   @override
   void initState() {
     super.initState();
+    _modelStore = widget.modelStore ?? MobileAiDictationModelStore();
     _load();
   }
 
@@ -54,8 +62,31 @@ class _MobileAiDictationSettingsScreenState
   }
 
   Future<void> _downloadModel() async {
-    await _modelStore.download();
-    if (mounted) setState(() => _modelInstalled = true);
+    if (_modelDownloading) return;
+    setState(() {
+      _modelDownloading = true;
+      _modelDownloadError = null;
+    });
+    try {
+      await _modelStore.download();
+    } on MobileAiModelDownloadCancelled {
+      return;
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Whisper model download failed', error, stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _modelDownloading = false;
+        _modelDownloadError = error is MobileAiModelDownloadException
+            ? MobileAiModelDownloadException.message
+            : 'The model could not be downloaded. Retry in a moment.';
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _modelDownloading = false;
+      _modelInstalled = true;
+    });
   }
 
   Future<void> _save(MobileAiDictationSettings next) async {
@@ -81,14 +112,36 @@ class _MobileAiDictationSettingsScreenState
         ListTile(
           title: const Text('Whisper Base Model'),
           subtitle: Text(
-            _modelInstalled
-                ? 'Installed on this phone.'
-                : 'Download the local model before using offline dictation.',
+            _modelDownloadError ??
+                (_modelInstalled
+                    ? 'Installed on this phone.'
+                    : 'Download the local model before using offline dictation.'),
+            style: _modelDownloadError == null
+                ? null
+                : Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AleraTokens.error),
           ),
-          trailing: FilledButton(
-            onPressed: _modelInstalled ? null : _downloadModel,
-            child: Text(_modelInstalled ? 'Ready' : 'Download'),
-          ),
+          trailing: _modelDownloading
+              ? const SizedBox.square(
+                  dimension: AleraTokens.minTapTarget,
+                  child: Padding(
+                    padding: EdgeInsets.all(AleraTokens.space12),
+                    child: CircularProgressIndicator(
+                      strokeWidth: AleraTokens.strokeSm,
+                    ),
+                  ),
+                )
+              : FilledButton(
+                  onPressed: _modelInstalled ? null : _downloadModel,
+                  child: Text(
+                    _modelInstalled
+                        ? 'Ready'
+                        : _modelDownloadError == null
+                        ? 'Download'
+                        : 'Retry',
+                  ),
+                ),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
         Text('Fallback Order', style: Theme.of(context).textTheme.titleMedium),
