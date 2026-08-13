@@ -350,6 +350,19 @@ fn rejects_partial_python_expressions_and_elides_multiline_imports() {
 }
 
 #[test]
+fn does_not_apply_python_rules_to_non_python_paths_containing_spaces() {
+    let prose = b"diff --git a/docs/example.py notes.txt b/docs/example.py notes.txt\n--- a/docs/example.py notes.txt\t\n+++ b/docs/example.py notes.txt\t\n@@ -1 +1 @@\n-old heading:\n+new heading:\n";
+    let plan = r#"{"version":1,"remove":[{"start_line":5,"end_line":5}],"replace":[],"fold":[],"summary":"Update the heading."}"#;
+
+    let result = compile(prose, plan).expect("non-Python prose");
+
+    assert!(!result
+        .reading_diff
+        .windows(13)
+        .any(|row| row == b"-old heading:"));
+}
+
+#[test]
 fn rejects_folds_that_overlap_automatic_import_elision() {
     let imports = b"diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -0,0 +1,2 @@\n+import alpha\n+import beta\n";
     let fold = r#"{"version":1,"remove":[],"replace":[],"fold":[{"start_line":5,"end_line":6}],"summary":"Load dependencies."}"#;

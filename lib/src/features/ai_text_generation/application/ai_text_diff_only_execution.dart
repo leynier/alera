@@ -27,6 +27,17 @@ List<AiTextGenerationAgent> get diffOnlyAiTextAgents => aiTextAgentSpecs.values
     .map((spec) => spec.agent)
     .toList(growable: false);
 
+Set<AiTextGenerationAgent> aiTextAgentsForModelDiscovery(
+  AiTextGenerationSettings settings,
+  Iterable<AiTextGenerationOperation> operations,
+) => <AiTextGenerationAgent>{
+  settings.agent,
+  for (final operation in operations)
+    operation == AiTextGenerationOperation.readingDiff
+        ? readingDiffAgentForSettings(settings)
+        : settings.agentFor(operation),
+};
+
 AiTextGenerationAgent readingDiffAgentForSettings(
   AiTextGenerationSettings settings,
 ) {

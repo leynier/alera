@@ -252,6 +252,8 @@ fn expands_dirty_submodule_worktrees() {
     let child = Repository::init(child_directory.path()).expect("child repository");
     fs::write(child_directory.path().join("inside.txt"), "before\n").expect("child file");
     fs::write(child_directory.path().join("tracked.bin"), [0, 1, 2]).expect("tracked binary");
+    fs::create_dir_all(child_directory.path().join("x b")).expect("spaced directory");
+    fs::write(child_directory.path().join("x b/y.txt"), "before\n").expect("spaced child file");
     commit(&child, "child base");
 
     let parent_directory = tempfile::tempdir().expect("parent tempdir");
@@ -276,6 +278,11 @@ fn expands_dirty_submodule_worktrees() {
     )
     .expect("modify child");
     fs::write(
+        parent_directory.path().join("deps/child/x b/y.txt"),
+        "after\n",
+    )
+    .expect("modify spaced child file");
+    fs::write(
         parent_directory.path().join("deps/child/tracked.bin"),
         [0, 3, 2],
     )
@@ -299,6 +306,8 @@ fn expands_dirty_submodule_worktrees() {
     assert!(patch.contains("diff --git a/deps/child/inside.txt"));
     assert!(patch.contains("-before"));
     assert!(patch.contains("+after"));
+    assert!(patch.contains("diff --git a/deps/child/x b/y.txt b/deps/child/x b/y.txt"));
+    assert!(patch.contains("+++ b/deps/child/x b/y.txt"));
     assert!(
         patch.contains("Binary files a/deps/child/tracked.bin and b/deps/child/tracked.bin differ")
     );

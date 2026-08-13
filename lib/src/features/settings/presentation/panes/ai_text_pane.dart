@@ -362,11 +362,10 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     if (!mounted || !widget.settings.enabled) {
       return;
     }
-    final agents = <AiTextGenerationAgent>{
-      widget.settings.agent,
-      for (final operation in _configuredOperations)
-        widget.settings.agentFor(operation),
-    };
+    final agents = aiTextAgentsForModelDiscovery(
+      widget.settings,
+      _configuredOperations,
+    );
     for (final agent in agents) {
       _autoDiscoverAgent(agent);
     }

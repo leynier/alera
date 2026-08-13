@@ -1,12 +1,12 @@
-use git2::{Diff, DiffFindOptions, DiffFormat, DiffLineType, DiffOptions, Oid};
+use git2::{Diff, DiffFindOptions, DiffFormat, DiffLineType, DiffOptions, Oid, Repository};
 
 #[path = "git_reading_diff_submodule.rs"]
 mod git_reading_diff_submodule;
 
 use super::git_diff_untracked::git_patch_path;
 use super::{
-    build_untracked_patch, diff_for_area, diff_for_commit_range, git_status, git_status_for_path,
-    open_repo, read_untracked_text_up_to, GitChangeArea, GitError, GitErrorKind, GitPathContext,
+    build_untracked_patch, git_status, git_status_for_path, open_repo, read_untracked_text_up_to,
+    GitChangeArea, GitError, GitErrorKind, GitPathContext,
 };
 use git_reading_diff_submodule::submodule_child_workdir;
 
@@ -20,6 +20,22 @@ pub(crate) fn git_reading_diff_patch(
     commit_oid: Option<String>,
     parent_oid: Option<String>,
     base_ref: Option<String>,
+) -> Result<Vec<u8>, GitError> {
+    git_reading_diff_patch_with_prefix(
+        path, file_path, old_path, area, commit_oid, parent_oid, base_ref, None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn git_reading_diff_patch_with_prefix(
+    path: String,
+    file_path: Option<String>,
+    old_path: Option<String>,
+    area: Option<GitChangeArea>,
+    commit_oid: Option<String>,
+    parent_oid: Option<String>,
+    base_ref: Option<String>,
+    output_prefix: Option<&str>,
 ) -> Result<Vec<u8>, GitError> {
     let repo = open_repo(&path)?;
     let paths = GitPathContext::new(&repo, &path)?;
@@ -59,6 +75,7 @@ pub(crate) fn git_reading_diff_patch(
             .and_then(|commit| commit.tree())
             .map_err(GitError::from_git2)?;
         let mut options = DiffOptions::new();
+        apply_output_prefix(&mut options, output_prefix);
         options.disable_pathspec_match(true);
         if let Some(file_path) = file_path.as_deref() {
             options.pathspec(paths.to_repo_path(file_path));
@@ -94,7 +111,13 @@ pub(crate) fn git_reading_diff_patch(
         if let Some(old_repo_path) = old_repo_path.as_deref() {
             pathspecs.push(old_repo_path);
         }
-        let mut diff = diff_for_commit_range(&repo, parent_oid, commit_oid, &pathspecs)?;
+        let mut diff = diff_for_commit_range_with_prefix(
+            &repo,
+            parent_oid,
+            commit_oid,
+            &pathspecs,
+            output_prefix,
+        )?;
         return raw_patch(&mut diff, MAX_READING_DIFF_BYTES);
     }
     if parent_oid.is_some() {
@@ -121,7 +144,12 @@ pub(crate) fn git_reading_diff_patch(
         let repo_path = paths.to_repo_path(&entry.path);
         if let Some(submodule) = &entry.submodule {
             if submodule.commit_changed {
-                let mut diff = diff_for_area(&repo, &[repo_path.as_str()], entry.area)?;
+                let mut diff = diff_for_area_with_prefix(
+                    &repo,
+                    &[repo_path.as_str()],
+                    entry.area,
+                    output_prefix,
+                )?;
                 append_limited_patch(&mut output, &mut diff, MAX_READING_DIFF_BYTES)?;
             }
             if entry.area == GitChangeArea::Unstaged
@@ -129,13 +157,18 @@ pub(crate) fn git_reading_diff_patch(
                 && (submodule.tracked_changes || submodule.untracked_changes)
             {
                 let child_path = submodule_child_workdir(&path, &entry.path)?;
-                let child_patch =
-                    git_reading_diff_patch(child_path, None, None, None, None, None, None)?;
-                append_limited_bytes(
-                    &mut output,
-                    &prefix_submodule_patch(&child_patch, &entry.path),
-                    MAX_READING_DIFF_BYTES,
+                let child_prefix = prefixed_path(output_prefix, &entry.path);
+                let child_patch = git_reading_diff_patch_with_prefix(
+                    child_path,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(&child_prefix),
                 )?;
+                append_limited_bytes(&mut output, &child_patch, MAX_READING_DIFF_BYTES)?;
             }
             continue;
         }
@@ -148,11 +181,12 @@ pub(crate) fn git_reading_diff_patch(
                     "reading diff input exceeds the 4 MiB safety limit",
                 ));
             }
+            let output_path = prefixed_path(output_prefix, &entry.path);
             if let Some(content) = value.content {
                 append_limited_bytes(
                     &mut output,
                     build_untracked_patch(
-                        &entry.path,
+                        &output_path,
                         &content,
                         value.is_symlink,
                         value.is_executable,
@@ -163,7 +197,7 @@ pub(crate) fn git_reading_diff_patch(
             } else {
                 append_limited_bytes(
                     &mut output,
-                    untracked_placeholder_patch(&entry.path, value.is_binary, value.is_executable)
+                    untracked_placeholder_patch(&output_path, value.is_binary, value.is_executable)
                         .as_bytes(),
                     MAX_READING_DIFF_BYTES,
                 )?;
@@ -177,11 +211,79 @@ pub(crate) fn git_reading_diff_patch(
             if let Some(old_repo_path) = old_repo_path.as_deref() {
                 pathspecs.push(old_repo_path);
             }
-            let mut diff = diff_for_area(&repo, &pathspecs, entry.area)?;
+            let mut diff = diff_for_area_with_prefix(&repo, &pathspecs, entry.area, output_prefix)?;
             append_limited_patch(&mut output, &mut diff, MAX_READING_DIFF_BYTES)?;
         }
     }
     Ok(output)
+}
+
+fn diff_for_commit_range_with_prefix<'repo>(
+    repo: &'repo Repository,
+    parent_oid: Option<Oid>,
+    commit_oid: Oid,
+    pathspecs: &[&str],
+    output_prefix: Option<&str>,
+) -> Result<Diff<'repo>, GitError> {
+    let commit = repo.find_commit(commit_oid).map_err(GitError::from_git2)?;
+    let commit_tree = commit.tree().map_err(GitError::from_git2)?;
+    let parent_tree = parent_oid
+        .map(|oid| {
+            repo.find_commit(oid)
+                .and_then(|commit| commit.tree())
+                .map_err(GitError::from_git2)
+        })
+        .transpose()?;
+    let mut options = DiffOptions::new();
+    if !pathspecs.is_empty() {
+        options.disable_pathspec_match(true);
+    }
+    for pathspec in pathspecs {
+        options.pathspec(pathspec);
+    }
+    apply_output_prefix(&mut options, output_prefix);
+    let mut diff = repo
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut options))
+        .map_err(GitError::from_git2)?;
+    find_renames_and_copies(&mut diff)?;
+    Ok(diff)
+}
+
+fn diff_for_area_with_prefix<'repo>(
+    repo: &'repo Repository,
+    pathspecs: &[&str],
+    area: GitChangeArea,
+    output_prefix: Option<&str>,
+) -> Result<Diff<'repo>, GitError> {
+    let mut options = DiffOptions::new();
+    if !pathspecs.is_empty() {
+        options.disable_pathspec_match(true);
+    }
+    for pathspec in pathspecs {
+        options.pathspec(pathspec);
+    }
+    apply_output_prefix(&mut options, output_prefix);
+    let mut diff = match area {
+        GitChangeArea::Staged => {
+            let index = repo.index().map_err(GitError::from_git2)?;
+            let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+            repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut options))
+                .map_err(GitError::from_git2)
+        }
+        GitChangeArea::Unstaged => repo
+            .diff_index_to_workdir(None, Some(&mut options))
+            .map_err(GitError::from_git2),
+        GitChangeArea::Untracked => unreachable!("untracked diffs are built from disk"),
+    }?;
+    find_renames_and_copies(&mut diff)?;
+    Ok(diff)
+}
+
+fn find_renames_and_copies(diff: &mut Diff<'_>) -> Result<(), GitError> {
+    let mut options = DiffFindOptions::new();
+    options.renames(true).copies(true);
+    diff.find_similar(Some(&mut options))
+        .map_err(GitError::from_git2)
 }
 
 fn append_limited_patch(
@@ -218,51 +320,15 @@ fn untracked_placeholder_patch(path: &str, is_binary: bool, is_executable: bool)
     )
 }
 
-fn prefix_submodule_patch(patch: &[u8], prefix: &str) -> Vec<u8> {
-    let mut output = Vec::with_capacity(patch.len().saturating_add(prefix.len() * 4));
-    for line in patch.split_inclusive(|byte| *byte == b'\n') {
-        let structural = line.starts_with(b"diff --git ")
-            || line.starts_with(b"--- ")
-            || line.starts_with(b"+++ ")
-            || line.starts_with(b"rename from ")
-            || line.starts_with(b"rename to ")
-            || line.starts_with(b"copy from ")
-            || line.starts_with(b"copy to ")
-            || line.starts_with(b"Binary file ")
-            || line.starts_with(b"Binary files ")
-            || line.starts_with(b"Large file ");
-        if !structural {
-            output.extend_from_slice(line);
-            continue;
-        }
-        let text = prefix_submodule_header(&String::from_utf8_lossy(line), prefix);
-        output.extend_from_slice(text.as_bytes());
-    }
-    output
+fn prefixed_path(prefix: Option<&str>, path: &str) -> String {
+    prefix.map_or_else(|| path.to_string(), |prefix| format!("{prefix}/{path}"))
 }
 
-fn prefix_submodule_header(value: &str, prefix: &str) -> String {
-    let mut value = value.to_string();
-    let insertions = [
-        ("diff --git a/", format!("diff --git a/{prefix}/")),
-        ("diff --git \"a/", format!("diff --git \"a/{prefix}/")),
-        (" b/", format!(" b/{prefix}/")),
-        (" \"b/", format!(" \"b/{prefix}/")),
-        ("--- a/", format!("--- a/{prefix}/")),
-        ("--- \"a/", format!("--- \"a/{prefix}/")),
-        ("+++ b/", format!("+++ b/{prefix}/")),
-        ("+++ \"b/", format!("+++ \"b/{prefix}/")),
-        ("rename from ", format!("rename from {prefix}/")),
-        ("rename to ", format!("rename to {prefix}/")),
-        ("copy from ", format!("copy from {prefix}/")),
-        ("copy to ", format!("copy to {prefix}/")),
-        ("Binary files a/", format!("Binary files a/{prefix}/")),
-        ("Binary files \"a/", format!("Binary files \"a/{prefix}/")),
-    ];
-    for (needle, replacement) in insertions {
-        value = value.replacen(needle, &replacement, 1);
+fn apply_output_prefix(options: &mut DiffOptions, output_prefix: Option<&str>) {
+    if let Some(prefix) = output_prefix {
+        options.old_prefix(format!("a/{prefix}/"));
+        options.new_prefix(format!("b/{prefix}/"));
     }
-    value
 }
 
 fn raw_patch(diff: &mut Diff<'_>, limit: usize) -> Result<Vec<u8>, GitError> {

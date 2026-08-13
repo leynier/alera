@@ -37,6 +37,16 @@ void _registerAiTextReadingDiffTests() {
       ),
       'gpt-codex',
     );
+    expect(
+      aiTextAgentsForModelDiscovery(settings, const <AiTextGenerationOperation>[
+        AiTextGenerationOperation.commitMessage,
+        AiTextGenerationOperation.readingDiff,
+      ]),
+      <AiTextGenerationAgent>{
+        AiTextGenerationAgent.cursor,
+        AiTextGenerationAgent.codex,
+      },
+    );
   });
 
   test('runs Codex with a schema and reads its structured result file', () async {

@@ -238,7 +238,7 @@ fn validate_replacements(
                 replacement.line
             )));
         }
-        if file_is_python(lines, line)
+        if line.allows_python_from_imports
             && changes_python_boundaries(&replacement.old, &replacement.new)
         {
             return Err(ReadingDiffError::new(format!(
@@ -290,7 +290,7 @@ fn protect_python_structure(
     let mut triples = [0usize; 2];
     for line_number in range.start_line..=range.end_line {
         let line = &lines[line_number - 1];
-        if !file_is_python(lines, line) {
+        if !line.allows_python_from_imports {
             continue;
         }
         let body = String::from_utf8_lossy(source_body(line));
@@ -312,22 +312,6 @@ fn protect_python_structure(
         )));
     }
     Ok(())
-}
-
-fn file_is_python(lines: &[SourceLine], line: &SourceLine) -> bool {
-    let Some(file_id) = line.file_id else {
-        return false;
-    };
-    lines.iter().any(|candidate| {
-        candidate.file_id == Some(file_id)
-            && candidate.text.starts_with(b"diff --git ")
-            && String::from_utf8_lossy(&candidate.text)
-                .split_whitespace()
-                .any(|path| {
-                    let path = path.trim_matches('"');
-                    path.ends_with(".py") || path.ends_with(".pyi")
-                })
-    })
 }
 
 fn changes_python_boundaries(old: &str, new: &str) -> bool {
