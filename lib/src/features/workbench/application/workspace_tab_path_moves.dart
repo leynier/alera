@@ -39,9 +39,6 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
       if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
         continue;
       }
-      if (_isCommitBackedGitDiff(tab)) {
-        continue;
-      }
       final root = tab.gitDiffRoot!;
       final nextRoot = _replacePathPrefix(
         path: root,
@@ -52,12 +49,14 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
         continue;
       }
       final next = tab.copyWith(
-        title: _titleForGitDiff(
-          scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
-          path: tab.filePath,
-          area: tab.gitDiffArea,
-          root: nextRoot,
-        ),
+        title: _isCommitBackedGitDiff(tab)
+            ? tab.title
+            : _titleForGitDiff(
+                scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
+                path: tab.filePath,
+                area: tab.gitDiffArea,
+                root: nextRoot,
+              ),
         updatedAt: _now(),
         payload: <String, Object?>{
           ...tab.payload,

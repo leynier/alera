@@ -16,6 +16,24 @@ fn preserves_behavior_after_an_import_on_the_same_row() {
 }
 
 #[test]
+fn preserves_behavior_in_mixed_common_js_declarations() {
+    let diff = b"diff --git a/a.js b/a.js\n--- a/a.js\n+++ b/a.js\n@@ -1 +1 @@\n-const fs = require('fs'), server = oldServer();\n+const fs = require('fs'), server = newServer();\n";
+
+    let result = compile(diff, EMPTY_PLAN).expect("mixed CommonJS declarations");
+
+    assert_eq!(result.reading_diff, diff);
+}
+
+#[test]
+fn elides_single_common_js_import_declarations() {
+    let diff = b"diff --git a/a.js b/a.js\n--- a/a.js\n+++ b/a.js\n@@ -1 +1 @@\n-const fs = require('fs');\n+const path = require('path');\n";
+
+    let result = compile(diff, EMPTY_PLAN).expect("CommonJS imports");
+
+    assert!(result.reading_diff.is_empty());
+}
+
+#[test]
 fn ignores_comment_and_string_delimiters_while_scanning_imports() {
     let diff = b"diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n-import old  # (\n-print(\")\")\n+import new  # (\n+print(\"changed)\")\n";
 

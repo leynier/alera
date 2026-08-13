@@ -581,7 +581,7 @@ void main() {
     });
 
     test(
-      'does not retarget commit-backed diff tabs after a folder move',
+      'updates commit-backed roots without retargeting historical file paths',
       () async {
         final repository = _FakeWorkbenchRepository()
           ..tabs.addAll(<WorkspaceTabRecord>[
@@ -646,16 +646,23 @@ void main() {
           newRelativePath: 'modules',
         );
 
-        expect(result.updatedTabs.single.id, 'working-tree-tab');
+        expect(
+          result.updatedTabs.map((tab) => tab.id),
+          containsAll(<String>[
+            'working-tree-tab',
+            'commit-tab',
+            'pull-request-tab',
+          ]),
+        );
         expect(repository.tabs[0].gitDiffRoot, 'modules/app');
         expect(repository.tabs[1].filePath, 'packages/app/lib/main.dart');
         expect(
           repository.tabs[1].gitDiffOldPath,
           'packages/app/lib/old_main.dart',
         );
-        expect(repository.tabs[1].gitDiffRoot, 'packages/app');
+        expect(repository.tabs[1].gitDiffRoot, 'modules/app');
         expect(repository.tabs[2].title, 'Pull request #385');
-        expect(repository.tabs[2].gitDiffRoot, 'packages/app');
+        expect(repository.tabs[2].gitDiffRoot, 'modules/app');
         expect(repository.tabs[2].gitDiffCommitOid, 'head123');
       },
     );

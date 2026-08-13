@@ -21,6 +21,7 @@ HostedReview mapGitHubReview(Map<String, Object?> json) {
     baseBranch: json['baseRefName'] as String?,
     headBranch: json['headRefName'] as String?,
     headSha: json['headRefOid'] as String?,
+    comparisonBaseSha: json['baseRefOid'] as String?,
     mergeCommitSha: mergeCommit is Map<String, Object?>
         ? mergeCommit['oid'] as String?
         : null,

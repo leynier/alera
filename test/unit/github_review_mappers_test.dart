@@ -13,12 +13,14 @@ void main() {
       'mergeable': 'UNKNOWN',
       'headRefName': 'feature',
       'baseRefName': 'main',
+      'baseRefOid': 'base-abc',
       'headRefOid': 'def',
       'mergeCommit': <String, Object?>{'oid': 'merge-def'},
       'author': <String, Object?>{'login': 'leynier'},
     });
 
     expect(review.state, HostedReviewState.merged);
+    expect(review.comparisonBaseSha, 'base-abc');
     expect(review.mergeCommitSha, 'merge-def');
   });
 }

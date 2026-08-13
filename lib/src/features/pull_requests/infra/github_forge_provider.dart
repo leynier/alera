@@ -42,6 +42,7 @@ class GitHubForgeProvider
     'mergeable',
     'headRefName',
     'baseRefName',
+    'baseRefOid',
     'headRefOid',
     'mergeCommit',
     'author',

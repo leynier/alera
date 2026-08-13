@@ -87,9 +87,59 @@ fn starts_import(
         || allows_rust_imports && (trimmed.starts_with("use ") || trimmed.starts_with("pub use "))
         || allows_c_includes
             && (trimmed.starts_with("#include ") || trimmed.starts_with("#include<"))
-        || allows_common_js_imports
-            && (trimmed.starts_with("require(")
-                || trimmed.starts_with("const ") && trimmed.contains("require("))
+        || allows_common_js_imports && starts_common_js_import(trimmed)
+}
+
+fn starts_common_js_import(trimmed: &str) -> bool {
+    if trimmed.starts_with("require(") {
+        return true;
+    }
+    let Some(declaration) = trimmed.strip_prefix("const ") else {
+        return false;
+    };
+    let Some(require_index) = declaration.find("require(") else {
+        return false;
+    };
+    declaration[..require_index].trim_end().ends_with('=')
+        && common_js_require_suffix_is_empty(&declaration[require_index..])
+}
+
+fn common_js_require_suffix_is_empty(require_call: &str) -> bool {
+    let bytes = require_call.as_bytes();
+    let mut index = "require(".len();
+    let mut depth = 1usize;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[index];
+                index += 1;
+                while index < bytes.len() {
+                    match bytes[index] {
+                        b'\\' => index = (index + 2).min(bytes.len()),
+                        candidate if candidate == quote => {
+                            index += 1;
+                            break;
+                        }
+                        _ => index += 1,
+                    }
+                }
+            }
+            b'(' => {
+                depth += 1;
+                index += 1;
+            }
+            b')' => {
+                depth -= 1;
+                index += 1;
+                if depth == 0 {
+                    let suffix = require_call[index..].trim_start();
+                    return suffix.is_empty() || suffix == ";" || suffix.starts_with("//");
+                }
+            }
+            _ => index += 1,
+        }
+    }
+    false
 }
 
 fn starts_static_import(trimmed: &str, javascript: bool) -> bool {
