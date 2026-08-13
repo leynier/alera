@@ -19,21 +19,31 @@ class GitHubMobileReleaseSource {
   final http.Client _client;
   final Uri _releasesUrl;
   final bool _ownsClient;
+  bool _disposed = false;
 
   void dispose() {
-    if (_ownsClient) {
-      _client.close();
-    }
+    if (_disposed) return;
+    _disposed = true;
+    if (_ownsClient) _client.close();
   }
 
   Future<MobileRelease?> latestRelease() async {
-    final response = await _client.get(
-      _releasesUrl,
-      headers: const <String, String>{
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    );
+    if (_disposed) return null;
+    late final http.Response response;
+    try {
+      response = await _client.get(
+        _releasesUrl,
+        headers: const <String, String>{
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      );
+    } on http.ClientException {
+      // Closing an owned IOClient aborts its active request. That is expected
+      // provider teardown, not a failed release lookup worth reporting.
+      if (_disposed) return null;
+      rethrow;
+    }
     if (response.statusCode != 200) {
       throw http.ClientException(
         'GitHub returned ${response.statusCode} for the release listing.',
