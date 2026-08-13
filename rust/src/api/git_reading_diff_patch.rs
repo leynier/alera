@@ -101,20 +101,18 @@ pub(crate) fn git_reading_diff_patch(
         ));
     }
 
-    let status = if let Some(file_path) = &file_path {
-        git_status_for_path(path.clone(), file_path.clone())?
-    } else {
-        git_status(path.clone())?
+    let status = match (&file_path, &old_path) {
+        (Some(file_path), None) => git_status_for_path(path.clone(), file_path.clone())?,
+        _ => git_status(path.clone())?,
     };
     let mut output = Vec::new();
     for entry in status.entries {
         if area.is_some_and(|selected| selected != entry.area) {
             continue;
         }
-        if file_path
-            .as_ref()
-            .is_some_and(|selected| selected != &entry.path)
-        {
+        if file_path.as_ref().is_some_and(|selected| {
+            selected != &entry.path && entry.old_path.as_ref() != Some(selected)
+        }) {
             continue;
         }
         let repo_path = paths.to_repo_path(&entry.path);
@@ -257,19 +255,28 @@ fn raw_patch(diff: &mut Diff<'_>, limit: usize) -> Result<Vec<u8>, GitError> {
         if too_large {
             return false;
         }
-        let additional = line.content().len().saturating_add(1);
+        let has_source_origin = matches!(
+            line.origin_value(),
+            DiffLineType::Context | DiffLineType::Addition | DiffLineType::Deletion
+        );
+        let additional = line
+            .content()
+            .len()
+            .saturating_add(usize::from(has_source_origin));
         if output.len().saturating_add(additional) > limit {
             too_large = true;
             return false;
         }
         match line.origin_value() {
-            DiffLineType::Context
-            | DiffLineType::Addition
-            | DiffLineType::Deletion
-            | DiffLineType::ContextEOFNL
+            DiffLineType::Context | DiffLineType::Addition | DiffLineType::Deletion => {
+                output.push(line.origin() as u8)
+            }
+            DiffLineType::ContextEOFNL
             | DiffLineType::AddEOFNL
-            | DiffLineType::DeleteEOFNL => output.push(line.origin() as u8),
-            DiffLineType::FileHeader | DiffLineType::HunkHeader | DiffLineType::Binary => {}
+            | DiffLineType::DeleteEOFNL
+            | DiffLineType::FileHeader
+            | DiffLineType::HunkHeader
+            | DiffLineType::Binary => {}
         }
         output.extend_from_slice(line.content());
         true

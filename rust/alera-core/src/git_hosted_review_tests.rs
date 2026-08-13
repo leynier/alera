@@ -55,14 +55,19 @@ fn fetches_exact_hosted_base_and_head_objects() {
     assert_eq!(range.base_oid, advanced_base.to_string());
     assert_eq!(range.head_oid, head.to_string());
     let client = Repository::open(client_directory.path()).expect("client repository");
-    let temporary_refs = client
+    let hosted_refs = client
         .references()
         .expect("client references")
         .filter_map(Result::ok)
         .filter_map(|reference| reference.name().ok().map(str::to_string))
         .filter(|name| name.starts_with("refs/alera/hosted-reviews/"))
         .collect::<Vec<_>>();
-    assert!(temporary_refs.is_empty());
+    assert_eq!(hosted_refs.len(), 2);
+    assert!(hosted_refs.contains(&format!(
+        "refs/alera/hosted-reviews/objects/{advanced_base}"
+    )));
+    assert!(hosted_refs.contains(&format!("refs/alera/hosted-reviews/objects/{head}")));
+    assert!(client.find_commit(head).is_ok());
 }
 
 fn push(repository: &Repository, refspec: &str) {

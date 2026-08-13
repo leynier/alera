@@ -24,6 +24,7 @@ void main() {
           index: 0,
           rawDiff: Uint8List.fromList(<int>[1]),
           numberedDiff: '1|diff --git a/a b/a',
+          continuationPreamble: Uint8List(0),
         ),
       ],
     );
@@ -119,21 +120,30 @@ void main() {
     );
   });
 
-  test('custom command participates in the reading diff cache identity', () {
-    String key(String command) => buildReadingDiffCacheKey(
-      rubricVersion: 'rubric-v1',
-      schemaVersion: 1,
-      agent: AiTextGenerationAgent.custom,
-      model: 'custom',
-      effort: null,
-      instructions: '',
-      customCommand: command,
-      rawDiff: const <int>[1, 2, 3],
-    );
+  test(
+    'custom command participates in the reading diff cache identity',
+    () async {
+      Future<String> key(String command) => buildReadingDiffCacheKey(
+        rubricVersion: 'rubric-v1',
+        schemaVersion: 1,
+        agent: AiTextGenerationAgent.custom,
+        model: 'custom',
+        effort: null,
+        instructions: '',
+        customCommand: command,
+        rawDiff: const <int>[1, 2, 3],
+      );
 
-    expect(key('agent-one {prompt}'), isNot(key('agent-two {prompt}')));
-    expect(key(' agent-one {prompt} '), key('agent-one {prompt}'));
-  });
+      expect(
+        await key('agent-one {prompt}'),
+        isNot(await key('agent-two {prompt}')),
+      );
+      expect(
+        await key(' agent-one {prompt} '),
+        await key('agent-one {prompt}'),
+      );
+    },
+  );
 
   test(
     'reading diff prompts preserve immutable coordinates and repair data',
@@ -149,6 +159,7 @@ void main() {
         index: 0,
         rawDiff: Uint8List.fromList(<int>[1]),
         numberedDiff: '1|diff --git a/a b/a',
+        continuationPreamble: Uint8List(0),
       );
       final prompt = buildReadingDiffPrompt(
         preparation: rust.ReadingDiffPreparation(
@@ -250,4 +261,34 @@ void main() {
     expect(cached?.chunkCount, isNull);
     expect(cached?.fromCache, isTrue);
   });
+
+  test(
+    'best-effort cache persistence does not lose generated output',
+    () async {
+      final result = ReadingDiffResult(
+        diff: Uint8List.fromList(<int>[1, 2, 3]),
+        summary: 'Generated successfully.',
+        changedLines: 2,
+        retainedChangedLines: 1,
+        agentLabel: 'Codex',
+      );
+
+      await expectLater(
+        const _FailingReadingDiffCache().writeBestEffort('key', result),
+        completes,
+      );
+    },
+  );
+}
+
+class _FailingReadingDiffCache implements ReadingDiffCache {
+  const _FailingReadingDiffCache();
+
+  @override
+  Future<ReadingDiffResult?> read(String key) async => null;
+
+  @override
+  Future<void> write(String key, ReadingDiffResult result) async {
+    throw const FileSystemException('disk full');
+  }
 }

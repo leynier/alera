@@ -41,7 +41,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
-                      'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. Only the displayed diff is provided to the agent.',
+                      'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. The complete selected patch is provided, including portions hidden by preview truncation.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

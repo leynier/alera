@@ -6,6 +6,7 @@ pub struct ReadingDiffChunk {
     pub index: u32,
     pub raw_diff: Vec<u8>,
     pub numbered_diff: String,
+    pub continuation_preamble: Vec<u8>,
 }
 
 pub struct ReadingDiffPreparation {
@@ -25,6 +26,7 @@ pub struct ReadingDiffCompileResult {
 
 pub struct ReadingDiffCompiledChunk {
     pub index: u32,
+    pub continuation_preamble: Vec<u8>,
     pub reading_diff: Vec<u8>,
     pub summary: String,
     pub changed_lines: u32,
@@ -81,6 +83,7 @@ pub fn prepare_reading_diff(
                 index: chunk.index,
                 raw_diff: chunk.raw_diff,
                 numbered_diff: chunk.numbered_diff,
+                continuation_preamble: chunk.continuation_preamble,
             })
             .collect(),
     })
@@ -104,6 +107,7 @@ pub fn merge_reading_diff_chunks(
         .into_iter()
         .map(|chunk| reading_diff::CompiledChunk {
             index: chunk.index,
+            continuation_preamble: chunk.continuation_preamble,
             result: reading_diff::CompileResult {
                 reading_diff: chunk.reading_diff,
                 summary: chunk.summary,

@@ -64,6 +64,7 @@ pub fn fetch_hosted_review_range(
                 "the hosted review changed while its diff was opening",
             ));
         }
+        retain_hosted_review_objects(&refreshed, [base_oid, head_oid])?;
         Ok(GitHostedReviewRange {
             base_oid: base_oid.to_string(),
             head_oid: head_oid.to_string(),
@@ -75,7 +76,33 @@ pub fn fetch_hosted_review_range(
 
 fn fetch_ref(path: &str, remote: &str, source: &str, target: &str) -> Result<(), GitError> {
     let refspec = format!("+{source}:{target}");
-    git_cli_in_path(path, &["fetch", "--no-tags", remote, &refspec])
+    git_cli_in_path(
+        path,
+        &[
+            "fetch",
+            "--no-tags",
+            "--no-write-fetch-head",
+            remote,
+            &refspec,
+        ],
+    )
+}
+
+fn retain_hosted_review_objects<const N: usize>(
+    repo: &Repository,
+    object_ids: [git2::Oid; N],
+) -> Result<(), GitError> {
+    for object_id in object_ids {
+        let name = format!("refs/alera/hosted-reviews/objects/{object_id}");
+        repo.reference(
+            &name,
+            object_id,
+            true,
+            "alera: retain object for a persisted hosted review tab",
+        )
+        .map_err(GitError::from_git2)?;
+    }
+    Ok(())
 }
 
 fn cleanup_temporary_refs<const N: usize>(path: &str, names: [&str; N]) {

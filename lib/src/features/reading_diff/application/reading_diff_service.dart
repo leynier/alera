@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
@@ -81,7 +82,7 @@ class ReadingDiffService {
         );
       }
     }
-    final cacheKey = buildReadingDiffCacheKey(
+    final cacheKey = await buildReadingDiffCacheKey(
       rubricVersion: compiler.rubricVersion,
       schemaVersion: compiler.schemaVersion,
       agent: agent,
@@ -199,6 +200,7 @@ class ReadingDiffService {
         compiled.add(
           rust.ReadingDiffCompiledChunk(
             index: chunk.index,
+            continuationPreamble: chunk.continuationPreamble,
             readingDiff: result.readingDiff,
             summary: result.summary,
             changedLines: result.changedLines,
@@ -228,7 +230,7 @@ class ReadingDiffService {
         effort: preparation.effort,
         chunkSummaries: chunkSummaries,
       );
-      await cache.write(preparation.cacheKey, result);
+      await cache.writeBestEffort(preparation.cacheKey, result);
       return result;
     } finally {
       _pending.remove(lane);
@@ -312,7 +314,7 @@ int _chunkLimit(int promptLimit) {
   return conservativeLimit.clamp(4096, _defaultReadingDiffChunkBytes);
 }
 
-String buildReadingDiffCacheKey({
+Future<String> buildReadingDiffCacheKey({
   required String rubricVersion,
   required int schemaVersion,
   required AiTextGenerationAgent agent,
@@ -333,9 +335,8 @@ String buildReadingDiffCacheKey({
         ? customCommand.trim()
         : null,
   });
-  return sha256.convert(<int>[
-    ...utf8.encode(identity),
-    0,
-    ...rawDiff,
-  ]).toString();
+  return Isolate.run(() => _hashReadingDiffCacheKey(identity, rawDiff));
 }
+
+String _hashReadingDiffCacheKey(String identity, List<int> rawDiff) =>
+    sha256.convert(<int>[...utf8.encode(identity), 0, ...rawDiff]).toString();

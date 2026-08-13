@@ -12,6 +12,7 @@ pub struct ReadingDiffChunk {
     pub index: u32,
     pub raw_diff: Vec<u8>,
     pub numbered_diff: String,
+    pub continuation_preamble: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,7 +26,13 @@ pub struct PreparedDiff {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompiledChunk {
     pub index: u32,
+    pub continuation_preamble: Vec<u8>,
     pub result: CompileResult,
+}
+
+struct ChunkSource {
+    raw_diff: Vec<u8>,
+    continuation_preamble: Vec<u8>,
 }
 
 pub fn prepare(
@@ -38,32 +45,42 @@ pub fn prepare(
     }
     let limit = max_chunk_bytes.unwrap_or(DEFAULT_MAX_CHUNK_BYTES).max(4096);
     let sections = file_sections(raw);
-    let mut raw_chunks = Vec::<Vec<u8>>::new();
+    let mut raw_chunks = Vec::<ChunkSource>::new();
     let mut current = Vec::<u8>::new();
     for section in sections {
         if section.len() > limit {
             if !current.is_empty() {
-                raw_chunks.push(std::mem::take(&mut current));
+                raw_chunks.push(ChunkSource {
+                    raw_diff: std::mem::take(&mut current),
+                    continuation_preamble: Vec::new(),
+                });
             }
             raw_chunks.extend(split_file_at_hunks(&section, limit)?);
             continue;
         }
         if !current.is_empty() && current.len() + section.len() > limit {
-            raw_chunks.push(std::mem::take(&mut current));
+            raw_chunks.push(ChunkSource {
+                raw_diff: std::mem::take(&mut current),
+                continuation_preamble: Vec::new(),
+            });
         }
         current.extend_from_slice(&section);
     }
     if !current.is_empty() {
-        raw_chunks.push(current);
+        raw_chunks.push(ChunkSource {
+            raw_diff: current,
+            continuation_preamble: Vec::new(),
+        });
     }
     let chunks = raw_chunks
         .into_iter()
         .enumerate()
-        .map(|(index, raw_diff)| {
+        .map(|(index, chunk)| {
             Ok(ReadingDiffChunk {
                 index: index as u32,
-                numbered_diff: numbered(&raw_diff)?,
-                raw_diff,
+                numbered_diff: numbered(&chunk.raw_diff)?,
+                raw_diff: chunk.raw_diff,
+                continuation_preamble: chunk.continuation_preamble,
             })
         })
         .collect::<Result<Vec<_>, ReadingDiffError>>()?;
@@ -97,10 +114,20 @@ pub fn merge_chunks(
     let mut changed_lines = 0u32;
     let mut retained_changed_lines = 0u32;
     for chunk in chunks {
-        reading_diff.extend_from_slice(&chunk.result.reading_diff);
-        if !reading_diff.ends_with(b"\n") {
+        let mut chunk_diff = chunk.result.reading_diff.as_slice();
+        if !chunk.continuation_preamble.is_empty() && !chunk_diff.is_empty() {
+            chunk_diff = chunk_diff
+                .strip_prefix(chunk.continuation_preamble.as_slice())
+                .ok_or_else(|| {
+                    ReadingDiffError::new(
+                        "A continued reading diff chunk changed its structural preamble.",
+                    )
+                })?;
+        }
+        if !reading_diff.is_empty() && !chunk_diff.is_empty() && !reading_diff.ends_with(b"\n") {
             reading_diff.push(b'\n');
         }
+        reading_diff.extend_from_slice(chunk_diff);
         summaries.push(chunk.result.summary);
         changed_lines = changed_lines.saturating_add(chunk.result.changed_lines);
         retained_changed_lines =
@@ -131,7 +158,7 @@ fn file_sections(raw: &[u8]) -> Vec<Vec<u8>> {
         .collect()
 }
 
-fn split_file_at_hunks(section: &[u8], limit: usize) -> Result<Vec<Vec<u8>>, ReadingDiffError> {
+fn split_file_at_hunks(section: &[u8], limit: usize) -> Result<Vec<ChunkSource>, ReadingDiffError> {
     let hunk_starts = line_starts_with(section, b"@@ ");
     if hunk_starts.len() < 2 {
         return Err(ReadingDiffError::new(format!(
@@ -157,7 +184,15 @@ fn split_file_at_hunks(section: &[u8], limit: usize) -> Result<Vec<Vec<u8>>, Rea
         }
         let mut chunk = preamble.to_vec();
         chunk.extend_from_slice(hunk);
-        result.push(chunk);
+        let continuation_preamble = if position == 0 {
+            Vec::new()
+        } else {
+            preamble.to_vec()
+        };
+        result.push(ChunkSource {
+            raw_diff: chunk,
+            continuation_preamble,
+        });
     }
     Ok(result)
 }

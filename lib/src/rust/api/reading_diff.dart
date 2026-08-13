@@ -57,15 +57,21 @@ class ReadingDiffChunk {
   final int index;
   final Uint8List rawDiff;
   final String numberedDiff;
+  final Uint8List continuationPreamble;
 
   const ReadingDiffChunk({
     required this.index,
     required this.rawDiff,
     required this.numberedDiff,
+    required this.continuationPreamble,
   });
 
   @override
-  int get hashCode => index.hashCode ^ rawDiff.hashCode ^ numberedDiff.hashCode;
+  int get hashCode =>
+      index.hashCode ^
+      rawDiff.hashCode ^
+      numberedDiff.hashCode ^
+      continuationPreamble.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -74,7 +80,8 @@ class ReadingDiffChunk {
           runtimeType == other.runtimeType &&
           index == other.index &&
           rawDiff == other.rawDiff &&
-          numberedDiff == other.numberedDiff;
+          numberedDiff == other.numberedDiff &&
+          continuationPreamble == other.continuationPreamble;
 }
 
 class ReadingDiffCompileResult {
@@ -110,6 +117,7 @@ class ReadingDiffCompileResult {
 
 class ReadingDiffCompiledChunk {
   final int index;
+  final Uint8List continuationPreamble;
   final Uint8List readingDiff;
   final String summary;
   final int changedLines;
@@ -117,6 +125,7 @@ class ReadingDiffCompiledChunk {
 
   const ReadingDiffCompiledChunk({
     required this.index,
+    required this.continuationPreamble,
     required this.readingDiff,
     required this.summary,
     required this.changedLines,
@@ -126,6 +135,7 @@ class ReadingDiffCompiledChunk {
   @override
   int get hashCode =>
       index.hashCode ^
+      continuationPreamble.hashCode ^
       readingDiff.hashCode ^
       summary.hashCode ^
       changedLines.hashCode ^
@@ -137,6 +147,7 @@ class ReadingDiffCompiledChunk {
       other is ReadingDiffCompiledChunk &&
           runtimeType == other.runtimeType &&
           index == other.index &&
+          continuationPreamble == other.continuationPreamble &&
           readingDiff == other.readingDiff &&
           summary == other.summary &&
           changedLines == other.changedLines &&

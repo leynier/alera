@@ -178,6 +178,7 @@ ReadingDiffPreparation _preparation(
         index: 0,
         rawDiff: Uint8List.fromList(<int>[1]),
         numberedDiff: '1|diff --git a/a b/a',
+        continuationPreamble: Uint8List(0),
       ),
     ],
   ),

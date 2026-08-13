@@ -4731,10 +4731,12 @@ impl SseDecode for crate::api::reading_diff::ReadingDiffChunk {
         let mut var_index = <u32>::sse_decode(deserializer);
         let mut var_rawDiff = <Vec<u8>>::sse_decode(deserializer);
         let mut var_numberedDiff = <String>::sse_decode(deserializer);
+        let mut var_continuationPreamble = <Vec<u8>>::sse_decode(deserializer);
         return crate::api::reading_diff::ReadingDiffChunk {
             index: var_index,
             raw_diff: var_rawDiff,
             numbered_diff: var_numberedDiff,
+            continuation_preamble: var_continuationPreamble,
         };
     }
 }
@@ -4759,12 +4761,14 @@ impl SseDecode for crate::api::reading_diff::ReadingDiffCompiledChunk {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_continuationPreamble = <Vec<u8>>::sse_decode(deserializer);
         let mut var_readingDiff = <Vec<u8>>::sse_decode(deserializer);
         let mut var_summary = <String>::sse_decode(deserializer);
         let mut var_changedLines = <u32>::sse_decode(deserializer);
         let mut var_retainedChangedLines = <u32>::sse_decode(deserializer);
         return crate::api::reading_diff::ReadingDiffCompiledChunk {
             index: var_index,
+            continuation_preamble: var_continuationPreamble,
             reading_diff: var_readingDiff,
             summary: var_summary,
             changed_lines: var_changedLines,
@@ -6759,6 +6763,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffChun
             self.index.into_into_dart().into_dart(),
             self.raw_diff.into_into_dart().into_dart(),
             self.numbered_diff.into_into_dart().into_dart(),
+            self.continuation_preamble.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6802,6 +6807,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::reading_diff::ReadingDiffComp
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
+            self.continuation_preamble.into_into_dart().into_dart(),
             self.reading_diff.into_into_dart().into_dart(),
             self.summary.into_into_dart().into_dart(),
             self.changed_lines.into_into_dart().into_dart(),
@@ -8679,6 +8685,7 @@ impl SseEncode for crate::api::reading_diff::ReadingDiffChunk {
         <u32>::sse_encode(self.index, serializer);
         <Vec<u8>>::sse_encode(self.raw_diff, serializer);
         <String>::sse_encode(self.numbered_diff, serializer);
+        <Vec<u8>>::sse_encode(self.continuation_preamble, serializer);
     }
 }
 
@@ -8696,6 +8703,7 @@ impl SseEncode for crate::api::reading_diff::ReadingDiffCompiledChunk {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.index, serializer);
+        <Vec<u8>>::sse_encode(self.continuation_preamble, serializer);
         <Vec<u8>>::sse_encode(self.reading_diff, serializer);
         <String>::sse_encode(self.summary, serializer);
         <u32>::sse_encode(self.changed_lines, serializer);

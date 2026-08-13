@@ -27,7 +27,8 @@ void main() {
       find.textContaining('may consume subscription quota'),
       findsOneWidget,
     );
-    expect(find.textContaining('Only the displayed diff'), findsOneWidget);
+    expect(find.textContaining('complete selected patch'), findsOneWidget);
+    expect(find.textContaining('hidden by preview truncation'), findsOneWidget);
     expect(find.textContaining('behavioral overview'), findsOneWidget);
     expect(find.textContaining('not a bug or security review'), findsOneWidget);
     expect(find.text('Diff Only'), findsOneWidget);
@@ -162,6 +163,7 @@ ReadingDiffPreparation _preparation() {
           index: 0,
           rawDiff: Uint8List.fromList(<int>[1]),
           numberedDiff: '1|diff --git a/a b/a',
+          continuationPreamble: Uint8List(0),
         ),
       ],
     ),

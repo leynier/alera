@@ -63,6 +63,56 @@ fn chunks_only_at_file_or_hunk_boundaries() {
     let prepared = prepare(DIFF, Some(4096)).expect("prepared");
     assert_eq!(prepared.chunks.len(), 1);
     assert!(prepared.chunks[0].numbered_diff.contains("1|diff --git"));
+    assert!(prepared.chunks[0].continuation_preamble.is_empty());
+}
+
+#[test]
+fn reconstructs_split_files_once_and_preserves_the_final_eol() {
+    let old = "o".repeat(1100);
+    let new = "n".repeat(1100);
+    let source = format!(
+        "diff --git a/large.txt b/large.txt\n--- a/large.txt\n+++ b/large.txt\n\
+@@ -1 +1 @@\n-{old}\n+{new}\n\
+@@ -10 +10 @@\n-{old}\n+{new}\n"
+    );
+    let prepared = prepare(source.as_bytes(), Some(4096)).expect("split diff");
+    assert_eq!(prepared.chunks.len(), 2);
+    assert!(prepared.chunks[0].continuation_preamble.is_empty());
+    assert!(!prepared.chunks[1].continuation_preamble.is_empty());
+    let plan = r#"{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep the changes."}"#;
+    let compiled = prepared
+        .chunks
+        .into_iter()
+        .map(|chunk| CompiledChunk {
+            index: chunk.index,
+            continuation_preamble: chunk.continuation_preamble,
+            result: compile(&chunk.raw_diff, plan).expect("compiled chunk"),
+        })
+        .collect();
+
+    let merged = merge_chunks(compiled, source.as_bytes()).expect("merged split diff");
+    assert_eq!(merged.reading_diff, source.as_bytes());
+    assert_eq!(
+        merged
+            .reading_diff
+            .windows(b"diff --git".len())
+            .filter(|window| *window == b"diff --git")
+            .count(),
+        1
+    );
+
+    let no_final_eol = b"diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file";
+    let compiled = compile(no_final_eol, plan).expect("compiled missing final eol");
+    let merged = merge_chunks(
+        vec![CompiledChunk {
+            index: 0,
+            continuation_preamble: Vec::new(),
+            result: compiled,
+        }],
+        no_final_eol,
+    )
+    .expect("merged missing final eol");
+    assert_eq!(merged.reading_diff, no_final_eol);
 }
 
 #[test]
@@ -182,10 +232,12 @@ fn rejects_asymmetric_moves_after_chunk_merge() {
         vec![
             CompiledChunk {
                 index: 0,
+                continuation_preamble: Vec::new(),
                 result: old_result,
             },
             CompiledChunk {
                 index: 1,
+                continuation_preamble: Vec::new(),
                 result: new_result,
             },
         ],
@@ -209,10 +261,12 @@ fn allows_symmetric_automatic_import_elision_across_chunks() {
         vec![
             CompiledChunk {
                 index: 0,
+                continuation_preamble: Vec::new(),
                 result: old_result,
             },
             CompiledChunk {
                 index: 1,
+                continuation_preamble: Vec::new(),
                 result: new_result,
             },
         ],
@@ -232,6 +286,7 @@ fn merges_chunks_by_index_and_accumulates_stats() {
         vec![
             CompiledChunk {
                 index: 1,
+                continuation_preamble: Vec::new(),
                 result: CompileResult {
                     reading_diff: SECOND.to_vec(),
                     summary: "Second.".to_string(),
@@ -241,6 +296,7 @@ fn merges_chunks_by_index_and_accumulates_stats() {
             },
             CompiledChunk {
                 index: 0,
+                continuation_preamble: Vec::new(),
                 result: CompileResult {
                     reading_diff: FIRST.to_vec(),
                     summary: "First.".to_string(),

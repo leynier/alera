@@ -71,6 +71,33 @@ fn extracts_worktree_staged_commit_and_range_patches() {
 }
 
 #[test]
+fn preserves_missing_final_newline_markers() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let repository = Repository::init(directory.path()).expect("repository");
+    let file = directory.path().join("no-eol.txt");
+    fs::write(&file, "old").expect("initial file");
+    commit(&repository, "base");
+    fs::write(&file, "new").expect("changed file");
+
+    let patch = git_reading_diff_patch(
+        directory.path().to_string_lossy().to_string(),
+        Some("no-eol.txt".to_string()),
+        None,
+        Some(GitChangeArea::Unstaged),
+        None,
+        None,
+        None,
+    )
+    .expect("missing-eol patch");
+    let patch = String::from_utf8(patch).expect("utf8 patch");
+    assert!(
+        patch.contains("-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n")
+    );
+    assert!(!patch.contains("-old>"));
+    assert!(!patch.contains("+new<"));
+}
+
+#[test]
 fn preserves_rename_sources_and_untracked_placeholders() {
     let directory = tempfile::tempdir().expect("tempdir");
     let repository = Repository::init(directory.path()).expect("repository");
@@ -99,6 +126,19 @@ fn preserves_rename_sources_and_untracked_placeholders() {
     let staged_rename = String::from_utf8(staged_rename).expect("utf8 staged rename");
     assert!(staged_rename.contains("rename from old.txt"));
     assert!(staged_rename.contains("rename to new.txt"));
+    let selected_rename = git_reading_diff_patch(
+        directory.path().to_string_lossy().to_string(),
+        Some("new.txt".to_string()),
+        Some("old.txt".to_string()),
+        Some(GitChangeArea::Staged),
+        None,
+        None,
+        None,
+    )
+    .expect("selected staged rename patch");
+    let selected_rename = String::from_utf8(selected_rename).expect("utf8 selected rename");
+    assert!(selected_rename.contains("rename from old.txt"));
+    assert!(selected_rename.contains("rename to new.txt"));
     let head = commit(&repository, "rename");
 
     let rename = git_reading_diff_patch(

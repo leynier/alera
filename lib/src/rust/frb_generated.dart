@@ -4722,12 +4722,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ReadingDiffChunk dco_decode_reading_diff_chunk(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return ReadingDiffChunk(
       index: dco_decode_u_32(arr[0]),
       rawDiff: dco_decode_list_prim_u_8_strict(arr[1]),
       numberedDiff: dco_decode_String(arr[2]),
+      continuationPreamble: dco_decode_list_prim_u_8_strict(arr[3]),
     );
   }
 
@@ -4749,14 +4750,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ReadingDiffCompiledChunk dco_decode_reading_diff_compiled_chunk(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return ReadingDiffCompiledChunk(
       index: dco_decode_u_32(arr[0]),
-      readingDiff: dco_decode_list_prim_u_8_strict(arr[1]),
-      summary: dco_decode_String(arr[2]),
-      changedLines: dco_decode_u_32(arr[3]),
-      retainedChangedLines: dco_decode_u_32(arr[4]),
+      continuationPreamble: dco_decode_list_prim_u_8_strict(arr[1]),
+      readingDiff: dco_decode_list_prim_u_8_strict(arr[2]),
+      summary: dco_decode_String(arr[3]),
+      changedLines: dco_decode_u_32(arr[4]),
+      retainedChangedLines: dco_decode_u_32(arr[5]),
     );
   }
 
@@ -6671,10 +6673,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_index = sse_decode_u_32(deserializer);
     var var_rawDiff = sse_decode_list_prim_u_8_strict(deserializer);
     var var_numberedDiff = sse_decode_String(deserializer);
+    var var_continuationPreamble = sse_decode_list_prim_u_8_strict(
+      deserializer,
+    );
     return ReadingDiffChunk(
       index: var_index,
       rawDiff: var_rawDiff,
       numberedDiff: var_numberedDiff,
+      continuationPreamble: var_continuationPreamble,
     );
   }
 
@@ -6701,12 +6707,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_u_32(deserializer);
+    var var_continuationPreamble = sse_decode_list_prim_u_8_strict(
+      deserializer,
+    );
     var var_readingDiff = sse_decode_list_prim_u_8_strict(deserializer);
     var var_summary = sse_decode_String(deserializer);
     var var_changedLines = sse_decode_u_32(deserializer);
     var var_retainedChangedLines = sse_decode_u_32(deserializer);
     return ReadingDiffCompiledChunk(
       index: var_index,
+      continuationPreamble: var_continuationPreamble,
       readingDiff: var_readingDiff,
       summary: var_summary,
       changedLines: var_changedLines,
@@ -8564,6 +8574,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.index, serializer);
     sse_encode_list_prim_u_8_strict(self.rawDiff, serializer);
     sse_encode_String(self.numberedDiff, serializer);
+    sse_encode_list_prim_u_8_strict(self.continuationPreamble, serializer);
   }
 
   @protected
@@ -8585,6 +8596,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.index, serializer);
+    sse_encode_list_prim_u_8_strict(self.continuationPreamble, serializer);
     sse_encode_list_prim_u_8_strict(self.readingDiff, serializer);
     sse_encode_String(self.summary, serializer);
     sse_encode_u_32(self.changedLines, serializer);
