@@ -37,7 +37,7 @@ extension _CodexRuntimeHomeServiceIo on CodexRuntimeHomeService {
     file.parent.createSync(recursive: true);
     if (file.existsSync() && file.readAsStringSync() == content) {
       if (_platform == ManagedAgentHookPlatform.posix && !Platform.isWindows) {
-        Process.runSync('chmod', <String>['755', path]);
+        setPosixFileMode(path, posixExecutableFileMode);
       }
       return;
     }
@@ -47,7 +47,7 @@ extension _CodexRuntimeHomeServiceIo on CodexRuntimeHomeService {
     );
     final tmp = File(tmpPath)..writeAsStringSync(content);
     if (_platform == ManagedAgentHookPlatform.posix && !Platform.isWindows) {
-      Process.runSync('chmod', <String>['755', tmpPath]);
+      setPosixFileMode(tmpPath, posixExecutableFileMode);
     }
     tmp.renameSync(path);
   }

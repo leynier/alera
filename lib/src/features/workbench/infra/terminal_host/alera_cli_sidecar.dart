@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:path/path.dart' as p;
 
 final class AleraCliCommand {
@@ -173,7 +174,7 @@ final class DefaultAleraCliResolver implements AleraCliResolver {
     final bytes = gzip.decode(await archive.readAsBytes());
     await target.writeAsBytes(bytes, flush: true);
     if (_operatingSystemName != 'windows' && !Platform.isWindows) {
-      await Process.run('chmod', <String>['755', target.path]);
+      setPosixFileMode(target.path, posixExecutableFileMode);
     }
     return target.path;
   }
