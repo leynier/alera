@@ -205,6 +205,10 @@ List<Map<String, Object?>> _buildInput(
         'path': attachment.path,
         if (attachment.detail != null) 'detail': attachment.detail,
       });
+      if (attachment.annotationContext case final context?
+          when context.trim().isNotEmpty) {
+        addText(context);
+      }
     } else if (_isAudioInput(attachment.path, attachment.mimeType)) {
       input.add(<String, Object?>{
         'type': 'localAudio',
@@ -287,6 +291,14 @@ Map<String, Object?> _userMessagePresentation(CodexQueuedMessage message) {
       if (attachment.mimeType != null) 'mimeType': attachment.mimeType,
       if (attachment.sizeBytes != null) 'sizeBytes': attachment.sizeBytes,
       if (attachment.detail != null) 'detail': attachment.detail,
+      if (attachment.annotationContext != null)
+        'annotationContext': attachment.annotationContext,
+      if (attachment.annotationUrl != null)
+        'annotationUrl': attachment.annotationUrl,
+      if (attachment.annotationTitle != null)
+        'annotationTitle': attachment.annotationTitle,
+      if (attachment.annotationCount != null)
+        'annotationCount': attachment.annotationCount,
     });
   }
   for (final item in message.draftItems) {

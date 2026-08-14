@@ -206,6 +206,15 @@ void registerCodexChatControllerInputTests() {
                 isImage: true,
                 origin: CodexInputAttachmentOrigin.mention,
               ),
+              CodexInputAttachment(
+                path: '/tmp/browser-annotation.png',
+                isImage: true,
+                annotationContext:
+                    'Browser annotation context\nComment: Fix spacing.',
+                annotationUrl: 'https://example.com',
+                annotationTitle: 'Example',
+                annotationCount: 1,
+              ),
               CodexInputAttachment(path: '/tmp/prompt.wav', isImage: false),
               CodexInputAttachment(
                 path: '/tmp/notes file.txt',
@@ -250,6 +259,14 @@ void registerCodexChatControllerInputTests() {
           'type': 'localImage',
           'path': '/tmp/mentioned-image.png',
         },
+        <String, Object?>{
+          'type': 'localImage',
+          'path': '/tmp/browser-annotation.png',
+        },
+        <String, Object?>{
+          'type': 'text',
+          'text': 'Browser annotation context\nComment: Fix spacing.',
+        },
         <String, Object?>{'type': 'localAudio', 'path': '/tmp/prompt.wav'},
         <String, Object?>{
           'type': 'text',
@@ -267,17 +284,27 @@ void registerCodexChatControllerInputTests() {
       );
       expect(presentation['text'], 'Use these inputs and "docs/my notes.md"');
       final presentedAttachments = presentation['attachments']! as List;
-      expect(presentedAttachments, hasLength(5));
+      expect(presentedAttachments, hasLength(6));
       expect(
         presentedAttachments.map((value) => (value as Map)['path']),
         containsAll(<String>[
           '/tmp/image.png',
           '/tmp/mentioned-image.png',
+          '/tmp/browser-annotation.png',
           '/tmp/prompt.wav',
           '/tmp/notes file.txt',
           'docs/my notes.md',
         ]),
       );
+      final annotationPresentation =
+          presentedAttachments.firstWhere(
+                (value) =>
+                    (value as Map)['path'] == '/tmp/browser-annotation.png',
+              )
+              as Map;
+      expect(annotationPresentation['annotationUrl'], 'https://example.com');
+      expect(annotationPresentation['annotationTitle'], 'Example');
+      expect(annotationPresentation['annotationCount'], 1);
 
       await container
           .read(provider.notifier)

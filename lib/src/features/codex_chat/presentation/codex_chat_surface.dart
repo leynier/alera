@@ -152,6 +152,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
   void initState() {
     super.initState();
     _draftStore = ref.read(codexComposerDraftStoreProvider);
+    _draftStore.addListener(_onDraftStoreChanged);
     final draft = _draftStore.read(widget.tab.id);
     _composer = TextEditingController.fromValue(draft.value)
       ..addListener(_persistCurrentDraft);
@@ -185,6 +186,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
 
   @override
   void dispose() {
+    _draftStore.removeListener(_onDraftStoreChanged);
     _timeline.removeListener(_loadEarlierHistory);
     _composer.removeListener(_persistCurrentDraft);
     _composer.dispose();
@@ -192,6 +194,19 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     _timeline.dispose();
     _planDecisionRevision.dispose();
     super.dispose();
+  }
+
+  void _onDraftStoreChanged() {
+    if (!mounted || _restoringDraft) return;
+    final draft = _draftStore.read(widget.tab.id);
+    setState(() {
+      _attachments
+        ..clear()
+        ..addAll(draft.attachments);
+      _draftItems
+        ..clear()
+        ..addAll(draft.draftItems);
+    });
   }
 
   void _restoreDraft(String tabId) {

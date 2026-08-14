@@ -235,7 +235,16 @@ fn normalize_attachment(value: &Value) -> Option<Value> {
     }
     let mut normalized = Map::new();
     normalized.insert("path".to_string(), Value::String(path.to_string()));
-    for key in ["type", "kind", "origin", "mimeType", "detail"] {
+    for key in [
+        "type",
+        "kind",
+        "origin",
+        "mimeType",
+        "detail",
+        "annotationContext",
+        "annotationUrl",
+        "annotationTitle",
+    ] {
         if let Some(value) = source
             .get(key)
             .and_then(Value::as_str)
@@ -261,6 +270,12 @@ fn normalize_attachment(value: &Value) -> Option<Value> {
     }
     if let Some(value) = source.get("sizeBytes").and_then(Value::as_u64) {
         normalized.insert("sizeBytes".to_string(), Value::Number(value.into()));
+    }
+    if let Some(value) = source.get("annotationCount").and_then(Value::as_u64) {
+        normalized.insert(
+            "annotationCount".to_string(),
+            Value::Number(value.min(20).into()),
+        );
     }
     Some(Value::Object(normalized))
 }
