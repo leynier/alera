@@ -41,9 +41,9 @@ The default Claude account can be enabled or disabled independently from the Cla
 
 ## OpenCode Go And Zen
 
-OpenCode is enabled as one provider with separate **Go** and **Zen** snapshots. Alera reads the OpenCode local SQLite history on the target host, so the OpenCode CLI must have been used on that host. Go is displayed against the published $12 per 5-hour, $30 weekly, and $60 monthly plan limits. These values are host-local estimates because OpenCode does not currently expose an account usage endpoint. Zen is shown as local 30-day spend; authoritative Zen balance data is not currently exposed by the provider. Estimated rows are labeled **Estimated** and must not be treated as billing records.
+OpenCode is enabled as one provider with separate **Go** and **Zen** snapshots. Alera follows OpenCode's current data location (`XDG_DATA_HOME/opencode`, falling back to `~/.local/share/opencode`) on Windows, macOS, and Linux, then checks the platform-native legacy data location for older installs. It reads the OpenCode API credentials from the target host's OpenCode `auth.json`. Go uses OpenCode's authenticated `/zen/go/v1/usage` endpoint, so its 5-hour, weekly, and monthly percentages and reset times reflect account usage across OpenCode clients and hosts. The published Go limits are $12 per 5-hour, $30 weekly, and $60 monthly, but Alera does not reconstruct them from local message costs. Zen is shown as local 30-day spend from the OpenCode SQLite history when a Zen API key is configured; authoritative Zen balance data is not currently exposed by the provider. Zen rows are labeled **Estimated** and must not be treated as billing records.
 
-Alera stores only environment variable names, never API key values. Configure the values on every local or remote host where the provider is enabled:
+Alera stores only environment variable names in its own settings and never API key values. OpenCode credentials remain in OpenCode's `auth.json`. Configure the values on every local or remote host where the provider is enabled:
 
 - Kimi Code: `KIMI_API_KEY` and optionally `KIMI_CODE_BASE_URL`.
 - MiniMax: `MINIMAX_API_KEY` and optionally `MINIMAX_API_HOST`.
