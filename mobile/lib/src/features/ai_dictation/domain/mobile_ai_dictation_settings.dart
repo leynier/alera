@@ -1,61 +1,65 @@
+enum MobileAiDictationEngine { systemOnDevice, systemRecognition }
+
+enum MobileAiDictationRewriteMode { off, cleanUp, summarize }
+
 class MobileAiDictationSettings {
   const MobileAiDictationSettings({
     this.enabled = false,
-    this.localModelId = 'whisper-base',
-    this.hostFallbackEnabled = true,
-    this.providerFallbackEnabled = false,
-    this.providerBaseUrl = 'https://api.openai.com',
-    this.providerModel = 'gpt-4o-mini-transcribe',
+    this.engine = MobileAiDictationEngine.systemOnDevice,
+    this.rewriteMode = MobileAiDictationRewriteMode.off,
     this.language,
+    this.systemRecognitionConsentVersion,
   });
 
   final bool enabled;
-  final String localModelId;
-  final bool hostFallbackEnabled;
-  final bool providerFallbackEnabled;
-  final String providerBaseUrl;
-  final String providerModel;
+  final MobileAiDictationEngine engine;
+  final MobileAiDictationRewriteMode rewriteMode;
   final String? language;
+  final int? systemRecognitionConsentVersion;
 
   MobileAiDictationSettings copyWith({
     bool? enabled,
-    String? localModelId,
-    bool? hostFallbackEnabled,
-    bool? providerFallbackEnabled,
-    String? providerBaseUrl,
-    String? providerModel,
+    MobileAiDictationEngine? engine,
+    MobileAiDictationRewriteMode? rewriteMode,
     String? language,
+    int? systemRecognitionConsentVersion,
+    bool clearLanguage = false,
+    bool clearConsent = false,
   }) => MobileAiDictationSettings(
     enabled: enabled ?? this.enabled,
-    localModelId: localModelId ?? this.localModelId,
-    hostFallbackEnabled: hostFallbackEnabled ?? this.hostFallbackEnabled,
-    providerFallbackEnabled:
-        providerFallbackEnabled ?? this.providerFallbackEnabled,
-    providerBaseUrl: providerBaseUrl ?? this.providerBaseUrl,
-    providerModel: providerModel ?? this.providerModel,
-    language: language ?? this.language,
+    engine: engine ?? this.engine,
+    rewriteMode: rewriteMode ?? this.rewriteMode,
+    language: clearLanguage ? null : language ?? this.language,
+    systemRecognitionConsentVersion: clearConsent
+        ? null
+        : systemRecognitionConsentVersion ??
+              this.systemRecognitionConsentVersion,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'enabled': enabled,
-    'localModelId': localModelId,
-    'hostFallbackEnabled': hostFallbackEnabled,
-    'providerFallbackEnabled': providerFallbackEnabled,
-    'providerBaseUrl': providerBaseUrl,
-    'providerModel': providerModel,
+    'engine': engine.name,
+    'rewriteMode': rewriteMode.name,
     'language': language,
+    'systemRecognitionConsentVersion': systemRecognitionConsentVersion,
   };
 
-  factory MobileAiDictationSettings.fromJson(Map<String, Object?> json) =>
-      MobileAiDictationSettings(
-        enabled: json['enabled'] == true,
-        localModelId: json['localModelId'] as String? ?? 'whisper-base',
-        hostFallbackEnabled: json['hostFallbackEnabled'] != false,
-        providerFallbackEnabled: json['providerFallbackEnabled'] == true,
-        providerBaseUrl:
-            json['providerBaseUrl'] as String? ?? 'https://api.openai.com',
-        providerModel:
-            json['providerModel'] as String? ?? 'gpt-4o-mini-transcribe',
-        language: json['language'] as String?,
-      );
+  factory MobileAiDictationSettings.fromJson(Map<String, Object?> json) {
+    final engineName = json['engine']?.toString();
+    final rewriteName = json['rewriteMode']?.toString();
+    return MobileAiDictationSettings(
+      enabled: json['enabled'] == true,
+      engine: MobileAiDictationEngine.values.firstWhere(
+        (value) => value.name == engineName,
+        orElse: () => MobileAiDictationEngine.systemOnDevice,
+      ),
+      rewriteMode: MobileAiDictationRewriteMode.values.firstWhere(
+        (value) => value.name == rewriteName,
+        orElse: () => MobileAiDictationRewriteMode.off,
+      ),
+      language: json['language'] as String?,
+      systemRecognitionConsentVersion:
+          (json['systemRecognitionConsentVersion'] as num?)?.toInt(),
+    );
+  }
 }

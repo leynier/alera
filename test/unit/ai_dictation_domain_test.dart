@@ -20,12 +20,22 @@ void main() {
     expect(settings.timeoutSeconds, 30);
     expect(settings.hostFallbackEnabled, isTrue);
     expect(settings.providerFallbackEnabled, isFalse);
+    expect(
+      settings.transcriptionEngine,
+      AiDictationTranscriptionEngine.localWhisper,
+    );
+    expect(settings.rewriteMode, AiDictationRewriteMode.off);
   });
 
   test('exposes selectable verified local Whisper models', () {
     expect(
       AiDictationModelStore.models.map((model) => model.id),
-      contains('whisper-base'),
+      containsAll(<String>[
+        'whisper-tiny',
+        'whisper-base',
+        'whisper-small',
+        'whisper-large-v3-turbo-q5-0',
+      ]),
     );
     expect(
       AiDictationModelStore.modelForId('whisper-cpp-base'),

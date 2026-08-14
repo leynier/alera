@@ -34,6 +34,8 @@ class TerminalComposer extends StatelessWidget {
     return AiDictationTarget(
       controller: composer.textController,
       focusNode: composer.focusNode,
+      workspaceId: session.workspaceId,
+      tabId: session.tabId,
       builder: (context, targetId) => AnimatedBuilder(
         animation: composer,
         builder: (context, _) => AleraComposer(

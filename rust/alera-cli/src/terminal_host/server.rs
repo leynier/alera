@@ -61,6 +61,7 @@ mod ai_dictation_requests;
 mod ai_text_grok_plan;
 mod ai_text_open_code;
 mod ai_text_requests;
+mod ai_text_speech_message;
 mod ai_text_workspace_identity;
 mod automation_actor;
 mod automation_catalog_requests;

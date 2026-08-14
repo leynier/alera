@@ -269,6 +269,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                     draftItems: _draftItems,
                     savedPrompts: _savedPrompts,
                     workspacePath: activeWorkspacePath,
+                    workspaceId: widget.workspace.id,
                     workspaceFiles: _workspaceFiles,
                     onEditQueued: (index, message) =>
                         _editQueued(controller, index, message),

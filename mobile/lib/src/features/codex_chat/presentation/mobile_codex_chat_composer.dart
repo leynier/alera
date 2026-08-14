@@ -6,6 +6,8 @@ class _MobileComposer extends StatefulWidget {
     required this.focusNode,
     required this.chatController,
     required this.workspaceId,
+    required this.hostId,
+    required this.tabId,
     required this.state,
     required this.attachments,
     required this.busy,
@@ -39,6 +41,8 @@ class _MobileComposer extends StatefulWidget {
   final FocusNode focusNode;
   final MobileCodexController chatController;
   final String workspaceId;
+  final String hostId;
+  final String tabId;
   final MobileCodexState state;
   final List<Map<String, Object?>> attachments;
   final bool busy;

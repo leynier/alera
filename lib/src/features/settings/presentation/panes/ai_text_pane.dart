@@ -33,6 +33,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
         AiTextGenerationOperation.commitMessage,
         AiTextGenerationOperation.pullRequestDetails,
         AiTextGenerationOperation.workspaceIdentity,
+        AiTextGenerationOperation.speechMessage,
       ];
 
   final Map<AiTextGenerationAgent, _AiTextModelDiscoveryState> _discovery =
@@ -265,6 +266,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
         operation: operation,
         globalAgent: settings.agent,
         value: promptSettings.agent,
+        allowCustom: operation != AiTextGenerationOperation.speechMessage,
         onChanged: (agent) {
           final previousAgent = settings.agentFor(operation);
           final nextAgent = agent ?? settings.agent;

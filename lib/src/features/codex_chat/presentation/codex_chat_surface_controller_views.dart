@@ -79,6 +79,7 @@ class _CodexControllerFooter extends ConsumerWidget {
     required this.draftItems,
     required this.savedPrompts,
     required this.workspacePath,
+    required this.workspaceId,
     required this.workspaceFiles,
     required this.onEditQueued,
     required this.onDraftItemSelected,
@@ -104,6 +105,7 @@ class _CodexControllerFooter extends ConsumerWidget {
   final List<CodexDraftItem> draftItems;
   final List<native.CodexSavedPrompt> savedPrompts;
   final String workspacePath;
+  final String workspaceId;
   final WorkspaceFileService workspaceFiles;
   final void Function(int index, CodexQueuedMessage message) onEditQueued;
   final ValueChanged<CodexDraftItem> onDraftItemSelected;
@@ -258,6 +260,8 @@ class _CodexControllerFooter extends ConsumerWidget {
                       state: state,
                       promptHistory: state.snapshot.promptHistory,
                       workspacePath: state.activeCwd ?? workspacePath,
+                      workspaceId: workspaceId,
+                      tabId: tabId,
                       workspaceFiles: workspaceFiles,
                       onModelChanged: controller.setModel,
                       onReasoningChanged: controller.setReasoning,
