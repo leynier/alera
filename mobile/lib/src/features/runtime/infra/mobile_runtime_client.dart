@@ -191,22 +191,36 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(automationsCapability);
   bool get supportsAiDictation =>
       _runtimeCapabilities.contains(aiDictationCapability);
+  bool get supportsAiDictationModels =>
+      _runtimeCapabilities.contains(aiDictationModelsCapability);
 
   Future<Map<String, Object?>> transcribeMobileAudio({
+    required String requestId,
     required List<int> audio,
-    String? modelPath,
+    required String engine,
+    required String modelId,
     String? language,
     String? initialPrompt,
   }) {
-    if (!supportsAiDictation) {
-      throw UnsupportedError('Update the runtime to add host AI Dictation.');
+    if (!supportsAiDictationModels) {
+      throw UnsupportedError(
+        'Update the paired runtime to select remote Dictation models.',
+      );
     }
     return requestMap('mobile.aiDictation.transcribe', <String, Object?>{
-      'requestId': 'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}',
+      'requestId': requestId,
       'audioBase64': base64Encode(audio),
-      'modelPath': modelPath,
+      'engine': engine,
+      'modelId': modelId,
       'language': language,
       'initialPrompt': initialPrompt,
+    });
+  }
+
+  Future<void> cancelMobileAudioTranscription(String requestId) async {
+    if (!supportsAiDictation) return;
+    await requestMap('mobile.aiDictation.cancel', <String, Object?>{
+      'requestId': requestId,
     });
   }
 

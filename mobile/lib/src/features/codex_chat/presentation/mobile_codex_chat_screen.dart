@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';

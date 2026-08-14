@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
 import 'package:flutter/material.dart';
 
 /// Compose-mode input: type the full text, then send it. Send submits with
@@ -98,38 +99,49 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
           AleraTokens.spaceXs,
           AleraTokens.spaceSm,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                minLines: 1,
-                maxLines: AleraTokens.composeBarMaxLines,
-                autocorrect: true,
-                enableSuggestions: true,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
-                decoration: const InputDecoration(
-                  hintText: 'Type A Command',
-                  isDense: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: AleraTokens.spaceXs),
-            MobileAiDictationControl(
+            MobileAiDictationReviewBar(
               hostId: widget.hostId,
               targetKey: 'terminal-${widget.tabId}',
-              tabId: widget.tabId,
-              controller: _controller,
             ),
-            GestureDetector(
-              onLongPress: _hasText ? _sendOptions : null,
-              child: IconButton.filled(
-                tooltip: 'Send',
-                onPressed: () => _send(withEnter: true),
-                icon: const Icon(Icons.arrow_upward),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    minLines: 1,
+                    maxLines: AleraTokens.composeBarMaxLines,
+                    autocorrect: true,
+                    enableSuggestions: true,
+                    textInputAction: TextInputAction.newline,
+                    style: const TextStyle(
+                      fontFamily: AleraTokens.monoFontFamily,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Type A Command',
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.spaceXs),
+                MobileAiDictationControl(
+                  hostId: widget.hostId,
+                  targetKey: 'terminal-${widget.tabId}',
+                  tabId: widget.tabId,
+                  controller: _controller,
+                ),
+                GestureDetector(
+                  onLongPress: _hasText ? _sendOptions : null,
+                  child: IconButton.filled(
+                    tooltip: 'Send',
+                    onPressed: () => _send(withEnter: true),
+                    icon: const Icon(Icons.arrow_upward),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
