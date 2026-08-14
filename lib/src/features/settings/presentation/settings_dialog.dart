@@ -192,9 +192,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'workspaceIdentity', title: 'Workspace Identity'),
     ];
     const aiDictationGroups = <SettingsGroupSpec>[
-      SettingsGroupSpec(id: 'local', title: 'Local Whisper'),
-      SettingsGroupSpec(id: 'fallback', title: 'Fallback Providers'),
-      SettingsGroupSpec(id: 'privacy', title: 'Privacy'),
+      SettingsGroupSpec(id: 'transcription', title: 'Transcription'),
+      SettingsGroupSpec(id: 'models', title: 'Local Whisper Models'),
+      SettingsGroupSpec(id: 'processing', title: 'Speech Processing'),
     ];
     const terminalGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'typography', title: 'Typography'),
@@ -283,7 +283,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'aiDictation',
         title: 'AI Dictation',
-        description: 'Offline speech-to-text for Alera composers.',
+        description: 'Local and platform speech-to-text for Alera composers.',
         icon: AleraIcons.mic,
         entries: aiDictationSearchEntries,
         groups: aiDictationGroups,

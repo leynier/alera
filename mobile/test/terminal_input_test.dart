@@ -113,12 +113,16 @@ void main() {
     (tester) async {
       final sent = <(String, bool)>[];
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TerminalComposeBar(
-              onSend: (text, {required bool withEnter}) {
-                sent.add((text, withEnter));
-              },
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: TerminalComposeBar(
+                hostId: 'host',
+                tabId: 'tab',
+                onSend: (text, {required bool withEnter}) {
+                  sent.add((text, withEnter));
+                },
+              ),
             ),
           ),
         ),
@@ -144,12 +148,16 @@ void main() {
     // TerminalComposeDelivery's decision, not this widget's.
     final sent = <(String, bool)>[];
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: TerminalComposeBar(
-            onSend: (text, {required bool withEnter}) {
-              sent.add((text, withEnter));
-            },
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: TerminalComposeBar(
+              hostId: 'host',
+              tabId: 'tab',
+              onSend: (text, {required bool withEnter}) {
+                sent.add((text, withEnter));
+              },
+            ),
           ),
         ),
       ),

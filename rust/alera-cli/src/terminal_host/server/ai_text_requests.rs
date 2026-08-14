@@ -21,7 +21,7 @@ use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
-const SUPPORTED_AGENTS: [&str; 11] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 11] = [
     "codex",
     "claude",
     "copilot",
@@ -124,7 +124,7 @@ impl ServerActor {
     }
 }
 
-fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
+pub(super) fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
     ACTIVE_GENERATIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -156,7 +156,7 @@ async fn generate_workspace_identity(
     parse_workspace_identity(&result)
 }
 
-fn plan_command(
+pub(super) fn plan_command(
     settings: &RuntimeAiTextGenerationSettings,
     operation: &str,
     prompt: &str,
@@ -405,7 +405,7 @@ fn tokenize_command(template: &str) -> Vec<String> {
     tokens
 }
 
-async fn run_command(
+pub(super) async fn run_command(
     plan: AiTextCommandPlan,
     working_directory: &str,
     timeout_seconds: u64,
@@ -478,7 +478,7 @@ async fn run_command(
     result
 }
 
-fn default_model(agent: &str) -> &'static str {
+pub(super) fn default_model(agent: &str) -> &'static str {
     match agent {
         "claude" => "sonnet",
         "codex" => "gpt-5.5",

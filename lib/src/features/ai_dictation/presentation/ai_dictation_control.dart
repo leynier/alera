@@ -32,7 +32,9 @@ class AiDictationControl extends StatelessWidget {
         final busy = service.isTranscribing && active;
         return AleraIconButton(
           tooltip: busy
-              ? 'Transcribing'
+              ? service.isImproving
+                    ? 'Improving Transcript'
+                    : 'Transcribing'
               : active && service.isRecording
               ? 'Stop Dictation'
               : 'Start Dictation',
@@ -69,6 +71,10 @@ class AiDictationControl extends StatelessWidget {
     try {
       if (active && service.isRecording) {
         await service.stop();
+        final warning = service.takeWarning();
+        if (warning != null) {
+          AleraToast.publish(message: warning, tone: AleraToastTone.info);
+        }
       } else {
         await service.start(targetId);
       }

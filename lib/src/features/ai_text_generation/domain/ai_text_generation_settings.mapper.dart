@@ -38,6 +38,8 @@ class AiTextGenerationOperationMapper
         return AiTextGenerationOperation.branchName;
       case r'workspaceIdentity':
         return AiTextGenerationOperation.workspaceIdentity;
+      case r'speechMessage':
+        return AiTextGenerationOperation.speechMessage;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -54,6 +56,8 @@ class AiTextGenerationOperationMapper
         return r'branchName';
       case AiTextGenerationOperation.workspaceIdentity:
         return r'workspaceIdentity';
+      case AiTextGenerationOperation.speechMessage:
+        return r'speechMessage';
     }
   }
 }

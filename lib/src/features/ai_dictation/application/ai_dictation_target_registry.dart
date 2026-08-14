@@ -6,12 +6,16 @@ class AiDictationTarget {
     required this.controller,
     required this.focusNode,
     this.initialPrompt,
+    this.workspaceId,
+    this.tabId,
   });
 
   final String id;
   final TextEditingController controller;
   final FocusNode focusNode;
   final String? initialPrompt;
+  final String? workspaceId;
+  final String? tabId;
 
   bool insert(String text) {
     final value = controller.value;
@@ -36,6 +40,8 @@ class AiDictationTargetRegistry {
     required TextEditingController controller,
     required FocusNode focusNode,
     String? initialPrompt,
+    String? workspaceId,
+    String? tabId,
   }) {
     final id =
         'dictation-target-${_targets.length}-${identityHashCode(controller)}';
@@ -44,6 +50,8 @@ class AiDictationTargetRegistry {
       controller: controller,
       focusNode: focusNode,
       initialPrompt: initialPrompt,
+      workspaceId: workspaceId,
+      tabId: tabId,
     );
     return id;
   }

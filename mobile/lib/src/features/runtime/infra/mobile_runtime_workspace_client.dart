@@ -46,6 +46,9 @@ mixin MobileRuntimeWorkspaceClient {
   bool get supportsPromptImageUpload =>
       runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
+  bool get supportsSpeechMessageProcessing =>
+      runtimeCapabilities.contains(aiTextSpeechMessageCapability);
+
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
     await request('workspace.setPinned', <String, Object?>{
       'id': workspaceId,
@@ -178,6 +181,27 @@ mixin MobileRuntimeWorkspaceClient {
     await request('aiText.cancel', <String, Object?>{
       'operationId': operationId,
     });
+  }
+
+  Future<Map<String, Object?>> processSpeechMessage({
+    required String operationId,
+    required String text,
+    required String mode,
+    String? workspaceId,
+    String? tabId,
+  }) async {
+    if (!supportsSpeechMessageProcessing) {
+      throw UnsupportedError(
+        'Update Alera on the paired host to process speech messages.',
+      );
+    }
+    return requestMap('aiText.speechMessage.generate', <String, Object?>{
+      'operationId': operationId,
+      'text': text,
+      'mode': mode,
+      'workspaceId': ?workspaceId,
+      'tabId': ?tabId,
+    }, const Duration(minutes: 3));
   }
 
   Future<PromptImageUploadResult> uploadPromptImage({

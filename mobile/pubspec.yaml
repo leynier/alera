@@ -56,8 +56,7 @@ dependencies:
   share_plus: ^13.3.0
   sentry_flutter: ^9.25.0
   path: ^1.9.1
-  crypto: ^3.0.7
-  record: ^7.1.1
+  speech_to_text: ^7.4.0
 
 dev_dependencies:
   flutter_test:

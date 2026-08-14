@@ -92,6 +92,8 @@ Widget _buildMobileCodexFooter(
     focusNode: owner._composerFocus,
     chatController: controller,
     workspaceId: owner.widget.workspaceId,
+    hostId: owner.widget.hostId,
+    tabId: owner.widget.tabId,
     state: state,
     attachments: owner._attachments,
     busy: state.busy,

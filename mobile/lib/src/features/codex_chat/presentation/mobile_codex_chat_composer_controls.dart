@@ -37,6 +37,14 @@ class _MobileComposerControls extends StatelessWidget {
   );
 
   List<Widget> _leftControls({bool compact = false}) => <Widget>[
+    MobileAiDictationControl(
+      hostId: composer.hostId,
+      targetKey: 'codex-${composer.tabId}',
+      workspaceId: composer.workspaceId,
+      tabId: composer.tabId,
+      controller: composer.controller,
+      enabled: !disabled,
+    ),
     IconButton(
       tooltip: 'Add Attachment',
       visualDensity: VisualDensity.compact,

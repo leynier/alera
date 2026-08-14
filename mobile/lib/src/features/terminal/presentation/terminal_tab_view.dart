@@ -81,7 +81,11 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
                 .toggle,
           ),
           if (inputMode == TerminalInputMode.compose)
-            TerminalComposeBar(onSend: notifier.sendComposedText),
+            TerminalComposeBar(
+              hostId: widget.hostId,
+              tabId: widget.tabId,
+              onSend: notifier.sendComposedText,
+            ),
         ],
       ),
       AsyncError(:final error) => _SessionError(
