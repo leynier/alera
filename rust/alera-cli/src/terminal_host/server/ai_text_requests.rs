@@ -21,7 +21,7 @@ use super::{ServerActor, ServerCommand};
 
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
-const SUPPORTED_AGENTS: [&str; 11] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 11] = [
     "codex",
     "claude",
     "copilot",
@@ -478,7 +478,7 @@ pub(super) async fn run_command(
     result
 }
 
-fn default_model(agent: &str) -> &'static str {
+pub(super) fn default_model(agent: &str) -> &'static str {
     match agent {
         "claude" => "sonnet",
         "codex" => "gpt-5.5",

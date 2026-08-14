@@ -153,12 +153,14 @@ class AiTextPromptAgentRow extends StatelessWidget {
     required this.globalAgent,
     required this.value,
     required this.onChanged,
+    this.allowCustom = true,
   });
 
   final AiTextGenerationOperation operation;
   final AiTextGenerationAgent globalAgent;
   final AiTextGenerationAgent? value;
   final ValueChanged<AiTextGenerationAgent?> onChanged;
+  final bool allowCustom;
 
   @override
   Widget build(BuildContext context) {
@@ -176,10 +178,11 @@ class AiTextPromptAgentRow extends StatelessWidget {
             label: 'Global (${globalAgent.label})',
           ),
           for (final agent in AiTextGenerationAgent.values)
-            AleraDropdownFieldEntry<AiTextGenerationAgent?>(
-              value: agent,
-              label: agent.label,
-            ),
+            if (allowCustom || agent != AiTextGenerationAgent.custom)
+              AleraDropdownFieldEntry<AiTextGenerationAgent?>(
+                value: agent,
+                label: agent.label,
+              ),
         ],
         onChanged: onChanged,
       ),

@@ -40,6 +40,7 @@ const String mobileAgentQuotaClaudeTuiCapability = 'agentQuotaClaudeTuiV1';
 const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
+const String aiTextSpeechMessageCapability = 'aiTextSpeechMessageV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String codexChatTabCapability = 'codexChatTabV1';
 const String codexGoalsCapability = 'codexGoalsV1';

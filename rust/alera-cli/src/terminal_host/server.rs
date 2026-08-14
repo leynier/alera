@@ -66,6 +66,7 @@ mod ai_text_pull_request;
 mod ai_text_open_code;
 mod ai_text_requests;
 mod ai_text_text_action;
+mod ai_text_speech_message;
 mod ai_text_workspace_identity;
 mod automation_actor;
 mod automation_catalog_requests;

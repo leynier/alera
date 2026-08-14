@@ -11,6 +11,7 @@ void main() {
         'Pull Request Details',
         'Branch Names',
         'Workspace Identity',
+        'Speech Messages',
       ],
     );
     expect(AiTextGenerationAgent.codex.agentType, AgentType.codex);

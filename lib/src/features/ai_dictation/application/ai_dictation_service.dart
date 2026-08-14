@@ -3,11 +3,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
-
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_target_registry.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_error.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_provider.dart';
@@ -15,42 +10,64 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
+import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_speech_processor.dart';
+import 'package:alera/src/features/ai_dictation/infra/system_ai_dictation_recognizer.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+
+enum AiDictationStage { idle, recording, transcribing, improving }
 
 class AiDictationService extends ChangeNotifier {
   AiDictationService({
     required AiDictationSettings Function() settings,
     required AiDictationTargetRegistry targets,
     required AiDictationProvider provider,
-    this.fallbackProviders = const <AiDictationProvider>[],
     required AiDictationModelStore modelStore,
+    required AiDictationSpeechProcessor speechProcessor,
+    SystemAiDictationRecognizer? systemRecognizer,
     AudioRecorder? recorder,
   }) : _settings = settings,
        _targets = targets,
        _provider = provider,
        _modelStore = modelStore,
+       _speechProcessor = speechProcessor,
+       _systemRecognizer = systemRecognizer ?? SystemAiDictationRecognizer(),
        _recorder = recorder;
 
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;
   final AiDictationProvider _provider;
-  final List<AiDictationProvider> fallbackProviders;
   final AiDictationModelStore _modelStore;
+  final AiDictationSpeechProcessor _speechProcessor;
+  final SystemAiDictationRecognizer _systemRecognizer;
   AudioRecorder? _recorder;
 
   String? _activeTargetId;
   String? _audioPath;
   String? _requestId;
-  bool _recording = false;
-  bool _transcribing = false;
+  String? _processingOperationId;
+  String? _lastWarning;
+  AiDictationStage _stage = AiDictationStage.idle;
+  Future<AiDictationResult?>? _systemFinalization;
 
-  bool get isRecording => _recording;
-  bool get isTranscribing => _transcribing;
+  bool get isRecording => _stage == AiDictationStage.recording;
+  bool get isTranscribing =>
+      _stage == AiDictationStage.transcribing ||
+      _stage == AiDictationStage.improving;
+  bool get isImproving => _stage == AiDictationStage.improving;
+  AiDictationStage get stage => _stage;
   String? get activeTargetId => _activeTargetId;
 
+  String? takeWarning() {
+    final warning = _lastWarning;
+    _lastWarning = null;
+    return warning;
+  }
+
   Future<void> start(String targetId) async {
-    if (_recording || _transcribing) {
-      return;
-    }
+    if (_stage != AiDictationStage.idle) return;
     final settings = _settings();
     if (!settings.enabled) {
       throw const AiDictationException(
@@ -65,17 +82,23 @@ class AiDictationService extends ChangeNotifier {
         'The dictation text field is no longer available.',
       );
     }
-    final localReady = await _modelStore.isInstalled(settings.localModelId);
-    final hasFallback =
-        settings.hostFallbackEnabled || settings.providerFallbackEnabled;
-    if (!localReady && !hasFallback) {
+    _lastWarning = null;
+    _activeTargetId = targetId;
+    if (settings.transcriptionEngine !=
+        AiDictationTranscriptionEngine.localWhisper) {
+      await _startSystemRecognition(settings, targetId);
+      return;
+    }
+    if (!await _modelStore.isInstalled(settings.localModelId)) {
+      _activeTargetId = null;
       throw const AiDictationException(
         AiDictationErrorKind.modelUnavailable,
-        'Download the Whisper model in Settings before recording.',
+        'Download the selected Whisper model in Settings before recording.',
       );
     }
     final recorder = _recorder ??= AudioRecorder();
     if (!await recorder.hasPermission()) {
+      _activeTargetId = null;
       throw const AiDictationException(
         AiDictationErrorKind.permissionDenied,
         'Microphone permission is required for AI Dictation.',
@@ -94,21 +117,80 @@ class AiDictationService extends ChangeNotifier {
       ),
       path: path,
     );
-    _activeTargetId = targetId;
     _audioPath = path;
-    _recording = true;
+    _stage = AiDictationStage.recording;
+    notifyListeners();
+  }
+
+  Future<void> _startSystemRecognition(
+    AiDictationSettings settings,
+    String targetId,
+  ) async {
+    if (settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.systemOnDevice &&
+        !await SystemAiDictationRecognizer.supportsOnDevice(
+          settings.language,
+        )) {
+      _activeTargetId = null;
+      throw const AiDictationException(
+        AiDictationErrorKind.transcription,
+        'On-device speech recognition is unavailable for this locale.',
+      );
+    }
+    if (settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.systemRecognition &&
+        settings.systemRecognitionConsentVersion != 1) {
+      _activeTargetId = null;
+      throw const AiDictationException(
+        AiDictationErrorKind.permissionDenied,
+        'Allow online speech recognition in AI Dictation settings first.',
+      );
+    }
+    try {
+      await _systemRecognizer.start(
+        localeId: settings.language,
+        onDevice:
+            settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.systemOnDevice,
+        onFinal: (text) => unawaited(_finalizeSystem(targetId, text)),
+        onError: (error) {
+          _lastWarning = 'System speech recognition failed: $error';
+          if (_systemFinalization == null) _resetSession();
+        },
+      );
+    } on Object catch (error) {
+      _activeTargetId = null;
+      throw AiDictationException(
+        AiDictationErrorKind.transcription,
+        'System speech recognition could not start: $error',
+        cause: error,
+      );
+    }
+    _stage = AiDictationStage.recording;
     notifyListeners();
   }
 
   Future<AiDictationResult?> stop() async {
-    if (!_recording) {
-      return null;
-    }
+    if (_stage != AiDictationStage.recording) return _systemFinalization;
     final targetId = _activeTargetId;
+    if (_audioPath == null) {
+      final text = await _systemRecognizer.stop();
+      if (targetId == null || text.trim().isEmpty) {
+        _resetSession();
+        throw const AiDictationException(
+          AiDictationErrorKind.audio,
+          'The system recognizer did not produce a transcription.',
+        );
+      }
+      return _finalizeSystem(targetId, text);
+    }
+    return _stopWhisper(targetId);
+  }
+
+  Future<AiDictationResult?> _stopWhisper(String? targetId) async {
     final recorder = _recorder;
     final path = await recorder?.stop() ?? _audioPath;
-    _recording = false;
-    _transcribing = true;
+    _stage = AiDictationStage.transcribing;
     notifyListeners();
     if (path == null || targetId == null) {
       _resetSession();
@@ -121,85 +203,108 @@ class AiDictationService extends ChangeNotifier {
     _requestId = requestId;
     try {
       final settings = _settings();
-      final localReady = await _modelStore.isInstalled(settings.localModelId);
-      final request = AiDictationRequest(
-        requestId: requestId,
-        audioPath: path,
-        modelPath: localReady
-            ? await _modelStore.modelPath(settings.localModelId)
-            : '',
-        language: settings.language,
-        initialPrompt: _targets.targetFor(targetId)?.initialPrompt,
-        providerModel: settings.remoteModel,
-        providerApiKey: Platform.environment['OPENAI_API_KEY'],
-        providerBaseUrl: settings.remoteBaseUrl,
-        timeout: Duration(seconds: settings.timeoutSeconds),
+      final result = await _provider.transcribe(
+        AiDictationRequest(
+          requestId: requestId,
+          audioPath: path,
+          modelPath: await _modelStore.modelPath(settings.localModelId),
+          language: settings.language,
+          initialPrompt: _targets.targetFor(targetId)?.initialPrompt,
+          timeout: Duration(seconds: settings.timeoutSeconds),
+        ),
       );
-      final candidates = <AiDictationProvider>[
-        if (localReady) _provider,
-        if (settings.providerPolicy != AiDictationProviderPolicy.localOnly)
-          ...fallbackProviders,
-      ];
-      AiDictationResult? result;
-      AiDictationException? lastError;
-      for (final candidate in candidates) {
-        if (candidate.id == 'runtime-whisper' &&
-            !settings.hostFallbackEnabled) {
-          continue;
-        }
-        if (candidate.id == 'openai-compatible' &&
-            !settings.providerFallbackEnabled) {
-          continue;
-        }
-        try {
-          result = await candidate.transcribe(request);
-          break;
-        } on AiDictationException catch (error) {
-          lastError = error;
-          if (!_canFallback(error.kind)) rethrow;
-        }
-      }
-      if (result == null) {
-        throw lastError ??
-            const AiDictationException(
-              AiDictationErrorKind.transcription,
-              'No configured dictation provider is available.',
-            );
-      }
-      if (!_targets.insert(targetId, result.text)) {
+      return _finishTranscript(targetId, result);
+    } finally {
+      final audioFile = File(path);
+      if (await audioFile.exists()) await audioFile.delete();
+    }
+  }
+
+  Future<AiDictationResult?> _finalizeSystem(String targetId, String text) {
+    final active = _systemFinalization;
+    if (active != null) return active;
+    final started = DateTime.now();
+    _stage = AiDictationStage.transcribing;
+    notifyListeners();
+    final future = _finishTranscript(
+      targetId,
+      AiDictationResult(
+        text: text,
+        providerId: 'system-speech-recognition',
+        elapsed: DateTime.now().difference(started),
+        duration: Duration.zero,
+      ),
+    );
+    _systemFinalization = future;
+    return future;
+  }
+
+  Future<AiDictationResult?> _finishTranscript(
+    String targetId,
+    AiDictationResult rawResult,
+  ) async {
+    try {
+      var text = rawResult.text.trim();
+      final settings = _settings();
+      final target = _targets.targetFor(targetId);
+      if (target == null) {
         throw const AiDictationException(
           AiDictationErrorKind.targetUnavailable,
           'The text field was closed before dictation finished.',
         );
       }
-      return result;
+      if (settings.rewriteMode != AiDictationRewriteMode.off) {
+        _stage = AiDictationStage.improving;
+        notifyListeners();
+        final operationId =
+            'speech-message-${DateTime.now().microsecondsSinceEpoch}';
+        _processingOperationId = operationId;
+        try {
+          final processed = await _speechProcessor.process(
+            operationId: operationId,
+            text: text,
+            mode: settings.rewriteMode,
+            target: target,
+          );
+          text = processed.text;
+        } on Object catch (error) {
+          _lastWarning =
+              'The transcript was inserted without speech processing: $error';
+        }
+      }
+      if (!_targets.insert(targetId, text)) {
+        throw const AiDictationException(
+          AiDictationErrorKind.targetUnavailable,
+          'The text field was closed before dictation finished.',
+        );
+      }
+      return AiDictationResult(
+        text: text,
+        providerId: rawResult.providerId,
+        elapsed: rawResult.elapsed,
+        duration: rawResult.duration,
+        detectedLanguage: rawResult.detectedLanguage,
+      );
     } finally {
       _resetSession();
-      final audioFile = File(path);
-      if (await audioFile.exists()) {
-        await audioFile.delete();
-      }
     }
   }
 
-  bool _canFallback(AiDictationErrorKind kind) =>
-      kind == AiDictationErrorKind.modelUnavailable ||
-      kind == AiDictationErrorKind.transcription;
-
   Future<void> cancel() async {
     final path = _audioPath;
-    if (_requestId case final requestId?) {
-      await _provider.cancel(requestId);
+    if (_processingOperationId case final operationId?) {
+      await _speechProcessor.cancel(operationId);
     }
-    if (_recording) {
+    if (_requestId case final requestId?) await _provider.cancel(requestId);
+    if (_audioPath == null) {
+      await _systemRecognizer.cancel();
+    } else if (_stage == AiDictationStage.recording) {
       await _recorder?.stop();
     }
     _resetSession();
     if (path != null) {
       final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-      }
+      if (await file.exists()) await file.delete();
     }
   }
 
@@ -207,8 +312,9 @@ class AiDictationService extends ChangeNotifier {
     _activeTargetId = null;
     _audioPath = null;
     _requestId = null;
-    _recording = false;
-    _transcribing = false;
+    _processingOperationId = null;
+    _systemFinalization = null;
+    _stage = AiDictationStage.idle;
     notifyListeners();
   }
 

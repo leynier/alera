@@ -1,10 +1,19 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
 import 'package:flutter/material.dart';
 
 /// Compose-mode input: type the full text, then send it. Send submits with
 /// Enter; long-press Send offers sending without it.
 class TerminalComposeBar extends StatefulWidget {
-  const TerminalComposeBar({super.key, required this.onSend});
+  const TerminalComposeBar({
+    super.key,
+    required this.hostId,
+    required this.tabId,
+    required this.onSend,
+  });
+
+  final String hostId;
+  final String tabId;
 
   /// Called with the composed text. How the text and the Enter reach the PTY is
   /// the controller's decision, not this bar's; see
@@ -108,6 +117,12 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
               ),
             ),
             const SizedBox(width: AleraTokens.spaceXs),
+            MobileAiDictationControl(
+              hostId: widget.hostId,
+              targetKey: 'terminal-${widget.tabId}',
+              tabId: widget.tabId,
+              controller: _controller,
+            ),
             GestureDetector(
               onLongPress: _hasText ? _sendOptions : null,
               child: IconButton.filled(

@@ -14,6 +14,8 @@ class _CodexComposer extends StatefulWidget {
     required this.state,
     required this.promptHistory,
     required this.workspacePath,
+    required this.workspaceId,
+    required this.tabId,
     required this.workspaceFiles,
     required this.onModelChanged,
     required this.onReasoningChanged,
@@ -45,6 +47,8 @@ class _CodexComposer extends StatefulWidget {
   final CodexChatState state;
   final List<String> promptHistory;
   final String workspacePath;
+  final String workspaceId;
+  final String tabId;
   final WorkspaceFileService workspaceFiles;
   final ValueChanged<String?> onModelChanged;
   final ValueChanged<String> onReasoningChanged;
@@ -188,6 +192,8 @@ class _CodexComposerState extends State<_CodexComposer> {
                 AiDictationTarget(
                   controller: widget.controller,
                   focusNode: widget.focusNode,
+                  workspaceId: widget.workspaceId,
+                  tabId: widget.tabId,
                   initialPrompt:
                       'The user is chatting with Codex about a software task.',
                   builder: (context, targetId) => Stack(

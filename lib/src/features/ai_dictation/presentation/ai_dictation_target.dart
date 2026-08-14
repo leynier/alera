@@ -10,11 +10,15 @@ class AiDictationTarget extends StatefulWidget {
     required this.focusNode,
     required this.builder,
     this.initialPrompt,
+    this.workspaceId,
+    this.tabId,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final String? initialPrompt;
+  final String? workspaceId;
+  final String? tabId;
   final Widget Function(BuildContext context, String targetId) builder;
 
   @override
@@ -34,6 +38,8 @@ class _AiDictationTargetState extends State<AiDictationTarget> {
           controller: widget.controller,
           focusNode: widget.focusNode,
           initialPrompt: widget.initialPrompt,
+          workspaceId: widget.workspaceId,
+          tabId: widget.tabId,
         ) ??
         'dictation-target-${identityHashCode(widget.controller)}';
   }
@@ -43,7 +49,9 @@ class _AiDictationTargetState extends State<AiDictationTarget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller ||
         oldWidget.focusNode != widget.focusNode ||
-        oldWidget.initialPrompt != widget.initialPrompt) {
+        oldWidget.initialPrompt != widget.initialPrompt ||
+        oldWidget.workspaceId != widget.workspaceId ||
+        oldWidget.tabId != widget.tabId) {
       final registry = _registry ??= _tryRegistry(context);
       registry?.unregister(_targetId);
       _targetId =
@@ -51,6 +59,8 @@ class _AiDictationTargetState extends State<AiDictationTarget> {
             controller: widget.controller,
             focusNode: widget.focusNode,
             initialPrompt: widget.initialPrompt,
+            workspaceId: widget.workspaceId,
+            tabId: widget.tabId,
           ) ??
           'dictation-target-${identityHashCode(widget.controller)}';
     }

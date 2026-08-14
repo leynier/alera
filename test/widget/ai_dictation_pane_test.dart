@@ -10,16 +10,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('download finishing after the pane is closed does not throw', (
+  testWidgets('shows byte progress and cancellation while downloading', (
     tester,
   ) async {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download Model'));
+    await tester.tap(find.text('Download').first);
     await tester.pump();
-    expect(store.downloadCount, 1);
 
+    expect(store.downloadCount, 1);
+    expect(find.text('Cancel Download'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.textContaining('of'), findsWidgets);
+  });
+
+  testWidgets('download remains owned after the pane is closed', (
+    tester,
+  ) async {
+    final store = _FakeAiDictationModelStore();
+    await _pumpPane(tester, store);
+
+    await tester.tap(find.text('Download').first);
+    await tester.pump();
     await _closePane(tester, store);
     store.completeDownload();
     await tester.pumpAndSettle();
@@ -27,35 +40,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('removal finishing after the pane is closed does not throw', (
-    tester,
-  ) async {
-    final store = _FakeAiDictationModelStore(installed: true);
-    await _pumpPane(tester, store);
-
-    await tester.tap(find.text('Remove Model'));
-    await tester.pump();
-    expect(store.removeCount, 1);
-
-    await _closePane(tester, store);
-    store.completeRemove();
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('download finishing while mounted refreshes the model status', (
+  testWidgets('queues another model while one download is active', (
     tester,
   ) async {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download Model'));
+    await tester.tap(find.text('Download').first);
+    await tester.pump();
+    await tester.tap(find.text('Queue Download').first);
+    await tester.pump();
+
+    expect(store.downloadCount, 1);
+    expect(find.textContaining('Queued. This download starts'), findsOneWidget);
+    expect(find.text('Cancel Download'), findsNWidgets(2));
+  });
+
+  testWidgets('completed model is retained with management actions', (
+    tester,
+  ) async {
+    final store = _FakeAiDictationModelStore();
+    await _pumpPane(tester, store);
+
+    await tester.tap(find.text('Download').first);
     await tester.pump();
     store.completeDownload();
     await tester.pumpAndSettle();
 
     expect(find.text('Remove Model'), findsOneWidget);
+    expect(find.text('Use Model'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -69,7 +82,7 @@ Future<void> _pumpPane(WidgetTester tester, AiDictationModelStore store) async {
         home: Scaffold(
           body: SizedBox(
             width: 1200,
-            height: 1000,
+            height: 1200,
             child: AiDictationSettingsPane(
               settings: AiDictationSettings.defaults,
               onChanged: (_) {},
@@ -82,8 +95,6 @@ Future<void> _pumpPane(WidgetTester tester, AiDictationModelStore store) async {
   await tester.pumpAndSettle();
 }
 
-/// Replaces the pane the way closing the settings dialog does, so the pending
-/// model work completes against an unmounted element.
 Future<void> _closePane(
   WidgetTester tester,
   AiDictationModelStore store,
@@ -101,30 +112,28 @@ Future<void> _closePane(
 }
 
 class _FakeAiDictationModelStore implements AiDictationModelStore {
-  _FakeAiDictationModelStore({this.installed = false});
-
   final Completer<String> _download = Completer<String>();
-  final Completer<void> _remove = Completer<void>();
-
-  bool installed;
+  final Set<String> _installed = <String>{};
+  String? _downloadingId;
   int downloadCount = 0;
-  int removeCount = 0;
 
   void completeDownload() {
-    installed = true;
-    _download.complete('ggml-base.bin');
-  }
-
-  void completeRemove() {
-    installed = false;
-    _remove.complete();
+    _installed.add(_downloadingId!);
+    _download.complete('model.bin');
   }
 
   @override
-  AiDictationModel modelFor(String id) => AiDictationModelStore.models.first;
+  AiDictationModel modelFor(String id) {
+    final normalized = AiDictationModelStore.modelForId(id);
+    return AiDictationModelStore.models.firstWhere(
+      (model) => model.id == normalized,
+    );
+  }
 
   @override
-  Future<bool> isInstalled([String? id]) async => installed;
+  Future<bool> isInstalled([String? id]) async => _installed.contains(
+    AiDictationModelStore.modelForId(id ?? 'whisper-base'),
+  );
 
   @override
   Future<String> download({
@@ -132,17 +141,34 @@ class _FakeAiDictationModelStore implements AiDictationModelStore {
     void Function(double progress)? onProgress,
   }) {
     downloadCount++;
+    _downloadingId = AiDictationModelStore.modelForId(id ?? 'whisper-base');
+    onProgress?.call(0.5);
     return _download.future;
   }
 
   @override
-  Future<void> remove([String? id]) {
-    removeCount++;
-    return _remove.future;
+  Future<void> remove([String? id]) async {
+    _installed.remove(AiDictationModelStore.modelForId(id ?? 'whisper-base'));
   }
 
   @override
-  Future<String> modelPath([String? id]) async => 'ggml-base.bin';
+  Future<String> modelPath([String? id]) async => 'model.bin';
+
+  @override
+  Future<String> partialPath([String? id]) async => 'model.bin.part';
+
+  @override
+  Future<String> resumeIntentPath([String? id]) async => 'model.resume.json';
+
+  @override
+  Future<int> partialBytes([String? id]) async =>
+      _downloadingId == AiDictationModelStore.modelForId(id ?? '') ? 1 : 0;
+
+  @override
+  Future<List<String>> resumeIntentIds() async => const <String>[];
+
+  @override
+  Future<void> cancelDownload([String? id]) async {}
 
   @override
   void dispose() {}

@@ -8,7 +8,8 @@ enum AiTextGenerationOperation {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
   branchName('branchName'),
-  workspaceIdentity('workspaceIdentity');
+  workspaceIdentity('workspaceIdentity'),
+  speechMessage('speechMessage');
 
   const AiTextGenerationOperation(this.key);
 
@@ -19,6 +20,7 @@ enum AiTextGenerationOperation {
     AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
     AiTextGenerationOperation.branchName => 'Branch Names',
     AiTextGenerationOperation.workspaceIdentity => 'Workspace Identity',
+    AiTextGenerationOperation.speechMessage => 'Speech Messages',
   };
 }
 

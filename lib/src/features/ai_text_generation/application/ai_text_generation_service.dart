@@ -153,7 +153,8 @@ class CliAiTextGenerationService implements AiTextGenerationService {
           ),
         ),
       AiTextGenerationOperation.branchName ||
-      AiTextGenerationOperation.workspaceIdentity =>
+      AiTextGenerationOperation.workspaceIdentity ||
+      AiTextGenerationOperation.speechMessage =>
         throw AiTextGenerationException(
           '${request.operation.label} generation is not wired yet.',
         ),
