@@ -51,6 +51,13 @@ struct Response {
 }
 
 #[no_mangle]
+/// Transcribes the WAV audio described by the JSON request.
+///
+/// # Safety
+///
+/// `request_json` must be null or point to a valid, null-terminated C string
+/// for the duration of this call. The returned string must be released with
+/// [`alera_mobile_whisper_string_free`].
 pub unsafe extern "C" fn alera_mobile_whisper_transcribe(
     request_json: *const c_char,
 ) -> *mut c_char {
@@ -60,6 +67,12 @@ pub unsafe extern "C" fn alera_mobile_whisper_transcribe(
 }
 
 #[no_mangle]
+/// Requests cancellation of the matching in-flight transcription.
+///
+/// # Safety
+///
+/// `request_id` must be null or point to a valid, null-terminated C string for
+/// the duration of this call.
 pub unsafe extern "C" fn alera_mobile_whisper_cancel(request_id: *const c_char) {
     let Some(request_id) = string_pointer(request_id) else {
         return;
@@ -72,6 +85,12 @@ pub unsafe extern "C" fn alera_mobile_whisper_cancel(request_id: *const c_char) 
 }
 
 #[no_mangle]
+/// Releases a response returned by [`alera_mobile_whisper_transcribe`].
+///
+/// # Safety
+///
+/// `value` must be null or a pointer returned by
+/// [`alera_mobile_whisper_transcribe`] that has not already been released.
 pub unsafe extern "C" fn alera_mobile_whisper_string_free(value: *mut c_char) {
     if !value.is_null() {
         drop(CString::from_raw(value));
