@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
+import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:path/path.dart' as p;
 
 part 'managed_agent_hook_descriptors.dart';

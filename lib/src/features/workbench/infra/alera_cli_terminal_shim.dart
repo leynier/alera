@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
+import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -57,7 +58,7 @@ class AleraCliTerminalShimService {
       '',
     ];
     await file.writeAsString(lines.join('\n'), flush: true);
-    await Process.run('chmod', <String>['755', file.path]);
+    setPosixFileMode(file.path, posixExecutableFileMode);
   }
 
   Future<void> _writeWindowsShim(
