@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
@@ -6,6 +8,9 @@ import 'package:alera/src/features/browser/application/browser_profile_session_s
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/browser/domain/browser_page_state.dart';
+import 'package:alera/src/features/browser/domain/browser_annotation.dart';
+import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
+import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
 import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:alera/src/features/browser/presentation/browser_downloads_dialog.dart';
 import 'package:alera/src/features/browser/presentation/browser_page_body.dart';
@@ -13,7 +18,9 @@ import 'package:alera/src/features/browser/presentation/browser_profile_picker_d
 import 'package:alera/src/features/browser/presentation/browser_security_dialog.dart';
 import 'package:alera/src/features/browser/presentation/browser_tab_drag_placeholder.dart';
 import 'package:alera/src/features/browser/presentation/browser_toolbar.dart';
+import 'package:alera/src/features/browser/presentation/browser_annotation_overlay.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
@@ -21,6 +28,10 @@ import 'package:alera_browser/alera_browser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+
+part 'browser_tab_annotation.dart';
 
 class BrowserTabSurface extends ConsumerStatefulWidget {
   const BrowserTabSurface({
@@ -48,8 +59,16 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
   Object? _sessionIdentity;
   bool _wantsNativeVisibility = false;
   bool _wantsNativeObscuration = false;
+  bool _annotationMode = false;
+  BrowserAnnotationInputMode _annotationInputMode =
+      BrowserAnnotationInputMode.element;
+  BrowserAnnotationCapture? _annotationCapture;
+  List<BrowserAnnotationElement> _annotationElements =
+      const <BrowserAnnotationElement>[];
   final Set<Object> _visibilityAcquisitions = <Object>{};
   final Set<Object> _obscurationAcquisitions = <Object>{};
+
+  void _updateAnnotationState(VoidCallback callback) => setState(callback);
 
   @override
   void initState() {
@@ -170,7 +189,10 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
               handle,
               browserStateShowsNativeSurface(state) && routeIsCurrent,
             );
-            _syncNativeObscuration(handle, widget.pageObscured);
+            _syncNativeObscuration(
+              handle,
+              widget.pageObscured || _annotationMode,
+            );
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -197,6 +219,9 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                   onShowSecurity: () => _showSecurity(handle, state),
                   onSelectProfile: () => _showProfiles(handle, state),
                   onShowDownloads: () => _showDownloads(handle, state),
+                  onAnnotate: browserStateShowsNativeSurface(state)
+                      ? () => _beginAnnotation(handle, state)
+                      : null,
                   onOpenDevTools: null,
                   onOpenExternally: canOpenBrowserUrlExternally(state.url)
                       ? () => _openExternally(state.url)
@@ -219,6 +244,33 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                       ),
                       if (widget.pageObscured)
                         const BrowserTabDragPlaceholder(),
+                      if (_annotationMode && _annotationCapture != null)
+                        BrowserAnnotationOverlay(
+                          capture: _annotationCapture!,
+                          mode: _annotationInputMode,
+                          onModeChanged: (mode) =>
+                              setState(() => _annotationInputMode = mode),
+                          onElementSelected: (rect) =>
+                              _selectAnnotationElement(handle, rect),
+                          onRegionSelected: (rect) => _addAnnotationComment(
+                            handle,
+                            BrowserAnnotationKind.region,
+                            rect,
+                          ),
+                          onDelete: (comment) => setState(() {
+                            final current = _annotationCapture!;
+                            final comments = current.comments.toList()
+                              ..removeWhere((item) => item.id == comment.id);
+                            _annotationCapture = current.copyWith(
+                              comments:
+                                  List<BrowserAnnotationComment>.unmodifiable(
+                                    comments,
+                                  ),
+                            );
+                          }),
+                          onCancel: _cancelAnnotation,
+                          onDone: () => _finishAnnotation(handle),
+                        ),
                     ],
                   ),
                 ),
@@ -289,7 +341,11 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     if (identity == null || !_obscurationAcquisitions.add(identity)) {
       return;
     }
-    final lease = handle.acquireObscuration(BrowserObscurationReason.tabDrag);
+    final lease = handle.acquireObscuration(
+      _annotationMode
+          ? BrowserObscurationReason.overlay
+          : BrowserObscurationReason.tabDrag,
+    );
     unawaited(() async {
       try {
         await lease.ready;
@@ -436,36 +492,4 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
   Future<void> _openExternally(Uri uri) {
     return _runCommand(() => ref.read(externalUriLauncherProvider).open(uri));
   }
-
-  Future<void> _runCommand(Future<void> Function() operation) async {
-    try {
-      await operation();
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(
-          context,
-          message: error.toString(),
-          tone: AleraToastTone.error,
-        );
-      }
-    }
-  }
-}
-
-class _BrowserNativePageSurface extends ConsumerWidget {
-  const _BrowserNativePageSurface({required this.pageId});
-
-  final String pageId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return AleraBrowserView(
-      client: ref.watch(aleraBrowserClientProvider),
-      pageId: pageId,
-    );
-  }
-}
-
-bool canOpenBrowserUrlExternally(Uri uri) {
-  return uri.host.isNotEmpty && (uri.scheme == 'http' || uri.scheme == 'https');
 }

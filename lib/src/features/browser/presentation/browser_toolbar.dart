@@ -20,6 +20,7 @@ class BrowserToolbar extends StatelessWidget {
     required this.onShowSecurity,
     required this.onSelectProfile,
     required this.onShowDownloads,
+    this.onAnnotate,
     required this.onOpenDevTools,
     required this.onOpenExternally,
   });
@@ -35,6 +36,7 @@ class BrowserToolbar extends StatelessWidget {
   final VoidCallback onShowSecurity;
   final VoidCallback onSelectProfile;
   final VoidCallback onShowDownloads;
+  final VoidCallback? onAnnotate;
   final VoidCallback? onOpenDevTools;
   final VoidCallback? onOpenExternally;
 
@@ -115,6 +117,11 @@ class BrowserToolbar extends StatelessWidget {
                             .where((download) => !download.isTerminal)
                             .length,
                         onPressed: onShowDownloads,
+                      ),
+                      AleraIconButton(
+                        tooltip: 'Annotate Page',
+                        icon: AleraIcons.edit,
+                        onPressed: onAnnotate,
                       ),
                       if (wide)
                         AleraIconButton(
