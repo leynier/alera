@@ -1,4 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -198,4 +204,159 @@ void main() {
       },
     );
   });
+
+  group('login shell hydration', () {
+    test('probes the login shell through the injected runner', () async {
+      final runner = _FakeProcessRunner(
+        stdout:
+            '$shellPathHydrationDelimiter'
+            '/opt/homebrew/bin:/usr/bin'
+            '$shellPathHydrationDelimiter',
+      )..exit.complete(0);
+
+      final result = await hydrateShellPath('/bin/zsh', processRunner: runner);
+
+      expect(result.ok, isTrue);
+      expect(result.segments, <String>['/opt/homebrew/bin', '/usr/bin']);
+      expect(runner.executable, '/bin/zsh');
+      expect(runner.arguments.first, '-ilc');
+      expect(runner.arguments.last, contains(shellPathHydrationDelimiter));
+    });
+
+    test('reports a spawn error when the shell cannot start', () async {
+      final runner = _FakeProcessRunner(
+        startError: const ProcessException('/bin/zsh', <String>[]),
+      );
+
+      final result = await hydrateShellPath('/bin/zsh', processRunner: runner);
+
+      expect(
+        result.failureReason,
+        CommandEnvironmentHydrationFailureReason.spawnError,
+      );
+    });
+
+    test('reports a spawn error raised after the shell started', () async {
+      final runner = _FakeProcessRunner();
+
+      final pending = hydrateShellPath('/bin/zsh', processRunner: runner);
+      await pumpEventQueue();
+      runner.exit.completeError(const ProcessException('/bin/zsh', <String>[]));
+
+      expect(
+        (await pending).failureReason,
+        CommandEnvironmentHydrationFailureReason.spawnError,
+      );
+    });
+
+    test('reports an empty PATH when the probe prints no delimiters', () async {
+      final runner = _FakeProcessRunner(stdout: 'welcome to zsh')
+        ..exit.complete(0);
+
+      final result = await hydrateShellPath('/bin/zsh', processRunner: runner);
+
+      expect(
+        result.failureReason,
+        CommandEnvironmentHydrationFailureReason.emptyPath,
+      );
+    });
+
+    test('kills the probe and reports a timeout when the shell hangs', () {
+      final runner = _FakeProcessRunner();
+      CommandEnvironmentHydrationResult? result;
+
+      fakeAsync((async) {
+        unawaited(
+          hydrateShellPath(
+            '/bin/zsh',
+            processRunner: runner,
+          ).then((value) => result = value),
+        );
+        async.elapse(shellPathHydrationTimeout * 2);
+        async.flushMicrotasks();
+      });
+
+      expect(runner.killCount, 1);
+      expect(
+        result?.failureReason,
+        CommandEnvironmentHydrationFailureReason.timeout,
+      );
+    });
+
+    test('hydrates requested variables through the injected runner', () async {
+      final runner = _FakeProcessRunner(
+        stdout:
+            '${shellVariableHydrationDelimiter}CCS_DIR=/home/test/.ccs'
+            '$shellVariableHydrationDelimiter',
+      )..exit.complete(0);
+
+      final values = await hydrateShellVariables('/bin/zsh', <String>[
+        'CCS_DIR',
+      ], processRunner: runner);
+
+      expect(values, <String, String>{'CCS_DIR': '/home/test/.ccs'});
+      expect(runner.arguments.first, '-ilc');
+    });
+
+    test('returns no variables when the shell cannot start', () async {
+      final runner = _FakeProcessRunner(
+        startError: const ProcessException('/bin/zsh', <String>[]),
+      );
+
+      expect(
+        await hydrateShellVariables('/bin/zsh', <String>[
+          'CCS_DIR',
+        ], processRunner: runner),
+        isEmpty,
+      );
+    });
+  });
+}
+
+class _FakeProcessRunner implements ProcessRunner {
+  _FakeProcessRunner({this.stdout = '', this.startError});
+
+  final String stdout;
+  final Object? startError;
+  final Completer<int> exit = Completer<int>();
+
+  String? executable;
+  List<String> arguments = const <String>[];
+  int killCount = 0;
+
+  @override
+  Future<ProcessRunOutput> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
+    throw UnimplementedError('Hydration only starts processes.');
+  }
+
+  @override
+  Future<StartedProcess> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) async {
+    this.executable = executable;
+    this.arguments = arguments;
+    final failure = startError;
+    if (failure != null) {
+      throw failure;
+    }
+    return StartedProcess(
+      stdinWrite: (_) {},
+      stdout: Stream<List<int>>.value(utf8.encode(stdout)),
+      stderr: const Stream<List<int>>.empty(),
+      pid: 4242,
+      exitCode: exit.future,
+      kill: ([dynamic signal]) {
+        killCount += 1;
+        return true;
+      },
+    );
+  }
 }

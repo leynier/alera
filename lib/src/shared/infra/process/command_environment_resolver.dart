@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/process/rust_process_runner.dart';
+
 const String shellPathHydrationDelimiter = '__ALERA_SHELL_PATH__';
 const String shellVariableHydrationDelimiter = '__ALERA_SHELL_VAR__';
 const Duration shellPathHydrationTimeout = Duration(seconds: 5);
@@ -65,6 +68,7 @@ class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
     this.isMacOS,
     this.hydrator,
     this.variablesHydrator,
+    this.processRunner = const RustProcessRunner(),
   });
 
   final Map<String, String>? platformEnvironment;
@@ -72,6 +76,7 @@ class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
   final bool? isMacOS;
   final ShellPathHydrator? hydrator;
   final ShellVariablesHydrator? variablesHydrator;
+  final ProcessRunner processRunner;
   Future<CommandEnvironmentHydrationResult>? _hydration;
   final Map<String, Future<Map<String, String>>> _variableHydrations =
       <String, Future<Map<String, String>>>{};
@@ -106,7 +111,10 @@ class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
         ),
       );
     }
-    return _hydration = (hydrator ?? hydrateShellPath)(shell);
+    final hydrate = hydrator;
+    return _hydration = hydrate != null
+        ? hydrate(shell)
+        : hydrateShellPath(shell, processRunner: processRunner);
   }
 
   @override
@@ -123,8 +131,10 @@ class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
       return Future<Map<String, String>>.value(const <String, String>{});
     }
     final key = valid.join('\u0000');
-    return _variableHydrations[key] ??=
-        (variablesHydrator ?? hydrateShellVariables)(shell, valid);
+    final hydrate = variablesHydrator;
+    return _variableHydrations[key] ??= hydrate != null
+        ? hydrate(shell, valid)
+        : hydrateShellVariables(shell, valid, processRunner: processRunner);
   }
 
   String? _pickShell() {
@@ -152,8 +162,9 @@ bool isValidEnvironmentVariableName(String name) {
 
 Future<Map<String, String>> hydrateShellVariables(
   String shell,
-  List<String> names,
-) async {
+  List<String> names, {
+  ProcessRunner processRunner = const RustProcessRunner(),
+}) async {
   final valid = names.where(isValidEnvironmentVariableName).toList();
   if (valid.isEmpty) {
     return const <String, String>{};
@@ -165,12 +176,12 @@ Future<Map<String, String>> hydrateShellVariables(
       ..write('printf \'$name=%s\' "\$$name"; ')
       ..write("printf '%s' '$shellVariableHydrationDelimiter'; ");
   }
-  Process process;
+  StartedProcess process;
   try {
-    process = await Process.start(shell, <String>[
+    process = await processRunner.start(shell, <String>[
       '-ilc',
       command.toString(),
-    ], mode: ProcessStartMode.normal);
+    ]);
   } catch (_) {
     return const <String, String>{};
   }
@@ -183,12 +194,14 @@ Future<Map<String, String>> hydrateShellVariables(
     await process.exitCode.timeout(
       shellPathHydrationTimeout,
       onTimeout: () {
-        process.kill(ProcessSignal.sigkill);
+        process.kill();
         throw TimeoutException('Shell variable hydration timed out.');
       },
     );
     await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
-  } on TimeoutException {
+  } catch (_) {
+    // Covers the timeout above and a spawn failure the runner reports through
+    // the exit code, where `Process.start` used to throw from the call itself.
     return const <String, String>{};
   }
 
@@ -232,17 +245,17 @@ Map<String, String> parseHydratedShellVariables(
   return values;
 }
 
-Future<CommandEnvironmentHydrationResult> hydrateShellPath(String shell) async {
+Future<CommandEnvironmentHydrationResult> hydrateShellPath(
+  String shell, {
+  ProcessRunner processRunner = const RustProcessRunner(),
+}) async {
   final command =
       "printf '%s' '$shellPathHydrationDelimiter'; "
       'printf \'%s\' "\$PATH"; '
       "printf '%s' '$shellPathHydrationDelimiter'";
-  Process process;
+  StartedProcess process;
   try {
-    process = await Process.start(shell, <String>[
-      '-ilc',
-      command,
-    ], mode: ProcessStartMode.normal);
+    process = await processRunner.start(shell, <String>['-ilc', command]);
   } catch (_) {
     return const CommandEnvironmentHydrationResult.failure(
       CommandEnvironmentHydrationFailureReason.spawnError,
@@ -257,7 +270,7 @@ Future<CommandEnvironmentHydrationResult> hydrateShellPath(String shell) async {
     await process.exitCode.timeout(
       shellPathHydrationTimeout,
       onTimeout: () {
-        process.kill(ProcessSignal.sigkill);
+        process.kill();
         throw TimeoutException('Shell PATH hydration timed out.');
       },
     );
@@ -265,6 +278,12 @@ Future<CommandEnvironmentHydrationResult> hydrateShellPath(String shell) async {
   } on TimeoutException {
     return const CommandEnvironmentHydrationResult.failure(
       CommandEnvironmentHydrationFailureReason.timeout,
+    );
+  } catch (_) {
+    // The runner reports a spawn that failed after `start` returned through
+    // the exit code, where `Process.start` used to throw from the call itself.
+    return const CommandEnvironmentHydrationResult.failure(
+      CommandEnvironmentHydrationFailureReason.spawnError,
     );
   }
 
