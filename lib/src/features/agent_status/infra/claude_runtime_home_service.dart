@@ -5,6 +5,8 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/process/rust_process_runner.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
@@ -19,14 +21,14 @@ typedef ClaudeResourceLinkCreator =
     void Function({required String sourcePath, required String targetPath});
 
 abstract interface class ClaudeKeychainCredentialsStore {
-  String? readLegacyCredentials();
+  Future<String?> readLegacyCredentials();
 
-  void writeScopedCredentials({
+  Future<void> writeScopedCredentials({
     required String configDir,
     required String credentials,
   });
 
-  void deleteScopedCredentials(String configDir);
+  Future<void> deleteScopedCredentials(String configDir);
 }
 
 final class ClaudeRuntimeHomePreparation {
@@ -128,7 +130,7 @@ final class ClaudeRuntimeHomeService {
     final runtime = runtimeHome ?? await _runtimeHomeDirectory();
     final source = _sourceConfigDirectory(runtime);
     _syncRuntimeResources(runtime, source);
-    _syncKeychainCredentials(runtime);
+    await _syncKeychainCredentials(runtime);
 
     final descriptor = _descriptor(runtime);
     final sourceSettingsPath = p.join(source.path, 'settings.json');
@@ -212,18 +214,19 @@ final class _MacOSClaudeKeychainCredentialsStore
   const _MacOSClaudeKeychainCredentialsStore();
 
   static const String _legacyService = 'Claude Code-credentials';
+  static const ProcessRunner _processRunner = RustProcessRunner();
 
   @override
-  String? readLegacyCredentials() {
+  Future<String?> readLegacyCredentials() {
     return _readPassword(_legacyService);
   }
 
   @override
-  void writeScopedCredentials({
+  Future<void> writeScopedCredentials({
     required String configDir,
     required String credentials,
   }) {
-    _runSecurity(<String>[
+    return _runSecurity(<String>[
       'add-generic-password',
       '-U',
       '-s',
@@ -236,8 +239,8 @@ final class _MacOSClaudeKeychainCredentialsStore
   }
 
   @override
-  void deleteScopedCredentials(String configDir) {
-    _runSecurity(<String>[
+  Future<void> deleteScopedCredentials(String configDir) {
+    return _runSecurity(<String>[
       'delete-generic-password',
       '-s',
       _scopedService(configDir),
@@ -246,8 +249,8 @@ final class _MacOSClaudeKeychainCredentialsStore
     ], ignoreNotFound: true);
   }
 
-  String? _readPassword(String service) {
-    final result = Process.runSync('security', <String>[
+  Future<String?> _readPassword(String service) async {
+    final result = await _processRunner.run('security', <String>[
       'find-generic-password',
       '-s',
       service,
@@ -256,7 +259,7 @@ final class _MacOSClaudeKeychainCredentialsStore
       '-w',
     ]);
     if (result.exitCode == 0) {
-      final password = (result.stdout as String).trim();
+      final password = result.stdout.trim();
       return password.isEmpty ? null : password;
     }
     if (_isSecurityNotFound(result)) {
@@ -265,8 +268,11 @@ final class _MacOSClaudeKeychainCredentialsStore
     throw const FileSystemException('Could not read Claude credentials.');
   }
 
-  void _runSecurity(List<String> arguments, {bool ignoreNotFound = false}) {
-    final result = Process.runSync('security', arguments);
+  Future<void> _runSecurity(
+    List<String> arguments, {
+    bool ignoreNotFound = false,
+  }) async {
+    final result = await _processRunner.run('security', arguments);
     if (result.exitCode == 0) {
       return;
     }
@@ -276,7 +282,7 @@ final class _MacOSClaudeKeychainCredentialsStore
     throw const FileSystemException('Could not update Claude credentials.');
   }
 
-  bool _isSecurityNotFound(ProcessResult result) {
+  bool _isSecurityNotFound(ProcessRunOutput result) {
     final output = '${result.stdout} ${result.stderr}'.toLowerCase();
     return result.exitCode == 44 ||
         output.contains('could not be found') ||
