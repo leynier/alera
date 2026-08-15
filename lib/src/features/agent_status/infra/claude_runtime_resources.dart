@@ -133,18 +133,18 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     _removeStaleRuntimeResources(runtimeHome, expected);
   }
 
-  void _syncKeychainCredentials(Directory runtimeHome) {
+  Future<void> _syncKeychainCredentials(Directory runtimeHome) async {
     final keychain = _keychainCredentialsStore;
     if (keychain == null) {
       return;
     }
     try {
-      final legacyCredentials = keychain.readLegacyCredentials();
+      final legacyCredentials = await keychain.readLegacyCredentials();
       if (legacyCredentials == null || legacyCredentials.isEmpty) {
-        keychain.deleteScopedCredentials(runtimeHome.path);
+        await keychain.deleteScopedCredentials(runtimeHome.path);
         return;
       }
-      keychain.writeScopedCredentials(
+      await keychain.writeScopedCredentials(
         configDir: runtimeHome.path,
         credentials: legacyCredentials,
       );

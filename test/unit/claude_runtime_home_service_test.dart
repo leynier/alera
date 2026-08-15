@@ -684,18 +684,18 @@ final class _FakeClaudeKeychainCredentialsStore
   final deletedConfigDirs = <String>[];
 
   @override
-  String? readLegacyCredentials() => legacyCredentials;
+  Future<String?> readLegacyCredentials() async => legacyCredentials;
 
   @override
-  void writeScopedCredentials({
+  Future<void> writeScopedCredentials({
     required String configDir,
     required String credentials,
-  }) {
+  }) async {
     scopedCredentials[configDir] = credentials;
   }
 
   @override
-  void deleteScopedCredentials(String configDir) {
+  Future<void> deleteScopedCredentials(String configDir) async {
     deletedConfigDirs.add(configDir);
     scopedCredentials.remove(configDir);
   }
@@ -704,16 +704,16 @@ final class _FakeClaudeKeychainCredentialsStore
 final class _ThrowingClaudeKeychainCredentialsStore
     implements ClaudeKeychainCredentialsStore {
   @override
-  String? readLegacyCredentials() {
+  Future<String?> readLegacyCredentials() async {
     throw const FileSystemException('keychain unavailable');
   }
 
   @override
-  void writeScopedCredentials({
+  Future<void> writeScopedCredentials({
     required String configDir,
     required String credentials,
-  }) {}
+  }) async {}
 
   @override
-  void deleteScopedCredentials(String configDir) {}
+  Future<void> deleteScopedCredentials(String configDir) async {}
 }
