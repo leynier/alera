@@ -162,6 +162,26 @@ void main() {
     expect(find.text('Restoring terminal'), findsNothing);
   });
 
+  testWidgets('The first attach claims no viewport until one is measured', (
+    tester,
+  ) async {
+    // The host resizes the live PTY to whatever viewport a phone claims, so a
+    // placeholder here resized the session to 80x24 and then again to the real
+    // size a layout later, redrawing a full-screen agent at both.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+
+    await _pumpTab(tester, client);
+
+    expect(client.attachments.single.cols, isNull);
+    expect(client.attachments.single.rows, isNull);
+    // The measured size still reaches the host, just once and only when real.
+    final resize = client.calls.firstWhere(
+      (call) => call.startsWith('resize '),
+    );
+    expect(resize, isNot(endsWith(' 80 24')));
+  });
+
   testWidgets('Paste quick action writes clipboard text without Enter', (
     tester,
   ) async {

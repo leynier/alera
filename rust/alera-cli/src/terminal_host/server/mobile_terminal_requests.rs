@@ -103,16 +103,27 @@ impl ServerActor {
     /// Claims the driver seat for the phone right after a mobile attach or
     /// create, and refreshes the attachment's driver field so the response
     /// reflects the post-claim state.
-    fn claim_mobile_terminal_viewport(
+    ///
+    /// A phone that has not measured its terminal yet omits `cols`/`rows`, and
+    /// that MUST leave the PTY alone rather than fall back to 80x24: defaulting
+    /// resized the live session twice per tab open, once to a size nobody was
+    /// looking at and again to the real one a layout later, so a full-screen
+    /// agent redrew itself into the scrollback at a geometry it never had.
+    pub(super) fn claim_mobile_terminal_viewport(
         &mut self,
         client_id: u64,
         session_id: &str,
         payload: &Value,
         attachment: &mut Value,
     ) {
-        let cols = int_or(payload, "cols", 80) as u16;
-        let rows = int_or(payload, "rows", 24) as u16;
-        self.claim_mobile_driver(client_id, session_id, Some((cols, rows)));
+        let viewport = match (payload.get("cols"), payload.get("rows")) {
+            (Some(_), Some(_)) => Some((
+                int_or(payload, "cols", 80) as u16,
+                int_or(payload, "rows", 24) as u16,
+            )),
+            _ => None,
+        };
+        self.claim_mobile_driver(client_id, session_id, viewport);
         if let (Some(object), Some(session)) =
             (attachment.as_object_mut(), self.sessions.get(session_id))
         {
