@@ -10,9 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:xterm/xterm.dart';
 
 import 'support/fake_terminal_client.dart';
+import 'support/memory_accessory_layout_repository.dart';
 
 void main() {
   testWidgets(
@@ -147,7 +149,11 @@ void main() {
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
     await _pumpTab(tester, client);
 
-    await tester.tap(find.byTooltip('Paste Clipboard'));
+    // Paste is an ordinary quick key now, found by its key rather than the
+    // tooltip the old fixed rail carried.
+    await tester.tap(
+      find.byKey(const ValueKey<String>('terminal-accessory-paste')),
+    );
     await tester.pumpAndSettle();
 
     expect(client.writes.single, utf8.encode('first\nsecond'));
@@ -223,10 +229,17 @@ Future<void> _pumpTab(WidgetTester tester, FakeTerminalClient client) async {
       overrides: [
         terminalClientProvider('host-1').overrideWith((ref) async => client),
         workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        accessoryLayoutRepositoryProvider.overrideWithValue(
+          MemoryAccessoryLayoutRepository(),
+        ),
       ],
       child: const MaterialApp(
         home: Scaffold(
-          body: TerminalTabView(hostId: 'host-1', tabId: 'tab-1'),
+          body: TerminalTabView(
+            hostId: 'host-1',
+            workspaceId: 'workspace-1',
+            tabId: 'tab-1',
+          ),
         ),
       ),
     ),

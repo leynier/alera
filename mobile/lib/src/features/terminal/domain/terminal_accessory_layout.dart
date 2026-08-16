@@ -135,7 +135,7 @@ class TerminalAccessoryLayout {
       final resolved = customById[id]?.build();
       if (resolved != null) {
         out.add(
-          TerminalAccessoryKey(
+          TerminalAccessoryBytesKey(
             id: id,
             label: resolved.label,
             bytes: resolved.bytes,
@@ -149,7 +149,7 @@ class TerminalAccessoryLayout {
         final resolved = custom.build();
         if (resolved != null) {
           out.add(
-            TerminalAccessoryKey(
+            TerminalAccessoryBytesKey(
               id: custom.id,
               label: resolved.label,
               bytes: resolved.bytes,
