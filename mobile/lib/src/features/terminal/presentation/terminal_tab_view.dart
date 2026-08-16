@@ -10,6 +10,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_input_mo
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
+import 'package:alera_mobile/src/features/terminal/domain/mobile_terminal_scrollback.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
@@ -283,7 +284,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   void _replaceEmulator({required bool notify}) {
     _batcher?.dispose();
     final next = Terminal(
-      maxLines: 5000,
+      maxLines: mobileTerminalScrollbackLines,
       onOutput: (data) => widget.onInput(data),
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
       // This emulator is filled from restored history, and the program that

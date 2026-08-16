@@ -212,6 +212,31 @@ void main() {
     expect(joined.indexOf('TAIL'), 179);
   });
 
+  testWidgets('Restored history is kept past what fits at the host width', (
+    tester,
+  ) async {
+    // Reflowing to the phone's width turns one host line into several, so a
+    // budget sized for the host width keeps a fraction of the history it was
+    // meant to. The scrollback the desktop shows takes roughly four times the
+    // lines here, at a quarter of the width.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode(
+        <String>[
+          for (var line = 0; line < 8000; line++) 'line-$line',
+        ].join('\r\n'),
+      )
+      ..attachmentSnapshotCols = 200
+      ..attachmentSnapshotRows = 50;
+
+    await _pumpTab(tester, client, settle: false);
+    await _drainRestore(tester);
+
+    final terminal = _terminalOf(tester);
+    final first = terminal.buffer.lines[0].toString().trim();
+    expect(first, 'line-0', reason: 'the oldest line was dropped');
+  });
+
   testWidgets('A host that states no snapshot size replays as it always did', (
     tester,
   ) async {
