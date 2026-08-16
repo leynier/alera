@@ -52,6 +52,9 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
   final GlobalKey<_TerminalSurfaceState> _surfaceKey =
       GlobalKey<_TerminalSurfaceState>();
   bool _refreshing = false;
+  // Latches once the tab has attached, so a reconnect keeps the input bars
+  // that a first start has not earned yet.
+  bool _hadSession = false;
 
   @override
   Widget build(BuildContext context) {
@@ -70,35 +73,21 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
     final notifier = ref.read(
       terminalSessionControllerProvider(widget.hostId, widget.tabId).notifier,
     );
-    final content = switch (session) {
-      AsyncData(value: final tabSession) => Column(
-        children: <Widget>[
-          Expanded(
-            child: _TerminalSurface(
-              key: _surfaceKey,
-              session: tabSession,
-              inputMode: inputMode,
-              onInput: (data) => notifier.write(utf8.encode(data)),
-              onViewportResize: notifier.resize,
-              onReconnect: notifier.reconnect,
-            ),
-          ),
-          if (inputMode == TerminalInputMode.direct) const _DirectModeBanner(),
-          TerminalAccessoryBar(
-            keys: accessoryKeys,
-            onKey: notifier.write,
-            onAction: (action) => switch (action) {
-              TerminalAccessoryAction.paste => _pasteClipboard(notifier),
-            },
-          ),
-          if (inputMode == TerminalInputMode.compose)
-            TerminalComposeBar(
-              hostId: widget.hostId,
-              tabId: widget.tabId,
-              onSend: notifier.sendComposedText,
-              onPickAttachments: _canAttach ? _pickAttachments : null,
-            ),
-        ],
+    if (session is AsyncData<TerminalTabSession>) {
+      _hadSession = true;
+    }
+    // Only the emulator swaps with the session state. The input bars below it
+    // stay mounted across a reconnect or a restore, because rebuilding them
+    // throws away the composed text and disposes the controller an in-flight
+    // attachment pick is waiting to write into.
+    final surface = switch (session) {
+      AsyncData(value: final tabSession) => _TerminalSurface(
+        key: _surfaceKey,
+        session: tabSession,
+        inputMode: inputMode,
+        onInput: (data) => notifier.write(utf8.encode(data)),
+        onViewportResize: notifier.resize,
+        onReconnect: notifier.reconnect,
       ),
       AsyncError(:final error) => _SessionError(
         error: error,
@@ -115,6 +104,30 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
         },
       ),
     };
+    final content = Column(
+      children: <Widget>[
+        Expanded(child: surface),
+        // A first start has nothing to compose against yet; only a tab that
+        // has already attached keeps its bars through the loading state.
+        if (_hadSession) ...<Widget>[
+          if (inputMode == TerminalInputMode.direct) const _DirectModeBanner(),
+          TerminalAccessoryBar(
+            keys: accessoryKeys,
+            onKey: notifier.write,
+            onAction: (action) => switch (action) {
+              TerminalAccessoryAction.paste => _pasteClipboard(notifier),
+            },
+          ),
+          if (inputMode == TerminalInputMode.compose)
+            TerminalComposeBar(
+              hostId: widget.hostId,
+              tabId: widget.tabId,
+              onSend: notifier.sendComposedText,
+              onPickAttachments: _canAttach ? _pickAttachments : null,
+            ),
+        ],
+      ],
+    );
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
