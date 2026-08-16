@@ -69,6 +69,8 @@ class MobileTerminalAttachment {
     required this.created,
     required this.running,
     required this.snapshot,
+    this.snapshotCols,
+    this.snapshotRows,
   });
 
   final String sessionId;
@@ -76,12 +78,21 @@ class MobileTerminalAttachment {
   final bool running;
   final List<int> snapshot;
 
+  /// The size [snapshot] was written at, absent on a host that predates the
+  /// field. Replaying the bytes at any other width lands every absolute cursor
+  /// move and hard wrap in the wrong column, so a narrower client replays here
+  /// and then resizes, letting its emulator reflow the wrapped lines.
+  final int? snapshotCols;
+  final int? snapshotRows;
+
   factory MobileTerminalAttachment.fromJson(Map<String, Object?> json) {
     return MobileTerminalAttachment(
       sessionId: json.requiredString('sessionId'),
       created: json['created'] == true,
       running: json['running'] == true,
       snapshot: json.base64Bytes('snapshotBase64'),
+      snapshotCols: json.optionalPositiveInt('snapshotCols'),
+      snapshotRows: json.optionalPositiveInt('snapshotRows'),
     );
   }
 }

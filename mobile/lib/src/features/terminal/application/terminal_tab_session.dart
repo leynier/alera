@@ -15,11 +15,18 @@ class TerminalTabSession {
     required List<int> snapshot,
     required this.running,
     required this.output,
+    this.snapshotCols,
+    this.snapshotRows,
   }) : _snapshot = _TerminalSnapshotPayload(snapshot);
 
   final String sessionId;
   final bool running;
   final _TerminalSnapshotPayload _snapshot;
+
+  /// The size the snapshot was written at, absent on a host that predates the
+  /// field. The emulator replays there before taking the phone's own size.
+  final int? snapshotCols;
+  final int? snapshotRows;
 
   /// Carries full events so resync replacement stays ordered with live output.
   final Stream<MobileTerminalOutputEvent> output;

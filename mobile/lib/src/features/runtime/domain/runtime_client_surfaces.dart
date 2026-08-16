@@ -64,6 +64,8 @@ class MobileTerminalOutputEvent {
     this.sessionId,
     this.data, {
     this.replacesScrollback = false,
+    this.snapshotCols,
+    this.snapshotRows,
   });
 
   final String sessionId;
@@ -73,6 +75,11 @@ class MobileTerminalOutputEvent {
   /// in the output stream, so these bytes replace the emulator contents instead
   /// of being appended to them.
   final bool replacesScrollback;
+
+  /// The size the replacing snapshot was written at, when the host states one.
+  /// Only meaningful alongside [replacesScrollback].
+  final int? snapshotCols;
+  final int? snapshotRows;
 }
 
 const int defaultTerminalCols = 80;
