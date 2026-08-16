@@ -10,6 +10,7 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_input_mo
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:flutter/material.dart';
@@ -217,6 +218,8 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   final TerminalController _controller = TerminalController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'MobileTerminal');
+  final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
+      ValueNotifier<TerminalRestoreProgress?>(null);
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
   bool _outputEnded = false;
@@ -245,6 +248,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   void dispose() {
     unawaited(_outputSub?.cancel());
     _batcher?.dispose();
+    _restoreProgress.dispose();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -280,7 +284,10 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     );
     // One write per frame. Writing every chunk straight through made a noisy
     // build parse and repaint many times inside a single frame.
-    _batcher = TerminalOutputBatcher(write: next.write);
+    _batcher = TerminalOutputBatcher(
+      write: next.write,
+      onRestoreProgress: _handleRestoreProgress,
+    );
     if (notify) {
       setState(() => _terminal = next);
     } else {
@@ -296,6 +303,24 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       return;
     }
     _batcher!.add(text);
+  }
+
+  void _handleRestoreProgress(TerminalRestoreProgress? progress) {
+    if (!mounted) {
+      return;
+    }
+    final finished = _restoreProgress.value != null && progress == null;
+    _restoreProgress.value = progress;
+    if (!finished) {
+      return;
+    }
+    // The emulator was written to while it was covered, so the view it is
+    // about to reveal was never laid out against the restored buffer.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _restoreProgress.value == null) {
+        unawaited(refreshRendering());
+      }
+    });
   }
 
   void _markOutputEnded() {
@@ -336,21 +361,36 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
         Expanded(
           child: ColoredBox(
             color: AleraTokens.background,
-            child: TerminalView(
-              _terminal,
-              key: ValueKey<int>(_viewGeneration),
-              controller: _controller,
-              scrollController: _scrollController,
-              focusNode: _focusNode,
-              // Compose mode keeps the terminal read-only so tapping it scrolls
-              // instead of raising the soft keyboard; direct mode streams keys.
-              readOnly: !direct,
-              autofocus: direct && _viewGeneration == 0,
-              backgroundOpacity: 0,
-              textStyle: const TerminalStyle(
-                fontFamily: AleraTokens.monoFontFamily,
-              ),
-              padding: const EdgeInsets.all(AleraTokens.spaceSm),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                TerminalView(
+                  _terminal,
+                  key: ValueKey<int>(_viewGeneration),
+                  controller: _controller,
+                  scrollController: _scrollController,
+                  focusNode: _focusNode,
+                  // Compose mode keeps the terminal read-only so tapping it
+                  // scrolls instead of raising the soft keyboard; direct mode
+                  // streams keys.
+                  readOnly: !direct,
+                  autofocus: direct && _viewGeneration == 0,
+                  backgroundOpacity: 0,
+                  textStyle: const TerminalStyle(
+                    fontFamily: AleraTokens.monoFontFamily,
+                  ),
+                  padding: const EdgeInsets.all(AleraTokens.spaceSm),
+                ),
+                // Restoring a tab replays its whole scrollback over many
+                // frames. Uncovered, that reads as the terminal scrolling
+                // itself from the top of history down to the live screen.
+                ValueListenableBuilder<TerminalRestoreProgress?>(
+                  valueListenable: _restoreProgress,
+                  builder: (context, progress, _) => progress == null
+                      ? const SizedBox.shrink()
+                      : _TerminalRestoreState(progress: progress),
+                ),
+              ],
             ),
           ),
         ),

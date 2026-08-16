@@ -61,6 +61,35 @@ class _DirectModeBanner extends StatelessWidget {
   }
 }
 
+class _TerminalRestoreState extends StatelessWidget {
+  const _TerminalRestoreState({required this.progress});
+
+  final TerminalRestoreProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AleraTokens.background),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Restoring terminal',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AleraTokens.spaceMd),
+            SizedBox(
+              width: AleraTokens.terminalRestoreProgressWidth,
+              child: LinearProgressIndicator(value: progress.fraction),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 enum _TerminalLoadingOperation { starting, reconnecting, restarting }
 
 class _SessionLoading extends StatefulWidget {
