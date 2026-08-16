@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
@@ -29,6 +30,8 @@ class WorkspaceListData {
     required this.supportsMutations,
     this.supportsPromptWorkspaceCreation = true,
     this.supportsPromptImageUpload = false,
+    this.supportsPromptFileUpload = false,
+    this.supportsWorkspaceFiles = false,
     required this.tags,
     required this.activity,
     required this.confirmWorkspaceRemoval,
@@ -45,6 +48,8 @@ class WorkspaceListData {
   final bool supportsMutations;
   final bool supportsPromptWorkspaceCreation;
   final bool supportsPromptImageUpload;
+  final bool supportsPromptFileUpload;
+  final bool supportsWorkspaceFiles;
   final List<WorkspaceTagSummary> tags;
   final Map<String, DateTime> activity;
   final bool confirmWorkspaceRemoval;
@@ -85,6 +90,14 @@ class WorkspaceListController extends _$WorkspaceListController {
       supportsMutations: client.supportsWorkspaceMutations,
       supportsPromptWorkspaceCreation: client.supportsPromptWorkspaceCreation,
       supportsPromptImageUpload: client.supportsPromptImageUpload,
+      // Sibling interface of MobileWorkspaceClient rather than a subtype: the
+      // runtime client implements both, but neither promotes from the other.
+      supportsPromptFileUpload:
+          client is MobileCodexWorkspaceClient &&
+          (client as MobileCodexWorkspaceClient).supportsPromptFileUpload,
+      supportsWorkspaceFiles:
+          client is MobileCodexWorkspaceClient &&
+          (client as MobileCodexWorkspaceClient).supportsCodexWorkspaceFiles,
       tags: snapshot.tags,
       activity: snapshot.activity,
       confirmWorkspaceRemoval: snapshot.confirmWorkspaceRemoval,

@@ -167,6 +167,10 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                           data.value!.supportsPromptWorkspaceCreation,
                       supportsPromptImageUpload:
                           data.value!.supportsPromptImageUpload,
+                      supportsPromptFileUpload:
+                          data.value!.supportsPromptFileUpload,
+                      supportsWorkspaceFiles:
+                          data.value!.supportsWorkspaceFiles,
                     ),
                   ),
                 );
