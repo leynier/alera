@@ -94,10 +94,18 @@ abstract interface class MobileTerminalClient {
     int rows,
     bool autoCloseOnSuccess = false,
   });
+
+  /// Attaches to [tabId]'s session, claiming the viewport driver seat.
+  ///
+  /// [cols] and [rows] are null until the terminal has been laid out, and stay
+  /// off the request when they are: the host resizes the live PTY to whatever
+  /// viewport a phone claims, so sending a placeholder resizes the session
+  /// twice per tab open and makes a full-screen agent redraw itself at a
+  /// geometry nobody is looking at.
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols,
-    int rows,
+    int? cols,
+    int? rows,
   });
   Future<MobileTerminalSession> restartTerminal(
     String tabId, {

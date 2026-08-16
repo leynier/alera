@@ -26,8 +26,10 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _desktopReclaimed = false;
   Completer<void>? _recoveryCompletion;
   MobileTerminalClient? _pendingRecoveryClient;
-  int _cols = defaultTerminalCols;
-  int _rows = defaultTerminalRows;
+  // Null until the terminal has been laid out. Claiming a viewport resizes the
+  // live PTY, so a guess here is a resize to a size nobody is looking at.
+  int? _cols;
+  int? _rows;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 
@@ -59,7 +61,11 @@ class TerminalSessionController extends _$TerminalSessionController {
     final client = await ref.read(terminalClientProvider(hostId).future);
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
-    final session = await client.attachTerminal(tabId);
+    final session = await client.attachTerminal(
+      tabId,
+      cols: _cols,
+      rows: _rows,
+    );
     return _bindSession(client, session);
   }
 
@@ -299,11 +305,13 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     state = const AsyncLoading<TerminalTabSession>(progress: 0.75);
     try {
+      // A restart mints a new PTY, so unlike attach it always needs a size;
+      // an unmeasured terminal has nothing better than the default to give.
       final session = await client.restartTerminal(
         tabId,
         sessionId: _sessionId,
-        cols: _cols,
-        rows: _rows,
+        cols: _cols ?? defaultTerminalCols,
+        rows: _rows ?? defaultTerminalRows,
       );
       if (_disposed) {
         _logger.warning(
