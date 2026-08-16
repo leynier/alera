@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
