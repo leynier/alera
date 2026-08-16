@@ -366,6 +366,7 @@ impl Session {
     }
 
     pub fn attachment_payload(&self, created: bool, restore_bytes: usize) -> Value {
+        let (cols, rows) = self.current_dims;
         json!({
             "sessionId": self.id,
             "created": created,
@@ -375,18 +376,29 @@ impl Session {
             "cols": self.current_dims.0,
             "rows": self.current_dims.1,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
+            // The size the snapshot bytes were written at. A client whose own
+            // viewport is narrower has to replay them here and then resize,
+            // letting its emulator reflow wrapped lines, because re-parsing the
+            // stream at another width lands every absolute cursor move and hard
+            // wrap in the wrong column. Additive: a client that ignores these
+            // behaves exactly as it does today.
+            "snapshotCols": cols,
+            "snapshotRows": rows,
         })
     }
 
     /// What a client that lost its place should replay, capped so a resync does
     /// not hand it more history than its emulator will keep.
     pub fn restore_payload(&self, restore_bytes: usize) -> Value {
+        let (cols, rows) = self.current_dims;
         json!({
             "sessionId": self.id,
             "cols": self.current_dims.0,
             "rows": self.current_dims.1,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
             "resetInteractionModes": true,
+            "snapshotCols": cols,
+            "snapshotRows": rows,
         })
     }
 

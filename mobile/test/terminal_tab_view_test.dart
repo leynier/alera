@@ -125,11 +125,11 @@ void main() {
     expect(session.retainedSnapshotBytes, 0);
   });
 
-  testWidgets('Restoring a tab covers the terminal until its history is in', (
+  testWidgets('Restoring a tab holds the view back until its history is in', (
     tester,
   ) async {
-    // Uncovered, this replay reads as the terminal scrolling itself from the
-    // top of history down to the live screen every time a tab is opened.
+    // Shown, this replay reads as the terminal scrolling itself from the top
+    // of history down to the live screen every time a tab is opened.
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
       // Past the per-frame budget, so the restore spans frames like a real
@@ -138,6 +138,7 @@ void main() {
     await _pumpTab(tester, client, settle: false);
 
     expect(find.text('Restoring terminal'), findsOneWidget);
+    expect(find.byType(TerminalView), findsNothing);
     final first = _restoreFraction(tester);
 
     await tester.pump(const Duration(milliseconds: 50));
@@ -145,10 +146,84 @@ void main() {
     expect(find.text('Restoring terminal'), findsOneWidget);
     expect(_restoreFraction(tester), greaterThan(first));
 
-    await tester.pumpAndSettle();
+    await _drainRestore(tester);
 
-    expect(find.text('Restoring terminal'), findsNothing);
+    expect(find.byType(TerminalView), findsOneWidget);
     expect(_terminalOf(tester).buffer.lines.length, greaterThan(0));
+  });
+
+  testWidgets('Restored history is replayed at the size that produced it', (
+    tester,
+  ) async {
+    // The snapshot is the raw PTY stream, so it only reconstructs its screen
+    // at the geometry it was written at. Parsing it at the phone's much
+    // narrower width put every absolute cursor move and hard wrap in the wrong
+    // column, which is what made the scrollback unreadable while the live
+    // screen below it looked fine.
+    //
+    // Column 180 is past any phone's width, so where TAIL lands says which
+    // width parsed it without the test having to know the phone's own.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode('\x1b[1;180HTAIL')
+      ..attachmentSnapshotCols = 200
+      ..attachmentSnapshotRows = 50;
+
+    await _pumpTab(tester, client);
+
+    final terminal = _terminalOf(tester);
+    expect(terminal.viewWidth, lessThan(180));
+    // Rows are padded back out so the reflowed buffer reads as the one long
+    // logical line it is, and the column TAIL sits in survives the wrapping.
+    final joined = <String>[
+      for (var row = 0; row < terminal.buffer.lines.length; row++)
+        terminal.buffer.lines[row].toString().padRight(terminal.viewWidth),
+    ].join();
+    // Parsed at any narrower width, the cursor move clamps to that width and
+    // TAIL lands there instead of at the column the host wrote it at.
+    expect(joined.indexOf('TAIL'), 179);
+    // The phone's own size is claimed once, and only once it is real.
+    expect(
+      client.calls.where((call) => call.startsWith('resize ')),
+      hasLength(1),
+    );
+  });
+
+  testWidgets('Restored history survives the resize with the cursor hidden', (
+    tester,
+  ) async {
+    // An agent TUI leaves the cursor hidden for as long as it runs, and the
+    // emulator reads that as a full-screen program that will redraw itself: it
+    // truncates every line to the new width instead of reflowing. True of the
+    // live screen, false of the history above it, which nothing redraws.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode('\x1b[?25l\x1b[1;180HTAIL')
+      ..attachmentSnapshotCols = 200
+      ..attachmentSnapshotRows = 50;
+
+    await _pumpTab(tester, client);
+
+    final terminal = _terminalOf(tester);
+    final joined = <String>[
+      for (var row = 0; row < terminal.buffer.lines.length; row++)
+        terminal.buffer.lines[row].toString().padRight(terminal.viewWidth),
+    ].join();
+    expect(joined.indexOf('TAIL'), 179);
+  });
+
+  testWidgets('A host that states no snapshot size replays as it always did', (
+    tester,
+  ) async {
+    // Older hosts omit the field, and an attach against one has to keep
+    // working rather than resize the emulator to nothing.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      ..attachmentSnapshot = utf8.encode('restored');
+
+    await _pumpTab(tester, client);
+
+    expect(_terminalOf(tester).buffer.lines[0].toString(), 'restored');
   });
 
   testWidgets('A tab with no history to restore is never covered', (
@@ -274,6 +349,22 @@ Terminal _terminalOf(WidgetTester tester) {
   return tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
 }
 
+/// Pumps until the restore has drained and the view is back.
+///
+/// The batcher paces itself with a timer between frames, and while the view is
+/// held back nothing else schedules one, so `pumpAndSettle` returns before the
+/// timer is due. A real frame loop keeps running regardless.
+Future<void> _drainRestore(WidgetTester tester) async {
+  for (var frame = 0; frame < 100; frame++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (find.text('Restoring terminal').evaluate().isEmpty) {
+      await tester.pumpAndSettle();
+      return;
+    }
+  }
+  fail('the restore never drained');
+}
+
 double _restoreFraction(WidgetTester tester) {
   return tester
           .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
@@ -306,7 +397,10 @@ Future<void> _pumpTab(
   // Settling would drain the whole restore, which is the state under test.
   for (var frame = 0; frame < 10; frame++) {
     await tester.pump();
-    if (find.byType(TerminalView).evaluate().isNotEmpty) {
+    final attached =
+        find.byType(TerminalView).evaluate().isNotEmpty ||
+        find.text('Restoring terminal').evaluate().isNotEmpty;
+    if (attached) {
       return;
     }
   }

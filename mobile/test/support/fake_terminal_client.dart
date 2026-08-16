@@ -55,6 +55,11 @@ class FakeTerminalClient
   Future<void>? removeTabCompletion;
   Future<void>? terminateCompletion;
   List<int> attachmentSnapshot = const <int>[];
+
+  /// The size the host says [attachmentSnapshot] was written at. Left null to
+  /// stand in for a host that predates the field.
+  int? attachmentSnapshotCols;
+  int? attachmentSnapshotRows;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   List<String> projectBranches = const <String>[];
   List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
@@ -230,6 +235,8 @@ class FakeTerminalClient
         created: false,
         running: true,
         snapshot: attachmentSnapshot,
+        snapshotCols: attachmentSnapshotCols,
+        snapshotRows: attachmentSnapshotRows,
       ),
     );
   }

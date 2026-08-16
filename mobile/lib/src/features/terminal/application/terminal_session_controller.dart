@@ -115,6 +115,8 @@ class TerminalSessionController extends _$TerminalSessionController {
         sessionId: sessionId,
         snapshot: session.attachment.snapshot,
         running: session.attachment.running,
+        snapshotCols: session.attachment.snapshotCols,
+        snapshotRows: session.attachment.snapshotRows,
         output: client.terminalOutput.where(
           (event) => event.sessionId == sessionId,
         ),
@@ -174,6 +176,8 @@ class TerminalSessionController extends _$TerminalSessionController {
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
       running: session.attachment.running,
+      snapshotCols: session.attachment.snapshotCols,
+      snapshotRows: session.attachment.snapshotRows,
       output: client.terminalOutput.where(
         (event) => event.sessionId == sessionId,
       ),
