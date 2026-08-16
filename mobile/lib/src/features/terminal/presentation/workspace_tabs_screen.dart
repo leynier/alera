@@ -394,8 +394,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             : null,
       ),
       body: SafeArea(
+        // The last known tab list wins over a reload: reconnecting to the host
+        // rebuilds this provider, and swapping the body for a spinner disposes
+        // the tab's state along with anything it is waiting on, which silently
+        // dropped an attachment whose upload was still in flight.
         child: switch (tabs) {
-          AsyncData(value: final tabList) => switch (_selectedTab(tabList)) {
+          AsyncValue(value: final tabList?) => switch (_selectedTab(tabList)) {
             final WorkspaceTabSummary tab when tab.isCodex =>
               MobileCodexChatScreen(
                 key: ValueKey<String>(tab.id),

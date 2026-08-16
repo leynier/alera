@@ -1,7 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
-import 'package:alera_mobile/src/features/workbench/presentation/prompt_image_insertion.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/prompt_path_insertion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -109,7 +109,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
     try {
       final paths = await pick();
       if (paths.isNotEmpty) {
-        insertPromptImagePaths(_controller, paths);
+        insertPromptPaths(_controller, paths);
       }
     } finally {
       if (mounted) {

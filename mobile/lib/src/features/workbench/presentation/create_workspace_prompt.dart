@@ -9,12 +9,20 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       promptWorkspaceControllerProvider(widget.hostId).notifier,
     );
     final created = promptState.creation;
+    final workspaceFilesSourceId = _workspaceFilesSourceId(
+      promptState.projectId,
+    );
+    final hasAttachmentSources =
+        widget.supportsPromptImageUpload ||
+        widget.supportsPromptFileUpload ||
+        workspaceFilesSourceId != null;
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
         TextField(
           controller: _prompt,
-          enabled: !promptState.loading && created == null && !_uploadingImages,
+          enabled:
+              !promptState.loading && created == null && !_uploadingAttachment,
           minLines: 4,
           maxLines: 8,
           decoration: const InputDecoration(
@@ -23,15 +31,17 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             alignLabelWithHint: true,
           ),
         ),
-        if (widget.supportsPromptImageUpload) ...<Widget>[
+        if (hasAttachmentSources) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           OutlinedButton.icon(
             onPressed:
-                promptState.loading || created != null || _uploadingImages
+                promptState.loading || created != null || _uploadingAttachment
                 ? null
-                : _addPromptImages,
-            icon: const Icon(Icons.photo_library_outlined),
-            label: const Text('Add Images'),
+                : () => unawaited(
+                    _showPromptAttachmentPicker(workspaceFilesSourceId),
+                  ),
+            icon: const Icon(Icons.attach_file),
+            label: const Text('Add Attachment'),
           ),
         ],
         const SizedBox(height: AleraTokens.spaceLg),
@@ -121,10 +131,10 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
-        if (_promptImageError != null) ...<Widget>[
+        if (_promptAttachmentError != null) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Text(
-            _promptImageError!,
+            _promptAttachmentError!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
@@ -133,7 +143,8 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: _createAnother,
-          onChanged: promptState.loading || created != null || _uploadingImages
+          onChanged:
+              promptState.loading || created != null || _uploadingAttachment
               ? null
               : (value) {
                   _update(() => _createAnother = value ?? false);
@@ -142,7 +153,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
           subtitle: const Text('Keep this screen open after creation'),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
-        if (_uploadingImages)
+        if (_uploadingAttachment)
           Row(
             children: <Widget>[
               const SizedBox.square(
@@ -152,7 +163,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
                 ),
               ),
               const SizedBox(width: AleraTokens.spaceMd),
-              const Expanded(child: Text('Uploading images')),
+              const Expanded(child: Text('Uploading attachment')),
             ],
           )
         else if (promptState.loading)
@@ -197,7 +208,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
                 promptState.projectId == null ||
                     promptState.sourceBranch == null ||
                     promptState.profileId == null ||
-                    _uploadingImages
+                    _uploadingAttachment
                 ? null
                 : () => _createFromPrompt(controller),
             icon: const Icon(Icons.smart_toy_outlined),
@@ -207,13 +218,146 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
     );
   }
 
-  Future<void> _addPromptImages() async {
+  /// The worktree Quick Open indexes for a workspace that does not exist yet.
+  /// The selected parent is preferred and the project's own default answers
+  /// otherwise; a parent from another project is skipped, since Quick Open
+  /// returns paths relative to the worktree it indexed and those would not
+  /// exist in the repository being branched. That relative answer is also what
+  /// keeps an inserted path valid once the agent starts in the new worktree.
+  String? _workspaceFilesSourceId(String? projectId) {
+    if (!widget.supportsWorkspaceFiles || projectId == null) {
+      return null;
+    }
+    final parentId = _promptParentWorkspaceId;
+    if (parentId != null) {
+      for (final workspace in widget.workspaces) {
+        if (workspace.id == parentId && workspace.projectId == projectId) {
+          return parentId;
+        }
+      }
+    }
+    return _defaultParentWorkspaceId(projectId);
+  }
+
+  Future<void> _showPromptAttachmentPicker(
+    String? workspaceFilesSourceId,
+  ) async {
+    final source = await showPromptAttachmentSheet(
+      context,
+      allowPhotoLibrary: widget.supportsPromptImageUpload,
+      allowFiles: widget.supportsPromptFileUpload,
+      allowWorkspaceFile: workspaceFilesSourceId != null,
+    );
+    if (!mounted || source == null) {
+      return;
+    }
+    switch (source) {
+      case PromptAttachmentSource.photoLibrary:
+        await _addPromptImages();
+      case PromptAttachmentSource.files:
+        await _addPromptFile();
+      case PromptAttachmentSource.workspaceFile:
+        await _addPromptWorkspaceFile(workspaceFilesSourceId!);
+    }
+  }
+
+  Future<void> _addPromptFile() async {
     _update(() {
-      _uploadingImages = true;
+      _uploadingAttachment = true;
     });
     try {
-      final picker = widget.promptImagePicker ?? ImagePickerPromptImagePicker();
-      final images = await picker.pickImages();
+      final file = await ref.read(promptFilePickerProvider).pickFile();
+      if (file == null) {
+        return;
+      }
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      if (client is! MobileCodexWorkspaceClient) {
+        throw UnsupportedError(
+          'Update Alera on this host to add files to a prompt.',
+        );
+      }
+      final fileClient = client as MobileCodexWorkspaceClient;
+      if (!fileClient.supportsPromptFileUpload) {
+        throw UnsupportedError(
+          'Update Alera on this host to add files to a prompt.',
+        );
+      }
+      final result = await fileClient.uploadPromptFile(
+        name: file.name,
+        sizeBytes: file.sizeBytes,
+        openRead: file.openRead,
+      );
+      if (!mounted) {
+        return;
+      }
+      insertPromptPaths(_prompt, <String>[result.hostPath]);
+      _update(() {
+        _promptAttachmentError = null;
+      });
+    } on Object catch (error) {
+      if (mounted) {
+        _update(() {
+          _promptAttachmentError = _promptAttachmentErrorMessage(error);
+        });
+      }
+    } finally {
+      if (mounted) {
+        _update(() {
+          _uploadingAttachment = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _addPromptWorkspaceFile(String workspaceId) async {
+    try {
+      final client = await ref.read(
+        workspaceClientProvider(widget.hostId).future,
+      );
+      if (client is! MobileCodexWorkspaceClient) {
+        throw UnsupportedError(
+          'Update Alera on this host to add workspace files to a prompt.',
+        );
+      }
+      final filesClient = client as MobileCodexWorkspaceClient;
+      if (!filesClient.supportsCodexWorkspaceFiles) {
+        throw UnsupportedError(
+          'Update Alera on this host to add workspace files to a prompt.',
+        );
+      }
+      if (!mounted) {
+        return;
+      }
+      final path = await showWorkspaceFilePickerSheet(
+        context,
+        start: () => filesClient.startWorkspaceQuickOpen(workspaceId),
+        search: filesClient.searchWorkspaceQuickOpen,
+        stop: filesClient.stopWorkspaceQuickOpen,
+      );
+      if (path == null || !mounted) {
+        return;
+      }
+      insertPromptPaths(_prompt, <String>[path]);
+      _update(() {
+        _promptAttachmentError = null;
+      });
+    } on Object catch (error) {
+      if (mounted) {
+        _update(() {
+          _promptAttachmentError = _promptAttachmentErrorMessage(error);
+        });
+      }
+    }
+  }
+
+  Future<void> _addPromptImages() async {
+    _update(() {
+      _uploadingAttachment = true;
+    });
+    try {
+      final images = await ref.read(promptImagePickerProvider).pickImages();
       if (images.isEmpty) {
         return;
       }
@@ -234,34 +378,34 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         if (!mounted) {
           return;
         }
-        insertPromptImagePaths(_prompt, <String>[result.hostPath]);
+        insertPromptPaths(_prompt, <String>[result.hostPath]);
       }
       if (mounted) {
         _update(() {
-          _promptImageError = null;
+          _promptAttachmentError = null;
         });
       }
     } on Object catch (error) {
       if (mounted) {
         _update(() {
-          _promptImageError = _promptImageErrorMessage(error);
+          _promptAttachmentError = _promptAttachmentErrorMessage(error);
         });
       }
     } finally {
       if (mounted) {
         _update(() {
-          _uploadingImages = false;
+          _uploadingAttachment = false;
         });
       }
     }
   }
 
-  String _promptImageErrorMessage(Object error) {
+  String _promptAttachmentErrorMessage(Object error) {
     final message = error.toString().replaceFirst('Exception: ', '').trim();
     if (message.isEmpty) {
-      return 'Could not add images. Try again.';
+      return 'Could not add the attachment. Try again.';
     }
-    return 'Could not add images: $message';
+    return 'Could not add the attachment: $message';
   }
 
   Future<void> _createFromPrompt(PromptWorkspaceController controller) async {
@@ -291,7 +435,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       if (_createAnother) {
         _showCreationMessage(creation);
         _prompt.clear();
-        _promptImageError = null;
+        _promptAttachmentError = null;
         controller.resetForAnother();
       } else {
         _openWorkspace(creation, tabId: tabId);
@@ -311,7 +455,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
       if (_createAnother) {
         _showCreationMessage(creation);
         _prompt.clear();
-        _promptImageError = null;
+        _promptAttachmentError = null;
         controller.resetForAnother();
       } else {
         _openWorkspace(creation, tabId: tabId);

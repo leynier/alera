@@ -37,26 +37,36 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
     });
   }
 
+  /// Adds an attachment whose upload may have outlived this state. The draft
+  /// store is keyed by host and tab and outlives the screen, so a pick that
+  /// completes after the tab body was rebuilt still reaches the composer.
+  void _addUploadedAttachment(Map<String, Object?> attachment) {
+    if (mounted) {
+      _setDraftState(() => _attachments.add(attachment));
+      return;
+    }
+    _draftStore.addAttachment(widget.hostId, widget.tabId, attachment);
+  }
+
   Future<void> _pickImage(MobileCodexController controller) async {
+    final messenger = mounted ? ScaffoldMessenger.maybeOf(context) : null;
     try {
       final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (image == null || !mounted) return;
+      if (image == null) return;
       final path = await controller.uploadImage(
         format: promptImageFormatForFileName(image.name),
         sizeBytes: await image.length(),
         openRead: () => image.openRead(),
       );
-      if (!mounted) return;
-      _setDraftState(() {
-        _attachments.add(<String, Object?>{
-          'type': 'localImage',
-          'origin': 'attachment',
-          'name': image.name,
-          'path': path,
-        });
+      _addUploadedAttachment(<String, Object?>{
+        'type': 'localImage',
+        'origin': 'attachment',
+        'name': image.name,
+        'path': path,
       });
     } on Object catch (error, stackTrace) {
       _showAttachmentUploadFailure(
+        messenger: messenger,
         message: 'Image upload failed.',
         error: error,
         stackTrace: stackTrace,
@@ -112,27 +122,26 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
   }
 
   Future<void> _pickFile(MobileCodexController controller) async {
+    final messenger = mounted ? ScaffoldMessenger.maybeOf(context) : null;
     try {
       final file = await openFile();
-      if (file == null || !mounted) return;
+      if (file == null) return;
       final upload = await controller.uploadFile(
         name: file.name,
         sizeBytes: await file.length(),
         openRead: file.openRead,
       );
-      if (!mounted) return;
-      _setDraftState(() {
-        _attachments.add(<String, Object?>{
-          'type': mobileCodexIsAudioFile(file.name, file.mimeType)
-              ? 'localAudio'
-              : 'file',
-          'origin': 'attachment',
-          'name': file.name,
-          'path': upload.hostPath,
-        });
+      _addUploadedAttachment(<String, Object?>{
+        'type': mobileCodexIsAudioFile(file.name, file.mimeType)
+            ? 'localAudio'
+            : 'file',
+        'origin': 'attachment',
+        'name': file.name,
+        'path': upload.hostPath,
       });
     } on Object catch (error, stackTrace) {
       _showAttachmentUploadFailure(
+        messenger: messenger,
         message: 'File upload failed.',
         error: error,
         stackTrace: stackTrace,
@@ -141,15 +150,19 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
     }
   }
 
+  /// The messenger is captured before the picker runs. Reporting through
+  /// `context` instead loses the failure exactly when it matters, because the
+  /// state that started the pick may be gone by the time the upload fails.
   void _showAttachmentUploadFailure({
+    required ScaffoldMessengerState? messenger,
     required String message,
     required Object error,
     required StackTrace stackTrace,
     required VoidCallback retry,
   }) {
     _MobileCodexChatScreenState._logger.warning(message, error, stackTrace);
-    if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    if (messenger == null || !messenger.mounted) return;
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         action: SnackBarAction(label: 'Retry', onPressed: retry),
