@@ -56,9 +56,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(AgentIdentityIcon), findsNWidgets(2));
-    expect(find.byTooltip('New Codex Chat'), findsOneWidget);
+    // Only the chip avatar carries the identity now: creating a Codex chat
+    // moved into the single New Tab menu.
+    expect(find.byType(AgentIdentityIcon), findsOneWidget);
     expect(find.byTooltip('Codex'), findsNothing);
+
+    await tester.tap(find.byTooltip('New Tab'));
+    await tester.pumpAndSettle();
+    expect(find.text('New Terminal'), findsOneWidget);
+    expect(find.text('New Codex Chat'), findsOneWidget);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
 
     await tester.longPressAt(
       tester.getCenter(find.byType(AgentIdentityIcon).first),
@@ -239,12 +247,14 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AppBar),
-        matching: find.byTooltip('Configure Quick Keys'),
+        matching: find.byTooltip('More Actions'),
       ),
       findsOneWidget,
     );
 
-    await tester.tap(find.byTooltip('Configure Quick Keys'));
+    await tester.tap(find.byTooltip('More Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terminal Quick Keys'));
     await tester.pumpAndSettle();
     expect(find.byType(TerminalKeysSettingsScreen), findsOneWidget);
     await tester.pageBack();

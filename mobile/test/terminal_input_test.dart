@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/app/theme/alera_theme.dart';
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
@@ -42,10 +44,8 @@ void main() {
               builtInTerminalAccessoryKeysById['shiftTab']!,
               builtInTerminalAccessoryKeysById['ctrlC']!,
             ],
-            inputMode: TerminalInputMode.compose,
             onKey: written.add,
-            onPaste: () async {},
-            onToggleMode: () {},
+            onAction: (_) async {},
           ),
         ),
       ),
@@ -62,11 +62,57 @@ void main() {
     ]);
   });
 
-  testWidgets('Paste and vertical arrows stay in the pinned command rail', (
+  testWidgets('Paste is an ordinary key in the single scrolling row', (
     tester,
   ) async {
     final written = <List<int>>[];
-    var pasteCount = 0;
+    final actions = <TerminalAccessoryAction>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              width: 320,
+              child: TerminalAccessoryBar(
+                keys: <TerminalAccessoryKey>[
+                  builtInTerminalAccessoryKeysById['arrowUp']!,
+                  builtInTerminalAccessoryKeysById['arrowDown']!,
+                  builtInTerminalAccessoryKeysById['paste']!,
+                ],
+                onKey: written.add,
+                onAction: (action) async => actions.add(action),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final arrowUp = find.byKey(
+      const ValueKey<String>('terminal-accessory-arrowUp'),
+    );
+    final arrowDown = find.byKey(
+      const ValueKey<String>('terminal-accessory-arrowDown'),
+    );
+    await tester.tap(arrowUp);
+    await tester.tap(arrowDown);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('terminal-accessory-paste')),
+    );
+
+    expect(actions, <TerminalAccessoryAction>[TerminalAccessoryAction.paste]);
+    expect(written, <List<int>>[
+      <int>[0x1b, 0x5b, 0x41],
+      <int>[0x1b, 0x5b, 0x42],
+    ]);
+    // One row: no separate rail holds anything back.
+    expect(find.byType(ListView), findsOneWidget);
+    expect(tester.getSize(arrowUp), const Size.square(48));
+    expect(tester.getSize(arrowDown), const Size.square(48));
+  });
+
+  testWidgets('The key strip fades where more keys continue', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -76,12 +122,52 @@ void main() {
               width: 320,
               child: TerminalAccessoryBar(
                 keys: builtInTerminalAccessoryKeys,
-                inputMode: TerminalInputMode.compose,
-                onKey: written.add,
-                onPaste: () async {
-                  pasteCount += 1;
-                },
-                onToggleMode: () {},
+                onKey: (_) {},
+                onAction: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    const start = ValueKey<String>('terminal-accessory-fade-start');
+    const end = ValueKey<String>('terminal-accessory-fade-end');
+    expect(find.byKey(start), findsNothing);
+    expect(find.byKey(end), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(-200, 0));
+    await tester.pump();
+
+    expect(find.byKey(start), findsOneWidget);
+  });
+
+  testWidgets('The compose field and Send share one row', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAleraMobileDarkTheme(),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TerminalAccessoryBar(
+                      keys: const <TerminalAccessoryKey>[],
+                      onKey: (_) {},
+                      onAction: (_) async {},
+                    ),
+                    TerminalComposeBar(
+                      hostId: 'host',
+                      tabId: 'tab',
+                      onSend: (text, {required bool withEnter}) {},
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -89,23 +175,63 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('Paste Clipboard'));
-    final arrowUp = find.byKey(
-      const ValueKey<String>('terminal-accessory-arrowUp'),
-    );
-    final arrowDown = find.byKey(
-      const ValueKey<String>('terminal-accessory-arrowDown'),
-    );
-    await tester.tap(arrowUp);
-    await tester.tap(arrowDown);
+    final send = tester.getRect(find.byTooltip('Send'));
+    expect(send.size, const Size.square(48));
 
-    expect(pasteCount, 1);
-    expect(written, <List<int>>[
-      <int>[0x1b, 0x5b, 0x41],
-      <int>[0x1b, 0x5b, 0x42],
-    ]);
-    expect(tester.getSize(arrowUp), const Size.square(48));
-    expect(tester.getSize(arrowDown), const Size.square(48));
+    // The field paints its own chrome at least a tap target tall and shares a
+    // baseline with Send. The exact height is font dependent, and the test
+    // fallback font is far taller than the bundled mono face, so asserting an
+    // exact pixel height here would measure the test font, not the layout.
+    final field = tester.getRect(
+      find.byKey(const ValueKey<String>('terminal-compose-field')),
+    );
+    expect(field.height, greaterThanOrEqualTo(AleraTokens.minTapTarget));
+    expect(field.bottom, send.bottom);
+  });
+
+  testWidgets('The first key and the compose field share the left inset', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAleraMobileDarkTheme(),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TerminalAccessoryBar(
+                      keys: <TerminalAccessoryKey>[
+                        builtInTerminalAccessoryKeysById['arrowUp']!,
+                      ],
+                      onKey: (_) {},
+                      onAction: (_) async {},
+                    ),
+                    TerminalComposeBar(
+                      hostId: 'host',
+                      tabId: 'tab',
+                      onSend: (text, {required bool withEnter}) {},
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final firstKey = tester.getRect(
+      find.byKey(const ValueKey<String>('terminal-accessory-arrowUp')),
+    );
+    final field = tester.getRect(
+      find.byKey(const ValueKey<String>('terminal-compose-field')),
+    );
+    expect(firstKey.left, field.left);
   });
 
   testWidgets(
@@ -115,6 +241,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            theme: buildAleraMobileDarkTheme(),
             home: Scaffold(
               body: TerminalComposeBar(
                 hostId: 'host',
@@ -150,6 +277,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          theme: buildAleraMobileDarkTheme(),
           home: Scaffold(
             body: TerminalComposeBar(
               hostId: 'host',

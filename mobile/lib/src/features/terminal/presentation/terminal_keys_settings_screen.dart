@@ -83,32 +83,27 @@ class _KeyList extends StatelessWidget {
       itemBuilder: (context, index) {
         final key = keys[index];
         final isCustom = customIds.contains(key.id);
-        final isPinned = pinnedTerminalAccessoryKeyIds.contains(key.id);
         return SwitchListTile(
           key: ValueKey<String>(key.id),
           value: !layout.hiddenIds.contains(key.id),
           onChanged: (visible) => controller.setKeyVisible(key.id, visible),
           title: Text(
             key.label,
-            style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
+            style: switch (key) {
+              // An action key spells a word, not a key cap, so the mono face
+              // that makes Ctrl+C read as a key would only look broken here.
+              TerminalAccessoryActionKey() => null,
+              TerminalAccessoryBytesKey() => const TextStyle(
+                fontFamily: AleraTokens.monoFontFamily,
+              ),
+            },
           ),
-          subtitle: Text(
-            isCustom
-                ? 'Custom Key'
-                : isPinned
-                ? '${key.accessibilityLabel} - Pinned'
-                : key.accessibilityLabel,
-          ),
+          subtitle: Text(isCustom ? 'Custom Key' : key.accessibilityLabel),
           secondary: isCustom
               ? IconButton(
                   tooltip: 'Delete Custom Key',
                   onPressed: () => controller.removeCustomKey(key.id),
                   icon: const Icon(Icons.delete_outline),
-                )
-              : isPinned
-              ? const Tooltip(
-                  message: 'Pinned quick key',
-                  child: Icon(Icons.push_pin_outlined),
                 )
               : ReorderableDragStartListener(
                   index: index,

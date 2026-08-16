@@ -96,7 +96,10 @@ abstract final class AleraTokens {
   static const double scrimAlpha = 0.55;
   static const double squareAspectRatio = 1;
   static const double pairingViewfinderSize = 260;
-  static const double tabStripHeight = 56;
+
+  /// Hugs a 40dp chip with [spaceXs] above and below. A taller strip only adds
+  /// dead space between the app bar title and the tabs.
+  static const double tabStripHeight = 48;
 
   /// Matches desktop terminal/browser tab title max width.
   static const double tabTitleMaxWidthTerminal = 92;
@@ -105,6 +108,14 @@ abstract final class AleraTokens {
   static const double tabTitleMaxWidthEditor = 180;
   static const double accessoryBarHeight = minTapTarget + spaceSm;
   static const int composeBarMaxLines = 4;
+
+  /// Single inset and gap for the terminal input stack. The quick-key strip,
+  /// the compose field, and every trailing action share it so the mode toggle
+  /// and Send land in one column.
+  static const double terminalInputInset = space8;
+
+  /// Width of the fade that reveals more quick keys past the edge of the strip.
+  static const double terminalAccessoryFadeWidth = space24;
 
   static const Duration keyRepeatInterval = Duration(milliseconds: 90);
   static const int pairingInputMinLines = 6;
