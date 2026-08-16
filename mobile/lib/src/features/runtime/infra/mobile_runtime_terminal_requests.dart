@@ -20,6 +20,13 @@ mixin MobileRuntimeTerminalRequests {
     Map<String, Object?> payload,
   ]);
 
+  /// Reuses `mobile.status.get`, which the runtime answers without touching a
+  /// session, so a foreground check costs one round trip and cannot disturb a
+  /// terminal that is working.
+  Future<void> probeConnection() async {
+    await request('mobile.status.get');
+  }
+
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
     final payload = await requestList('tab.list', <String, Object?>{
       'workspaceId': workspaceId,

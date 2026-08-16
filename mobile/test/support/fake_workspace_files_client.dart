@@ -1,14 +1,46 @@
 import 'dart:async';
 
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
+import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
-/// The runtime client implements the workspace-files surface alongside the
-/// workspace one, so the fakes do too: New Workspace and the terminal reach
-/// both through a single `workspaceClientProvider`.
+/// Every attachment source a prompt can draw from: the two uploads and the
+/// workspace-files surface. The runtime client implements them alongside the
+/// workspace one, so the fakes do too, because New Workspace and the terminal
+/// reach all of them through a single `workspaceClientProvider`.
 mixin FakeWorkspaceFilesClient implements MobileCodexWorkspaceClient {
   /// Provided by the host fake, which records every request for assertions.
   List<String> get calls;
+
+  Object? promptImageUploadError;
+  int? failPromptImageUploadAt;
+  final List<List<int>> promptImageChunks = <List<int>>[];
+  int _promptImageUploads = 0;
+
+  // Declared by MobileWorkspaceClient, which the host fake implements; the
+  // mixin only carries the behaviour.
+  Future<PromptImageUploadResult> uploadPromptImage({
+    required String format,
+    required int sizeBytes,
+    required Stream<List<int>> Function() openRead,
+  }) async {
+    calls.add('uploadPromptImage $format $sizeBytes');
+    if (failPromptImageUploadAt != null) {
+      if (failPromptImageUploadAt == _promptImageUploads + 1) {
+        throw promptImageUploadError ??
+            StateError('prompt image upload failed');
+      }
+    } else if (promptImageUploadError != null) {
+      throw promptImageUploadError!;
+    }
+    await for (final chunk in openRead()) {
+      promptImageChunks.add(List<int>.from(chunk));
+    }
+    _promptImageUploads += 1;
+    return PromptImageUploadResult(
+      hostPath: '/runtime/prompt-images/upload-$_promptImageUploads.$format',
+    );
+  }
 
   List<String> workspaceFiles = const <String>[];
   bool promptFileUploadSupported = false;

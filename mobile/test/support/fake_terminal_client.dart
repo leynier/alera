@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
@@ -76,11 +75,7 @@ class FakeTerminalClient
       );
   String? deferredSetupCommand;
   Object? linkError;
-  Object? promptImageUploadError;
-  int? failPromptImageUploadAt;
-  final List<List<int>> promptImageChunks = <List<int>>[];
   int _createdTabs = 0;
-  int _promptImageUploads = 0;
 
   void emitEvent(String name) {
     _events.add(MobileRuntimeEvent(name, const <String, Object?>{}));
@@ -187,6 +182,20 @@ class FakeTerminalClient
   @override
   Future<List<AgentPresenceSummary>> listAgentPresence() async =>
       const <AgentPresenceSummary>[];
+
+  /// Fails the foreground connection probe, so a test can drive the branch
+  /// that still needs a re-attach.
+  Object? probeError;
+  int probeCount = 0;
+
+  @override
+  Future<void> probeConnection() async {
+    probeCount += 1;
+    calls.add('probeConnection');
+    if (probeError != null) {
+      throw probeError!;
+    }
+  }
 
   @override
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
@@ -333,30 +342,6 @@ class FakeTerminalClient
   @override
   Future<void> cancelWorkspaceIdentity(String operationId) async {
     calls.add('cancelWorkspaceIdentity $operationId');
-  }
-
-  @override
-  Future<PromptImageUploadResult> uploadPromptImage({
-    required String format,
-    required int sizeBytes,
-    required Stream<List<int>> Function() openRead,
-  }) async {
-    calls.add('uploadPromptImage $format $sizeBytes');
-    if (failPromptImageUploadAt != null) {
-      if (failPromptImageUploadAt == _promptImageUploads + 1) {
-        throw promptImageUploadError ??
-            StateError('prompt image upload failed');
-      }
-    } else if (promptImageUploadError != null) {
-      throw promptImageUploadError!;
-    }
-    await for (final chunk in openRead()) {
-      promptImageChunks.add(List<int>.from(chunk));
-    }
-    _promptImageUploads += 1;
-    return PromptImageUploadResult(
-      hostPath: '/runtime/prompt-images/upload-$_promptImageUploads.$format',
-    );
   }
 
   @override
