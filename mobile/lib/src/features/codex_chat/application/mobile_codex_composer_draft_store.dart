@@ -47,6 +47,38 @@ class MobileCodexComposerDraftStore {
     _drafts[key] = draft;
   }
 
+  /// Appends an attachment that finished uploading and tells whichever
+  /// composer is mounted to pick it up. An upload outlives the screen that
+  /// started it: the picker sends the app to the background, and the host
+  /// reconnect that follows rebuilds the tab body while the bytes are still
+  /// streaming, so the state holding the composer is often gone by the time
+  /// the runtime answers with the path.
+  void addAttachment(
+    String hostId,
+    String tabId,
+    Map<String, Object?> attachment,
+  ) {
+    final key = (hostId: hostId, tabId: tabId);
+    if (_removed.contains(key)) return;
+    final current = read(hostId, tabId);
+    write(
+      hostId,
+      tabId,
+      current.copyWith(
+        attachments: <Map<String, Object?>>[...current.attachments, attachment],
+      ),
+    );
+    _notifyRestore(key);
+  }
+
+  void _notifyRestore(MobileCodexDraftKey key) {
+    for (final listener in List<VoidCallback>.of(
+      _restoreListeners[key] ?? const <VoidCallback>{},
+    )) {
+      listener();
+    }
+  }
+
   void restoreSubmission(
     String hostId,
     String tabId,
@@ -84,11 +116,7 @@ class MobileCodexComposerDraftStore {
         ],
       ),
     );
-    for (final listener in List<VoidCallback>.of(
-      _restoreListeners[key] ?? const <VoidCallback>{},
-    )) {
-      listener();
-    }
+    _notifyRestore(key);
   }
 
   void remove(String hostId, String tabId) {

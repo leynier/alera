@@ -11,6 +11,8 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
+import 'fake_workspace_files_client.dart';
+
 WorkspaceTabSummary fakeTab({
   required String id,
   required String title,
@@ -37,11 +39,13 @@ WorkspaceTabSummary fakeTab({
 /// In-memory stand-in for the runtime gateway covering both the terminal and
 /// workspace client surfaces. Records calls as readable strings.
 class FakeTerminalClient
+    with FakeWorkspaceFilesClient
     implements MobileTerminalClient, MobileWorkspaceClient {
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final StreamController<MobileTerminalOutputEvent> _output =
       StreamController<MobileTerminalOutputEvent>.broadcast();
+  @override
   final List<String> calls = <String>[];
 
   /// The raw payload of each `writeTerminal`, for tests that care about the

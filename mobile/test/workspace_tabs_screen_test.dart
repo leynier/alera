@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/agent_identity_icon.dart';
@@ -285,5 +286,54 @@ void main() {
       ),
     );
     expect(field.controller?.text, 'Updated Task');
+  });
+
+  testWidgets('Keeps the tab body mounted while the host connection reloads', (
+    tester,
+  ) async {
+    // Reconnecting used to swap the body for a spinner, which disposed the
+    // tab's state along with any pick whose upload was still in flight.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    addTearDown(client.dispose);
+    final reconnect = Completer<void>();
+    var connections = 0;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async {
+            connections += 1;
+            if (connections > 1) await reconnect.future;
+            return client;
+          }),
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+        child: const MaterialApp(
+          home: WorkspaceTabsScreen(
+            hostId: 'host-1',
+            workspace: WorkspaceSummary(
+              id: 'workspace-1',
+              projectId: 'project-1',
+              name: 'Workspace',
+              path: '/repo',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TerminalTabView), findsOneWidget);
+
+    ProviderScope.containerOf(
+      tester.element(find.byType(WorkspaceTabsScreen)),
+    ).invalidate(terminalClientProvider('host-1'));
+    await tester.pump();
+
+    expect(find.byType(TerminalTabView), findsOneWidget);
+
+    reconnect.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(TerminalTabView), findsOneWidget);
   });
 }
