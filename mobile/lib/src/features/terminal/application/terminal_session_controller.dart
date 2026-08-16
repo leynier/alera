@@ -6,56 +6,13 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
-
-/// Raised when a desktop driver takes the terminal viewport back.
-class DesktopReclaimedTerminal implements Exception {
-  const DesktopReclaimedTerminal();
-
-  @override
-  String toString() => 'Desktop took back the terminal';
-}
-
-/// A live terminal attachment with its replay snapshot and filtered output.
-class TerminalTabSession {
-  TerminalTabSession({
-    required this.sessionId,
-    required List<int> snapshot,
-    required this.running,
-    required this.output,
-  }) : _snapshot = _TerminalSnapshotPayload(snapshot);
-
-  final String sessionId;
-  final bool running;
-  final _TerminalSnapshotPayload _snapshot;
-
-  /// Carries full events so resync replacement stays ordered with live output.
-  final Stream<MobileTerminalOutputEvent> output;
-
-  /// Transfers restore bytes without retaining rendered scrollback twice.
-  List<int> takeSnapshot() => _snapshot.take();
-
-  int get retainedSnapshotBytes => _snapshot.retainedBytes;
-}
-
-class _TerminalSnapshotPayload {
-  _TerminalSnapshotPayload(this._bytes);
-
-  List<int>? _bytes;
-
-  int get retainedBytes => _bytes?.length ?? 0;
-
-  List<int> take() {
-    final value = _bytes;
-    _bytes = null;
-    return value ?? const <int>[];
-  }
-}
 
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {

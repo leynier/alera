@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
