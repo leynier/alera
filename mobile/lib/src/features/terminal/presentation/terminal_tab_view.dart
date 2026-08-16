@@ -15,6 +15,11 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.da
 import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
+import 'package:alera_mobile/src/features/workbench/application/prompt_attachment_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/prompt_attachment_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_picker_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,14 +27,21 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batche
 import 'package:logging/logging.dart';
 import 'package:xterm/xterm.dart';
 
+part 'terminal_attachment_actions.dart';
 part 'terminal_tab_state_widgets.dart';
 
 /// One terminal tab filling the available space, with the quick-key bar and
 /// the compose/direct input modes stacked above the keyboard.
 class TerminalTabView extends ConsumerStatefulWidget {
-  const TerminalTabView({super.key, required this.hostId, required this.tabId});
+  const TerminalTabView({
+    super.key,
+    required this.hostId,
+    required this.workspaceId,
+    required this.tabId,
+  });
 
   final String hostId;
+  final String workspaceId;
   final String tabId;
 
   @override
@@ -74,20 +86,17 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
           if (inputMode == TerminalInputMode.direct) const _DirectModeBanner(),
           TerminalAccessoryBar(
             keys: accessoryKeys,
-            inputMode: inputMode,
             onKey: notifier.write,
-            onPaste: () => _pasteClipboard(notifier),
-            onToggleMode: ref
-                .read(
-                  terminalInputModeControllerProvider(widget.tabId).notifier,
-                )
-                .toggle,
+            onAction: (action) => switch (action) {
+              TerminalAccessoryAction.paste => _pasteClipboard(notifier),
+            },
           ),
           if (inputMode == TerminalInputMode.compose)
             TerminalComposeBar(
               hostId: widget.hostId,
               tabId: widget.tabId,
               onSend: notifier.sendComposedText,
+              onPickAttachments: _canAttach ? _pickAttachments : null,
             ),
         ],
       ),
@@ -110,15 +119,43 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       fit: StackFit.expand,
       children: <Widget>[
         content,
+        // Terminal-level controls stack in one corner rail rather than sitting
+        // in the key strip, which belongs to what gets typed.
         Positioned(
           top: AleraTokens.spaceXs,
           right: AleraTokens.spaceXs,
-          child: AleraIconButton(
-            tooltip: _refreshing ? 'Refreshing Terminal' : 'Refresh Terminal',
-            icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
-            backgroundColor: AleraTokens.surfaceElevated,
-            borderColor: AleraTokens.borderSubtle,
-            onPressed: _refreshing ? null : _refreshTerminal,
+          child: Column(
+            children: <Widget>[
+              AleraIconButton(
+                tooltip: _refreshing
+                    ? 'Refreshing Terminal'
+                    : 'Refresh Terminal',
+                icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
+                backgroundColor: AleraTokens.surfaceElevated,
+                borderColor: AleraTokens.borderSubtle,
+                onPressed: _refreshing ? null : _refreshTerminal,
+              ),
+              const SizedBox(height: AleraTokens.spaceXs),
+              AleraIconButton(
+                tooltip: inputMode == TerminalInputMode.compose
+                    ? 'Switch To Direct Input'
+                    : 'Switch To Compose Input',
+                icon: inputMode == TerminalInputMode.compose
+                    ? Icons.keyboard_alt_outlined
+                    : Icons.bolt,
+                backgroundColor: inputMode == TerminalInputMode.direct
+                    ? AleraTokens.accentSubtle
+                    : AleraTokens.surfaceElevated,
+                borderColor: AleraTokens.borderSubtle,
+                onPressed: ref
+                    .read(
+                      terminalInputModeControllerProvider(
+                        widget.tabId,
+                      ).notifier,
+                    )
+                    .toggle,
+              ),
+            ],
           ),
         ),
       ],

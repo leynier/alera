@@ -161,18 +161,12 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
     MobileCodexController controller, {
     String? cwd,
   }) async {
-    final path = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.78,
-        child: _MobileWorkspaceFilePicker(
-          controller: controller,
-          workspaceId: widget.workspaceId,
-          cwd: cwd,
-        ),
-      ),
+    final path = await showWorkspaceFilePickerSheet(
+      context,
+      start: () =>
+          controller.startWorkspaceQuickOpen(widget.workspaceId, cwd: cwd),
+      search: controller.searchWorkspaceQuickOpen,
+      stop: controller.stopWorkspaceQuickOpen,
     );
     if (path == null || !mounted) return;
     _setDraftState(() {
