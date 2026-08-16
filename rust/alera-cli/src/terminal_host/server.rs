@@ -120,6 +120,7 @@ mod host_service_requests;
 mod host_status;
 mod lifecycle;
 mod managed_workspace_requests;
+mod mobile_gateway_surface;
 mod mobile_terminal_requests;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;

@@ -53,7 +53,7 @@ final class TerminalSessionControllerProvider
 }
 
 String _$terminalSessionControllerHash() =>
-    r'f948fe702c5f00aecd0390ae40f9f547bb36e7d0';
+    r'ca16c66e2d7f5e19b3798a906e33c59a44064473';
 
 final class TerminalSessionControllerFamily extends $Family
     with
