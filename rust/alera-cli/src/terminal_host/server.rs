@@ -117,6 +117,8 @@ mod lifecycle;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
 mod mobile_terminal_requests;
+#[cfg(test)]
+mod mobile_terminal_viewport_tests;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod orchestration_agent_spawn_requests;
