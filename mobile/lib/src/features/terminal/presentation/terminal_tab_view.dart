@@ -8,8 +8,11 @@ import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_input_mode_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key.dart';
+import 'package:alera_mobile/src/features/terminal/domain/mobile_terminal_scrollback.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:alera_mobile/src/features/workbench/application/prompt_attachment_providers.dart';
@@ -254,6 +257,8 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   final TerminalController _controller = TerminalController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'MobileTerminal');
+  final ValueNotifier<TerminalRestoreProgress?> _restoreProgress =
+      ValueNotifier<TerminalRestoreProgress?>(null);
   TerminalOutputBatcher? _batcher;
   StreamSubscription<MobileTerminalOutputEvent>? _outputSub;
   bool _outputEnded = false;
@@ -282,6 +287,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   void dispose() {
     unawaited(_outputSub?.cancel());
     _batcher?.dispose();
+    _restoreProgress.dispose();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -295,7 +301,11 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     _replaceEmulator(notify: notify);
     final snapshot = session.takeSnapshot();
     if (snapshot.isNotEmpty) {
-      _batcher!.addSnapshot(utf8.decode(snapshot, allowMalformed: true));
+      _restoreSnapshot(
+        utf8.decode(snapshot, allowMalformed: true),
+        cols: session.snapshotCols,
+        rows: session.snapshotRows,
+      );
     }
     _outputSub = session.output.listen(
       _handleOutput,
@@ -311,13 +321,23 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   void _replaceEmulator({required bool notify}) {
     _batcher?.dispose();
     final next = Terminal(
-      maxLines: 5000,
+      maxLines: mobileTerminalScrollbackLines,
       onOutput: (data) => widget.onInput(data),
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
+      // This emulator is filled from restored history, and the program that
+      // wrote it keeps the cursor hidden for as long as it runs. Without this
+      // the resize down to the phone's width truncates every line of that
+      // history instead of reflowing it, on the assumption that whoever hid
+      // the cursor is about to redraw - which is true of the live screen and
+      // false of everything scrolled above it.
+      reflowWithHiddenCursor: true,
     );
     // One write per frame. Writing every chunk straight through made a noisy
     // build parse and repaint many times inside a single frame.
-    _batcher = TerminalOutputBatcher(write: next.write);
+    _batcher = TerminalOutputBatcher(
+      write: next.write,
+      onRestoreProgress: _handleRestoreProgress,
+    );
     if (notify) {
       setState(() => _terminal = next);
     } else {
@@ -329,10 +349,45 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
     final text = utf8.decode(event.data, allowMalformed: true);
     if (event.replacesScrollback) {
       _replaceEmulator(notify: true);
-      _batcher!.addSnapshot(text);
+      _restoreSnapshot(
+        text,
+        cols: event.snapshotCols,
+        rows: event.snapshotRows,
+      );
       return;
     }
     _batcher!.add(text);
+  }
+
+  /// Replays restored history at the size it was written at.
+  ///
+  /// The snapshot is the raw PTY stream, which only reconstructs the screen it
+  /// came from at the geometry that produced it: every absolute cursor move and
+  /// hard wrap in it is stated in those columns. Parsing it at the phone's much
+  /// narrower width is what made the restored scrollback unreadable while the
+  /// live screen below it looked fine, since the running program redrew that
+  /// part itself. Replaying wide and then letting the view resize turns the
+  /// difference into a reflow, which is the operation that preserves the text.
+  ///
+  /// The view stays unmounted until the last byte is in, so the resize that
+  /// reflows happens once, against the whole history rather than a prefix.
+  void _restoreSnapshot(String text, {required int? cols, required int? rows}) {
+    if (cols != null && rows != null) {
+      // The PTY is already this size; echoing it back would be a pointless
+      // round trip, and a wrong one once the view states the real viewport.
+      _suppressedViewportSize = (cols, rows);
+      _terminal.resize(cols, rows);
+    }
+    _batcher!.addSnapshot(text);
+  }
+
+  void _handleRestoreProgress(TerminalRestoreProgress? progress) {
+    if (!mounted) {
+      return;
+    }
+    // Clearing this mounts the view, whose layout states the phone's viewport
+    // and reflows the history that was just replayed at the host's.
+    _restoreProgress.value = progress;
   }
 
   void _markOutputEnded() {
@@ -373,21 +428,32 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
         Expanded(
           child: ColoredBox(
             color: AleraTokens.background,
-            child: TerminalView(
-              _terminal,
-              key: ValueKey<int>(_viewGeneration),
-              controller: _controller,
-              scrollController: _scrollController,
-              focusNode: _focusNode,
-              // Compose mode keeps the terminal read-only so tapping it scrolls
-              // instead of raising the soft keyboard; direct mode streams keys.
-              readOnly: !direct,
-              autofocus: direct && _viewGeneration == 0,
-              backgroundOpacity: 0,
-              textStyle: const TerminalStyle(
-                fontFamily: AleraTokens.monoFontFamily,
-              ),
-              padding: const EdgeInsets.all(AleraTokens.spaceSm),
+            // Restoring a tab replays its whole scrollback over many frames.
+            // The view is held back rather than covered: mounting it states
+            // the phone's viewport, which would resize the emulator away from
+            // the size the history is being replayed at, reflowing a prefix of
+            // it and then fighting the rest.
+            child: ValueListenableBuilder<TerminalRestoreProgress?>(
+              valueListenable: _restoreProgress,
+              builder: (context, progress, _) => progress != null
+                  ? _TerminalRestoreState(progress: progress)
+                  : TerminalView(
+                      _terminal,
+                      key: ValueKey<int>(_viewGeneration),
+                      controller: _controller,
+                      scrollController: _scrollController,
+                      focusNode: _focusNode,
+                      // Compose mode keeps the terminal read-only so tapping it
+                      // scrolls instead of raising the soft keyboard; direct
+                      // mode streams keys.
+                      readOnly: !direct,
+                      autofocus: direct && _viewGeneration == 0,
+                      backgroundOpacity: 0,
+                      textStyle: const TerminalStyle(
+                        fontFamily: AleraTokens.monoFontFamily,
+                      ),
+                      padding: const EdgeInsets.all(AleraTokens.spaceSm),
+                    ),
             ),
           ),
         ),

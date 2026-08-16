@@ -64,6 +64,8 @@ class MobileTerminalOutputEvent {
     this.sessionId,
     this.data, {
     this.replacesScrollback = false,
+    this.snapshotCols,
+    this.snapshotRows,
   });
 
   final String sessionId;
@@ -73,6 +75,11 @@ class MobileTerminalOutputEvent {
   /// in the output stream, so these bytes replace the emulator contents instead
   /// of being appended to them.
   final bool replacesScrollback;
+
+  /// The size the replacing snapshot was written at, when the host states one.
+  /// Only meaningful alongside [replacesScrollback].
+  final int? snapshotCols;
+  final int? snapshotRows;
 }
 
 const int defaultTerminalCols = 80;
@@ -94,10 +101,18 @@ abstract interface class MobileTerminalClient {
     int rows,
     bool autoCloseOnSuccess = false,
   });
+
+  /// Attaches to [tabId]'s session, claiming the viewport driver seat.
+  ///
+  /// [cols] and [rows] are null until the terminal has been laid out, and stay
+  /// off the request when they are: the host resizes the live PTY to whatever
+  /// viewport a phone claims, so sending a placeholder resizes the session
+  /// twice per tab open and makes a full-screen agent redraw itself at a
+  /// geometry nobody is looking at.
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols,
-    int rows,
+    int? cols,
+    int? rows,
   });
   Future<MobileTerminalSession> restartTerminal(
     String tabId, {

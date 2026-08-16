@@ -5,30 +5,7 @@
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::{
-    int_or, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
-    RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
-    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_AI_DICTATION_CAPABILITY, RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,
-    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY, RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY, RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
-    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
-};
+use crate::terminal_host::protocol::int_or;
 use alera_core::runtime::{Workspace, WorkspaceTabRecord};
 use chrono::Utc;
 use uuid::Uuid;
@@ -36,51 +13,6 @@ use uuid::Uuid;
 use super::requests::{optional_string_key, require_string_key, terminal_session_id_from_tab};
 use super::terminal_launch_defaults::default_terminal_launch;
 use super::ServerActor;
-
-/// What `mobile.hello` tells a phone this host can do.
-///
-/// A different list from the one `status.get` answers with, and the one the app
-/// feature-detects against. Named rather than inlined so a test can assert a
-/// capability is in it: the runtime enforces an exact `MOBILE_PROTOCOL_VERSION`
-/// match, so an omission here is invisible and silently leaves every phone on
-/// the older code path with no version to blame.
-pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
-    RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
-    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-    RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
-    RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_RESTART_CAPABILITY,
-    RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
-    RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
-    RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,
-    RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
-    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
-    RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
-    RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
-    RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
-    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
-    RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
-    RUNTIME_HOST_AI_DICTATION_CAPABILITY,
-];
 
 impl ServerActor {
     pub(super) fn mobile_workspace_tabs_payload(&self, tabs: Vec<WorkspaceTabRecord>) -> Value {
@@ -172,16 +104,27 @@ impl ServerActor {
     /// Claims the driver seat for the phone right after a mobile attach or
     /// create, and refreshes the attachment's driver field so the response
     /// reflects the post-claim state.
-    fn claim_mobile_terminal_viewport(
+    ///
+    /// A phone that has not measured its terminal yet omits `cols`/`rows`, and
+    /// that MUST leave the PTY alone rather than fall back to 80x24: defaulting
+    /// resized the live session twice per tab open, once to a size nobody was
+    /// looking at and again to the real one a layout later, so a full-screen
+    /// agent redrew itself into the scrollback at a geometry it never had.
+    pub(super) fn claim_mobile_terminal_viewport(
         &mut self,
         client_id: u64,
         session_id: &str,
         payload: &Value,
         attachment: &mut Value,
     ) {
-        let cols = int_or(payload, "cols", 80) as u16;
-        let rows = int_or(payload, "rows", 24) as u16;
-        self.claim_mobile_driver(client_id, session_id, Some((cols, rows)));
+        let viewport = match (payload.get("cols"), payload.get("rows")) {
+            (Some(_), Some(_)) => Some((
+                int_or(payload, "cols", 80) as u16,
+                int_or(payload, "rows", 24) as u16,
+            )),
+            _ => None,
+        };
+        self.claim_mobile_driver(client_id, session_id, viewport);
         if let (Some(object), Some(session)) =
             (attachment.as_object_mut(), self.sessions.get(session_id))
         {
@@ -312,183 +255,4 @@ async fn mobile_terminal_attachment_payload(
         "cols": int_or(payload, "cols", 80),
         "rows": int_or(payload, "rows", 24),
     })
-}
-
-pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
-    matches!(
-        request_type,
-        "status.get"
-            | "host.restart"
-            | "mobile.status.get"
-            | "project.list"
-            | "hostDirectory.roots"
-            | "hostDirectory.list"
-            | "project.register"
-            | "project.rename"
-            | "project.remove.preview"
-            | "project.remove"
-            | "project.clone.start"
-            | "project.clone.list"
-            | "project.clone.cancel"
-            | "projectConfig.effective"
-            | "projectConfig.upsert"
-            | "projectConfig.remove"
-            | "project.branches.list"
-            | "workspace.list"
-            | "workspace.listAll"
-            | "workspace.find"
-            | "workspaceSidebar.snapshot"
-            | "workbenchViewPrefs.get"
-            | "workbenchViewPrefs.update"
-            | "agentPresence.list"
-            | "workspace.setPinned"
-            | "workspace.rename"
-            | "workspace.sleep"
-            | "workspace.repositoryWebUrl"
-            | "workspace.createManaged"
-            | "workspace.removeManaged"
-            | "agentProfile.list"
-            | "agentProfile.launch"
-            | "aiText.workspaceIdentity.generate"
-            | "aiText.speechMessage.generate"
-            | "aiText.cancel"
-            | "mobile.promptImage.start"
-            | "mobile.promptImage.chunk"
-            | "mobile.promptImage.complete"
-            | "mobile.promptImage.cancel"
-            | "mobile.workspaceQuickOpen.start"
-            | "mobile.workspaceQuickOpen.search"
-            | "mobile.workspaceQuickOpen.stop"
-            | "mobile.workspaceFile.read"
-            | "mobile.codexSavedPrompts.list"
-            | "mobile.promptFile.start"
-            | "mobile.promptFile.chunk"
-            | "mobile.promptFile.complete"
-            | "mobile.promptFile.cancel"
-            | "mobile.promptAttachment.read"
-            | "mobile.aiDictation.transcribe"
-            | "mobile.aiDictation.cancel"
-            | "tab.list"
-            | "tab.find"
-            | "tab.rename"
-            | "tab.remove"
-            | "mobile.runtimeSettings.get"
-            | "mobile.runtimeSettings.update"
-            | "mobile.cloudEnrollment.create"
-            | "mobile.cloudSubscriptions.refresh"
-            | "agentQuota.snapshot"
-            | "agentUsage.snapshot"
-            | "agentQuota.fetchClaudeTui"
-            | "agentQuota.consumeCodexResetCredit"
-            | "cliRegistration.status"
-            | "cliRegistration.install"
-            | "agentSkill.install"
-            | "linkedReview.find"
-            | "layout.find"
-            | "workspaceTag.list"
-            | "workspaceTag.create"
-            | "workspaceTag.remove"
-            | "workspaceTag.setForWorkspace"
-            | "workspaceRelation.list"
-            | "workspaceRelation.link"
-            | "workspaceRelation.unlink"
-            | "workspaceCascade.preview"
-            | "terminal.create"
-            | "terminal.attach"
-            | "terminal.restart"
-            | "terminal.driver.list"
-            | "write"
-            | "resize"
-            | "setOutputPaused"
-            | "detach"
-            | "terminate"
-            | "codex.thread.open"
-            | "codex.thread.list"
-            | "codex.threads.list"
-            | "codex.session.list"
-            | "codex.thread.resume"
-            | "codex.session.resume"
-            | "codex.thread.history"
-            | "codex.thread.turns.list"
-            | "codex.session.history"
-            | "codex.thread.new"
-            | "codex.session.new"
-            | "codex.thread.clear"
-            | "codex.session.clear"
-            | "codex.tab.create"
-            | "codex.tab.configure"
-            | "codex.thread.recover"
-            | "codex.thread.snapshot"
-            | "codex.thread.items.list"
-            | "codex.goal.get"
-            | "codex.goal.set"
-            | "codex.goal.clear"
-            | "codex.model.list"
-            | "codex.collaborationModes.list"
-            | "codex.skills.list"
-            | "codex.apps.list"
-            | "codex.turn.start"
-            | "codex.turn.interrupt"
-            | "codex.turn.steer"
-            | "codex.thread.rename"
-            | "codex.thread.compact"
-            | "codex.review.branches"
-            | "codex.review.start"
-            | "codex.response"
-            | "codex.request.snooze"
-            | "automation.list"
-            | "automation.show"
-            | "automation.upsert"
-            | "automation.approve"
-            | "automation.pause"
-            | "automation.resume"
-            | "automation.trash"
-            | "automation.restore"
-            | "automation.purge"
-            | "automation.runNow"
-            | "automation.runs"
-            | "automation.runShow"
-            | "automation.context"
-            | "automation.heartbeat"
-            | "automation.wait"
-            | "automation.extend"
-            | "automation.complete"
-            | "automation.cancel"
-            | "automation.templates"
-            | "automation.tags"
-            | "automation.export"
-            | "automation.import"
-            | "automation.policy"
-    )
-}
-
-#[cfg(test)]
-mod mobile_codex_file_surface_tests {
-    use super::*;
-
-    #[test]
-    fn advertises_and_allows_mobile_codex_file_surfaces() {
-        assert!(MOBILE_HELLO_CAPABILITIES
-            .contains(&RUNTIME_HOST_MOBILE_CODEX_WORKSPACE_FILES_CAPABILITY));
-        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY));
-        assert!(
-            MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY)
-        );
-        assert!(MOBILE_HELLO_CAPABILITIES
-            .contains(&RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY));
-        for request in [
-            "mobile.workspaceQuickOpen.start",
-            "mobile.workspaceQuickOpen.search",
-            "mobile.workspaceQuickOpen.stop",
-            "mobile.workspaceFile.read",
-            "mobile.codexSavedPrompts.list",
-            "mobile.promptFile.start",
-            "mobile.promptFile.chunk",
-            "mobile.promptFile.complete",
-            "mobile.promptFile.cancel",
-            "mobile.promptAttachment.read",
-        ] {
-            assert!(mobile_request_allowed(request), "{request}");
-        }
-    }
 }

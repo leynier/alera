@@ -47,14 +47,19 @@ class FakeTerminalClient
   /// The raw payload of each `writeTerminal`, for tests that care about the
   /// bytes and not just their count.
   final List<List<int>> writes = <List<int>>[];
-  final List<({String tabId, int cols, int rows})> attachments =
-      <({String tabId, int cols, int rows})>[];
+  final List<({String tabId, int? cols, int? rows})> attachments =
+      <({String tabId, int? cols, int? rows})>[];
   final List<Object> writeErrors = <Object>[];
   final List<Object> resizeErrors = <Object>[];
   Future<void>? attachCompletion;
   Future<void>? removeTabCompletion;
   Future<void>? terminateCompletion;
   List<int> attachmentSnapshot = const <int>[];
+
+  /// The size the host says [attachmentSnapshot] was written at. Left null to
+  /// stand in for a host that predates the field.
+  int? attachmentSnapshotCols;
+  int? attachmentSnapshotRows;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   List<String> projectBranches = const <String>[];
   List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
@@ -216,8 +221,8 @@ class FakeTerminalClient
   @override
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols = defaultTerminalCols,
-    int rows = defaultTerminalRows,
+    int? cols,
+    int? rows,
   }) async {
     calls.add('attach $tabId');
     attachments.add((tabId: tabId, cols: cols, rows: rows));
@@ -230,6 +235,8 @@ class FakeTerminalClient
         created: false,
         running: true,
         snapshot: attachmentSnapshot,
+        snapshotCols: attachmentSnapshotCols,
+        snapshotRows: attachmentSnapshotRows,
       ),
     );
   }
