@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Coalesces terminal output into one write per frame.
@@ -15,6 +16,7 @@ import 'package:flutter/scheduler.dart';
 class TerminalOutputBatcher {
   TerminalOutputBatcher({
     required this.write,
+    this.onRestoreProgress,
     this.maxCharsPerFrame = _defaultMaxCharsPerFrame,
     this.maxPendingChars = _defaultMaxPendingChars,
     this.minFlushInterval = _defaultMinFlushInterval,
@@ -26,6 +28,11 @@ class TerminalOutputBatcher {
   static const Duration _defaultMinFlushInterval = Duration(milliseconds: 33);
 
   final void Function(String text) write;
+
+  /// Reports how far a restored snapshot has been written, and null once it is
+  /// fully in. The surface covers the emulator until then, because a restore
+  /// spans many frames and watching history scroll past reads as a bug.
+  final void Function(TerminalRestoreProgress? progress)? onRestoreProgress;
   final int maxCharsPerFrame;
   final int maxPendingChars;
   final Duration minFlushInterval;
@@ -37,11 +44,15 @@ class TerminalOutputBatcher {
   final Stopwatch _sinceFlushRequest = Stopwatch();
   int _pendingChars = 0;
   int _pendingLiveChars = 0;
+  int _restoreTotalChars = 0;
+  int _restoreWrittenChars = 0;
   bool _flushScheduled = false;
   bool _disposed = false;
   Timer? _flushTimer;
 
   int get pendingChars => _pendingChars;
+
+  bool get debugRestoring => _restoreTotalChars > 0;
 
   /// Test-only evidence that a partial drain advances inside the original
   /// string instead of allocating a fresh tail after every frame.
@@ -59,8 +70,14 @@ class TerminalOutputBatcher {
 
   /// Queues a restored snapshot, which is a bounded one-shot payload and so is
   /// exempt from the cap that exists to contain a live process.
-  void addSnapshot(String text) =>
-      _enqueue(text, source: _OutputSource.restore);
+  void addSnapshot(String text) {
+    if (_disposed || text.isEmpty) {
+      return;
+    }
+    _restoreTotalChars += text.length;
+    _publishRestoreProgress();
+    _enqueue(text, source: _OutputSource.restore);
+  }
 
   void _enqueue(String text, {required _OutputSource source}) {
     if (_disposed || text.isEmpty) {
@@ -144,14 +161,19 @@ class TerminalOutputBatcher {
     }
     final frame = StringBuffer();
     var written = 0;
+    var restoreWritten = 0;
     while (_pending.isNotEmpty && written < maxCharsPerFrame) {
       final chunk = _pending.first;
       final remaining = maxCharsPerFrame - written;
       if (chunk.remaining <= remaining) {
         final available = chunk.remaining;
         frame.write(chunk.remainingText);
+        final restore = chunk.source == _OutputSource.restore;
         _consume(chunk, available);
         written += available;
+        if (restore) {
+          restoreWritten += available;
+        }
         continue;
       }
       final cutoff = _chunkCutoff(chunk.text, chunk.head + remaining);
@@ -160,15 +182,45 @@ class TerminalOutputBatcher {
       }
       final consumed = cutoff - chunk.head;
       frame.write(chunk.text.substring(chunk.head, cutoff));
+      final restore = chunk.source == _OutputSource.restore;
       _consume(chunk, consumed);
       written += consumed;
+      if (restore) {
+        restoreWritten += consumed;
+      }
     }
     if (written > 0) {
       write(frame.toString());
     }
+    _advanceRestore(restoreWritten);
     if (_pending.isNotEmpty) {
       _schedule();
     }
+  }
+
+  void _advanceRestore(int chars) {
+    if (_restoreTotalChars <= 0) {
+      return;
+    }
+    _restoreWrittenChars += chars;
+    // Anything still queued behind the restore is live output that arrived
+    // while it drained, so the cover comes down as soon as the history is in.
+    if (_restoreWrittenChars >= _restoreTotalChars) {
+      _restoreTotalChars = 0;
+      _restoreWrittenChars = 0;
+      onRestoreProgress?.call(null);
+      return;
+    }
+    _publishRestoreProgress();
+  }
+
+  void _publishRestoreProgress() {
+    onRestoreProgress?.call(
+      TerminalRestoreProgress(
+        writtenChars: _restoreWrittenChars,
+        totalChars: _restoreTotalChars,
+      ),
+    );
   }
 
   void dispose() {
@@ -179,6 +231,14 @@ class TerminalOutputBatcher {
     _pending.clear();
     _pendingChars = 0;
     _pendingLiveChars = 0;
+    // A batcher discarded mid-restore has to take its own cover down: nothing
+    // else clears it, and the emulator it belonged to is already gone.
+    final restoring = _restoreTotalChars > 0;
+    _restoreTotalChars = 0;
+    _restoreWrittenChars = 0;
+    if (restoring) {
+      onRestoreProgress?.call(null);
+    }
   }
 
   void _consume(_PendingOutputChunk chunk, int count) {

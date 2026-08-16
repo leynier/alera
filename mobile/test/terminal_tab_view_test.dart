@@ -125,6 +125,43 @@ void main() {
     expect(session.retainedSnapshotBytes, 0);
   });
 
+  testWidgets('Restoring a tab covers the terminal until its history is in', (
+    tester,
+  ) async {
+    // Uncovered, this replay reads as the terminal scrolling itself from the
+    // top of history down to the live screen every time a tab is opened.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
+      // Past the per-frame budget, so the restore spans frames like a real
+      // scrollback does rather than landing in the first one.
+      ..attachmentSnapshot = utf8.encode('a' * (200 * 1024));
+    await _pumpTab(tester, client, settle: false);
+
+    expect(find.text('Restoring terminal'), findsOneWidget);
+    final first = _restoreFraction(tester);
+
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Restoring terminal'), findsOneWidget);
+    expect(_restoreFraction(tester), greaterThan(first));
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Restoring terminal'), findsNothing);
+    expect(_terminalOf(tester).buffer.lines.length, greaterThan(0));
+  });
+
+  testWidgets('A tab with no history to restore is never covered', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+
+    await _pumpTab(tester, client, settle: false);
+
+    expect(find.text('Restoring terminal'), findsNothing);
+  });
+
   testWidgets('Paste quick action writes clipboard text without Enter', (
     tester,
   ) async {
@@ -217,7 +254,18 @@ Terminal _terminalOf(WidgetTester tester) {
   return tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
 }
 
-Future<void> _pumpTab(WidgetTester tester, FakeTerminalClient client) async {
+double _restoreFraction(WidgetTester tester) {
+  return tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value ??
+      0;
+}
+
+Future<void> _pumpTab(
+  WidgetTester tester,
+  FakeTerminalClient client, {
+  bool settle = true,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -231,5 +279,16 @@ Future<void> _pumpTab(WidgetTester tester, FakeTerminalClient client) async {
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+    return;
+  }
+  // Settling would drain the whole restore, which is the state under test.
+  for (var frame = 0; frame < 10; frame++) {
+    await tester.pump();
+    if (find.byType(TerminalView).evaluate().isNotEmpty) {
+      return;
+    }
+  }
+  fail('the terminal never attached');
 }

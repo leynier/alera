@@ -88,6 +88,7 @@ abstract final class AleraTokens {
   static const double emptyIcon = 44;
   static const double successIcon = 64;
   static const double terminalPreviewHeight = 280;
+  static const double terminalRestoreProgressWidth = 180;
   static const double keyColumnWidth = 104;
   static const double strokeSm = 2;
   static const double strokeMd = 3;
