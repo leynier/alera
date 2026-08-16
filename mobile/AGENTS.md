@@ -14,6 +14,7 @@ This file applies under `mobile/`. The root `AGENTS.md` also applies; this file 
 
 - Riverpod with `riverpod_generator` codegen is mandatory, same as the desktop app. No hand-written provider declarations and no new `StatefulWidget`-plus-`setState` state that belongs in a controller.
 - The one-shot build_runner convention from the root `AGENTS.md` applies scoped to this package: after finishing a planned batch of edits that touches generated surfaces, run `dart run build_runner build` once from `mobile/`, before formatting, analysis, and tests. Do not run a watcher.
+- A tab's body is rendered from the last known tab list, not from `AsyncData` alone. The host connection rebuilds on every foreground probe that fails, which pushes `tabsControllerProvider` through `AsyncLoading`; swapping the body for a spinner there disposes the tab's state, and with it anything it was awaiting. That is how an attachment whose bytes had already reached the runtime was dropped in silence, because the `mounted` check after the upload was the only thing left to run. Work that can outlive the screen (an upload started from a picker, which backgrounds the app) MUST land in `MobileCodexComposerDraftStore`, which is `keepAlive` and keyed by host and tab, rather than in `setState` alone, and MUST report failures through a `ScaffoldMessengerState` captured before the await.
 
 ## Testing
 
