@@ -14,6 +14,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
 
+const Duration _foregroundProbeTimeout = Duration(seconds: 8);
+
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {
   final Logger _logger = Logger('TerminalSessionController');
@@ -81,8 +83,35 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     final client = _client;
     if (client != null) {
-      unawaited(_recoverWithClient(client, showStartingState: true));
+      unawaited(_recoverIfConnectionLost(client));
     }
+  }
+
+  /// Returning to the foreground does not, by itself, mean the session is
+  /// gone. Re-attaching regardless takes the tab through its loading state,
+  /// which disposes the compose bar along with whatever it was waiting on: a
+  /// path picked from the gallery landed on a dead controller and vanished,
+  /// and the terminal appeared to restart every time the picker closed. One
+  /// round trip separates the two cases, and a connection that answers is
+  /// still delivering output, so nothing needs re-attaching.
+  Future<void> _recoverIfConnectionLost(MobileTerminalClient client) async {
+    try {
+      await client.probeConnection().timeout(_foregroundProbeTimeout);
+      return;
+    } on Object catch (error, stackTrace) {
+      if (_disposed || !identical(_client, client)) {
+        return;
+      }
+      _logger.warning(
+        'foreground probe failed for terminal $tabId; reattaching',
+        error,
+        stackTrace,
+      );
+    }
+    if (_disposed || _desktopReclaimed || !identical(_client, client)) {
+      return;
+    }
+    await _recoverWithClient(client, showStartingState: true);
   }
 
   void _registerCleanup() {

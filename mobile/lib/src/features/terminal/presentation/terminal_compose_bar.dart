@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_di
 import 'package:alera_mobile/src/features/workbench/presentation/prompt_path_insertion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 /// Compose-mode input: type the full text, then send it. Send submits with
 /// Enter; long-press Send offers sending without it.
@@ -108,9 +109,19 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
     setState(() => _attaching = true);
     try {
       final paths = await pick();
-      if (paths.isNotEmpty) {
-        insertPromptPaths(_controller, paths);
+      if (paths.isEmpty) {
+        return;
       }
+      if (!mounted) {
+        // The upload already reached the runtime, so losing it here is worth a
+        // record rather than the silence this used to fail with.
+        Logger('TerminalComposeBar').warning(
+          'discarded ${paths.length} attachment path(s) after the composer '
+          'was rebuilt',
+        );
+        return;
+      }
+      insertPromptPaths(_controller, paths);
     } finally {
       if (mounted) {
         setState(() => _attaching = false);

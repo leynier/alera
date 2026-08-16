@@ -93,6 +93,12 @@ abstract interface class MobileTerminalClient {
 
   /// Whether [writeTerminal] may use `bracketedPaste` and `deferredEnter`.
   bool get supportsDeferredTerminalInput;
+
+  /// Cheap round trip that proves this connection is still usable. Returning
+  /// to the foreground does not, by itself, mean a session was lost, and a
+  /// blind re-attach costs the tab its loading state.
+  Future<void> probeConnection();
+
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
   Future<MobileTerminalSession> createTerminal(
     String workspaceId, {
