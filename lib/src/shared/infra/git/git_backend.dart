@@ -26,6 +26,14 @@ abstract interface class GitBackend {
   /// Whether a local branch named [branch] exists in [repoPath].
   Future<bool> branchExists(String repoPath, String branch);
 
+  /// Whether [descendantRef] contains [ancestorRef] in its commit ancestry.
+  /// Both refs may be local branches, remote-tracking branches, tags, or OIDs.
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  });
+
   /// Whether [name] is a valid git branch name.
   Future<bool> isValidBranchName(String name);
 
