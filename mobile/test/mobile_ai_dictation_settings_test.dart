@@ -50,4 +50,14 @@ void main() {
     expect(settings.engine, MobileAiDictationEngine.whisper);
     expect(settings.localModelId, 'whisper-base');
   });
+
+  test('normalizes paired-device settings to Whisper', () {
+    final settings = MobileAiDictationSettings.fromJson(<String, Object?>{
+      'location': 'pairedDevice',
+      'engine': 'systemRecognition',
+    });
+
+    expect(settings.location, MobileAiDictationLocation.pairedDevice);
+    expect(settings.engine, MobileAiDictationEngine.whisper);
+  });
 }

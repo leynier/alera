@@ -36,7 +36,11 @@ impl Drop for DictationRequestGuard {
     }
 }
 
-pub(super) async fn transcribe(payload: &Value) -> HostResult<Value> {
+pub(super) async fn transcribe(
+    payload: &Value,
+    allow_explicit_model_path: bool,
+    runtime_dir: &std::path::Path,
+) -> HostResult<Value> {
     let request_id = string(payload, "requestId")?;
     let engine = payload
         .get("engine")
@@ -47,7 +51,7 @@ pub(super) async fn transcribe(payload: &Value) -> HostResult<Value> {
             "the paired runtime does not provide this system speech engine",
         ));
     }
-    let model_path = resolve_model_path(payload)?;
+    let model_path = resolve_model_path(payload, allow_explicit_model_path, runtime_dir)?;
     let cancelled = Arc::new(AtomicBool::new(false));
     {
         let mut requests = active_requests()
@@ -80,10 +84,7 @@ pub(super) async fn transcribe(payload: &Value) -> HostResult<Value> {
     } else {
         string(payload, "audioPath")?
     };
-    let language = payload
-        .get("language")
-        .and_then(Value::as_str)
-        .map(str::to_string);
+    let language = normalize_whisper_language(payload.get("language").and_then(Value::as_str));
     let initial_prompt = payload
         .get("initialPrompt")
         .and_then(Value::as_str)
@@ -111,13 +112,19 @@ pub(super) async fn transcribe(payload: &Value) -> HostResult<Value> {
     }))
 }
 
-fn resolve_model_path(payload: &Value) -> HostResult<String> {
-    if let Some(path) = payload
-        .get("modelPath")
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-    {
-        return Ok(path.to_string());
+fn resolve_model_path(
+    payload: &Value,
+    allow_explicit_model_path: bool,
+    runtime_dir: &std::path::Path,
+) -> HostResult<String> {
+    if allow_explicit_model_path {
+        if let Some(path) = payload
+            .get("modelPath")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+        {
+            return Ok(path.to_string());
+        }
     }
     let model_id = payload
         .get("modelId")
@@ -130,8 +137,15 @@ fn resolve_model_path(payload: &Value) -> HostResult<String> {
         "whisper-large-v3-turbo-q5-0" => "ggml-large-v3-turbo-q5_0.bin",
         _ => return Err(HostError::format("unknown Whisper model id")),
     };
+    let mut roots = Vec::new();
     if let Some(root) = std::env::var_os("ALERA_WHISPER_MODEL_ROOT") {
-        let path = PathBuf::from(root).join(model_id).join("1").join(file_name);
+        roots.push(PathBuf::from(root));
+    }
+    if let Some(support_directory) = runtime_dir.parent() {
+        roots.push(support_directory.join("models").join("ai-dictation"));
+    }
+    for root in roots {
+        let path = root.join(model_id).join("1").join(file_name);
         if path.is_file() {
             return Ok(path.to_string_lossy().to_string());
         }
@@ -200,7 +214,7 @@ fn transcribe_inner(
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
-    params.set_language(language.filter(|value| !value.is_empty()));
+    params.set_language(language.as_deref());
     if let Some(prompt) = prompt.filter(|value| !value.trim().is_empty()) {
         params.set_initial_prompt(prompt.trim());
     }
@@ -224,7 +238,20 @@ fn transcribe_inner(
     if text.is_empty() {
         return Err(HostError::format("Whisper did not detect speech"));
     }
-    Ok((text, language.map(str::to_string), duration))
+    Ok((text, language, duration))
+}
+
+fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
+    language
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            value
+                .split(|character| character == '-' || character == '_')
+                .next()
+                .unwrap_or(value)
+                .to_ascii_lowercase()
+        })
 }
 
 pub(super) fn cancel(payload: &Value) -> HostResult<Value> {
@@ -252,12 +279,43 @@ mod tests {
 
     #[test]
     fn unknown_model_ids_are_rejected() {
-        let error = resolve_model_path(&json!({"modelId": "../outside"})).unwrap_err();
+        let error = resolve_model_path(
+            &json!({"modelId": "../outside"}),
+            false,
+            std::path::Path::new("/tmp/terminal-host"),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("unknown Whisper model id"));
+    }
+
+    #[test]
+    fn mobile_requests_cannot_select_an_arbitrary_model_path() {
+        let error = resolve_model_path(
+            &json!({
+                "modelId": "../outside",
+                "modelPath": "C:\\private\\other-model.bin"
+            }),
+            false,
+            std::path::Path::new("/tmp/terminal-host"),
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("unknown Whisper model id"));
     }
 
     #[test]
     fn cancellation_is_idempotent() {
         cancel(&json!({"requestId": "missing"})).unwrap();
+    }
+
+    #[test]
+    fn whisper_languages_use_the_primary_subtag() {
+        assert_eq!(
+            normalize_whisper_language(Some("en-US")).as_deref(),
+            Some("en")
+        );
+        assert_eq!(
+            normalize_whisper_language(Some("pt_BR")).as_deref(),
+            Some("pt")
+        );
     }
 }

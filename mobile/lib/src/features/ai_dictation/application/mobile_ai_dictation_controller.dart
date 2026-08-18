@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_whisper_tran
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
@@ -20,6 +21,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 part 'mobile_ai_dictation_controller.g.dart';
+part 'mobile_ai_dictation_controller_transcription.dart';
 
 const _capabilityChannel = MethodChannel(
   'dev.leynier.alera/speech_capabilities',
@@ -52,6 +54,8 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   final _whisper = MobileWhisperTranscriber();
   final _log = Logger('MobileAiDictationController');
   final _subscriptions = <StreamSubscription<Object?>>[];
+  AppLifecycleListener? _lifecycleListener;
+  var _audioSessionListenersInstalled = false;
   AudioRecorder? _recorder;
   AudioPlayer? _player;
   String _systemText = '';
@@ -61,12 +65,20 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   String? _tabId;
   String? _audioPath;
   String? _requestId;
+  MobileAiDictationLocation? _requestLocation;
+  Future<void>? _activeTranscription;
+  bool _cancelRequested = false;
+  var _generation = 0;
+  int? _activeGeneration;
   Timer? _elapsedTimer;
   DateTime? _recordingStarted;
 
   @override
   MobileAiDictationState build(String hostId, String targetKey) {
+    _lifecycleListener = AppLifecycleListener(onPause: _handleAppPaused);
     ref.onDispose(() {
+      _activeGeneration = null;
+      _cancelRequested = true;
       _elapsedTimer?.cancel();
       for (final subscription in _subscriptions) {
         unawaited(subscription.cancel());
@@ -76,9 +88,50 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       if (recorder != null) unawaited(recorder.dispose());
       final player = _player;
       if (player != null) unawaited(player.dispose());
-      unawaited(_deleteRecording());
+      final activeTranscription = _activeTranscription;
+      unawaited(_dispose(activeTranscription));
+      _lifecycleListener?.dispose();
     });
     return const MobileAiDictationState();
+  }
+
+  void _handleAppPaused() {
+    if (state.stage == MobileAiDictationStage.recording) {
+      unawaited(cancel());
+    }
+  }
+
+  bool _isCurrentGeneration(int generation) =>
+      _activeGeneration == generation && !_cancelRequested;
+
+  Future<void> _cancelActiveRequest(String requestId) async {
+    if (_requestLocation == MobileAiDictationLocation.thisDevice) {
+      _whisper.cancel(requestId);
+      return;
+    }
+    try {
+      final client = await ref.read(
+        hostConnectionControllerProvider(hostId).future,
+      );
+      await client.cancelMobileAudioTranscription(requestId);
+    } on Object {
+      // Local cleanup must still complete when the paired device disconnects.
+    }
+  }
+
+  Future<void> _dispose(Future<void>? activeTranscription) async {
+    final requestId = _requestId;
+    if (requestId != null) {
+      await _cancelActiveRequest(requestId);
+    }
+    if (activeTranscription != null) {
+      try {
+        await activeTranscription;
+      } on Object {
+        // Disposal must release native resources even when transcription fails.
+      }
+    }
+    await _deleteRecording();
   }
 
   AudioPlayer _ensurePlayer() {
@@ -121,14 +174,24 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     _validateSettings(settings);
     _systemText = '';
     _finalizing = false;
+    _cancelRequested = false;
+    final generation = ++_generation;
+    _activeGeneration = generation;
     _onText = onText;
     _workspaceId = workspaceId;
     _tabId = tabId;
-    if (settings.location == MobileAiDictationLocation.thisDevice &&
-        settings.engine != MobileAiDictationEngine.whisper) {
-      await _startSystemRecognition(settings);
-    } else {
-      await _startRecording();
+    try {
+      if (settings.location == MobileAiDictationLocation.thisDevice &&
+          settings.engine != MobileAiDictationEngine.whisper) {
+        await _startSystemRecognition(settings, generation);
+      } else {
+        await _startRecording(generation);
+      }
+    } on Object {
+      if (_isCurrentGeneration(generation)) {
+        await _reset(deleteRecording: true);
+      }
+      rethrow;
     }
   }
 
@@ -142,6 +205,12 @@ class MobileAiDictationController extends _$MobileAiDictationController {
         'Allow paired-device audio processing in AI Dictation settings first.',
       );
     }
+    if (settings.location == MobileAiDictationLocation.pairedDevice &&
+        settings.engine != MobileAiDictationEngine.whisper) {
+      throw StateError(
+        'Paired-device transcription requires the Whisper engine.',
+      );
+    }
     if (settings.engine == MobileAiDictationEngine.systemRecognition &&
         settings.systemRecognitionConsentVersion != _onlineConsentVersion) {
       throw StateError(
@@ -152,6 +221,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
 
   Future<void> _startSystemRecognition(
     MobileAiDictationSettings settings,
+    int generation,
   ) async {
     if (settings.engine == MobileAiDictationEngine.systemOnDevice &&
         !await ref.read(
@@ -161,17 +231,23 @@ class MobileAiDictationController extends _$MobileAiDictationController {
         'On-device speech recognition is unavailable for this device or locale.',
       );
     }
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration.speech());
+    if (!_isCurrentGeneration(generation)) return;
+    _installAudioSessionListeners(session);
     final available = await _speech.initialize(
-      onStatus: _handleSystemStatus,
-      onError: _handleSystemError,
+      onStatus: (status) => _handleSystemStatus(status, generation),
+      onError: (error) => _handleSystemError(error, generation),
     );
     if (!available) {
       throw StateError('System speech recognition is unavailable.');
     }
+    if (!_isCurrentGeneration(generation)) return;
     await _speech.listen(
-      onResult: _handleSystemResult,
+      onResult: (result) => _handleSystemResult(result, generation),
       onSoundLevelChange: (level) {
-        if (state.stage == MobileAiDictationStage.recording) {
+        if (_isCurrentGeneration(generation) &&
+            state.stage == MobileAiDictationStage.recording) {
           state = state.copyWith(amplitude: _normalizeSoundLevel(level));
         }
       },
@@ -185,24 +261,28 @@ class MobileAiDictationController extends _$MobileAiDictationController {
         listenFor: _maximumRecordingDuration,
       ),
     );
-    _beginElapsedTimer();
+    if (!_isCurrentGeneration(generation)) return;
+    _beginElapsedTimer(generation);
     state = const MobileAiDictationState(
       stage: MobileAiDictationStage.recording,
     );
   }
 
-  Future<void> _startRecording() async {
+  Future<void> _startRecording(int generation) async {
     final recorder = _recorder ??= AudioRecorder();
     if (!await recorder.hasPermission()) {
       throw StateError('Microphone permission is required for AI Dictation.');
     }
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.speech());
+    if (!_isCurrentGeneration(generation)) return;
+    _installAudioSessionListeners(session);
     final directory = await getTemporaryDirectory();
     final path = p.join(
       directory.path,
       'alera-mobile-dictation-${DateTime.now().microsecondsSinceEpoch}.wav',
     );
+    if (!_isCurrentGeneration(generation)) return;
     await recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.wav,
@@ -218,30 +298,56 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       recorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((
         value,
       ) {
-        if (state.stage == MobileAiDictationStage.recording) {
+        if (_isCurrentGeneration(generation) &&
+            state.stage == MobileAiDictationStage.recording) {
           state = state.copyWith(amplitude: _normalizeDb(value.current));
         }
       }),
     );
-    _beginElapsedTimer();
+    if (!_isCurrentGeneration(generation)) {
+      await recorder.cancel();
+      return;
+    }
+    _beginElapsedTimer(generation);
     state = const MobileAiDictationState(
       stage: MobileAiDictationStage.recording,
       audioReviewAvailable: true,
     );
   }
 
-  void _beginElapsedTimer() {
+  void _beginElapsedTimer(int generation) {
     _recordingStarted = DateTime.now();
     _elapsedTimer?.cancel();
     _elapsedTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       final started = _recordingStarted;
-      if (started == null || state.stage != MobileAiDictationStage.recording) {
+      if (!_isCurrentGeneration(generation) ||
+          started == null ||
+          state.stage != MobileAiDictationStage.recording) {
         return;
       }
       final elapsed = DateTime.now().difference(started);
       state = state.copyWith(elapsed: elapsed);
       if (elapsed >= _maximumRecordingDuration) unawaited(stop());
     });
+  }
+
+  void _installAudioSessionListeners(AudioSession session) {
+    if (_audioSessionListenersInstalled) return;
+    _audioSessionListenersInstalled = true;
+    _subscriptions.add(
+      session.interruptionEventStream.listen((event) {
+        if (event.begin && state.stage == MobileAiDictationStage.recording) {
+          unawaited(cancel());
+        }
+      }),
+    );
+    _subscriptions.add(
+      session.becomingNoisyEventStream.listen((_) {
+        if (state.stage == MobileAiDictationStage.recording) {
+          unawaited(cancel());
+        }
+      }),
+    );
   }
 
   Future<void> stop() async {
@@ -257,7 +363,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
         );
         return;
       }
-      await _finalize(_systemText);
+      await _finalize(_systemText, generation: _activeGeneration);
       return;
     }
     final path = await _recorder?.stop() ?? _audioPath;
@@ -279,71 +385,6 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     );
   }
 
-  Future<void> transcribe() async {
-    if (!state.hasRecording || _audioPath == null) return;
-    await _player?.pause();
-    final settings = await ref.read(
-      mobileAiDictationSettingsControllerProvider.future,
-    );
-    _validateSettings(settings);
-    state = state.copyWith(
-      stage: MobileAiDictationStage.transcribing,
-      clearWarning: true,
-    );
-    final requestId =
-        'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}';
-    _requestId = requestId;
-    try {
-      final String text;
-      if (settings.location == MobileAiDictationLocation.thisDevice) {
-        if (settings.engine != MobileAiDictationEngine.whisper) {
-          throw StateError(
-            'System recognition must record directly on this device.',
-          );
-        }
-        final transfers = ref.read(
-          mobileAiDictationModelTransfersProvider.notifier,
-        );
-        if (!await transfers.isInstalled(settings.localModelId)) {
-          throw StateError(
-            'Download the selected Whisper model in Settings first.',
-          );
-        }
-        final result = await _whisper.transcribe(
-          requestId: requestId,
-          audioPath: _audioPath!,
-          modelPath: await transfers.modelPath(settings.localModelId),
-          language: settings.language,
-        );
-        text = result.text;
-      } else {
-        final client = await ref.read(
-          hostConnectionControllerProvider(hostId).future,
-        );
-        final response = await client.transcribeMobileAudio(
-          requestId: requestId,
-          audio: await File(_audioPath!).readAsBytes(),
-          engine: settings.engine.name,
-          modelId: settings.remoteModelId,
-          language: settings.language,
-        );
-        text = response['text']?.toString().trim() ?? '';
-        if (text.isEmpty) {
-          throw StateError('The paired device returned no text.');
-        }
-      }
-      await _finalize(text);
-    } on Object catch (error, stackTrace) {
-      _log.warning('mobile dictation transcription failed', error, stackTrace);
-      state = state.copyWith(
-        stage: MobileAiDictationStage.recorded,
-        warning: 'Transcription failed: $error',
-      );
-    } finally {
-      _requestId = null;
-    }
-  }
-
   Future<void> playPause() async {
     final player = _ensurePlayer();
     if (state.stage == MobileAiDictationStage.playing) {
@@ -363,100 +404,26 @@ class MobileAiDictationController extends _$MobileAiDictationController {
 
   Future<void> cancel() async {
     _elapsedTimer?.cancel();
-    if (_requestId case final requestId?) {
-      final settings = await ref.read(
-        mobileAiDictationSettingsControllerProvider.future,
-      );
-      if (settings.location == MobileAiDictationLocation.thisDevice) {
-        _whisper.cancel(requestId);
-      } else {
-        try {
-          final client = await ref.read(
-            hostConnectionControllerProvider(hostId).future,
-          );
-          await client.cancelMobileAudioTranscription(requestId);
-        } on Object {
-          // Local cleanup must still complete when the paired device disconnects.
-        }
-      }
-    }
-    if (_audioPath == null) {
-      await _speech.cancel();
-    } else if (state.stage == MobileAiDictationStage.recording) {
-      await _recorder?.cancel();
-    }
-    await _reset(deleteRecording: true);
-  }
-
-  void _handleSystemResult(SpeechRecognitionResult result) {
-    _systemText = result.recognizedWords;
-    if (result.finalResult) unawaited(_finalize(_systemText));
-  }
-
-  void _handleSystemStatus(String status) {
-    if ((status == SpeechToText.doneStatus ||
-            status == SpeechToText.notListeningStatus) &&
-        _systemText.trim().isNotEmpty) {
-      unawaited(_finalize(_systemText));
-    }
-  }
-
-  void _handleSystemError(SpeechRecognitionError error) {
-    _log.warning('mobile speech recognition failed: ${error.errorMsg}');
-    _elapsedTimer?.cancel();
-    state = MobileAiDictationState(
-      warning: 'Speech recognition failed: ${error.errorMsg}',
-    );
-  }
-
-  Future<void> _finalize(String rawText) async {
-    if (_finalizing || rawText.trim().isEmpty) return;
-    _finalizing = true;
-    var output = rawText.trim();
-    String? warning;
-    final settings = await ref.read(
-      mobileAiDictationSettingsControllerProvider.future,
-    );
-    if (settings.rewriteMode != MobileAiDictationRewriteMode.off) {
-      state = state.copyWith(stage: MobileAiDictationStage.improving);
-      try {
-        final client = await ref.read(
-          hostConnectionControllerProvider(hostId).future,
-        );
-        final response = await client.processSpeechMessage(
-          operationId: 'mobile-speech-${DateTime.now().microsecondsSinceEpoch}',
-          text: output,
-          mode: settings.rewriteMode.name,
-          workspaceId: _workspaceId,
-          tabId: _tabId,
-        );
-        final processed = response['text']?.toString().trim() ?? '';
-        if (processed.isEmpty) {
-          throw StateError('The speech processing agent returned no text.');
-        }
-        output = processed;
-      } on Object catch (error, stackTrace) {
-        _log.warning('mobile speech processing failed', error, stackTrace);
-        warning =
-            'The raw transcript was used because speech processing failed.';
-      }
-    }
+    _cancelRequested = true;
     try {
-      _onText?.call(output);
-    } on Object catch (error, stackTrace) {
-      _log.warning(
-        'mobile dictation target was unavailable',
-        error,
-        stackTrace,
-      );
-      warning = 'The dictation field was closed before transcription finished.';
+      if (_requestId case final requestId?) {
+        await _cancelActiveRequest(requestId);
+      }
+      if (_audioPath == null) {
+        await _speech.cancel();
+      } else if (state.stage == MobileAiDictationStage.recording) {
+        await _recorder?.cancel();
+      }
+    } finally {
+      await _reset(deleteRecording: true);
     }
-    await _reset(deleteRecording: true, warning: warning);
   }
 
   Future<void> _reset({required bool deleteRecording, String? warning}) async {
     _elapsedTimer?.cancel();
     _recordingStarted = null;
+    _activeGeneration = null;
+    _generation++;
     await _player?.stop();
     if (deleteRecording) await _deleteRecording();
     _requestId = null;

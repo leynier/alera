@@ -215,6 +215,11 @@ class MobileAiDictationModelStore {
       if (await intent.exists()) await intent.delete();
       onProgress?.call(model.sizeBytes, model.sizeBytes);
       return destination;
+    } on Object {
+      if (_cancelRequested) {
+        throw const MobileAiModelDownloadCancelled();
+      }
+      rethrow;
     } finally {
       client.close();
       _activeClient = null;

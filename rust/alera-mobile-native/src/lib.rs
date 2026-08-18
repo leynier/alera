@@ -18,6 +18,18 @@ fn active_requests() -> &'static Mutex<HashMap<String, Arc<AtomicBool>>> {
     ACTIVE_REQUESTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+struct RequestGuard {
+    request_id: String,
+}
+
+impl Drop for RequestGuard {
+    fn drop(&mut self) {
+        if let Ok(mut requests) = active_requests().lock() {
+            requests.remove(&self.request_id);
+        }
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Request {
@@ -135,11 +147,8 @@ fn transcribe(request: Request) -> Response {
     } else {
         return failure("inference", "Dictation cancellation is unavailable.");
     }
-    let response = transcribe_inner(&request, &cancelled);
-    if let Ok(mut requests) = active_requests().lock() {
-        requests.remove(&request_id);
-    }
-    response
+    let _guard = RequestGuard { request_id };
+    transcribe_inner(&request, &cancelled)
 }
 
 fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response {
@@ -182,12 +191,8 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
-    params.set_language(
-        request
-            .language
-            .as_deref()
-            .filter(|value| !value.is_empty()),
-    );
+    let language = normalize_whisper_language(request.language.as_deref());
+    params.set_language(language.as_deref());
     if let Some(prompt) = request
         .initial_prompt
         .as_deref()
@@ -226,12 +231,23 @@ fn transcribe_inner(request: &Request, cancelled: &Arc<AtomicBool>) -> Response 
     }
     success(ResultPayload {
         text,
-        detected_language: request
-            .language
-            .clone()
+        detected_language: language
             .or_else(|| get_lang_str(state.full_lang_id_from_state()).map(str::to_string)),
         duration_millis,
     })
+}
+
+fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
+    language
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            value
+                .split(|character| character == '-' || character == '_')
+                .next()
+                .unwrap_or(value)
+                .to_ascii_lowercase()
+        })
 }
 
 fn read_audio(path: &str) -> Result<(Vec<f32>, i64), Response> {
@@ -250,6 +266,7 @@ fn read_audio(path: &str) -> Result<(Vec<f32>, i64), Response> {
     if spec.sample_format != SampleFormat::Int
         || spec.bits_per_sample != 16
         || !matches!(spec.channels, 1 | 2)
+        || spec.sample_rate == 0
     {
         return Err(failure(
             "audio",
@@ -345,5 +362,13 @@ mod tests {
         let output = resample(&[0.0, 1.0, 0.0], 8_000, 16_000);
         assert_eq!(output.len(), 6);
         assert!(output.iter().any(|sample| *sample > 0.5));
+    }
+
+    #[test]
+    fn whisper_languages_use_the_primary_subtag() {
+        assert_eq!(
+            normalize_whisper_language(Some("en-US")).as_deref(),
+            Some("en")
+        );
     }
 }

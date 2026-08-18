@@ -76,18 +76,22 @@ class MobileAiDictationSettings {
   factory MobileAiDictationSettings.fromJson(Map<String, Object?> json) {
     final engineName = json['engine']?.toString();
     final legacyWhisper = engineName == 'localWhisper';
+    final location = MobileAiDictationLocation.values.firstWhere(
+      (value) => value.name == json['location'],
+      orElse: () => MobileAiDictationLocation.thisDevice,
+    );
+    final persistedEngine = MobileAiDictationEngine.values.firstWhere(
+      (value) => value.name == engineName,
+      orElse: () => legacyWhisper
+          ? MobileAiDictationEngine.whisper
+          : MobileAiDictationEngine.systemOnDevice,
+    );
     return MobileAiDictationSettings(
       enabled: json['enabled'] == true,
-      location: MobileAiDictationLocation.values.firstWhere(
-        (value) => value.name == json['location'],
-        orElse: () => MobileAiDictationLocation.thisDevice,
-      ),
-      engine: MobileAiDictationEngine.values.firstWhere(
-        (value) => value.name == engineName,
-        orElse: () => legacyWhisper
-            ? MobileAiDictationEngine.whisper
-            : MobileAiDictationEngine.systemOnDevice,
-      ),
+      location: location,
+      engine: location == MobileAiDictationLocation.pairedDevice
+          ? MobileAiDictationEngine.whisper
+          : persistedEngine,
       rewriteMode: MobileAiDictationRewriteMode.values.firstWhere(
         (value) => value.name == json['rewriteMode'],
         orElse: () => MobileAiDictationRewriteMode.off,
