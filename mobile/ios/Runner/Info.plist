@@ -33,8 +33,6 @@
 		</dict>
 		<key>NSCameraUsageDescription</key>
 		<string>Scan Alera pairing codes.</string>
-		<key>NSMicrophoneUsageDescription</key>
-		<string>Record audio for AI Dictation.</string>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>Connect to Alera hosts on your local network.</string>
 		<key>NSMicrophoneUsageDescription</key>

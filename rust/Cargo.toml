@@ -16,6 +16,7 @@ members = [
     "alera-cli",
     "alera-core",
     "alera-desktop-core",
+    "alera-mobile-native",
     "alera-runtime-client",
     "alera-runtime-protocol",
 ]
