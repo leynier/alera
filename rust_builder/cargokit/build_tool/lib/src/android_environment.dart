@@ -171,16 +171,31 @@ class AndroidEnvironment {
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
       'ANDROID_NDK_HOME': ndkPath,
-      'CMAKE_TOOLCHAIN_FILE': path.join(
-        ndkPath,
-        'build',
-        'cmake',
-        'android.toolchain.cmake',
-      ),
+      'CMAKE_TOOLCHAIN_FILE': _createCmakeToolchain(ndkPath),
       'BINDGEN_EXTRA_CLANG_ARGS_${target.rust}':
           '$targetArg --sysroot=$sysrootPath',
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
+  }
+
+  String _createCmakeToolchain(String ndkPath) {
+    final toolchainDirectory = Directory(
+      path.join(targetTempDir, 'cargokit', 'android_toolchain'),
+    )..createSync(recursive: true);
+    final ndkToolchainPath = path
+        .join(ndkPath, 'build', 'cmake', 'android.toolchain.cmake')
+        .replaceAll(r'\', '/');
+    final toolchainFile = File(
+      path.join(toolchainDirectory.path, '${target.rust}.cmake'),
+    );
+
+    // NDK 28 defaults its legacy toolchain to armeabi-v7a unless ANDROID_ABI
+    // is cached before the toolchain is included and forwarded to try_compile.
+    toolchainFile.writeAsStringSync(
+      'set(ANDROID_ABI [=[${target.android}]=] CACHE STRING [[]] FORCE)\n'
+      'include([=[$ndkToolchainPath]=])\n',
+    );
+    return toolchainFile.path;
   }
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk
