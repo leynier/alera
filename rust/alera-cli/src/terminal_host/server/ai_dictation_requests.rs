@@ -214,7 +214,7 @@ fn transcribe_inner(
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
-    params.set_language(language.as_deref());
+    params.set_language(language);
     if let Some(prompt) = prompt.filter(|value| !value.trim().is_empty()) {
         params.set_initial_prompt(prompt.trim());
     }
@@ -247,7 +247,7 @@ fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
         .filter(|value| !value.is_empty())
         .map(|value| {
             value
-                .split(|character| character == '-' || character == '_')
+                .split(['-', '_'])
                 .next()
                 .unwrap_or(value)
                 .to_ascii_lowercase()
