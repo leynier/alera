@@ -15,6 +15,7 @@ class MobileAiDictationState {
     this.playbackPosition = Duration.zero,
     this.amplitude = 0,
     this.audioReviewAvailable = false,
+    this.segmentCount = 0,
     this.warning,
   });
 
@@ -24,6 +25,7 @@ class MobileAiDictationState {
   final Duration playbackPosition;
   final double amplitude;
   final bool audioReviewAvailable;
+  final int segmentCount;
   final String? warning;
 
   bool get hasRecording =>
@@ -37,6 +39,7 @@ class MobileAiDictationState {
     Duration? playbackPosition,
     double? amplitude,
     bool? audioReviewAvailable,
+    int? segmentCount,
     String? warning,
     bool clearWarning = false,
   }) => MobileAiDictationState(
@@ -46,6 +49,7 @@ class MobileAiDictationState {
     playbackPosition: playbackPosition ?? this.playbackPosition,
     amplitude: amplitude ?? this.amplitude,
     audioReviewAvailable: audioReviewAvailable ?? this.audioReviewAvailable,
+    segmentCount: segmentCount ?? this.segmentCount,
     warning: clearWarning ? null : warning ?? this.warning,
   );
 }

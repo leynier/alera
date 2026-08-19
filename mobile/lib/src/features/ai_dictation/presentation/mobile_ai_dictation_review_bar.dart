@@ -100,6 +100,15 @@ class _RecordingBar extends StatelessWidget {
                       ),
                 style: AleraTokens.monoStyle,
               ),
+              if (state.segmentCount > 1) ...<Widget>[
+                const SizedBox(width: AleraTokens.space4),
+                Text(
+                  '${state.segmentCount} segments',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ],
               const SizedBox(width: AleraTokens.space8),
               Expanded(child: _progress()),
               const SizedBox(width: AleraTokens.space4),

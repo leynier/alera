@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dic
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_state.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
+import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_transcript_assembler.dart';
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_whisper_transcriber.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:audio_session/audio_session.dart';
@@ -28,7 +29,7 @@ const _capabilityChannel = MethodChannel(
 );
 const _onlineConsentVersion = 1;
 const _remoteConsentVersion = 1;
-const _maximumRecordingDuration = Duration(minutes: 2);
+const _recordingSegmentDuration = Duration(seconds: 30);
 
 @riverpod
 Future<bool> mobileAiDictationOnDeviceAvailable(
@@ -59,11 +60,18 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   AudioRecorder? _recorder;
   AudioPlayer? _player;
   String _systemText = '';
+  String _systemLiveText = '';
+  MobileAiDictationSettings? _systemSettings;
+  bool _systemStopRequested = false;
+  bool _systemRestarting = false;
   bool _finalizing = false;
   void Function(String text)? _onText;
   String? _workspaceId;
   String? _tabId;
   String? _audioPath;
+  final _audioPaths = <String>[];
+  Timer? _segmentTimer;
+  Future<void>? _segmentRotation;
   String? _requestId;
   MobileAiDictationLocation? _requestLocation;
   Future<void>? _activeTranscription;
@@ -80,6 +88,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       _activeGeneration = null;
       _cancelRequested = true;
       _elapsedTimer?.cancel();
+      _segmentTimer?.cancel();
       for (final subscription in _subscriptions) {
         unawaited(subscription.cancel());
       }
@@ -120,6 +129,14 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   }
 
   Future<void> _dispose(Future<void>? activeTranscription) async {
+    final segmentRotation = _segmentRotation;
+    if (segmentRotation != null) {
+      try {
+        await segmentRotation;
+      } on Object catch (error, stackTrace) {
+        _log.warning('dictation segment cleanup failed', error, stackTrace);
+      }
+    }
     final requestId = _requestId;
     if (requestId != null) {
       await _cancelActiveRequest(requestId);
@@ -173,6 +190,9 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     );
     _validateSettings(settings);
     _systemText = '';
+    _systemLiveText = '';
+    _systemSettings = settings;
+    _systemStopRequested = false;
     _finalizing = false;
     _cancelRequested = false;
     final generation = ++_generation;
@@ -243,6 +263,18 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       throw StateError('System speech recognition is unavailable.');
     }
     if (!_isCurrentGeneration(generation)) return;
+    await _listenSystemRecognition(settings, generation);
+    if (!_isCurrentGeneration(generation)) return;
+    _beginElapsedTimer(generation);
+    state = const MobileAiDictationState(
+      stage: MobileAiDictationStage.recording,
+    );
+  }
+
+  Future<void> _listenSystemRecognition(
+    MobileAiDictationSettings settings,
+    int generation,
+  ) async {
     await _speech.listen(
       onResult: (result) => _handleSystemResult(result, generation),
       onSoundLevelChange: (level) {
@@ -258,13 +290,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
         cancelOnError: true,
         onDevice: settings.engine == MobileAiDictationEngine.systemOnDevice,
         autoPunctuation: true,
-        listenFor: _maximumRecordingDuration,
       ),
-    );
-    if (!_isCurrentGeneration(generation)) return;
-    _beginElapsedTimer(generation);
-    state = const MobileAiDictationState(
-      stage: MobileAiDictationStage.recording,
     );
   }
 
@@ -294,6 +320,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       path: path,
     );
     _audioPath = path;
+    _audioPaths.add(path);
     _subscriptions.add(
       recorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((
         value,
@@ -309,10 +336,51 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       return;
     }
     _beginElapsedTimer(generation);
+    _segmentTimer = Timer.periodic(_recordingSegmentDuration, (_) {
+      _segmentRotation ??= _rotateRecordingSegment(generation).whenComplete(() {
+        _segmentRotation = null;
+      });
+    });
     state = const MobileAiDictationState(
       stage: MobileAiDictationStage.recording,
       audioReviewAvailable: true,
+    ).copyWith(segmentCount: _audioPaths.length);
+  }
+
+  Future<void> _rotateRecordingSegment(int generation) async {
+    if (!_isCurrentGeneration(generation) ||
+        state.stage != MobileAiDictationStage.recording ||
+        _audioPath == null) {
+      return;
+    }
+    final completedPath = await _recorder?.stop();
+    if (completedPath != null && completedPath != _audioPath) {
+      final index = _audioPaths.indexOf(_audioPath!);
+      if (index >= 0) _audioPaths[index] = completedPath;
+      _audioPath = completedPath;
+    }
+    if (!_isCurrentGeneration(generation) ||
+        state.stage != MobileAiDictationStage.recording) {
+      return;
+    }
+    final directory = await getTemporaryDirectory();
+    final path = p.join(
+      directory.path,
+      'alera-mobile-dictation-${DateTime.now().microsecondsSinceEpoch}-${_audioPaths.length}.wav',
     );
+    await _recorder?.start(
+      const RecordConfig(
+        encoder: AudioEncoder.wav,
+        sampleRate: 16000,
+        numChannels: 1,
+        autoGain: true,
+        noiseSuppress: true,
+      ),
+      path: path,
+    );
+    _audioPath = path;
+    _audioPaths.add(path);
+    state = state.copyWith(segmentCount: _audioPaths.length);
   }
 
   void _beginElapsedTimer(int generation) {
@@ -327,7 +395,6 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       }
       final elapsed = DateTime.now().difference(started);
       state = state.copyWith(elapsed: elapsed);
-      if (elapsed >= _maximumRecordingDuration) unawaited(stop());
     });
   }
 
@@ -353,8 +420,10 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   Future<void> stop() async {
     if (state.stage != MobileAiDictationStage.recording) return;
     _elapsedTimer?.cancel();
+    _segmentTimer?.cancel();
     _recordingStarted = null;
-    if (_audioPath == null) {
+    if (_audioPaths.isEmpty) {
+      _systemStopRequested = true;
       await _speech.stop();
       await Future<void>.delayed(const Duration(milliseconds: 150));
       if (_systemText.trim().isEmpty) {
@@ -366,13 +435,25 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       await _finalize(_systemText, generation: _activeGeneration);
       return;
     }
+    final rotation = _segmentRotation;
+    if (rotation != null) await rotation;
     final path = await _recorder?.stop() ?? _audioPath;
-    if (path == null || !await File(path).exists()) {
+    if (path != null && _audioPaths.isNotEmpty && path != _audioPaths.last) {
+      _audioPaths[_audioPaths.length - 1] = path;
+      _audioPath = path;
+    }
+    final filesExist =
+        _audioPaths.isNotEmpty &&
+        (await Future.wait(
+          _audioPaths.map((value) => File(value).exists()),
+        )).every((value) => value);
+    if (!filesExist) {
       await _reset(deleteRecording: true);
       throw StateError('The microphone did not produce an audio recording.');
     }
-    _audioPath = path;
-    final playerDuration = await _ensurePlayer().setFilePath(path);
+    final playerDuration = await _ensurePlayer().setAudioSources(
+      _audioPaths.map(AudioSource.file).toList(),
+    );
     final duration = playerDuration ?? state.elapsed;
     state = state.copyWith(
       stage: MobileAiDictationStage.recorded,
@@ -381,6 +462,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       playbackPosition: Duration.zero,
       amplitude: 0,
       audioReviewAvailable: true,
+      segmentCount: _audioPaths.length,
       clearWarning: true,
     );
   }
@@ -409,9 +491,21 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       if (_requestId case final requestId?) {
         await _cancelActiveRequest(requestId);
       }
-      if (_audioPath == null) {
+      if (_audioPaths.isEmpty) {
         await _speech.cancel();
       } else if (state.stage == MobileAiDictationStage.recording) {
+        final rotation = _segmentRotation;
+        if (rotation != null) {
+          try {
+            await rotation;
+          } on Object catch (error, stackTrace) {
+            _log.warning(
+              'dictation segment rotation failed during cancel',
+              error,
+              stackTrace,
+            );
+          }
+        }
         await _recorder?.cancel();
       }
     } finally {
@@ -421,6 +515,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
 
   Future<void> _reset({required bool deleteRecording, String? warning}) async {
     _elapsedTimer?.cancel();
+    _segmentTimer?.cancel();
     _recordingStarted = null;
     _activeGeneration = null;
     _generation++;
@@ -428,6 +523,10 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (deleteRecording) await _deleteRecording();
     _requestId = null;
     _systemText = '';
+    _systemLiveText = '';
+    _systemSettings = null;
+    _systemStopRequested = false;
+    _systemRestarting = false;
     _finalizing = false;
     _onText = null;
     _workspaceId = null;
@@ -436,11 +535,13 @@ class MobileAiDictationController extends _$MobileAiDictationController {
   }
 
   Future<void> _deleteRecording() async {
-    final path = _audioPath;
+    final paths = _audioPaths.toSet().toList();
+    _audioPaths.clear();
     _audioPath = null;
-    if (path == null) return;
-    final file = File(path);
-    if (await file.exists()) await file.delete();
+    for (final path in paths) {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    }
   }
 }
 

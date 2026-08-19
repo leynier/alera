@@ -16,7 +16,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
   }
 
   Future<void> _transcribe() async {
-    if (!state.hasRecording || _audioPath == null) return;
+    if (!state.hasRecording || _audioPaths.isEmpty) return;
     final generation = _activeGeneration;
     if (generation == null) return;
     await _player?.pause();
@@ -34,7 +34,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
         'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}';
     _requestId = requestId;
     try {
-      final String text;
+      final assembler = MobileAiDictationTranscriptAssembler();
       if (settings.location == MobileAiDictationLocation.thisDevice) {
         if (settings.engine != MobileAiDictationEngine.whisper) {
           throw StateError(
@@ -49,29 +49,48 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
             'Download the selected Whisper model in Settings first.',
           );
         }
-        final result = await _whisper.transcribe(
-          requestId: requestId,
-          audioPath: _audioPath!,
-          modelPath: await transfers.modelPath(settings.localModelId),
-          language: _whisperLanguage(settings.language),
-        );
-        text = result.text;
+        final modelPath = await transfers.modelPath(settings.localModelId);
+        for (var index = 0; index < _audioPaths.length; index++) {
+          final segmentRequestId = '$requestId-$index';
+          _requestId = segmentRequestId;
+          try {
+            final result = await _whisper.transcribe(
+              requestId: segmentRequestId,
+              audioPath: _audioPaths[index],
+              modelPath: modelPath,
+              language: _whisperLanguage(settings.language),
+              initialPrompt: assembler.prompt,
+            );
+            assembler.add(result.text);
+          } on Object catch (error) {
+            if (!_isSilentSegmentError(error)) rethrow;
+          }
+        }
       } else {
         final client = await ref.read(
           hostConnectionControllerProvider(hostId).future,
         );
-        final response = await client.transcribeMobileAudio(
-          requestId: requestId,
-          audio: await File(_audioPath!).readAsBytes(),
-          engine: settings.engine.name,
-          modelId: settings.remoteModelId,
-          language: _whisperLanguage(settings.language),
-        );
-        text = response['text']?.toString().trim() ?? '';
-        if (text.isEmpty) {
-          throw StateError('The paired device returned no text.');
+        for (var index = 0; index < _audioPaths.length; index++) {
+          final segmentRequestId = '$requestId-$index';
+          _requestId = segmentRequestId;
+          try {
+            final response = await client.transcribeMobileAudio(
+              requestId: segmentRequestId,
+              audio: await File(_audioPaths[index]).readAsBytes(),
+              engine: settings.engine.name,
+              modelId: settings.remoteModelId,
+              language: _whisperLanguage(settings.language),
+              initialPrompt: assembler.prompt,
+            );
+            final text = response['text']?.toString().trim() ?? '';
+            if (text.isNotEmpty) assembler.add(text);
+          } on Object catch (error) {
+            if (!_isSilentSegmentError(error)) rethrow;
+          }
         }
       }
+      final text = assembler.text;
+      if (text.isEmpty) throw StateError('No speech was detected.');
       if (!_isCurrentGeneration(generation)) return;
       await _finalize(text, generation: generation);
     } on Object catch (error, stackTrace) {
@@ -89,23 +108,76 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
 
   void _handleSystemResult(SpeechRecognitionResult result, int generation) {
     if (!_isCurrentGeneration(generation)) return;
-    _systemText = result.recognizedWords;
     if (result.finalResult) {
-      unawaited(_finalize(_systemText, generation: generation));
+      _appendSystemText(result.recognizedWords);
+      _systemLiveText = '';
+    } else {
+      _systemLiveText = result.recognizedWords;
     }
   }
 
   void _handleSystemStatus(String status, int generation) {
     if (!_isCurrentGeneration(generation)) return;
-    if ((status == SpeechToText.doneStatus ||
-            status == SpeechToText.notListeningStatus) &&
-        _systemText.trim().isNotEmpty) {
-      unawaited(_finalize(_systemText, generation: generation));
+    if (status != SpeechToText.doneStatus &&
+        status != SpeechToText.notListeningStatus) {
+      return;
     }
+    if (_systemStopRequested) {
+      _appendSystemText(_systemLiveText);
+      _systemLiveText = '';
+      return;
+    }
+    _scheduleSystemRestart(generation);
+  }
+
+  void _scheduleSystemRestart(int generation) {
+    if (_systemRestarting || _systemStopRequested) return;
+    _systemRestarting = true;
+    unawaited(_restartSystemRecognition(generation));
+  }
+
+  Future<void> _restartSystemRecognition(int generation) async {
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final settings = _systemSettings;
+      if (settings == null ||
+          _systemStopRequested ||
+          !_isCurrentGeneration(generation)) {
+        return;
+      }
+      await _listenSystemRecognition(settings, generation);
+    } on Object catch (error, stackTrace) {
+      _log.warning(
+        'mobile speech recognition restart failed',
+        error,
+        stackTrace,
+      );
+      if (_isCurrentGeneration(generation)) {
+        state = state.copyWith(warning: 'Speech recognition stopped: $error');
+      }
+    } finally {
+      _systemRestarting = false;
+    }
+  }
+
+  void _appendSystemText(String value) {
+    final part = value.trim();
+    if (part.isEmpty) return;
+    final assembler = MobileAiDictationTranscriptAssembler()..add(_systemText);
+    assembler.add(part);
+    _systemText = assembler.text;
   }
 
   void _handleSystemError(SpeechRecognitionError error, int generation) {
     if (!_isCurrentGeneration(generation)) return;
+    if (_systemStopRequested) return;
+    final message = error.errorMsg.toLowerCase();
+    if (message.contains('no match') ||
+        message.contains('timeout') ||
+        message.contains('timed out')) {
+      _scheduleSystemRestart(generation);
+      return;
+    }
     _log.warning('mobile speech recognition failed: ${error.errorMsg}');
     _elapsedTimer?.cancel();
     _activeGeneration = null;
@@ -198,4 +270,11 @@ String? _whisperLanguage(String? language) {
   final value = language?.trim();
   if (value == null || value.isEmpty) return null;
   return value.split(RegExp(r'[-_]')).first.toLowerCase();
+}
+
+bool _isSilentSegmentError(Object error) {
+  final message = error.toString().toLowerCase();
+  return message.contains('did not detect speech') ||
+      message.contains('returned no text') ||
+      message.contains('no speech was detected');
 }
