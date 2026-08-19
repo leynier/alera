@@ -146,6 +146,10 @@ class _MobileComposerState extends State<_MobileComposer> {
               onAddAttachment: widget.onAddAttachment,
               onCatalogSelection: widget.onCatalogSelection,
             ),
+            MobileAiDictationReviewBar(
+              hostId: widget.hostId,
+              targetKey: 'codex-${widget.tabId}',
+            ),
             Container(
               decoration: BoxDecoration(
                 color: AleraTokens.surfaceElevated,

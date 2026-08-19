@@ -12,7 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 # native hooks via `cargo build --locked -p alera-cli`). One lock file, one
 # target dir; the FRB build only compiles the root package.
 [workspace]
-members = ["alera-cli", "alera-core"]
+members = ["alera-cli", "alera-core", "alera-mobile-native"]
 resolver = "2"
 
 [dependencies]

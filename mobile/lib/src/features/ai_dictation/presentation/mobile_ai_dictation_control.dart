@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,16 +41,26 @@ class MobileAiDictationControl extends ConsumerWidget {
     return IconButton(
       tooltip: switch (state.stage) {
         MobileAiDictationStage.idle => 'Start Dictation',
-        MobileAiDictationStage.listening => 'Stop Dictation',
-        MobileAiDictationStage.processing => 'Improving Transcript',
+        MobileAiDictationStage.recording => 'Stop Dictation',
+        MobileAiDictationStage.recorded ||
+        MobileAiDictationStage.playing => 'Review Recording',
+        MobileAiDictationStage.transcribing => 'Transcribing',
+        MobileAiDictationStage.improving => 'Improving Transcript',
       },
-      onPressed: !enabled || state.stage == MobileAiDictationStage.processing
+      onPressed:
+          !enabled ||
+              state.stage == MobileAiDictationStage.transcribing ||
+              state.stage == MobileAiDictationStage.improving ||
+              state.hasRecording
           ? null
           : () => unawaited(_toggle(context, notifier, state.stage)),
       icon: Icon(switch (state.stage) {
         MobileAiDictationStage.idle => Icons.mic_none,
-        MobileAiDictationStage.listening => Icons.stop,
-        MobileAiDictationStage.processing => Icons.autorenew,
+        MobileAiDictationStage.recording => Icons.stop,
+        MobileAiDictationStage.recorded ||
+        MobileAiDictationStage.playing => Icons.graphic_eq,
+        MobileAiDictationStage.transcribing ||
+        MobileAiDictationStage.improving => Icons.autorenew,
       }),
     );
   }
@@ -60,7 +71,7 @@ class MobileAiDictationControl extends ConsumerWidget {
     MobileAiDictationStage stage,
   ) async {
     try {
-      if (stage == MobileAiDictationStage.listening) {
+      if (stage == MobileAiDictationStage.recording) {
         await notifier.stop();
       } else {
         await notifier.start(

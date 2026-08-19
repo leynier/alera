@@ -95,6 +95,14 @@ class AndroidEnvironment {
       hostArch,
       'bin',
     );
+    final sysrootPath = path.join(
+      ndkPath,
+      'toolchains',
+      'llvm',
+      'prebuilt',
+      hostArch,
+      'sysroot',
+    );
 
     final minSdkVersion =
         math.max(target.androidMinSdkVersion!, this.minSdkVersion);
@@ -162,6 +170,15 @@ class AndroidEnvironment {
       // Recognized by main() so we know when we're acting as a wrapper
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
+      'ANDROID_NDK_HOME': ndkPath,
+      'CMAKE_TOOLCHAIN_FILE': path.join(
+        ndkPath,
+        'build',
+        'cmake',
+        'android.toolchain.cmake',
+      ),
+      'BINDGEN_EXTRA_CLANG_ARGS_${target.rust}':
+          '$targetArg --sysroot=$sysrootPath',
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
   }

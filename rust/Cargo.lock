@@ -127,6 +127,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "alera_mobile_native"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "serde",
+ "serde_json",
+ "whisper-rs",
+]
+
+[[package]]
 name = "alera_native"
 version = "0.1.0"
 dependencies = [
