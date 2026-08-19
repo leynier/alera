@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 
-final RegExp _promptImageControlCharacters = RegExp(r'[\u0000-\u001F\u007F]');
+final RegExp _promptPathControlCharacters = RegExp(r'[\u0000-\u001F\u007F]');
 
-void insertPromptImagePaths(
-  TextEditingController controller,
-  List<String> paths,
-) {
+void insertPromptPaths(TextEditingController controller, List<String> paths) {
   final sanitizedPaths = <String>[
-    for (final path in paths)
-      path.replaceAll(_promptImageControlCharacters, ''),
+    for (final path in paths) path.replaceAll(_promptPathControlCharacters, ''),
   ].where((path) => path.isNotEmpty).toList(growable: false);
   if (sanitizedPaths.isEmpty) {
     return;

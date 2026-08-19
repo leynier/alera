@@ -20,6 +20,13 @@ mixin MobileRuntimeTerminalRequests {
     Map<String, Object?> payload,
   ]);
 
+  /// Reuses `mobile.status.get`, which the runtime answers without touching a
+  /// session, so a foreground check costs one round trip and cannot disturb a
+  /// terminal that is working.
+  Future<void> probeConnection() async {
+    await request('mobile.status.get');
+  }
+
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
     final payload = await requestList('tab.list', <String, Object?>{
       'workspaceId': workspaceId,
@@ -50,13 +57,17 @@ mixin MobileRuntimeTerminalRequests {
 
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols = defaultTerminalCols,
-    int rows = defaultTerminalRows,
+    int? cols,
+    int? rows,
   }) async {
+    // Omitted rather than defaulted: the host reads a stated viewport as a
+    // resize of the live PTY, and a placeholder there is a resize to a size
+    // nobody is looking at. An older host still falls back to 80x24 for an
+    // absent viewport, so it keeps behaving as it does today.
     final payload = await requestMap('terminal.attach', <String, Object?>{
       'tabId': tabId,
-      'cols': cols,
-      'rows': rows,
+      'cols': ?cols,
+      'rows': ?rows,
     });
     return MobileTerminalSession.fromJson(payload);
   }

@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
@@ -13,49 +14,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
 
-/// Raised when a desktop driver takes the terminal viewport back.
-class DesktopReclaimedTerminal implements Exception {
-  const DesktopReclaimedTerminal();
-
-  @override
-  String toString() => 'Desktop took back the terminal';
-}
-
-/// A live terminal attachment with its replay snapshot and filtered output.
-class TerminalTabSession {
-  TerminalTabSession({
-    required this.sessionId,
-    required List<int> snapshot,
-    required this.running,
-    required this.output,
-  }) : _snapshot = _TerminalSnapshotPayload(snapshot);
-
-  final String sessionId;
-  final bool running;
-  final _TerminalSnapshotPayload _snapshot;
-
-  /// Carries full events so resync replacement stays ordered with live output.
-  final Stream<MobileTerminalOutputEvent> output;
-
-  /// Transfers restore bytes without retaining rendered scrollback twice.
-  List<int> takeSnapshot() => _snapshot.take();
-
-  int get retainedSnapshotBytes => _snapshot.retainedBytes;
-}
-
-class _TerminalSnapshotPayload {
-  _TerminalSnapshotPayload(this._bytes);
-
-  List<int>? _bytes;
-
-  int get retainedBytes => _bytes?.length ?? 0;
-
-  List<int> take() {
-    final value = _bytes;
-    _bytes = null;
-    return value ?? const <int>[];
-  }
-}
+const Duration _foregroundProbeTimeout = Duration(seconds: 8);
 
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {
@@ -69,8 +28,10 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _desktopReclaimed = false;
   Completer<void>? _recoveryCompletion;
   MobileTerminalClient? _pendingRecoveryClient;
-  int _cols = defaultTerminalCols;
-  int _rows = defaultTerminalRows;
+  // Null until the terminal has been laid out. Claiming a viewport resizes the
+  // live PTY, so a guess here is a resize to a size nobody is looking at.
+  int? _cols;
+  int? _rows;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 
@@ -102,7 +63,11 @@ class TerminalSessionController extends _$TerminalSessionController {
     final client = await ref.read(terminalClientProvider(hostId).future);
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
-    final session = await client.attachTerminal(tabId);
+    final session = await client.attachTerminal(
+      tabId,
+      cols: _cols,
+      rows: _rows,
+    );
     return _bindSession(client, session);
   }
 
@@ -118,8 +83,35 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     final client = _client;
     if (client != null) {
-      unawaited(_recoverWithClient(client, showStartingState: true));
+      unawaited(_recoverIfConnectionLost(client));
     }
+  }
+
+  /// Returning to the foreground does not, by itself, mean the session is
+  /// gone. Re-attaching regardless takes the tab through its loading state,
+  /// which disposes the compose bar along with whatever it was waiting on: a
+  /// path picked from the gallery landed on a dead controller and vanished,
+  /// and the terminal appeared to restart every time the picker closed. One
+  /// round trip separates the two cases, and a connection that answers is
+  /// still delivering output, so nothing needs re-attaching.
+  Future<void> _recoverIfConnectionLost(MobileTerminalClient client) async {
+    try {
+      await client.probeConnection().timeout(_foregroundProbeTimeout);
+      return;
+    } on Object catch (error, stackTrace) {
+      if (_disposed || !identical(_client, client)) {
+        return;
+      }
+      _logger.warning(
+        'foreground probe failed for terminal $tabId; reattaching',
+        error,
+        stackTrace,
+      );
+    }
+    if (_disposed || _desktopReclaimed || !identical(_client, client)) {
+      return;
+    }
+    await _recoverWithClient(client, showStartingState: true);
   }
 
   void _registerCleanup() {
@@ -152,6 +144,8 @@ class TerminalSessionController extends _$TerminalSessionController {
         sessionId: sessionId,
         snapshot: session.attachment.snapshot,
         running: session.attachment.running,
+        snapshotCols: session.attachment.snapshotCols,
+        snapshotRows: session.attachment.snapshotRows,
         output: client.terminalOutput.where(
           (event) => event.sessionId == sessionId,
         ),
@@ -211,6 +205,8 @@ class TerminalSessionController extends _$TerminalSessionController {
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
       running: session.attachment.running,
+      snapshotCols: session.attachment.snapshotCols,
+      snapshotRows: session.attachment.snapshotRows,
       output: client.terminalOutput.where(
         (event) => event.sessionId == sessionId,
       ),
@@ -342,11 +338,13 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     state = const AsyncLoading<TerminalTabSession>(progress: 0.75);
     try {
+      // A restart mints a new PTY, so unlike attach it always needs a size;
+      // an unmeasured terminal has nothing better than the default to give.
       final session = await client.restartTerminal(
         tabId,
         sessionId: _sessionId,
-        cols: _cols,
-        rows: _rows,
+        cols: _cols ?? defaultTerminalCols,
+        rows: _rows ?? defaultTerminalRows,
       );
       if (_disposed) {
         _logger.warning(

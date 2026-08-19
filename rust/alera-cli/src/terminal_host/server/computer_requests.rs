@@ -392,7 +392,7 @@ mod tests {
             "computer.act",
         ] {
             assert!(
-                !super::super::mobile_terminal_requests::mobile_request_allowed(verb),
+                !super::super::mobile_gateway_surface::mobile_request_allowed(verb),
                 "{verb} must stay off the mobile allowlist"
             );
         }

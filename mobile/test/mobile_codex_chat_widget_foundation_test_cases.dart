@@ -61,6 +61,36 @@ void _registerMobileCodexFoundationTests() {
     expect(store.read('host', 'tab').value.text, 'Abandoned submission');
   });
 
+  test('mobile draft store delivers an upload that outlived its screen', () {
+    // The picker backgrounds the app, and the host reconnect that follows
+    // rebuilds the tab body while the bytes are still streaming, so the state
+    // that started the pick is usually gone when the path comes back.
+    final store = MobileCodexComposerDraftStore();
+    var restored = 0;
+    store.addRestoreListener('host', 'tab', () => restored += 1);
+    store.write(
+      'host',
+      'tab',
+      const MobileCodexComposerDraft(
+        value: TextEditingValue(text: 'Look at this'),
+      ),
+    );
+
+    store.addAttachment('host', 'tab', <String, Object?>{
+      'type': 'localImage',
+      'path': '/host/prompt-images/shot.png',
+    });
+
+    expect(restored, 1);
+    final draft = store.read('host', 'tab');
+    expect(draft.value.text, 'Look at this');
+    expect(draft.attachments.single['path'], '/host/prompt-images/shot.png');
+
+    store.remove('host', 'tab');
+    store.addAttachment('host', 'tab', <String, Object?>{'path': 'late.png'});
+    expect(store.read('host', 'tab').isEmpty, isTrue);
+  });
+
   testWidgets('hides session actions for older runtimes', (tester) async {
     final client = FakeMobileCodexClient(supportsCodexSessions: false);
     addTearDown(client.dispose);

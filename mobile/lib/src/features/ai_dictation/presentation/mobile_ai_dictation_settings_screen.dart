@@ -28,12 +28,20 @@ class MobileAiDictationSettingsScreen extends ConsumerWidget {
     );
     return Scaffold(
       appBar: AppBar(title: const Text('AI Dictation')),
-      body: settingsValue.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text('AI Dictation settings could not be loaded: $error'),
+      body: SafeArea(
+        child: settingsValue.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: Padding(
+              padding: AleraTokens.pagePadding,
+              child: Text(
+                'AI Dictation settings could not be loaded: $error',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          data: (settings) => _SettingsList(settings: settings),
         ),
-        data: (settings) => _SettingsList(settings: settings),
       ),
     );
   }
@@ -65,15 +73,19 @@ class _SettingsList extends ConsumerWidget {
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
-        SwitchListTile(
-          value: settings.enabled,
-          title: const Text('Enable AI Dictation'),
-          subtitle: const Text('Add microphone controls to mobile composers.'),
-          onChanged: (value) =>
-              controller.save(settings.copyWith(enabled: value)),
+        Card(
+          child: SwitchListTile(
+            value: settings.enabled,
+            title: const Text('Enable AI Dictation'),
+            subtitle: const Text(
+              'Add microphone controls to mobile composers.',
+            ),
+            onChanged: (value) =>
+                controller.save(settings.copyWith(enabled: value)),
+          ),
         ),
         const SizedBox(height: AleraTokens.spaceXl),
-        Text('Transcription', style: Theme.of(context).textTheme.titleMedium),
+        _SectionHeader(title: 'Transcription'),
         DropdownButtonFormField<MobileAiDictationLocation>(
           initialValue: settings.location,
           decoration: const InputDecoration(labelText: 'Processing Location'),
@@ -141,6 +153,7 @@ class _SettingsList extends ConsumerWidget {
               ),
             ),
           ),
+        const SizedBox(height: AleraTokens.spaceLg),
         TextFormField(
           initialValue: settings.language,
           decoration: const InputDecoration(
@@ -156,20 +169,22 @@ class _SettingsList extends ConsumerWidget {
           ),
         ),
         if (settings.engine == MobileAiDictationEngine.systemRecognition)
-          SwitchListTile(
-            value:
-                settings.systemRecognitionConsentVersion ==
-                _onlineConsentVersion,
-            title: const Text('Allow Online Speech Recognition'),
-            subtitle: const Text(
-              'The platform speech service may send microphone audio to Apple, Google, or the configured recognition provider.',
-            ),
-            onChanged: (value) => controller.save(
-              settings.copyWith(
-                systemRecognitionConsentVersion: value
-                    ? _onlineConsentVersion
-                    : null,
-                clearSystemConsent: !value,
+          Card(
+            child: SwitchListTile(
+              value:
+                  settings.systemRecognitionConsentVersion ==
+                  _onlineConsentVersion,
+              title: const Text('Allow Online Speech Recognition'),
+              subtitle: const Text(
+                'The platform speech service may send microphone audio to Apple, Google, or the configured recognition provider.',
+              ),
+              onChanged: (value) => controller.save(
+                settings.copyWith(
+                  systemRecognitionConsentVersion: value
+                      ? _onlineConsentVersion
+                      : null,
+                  clearSystemConsent: !value,
+                ),
               ),
             ),
           ),
@@ -203,10 +218,8 @@ class _SettingsList extends ConsumerWidget {
             ),
         ],
         const SizedBox(height: AleraTokens.spaceXl),
-        Text(
-          'Transcript Improvement',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        const SizedBox(height: AleraTokens.spaceXl),
+        _SectionHeader(title: 'Speech Processing'),
         DropdownButtonFormField<MobileAiDictationRewriteMode>(
           initialValue: settings.rewriteMode,
           decoration: const InputDecoration(labelText: 'Automatic Processing'),
@@ -231,8 +244,10 @@ class _SettingsList extends ConsumerWidget {
           },
         ),
         const SizedBox(height: AleraTokens.spaceSm),
-        const Text(
-          'Transcript improvement sends only completed text to the paired host. Raw text is inserted if improvement fails.',
+        const _HelperText(
+          'Speech processing sends only the completed transcript to the '
+          'paired host. The host uses the agent and model configured for '
+          'Speech Messages. Raw text is inserted if processing fails.',
         ),
       ],
     );
@@ -356,6 +371,20 @@ class _ModelTile extends StatelessWidget {
   }
 }
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
+      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+    );
+  }
+}
+
 String _engineLabel(MobileAiDictationEngine engine) => switch (engine) {
   MobileAiDictationEngine.whisper => 'Whisper',
   MobileAiDictationEngine.systemOnDevice => 'System On-Device',
@@ -397,3 +426,19 @@ String _modelStatus(
 String _formatBytes(int bytes) => bytes < 1024 * 1024
     ? '${(bytes / 1024).toStringAsFixed(1)} KiB'
     : '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
+
+class _HelperText extends StatelessWidget {
+  const _HelperText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+    );
+  }
+}

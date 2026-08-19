@@ -1,4 +1,4 @@
-import 'package:alera_mobile/src/features/workbench/presentation/prompt_image_insertion.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/prompt_path_insertion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,10 +7,7 @@ void main() {
     final controller = TextEditingController(text: 'Build this now');
     controller.selection = const TextSelection.collapsed(offset: 6);
 
-    insertPromptImagePaths(controller, <String>[
-      '/host/one.png',
-      '/host/two.jpg',
-    ]);
+    insertPromptPaths(controller, <String>['/host/one.png', '/host/two.jpg']);
 
     expect(controller.text, 'Build \n/host/one.png\n/host/two.jpg\nthis now');
     expect(
@@ -23,7 +20,7 @@ void main() {
     final controller = TextEditingController(text: 'Existing');
     controller.selection = const TextSelection.collapsed(offset: -1);
 
-    insertPromptImagePaths(controller, <String>['/host/a\npath.png']);
+    insertPromptPaths(controller, <String>['/host/a\npath.png']);
 
     expect(controller.text, 'Existing\n/host/apath.png');
     expect(controller.selection.baseOffset, controller.text.length);

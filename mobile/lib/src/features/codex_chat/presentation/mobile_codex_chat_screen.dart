@@ -18,6 +18,7 @@ import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_saved_p
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_file_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/infra/prompt_image_picker.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
