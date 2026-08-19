@@ -238,7 +238,7 @@ fn transcribe_inner(
     if text.is_empty() {
         return Err(HostError::format("Whisper did not detect speech"));
     }
-    Ok((text, language, duration))
+    Ok((text, language.map(str::to_string), duration))
 }
 
 fn normalize_whisper_language(language: Option<&str>) -> Option<String> {

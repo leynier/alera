@@ -243,7 +243,7 @@ fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
         .filter(|value| !value.is_empty())
         .map(|value| {
             value
-                .split(|character| character == '-' || character == '_')
+                .split(['-', '_'])
                 .next()
                 .unwrap_or(value)
                 .to_ascii_lowercase()
