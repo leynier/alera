@@ -101,7 +101,7 @@ final class ClaudeRuntimeHomeService {
     }
 
     final incompleteExternal = <String>[];
-    for (final settingsPath in _externalClaudeSettingsPaths()) {
+    for (final settingsPath in _ccsClaudeSettingsPaths()) {
       final externalStatus = _statusForSettings(
         settingsPath: settingsPath,
         descriptor: descriptor,
@@ -163,7 +163,7 @@ final class ClaudeRuntimeHomeService {
 
     // CCS aliases override CLAUDE_CONFIG_DIR to instance homes whose
     // settings.json usually symlinks to ~/.ccs/shared/settings.json.
-    for (final settingsPath in _externalClaudeSettingsPaths()) {
+    for (final settingsPath in _ccsClaudeSettingsPaths()) {
       _installManagedHooksAtSettings(
         settingsPath: settingsPath,
         descriptor: descriptor,
@@ -188,7 +188,10 @@ final class ClaudeRuntimeHomeService {
         detail: 'Could not parse Claude runtime settings.json.',
       );
     }
-    for (final settingsPath in _externalClaudeSettingsPaths()) {
+    for (final settingsPath in {
+      ..._ccsClaudeSettingsPaths(),
+      ..._leftoverClaudeSettingsPaths(),
+    }) {
       _removeManagedHooksAtSettings(
         settingsPath: settingsPath,
         descriptor: descriptor,

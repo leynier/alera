@@ -5,6 +5,35 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AgentStatusController identity inheritance', () {
+    test('keeps Grok Build identity when Claude-compat hooks fire', () {
+      final harness = _Harness();
+      addTearDown(harness.dispose);
+
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.grok,
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{'prompt': 'search the repo'},
+        ),
+      );
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.claude,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'Grep',
+            'tool_input': <String, Object?>{'pattern': 'AgentType'},
+          },
+        ),
+      );
+
+      final entry = harness.entry;
+      expect(entry.agentType, AgentType.grok);
+      expect(entry.state, AgentStatusState.working);
+      expect(entry.prompt, 'search the repo');
+      expect(entry.toolName, 'Grep');
+    });
+
     test('keeps active parent identity for inherited working events', () {
       final harness = _Harness();
       addTearDown(harness.dispose);
@@ -128,6 +157,62 @@ void main() {
         expect(harness.entry.agentType, AgentType.codex);
         expect(harness.entry.state, AgentStatusState.working);
       }
+    });
+
+    test('lets Grok take over after a Claude-compat hook landed first', () {
+      final harness = _Harness();
+      addTearDown(harness.dispose);
+
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.claude,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'Grep',
+            'tool_input': <String, Object?>{'pattern': 'AgentType'},
+          },
+        ),
+      );
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.grok,
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{'prompt': 'search the repo'},
+        ),
+      );
+
+      final entry = harness.entry;
+      expect(entry.agentType, AgentType.grok);
+      expect(entry.state, AgentStatusState.working);
+      expect(entry.prompt, 'search the repo');
+    });
+
+    test('lets Cursor take over after a Claude-compat hook landed first', () {
+      final harness = _Harness();
+      addTearDown(harness.dispose);
+
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.claude,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'Read',
+            'tool_input': <String, Object?>{'file_path': 'lib/main.dart'},
+          },
+        ),
+      );
+      harness.controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'beforeSubmitPrompt',
+          payload: <String, Object?>{'prompt': 'fix the test'},
+        ),
+      );
+
+      final entry = harness.entry;
+      expect(entry.agentType, AgentType.cursor);
+      expect(entry.state, AgentStatusState.working);
+      expect(entry.prompt, 'fix the test');
     });
 
     test('allows a new child identity after the parent is done', () {

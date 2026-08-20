@@ -15,6 +15,8 @@ use super::integration_plugins::{
 mod codex_hook_trust;
 #[path = "integration_config_cursor_overlay.rs"]
 mod cursor_overlay;
+#[path = "integration_config_user_hooks.rs"]
+mod user_hooks;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -104,6 +106,10 @@ pub fn start_agent_integrations(
             Ok(()) => Vec::new(),
             Err(error) => vec![format!("Cursor: {error}")],
         };
+    match home_dir().and_then(|home| user_hooks::cleanup_claude_user_hooks(&home)) {
+        Ok(()) => {}
+        Err(error) => warnings.push(format!("Claude: {error}")),
+    }
     warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
     warnings
 }

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::super::read_json_object;
 use super::*;
 
 fn overlay_for(runtime: &Path, session: &str) -> BTreeMap<String, String> {
