@@ -277,7 +277,28 @@ class AgentProfileManagedEditor extends StatelessWidget {
           keyName: 'fast',
         ),
       ],
-      AgentType.grok => const <Widget>[],
+      AgentType.grok => <Widget>[
+        _choiceRow(
+          title: 'Reasoning Effort',
+          keyName: 'effort',
+          options: grokEffortOptions,
+        ),
+        _choiceRow(
+          title: 'Permission Mode',
+          keyName: 'permissionMode',
+          options: grokPermissionOptions,
+        ),
+        _choiceRow(
+          title: 'Sandbox',
+          keyName: 'sandbox',
+          options: grokSandboxOptions,
+        ),
+        _boolRow(
+          title: 'Disable Web Search',
+          description: 'Disable Grok Build web search and web fetch tools.',
+          keyName: 'disableWebSearch',
+        ),
+      ],
     };
   }
 

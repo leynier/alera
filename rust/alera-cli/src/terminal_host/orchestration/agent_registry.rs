@@ -103,6 +103,13 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::StdinScript,
     },
+    AgentAdapter {
+        agent_type: "grok",
+        default_command: "grok",
+        force_submit: true,
+        interrupt_bytes: CTRL_C,
+        startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
+    },
 ];
 
 pub fn adapter_for(agent_type: &str) -> Option<&'static AgentAdapter> {
@@ -132,7 +139,8 @@ mod tests {
                 "opencode",
                 "opencode2",
                 "pi",
-                "amp"
+                "amp",
+                "grok"
             ]
         );
         assert!(AGENT_ADAPTERS
@@ -161,6 +169,7 @@ mod tests {
                 ("opencode2", AgentStartupPrompt::LongOption("--prompt")),
                 ("pi", AgentStartupPrompt::Positional),
                 ("amp", AgentStartupPrompt::StdinScript),
+                ("grok", AgentStartupPrompt::PositionalAfterTerminator),
             ]
         );
     }

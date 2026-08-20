@@ -82,6 +82,21 @@ fn every_adapter_builds_its_native_session_flags() {
             json!({"mode": "ultra", "fast": true}),
             vec!["--mode", "ultra", "--fast"],
         ),
+        (
+            "grok",
+            json!({
+                "permissionMode": "acceptEdits",
+                "sandbox": "workspace",
+                "disableWebSearch": true
+            }),
+            vec![
+                "--permission-mode",
+                "acceptEdits",
+                "--sandbox",
+                "workspace",
+                "--disable-web-search",
+            ],
+        ),
     ];
     for (agent, config, expected) in cases {
         assert_eq!(
@@ -198,4 +213,44 @@ fn claude_can_allow_dangerous_skip_permissions_independently_of_start_mode() {
         launch.arguments,
         ["--permission-mode", "manual", "--allow-dangerously-skip-permissions"]
     );
+}
+
+#[test]
+fn grok_builds_interactive_session_flags_and_rejects_unknown_options() {
+    let launch = build_managed_agent_launch(
+        "grok",
+        &json!({
+            "model": "grok-4.6",
+            "effort": "max",
+            "agent": "grok-build",
+            "permissionMode": "bypassPermissions",
+            "sandbox": "strict"
+        }),
+    )
+    .unwrap();
+    assert_eq!(launch.executable, "grok");
+    assert_eq!(
+        launch.arguments,
+        [
+            "--model",
+            "grok-4.6",
+            "--effort",
+            "max",
+            "--agent",
+            "grok-build",
+            "--permission-mode",
+            "bypassPermissions",
+            "--sandbox",
+            "strict"
+        ]
+    );
+    assert!(
+        build_managed_agent_launch("grok", &json!({"effort": "ultra"})).is_err(),
+        "an unsupported grok effort was accepted"
+    );
+    assert!(
+        build_managed_agent_launch("grok", &json!({"sandbox": "danger-full-access"})).is_err(),
+        "an unsupported grok sandbox was accepted"
+    );
+    assert!(build_managed_agent_launch("grok", &json!({"webSearch": true})).is_err());
 }
