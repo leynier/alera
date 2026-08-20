@@ -54,6 +54,32 @@ class AndroidEnvironment {
   /// Target being built.
   final Target target;
 
+  File sharedCxxRuntime() {
+    final ndkLibraryTriple = switch (target.rust) {
+      'armv7-linux-androideabi' => 'arm-linux-androideabi',
+      'aarch64-linux-android' => 'aarch64-linux-android',
+      'i686-linux-android' => 'i686-linux-android',
+      'x86_64-linux-android' => 'x86_64-linux-android',
+      _ => throw StateError('Unsupported Android target: ${target.rust}'),
+    };
+    return File(
+      path.join(
+        sdkPath,
+        'ndk',
+        ndkVersion,
+        'toolchains',
+        'llvm',
+        'prebuilt',
+        _hostArchitecture,
+        'sysroot',
+        'usr',
+        'lib',
+        ndkLibraryTriple,
+        'libc++_shared.so',
+      ),
+    );
+  }
+
   bool ndkIsInstalled() {
     final ndkPath = path.join(sdkPath, 'ndk', ndkVersion);
     final ndkPackageXml = File(path.join(ndkPath, 'package.xml'));
@@ -82,17 +108,13 @@ class AndroidEnvironment {
   }
 
   Future<Map<String, String>> buildEnvironment() async {
-    final hostArch = Platform.isMacOS
-        ? "darwin-x86_64"
-        : (Platform.isLinux ? "linux-x86_64" : "windows-x86_64");
-
     final ndkPath = path.join(sdkPath, 'ndk', ndkVersion);
     final toolchainPath = path.join(
       ndkPath,
       'toolchains',
       'llvm',
       'prebuilt',
-      hostArch,
+      _hostArchitecture,
       'bin',
     );
     final sysrootPath = path.join(
@@ -100,7 +122,7 @@ class AndroidEnvironment {
       'toolchains',
       'llvm',
       'prebuilt',
-      hostArch,
+      _hostArchitecture,
       'sysroot',
     );
 
@@ -177,6 +199,10 @@ class AndroidEnvironment {
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
   }
+
+  String get _hostArchitecture => Platform.isMacOS
+      ? 'darwin-x86_64'
+      : (Platform.isLinux ? 'linux-x86_64' : 'windows-x86_64');
 
   String _createCmakeToolchain(String ndkPath) {
     final toolchainDirectory = Directory(

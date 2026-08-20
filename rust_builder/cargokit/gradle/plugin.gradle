@@ -11,6 +11,7 @@ apply plugin: CargoKitPlugin
 class CargoKitExtension {
     String manifestDir; // Relative path to folder containing Cargo.toml
     String libname; // Library name within Cargo.toml. Must be a cdylib
+    boolean bundleSharedCxxRuntime = false; // Package libc++_shared.so for C++ dependencies.
 }
 
 abstract class CargoKitBuildTask extends DefaultTask {
@@ -41,6 +42,9 @@ abstract class CargoKitBuildTask extends DefaultTask {
 
     @Input
     List<String> targetPlatforms
+
+    @Input
+    boolean bundleSharedCxxRuntime
 
     @TaskAction
     def build() {
@@ -79,6 +83,7 @@ abstract class CargoKitBuildTask extends DefaultTask {
             environment "CARGOKIT_COMPILE_SDK_VERSION", compileSdkVersion
             environment "CARGOKIT_MIN_SDK_VERSION", minSdkVersion
             environment "CARGOKIT_TARGET_PLATFORMS", targetPlatforms.join(",")
+            environment "CARGOKIT_BUNDLE_SHARED_CXX_RUNTIME", bundleSharedCxxRuntime.toString()
             environment "CARGOKIT_JAVA_HOME", System.properties['java.home']
         }
     }
@@ -167,6 +172,7 @@ class CargoKitPlugin implements Plugin<Project> {
                     minSdkVersion = plugin.project.android.defaultConfig.minSdkVersion.apiLevel as int
                     compileSdkVersion = plugin.project.android.compileSdkVersion.substring(8) as int
                     targetPlatforms = platforms
+                    bundleSharedCxxRuntime = project.cargokit.bundleSharedCxxRuntime
                     pluginFile = CargoKitPlugin.file
                 }
                 def onTask = { newTask ->
