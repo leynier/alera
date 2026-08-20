@@ -20,7 +20,7 @@ One rule sits under all of it: mutations pass through the authenticated host act
 
 ## Agent Profiles: The Catalog Is Yours
 
-Profiles live in Settings → Agent Profiles. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, and related defaults), an interactive launch command, a description that acts as a routing signal, and an optional quota group.
+Profiles live in Settings → Agent Profiles. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, `grok`, and related defaults), an interactive launch command, a description that acts as a routing signal, and an optional quota group.
 
 The CLI can list them:
 

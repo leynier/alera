@@ -8,9 +8,6 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 /// preamble, and forces submission, so a profile pointing anywhere else could
 /// never be made ready. The host rejects an unknown adapter, so drift here
 /// surfaces as a refused save rather than a broken worker.
-///
-/// `AgentType.grok` is deliberately absent: it is a supported agent-status hook
-/// agent but has no spawn adapter.
 const List<AgentType> spawnableAgentProfileAdapters = <AgentType>[
   AgentType.codex,
   AgentType.claude,
@@ -21,6 +18,7 @@ const List<AgentType> spawnableAgentProfileAdapters = <AgentType>[
   AgentType.opencode2,
   AgentType.pi,
   AgentType.amp,
+  AgentType.grok,
 ];
 
 /// The default launch command each adapter uses when a profile does not
@@ -35,6 +33,7 @@ const Map<AgentType, String> agentProfileDefaultCommands = <AgentType, String>{
   AgentType.opencode2: 'opencode2',
   AgentType.pi: 'pi',
   AgentType.amp: 'amp',
+  AgentType.grok: 'grok',
 };
 
 AgentType? agentProfileAdapterFromKey(String key) {

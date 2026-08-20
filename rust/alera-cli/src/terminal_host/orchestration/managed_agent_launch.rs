@@ -3,6 +3,13 @@ use serde_json::{Map, Value};
 
 use super::agent_registry::adapter_for;
 
+#[path = "managed_agent_launch_args.rs"]
+mod managed_agent_launch_args;
+use managed_agent_launch_args::{
+    bool_value, enum_value, push_enum, push_flag, push_non_negative_integer, push_positive_number,
+    push_string, require_known_keys, string_value,
+};
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedAgentLaunch {
@@ -44,6 +51,7 @@ pub fn build_managed_agent_launch(
         "opencode2" => build_opencode2(values, &mut arguments)?,
         "pi" => build_pi(values, &mut arguments)?,
         "amp" => build_amp(values, &mut arguments)?,
+        "grok" => build_grok(values, &mut arguments)?,
         _ => return Err(format!("unsupported managed agent type: {agent_type}")),
     }
     Ok(ManagedAgentLaunch {
@@ -344,121 +352,54 @@ fn build_amp(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result
     push_flag(values, "fast", "--fast", arguments)
 }
 
-fn require_known_keys(values: &Map<String, Value>, allowed: &[&str]) -> Result<(), String> {
-    if let Some(key) = values.keys().find(|key| !allowed.contains(&key.as_str())) {
-        return Err(format!("unsupported managed agent option: {key}"));
-    }
-    Ok(())
-}
-
-fn push_string(
-    values: &Map<String, Value>,
-    key: &str,
-    flag: &str,
-    arguments: &mut Vec<String>,
-) -> Result<(), String> {
-    if let Some(value) = string_value(values, key)? {
-        arguments.extend([flag.to_string(), value.to_string()]);
-    }
-    Ok(())
-}
-
-fn push_enum(
-    values: &Map<String, Value>,
-    key: &str,
-    flag: &str,
-    allowed: &[&str],
-    arguments: &mut Vec<String>,
-) -> Result<(), String> {
-    if let Some(value) = enum_value(values, key, allowed)? {
-        arguments.extend([flag.to_string(), value.to_string()]);
-    }
-    Ok(())
-}
-
-fn push_flag(
-    values: &Map<String, Value>,
-    key: &str,
-    flag: &str,
-    arguments: &mut Vec<String>,
-) -> Result<(), String> {
-    if bool_value(values, key)? == Some(true) {
-        arguments.push(flag.to_string());
-    }
-    Ok(())
-}
-
-fn string_value<'a>(values: &'a Map<String, Value>, key: &str) -> Result<Option<&'a str>, String> {
-    let Some(value) = values.get(key) else {
-        return Ok(None);
-    };
-    let value = value
-        .as_str()
-        .ok_or_else(|| format!("{key} must be a string."))?
-        .trim();
-    if value.is_empty() {
-        return Err(format!("{key} must not be empty."));
-    }
-    Ok(Some(value))
-}
-
-fn enum_value<'a>(
-    values: &'a Map<String, Value>,
-    key: &str,
-    allowed: &[&str],
-) -> Result<Option<&'a str>, String> {
-    let Some(value) = string_value(values, key)? else {
-        return Ok(None);
-    };
-    if allowed.contains(&value) {
-        Ok(Some(value))
-    } else {
-        Err(format!("unsupported {key}: {value}"))
-    }
-}
-
-fn bool_value(values: &Map<String, Value>, key: &str) -> Result<Option<bool>, String> {
-    values
-        .get(key)
-        .map(|value| {
-            value
-                .as_bool()
-                .ok_or_else(|| format!("{key} must be a boolean."))
-        })
-        .transpose()
-}
-
-fn push_positive_number(
-    values: &Map<String, Value>,
-    key: &str,
-    flag: &str,
-    arguments: &mut Vec<String>,
-) -> Result<(), String> {
-    let Some(value) = values.get(key) else {
-        return Ok(());
-    };
-    let number = value
-        .as_f64()
-        .filter(|number| number.is_finite() && *number > 0.0)
-        .ok_or_else(|| format!("{key} must be a positive number."))?;
-    arguments.extend([flag.to_string(), number.to_string()]);
-    Ok(())
-}
-
-fn push_non_negative_integer(
-    values: &Map<String, Value>,
-    key: &str,
-    flag: &str,
-    arguments: &mut Vec<String>,
-) -> Result<(), String> {
-    let Some(value) = values.get(key) else {
-        return Ok(());
-    };
-    let number = value
-        .as_u64()
-        .ok_or_else(|| format!("{key} must be a non-negative integer."))?;
-    arguments.extend([flag.to_string(), number.to_string()]);
-    Ok(())
+fn build_grok(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "effort",
+            "agent",
+            "permissionMode",
+            "sandbox",
+            "disableWebSearch",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "effort",
+        "--effort",
+        &["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+        arguments,
+    )?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_enum(
+        values,
+        "permissionMode",
+        "--permission-mode",
+        &[
+            "default",
+            "acceptEdits",
+            "auto",
+            "dontAsk",
+            "bypassPermissions",
+            "plan",
+        ],
+        arguments,
+    )?;
+    push_enum(
+        values,
+        "sandbox",
+        "--sandbox",
+        &["off", "workspace", "devbox", "read-only", "strict"],
+        arguments,
+    )?;
+    push_flag(
+        values,
+        "disableWebSearch",
+        "--disable-web-search",
+        arguments,
+    )
 }
 
 #[cfg(test)]

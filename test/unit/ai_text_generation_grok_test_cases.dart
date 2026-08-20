@@ -18,6 +18,10 @@ Available models:
     ]);
     expect(models.first.defaultThinkingLevel, 'default');
     expect(models.first.thinkingLevels.first.label, 'Grok Default');
+    expect(
+      models.first.thinkingLevels.map((level) => level.id),
+      containsAll(<String>['default', 'xhigh', 'max']),
+    );
   });
 
   test(
@@ -106,7 +110,7 @@ Available models:
         workspacePath: '/repo',
         settings: AiTextGenerationSettings(
           agent: AiTextGenerationAgent.grok,
-          selectedThinkingByModel: <String, String>{'grok-4.5': 'high'},
+          selectedThinkingByModel: <String, String>{'grok-4.6': 'high'},
         ),
       ),
     );
@@ -131,7 +135,7 @@ Available models:
           selectedThinkingByOperation:
               <AiTextGenerationOperation, Map<String, String>>{
                 AiTextGenerationOperation.commitMessage: <String, String>{
-                  'grok-4.5': 'high',
+                  'grok-4.6': 'high',
                 },
               },
         ),
@@ -139,6 +143,28 @@ Available models:
     );
 
     expect(runner.arguments, containsAllInOrder(<String>['--effort', 'high']));
+  });
+
+  test('passes Grok Build max reasoning effort', () async {
+    final git = _grokGitBackend();
+    final runner = _FakeProcessRunner(stdout: 'fix: use max effort\n');
+    final service = CliAiTextGenerationService(
+      gitBackend: git,
+      processRunner: runner,
+    );
+
+    await service.generate(
+      const AiTextGenerationRequest(
+        operation: AiTextGenerationOperation.commitMessage,
+        workspacePath: '/repo',
+        settings: AiTextGenerationSettings(
+          agent: AiTextGenerationAgent.grok,
+          selectedThinkingByModel: <String, String>{'grok-4.6': 'max'},
+        ),
+      ),
+    );
+
+    expect(runner.arguments, containsAllInOrder(<String>['--effort', 'max']));
   });
 
   test('removes the Grok Build prompt file after CLI failure', () async {
