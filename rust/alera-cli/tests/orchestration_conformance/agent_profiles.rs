@@ -167,19 +167,61 @@ fn managed_agent_profiles_round_trip_structured_configuration() {
 }
 
 #[test]
+fn managed_grok_agent_profiles_round_trip_structured_configuration() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let created = request(
+        &mut writer,
+        &mut reader,
+        210,
+        "agentProfile.upsert",
+        json!({
+            "name": "Managed Grok",
+            "agentType": "grok",
+            "launchMode": "managed",
+            "managedConfig": {
+                "model": "grok-4.6",
+                "effort": "high",
+                "permissionMode": "acceptEdits",
+                "sandbox": "workspace"
+            }
+        }),
+    );
+    assert_eq!(created["ok"], json!(true), "upsert rejected: {created}");
+    assert_eq!(payload(&created)["launchMode"], json!("managed"));
+    assert_eq!(payload(&created)["agentType"], json!("grok"));
+    assert_eq!(
+        payload(&created)["managedConfig"],
+        json!({
+            "model": "grok-4.6",
+            "effort": "high",
+            "permissionMode": "acceptEdits",
+            "sandbox": "workspace"
+        })
+    );
+    assert!(
+        payload(&created)["command"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("--model"),
+        "managed preview missing: {created}"
+    );
+}
+
+#[test]
 fn agent_profile_upsert_rejects_an_unknown_adapter() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
 
-    // grok is a supported agent-status hook agent but has no spawn adapter, so
-    // a profile pointing at it could never be made ready.
     let rejected = request(
         &mut writer,
         &mut reader,
-        210,
+        211,
         "agentProfile.upsert",
-        json!({"name": "Grok", "agentType": "grok", "command": "grok"}),
+        json!({"name": "Unknown", "agentType": "not-an-adapter", "command": "unknown"}),
     );
     assert_eq!(rejected["ok"], json!(false));
     assert!(

@@ -87,3 +87,50 @@ fn operation_reasoning_overrides_global_reasoning() {
         .windows(2)
         .any(|values| values == ["-c", "model_reasoning_effort=high"]));
 }
+
+#[test]
+fn grok_uses_a_prompt_file_and_the_current_default_model() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "grok".to_string(),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "commitMessage", "hello").unwrap();
+    let directory = plan.temporary_directory.clone();
+
+    assert_eq!(plan.binary, "grok");
+    assert_eq!(plan.label, "Grok Build");
+    assert!(plan
+        .arguments
+        .windows(2)
+        .any(|values| values == ["--model", "grok-4.6"]));
+    assert!(plan.arguments.contains(&"--prompt-file".to_string()));
+    assert!(!plan.arguments.contains(&"--effort".to_string()));
+    assert!(plan.environment.contains_key("GROK_HOME"));
+    assert!(directory.is_some());
+
+    if let Some(directory) = directory {
+        let _ = std::fs::remove_dir_all(directory);
+    }
+}
+
+#[test]
+fn grok_forwards_an_explicit_reasoning_effort() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "grok".to_string(),
+        selected_thinking_by_model: HashMap::from([("grok-4.6".to_string(), "max".to_string())]),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "commitMessage", "hello").unwrap();
+    let directory = plan.temporary_directory.clone();
+
+    assert!(plan
+        .arguments
+        .windows(2)
+        .any(|values| values == ["--effort", "max"]));
+
+    if let Some(directory) = directory {
+        let _ = std::fs::remove_dir_all(directory);
+    }
+}

@@ -20,7 +20,6 @@ void main() {
           AgentType.opencode2: AgentPromptDelivery.longOption,
           AgentType.pi: AgentPromptDelivery.positional,
           AgentType.amp: AgentPromptDelivery.stdinScript,
-          // Hook-only, with no spawn adapter, so the default is what it gets.
           AgentType.grok: AgentPromptDelivery.positionalAfterTerminator,
         },
       );
@@ -53,6 +52,10 @@ void main() {
       expect(
         agentPromptDeliveryPreview(AgentType.claude, 'claude --model opus'),
         "claude --model opus -- 'Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.grok, 'grok --effort high'),
+        "grok --effort high -- 'Dispatched Prompt'",
       );
       expect(
         agentPromptDeliveryPreview(AgentType.copilot, 'copilot'),

@@ -44,6 +44,7 @@ pub fn build_managed_agent_launch(
         "opencode2" => build_opencode2(values, &mut arguments)?,
         "pi" => build_pi(values, &mut arguments)?,
         "amp" => build_amp(values, &mut arguments)?,
+        "grok" => build_grok(values, &mut arguments)?,
         _ => return Err(format!("unsupported managed agent type: {agent_type}")),
     }
     Ok(ManagedAgentLaunch {
@@ -342,6 +343,56 @@ fn build_amp(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result
         arguments,
     )?;
     push_flag(values, "fast", "--fast", arguments)
+}
+
+fn build_grok(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(
+        values,
+        &[
+            "model",
+            "effort",
+            "agent",
+            "permissionMode",
+            "sandbox",
+            "disableWebSearch",
+        ],
+    )?;
+    push_string(values, "model", "--model", arguments)?;
+    push_enum(
+        values,
+        "effort",
+        "--effort",
+        &["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+        arguments,
+    )?;
+    push_string(values, "agent", "--agent", arguments)?;
+    push_enum(
+        values,
+        "permissionMode",
+        "--permission-mode",
+        &[
+            "default",
+            "acceptEdits",
+            "auto",
+            "dontAsk",
+            "bypassPermissions",
+            "plan",
+        ],
+        arguments,
+    )?;
+    push_enum(
+        values,
+        "sandbox",
+        "--sandbox",
+        &["off", "workspace", "devbox", "read-only", "strict"],
+        arguments,
+    )?;
+    push_flag(
+        values,
+        "disableWebSearch",
+        "--disable-web-search",
+        arguments,
+    )
 }
 
 fn require_known_keys(values: &Map<String, Value>, allowed: &[&str]) -> Result<(), String> {

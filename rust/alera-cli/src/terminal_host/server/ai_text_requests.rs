@@ -488,7 +488,7 @@ pub(super) fn default_model(agent: &str) -> &'static str {
         "opencode" | "opencode2" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
-        "grok" => "grok-4.5",
+        "grok" => "grok-4.6",
         _ => "custom",
     }
 }

@@ -32,7 +32,7 @@ We like this rule because it ages well. The agent landscape reshuffles monthly. 
 
 ## Orchestration Adapters
 
-If you go further and coordinate agents through [orchestration](/blog/inter-agent-orchestration-in-alera), agent profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, and related defaults). Profiles are your configuration: you approve the launch command, the coordinator dispatches to it, and nobody invents commands on your behalf.
+If you go further and coordinate agents through [orchestration](/blog/inter-agent-orchestration-in-alera), agent profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, `grok`, and related defaults). Profiles are your configuration: you approve the launch command, the coordinator dispatches to it, and nobody invents commands on your behalf.
 
 ## Tips From Our Own Setup
 
