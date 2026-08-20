@@ -6,7 +6,7 @@ void _registerClaudeRuntimeCcsTests(
   ClaudeRuntimeHomeService Function() readService,
 ) {
   test(
-    'installs status hooks into user Claude and CCS shared settings',
+    'installs status hooks into CCS shared settings, not user Claude settings',
     () async {
       final home = readHome();
       final service = readService();
@@ -50,13 +50,12 @@ void _registerClaudeRuntimeCcsTests(
         preparation.hookStatus.state,
         ManagedAgentHookInstallState.installed,
       );
-      // Durable user Claude settings get Alera hooks (CCS re-syncs from here).
       final userHooks = _hooks(userClaudeSettingsPath);
       expect(
         _commandsFor(userHooks, 'UserPromptSubmit'),
         contains('echo orca-hook'),
       );
-      expect(_managedCommandCount(userHooks, 'alera-claude-hook.sh'), 6);
+      expect(_managedCommandCount(userHooks, 'alera-claude-hook.sh'), 0);
       // Shared file also gets Alera hooks and keeps foreign hooks.
       final sharedHooks = _hooks(sharedSettingsPath);
       expect(

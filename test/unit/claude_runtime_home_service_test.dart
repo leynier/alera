@@ -75,14 +75,14 @@ void main() {
 
       final sourceSettings = _readJson(sourceSettingsPath);
       expect(sourceSettings['apiKeyHelper'], 'echo api-key');
-      // User Claude settings also receive managed hooks so multi-profile
-      // launchers that re-sync from ~/.claude keep status reporting.
+      // User Claude settings are leftover-stripped only. Grok scans this
+      // file, so install must not write Alera commands here.
       expect(
         _managedCommandCount(
           _hooks(sourceSettingsPath),
           'alera-claude-hook.sh',
         ),
-        6,
+        0,
       );
       expect(
         _commandsFor(_hooks(sourceSettingsPath), 'UserPromptSubmit'),
@@ -499,6 +499,49 @@ void main() {
         await fallbackService.prepareForTerminalLaunch();
 
         expect(runtimeLegacyConfig.existsSync(), isFalse);
+      },
+    );
+
+    test(
+      'remove strips leftover managed hooks from user Claude settings',
+      () async {
+        final sourceSettingsPath = p.join(
+          home.path,
+          '.claude',
+          'settings.json',
+        );
+        _writeJson(sourceSettingsPath, <String, Object?>{
+          'hooks': <String, Object?>{
+            'UserPromptSubmit': <Object?>[
+              _userHook('echo user-hook'),
+              <String, Object?>{
+                'hooks': <Object?>[
+                  <String, Object?>{
+                    'type': 'command',
+                    'command':
+                        "if [ -x '/tmp/alera-claude-hook.sh' ]; then ALERA_AGENT_HOOK_EVENT='UserPromptSubmit' /bin/sh '/home/user/.alera/agent-hooks/alera-claude-hook.sh'; fi",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+
+        await service.prepareForTerminalLaunch();
+        final removed = await service.remove();
+
+        expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+        expect(
+          _managedCommandCount(
+            _hooks(sourceSettingsPath),
+            'alera-claude-hook.sh',
+          ),
+          0,
+        );
+        expect(
+          _commandsFor(_hooks(sourceSettingsPath), 'UserPromptSubmit'),
+          <String>['echo user-hook'],
+        );
       },
     );
 

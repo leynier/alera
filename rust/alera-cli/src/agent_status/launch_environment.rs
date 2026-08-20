@@ -45,6 +45,11 @@ pub fn prepare_launch_environment(
         "ALERA_RUNTIME_DIR".to_string(),
         runtime_dir.to_string_lossy().into_owned(),
     );
+    // Grok scans ~/.claude/settings.json and ~/.cursor/hooks.json by default.
+    // Those files carry other agents' Alera hooks, which would POST as claude
+    // or cursor for a Grok turn and steal the sidebar identity.
+    environment.insert("GROK_CLAUDE_HOOKS_ENABLED".to_string(), "false".to_string());
+    environment.insert("GROK_CURSOR_HOOKS_ENABLED".to_string(), "false".to_string());
     prepend_sidecar_directory(environment);
     if settings.enabled_agents().is_empty() {
         return Ok(());
@@ -221,6 +226,8 @@ mod tests {
             Some(executable_dir)
         );
         assert!(!environment.contains_key("ALERA_AGENT_HOOK_ENDPOINT"));
+        assert_eq!(environment["GROK_CLAUDE_HOOKS_ENABLED"], "false");
+        assert_eq!(environment["GROK_CURSOR_HOOKS_ENABLED"], "false");
     }
 
     #[test]
