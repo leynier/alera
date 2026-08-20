@@ -433,17 +433,17 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     );
     assert!(!test_home.join(".cursor/hooks.json").exists());
 
-    for (index, (agent, event_name)) in [
-        ("codex", "UserPromptSubmit"),
-        ("claude", "UserPromptSubmit"),
-        ("copilot", "userPromptSubmitted"),
-        ("cursor", "beforeSubmitPrompt"),
-        ("agy", "PreInvocation"),
-        ("opencode", "SessionBusy"),
-        ("opencode2", "SessionBusy"),
-        ("pi", "agent_start"),
-        ("amp", "session.start"),
-        ("grok", "UserPromptSubmit"),
+    for (index, (agent, event_name, done_event)) in [
+        ("codex", "UserPromptSubmit", "Stop"),
+        ("claude", "UserPromptSubmit", "Stop"),
+        ("copilot", "userPromptSubmitted", "Stop"),
+        ("cursor", "beforeSubmitPrompt", "stop"),
+        ("agy", "PreInvocation", "Stop"),
+        ("opencode", "SessionBusy", "SessionIdle"),
+        ("opencode2", "SessionBusy", "SessionIdle"),
+        ("pi", "agent_start", "agent_end"),
+        ("amp", "session.start", "agent.end"),
+        ("grok", "UserPromptSubmit", "Stop"),
     ]
     .into_iter()
     .enumerate()
@@ -468,5 +468,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
             assert!(Instant::now() < deadline, "{agent} was not detected");
             std::thread::sleep(Duration::from_millis(25));
         }
+        // Finish the turn so the next agent is not inherited as a nested child.
+        post_hook(dir.path(), agent, done_event);
     }
 }

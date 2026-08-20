@@ -29,14 +29,24 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     return p.join(_homeDirectory, '.ccs');
   }
 
-  /// External Claude settings files that may load hooks when a multi-profile
-  /// launcher overrides `CLAUDE_CONFIG_DIR` (e.g. CCS instance homes).
+  /// CCS settings files that still need Alera hooks because CCS aliases
+  /// override `CLAUDE_CONFIG_DIR` away from the runtime overlay.
   ///
-  /// Paths are de-duplicated after symlink resolution. CCS often re-syncs
-  /// `~/.ccs/shared/settings.json` from `~/.claude/settings.json`, so the
-  /// user Claude settings file is the durable install target for CCS-launched
-  /// sessions (hooks still no-op outside Alera without session env coords).
-  List<String> _externalClaudeSettingsPaths() {
+  /// `~/.claude/settings.json` is not an install target: Grok scans it by
+  /// default, so Alera commands there steal Grok/Cursor identity.
+  List<String> _ccsClaudeSettingsPaths() {
+    return _collectClaudeSettingsPaths(includeUserLeftovers: false);
+  }
+
+  /// User Claude files that older installs wrote. Strip leftovers on remove
+  /// and host start; never treat them as required for `status()`.
+  List<String> _leftoverClaudeSettingsPaths() {
+    return _collectClaudeSettingsPaths(includeUserLeftovers: true);
+  }
+
+  List<String> _collectClaudeSettingsPaths({
+    required bool includeUserLeftovers,
+  }) {
     final seen = <String>{};
     final paths = <String>[];
 
@@ -59,8 +69,11 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
       }
     }
 
-    // Durable source of truth for CCS shared settings re-sync.
-    consider(p.join(_homeDirectory, '.claude', 'settings.json'));
+    if (includeUserLeftovers) {
+      final claudeHome = p.join(_homeDirectory, '.claude');
+      consider(p.join(claudeHome, 'settings.json'));
+      consider(p.join(claudeHome, 'settings.local.json'));
+    }
 
     final ccsRoot = _ccsRootDirectory();
     consider(p.join(ccsRoot, 'shared', 'settings.json'));
@@ -76,7 +89,7 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
           settingsPath,
           followLinks: false,
         );
-        // Symlinks usually resolve to shared/user settings (already considered).
+        // Symlinks usually resolve to shared settings (already considered).
         // Only install into private per-instance settings files.
         if (type == FileSystemEntityType.file) {
           consider(settingsPath);

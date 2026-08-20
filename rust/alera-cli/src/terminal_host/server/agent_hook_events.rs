@@ -1,8 +1,10 @@
 use serde_json::json;
 
 use crate::agent_status::{
-    hook_event_closes_session, hook_event_resets_session, normalize_hook_event, AgentHookEvent,
+    hook_event_closes_session, hook_event_resets_session, normalize_hook_event,
+    resolve_agent_status_identity, AgentHookEvent, AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
 };
+use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 
 use super::ServerActor;
 
@@ -31,7 +33,37 @@ impl ServerActor {
         if !settings.is_enabled(&event.agent_type) && !pending_prompt {
             return;
         }
-        if hook_event_resets_session(&event) || hook_event_closes_session(&event) {
+        let now = chrono::Utc::now();
+        if hook_event_resets_session(&event) {
+            if self
+                .agent_presence
+                .get(&event.terminal_session_id)
+                .is_none()
+            {
+                return;
+            }
+            let _ = self
+                .orchestration_agent_status(&json!({
+                    "entries": [{
+                        "terminalSessionId": event.terminal_session_id,
+                        "removed": true,
+                    }],
+                }))
+                .await;
+            return;
+        }
+        if hook_event_closes_session(&event) {
+            let previous = self.agent_presence.get(&event.terminal_session_id);
+            let identity = resolve_agent_status_identity(
+                previous,
+                &event.agent_type,
+                AgentPresenceState::Done,
+                now,
+                AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
+            );
+            if identity.should_ignore_event || previous.is_none() {
+                return;
+            }
             let _ = self
                 .orchestration_agent_status(&json!({
                     "entries": [{
@@ -46,7 +78,16 @@ impl ServerActor {
         let Some(normalized) = normalize_hook_event(&event, previous) else {
             return;
         };
-        let now = chrono::Utc::now();
+        let identity = resolve_agent_status_identity(
+            previous,
+            &event.agent_type,
+            normalized.state,
+            now,
+            AGENT_STATUS_IDENTITY_STALE_THRESHOLD,
+        );
+        if identity.should_ignore_event {
+            return;
+        }
         let state_started_at = previous
             .filter(|entry| entry.state == normalized.state)
             .map(|entry| entry.state_started_at)
@@ -57,7 +98,7 @@ impl ServerActor {
                     "terminalSessionId": event.terminal_session_id,
                     "workspaceId": event.workspace_id,
                     "tabId": event.tab_id,
-                    "agentType": event.agent_type,
+                    "agentType": identity.effective_agent_type,
                     "state": normalized.state.as_str(),
                     "stateStartedAt": state_started_at,
                     "updatedAt": now,
