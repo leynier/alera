@@ -66,6 +66,11 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         list(APPEND CARGOKIT_ENV
             "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
             "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${CARGOKIT_NINJA_EXECUTABLE}"
+            # MSVC's compiler PDB is shared by parallel Ninja compile jobs.
+            # /FS makes the compiler synchronize access instead of failing
+            # with C1041 when the Vulkan shader generator configures checks.
+            "CFLAGS=/FS"
+            "CXXFLAGS=/FS"
         )
     endif()
 
