@@ -69,8 +69,12 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
             # MSVC's compiler PDB is shared by parallel Ninja compile jobs.
             # /FS makes the compiler synchronize access instead of failing
             # with C1041 when the Vulkan shader generator configures checks.
+            # CFLAGS/CXXFLAGS reach cc-rs and GNU-style cmake. Nested
+            # ggml-vulkan ExternalProject TryCompile invokes cl.exe directly,
+            # and cl.exe only honors the CL environment variable.
             "CFLAGS=/FS"
             "CXXFLAGS=/FS"
+            "CL=/FS"
         )
     endif()
 
