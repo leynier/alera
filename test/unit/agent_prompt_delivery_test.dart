@@ -21,6 +21,7 @@ void main() {
           AgentType.pi: AgentPromptDelivery.positional,
           AgentType.amp: AgentPromptDelivery.stdinScript,
           AgentType.grok: AgentPromptDelivery.positionalAfterTerminator,
+          AgentType.fx: AgentPromptDelivery.terminalAfterReady,
         },
       );
     });
@@ -41,6 +42,10 @@ void main() {
       expect(
         agentPromptDeliveryDescription(AgentType.amp),
         contains('standard input'),
+      );
+      expect(
+        agentPromptDeliveryDescription(AgentType.fx),
+        contains('report that its interactive interface is ready'),
       );
     });
 
@@ -76,6 +81,7 @@ void main() {
       expect(agentPromptDeliveryPreview(AgentType.codex, '   '), '');
       // Amp's prompt never reaches the command line.
       expect(agentPromptDeliveryPreview(AgentType.amp, 'amp'), '');
+      expect(agentPromptDeliveryPreview(AgentType.fx, 'fx'), '');
     });
   });
 }

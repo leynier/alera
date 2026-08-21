@@ -19,6 +19,7 @@ const List<AgentType> spawnableAgentProfileAdapters = <AgentType>[
   AgentType.pi,
   AgentType.amp,
   AgentType.grok,
+  AgentType.fx,
 ];
 
 /// The default launch command each adapter uses when a profile does not
@@ -34,6 +35,7 @@ const Map<AgentType, String> agentProfileDefaultCommands = <AgentType, String>{
   AgentType.pi: 'pi',
   AgentType.amp: 'amp',
   AgentType.grok: 'grok',
+  AgentType.fx: 'fx',
 };
 
 AgentType? agentProfileAdapterFromKey(String key) {

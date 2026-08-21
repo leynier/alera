@@ -386,6 +386,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
                 pi: true,
                 amp: true,
                 grok: true,
+                fx: true,
             })
             .await
             .unwrap();

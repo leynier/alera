@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{start_agent_integrations, start_hook_receiver};
+use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -58,7 +58,9 @@ mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_dictation_requests;
+mod ai_text_fx_plan;
 mod ai_text_grok_plan;
+mod ai_text_model_defaults;
 mod ai_text_open_code;
 mod ai_text_requests;
 mod ai_text_speech_message;

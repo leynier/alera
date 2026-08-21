@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 
 part 'grok_ai_text_generation.dart';
+part 'fx_ai_text_generation.dart';
 part 'opencode_ai_text_generation.dart';
 part 'ai_text_generation_model_labels.dart';
 
@@ -371,6 +372,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
         ],
   ),
   AiTextGenerationAgent.grok: grokAiTextAgentSpec,
+  AiTextGenerationAgent.fx: fxAiTextAgentSpec,
 };
 
 List<AiTextModel> discoveredModelsForAgent(

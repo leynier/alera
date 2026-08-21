@@ -1,3 +1,4 @@
+mod fx_herdr_receiver;
 mod hook_receiver;
 mod identity;
 mod integration_config;
@@ -6,6 +7,7 @@ mod integration_plugins;
 mod launch_environment;
 mod normalize;
 
+pub use fx_herdr_receiver::start_fx_herdr_receiver;
 pub use hook_receiver::{start_hook_receiver, AgentHookEvent};
 pub use identity::{resolve_agent_status_identity, AGENT_STATUS_IDENTITY_STALE_THRESHOLD};
 pub use integration_config::{reconcile_agent_integrations, start_agent_integrations};

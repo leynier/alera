@@ -55,6 +55,7 @@ void main() {
           AgentType.pi: true,
           AgentType.amp: false,
           AgentType.grok: true,
+          AgentType.fx: false,
         },
       );
       expect(
@@ -73,6 +74,7 @@ void main() {
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: true,
+          AgentType.fx: false,
         },
       );
     });
@@ -154,6 +156,7 @@ void main() {
         40,
       );
       expect(managedAgentRiskScore(AgentType.grok, const {}), 0);
+      expect(managedAgentRiskScore(AgentType.fx, const {}), 0);
       expect(managedAgentRiskScore(AgentType.codex, const {}), 0);
     });
 
@@ -232,6 +235,7 @@ void main() {
         <String>{'dontAsk'},
       );
       expect(managedAgentRiskMarkers(AgentType.grok, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(AgentType.fx, const {}), isEmpty);
       expect(managedAgentRiskMarkers(AgentType.codex, const {}), isEmpty);
     });
 
@@ -269,6 +273,7 @@ void main() {
           AgentType.amp: '',
           AgentType.grok:
               'This profile lets Grok Build continue with reduced permission prompts.',
+          AgentType.fx: '',
         },
       );
     });
@@ -372,6 +377,7 @@ void main() {
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: false,
+          AgentType.fx: false,
         },
       );
     });
@@ -402,7 +408,7 @@ void main() {
       );
     });
 
-    test('renders Agy, OpenCode, Pi, Amp, and Grok options', () {
+    test('renders Agy, OpenCode, Pi, Amp, Grok, and fx options', () {
       expect(
         managedAgentCommandPreview(AgentType.agy, const <String, Object?>{
           'model': 'gemini',
@@ -472,6 +478,15 @@ void main() {
         '--permission-mode acceptEdits --sandbox workspace --disable-web-search',
       );
       expect(managedAgentCommandPreview(AgentType.grok, const {}), 'grok');
+      expect(
+        managedAgentCommandPreview(AgentType.fx, const <String, Object?>{
+          'resumeLast': true,
+          'noAdditionalDirs': true,
+          'record': true,
+        }),
+        'fx --continue --no-additional-dirs --record',
+      );
+      expect(managedAgentCommandPreview(AgentType.fx, const {}), 'fx');
     });
 
     test('ignores blank or incorrectly typed optional values', () {

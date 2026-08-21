@@ -24,6 +24,7 @@ pub fn hook_event_closes_session(event: &AgentHookEvent) -> bool {
             | ("cursor", "sessionEnd")
             | ("pi", "session_shutdown")
             | ("grok", "SessionEnd")
+            | ("fx", "SessionEnd")
     )
 }
 
@@ -165,6 +166,12 @@ fn normalize_state(
             _ => None,
         },
         "grok" => normalize_grok(event, name),
+        "fx" => match name {
+            "Working" => Some(AgentPresenceState::Working),
+            "Blocked" => Some(AgentPresenceState::Blocked),
+            "Idle" => Some(AgentPresenceState::Done),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -329,6 +336,7 @@ fn starts_new_turn(event: &AgentHookEvent, name: &str) -> bool {
             | ("amp", "session.start")
             | ("amp", "agent.start")
             | ("grok", "UserPromptSubmit")
+            | ("fx", "Working")
     )
 }
 

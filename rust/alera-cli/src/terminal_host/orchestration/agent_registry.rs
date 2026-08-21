@@ -10,12 +10,10 @@ pub struct AgentAdapter {
 /// How a freshly launched agent receives the prompt it is supposed to start
 /// working on.
 ///
-/// Every spawnable agent gets its prompt at launch, because the alternative,
-/// typing it into the running TUI, needs a readiness signal that a brand new
-/// session never emits: an agent that has been asked nothing never reports that
-/// it finished anything. Each variant is the shape that agent's own CLI accepts
-/// for starting *interactively* with a prompt already submitted; the
-/// print/execute flags (`-p`, `--print`, `-x`) are deliberately unused, since
+/// Most spawnable agents get their prompt at launch. `fx` is the exception: it
+/// has no interactive initial-prompt argument and its built-in Herdr integration
+/// emits an idle event after the TUI is ready, so the host can paste safely then.
+/// Print/execute flags (`-p`, `--print`, `-x`) are deliberately unused, since
 /// they answer once and exit instead of leaving an agent in the tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentStartupPrompt {
@@ -34,6 +32,9 @@ pub enum AgentStartupPrompt {
     /// accepts an opening message on stdin, so the prompt is fed from a file
     /// through a generated launcher script.
     StdinScript,
+    /// The CLI starts only without a prompt. A semantic ready event tells the
+    /// host when it is safe to paste and submit the opening prompt in the PTY.
+    TerminalAfterReady,
 }
 
 const CTRL_C: &[u8] = b"\x03";
@@ -110,6 +111,13 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         interrupt_bytes: CTRL_C,
         startup_prompt: AgentStartupPrompt::PositionalAfterTerminator,
     },
+    AgentAdapter {
+        agent_type: "fx",
+        default_command: "fx",
+        force_submit: true,
+        interrupt_bytes: CTRL_C,
+        startup_prompt: AgentStartupPrompt::TerminalAfterReady,
+    },
 ];
 
 pub fn adapter_for(agent_type: &str) -> Option<&'static AgentAdapter> {
@@ -140,7 +148,8 @@ mod tests {
                 "opencode2",
                 "pi",
                 "amp",
-                "grok"
+                "grok",
+                "fx"
             ]
         );
         assert!(AGENT_ADAPTERS
@@ -170,6 +179,7 @@ mod tests {
                 ("pi", AgentStartupPrompt::Positional),
                 ("amp", AgentStartupPrompt::StdinScript),
                 ("grok", AgentStartupPrompt::PositionalAfterTerminator),
+                ("fx", AgentStartupPrompt::TerminalAfterReady),
             ]
         );
     }

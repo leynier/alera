@@ -26,6 +26,7 @@ fn every_supported_agent_reports_working() {
         ("pi", "agent_start"),
         ("amp", "session.start"),
         ("grok", "UserPromptSubmit"),
+        ("fx", "Working"),
     ] {
         let status = normalize_hook_event(&event(agent_type, event_name, json!({})), None)
             .unwrap_or_else(|| panic!("{agent_type} event was not normalized"));
@@ -115,6 +116,24 @@ fn lifecycle_events_are_detected_before_state_normalization() {
         "session_shutdown",
         json!({})
     )));
+    assert!(hook_event_closes_session(&event(
+        "fx",
+        "SessionEnd",
+        json!({})
+    )));
+}
+
+#[test]
+fn fx_herdr_states_map_to_presence_states() {
+    for (event_name, expected) in [
+        ("Working", AgentPresenceState::Working),
+        ("Blocked", AgentPresenceState::Blocked),
+        ("Idle", AgentPresenceState::Done),
+    ] {
+        let status =
+            normalize_hook_event(&event("fx", event_name, json!({})), None).expect("fx status");
+        assert_eq!(status.state, expected, "{event_name}");
+    }
 }
 
 #[test]

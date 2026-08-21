@@ -133,9 +133,11 @@ void main() {
           'pi',
           'amp',
           'grok',
+          'fx',
         ],
       );
       expect(agentProfileAdapterFromKey('grok'), AgentType.grok);
+      expect(agentProfileAdapterFromKey('fx'), AgentType.fx);
       expect(agentProfileAdapterFromKey('codex'), isNotNull);
     });
 
