@@ -49,6 +49,20 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         "CARGOKIT_ROOT_PROJECT_DIR=${CMAKE_SOURCE_DIR}"
     )
 
+    if(WIN32 AND CARGOKIT_TARGET_PLATFORM STREQUAL "windows-x64")
+        # whisper-rs-sys builds a nested Vulkan shader generator. Keep that
+        # inner build on Ninja so MSBuild's legacy FileTracker path limit in
+        # the outer Flutter build cannot reject its generated .tlog files.
+        find_program(CARGOKIT_NINJA_EXECUTABLE ninja)
+        if(NOT CARGOKIT_NINJA_EXECUTABLE)
+            message(FATAL_ERROR "Ninja is required for Windows native Rust builds")
+        endif()
+        list(APPEND CARGOKIT_ENV
+            "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+            "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${CARGOKIT_NINJA_EXECUTABLE}"
+        )
+    endif()
+
     if (WIN32)
         set(SCRIPT_EXTENSION ".cmd")
         set(IMPORT_LIB_EXTENSION ".lib")
