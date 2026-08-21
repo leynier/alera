@@ -16,44 +16,47 @@ void _registerFxAiTextGenerationTests() {
     ]);
   });
 
-  test('runs fx ask through stdin with conservative process settings', () async {
-    final git = FakeGitBackend()
-      ..gitRepositoryStateResult = const GitRepositoryState(
-        branch: 'feature/fx',
-      )
-      ..gitStatusResult = const GitStatusResult(
-        entries: <GitChangeEntry>[
-          GitChangeEntry(
-            path: 'lib/fx.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
-          ),
-        ],
+  test(
+    'runs fx ask through stdin with conservative process settings',
+    () async {
+      final git = FakeGitBackend()
+        ..gitRepositoryStateResult = const GitRepositoryState(
+          branch: 'feature/fx',
+        )
+        ..gitStatusResult = const GitStatusResult(
+          entries: <GitChangeEntry>[
+            GitChangeEntry(
+              path: 'lib/fx.dart',
+              area: GitChangeArea.staged,
+              status: GitChangeStatus.modified,
+            ),
+          ],
+        );
+      final runner = _FakeProcessRunner(stdout: 'feat: add fx support\n');
+      final service = CliAiTextGenerationService(
+        gitBackend: git,
+        processRunner: runner,
       );
-    final runner = _FakeProcessRunner(stdout: 'feat: add fx support\n');
-    final service = CliAiTextGenerationService(
-      gitBackend: git,
-      processRunner: runner,
-    );
 
-    final result = await service.generate(
-      const AiTextGenerationRequest(
-        operation: AiTextGenerationOperation.commitMessage,
-        workspacePath: '/repo',
-        settings: AiTextGenerationSettings(agent: AiTextGenerationAgent.fx),
-      ),
-    );
+      final result = await service.generate(
+        const AiTextGenerationRequest(
+          operation: AiTextGenerationOperation.commitMessage,
+          workspacePath: '/repo',
+          settings: AiTextGenerationSettings(agent: AiTextGenerationAgent.fx),
+        ),
+      );
 
-    expect(result.text, 'feat: add fx support');
-    expect(runner.executable, 'fx');
-    expect(runner.arguments, <String>['ask', '--no-save']);
-    expect(runner.stdinText, contains('feature/fx'));
-    expect(runner.stdinClosed, isTrue);
-    expect(runner.environment, containsPair('FX_PERMISSION_MODE', 'ask'));
-    expect(runner.environment, containsPair('FX_AUTO_UPGRADE', '0'));
-    expect(runner.environment, containsPair('FX_HERDR', '0'));
-    expect(runner.environment, isNot(contains('FX_MODEL')));
-  });
+      expect(result.text, 'feat: add fx support');
+      expect(runner.executable, 'fx');
+      expect(runner.arguments, <String>['ask', '--no-save']);
+      expect(runner.stdinText, contains('feature/fx'));
+      expect(runner.stdinClosed, isTrue);
+      expect(runner.environment, containsPair('FX_PERMISSION_MODE', 'ask'));
+      expect(runner.environment, containsPair('FX_AUTO_UPGRADE', '0'));
+      expect(runner.environment, containsPair('FX_HERDR', '0'));
+      expect(runner.environment, isNot(contains('FX_MODEL')));
+    },
+  );
 
   test('passes an explicit fx model through FX_MODEL', () async {
     final git = FakeGitBackend()
