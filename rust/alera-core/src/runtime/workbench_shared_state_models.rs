@@ -50,6 +50,8 @@ pub struct SharedWorkbenchViewPrefs {
     pub show_pinned_workspaces_below: bool,
     pub workspace_kind_filter: SharedWorkspaceKindFilter,
     #[serde(default)]
+    pub show_active_workspaces_only: bool,
+    #[serde(default)]
     pub source_control_root_by_workspace_id: BTreeMap<String, String>,
 }
 
@@ -71,6 +73,7 @@ impl Default for SharedWorkbenchViewPrefs {
             all_section_collapsed: false,
             show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
+            show_active_workspaces_only: false,
             source_control_root_by_workspace_id: BTreeMap::new(),
         }
     }

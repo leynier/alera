@@ -121,6 +121,27 @@ void main() {
     expect(_workspaceIds(rows), <String>['terminal', 'inactive']);
   });
 
+  test('Active filter keeps terminal and agent workspaces only', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('inactive', now),
+        _workspace('terminal', now),
+        _workspace('codex', now),
+      ],
+      projects: const [],
+      prefs: const MobileViewPrefs(
+        groupBy: MobileWorkspaceGroupBy.none,
+        showActiveWorkspacesOnly: true,
+      ),
+      terminalTabCountByWorkspaceId: const <String, int>{'terminal': 1},
+      agentPresence: <AgentPresenceSummary>[_presence('codex', 'working', now)],
+      now: now,
+    );
+
+    expect(_workspaceIds(rows), <String>['codex', 'terminal']);
+  });
+
   test('Inactive projects sort alphabetically after active projects', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(

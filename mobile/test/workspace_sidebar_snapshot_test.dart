@@ -14,6 +14,17 @@ void main() {
     expect(legacy.showPinnedWorkspacesBelow, isTrue);
   });
 
+  test('View prefs preserve the active workspace filter', () {
+    final activeOnly = MobileViewPrefs.fromJson(<String, Object?>{
+      'showActiveWorkspacesOnly': true,
+    });
+    final legacy = MobileViewPrefs.fromJson(const <String, Object?>{});
+
+    expect(activeOnly.showActiveWorkspacesOnly, isTrue);
+    expect(activeOnly.toJson()['showActiveWorkspacesOnly'], isTrue);
+    expect(legacy.showActiveWorkspacesOnly, isFalse);
+  });
+
   test('Parses runtime terminal counts and full agent details', () {
     final snapshot = WorkspaceSidebarSnapshot.fromJson(<String, Object?>{
       'projects': <Object?>[],

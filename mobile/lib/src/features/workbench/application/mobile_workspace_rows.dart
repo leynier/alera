@@ -80,9 +80,20 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
     );
   }
 
+  final workspacesWithAgentPresence = <String>{
+    for (final status in agentPresence) status.workspaceId,
+  };
+
   final visibleWorkspaces = <WorkspaceSummary>[
     for (final workspace in workspaces)
-      if (_matchesFilters(workspace, projectById[workspace.projectId], prefs) &&
+      if (_matchesFilters(
+            workspace,
+            projectById[workspace.projectId],
+            prefs,
+            hasActivity:
+                (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
+                workspacesWithAgentPresence.contains(workspace.id),
+          ) &&
           _matchesSearch(
             workspace,
             projectById[workspace.projectId],
@@ -90,9 +101,6 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
           ))
         workspace,
   ];
-  final workspacesWithAgentPresence = <String>{
-    for (final status in agentPresence) status.workspaceId,
-  };
   final directActivityByWorkspaceId = <String, MobileAgentActivityRank?>{
     for (final workspace in visibleWorkspaces)
       workspace.id:
@@ -226,14 +234,18 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
 bool _matchesFilters(
   WorkspaceSummary workspace,
   ProjectSummary? project,
-  MobileViewPrefs prefs,
-) {
+  MobileViewPrefs prefs, {
+  required bool hasActivity,
+}) {
   if (prefs.selectedProjectIds.isNotEmpty &&
       !prefs.selectedProjectIds.contains(workspace.projectId)) {
     return false;
   }
   if (prefs.selectedTagIds.isNotEmpty &&
       !workspace.tagIds.any(prefs.selectedTagIds.contains)) {
+    return false;
+  }
+  if (prefs.showActiveWorkspacesOnly && !hasActivity) {
     return false;
   }
   return switch (prefs.workspaceKindFilter) {
