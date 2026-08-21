@@ -242,13 +242,14 @@ fn transcribe_inner(
 }
 
 fn desktop_whisper_context_parameters() -> WhisperContextParameters<'static> {
-    let mut parameters = WhisperContextParameters::default();
-    parameters.use_gpu = cfg!(target_os = "macos")
-        || cfg!(all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "windows")
-        ));
-    parameters
+    WhisperContextParameters {
+        use_gpu: cfg!(target_os = "macos")
+            || cfg!(all(
+                target_arch = "x86_64",
+                any(target_os = "linux", target_os = "windows")
+            )),
+        ..Default::default()
+    }
 }
 
 fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
