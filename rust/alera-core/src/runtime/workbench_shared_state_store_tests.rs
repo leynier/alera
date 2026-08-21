@@ -12,6 +12,7 @@ async fn desktop_initializes_shared_prefs_and_mobile_rejects_stale_revision() {
     let prefs = SharedWorkbenchViewPrefs {
         workspace_sort: SharedWorkbenchSortBy::Activity,
         show_pinned_workspaces_below: false,
+        show_active_workspaces_only: true,
         ..SharedWorkbenchViewPrefs::default()
     };
 
@@ -26,6 +27,7 @@ async fn desktop_initializes_shared_prefs_and_mobile_rejects_stale_revision() {
     assert!(desktop.desktop_initialized);
     assert_eq!(desktop.revision, 1);
     assert!(!desktop.prefs.show_pinned_workspaces_below);
+    assert!(desktop.prefs.show_active_workspaces_only);
 
     let error = store
         .update_shared_workbench_view_prefs(prefs, Some(0), SharedWorkbenchPrefsWriter::Mobile)
@@ -45,6 +47,19 @@ fn legacy_shared_view_prefs_show_pinned_workspaces_below() {
     let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
 
     assert!(restored.show_pinned_workspaces_below);
+}
+
+#[test]
+fn legacy_shared_view_prefs_show_all_workspaces() {
+    let mut encoded = serde_json::to_value(SharedWorkbenchViewPrefs::default()).unwrap();
+    encoded
+        .as_object_mut()
+        .unwrap()
+        .remove("showActiveWorkspacesOnly");
+
+    let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
+
+    assert!(!restored.show_active_workspaces_only);
 }
 
 #[tokio::test]

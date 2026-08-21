@@ -582,6 +582,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: WorkspaceKindFilter.all,
   );
+  static bool _$showActiveWorkspacesOnly(WorkbenchViewPrefs v) =>
+      v.showActiveWorkspacesOnly;
+  static const Field<WorkbenchViewPrefs, bool> _f$showActiveWorkspacesOnly =
+      Field(
+        'showActiveWorkspacesOnly',
+        _$showActiveWorkspacesOnly,
+        opt: true,
+        def: false,
+      );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -606,6 +615,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #gitDiffGroupMode: _f$gitDiffGroupMode,
     #pullRequestCreateAction: _f$pullRequestCreateAction,
     #workspaceKindFilter: _f$workspaceKindFilter,
+    #showActiveWorkspacesOnly: _f$showActiveWorkspacesOnly,
   };
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
@@ -633,6 +643,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       gitDiffGroupMode: data.dec(_f$gitDiffGroupMode),
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
       workspaceKindFilter: data.dec(_f$workspaceKindFilter),
+      showActiveWorkspacesOnly: data.dec(_f$showActiveWorkspacesOnly),
     );
   }
 
@@ -731,6 +742,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     GitDiffGroupMode? gitDiffGroupMode,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
+    bool? showActiveWorkspacesOnly,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -775,6 +787,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     GitDiffGroupMode? gitDiffGroupMode,
     PullRequestCreateAction? pullRequestCreateAction,
     WorkspaceKindFilter? workspaceKindFilter,
+    bool? showActiveWorkspacesOnly,
   }) => $apply(
     FieldCopyWithData({
       if (groupBy != null) #groupBy: groupBy,
@@ -809,6 +822,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #pullRequestCreateAction: pullRequestCreateAction,
       if (workspaceKindFilter != null)
         #workspaceKindFilter: workspaceKindFilter,
+      if (showActiveWorkspacesOnly != null)
+        #showActiveWorkspacesOnly: showActiveWorkspacesOnly,
     }),
   );
   @override
@@ -872,6 +887,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     workspaceKindFilter: data.get(
       #workspaceKindFilter,
       or: $value.workspaceKindFilter,
+    ),
+    showActiveWorkspacesOnly: data.get(
+      #showActiveWorkspacesOnly,
+      or: $value.showActiveWorkspacesOnly,
     ),
   );
 
