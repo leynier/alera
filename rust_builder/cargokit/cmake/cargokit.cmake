@@ -27,7 +27,13 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
     endif()
     if(WIN32)
         # Native dependency scratch paths can exceed MSBuild's 260-character FileTracker limit.
-        set(CARGOKIT_TEMP_DIR "${CMAKE_BINARY_DIR}/ck/${CARGOKIT_LIB_NAME}")
+        if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR})
+            # CI can provide a short, user-writable drive-backed directory for
+            # compilers that still reject paths above MAX_PATH.
+            set(CARGOKIT_TEMP_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/${CARGOKIT_LIB_NAME}")
+        else()
+            set(CARGOKIT_TEMP_DIR "${CMAKE_BINARY_DIR}/ck/${CARGOKIT_LIB_NAME}")
+        endif()
     else()
         set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
     endif()
