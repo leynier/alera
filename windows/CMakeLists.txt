@@ -79,8 +79,10 @@ add_custom_target(alera_cli_sidecar ALL
     "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
     "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${ALERA_NINJA_EXECUTABLE}"
     # Keep parallel MSVC jobs from racing on the compiler PDB.
+    # Nested whisper.cpp TryCompile calls cl.exe, which reads CL, not CFLAGS.
     "CFLAGS=/FS"
     "CXXFLAGS=/FS"
+    "CL=/FS"
     "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
