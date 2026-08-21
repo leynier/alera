@@ -100,6 +100,10 @@ Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, an
 
 Per-terminal configuration: font, size, theme, behaviour. Built on top of the same engine that powers Ghostty for predictable, high-fidelity rendering.
 
+### 🎙️ AI dictation
+
+Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, while mobile can use on-device Whisper, offline system recognition, or an explicitly approved paired-device or online system provider. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Text subscription.
+
 ### 🗃️ File explorer, search & previews
 
 Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals.
@@ -140,7 +144,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive
 - **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
-- **Voice, automations, MCP management, skills, and more**
+- **Automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
 
