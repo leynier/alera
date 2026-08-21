@@ -313,11 +313,14 @@ void main() {
         '.github/actions/setup-flutter-workspace/action.yml',
       ).readAsStringSync();
       expect(setup, contains('libepoxy-dev libmpv-dev'));
+      expect(setup, contains('libvulkan-dev glslc'));
       final linuxPackage = File(
         'tool/release/package_linux.sh',
       ).readAsStringSync();
       expect(linuxPackage, contains('libmpv2'));
       expect(linuxPackage, contains('mpv-libs'));
+      expect(linuxPackage, contains('libvulkan1'));
+      expect(linuxPackage, contains('vulkan-loader'));
     });
 
     test('verifies hash-pinned Windows video files', () async {

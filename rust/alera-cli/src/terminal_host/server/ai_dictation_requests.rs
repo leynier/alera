@@ -197,7 +197,7 @@ fn transcribe_inner(
     let mut audio = vec![0.0; samples.len()];
     convert_integer_to_float_audio(&samples, &mut audio)
         .map_err(|error| HostError::state(format!("audio decode failed: {error:?}")))?;
-    let context = WhisperContext::new_with_params(model, WhisperContextParameters::default())
+    let context = WhisperContext::new_with_params(model, desktop_whisper_context_parameters())
         .map_err(|error| {
             HostError::state(format!("Whisper model could not be loaded: {error:?}"))
         })?;
@@ -239,6 +239,16 @@ fn transcribe_inner(
         return Err(HostError::format("Whisper did not detect speech"));
     }
     Ok((text, language.map(str::to_string), duration))
+}
+
+fn desktop_whisper_context_parameters() -> WhisperContextParameters<'static> {
+    let mut parameters = WhisperContextParameters::default();
+    parameters.use_gpu = cfg!(target_os = "macos")
+        || cfg!(all(
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        ));
+    parameters
 }
 
 fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
@@ -317,5 +327,15 @@ mod tests {
             normalize_whisper_language(Some("pt_BR")).as_deref(),
             Some("pt")
         );
+    }
+
+    #[test]
+    fn hardware_acceleration_matches_the_supported_desktop_targets() {
+        let expected = cfg!(target_os = "macos")
+            || cfg!(all(
+                target_arch = "x86_64",
+                any(target_os = "linux", target_os = "windows")
+            ));
+        assert_eq!(desktop_whisper_context_parameters().use_gpu, expected);
     }
 }
