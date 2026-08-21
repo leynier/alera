@@ -67,7 +67,13 @@ endif()
 # the build profile is selected with generator expressions at build time.
 set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
 set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
-set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
+  set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/cli")
+else()
+  set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{SystemDrive}/c/cli")
+endif()
+file(MAKE_DIRECTORY "${ALERA_CLI_CARGO_TARGET_DIR}")
+set(ALERA_CLI_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/${ALERA_CLI_PROFILE_DIR}/alera.exe")
 find_program(ALERA_NINJA_EXECUTABLE ninja)
 if(NOT ALERA_NINJA_EXECUTABLE)
   message(FATAL_ERROR "Ninja is required to build the Windows Whisper backend")
@@ -75,14 +81,18 @@ endif()
 add_custom_target(alera_cli_sidecar ALL
   # The sidecar shares whisper-rs-sys with the Flutter plugin. Use Ninja for
   # that nested CMake build to avoid MSBuild FileTracker's legacy path limit.
+  # CMAKE_GENERATOR (not only the rustc target-specific form) is required so
+  # vulkan-shaders-gen's nested cmake configure inherits Ninja.
   COMMAND "${CMAKE_COMMAND}" -E env
+    "CARGO_TARGET_DIR=${ALERA_CLI_CARGO_TARGET_DIR}"
+    "CMAKE_GENERATOR=Ninja"
     "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+    "CMAKE_MAKE_PROGRAM=${ALERA_NINJA_EXECUTABLE}"
     "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${ALERA_NINJA_EXECUTABLE}"
-    # Keep parallel MSVC jobs from racing on the compiler PDB.
-    # Nested whisper.cpp TryCompile calls cl.exe, which reads CL, not CFLAGS.
     "CFLAGS=/FS"
     "CXXFLAGS=/FS"
     "CL=/FS"
+    "_CL_=/Z7 /FS"
     "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
