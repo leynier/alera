@@ -39,4 +39,5 @@ apply from: "../../../rust_builder/cargokit/gradle/plugin.gradle"
 cargokit {
     manifestDir = "../../../rust/alera-mobile-native"
     libname = "alera_mobile_native"
+    bundleSharedCxxRuntime = true
 }

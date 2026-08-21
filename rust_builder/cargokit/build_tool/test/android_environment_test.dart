@@ -55,4 +55,42 @@ void main() {
       );
     }
   });
+
+  test('resolves the matching shared C++ runtime for every Android ABI', () {
+    final sdkDirectory = Directory.systemTemp.createTempSync(
+      'alera-android-cxx-runtime-test-',
+    );
+    addTearDown(() => sdkDirectory.deleteSync(recursive: true));
+
+    const ndkVersion = '28.2.13676358';
+    const expectedTriples = <String, String>{
+      'armeabi-v7a': 'arm-linux-androideabi',
+      'arm64-v8a': 'aarch64-linux-android',
+      'x86': 'i686-linux-android',
+      'x86_64': 'x86_64-linux-android',
+    };
+
+    for (final target in Target.androidTargets()) {
+      final runtime = AndroidEnvironment(
+        sdkPath: sdkDirectory.path,
+        ndkVersion: ndkVersion,
+        minSdkVersion: 24,
+        targetTempDir: path.join(sdkDirectory.path, 'target'),
+        target: target,
+      ).sharedCxxRuntime();
+
+      expect(
+        path.normalize(runtime.path),
+        endsWith(
+          path.join(
+            'sysroot',
+            'usr',
+            'lib',
+            expectedTriples[target.android]!,
+            'libc++_shared.so',
+          ),
+        ),
+      );
+    }
+  });
 }
