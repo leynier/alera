@@ -1,6 +1,8 @@
 // This is copied from Cargokit (which is the official way to use it currently)
 // Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
+import 'dart:io';
+
 import 'package:collection/collection.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
@@ -179,6 +181,11 @@ class RustBuilder {
 
   Future<Map<String, String>> _buildEnvironment() async {
     if (target.android == null) {
+      if (target.rust == 'x86_64-unknown-linux-gnu') {
+        return {
+          'VULKAN_SDK': Platform.environment['VULKAN_SDK'] ?? '/usr',
+        };
+      }
       return {};
     } else {
       final sdkPath = environment.androidSdkPath;

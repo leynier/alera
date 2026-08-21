@@ -173,7 +173,10 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Linux dependencies
-        run: sudo apt-get update && sudo apt-get install --yes libdbus-1-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install --yes libdbus-1-dev pkg-config libvulkan-dev glslc
+
+      - name: Configure Vulkan SDK
+        run: echo "VULKAN_SDK=/usr" >> "$GITHUB_ENV"
 
       - name: Setup Rust and sccache
         uses: ./.github/actions/setup-rust-sccache

@@ -96,7 +96,9 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
     return AiDictationModelTransfersState(
       models: <String, AiDictationModelTransfer>{
         for (final model in AiDictationModelStore.models)
-          model.id: AiDictationModelTransfer(totalBytes: model.sizeBytes),
+          model.id: AiDictationModelTransfer(
+            totalBytes: _store.downloadSizeBytes(model.id),
+          ),
       },
     );
   }
@@ -115,6 +117,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
     final updated = <String, AiDictationModelTransfer>{};
     for (final model in AiDictationModelStore.models) {
       final current = state.forModel(model.id);
+      final totalBytes = _store.downloadSizeBytes(model.id);
       final installed = await _store.isInstalled(model.id);
       final partial = await _store.partialBytes(model.id);
       final status = state.activeModelId == model.id
@@ -128,8 +131,8 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
           : AiDictationModelTransferStatus.idle;
       updated[model.id] = current.copyWith(
         installed: installed,
-        receivedBytes: installed ? model.sizeBytes : partial,
-        totalBytes: model.sizeBytes,
+        receivedBytes: installed ? totalBytes : partial,
+        totalBytes: totalBytes,
         status: status,
       );
     }
@@ -161,6 +164,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
     required bool automatic,
   }) async {
     final model = _store.modelFor(normalized);
+    final totalBytes = _store.downloadSizeBytes(model.id);
     final partial = await _store.partialBytes(normalized);
     _update(
       normalized,
@@ -170,7 +174,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
             status: AiDictationModelTransferStatus.downloading,
             installed: false,
             receivedBytes: partial,
-            totalBytes: model.sizeBytes,
+            totalBytes: totalBytes,
             clearMessage: true,
           ),
       activeModelId: normalized,
@@ -188,7 +192,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
                   status: progress >= 1
                       ? AiDictationModelTransferStatus.verifying
                       : AiDictationModelTransferStatus.downloading,
-                  receivedBytes: (progress * model.sizeBytes).round(),
+                  receivedBytes: (progress * totalBytes).round(),
                 ),
           );
         },
@@ -201,7 +205,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
             .copyWith(
               status: AiDictationModelTransferStatus.idle,
               installed: true,
-              receivedBytes: model.sizeBytes,
+              receivedBytes: totalBytes,
               clearMessage: true,
             ),
         clearActiveModel: true,

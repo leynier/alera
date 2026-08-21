@@ -116,6 +116,22 @@ Future<void> _verifyWindowsVideoRuntime(
         '$relativePath SHA-256 mismatch: expected $expected, got $actual.',
       );
     }
+    if (relativePath == 'vulkan-1.dll') {
+      final sidecarLoader = File(
+        p.join(bundle.path, 'resources', 'alera', relativePath),
+      );
+      if (!sidecarLoader.existsSync()) {
+        throw StateError(
+          'Missing Windows Whisper Vulkan runtime: ${sidecarLoader.path}',
+        );
+      }
+      final sidecarDigest = await fileSha256(sidecarLoader);
+      if (sidecarDigest != expected) {
+        throw StateError(
+          '$relativePath sidecar SHA-256 mismatch: expected $expected, got $sidecarDigest.',
+        );
+      }
+    }
   }
 }
 

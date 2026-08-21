@@ -45,6 +45,8 @@ void main() {
     expect(packageScript, contains('Depends:'));
     expect(packageScript, contains('libmpv2'));
     expect(packageScript, contains('Requires: mpv-libs'));
+    expect(packageScript, contains('libvulkan1'));
+    expect(packageScript, contains('Requires: vulkan-loader'));
   });
 
   test(

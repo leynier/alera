@@ -8,15 +8,24 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'ai_dictation_core_ml_store.dart';
+import 'ai_dictation_model.dart';
+
+export 'ai_dictation_model.dart';
+
 class AiDictationModelStore {
   AiDictationModelStore({
     http.Client Function()? clientFactory,
     Future<Directory> Function()? supportDirectory,
     List<AiDictationModel>? modelCatalog,
+    bool? installCoreMlEncoder,
+    AiDictationCoreMlStore? coreMlStore,
   }) : _clientFactory = clientFactory ?? http.Client.new,
        _supportDirectory =
            supportDirectory ?? (() => getApplicationSupportDirectory()),
-       _modelCatalog = modelCatalog ?? models;
+       _modelCatalog = modelCatalog ?? models,
+       _installCoreMlEncoder = installCoreMlEncoder ?? Platform.isMacOS,
+       _coreMlStore = coreMlStore ?? const AiDictationCoreMlStore();
 
   static const legacyModelId = 'whisper-cpp-base';
   static const modelId = 'whisper-base';
@@ -38,6 +47,14 @@ class AiDictationModelStore {
       uri:
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true',
       sizeBytes: 77691713,
+      coreMlEncoder: AiDictationCoreMlEncoder(
+        directoryName: 'ggml-tiny-encoder.mlmodelc',
+        archiveUri:
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-encoder.mlmodelc.zip?download=true',
+        archiveSha256:
+            'c88cbd2648e1f5415092bcf5256add463a0f19943e6938f46e8d4ffdebd47739',
+        archiveSizeBytes: 15037446,
+      ),
     ),
     AiDictationModel(
       id: modelId,
@@ -48,6 +65,14 @@ class AiDictationModelStore {
       uri:
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true',
       sizeBytes: 147951465,
+      coreMlEncoder: AiDictationCoreMlEncoder(
+        directoryName: 'ggml-base-encoder.mlmodelc',
+        archiveUri:
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip?download=true',
+        archiveSha256:
+            '7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089',
+        archiveSizeBytes: 37922638,
+      ),
     ),
     AiDictationModel(
       id: 'whisper-small',
@@ -59,6 +84,14 @@ class AiDictationModelStore {
       uri:
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true',
       sizeBytes: 487601967,
+      coreMlEncoder: AiDictationCoreMlEncoder(
+        directoryName: 'ggml-small-encoder.mlmodelc',
+        archiveUri:
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-encoder.mlmodelc.zip?download=true',
+        archiveSha256:
+            'de43fb9fed471e95c19e60ae67575c2bf09e8fb607016da171b06ddad313988b',
+        archiveSizeBytes: 163083239,
+      ),
     ),
     AiDictationModel(
       id: 'whisper-large-v3-turbo-q5-0',
@@ -70,12 +103,22 @@ class AiDictationModelStore {
       uri:
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true',
       sizeBytes: 574041195,
+      coreMlEncoder: AiDictationCoreMlEncoder(
+        directoryName: 'ggml-large-v3-turbo-encoder.mlmodelc',
+        archiveUri:
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip?download=true',
+        archiveSha256:
+            '84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a',
+        archiveSizeBytes: 1173393014,
+      ),
     ),
   ];
 
   final http.Client Function() _clientFactory;
   final Future<Directory> Function() _supportDirectory;
   final List<AiDictationModel> _modelCatalog;
+  final bool _installCoreMlEncoder;
+  final AiDictationCoreMlStore _coreMlStore;
   http.Client? _activeClient;
   String? _activeModelId;
   Completer<void>? _activeFinished;
@@ -91,6 +134,12 @@ class AiDictationModelStore {
   }
 
   static String modelForId(String id) => id == legacyModelId ? modelId : id;
+
+  int downloadSizeBytes(String id) {
+    final model = modelFor(id);
+    final encoder = _requiredCoreMlEncoder(model);
+    return model.sizeBytes + (encoder?.archiveSizeBytes ?? 0);
+  }
 
   Future<String> modelPath([String? id]) async {
     final model = modelFor(id ?? modelId);
@@ -114,6 +163,12 @@ class AiDictationModelStore {
   Future<bool> isInstalled([String? id]) async {
     final model = modelFor(id ?? modelId);
     final path = await modelPath(model.id);
+    if (!await _isModelInstalled(model, path)) return false;
+    final encoder = _requiredCoreMlEncoder(model);
+    return encoder == null || await _coreMlStore.isInstalled(path, encoder);
+  }
+
+  Future<bool> _isModelInstalled(AiDictationModel model, String path) async {
     final file = File(path);
     final marker = File('$path.sha256');
     if (!await file.exists() || !await marker.exists()) return false;
@@ -122,7 +177,16 @@ class AiDictationModelStore {
   }
 
   Future<int> partialBytes([String? id]) async {
-    final file = File(await partialPath(id));
+    final model = modelFor(id ?? modelId);
+    final path = await modelPath(model.id);
+    if (await _isModelInstalled(model, path)) {
+      final encoder = _requiredCoreMlEncoder(model);
+      return model.sizeBytes +
+          (encoder == null
+              ? 0
+              : await _coreMlStore.partialBytes(path, encoder));
+    }
+    final file = File(await partialPath(model.id));
     return await file.exists() ? file.length() : 0;
   }
 
@@ -152,7 +216,7 @@ class AiDictationModelStore {
       jsonEncode(<String, Object?>{
         'modelId': model.id,
         'sha256': model.sha256,
-        'sizeBytes': model.sizeBytes,
+        'sizeBytes': downloadSizeBytes(model.id),
         'storageVersion': model.storageVersion,
       }),
       flush: true,
@@ -165,7 +229,12 @@ class AiDictationModelStore {
     _activeFinished = finished;
     _cancelRequested = false;
     try {
-      var offset = await partialBytes(model.id);
+      final totalBytes = downloadSizeBytes(model.id);
+      var offset = await _isModelInstalled(model, destination)
+          ? model.sizeBytes
+          : await partial.exists()
+          ? await partial.length()
+          : 0;
       if (offset > model.sizeBytes) {
         await partial.delete();
         offset = 0;
@@ -200,30 +269,44 @@ class AiDictationModelStore {
               if (_cancelRequested) throw const AiDictationDownloadCancelled();
               sink.add(chunk);
               received += chunk.length;
-              onProgress?.call((received / model.sizeBytes).clamp(0, 1));
+              onProgress?.call((received / totalBytes).clamp(0, 1));
             }
           } finally {
             await sink.close();
           }
         }
       }
-      if (_cancelRequested) throw const AiDictationDownloadCancelled();
-      if (!await partial.exists() ||
-          await partial.length() != model.sizeBytes) {
-        throw StateError(
-          'The Whisper model download ended before it was complete.',
+      if (!await _isModelInstalled(model, destination)) {
+        if (_cancelRequested) throw const AiDictationDownloadCancelled();
+        if (!await partial.exists() ||
+            await partial.length() != model.sizeBytes) {
+          throw StateError(
+            'The Whisper model download ended before it was complete.',
+          );
+        }
+        final digest = await Isolate.run(_Sha256Computation(partial.path).call);
+        if (digest != model.sha256) {
+          throw StateError(
+            'The downloaded Whisper model failed checksum verification.',
+          );
+        }
+        final installed = File(destination);
+        if (await installed.exists()) await installed.delete();
+        await partial.rename(destination);
+        await File('$destination.sha256').writeAsString(digest, flush: true);
+      }
+      final encoder = _requiredCoreMlEncoder(model);
+      if (encoder != null) {
+        await _coreMlStore.download(
+          client: client,
+          modelPath: destination,
+          encoder: encoder,
+          isCancelled: () => _cancelRequested,
+          onProgress: (received) => onProgress?.call(
+            ((model.sizeBytes + received) / totalBytes).clamp(0, 1),
+          ),
         );
       }
-      final digest = await Isolate.run(() => _sha256File(partial.path));
-      if (digest != model.sha256) {
-        throw StateError(
-          'The downloaded Whisper model failed checksum verification.',
-        );
-      }
-      final installed = File(destination);
-      if (await installed.exists()) await installed.delete();
-      await partial.rename(destination);
-      await File('$destination.sha256').writeAsString(digest, flush: true);
       if (await intent.exists()) await intent.delete();
       onProgress?.call(1);
       return destination;
@@ -250,6 +333,7 @@ class AiDictationModelStore {
   }
 
   Future<void> _discardPartial(String id) async {
+    final modelPath = await this.modelPath(id);
     for (final path in <String>[
       await partialPath(id),
       await resumeIntentPath(id),
@@ -257,6 +341,7 @@ class AiDictationModelStore {
       final file = File(path);
       if (await file.exists()) await file.delete();
     }
+    await _coreMlStore.discardPartial(modelPath);
   }
 
   Future<void> remove([String? id]) async {
@@ -269,32 +354,9 @@ class AiDictationModelStore {
     _cancelRequested = true;
     _activeClient?.close();
   }
-}
 
-class AiDictationModel {
-  const AiDictationModel({
-    required this.id,
-    required this.label,
-    required this.description,
-    required this.fileName,
-    required this.sha256,
-    required this.uri,
-    required this.sizeBytes,
-    this.storageVersion = 1,
-  });
-
-  final String id;
-  final String label;
-  final String description;
-  final String fileName;
-  final String sha256;
-  final String uri;
-  final int sizeBytes;
-  final int storageVersion;
-}
-
-class AiDictationDownloadCancelled implements Exception {
-  const AiDictationDownloadCancelled();
+  AiDictationCoreMlEncoder? _requiredCoreMlEncoder(AiDictationModel model) =>
+      _installCoreMlEncoder ? model.coreMlEncoder : null;
 }
 
 void _validateContentRange(
@@ -315,3 +377,11 @@ void _validateContentRange(
 
 Future<String> _sha256File(String path) async =>
     (await sha256.bind(File(path).openRead()).first).toString();
+
+class _Sha256Computation {
+  const _Sha256Computation(this.path);
+
+  final String path;
+
+  Future<String> call() => _sha256File(path);
+}

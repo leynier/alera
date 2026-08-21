@@ -157,6 +157,15 @@ if(PLUGIN_BUNDLED_LIBRARIES)
   install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
+  foreach(ALERA_PLUGIN_LIBRARY ${PLUGIN_BUNDLED_LIBRARIES})
+    get_filename_component(ALERA_PLUGIN_LIBRARY_NAME
+      "${ALERA_PLUGIN_LIBRARY}" NAME)
+    if(ALERA_PLUGIN_LIBRARY_NAME STREQUAL "vulkan-1.dll")
+      install(FILES "${ALERA_PLUGIN_LIBRARY}"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
+        COMPONENT Runtime)
+    endif()
+  endforeach()
 endif()
 
 # Copy the native assets provided by the build.dart from all packages.
