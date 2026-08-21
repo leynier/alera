@@ -27,12 +27,13 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
     endif()
     if(WIN32)
         # Native dependency scratch paths can exceed MSBuild's 260-character FileTracker limit.
-        if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR})
-            # CI can provide a short, user-writable drive-backed directory for
-            # compilers that still reject paths above MAX_PATH.
+        if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
+            # CI maps a drive letter onto RUNNER_TEMP. The prefix must stay
+            # tiny: ggml-vulkan's nested TryCompile PDB is ~234 characters
+            # under the cargo target triple.
             set(CARGOKIT_TEMP_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/${CARGOKIT_LIB_NAME}")
         else()
-            set(CARGOKIT_TEMP_DIR "${CMAKE_BINARY_DIR}/ck/${CARGOKIT_LIB_NAME}")
+            set(CARGOKIT_TEMP_DIR "$ENV{SystemDrive}/c/${CARGOKIT_LIB_NAME}")
         endif()
     else()
         set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
@@ -64,17 +65,20 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
             message(FATAL_ERROR "Ninja is required for Windows native Rust builds")
         endif()
         list(APPEND CARGOKIT_ENV
+            # cmake-rs reads the target-specific generator. Nested
+            # vulkan-shaders-gen ExternalProject invokes cmake without -G and
+            # only sees CMAKE_GENERATOR, so both must be Ninja.
+            "CMAKE_GENERATOR=Ninja"
             "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+            "CMAKE_MAKE_PROGRAM=${CARGOKIT_NINJA_EXECUTABLE}"
             "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${CARGOKIT_NINJA_EXECUTABLE}"
-            # MSVC's compiler PDB is shared by parallel Ninja compile jobs.
-            # /FS makes the compiler synchronize access instead of failing
-            # with C1041 when the Vulkan shader generator configures checks.
-            # CFLAGS/CXXFLAGS reach cc-rs and GNU-style cmake. Nested
-            # ggml-vulkan ExternalProject TryCompile invokes cl.exe directly,
-            # and cl.exe only honors the CL environment variable.
+            # CFLAGS/CXXFLAGS reach cc-rs. Nested TryCompile calls cl.exe,
+            # which reads CL (prepend) and _CL_ (append). /Z7 after CMake's
+            # /Zi avoids PDB files that still overflow MAX_PATH.
             "CFLAGS=/FS"
             "CXXFLAGS=/FS"
             "CL=/FS"
+            "_CL_=/Z7 /FS"
         )
     endif()
 
