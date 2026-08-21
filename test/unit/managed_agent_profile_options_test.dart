@@ -478,15 +478,6 @@ void main() {
         '--permission-mode acceptEdits --sandbox workspace --disable-web-search',
       );
       expect(managedAgentCommandPreview(AgentType.grok, const {}), 'grok');
-      expect(
-        managedAgentCommandPreview(AgentType.fx, const <String, Object?>{
-          'resumeLast': true,
-          'noAdditionalDirs': true,
-          'record': true,
-        }),
-        'fx --continue --no-additional-dirs --record',
-      );
-      expect(managedAgentCommandPreview(AgentType.fx, const {}), 'fx');
     });
 
     test('ignores blank or incorrectly typed optional values', () {

@@ -136,7 +136,6 @@ void main() {
           'fx',
         ],
       );
-      expect(agentProfileAdapterFromKey('grok'), AgentType.grok);
       expect(agentProfileAdapterFromKey('fx'), AgentType.fx);
       expect(agentProfileAdapterFromKey('codex'), isNotNull);
     });

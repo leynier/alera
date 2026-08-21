@@ -300,21 +300,13 @@ class AgentProfileManagedEditor extends StatelessWidget {
         ),
       ],
       AgentType.fx => <Widget>[
-        _boolRow(
-          title: 'Resume Latest Session',
-          description: 'Resume the latest fx session in this workspace.',
-          keyName: 'resumeLast',
-        ),
+        _boolRow(title: 'Resume Latest Session', keyName: 'resumeLast'),
         _boolRow(
           title: 'Ignore Additional Directories',
           description: 'Do not load additional directories configured by fx.',
           keyName: 'noAdditionalDirs',
         ),
-        _boolRow(
-          title: 'Record Session',
-          description: 'Record the fx session for later inspection.',
-          keyName: 'record',
-        ),
+        _boolRow(title: 'Record Session', keyName: 'record'),
       ],
     };
   }
