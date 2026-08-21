@@ -13,6 +13,7 @@ $requiredFlutterVersion = [version]'3.44.8'
 $minimumDartVersion = [version]'3.12.1'
 $requiredZigVersion = [version]'0.16.0'
 $requiredRustToolchain = '1.96'
+$requiredVulkanSdkVersion = '1.4.350.0'
 
 function Write-Step([string]$Message) {
     Write-Host "`n==> $Message" -ForegroundColor Cyan
@@ -112,6 +113,40 @@ function Get-LibClangIncludeDirectory([string]$libClangDirectory) {
         ForEach-Object { Join-Path $_.FullName 'include' } |
         Where-Object { Test-Path -LiteralPath (Join-Path $_ 'stdbool.h') } |
         Select-Object -First 1
+}
+
+function Get-VulkanSdkDirectory {
+    $candidates = @(
+        $env:VULKAN_SDK,
+        (Join-Path 'C:\VulkanSDK' $requiredVulkanSdkVersion)
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $candidates += Get-ChildItem -LiteralPath 'C:\VulkanSDK' -Directory -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        Select-Object -ExpandProperty FullName
+
+    foreach ($candidate in $candidates) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate 'Lib\vulkan-1.lib')) -and
+            (Test-Path -LiteralPath (Join-Path $candidate 'Bin\glslc.exe'))) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+    return $null
+}
+
+function Install-VulkanSdk {
+    if (-not $InstallMissingTools) {
+        throw "Missing Vulkan SDK. Rerun with -InstallMissingTools or install Vulkan SDK $requiredVulkanSdkVersion manually."
+    }
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($null -eq $winget) {
+        throw 'WinGet is required to install the Vulkan SDK automatically.'
+    }
+    Invoke-Native $winget.Source @(
+        'install', '--exact', '--id', 'KhronosGroup.VulkanSDK',
+        '--version', $requiredVulkanSdkVersion, '--silent',
+        '--accept-package-agreements', '--accept-source-agreements',
+        '--disable-interactivity'
+    )
 }
 
 function Get-DartVersion([System.Management.Automation.CommandInfo]$Dart) {
@@ -264,6 +299,22 @@ if (-not $CheckOnly) {
 }
 Write-Host "LIBCLANG_PATH=$libClangDirectory"
 Write-Host "BINDGEN_EXTRA_CLANG_ARGS=$bindgenClangArguments"
+
+Write-Step 'Checking the Vulkan SDK'
+$vulkanSdkDirectory = Get-VulkanSdkDirectory
+if ($null -eq $vulkanSdkDirectory -and -not $CheckOnly) {
+    Install-VulkanSdk
+    $vulkanSdkDirectory = Get-VulkanSdkDirectory
+}
+if ($null -eq $vulkanSdkDirectory) {
+    throw "Vulkan SDK $requiredVulkanSdkVersion with glslc was not found."
+}
+$env:VULKAN_SDK = $vulkanSdkDirectory
+$env:PATH = "$(Join-Path $vulkanSdkDirectory 'Bin');$env:PATH"
+if (-not $CheckOnly) {
+    [Environment]::SetEnvironmentVariable('VULKAN_SDK', $vulkanSdkDirectory, 'User')
+}
+Write-Host "VULKAN_SDK=$vulkanSdkDirectory"
 
 if ($CheckOnly) {
     Write-Host "`nWindows prerequisites are ready." -ForegroundColor Green

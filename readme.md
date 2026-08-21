@@ -162,7 +162,7 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHE
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1` and `gtk3` through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1`, `gtk3`, and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
 
 ### macOS
 

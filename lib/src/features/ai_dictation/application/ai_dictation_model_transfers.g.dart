@@ -48,7 +48,7 @@ final class AiDictationModelTransfersProvider
 }
 
 String _$aiDictationModelTransfersHash() =>
-    r'b174c3373ecf366ae7f3327ee0f00933d8e3316d';
+    r'782fd0fa25621651e9be3e1dbe60363fd63552fb';
 
 abstract class _$AiDictationModelTransfers
     extends $Notifier<AiDictationModelTransfersState> {

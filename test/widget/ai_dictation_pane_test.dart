@@ -131,6 +131,9 @@ class _FakeAiDictationModelStore implements AiDictationModelStore {
   }
 
   @override
+  int downloadSizeBytes(String id) => modelFor(id).sizeBytes;
+
+  @override
   Future<bool> isInstalled([String? id]) async => _installed.contains(
     AiDictationModelStore.modelForId(id ?? 'whisper-base'),
   );

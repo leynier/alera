@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
+import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -43,6 +44,65 @@ void main() {
     expect(await store.isInstalled(model.id), isTrue);
     expect(await store.resumeIntentIds(), isEmpty);
   });
+
+  test('installs the matching Core ML encoder beside the model', () async {
+    final encoderBytes = _coreMlArchive('fixture-encoder.mlmodelc');
+    final acceleratedModel = _withCoreMlEncoder(model, encoderBytes);
+    final progress = <double>[];
+    final store = AiDictationModelStore(
+      clientFactory: () => MockClient((request) async {
+        if (request.url.toString() == acceleratedModel.uri) {
+          return http.Response.bytes(bytes, HttpStatus.ok);
+        }
+        return http.Response.bytes(encoderBytes, HttpStatus.ok);
+      }),
+      supportDirectory: () async => directory,
+      modelCatalog: <AiDictationModel>[acceleratedModel],
+      installCoreMlEncoder: true,
+    );
+
+    final path = await store.download(
+      id: acceleratedModel.id,
+      onProgress: progress.add,
+    );
+
+    final encoder = Directory(
+      '${File(path).parent.path}${Platform.pathSeparator}fixture-encoder.mlmodelc',
+    );
+    expect(await File('${encoder.path}/model.mil').readAsBytes(), bytes);
+    expect(await store.isInstalled(acceleratedModel.id), isTrue);
+    expect(progress.last, 1);
+  });
+
+  test(
+    'adds Core ML to an existing model without downloading it again',
+    () async {
+      final encoderBytes = _coreMlArchive('fixture-encoder.mlmodelc');
+      final acceleratedModel = _withCoreMlEncoder(model, encoderBytes);
+      final requested = <Uri>[];
+      final store = AiDictationModelStore(
+        clientFactory: () => MockClient((request) async {
+          requested.add(request.url);
+          return http.Response.bytes(encoderBytes, HttpStatus.ok);
+        }),
+        supportDirectory: () async => directory,
+        modelCatalog: <AiDictationModel>[acceleratedModel],
+        installCoreMlEncoder: true,
+      );
+      final path = await store.modelPath(acceleratedModel.id);
+      await File(path).create(recursive: true);
+      await File(path).writeAsBytes(bytes);
+      await File('$path.sha256').writeAsString(acceleratedModel.sha256);
+
+      expect(await store.partialBytes(acceleratedModel.id), bytes.length);
+      await store.download(id: acceleratedModel.id);
+
+      expect(requested, <Uri>[
+        Uri.parse(acceleratedModel.coreMlEncoder!.archiveUri),
+      ]);
+      expect(await store.isInstalled(acceleratedModel.id), isTrue);
+    },
+  );
 
   test('resumes a partial model with a validated range response', () async {
     late String? range;
@@ -139,7 +199,33 @@ AiDictationModelStore _store(
   clientFactory: () => MockClient(handler),
   supportDirectory: () async => directory,
   modelCatalog: <AiDictationModel>[model],
+  installCoreMlEncoder: false,
 );
+
+AiDictationModel _withCoreMlEncoder(
+  AiDictationModel model,
+  List<int> archiveBytes,
+) => AiDictationModel(
+  id: model.id,
+  label: model.label,
+  description: model.description,
+  fileName: model.fileName,
+  sha256: model.sha256,
+  uri: model.uri,
+  sizeBytes: model.sizeBytes,
+  coreMlEncoder: AiDictationCoreMlEncoder(
+    directoryName: 'fixture-encoder.mlmodelc',
+    archiveUri: 'https://example.test/fixture-encoder.mlmodelc.zip',
+    archiveSha256: sha256.convert(archiveBytes).toString(),
+    archiveSizeBytes: archiveBytes.length,
+  ),
+);
+
+List<int> _coreMlArchive(String directoryName) {
+  final archive = Archive()
+    ..addFile(ArchiveFile('$directoryName/model.mil', 4, <int>[1, 2, 3, 4]));
+  return ZipEncoder().encode(archive);
+}
 
 class _HangingClient extends http.BaseClient {
   final started = Completer<void>();
