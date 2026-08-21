@@ -68,8 +68,17 @@ endif()
 set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
 set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
 set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+find_program(ALERA_NINJA_EXECUTABLE ninja)
+if(NOT ALERA_NINJA_EXECUTABLE)
+  message(FATAL_ERROR "Ninja is required to build the Windows Whisper backend")
+endif()
 add_custom_target(alera_cli_sidecar ALL
-  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli
+  # The sidecar shares whisper-rs-sys with the Flutter plugin. Use Ninja for
+  # that nested CMake build to avoid MSBuild FileTracker's legacy path limit.
+  COMMAND "${CMAKE_COMMAND}" -E env
+    "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+    "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${ALERA_NINJA_EXECUTABLE}"
+    "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
   WORKING_DIRECTORY "${ALERA_CLI_DIR}"

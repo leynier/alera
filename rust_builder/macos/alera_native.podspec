@@ -41,7 +41,10 @@ A new Flutter FFI plugin project.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     # Cargokit only produces the Rust static library, so native dependencies
     # used inside it must be repeated when CocoaPods links the plugin framework.
-    # libgit2 needs zlib/iconv, while whisper.cpp needs libc++ and Accelerate.
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libalera_native.a -lz -liconv -lc++ -framework Accelerate',
+    # libgit2 needs zlib/iconv, while whisper.cpp needs libc++, Accelerate,
+    # Foundation, Core ML, Metal, and MetalKit. Cargokit only produces the
+    # Rust static library, so these framework dependencies must be repeated
+    # when CocoaPods links the plugin framework.
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libalera_native.a -lz -liconv -lc++ -framework Accelerate -framework Foundation -framework CoreML -framework Metal -framework MetalKit',
   }
 end
