@@ -67,6 +67,8 @@ endif()
 # the build profile is selected with generator expressions at build time.
 set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
 set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
+# Sibling of the native cargokit target (R:\c\n). Keep this short enough
+# that ggml-vulkan's nested TryCompile object stays under MAX_PATH.
 if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
   set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/cli")
 else()
