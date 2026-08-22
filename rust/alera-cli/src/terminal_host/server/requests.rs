@@ -22,7 +22,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-use super::mobile_terminal_requests::mobile_request_allowed;
+use super::mobile_gateway_surface::mobile_request_allowed;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
