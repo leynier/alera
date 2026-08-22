@@ -4,13 +4,21 @@ fn pair(seed: u8) -> IdentityKeyPair {
     IdentityKeyPair::from_private([seed; 32])
 }
 
+/// Handshake binding shared with `mobile/test/relay_crypto_test.dart`.
+/// Known-answer tests require a fixed value; production generates this with a CSPRNG.
+fn interop_handshake_binding() -> [u8; 16] {
+    // codeql[rust/hard-coded-cryptographic-value]
+    let bytes = hex::decode("05050505050505050505050505050505").expect("valid fixture hex");
+    bytes.try_into().expect("fixture is 16 bytes")
+}
+
 #[test]
 fn fixed_vector_matches_the_interoperability_fixture() {
     let client_static = pair(1);
     let runtime_static = pair(2);
     let client_ephemeral = pair(3);
     let runtime_ephemeral = pair(4);
-    let nonce = [5_u8; 16];
+    let nonce = interop_handshake_binding();
     let mut client = RelaySession::derive(RelaySessionParameters {
         local_static: &client_static,
         local_ephemeral: &client_ephemeral,

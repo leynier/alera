@@ -69,6 +69,7 @@ pub struct RelaySessionParameters<'a> {
     pub peer_ephemeral: [u8; KEY_BYTES],
     pub runtime_id: &'a str,
     pub client_id: &'a str,
+    /// Fresh 16-byte handshake binding from a CSPRNG. This is not the ChaCha20-Poly1305 nonce.
     pub nonce: &'a [u8],
     pub initiator: bool,
 }
@@ -365,6 +366,12 @@ mod tests {
         IdentityKeyPair::from_private([seed; 32])
     }
 
+    fn handshake_nonce() -> [u8; 16] {
+        let mut bytes = [0_u8; 16];
+        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut bytes);
+        bytes
+    }
+
     fn session(parameters: RelaySessionParameters<'_>) -> RelaySession {
         RelaySession::derive(parameters).unwrap()
     }
@@ -375,7 +382,7 @@ mod tests {
         let runtime_static = pair(2);
         let client_ephemeral = pair(3);
         let runtime_ephemeral = pair(4);
-        let nonce = [5_u8; 16];
+        let nonce = handshake_nonce();
         let mut client = session(RelaySessionParameters {
             local_static: &client_static,
             local_ephemeral: &client_ephemeral,
@@ -419,7 +426,7 @@ mod tests {
         let runtime_static = pair(12);
         let client_ephemeral = pair(13);
         let runtime_ephemeral = pair(14);
-        let nonce = [15_u8; 16];
+        let nonce = handshake_nonce();
         let derive_client = || {
             session(RelaySessionParameters {
                 local_static: &client_static,
