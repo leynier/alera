@@ -75,7 +75,11 @@ else()
   set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{SystemDrive}/c/cli")
 endif()
 file(MAKE_DIRECTORY "${ALERA_CLI_CARGO_TARGET_DIR}")
-set(ALERA_CLI_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+# Cargo without --target writes host-layout <target-dir>/<profile>/alera.exe.
+# A rustc target triple nested under that prefix is the other layout.
+set(ALERA_CLI_HOST_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+set(ALERA_CLI_TRIPLE_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/x86_64-pc-windows-msvc/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+set(ALERA_CLI_STAGED "${CMAKE_CURRENT_BINARY_DIR}/sidecar/$<CONFIG>/alera.exe")
 find_program(ALERA_NINJA_EXECUTABLE ninja)
 if(NOT ALERA_NINJA_EXECUTABLE)
   message(FATAL_ERROR "Ninja is required to build the Windows Whisper backend")
@@ -98,7 +102,12 @@ add_custom_target(alera_cli_sidecar ALL
     "GGML_CCACHE=OFF"
     "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
-  BYPRODUCTS "${ALERA_CLI_OUTPUT}"
+  COMMAND "${CMAKE_COMMAND}"
+    "-DALERA_SIDECAR_HOST=${ALERA_CLI_HOST_OUTPUT}"
+    "-DALERA_SIDECAR_TRIPLE=${ALERA_CLI_TRIPLE_OUTPUT}"
+    "-DALERA_SIDECAR_STAGED=${ALERA_CLI_STAGED}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/stage_alera_sidecar.cmake"
+  BYPRODUCTS "${ALERA_CLI_STAGED}"
   WORKING_DIRECTORY "${ALERA_CLI_DIR}"
   COMMENT "Building Alera CLI sidecar (Rust)"
   VERBATIM
@@ -166,7 +175,7 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-install(PROGRAMS "${ALERA_CLI_OUTPUT}"
+install(PROGRAMS "${ALERA_CLI_STAGED}"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
   COMPONENT Runtime)
 

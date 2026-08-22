@@ -27,6 +27,10 @@ void main() {
       contains(r'CARGO_TARGET_DIR=${ALERA_CLI_CARGO_TARGET_DIR}'),
     );
     expect(windowsCmake, contains(r'ALERA_CARGOKIT_TEMP_DIR}/cli'));
+    expect(windowsCmake, contains('stage_alera_sidecar.cmake'));
+    expect(windowsCmake, contains('ALERA_CLI_STAGED'));
+    expect(windowsCmake, contains(r'install(PROGRAMS "${ALERA_CLI_STAGED}"'));
+    expect(File('windows/stage_alera_sidecar.cmake').existsSync(), isTrue);
   });
 
   test(
