@@ -79,6 +79,10 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
             "CXXFLAGS=/FS"
             "CL=/FS"
             "_CL_=/Z7 /FS"
+            # ggml enables ccache/sccache by default. CI puts sccache on PATH
+            # for rustc, and RULE_LAUNCH_COMPILE sccache + Ninja + cl.exe
+            # drops .obj files (LNK1181 ggml.c.obj). Keep sccache on rustc only.
+            "GGML_CCACHE=OFF"
         )
     endif()
 
