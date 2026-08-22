@@ -739,21 +739,7 @@ jobs:
 
       - name: Verify Android native dependencies
         shell: bash
-        run: |
-          set -euo pipefail
-          readelf="$(find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" -name llvm-readelf -type f | head -1)"
-          test -n "$readelf"
-          extract_dir="$(mktemp -d)"
-          trap 'rm -rf "$extract_dir"' EXIT
-          for apk in mobile/build/app/outputs/flutter-apk/*-release.apk; do
-            apk_dir="$extract_dir/$(basename "$apk" .apk)"
-            unzip -q "$apk" 'lib/*/libalera_mobile_native.so' 'lib/*/libc++_shared.so' -d "$apk_dir"
-            while IFS= read -r native; do
-              abi="$(basename "$(dirname "$native")")"
-              "$readelf" -d "$native" | grep -q 'Shared library: \[libc++_shared.so\]'
-              test -f "$apk_dir/lib/$abi/libc++_shared.so"
-            done < <(find "$apk_dir/lib" -name libalera_mobile_native.so -type f)
-          done
+        run: bash tool/release/verify_android_native_dependencies.sh mobile/build/app/outputs/flutter-apk
 
       - name: Verify Android APK signatures
         shell: bash
