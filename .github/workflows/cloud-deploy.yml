@@ -179,7 +179,7 @@ jobs:
         run: |
           gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
             --member="serviceAccount:$GCP_SERVICE_ACCOUNT" \
-            --role=roles/storage.legacyBucketReader \
+            --role=roles/storage.bucketViewer \
             --condition=None \
             --quiet >/dev/null
 
