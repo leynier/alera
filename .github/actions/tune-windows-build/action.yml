@@ -46,9 +46,9 @@ runs:
         if ($LASTEXITCODE -ne 0) {
           throw "Could not map R: to $env:RUNNER_TEMP."
         }
-        # ggml-vulkan's nested TryCompile PDB is ~234 characters under the
-        # cargo target triple. R:\alera-cargokit\alera_native is 28 characters
-        # and still overflows MAX_PATH (263). Keep this prefix tiny.
+        # ggml-vulkan's nested TryCompile object is ~245 characters under the
+        # cargo target triple. Native cargo --target-dir is this prefix plus
+        # /n (R:\c\n). Appending alera_native still overflows MAX_PATH.
         $scratchPath = 'R:\c'
         New-Item -ItemType Directory -Force -Path $scratchPath | Out-Null
         "ALERA_CARGOKIT_TEMP_DIR=$scratchPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
