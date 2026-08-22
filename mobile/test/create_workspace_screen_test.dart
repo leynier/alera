@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
+import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -7,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_ai_dictation_settings.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
@@ -222,5 +225,97 @@ void main() {
     await tester.tap(find.text('Alera'));
     await tester.pumpAndSettle();
     expect(find.text('Notes'), findsNothing);
+  });
+
+  testWidgets('From Prompt shows AI Dictation when it is enabled', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main'];
+    addTearDown(client.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            () => FakeMobileAiDictationSettingsController(
+              const MobileAiDictationSettings(enabled: true),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: CreateWorkspaceScreen(
+            hostId: 'host-1',
+            projects: <ProjectSummary>[
+              ProjectSummary(
+                id: 'project-1',
+                name: 'Alera',
+                repoPath: '/repo/alera',
+              ),
+            ],
+            workspaces: [],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final promptField = tester.getRect(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+    );
+    final dictationControl = tester.getRect(
+      find.byKey(const ValueKey<String>('prompt-workspace-dictation-control')),
+    );
+    expect(find.byTooltip('Start Dictation'), findsOneWidget);
+    expect(promptField.right - dictationControl.right, lessThan(48));
+    expect(promptField.bottom - dictationControl.bottom, lessThan(48));
+
+    await tester.tap(find.text('Manual'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('prompt-workspace-dictation-control')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('From Prompt hides AI Dictation when it is disabled', (
+    tester,
+  ) async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main'];
+    addTearDown(client.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          mobileAiDictationSettingsControllerProvider.overrideWith(
+            () => FakeMobileAiDictationSettingsController(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: CreateWorkspaceScreen(
+            hostId: 'host-1',
+            projects: <ProjectSummary>[
+              ProjectSummary(
+                id: 'project-1',
+                name: 'Alera',
+                repoPath: '/repo/alera',
+              ),
+            ],
+            workspaces: [],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('prompt-workspace-dictation-control')),
+      findsNothing,
+    );
   });
 }

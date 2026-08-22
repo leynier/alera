@@ -16,20 +16,56 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         widget.supportsPromptImageUpload ||
         widget.supportsPromptFileUpload ||
         workspaceFilesSourceId != null;
+    const promptDictationTarget = 'prompt-workspace';
+    final promptEnabled =
+        !promptState.loading && created == null && !_uploadingAttachment;
+    final dictationEnabled =
+        ref.watch(mobileAiDictationSettingsControllerProvider).value?.enabled ==
+        true;
     return ListView(
       padding: AleraTokens.pagePadding,
       children: <Widget>[
-        TextField(
-          controller: _prompt,
-          enabled:
-              !promptState.loading && created == null && !_uploadingAttachment,
-          minLines: 4,
-          maxLines: 8,
-          decoration: const InputDecoration(
-            labelText: 'Initial Prompt',
-            hintText: 'Describe what the agent should build',
-            alignLabelWithHint: true,
+        if (dictationEnabled)
+          MobileAiDictationReviewBar(
+            hostId: widget.hostId,
+            targetKey: promptDictationTarget,
           ),
+        Stack(
+          children: <Widget>[
+            TextField(
+              controller: _prompt,
+              enabled: promptEnabled,
+              minLines: 4,
+              maxLines: 8,
+              decoration: InputDecoration(
+                labelText: 'Initial Prompt',
+                hintText: 'Describe what the agent should build',
+                alignLabelWithHint: true,
+                contentPadding: dictationEnabled
+                    ? const EdgeInsets.fromLTRB(
+                        AleraTokens.spaceMd,
+                        AleraTokens.spaceMd,
+                        AleraTokens.minTapTarget,
+                        AleraTokens.minTapTarget,
+                      )
+                    : null,
+              ),
+            ),
+            if (dictationEnabled)
+              Positioned(
+                right: AleraTokens.space4,
+                bottom: AleraTokens.space4,
+                child: MobileAiDictationControl(
+                  key: const ValueKey<String>(
+                    'prompt-workspace-dictation-control',
+                  ),
+                  hostId: widget.hostId,
+                  targetKey: promptDictationTarget,
+                  controller: _prompt,
+                  enabled: promptEnabled,
+                ),
+              ),
+          ],
         ),
         if (hasAttachmentSources) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
