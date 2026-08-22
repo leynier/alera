@@ -168,6 +168,10 @@ Each pull request should:
 
 If there is no visual change, say that explicitly in the PR description.
 
+### Merge Queue
+
+Mergify validates pull requests in batches of two to four. When only one pull request is eligible, the queue waits up to 60 minutes for a second entry before starting the speculative checks. A maintainer can queue another ready pull request to start the batch sooner, but unrelated or unready changes must not be used to bypass the required checks.
+
 ## Release Process
 
 Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.
