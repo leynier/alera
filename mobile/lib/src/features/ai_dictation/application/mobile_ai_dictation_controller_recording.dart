@@ -10,15 +10,17 @@ extension MobileAiDictationRecording on MobileAiDictationController {
     _player = player;
     _subscriptions.add(
       player.positionStream.listen((position) {
-        if (state.stage == MobileAiDictationStage.playing ||
-            state.hasRecording) {
+        if (ref.mounted &&
+            (state.stage == MobileAiDictationStage.playing ||
+                state.hasRecording)) {
           state = state.copyWith(playbackPosition: position);
         }
       }),
     );
     _subscriptions.add(
       player.playerStateStream.listen((playerState) {
-        if (playerState.processingState == ProcessingState.completed &&
+        if (ref.mounted &&
+            playerState.processingState == ProcessingState.completed &&
             state.stage == MobileAiDictationStage.playing) {
           unawaited(player.seek(Duration.zero));
           state = state.copyWith(
@@ -38,6 +40,7 @@ extension MobileAiDictationRecording on MobileAiDictationController {
       return;
     }
     final completedPath = await _recorder?.stop();
+    if (!_isCurrentGeneration(generation)) return;
     if (completedPath != null && completedPath != _audioPath) {
       final index = _audioPaths.indexOf(_audioPath!);
       if (index >= 0) _audioPaths[index] = completedPath;
@@ -48,6 +51,7 @@ extension MobileAiDictationRecording on MobileAiDictationController {
       return;
     }
     final directory = await getTemporaryDirectory();
+    if (!_isCurrentGeneration(generation)) return;
     final path = p.join(
       directory.path,
       'alera-mobile-dictation-${DateTime.now().microsecondsSinceEpoch}-${_audioPaths.length}.wav',
@@ -62,6 +66,7 @@ extension MobileAiDictationRecording on MobileAiDictationController {
       ),
       path: path,
     );
+    if (!_isCurrentGeneration(generation)) return;
     _audioPath = path;
     _audioPaths.add(path);
     state = state.copyWith(segmentCount: _audioPaths.length);
