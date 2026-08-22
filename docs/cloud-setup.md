@@ -107,7 +107,11 @@ gcloud storage buckets create gs://alera-production-opentofu-state \
   --location=us-central1 \
   --uniform-bucket-level-access
 gcloud storage buckets update gs://alera-production-opentofu-state --versioning
+gcloud storage buckets describe gs://alera-production-opentofu-state \
+  --format="default(versioning_enabled)"
 ```
+
+The final command must report `versioning_enabled: true`. The hosted production preflight checks the same metadata before it builds or applies anything.
 
 Restrict access to the operators who manage production infrastructure. The state does not contain runtime secrets, but it does contain project identifiers, OAuth client ids, public signing material, and the direct Cloud Run origin URL.
 
