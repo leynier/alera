@@ -63,6 +63,7 @@ mod workbench_shared_state_store_tests;
 mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
+mod worktree_setup_models;
 
 pub use agent_canvas_models::*;
 pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
@@ -94,3 +95,4 @@ pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use store::*;
 pub use workbench_shared_state_models::*;
+pub use worktree_setup_models::*;

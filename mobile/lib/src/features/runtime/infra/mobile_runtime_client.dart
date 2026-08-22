@@ -30,6 +30,7 @@ export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 
 part 'mobile_runtime_client_host_tools.dart';
 part 'mobile_runtime_client_relay.dart';
+part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
@@ -44,6 +45,7 @@ class MobileRuntimeClient
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
         MobileRuntimeClientRelay,
+        MobileRuntimeDictationRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexRequests,
@@ -216,59 +218,12 @@ class MobileRuntimeClient
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
+  @override
   bool get supportsAiDictation =>
       _runtimeCapabilities.contains(aiDictationCapability);
+  @override
   bool get supportsAiDictationModels =>
       _runtimeCapabilities.contains(aiDictationModelsCapability);
-
-  Future<Map<String, Object?>> transcribeMobileAudio({
-    required String requestId,
-    required List<int> audio,
-    required String engine,
-    required String modelId,
-    String? language,
-    String? initialPrompt,
-  }) async {
-    if (!supportsAiDictationModels) {
-      throw UnsupportedError(
-        'Update the paired runtime to select remote Dictation models.',
-      );
-    }
-    final timeout = _mobileDictationTimeout(
-      audioBytes: audio.length,
-      modelId: modelId,
-    );
-    try {
-      return await requestMap(
-        'mobile.aiDictation.transcribe',
-        <String, Object?>{
-          'requestId': requestId,
-          'audioBase64': base64Encode(audio),
-          'engine': engine,
-          'modelId': modelId,
-          'language': language,
-          'initialPrompt': initialPrompt,
-        },
-        timeout,
-      );
-    } on TimeoutException {
-      try {
-        await requestMap('mobile.aiDictation.cancel', <String, Object?>{
-          'requestId': requestId,
-        }, const Duration(seconds: 5));
-      } on Object {
-        // The original timeout remains the useful error for the caller.
-      }
-      rethrow;
-    }
-  }
-
-  Future<void> cancelMobileAudioTranscription(String requestId) async {
-    if (!supportsAiDictation) return;
-    await requestMap('mobile.aiDictation.cancel', <String, Object?>{
-      'requestId': requestId,
-    });
-  }
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
@@ -539,19 +494,4 @@ class MobileRuntimeClient
     // rather than a StateError that would look like a programming fault.
     _handleSocketError(const RuntimeConnectionLost());
   }
-}
-
-Duration _mobileDictationTimeout({
-  required int audioBytes,
-  required String modelId,
-}) {
-  final audioSeconds = (audioBytes / 32000).ceil();
-  final modelAllowance = switch (modelId) {
-    'whisper-large-v3-turbo-q5-0' => 180,
-    'whisper-small' => 120,
-    _ => 60,
-  };
-  return Duration(
-    seconds: (60 + audioSeconds * 4 + modelAllowance).clamp(120, 900),
-  );
 }

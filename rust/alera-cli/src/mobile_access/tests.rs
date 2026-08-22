@@ -272,6 +272,7 @@ fn settings_update_applies_netbird_endpoint_source() {
         MobileAccessSettings::default(),
         MobileSettingsUpdateRequest {
             enabled: None,
+            remote_access_enabled: None,
             bind_host: None,
             port: None,
             endpoint_mode: Some(MobileEndpointMode::Netbird),

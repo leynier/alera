@@ -61,6 +61,7 @@ class PairedHostProfile {
       deviceId: deviceId,
       pairedAt: pairedAt,
       serverPublicKeyB64: serverPublicKeyB64,
+      endpointNetwork: endpointNetwork,
       alias: alias,
       isRemote: isRemote,
       accountId: cloudAccountId,
