@@ -3,7 +3,6 @@ import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dic
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_model_transfers.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
-import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,8 +79,8 @@ void main() {
           mobileAiDictationOnDeviceAvailableProvider.overrideWith(
             (ref, localeId) async => true,
           ),
-          mobileAiDictationModelTransfersProvider.overrideWithValue(
-            _idleTransfers(),
+          mobileAiDictationModelTransfersProvider.overrideWith(
+            FakeMobileAiDictationModelTransfers.new,
           ),
         ],
         child: MaterialApp(
@@ -108,8 +107,8 @@ Widget _settingsApp(MobileAiDictationSettings settings) {
       mobileAiDictationOnDeviceAvailableProvider.overrideWith(
         (ref, localeId) async => true,
       ),
-      mobileAiDictationModelTransfersProvider.overrideWithValue(
-        _idleTransfers(),
+      mobileAiDictationModelTransfersProvider.overrideWith(
+        FakeMobileAiDictationModelTransfers.new,
       ),
     ],
     child: MaterialApp(
@@ -117,15 +116,4 @@ Widget _settingsApp(MobileAiDictationSettings settings) {
       home: const MobileAiDictationSettingsScreen(),
     ),
   );
-}
-
-MobileAiModelTransfersState _idleTransfers() {
-  return MobileAiModelTransfersState(<String, MobileAiModelTransfer>{
-    for (final model in MobileAiDictationModelStore.models)
-      model.id: MobileAiModelTransfer(
-        installed: model.id == 'whisper-base',
-        receivedBytes: model.id == 'whisper-base' ? model.sizeBytes : 0,
-        totalBytes: model.sizeBytes,
-      ),
-  });
 }
