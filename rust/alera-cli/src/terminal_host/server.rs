@@ -60,6 +60,7 @@ mod agent_prompt_composition;
 mod agent_profile_persona_discovery;
 mod ai_text_commit_message;
 mod ai_dictation_requests;
+mod ai_text_failure_detail;
 mod ai_text_fx_plan;
 mod ai_text_grok_plan;
 mod ai_text_model_discovery;

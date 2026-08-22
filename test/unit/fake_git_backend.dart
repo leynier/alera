@@ -10,6 +10,7 @@ import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'fake_git_backend_defaults.dart';
 part 'fake_git_backend_diffs.dart';
+part 'fake_git_backend_hosted_review.dart';
 part 'fake_git_backend_status.dart';
 part 'fake_git_backend_workspaces.dart';
 
@@ -20,6 +21,7 @@ class FakeGitBackend
     with
         _FakeGitBackendStatus,
         _FakeGitBackendDiffs,
+        _FakeGitBackendHostedReview,
         _FakeGitBackendWorkspaceState
     implements GitBackend {
   @override
@@ -426,12 +428,14 @@ class FakeGitBackend
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) async {
     calls.add(
       GitBackendCall('rangeContext', <String, Object?>{
         'path': path,
         'baseRef': baseRef,
         'commitLimit': commitLimit,
+        'headRef': headRef,
       }),
     );
     final error = rangeContextError;

@@ -1,5 +1,17 @@
 part of 'git_diff_models.dart';
 
+class GitHostedReviewRange {
+  const GitHostedReviewRange({
+    required this.baseOid,
+    required this.headOid,
+    required this.retentionId,
+  });
+
+  final String baseOid;
+  final String headOid;
+  final String retentionId;
+}
+
 /// One commit on the range from merge-base(base, HEAD) to HEAD.
 class GitRangeCommit {
   const GitRangeCommit({
@@ -28,18 +40,20 @@ class GitRangeFile {
   final int? removed;
 }
 
-/// Tree-to-tree range summary used for AI pull-request prompts.
+/// Tree-to-tree range summary for AI prompts and hosted pull-request diffs.
 class GitRangeContext {
   const GitRangeContext({
     required this.baseRef,
     required this.commits,
     required this.files,
     required this.patch,
+    this.headOid,
     this.headBranch,
     this.mergeBase,
   });
 
   final String baseRef;
+  final String? headOid;
   final String? headBranch;
   final String? mergeBase;
   final List<GitRangeCommit> commits;

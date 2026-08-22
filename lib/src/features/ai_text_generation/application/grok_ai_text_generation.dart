@@ -26,6 +26,8 @@ final AiTextAgentSpec grokAiTextAgentSpec = AiTextAgentSpec(
     ),
   ],
   defaultModelId: 'grok-4.6',
+  nativeStructuredOutput: AiNativeStructuredOutput.jsonSchemaArgument,
+  diffOnlyAccess: AiTextDiffOnlyAccess.toolFree,
   buildArgs:
       ({
         required model,

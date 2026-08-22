@@ -1,6 +1,8 @@
 use git2::{Diff, DiffFormat, DiffLineType};
 
-use super::{GitDiffLine, GitDiffLineKind, GitError, MAX_DIFF_PATCH_BYTES};
+use super::{GitDiffLine, GitDiffLineKind, GitError};
+
+pub(super) const MAX_DIFF_PATCH_BYTES: usize = 512 * 1024;
 
 pub(super) const MAX_DIFF_PREVIEW_LINES: usize = 5000;
 

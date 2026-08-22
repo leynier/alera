@@ -6,6 +6,7 @@ pub mod git_diff_blob;
 pub mod git_explorer_status;
 pub mod merman_viewer;
 pub mod process;
+pub mod reading_diff;
 pub mod workspace_files;
 pub mod workspace_search;
 

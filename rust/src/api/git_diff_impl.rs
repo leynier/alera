@@ -19,20 +19,19 @@ mod git_diff_combined;
 mod git_diff_render;
 #[path = "git_diff_untracked.rs"]
 mod git_diff_untracked;
+#[path = "git_reading_diff_patch.rs"]
+pub(in crate::api) mod git_reading_diff_patch;
 
 use git_diff_combined::{append_combined_diff_file, git_diff_all_for_file};
 use git_diff_render::render_diff_for_path;
-use git_diff_untracked::untracked_diff_file;
+use git_diff_untracked::{build_untracked_patch, read_untracked_text_up_to, untracked_diff_file};
 
 #[path = "git_submodule_impl.rs"]
 mod git_submodule_impl;
 
 use super::git_diff_paths::GitPathContext;
 
-pub(super) const MAX_DIFF_PATCH_BYTES: usize = 512 * 1024;
-
-type LineStats = (Option<u32>, Option<u32>);
-type CommitDiffLineStatsByPath = HashMap<String, LineStats>;
+type CommitDiffLineStatsByPath = HashMap<String, (Option<u32>, Option<u32>)>;
 
 pub(super) fn git_status(path: String) -> Result<GitStatusResult, GitError> {
     let repo = open_repo(&path)?;

@@ -43,7 +43,7 @@ HostingProviderResolution resolveHostingProvider({
   required List<GitRemote> remotes,
   GitHostingProvider? override,
 }) {
-  final url = _preferredRemoteUrl(remotes);
+  final url = _preferredRemote(remotes)?.url;
   if (url == null || url.isEmpty) {
     return const HostingProviderNoRemote();
   }
@@ -64,22 +64,26 @@ HostingProviderResolution resolveHostingProvider({
   return HostingProviderUndetectable(remoteUrl: url);
 }
 
+String? preferredHostingRemoteName(List<GitRemote> remotes) {
+  return _preferredRemote(remotes)?.name;
+}
+
 /// Prefers `origin`, then `upstream`, then the first remote with a URL.
-String? _preferredRemoteUrl(List<GitRemote> remotes) {
-  String? firstWithUrl;
-  String? upstream;
+GitRemote? _preferredRemote(List<GitRemote> remotes) {
+  GitRemote? firstWithUrl;
+  GitRemote? upstream;
   for (final remote in remotes) {
     final url = remote.url;
     if (url == null || url.isEmpty) {
       continue;
     }
     if (remote.name == 'origin') {
-      return url;
+      return remote;
     }
     if (remote.name == 'upstream') {
-      upstream ??= url;
+      upstream ??= remote;
     }
-    firstWithUrl ??= url;
+    firstWithUrl ??= remote;
   }
   return upstream ?? firstWithUrl;
 }

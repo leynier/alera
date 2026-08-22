@@ -7,10 +7,12 @@ import 'api/agent_hooks.dart';
 import 'api/ai_dictation.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git/git_hosted_review.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/process.dart';
+import 'api/reading_diff.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 import 'dart:async';
@@ -106,6 +108,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
   WorkspaceExplorerDirectoryChildren
@@ -218,6 +223,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult dco_decode_git_history_result(dynamic raw);
 
   @protected
+  GitHostedReviewRange dco_decode_git_hosted_review_range(dynamic raw);
+
+  @protected
   GitRangeCommit dco_decode_git_range_commit(dynamic raw);
 
   @protected
@@ -312,6 +320,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ReadingDiffChunk> dco_decode_list_reading_diff_chunk(dynamic raw);
+
+  @protected
+  List<ReadingDiffCompiledChunk> dco_decode_list_reading_diff_compiled_chunk(
+    dynamic raw,
+  );
+
+  @protected
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
@@ -397,6 +413,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
   WorkspaceExplorerDirectoryChildren?
   dco_decode_opt_box_autoadd_workspace_explorer_directory_children(dynamic raw);
 
@@ -416,6 +435,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessRunResult dco_decode_process_run_result(dynamic raw);
+
+  @protected
+  ReadingDiffChunk dco_decode_reading_diff_chunk(dynamic raw);
+
+  @protected
+  ReadingDiffCompileResult dco_decode_reading_diff_compile_result(dynamic raw);
+
+  @protected
+  ReadingDiffCompiledChunk dco_decode_reading_diff_compiled_chunk(dynamic raw);
+
+  @protected
+  ReadingDiffError dco_decode_reading_diff_error(dynamic raw);
+
+  @protected
+  ReadingDiffPreparation dco_decode_reading_diff_preparation(dynamic raw);
 
   @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
@@ -659,6 +693,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   WorkspaceExplorerDirectoryChildren
   sse_decode_box_autoadd_workspace_explorer_directory_children(
     SseDeserializer deserializer,
@@ -793,6 +830,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
 
   @protected
+  GitHostedReviewRange sse_decode_git_hosted_review_range(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitRangeCommit sse_decode_git_range_commit(SseDeserializer deserializer);
 
   @protected
@@ -913,6 +955,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ReadingDiffChunk> sse_decode_list_reading_diff_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReadingDiffCompiledChunk> sse_decode_list_reading_diff_compiled_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<(String, String)> sse_decode_list_record_string_string(
     SseDeserializer deserializer,
   );
@@ -1020,6 +1072,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   WorkspaceExplorerDirectoryChildren?
   sse_decode_opt_box_autoadd_workspace_explorer_directory_children(
     SseDeserializer deserializer,
@@ -1041,6 +1096,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessRunResult sse_decode_process_run_result(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffChunk sse_decode_reading_diff_chunk(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffCompileResult sse_decode_reading_diff_compile_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReadingDiffCompiledChunk sse_decode_reading_diff_compiled_chunk(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReadingDiffError sse_decode_reading_diff_error(SseDeserializer deserializer);
+
+  @protected
+  ReadingDiffPreparation sse_decode_reading_diff_preparation(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (String, String) sse_decode_record_string_string(
@@ -1349,6 +1425,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_workspace_explorer_directory_children(
     WorkspaceExplorerDirectoryChildren self,
     SseSerializer serializer,
@@ -1523,6 +1602,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_hosted_review_range(
+    GitHostedReviewRange self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_range_commit(
     GitRangeCommit self,
     SseSerializer serializer,
@@ -1682,6 +1767,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_reading_diff_chunk(
+    List<ReadingDiffChunk> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_reading_diff_compiled_chunk(
+    List<ReadingDiffCompiledChunk> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_record_string_string(
     List<(String, String)> self,
     SseSerializer serializer,
@@ -1808,6 +1905,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_workspace_explorer_directory_children(
     WorkspaceExplorerDirectoryChildren? self,
     SseSerializer serializer,
@@ -1837,6 +1937,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_process_run_result(
     ProcessRunResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_chunk(
+    ReadingDiffChunk self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_compile_result(
+    ReadingDiffCompileResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_compiled_chunk(
+    ReadingDiffCompiledChunk self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_error(
+    ReadingDiffError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reading_diff_preparation(
+    ReadingDiffPreparation self,
     SseSerializer serializer,
   );
 

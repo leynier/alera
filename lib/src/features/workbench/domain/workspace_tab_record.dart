@@ -61,6 +61,10 @@ const String workspaceTabGitDiffCommitSubjectPayloadKey =
     'gitDiffCommitSubject';
 const String workspaceTabGitDiffCommitMessagePayloadKey =
     'gitDiffCommitMessage';
+const String workspaceTabGitDiffPullRequestNumberPayloadKey =
+    'gitDiffPullRequestNumber';
+const String workspaceTabGitDiffHostedReviewRetentionIdPayloadKey =
+    'gitDiffHostedReviewRetentionId';
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
 const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
 
@@ -120,7 +124,8 @@ class WorkspaceMobileEmulatorPayload {
 
 enum WorkspaceGitDiffSource {
   workingTree('workingTree'),
-  commit('commit');
+  commit('commit'),
+  pullRequest('pullRequest');
 
   const WorkspaceGitDiffSource(this.key);
 
@@ -297,6 +302,15 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
 
   String? get gitDiffCommitMessage =>
       _nonEmptyPayloadString(workspaceTabGitDiffCommitMessagePayloadKey);
+
+  int? get gitDiffPullRequestNumber {
+    final value = payload[workspaceTabGitDiffPullRequestNumberPayloadKey];
+    return value is int && value > 0 ? value : null;
+  }
+
+  String? get gitDiffHostedReviewRetentionId => _nonEmptyPayloadString(
+    workspaceTabGitDiffHostedReviewRetentionIdPayloadKey,
+  );
 
   String? get gitDiffOldPath =>
       _nonEmptyPayloadString(workspaceTabGitDiffOldPathPayloadKey);

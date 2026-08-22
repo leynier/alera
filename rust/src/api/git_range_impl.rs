@@ -15,6 +15,7 @@ pub(super) fn git_range_context(
     path: String,
     base_ref: String,
     commit_limit: Option<u32>,
+    head_ref: Option<String>,
 ) -> Result<GitRangeContext, GitError> {
     let repo = open_repo(&path)?;
     let base_name = base_ref.trim();
@@ -24,15 +25,28 @@ pub(super) fn git_range_context(
             "base branch is empty",
         ));
     }
-    let base_oid = resolve_ref_oid(&repo, base_name)?;
-    let Some(head_commit) = current_head_commit(&repo)? else {
-        return Err(GitError::new(
-            GitErrorKind::DetachedHead,
-            "repository has no HEAD commit",
-        ));
+    let base_oid = resolve_ref_oid(&repo, base_name, "base")?;
+    let head_oid = match head_ref.as_deref().map(str::trim) {
+        Some("") => {
+            return Err(GitError::new(
+                GitErrorKind::InvalidBranchName,
+                "head ref is empty",
+            ));
+        }
+        Some(head_name) => resolve_ref_oid(&repo, head_name, "head")?,
+        None => {
+            let Some(head_commit) = current_head_commit(&repo)? else {
+                return Err(GitError::new(
+                    GitErrorKind::DetachedHead,
+                    "repository has no HEAD commit",
+                ));
+            };
+            head_commit.id()
+        }
     };
-    let head_oid = head_commit.id();
-    let head_branch = {
+    let head_branch = if head_ref.is_some() {
+        None
+    } else {
         let name = head_branch_name(&repo);
         if name == "HEAD" {
             None
@@ -52,6 +66,7 @@ pub(super) fn git_range_context(
 
     Ok(GitRangeContext {
         base_ref: base_name.to_string(),
+        head_oid: head_oid.to_string(),
         head_branch,
         merge_base: Some(merge_base_oid.to_string()),
         commits,
@@ -60,11 +75,11 @@ pub(super) fn git_range_context(
     })
 }
 
-fn resolve_ref_oid(repo: &Repository, name: &str) -> Result<Oid, GitError> {
+fn resolve_ref_oid(repo: &Repository, name: &str, role: &str) -> Result<Oid, GitError> {
     if name.starts_with('-') {
         return Err(GitError::new(
             GitErrorKind::InvalidBranchName,
-            format!("invalid base ref '{name}'"),
+            format!("invalid {role} ref '{name}'"),
         ));
     }
     let object = match repo.revparse_single(name) {
@@ -77,7 +92,7 @@ fn resolve_ref_oid(repo: &Repository, name: &str) -> Result<Oid, GitError> {
         {
             return Err(GitError::new(
                 GitErrorKind::BranchNotFound,
-                format!("base ref '{name}' was not found"),
+                format!("{role} ref '{name}' was not found"),
             ));
         }
         Err(error) => return Err(GitError::from_git2(error)),

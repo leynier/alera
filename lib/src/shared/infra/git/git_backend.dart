@@ -111,6 +111,19 @@ abstract interface class GitBackend {
   /// when [filePath] is provided.
   Future<GitDiffResult> diffAll({required String path, String? filePath});
 
+  /// Immutable unified patch used as the source for a reading diff. Passing a
+  /// commit selects a commit diff; [area] selects one worktree area; omitting
+  /// both combines the visible working-tree changes.
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  });
+
   /// Raw bytes of one side of a diffed file for binary previews (images).
   /// Pass [area] for worktree diffs or [commitOid]/[parentOid] for commit
   /// diffs. Returns null when that side does not exist (added or deleted
@@ -145,12 +158,14 @@ abstract interface class GitBackend {
     String? oldPath,
   });
 
-  /// Commits and tree-to-tree patch from merge-base([baseRef], HEAD) to HEAD.
-  /// Used for AI pull-request title/description generation.
+  /// Commits and tree-to-tree patch from merge-base([baseRef], [headRef]) to
+  /// [headRef]. When [headRef] is omitted, HEAD is used. This supports both AI
+  /// pull-request text generation and exact hosted pull-request ranges.
   Future<GitRangeContext> rangeContext(
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   });
 
   /// Branch/upstream/divergence information for the repository containing
@@ -200,6 +215,31 @@ abstract interface class GitBackend {
   Future<String> amendCommit({required String path, required String message});
 
   Future<void> fetch(String path);
+
+  /// Fetches the exact base and head objects for a hosted review and returns
+  /// immutable commit IDs for local range resolution.
+  Future<GitHostedReviewRange> fetchHostedReviewRange({
+    required String path,
+    required String remote,
+    required String baseBranch,
+    required String headSha,
+    String? headRemote,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
+    String? reviewRef,
+  });
+
+  /// Promotes fetched objects after the hosted-review tab is persisted.
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  });
+
+  /// Releases the exact objects retained while a hosted-review tab was open.
+  Future<void> releaseHostedReviewRange({
+    required String path,
+    required String retentionId,
+  });
 
   Future<void> pull(String path);
 
