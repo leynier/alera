@@ -153,7 +153,7 @@ bool agentProfileSupportsCcsProfile(AgentType adapter) {
 }
 
 bool agentProfileSupportsModel(AgentType adapter) {
-  return adapter != AgentType.amp;
+  return adapter != AgentType.amp && adapter != AgentType.fx;
 }
 
 bool agentProfileSupportsPersona(AgentType adapter) {
@@ -204,6 +204,7 @@ int managedAgentRiskScore(AgentType adapter, Map<String, Object?> config) {
       addWhen(config['permissionMode'] == 'bypassPermissions', 100);
       addWhen(config['permissionMode'] == 'dontAsk', 40);
     case AgentType.amp:
+    case AgentType.fx:
       break;
   }
   return score;
@@ -257,6 +258,7 @@ Set<String> managedAgentRiskMarkers(
       );
       markWhen(config['permissionMode'] == 'dontAsk', 'dontAsk');
     case AgentType.amp:
+    case AgentType.fx:
       break;
   }
   return markers;
@@ -281,6 +283,7 @@ String managedAgentRiskWarning(AgentType adapter, Map<String, Object?> config) {
     AgentType.grok =>
       'This profile lets Grok Build continue with reduced permission prompts.',
     AgentType.amp => '',
+    AgentType.fx => '',
   };
 }
 
@@ -397,6 +400,10 @@ String managedAgentCommandPreview(
       stringOption('permissionMode', '--permission-mode');
       stringOption('sandbox', '--sandbox');
       flag('disableWebSearch', '--disable-web-search');
+    case AgentType.fx:
+      flag('resumeLast', '--continue');
+      flag('noAdditionalDirs', '--no-additional-dirs');
+      flag('record', '--record');
   }
   return <String>[
     executable,

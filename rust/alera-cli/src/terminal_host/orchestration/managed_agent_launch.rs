@@ -53,6 +53,7 @@ pub fn build_managed_agent_launch(
         "pi" => build_pi(values, &mut arguments)?,
         "amp" => build_amp(values, &mut arguments)?,
         "grok" => build_grok(values, &mut arguments)?,
+        "fx" => build_fx(values, &mut arguments)?,
         _ => return Err(format!("unsupported managed agent type: {agent_type}")),
     }
     Ok(ManagedAgentLaunch {
@@ -401,6 +402,18 @@ fn build_grok(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Resul
         "--disable-web-search",
         arguments,
     )
+}
+
+fn build_fx(values: &Map<String, Value>, arguments: &mut Vec<String>) -> Result<(), String> {
+    require_known_keys(values, &["resumeLast", "noAdditionalDirs", "record"])?;
+    push_flag(values, "resumeLast", "--continue", arguments)?;
+    push_flag(
+        values,
+        "noAdditionalDirs",
+        "--no-additional-dirs",
+        arguments,
+    )?;
+    push_flag(values, "record", "--record", arguments)
 }
 
 #[cfg(test)]

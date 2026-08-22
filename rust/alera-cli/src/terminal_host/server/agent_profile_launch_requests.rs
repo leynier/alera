@@ -2,7 +2,7 @@ use alera_core::runtime::{WorkspaceStatus, WorkspaceTabRecord};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_registry::adapter_for;
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
 
 use super::agent_prompt_composition::compose_agent_prompt;
 use super::host_service_requests::required_non_blank;
@@ -51,6 +51,7 @@ impl ServerActor {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
         })?;
         let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
+        let prompt_after_ready = adapter.startup_prompt == AgentStartupPrompt::TerminalAfterReady;
         let id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
         let automation_run_id = payload
@@ -78,10 +79,14 @@ impl ServerActor {
                     }
                 }),
                 "initialManagedAgentLaunch": managed_launch,
-                // Every adapter takes its prompt at launch. The shape differs
-                // per agent and is resolved at spawn, where the shell is known.
-                "initialPrompt": prompt,
+                // Most adapters take the prompt at launch. fx receives it
+                // after its built-in lifecycle reports that the TUI is ready.
+                "initialPrompt": (!prompt_after_ready).then(|| prompt.clone()),
                 "initialPromptOnce": true,
+                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                    "agent": adapter.agent_type,
+                    "prompt": prompt,
+                })),
                 "agentProfileId": profile.id,
                 "agentType": profile.agent_type,
                 "spawnOnCreate": true,
@@ -99,10 +104,9 @@ impl ServerActor {
 
     /// Types a prompt into an agent that reported it is idle.
     ///
-    /// No adapter asks for this any more: a prompt now travels with the launch.
-    /// It stays because a tab written by an older host can still carry
-    /// `pendingAgentPrompt`, and the app attaches to whichever sidecar is
-    /// already running, so a newer host has to be able to finish that delivery.
+    /// fx has no interactive initial-prompt argument. Its lifecycle receiver
+    /// reports the first idle state after the TUI is ready, which makes this
+    /// PTY paste deterministic. Older tabs may also still carry the payload.
     pub(super) async fn deliver_pending_agent_prompt(&mut self, session_id: &str) {
         if !self.agent_presence.is_injection_ready(session_id) {
             return;

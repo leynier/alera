@@ -4,9 +4,8 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 ///
 /// The source of truth is `startup_prompt` in
 /// `rust/alera-cli/src/terminal_host/orchestration/agent_registry.rs`. Every
-/// agent receives its prompt at launch; what differs is the shape its own CLI
-/// accepts, which is the one thing a user writing a Command-mode profile has to
-/// know, since Alera appends to whatever they wrote.
+/// Most agents receive their prompt at launch. Agents without an initial-prompt
+/// option can receive it in the terminal after reporting that they are ready.
 enum AgentPromptDelivery {
   /// Appended as a positional argument after the option terminator.
   positionalAfterTerminator,
@@ -19,6 +18,9 @@ enum AgentPromptDelivery {
 
   /// Never reaches the command line: the agent reads it from stdin.
   stdinScript,
+
+  /// Pasted into the terminal after the agent reports its first ready state.
+  terminalAfterReady,
 }
 
 /// Mirrors the option terminator the host inserts before an argument prompt.
@@ -37,6 +39,7 @@ AgentPromptDelivery agentPromptDeliveryFor(AgentType adapter) {
     return AgentPromptDelivery.longOption;
   }
   return switch (adapter) {
+    AgentType.fx => AgentPromptDelivery.terminalAfterReady,
     AgentType.amp => AgentPromptDelivery.stdinScript,
     // pi rejects the option terminator outright, so its prompt goes in bare.
     AgentType.pi => AgentPromptDelivery.positional,
@@ -64,6 +67,10 @@ String agentPromptDeliveryDescription(AgentType adapter) {
       'This agent has no option for an initial prompt, so Alera runs the '
           'command through a generated script that feeds the dispatched prompt '
           'on standard input. Write only the flags here.',
+    AgentPromptDelivery.terminalAfterReady =>
+      'Alera launches this command, waits for the agent to report that its '
+          'interactive interface is ready, then pastes and submits the '
+          'dispatched prompt. Write only the flags here.',
   };
 }
 
@@ -81,6 +88,7 @@ String agentPromptDeliveryPreview(AgentType adapter, String command) {
     AgentPromptDelivery.positional => "$trimmed '$prompt'",
     AgentPromptDelivery.longOption =>
       "$trimmed '${agentPromptDeliveryOptions[adapter]}=$prompt'",
-    AgentPromptDelivery.stdinScript => '',
+    AgentPromptDelivery.stdinScript ||
+    AgentPromptDelivery.terminalAfterReady => '',
   };
 }

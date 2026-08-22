@@ -24,6 +24,7 @@ void main() {
     expect(AiTextGenerationAgent.pi.agentType, AgentType.pi);
     expect(AiTextGenerationAgent.amp.agentType, AgentType.amp);
     expect(AiTextGenerationAgent.grok.agentType, AgentType.grok);
+    expect(AiTextGenerationAgent.fx.agentType, AgentType.fx);
     expect(AiTextGenerationAgent.custom.agentType, isNull);
     expect(
       AiTextGenerationAgent.values.map((agent) => agent.label),
@@ -38,6 +39,7 @@ void main() {
         'Pi',
         'Amp',
         'Grok Build',
+        'fx',
         'Custom Command',
       ]),
     );

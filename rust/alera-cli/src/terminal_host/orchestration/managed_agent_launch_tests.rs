@@ -97,6 +97,15 @@ fn every_adapter_builds_its_native_session_flags() {
                 "--disable-web-search",
             ],
         ),
+        (
+            "fx",
+            json!({
+                "resumeLast": true,
+                "noAdditionalDirs": true,
+                "record": true
+            }),
+            vec!["--continue", "--no-additional-dirs", "--record"],
+        ),
     ];
     for (agent, config, expected) in cases {
         assert_eq!(

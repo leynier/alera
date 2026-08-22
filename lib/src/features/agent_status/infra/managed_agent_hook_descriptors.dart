@@ -33,6 +33,17 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     );
   }
 
+  ManagedAgentHookInstallStatus _fxRuntimeOnlyStatus() {
+    return ManagedAgentHookInstallStatus(
+      agentType: AgentType.fx,
+      state: ManagedAgentHookInstallState.notInstalled,
+      configPath: p.join(_homeDirectory, '.fx'),
+      managedHooksPresent: false,
+      detail:
+          'fx reports status through its built-in local Herdr integration, so no user hooks are installed.',
+    );
+  }
+
   _AgentHookDescriptor _descriptor(AgentType agentType) {
     final extension = switch ((agentType, _platform)) {
       (AgentType.copilot, ManagedAgentHookPlatform.windows) => 'ps1',
@@ -75,7 +86,8 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       AgentType.opencode ||
       AgentType.opencode2 ||
       AgentType.pi ||
-      AgentType.amp => throw ArgumentError.value(
+      AgentType.amp ||
+      AgentType.fx => throw ArgumentError.value(
         agentType,
         'agentType',
         'This agent does not use a JSON hook descriptor.',
@@ -95,7 +107,8 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       AgentType.copilot ||
       AgentType.cursor ||
       AgentType.agy ||
-      AgentType.grok => null,
+      AgentType.grok ||
+      AgentType.fx => null,
     };
   }
 
