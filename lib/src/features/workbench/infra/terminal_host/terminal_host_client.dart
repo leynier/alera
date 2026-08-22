@@ -36,7 +36,11 @@ final class SocketTerminalHostClient
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport
-    implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
+    implements
+        TerminalHostClient,
+        TerminalPulseHostClient,
+        RuntimeHostClient,
+        GuardedRuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
@@ -309,6 +313,35 @@ final class SocketTerminalHostClient
     Duration? timeout,
   ]) {
     return _runtimeRequest(type, payload, timeout);
+  }
+
+  @override
+  Future<Object?> guardedRuntimeRequest(
+    String type,
+    Map<String, Object?> payload, {
+    required void Function(Map<String, Object?> status) validateStatus,
+    Duration? timeout,
+  }) async {
+    if (_disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    final connection = await _connectRuntime(
+      requireOrchestration: type.startsWith('orchestration.'),
+    );
+    final status = asTerminalHostMap(
+      await _requestOnConnection(
+        connection,
+        'status.get',
+        const <String, Object?>{},
+        timeout: timeout,
+      ),
+      'runtime status',
+    );
+    validateStatus(status);
+    if (connection.isClosed) {
+      throw const TerminalHostConnectionClosedException();
+    }
+    return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
   Future<_TerminalHostConnection> _connectTerminal() {
@@ -686,9 +719,7 @@ final class SocketTerminalHostClient
     if (message['ok'] == true) {
       completer.complete(message['payload']);
     } else {
-      completer.completeError(
-        _terminalHostRequestError(message['error'] as String?),
-      );
+      completer.completeError(_terminalHostRequestError(message));
     }
   }
 

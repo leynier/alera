@@ -20,6 +20,8 @@ const String aleraRuntimeHostManagedAgentProfilesCapability =
     'orchestrationManagedAgentProfilesV1';
 const String aleraRuntimeHostAgentProfileOrderingCapability =
     'orchestrationAgentProfileOrderingV1';
+const String aleraRuntimeHostAgentProfileRevisionsCapability =
+    'orchestrationAgentProfileRevisionsV1';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
 const String aleraRuntimeHostCodexResetCreditsCapability =
@@ -46,6 +48,21 @@ const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;
+
+final class TerminalHostConflictException implements Exception {
+  const TerminalHostConflictException({
+    required this.code,
+    required this.message,
+    this.details = const <String, Object?>{},
+  });
+
+  final String code;
+  final String message;
+  final Map<String, Object?> details;
+
+  @override
+  String toString() => message;
+}
 
 final class TerminalHostConfig {
   const TerminalHostConfig({
@@ -211,4 +228,13 @@ abstract interface class RuntimeHostClient {
     Map<String, Object?> payload = const <String, Object?>{},
     Duration? timeout,
   ]);
+}
+
+abstract interface class GuardedRuntimeHostClient {
+  Future<Object?> guardedRuntimeRequest(
+    String type,
+    Map<String, Object?> payload, {
+    required void Function(Map<String, Object?> status) validateStatus,
+    Duration? timeout,
+  });
 }

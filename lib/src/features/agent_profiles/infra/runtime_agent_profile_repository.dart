@@ -36,6 +36,7 @@ class RuntimeAgentProfileRepository {
   /// mints the id so the app never has to invent one.
   Future<AgentProfile> upsert({
     String? id,
+    int? expectedRevision,
     required String name,
     required String agentType,
     required AgentProfileLaunchMode launchMode,
@@ -46,13 +47,25 @@ class RuntimeAgentProfileRepository {
     String? quotaGroup,
   }) async {
     await beforeAccess?.call();
-    if (launchMode == AgentProfileLaunchMode.managed) {
-      await _requireManagedProfileSupport();
+    final requiredCapabilities = <String, String>{};
+    if (id != null) {
+      if (expectedRevision == null) {
+        throw ArgumentError.notNull('expectedRevision');
+      }
+      requiredCapabilities[aleraRuntimeHostAgentProfileRevisionsCapability] =
+          'Safe agent profile editing requires a newer runtime host. Restart '
+          'Alera to replace the running host.';
     }
-    final payload = await _client.runtimeRequest(
+    if (launchMode == AgentProfileLaunchMode.managed) {
+      requiredCapabilities[aleraRuntimeHostManagedAgentProfilesCapability] =
+          'Managed agent profiles require a newer runtime host. Restart Alera '
+          'to replace the running host, or use Command mode.';
+    }
+    final payload = await _mutationRequest(
       'agentProfile.upsert',
       <String, Object?>{
         'id': ?id,
+        'expectedRevision': ?expectedRevision,
         'name': name,
         'agentType': agentType,
         'command': launchMode == AgentProfileLaunchMode.command ? command : '',
@@ -63,53 +76,76 @@ class RuntimeAgentProfileRepository {
         'description': description,
         'quotaGroup': quotaGroup,
       },
+      requiredCapabilities,
     );
     return AgentProfile.fromJson(_mapFromPayload(payload));
   }
 
-  Future<List<AgentProfile>> reorder(List<String> profileIds) async {
+  Future<List<AgentProfile>> reorder(
+    List<String> profileIds, {
+    required Map<String, int> expectedRevisions,
+  }) async {
     await beforeAccess?.call();
-    await _requireAgentProfileOrderingSupport();
-    final payload = await _client.runtimeRequest(
+    final payload = await _mutationRequest(
       'agentProfile.reorder',
-      <String, Object?>{'ids': profileIds},
+      <String, Object?>{
+        'ids': profileIds,
+        'expectedRevisions': expectedRevisions,
+      },
+      const <String, String>{
+        aleraRuntimeHostAgentProfileOrderingCapability:
+            'Reordering agent profiles requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+        aleraRuntimeHostAgentProfileRevisionsCapability:
+            'Safe agent profile editing requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+      },
     );
     return _profileListFromPayload(payload);
   }
 
-  Future<void> _requireManagedProfileSupport() async {
-    final status = _mapFromPayload(await _client.runtimeRequest('status.get'));
-    final capabilities = status['runtimeCapabilities'];
-    final supported =
-        capabilities is List &&
-        capabilities.contains(aleraRuntimeHostManagedAgentProfilesCapability);
-    if (!supported) {
+  Future<Object?> _mutationRequest(
+    String type,
+    Map<String, Object?> payload,
+    Map<String, String> requiredCapabilities,
+  ) {
+    if (requiredCapabilities.isEmpty) {
+      return _client.runtimeRequest(type, payload);
+    }
+    final client = _client;
+    if (client is! GuardedRuntimeHostClient) {
       throw StateError(
-        'Managed agent profiles require a newer runtime host. Restart Alera to '
-        'replace the running host, or use Command mode.',
+        'The runtime client cannot safely validate host capabilities for this '
+        'agent profile mutation.',
       );
     }
+    final guardedClient = client as GuardedRuntimeHostClient;
+    return guardedClient.guardedRuntimeRequest(
+      type,
+      payload,
+      validateStatus: (status) {
+        final capabilities = status['runtimeCapabilities'];
+        for (final requirement in requiredCapabilities.entries) {
+          if (capabilities is! List ||
+              !capabilities.contains(requirement.key)) {
+            throw StateError(requirement.value);
+          }
+        }
+      },
+    );
   }
 
-  Future<void> _requireAgentProfileOrderingSupport() async {
-    final status = _mapFromPayload(await _client.runtimeRequest('status.get'));
-    final capabilities = status['runtimeCapabilities'];
-    final supported =
-        capabilities is List &&
-        capabilities.contains(aleraRuntimeHostAgentProfileOrderingCapability);
-    if (!supported) {
-      throw StateError(
-        'Reordering agent profiles requires a newer runtime host. Restart '
-        'Alera to replace the running host.',
-      );
-    }
-  }
-
-  Future<void> remove(String profileId) async {
+  Future<void> remove(String profileId, {required int expectedRevision}) async {
     await beforeAccess?.call();
-    await _client.runtimeRequest('agentProfile.remove', <String, Object?>{
-      'id': profileId,
-    });
+    await _mutationRequest(
+      'agentProfile.remove',
+      <String, Object?>{'id': profileId, 'expectedRevision': expectedRevision},
+      const <String, String>{
+        aleraRuntimeHostAgentProfileRevisionsCapability:
+            'Safe agent profile editing requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+      },
+    );
   }
 }
 
