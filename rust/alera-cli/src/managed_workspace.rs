@@ -472,7 +472,7 @@ async fn managed_workspace_removal(
     if workspace_has_active_automation_owner(store, &workspace.id).await? {
         bail!("Workspace is owned by an active automation");
     }
-    if filesystem_entry_is_missing(&workspace.path)? == false {
+    if !filesystem_entry_is_missing(&workspace.path)? {
         let registered = core_git::list_worktrees(&project.repo_path)?
             .into_iter()
             .find(|entry| path_equals(&entry.path, &workspace.path))

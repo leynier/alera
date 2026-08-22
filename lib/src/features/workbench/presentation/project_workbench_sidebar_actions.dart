@@ -139,34 +139,36 @@ mixin _ProjectWorkbenchSidebarActions
     WorkspaceStorageImpact? impact;
     if (managedRuntime is WorkspaceStorageRuntime) {
       try {
-        impact = await managedRuntime.storageImpact(
-          workspaceId: workspace.id,
-          activeWorkspaceId: ref
-              .read(workbenchControllerProvider)
-              .activeWorkspaceId,
-        );
+        final measuredImpact = await (managedRuntime as WorkspaceStorageRuntime)
+            .storageImpact(
+              workspaceId: workspace.id,
+              activeWorkspaceId: ref
+                  .read(workbenchControllerProvider)
+                  .activeWorkspaceId,
+            );
+        impact = measuredImpact;
+        if (!mounted) return;
+        if (!measuredImpact.safeToClean) {
+          await showDialog<bool>(
+            context: context,
+            builder: (_) => AleraConfirmDialog(
+              title: 'Cleanup Unavailable',
+              message:
+                  'Alera measured ${formatResourceMemory(measuredImpact.sizeBytes)} across '
+                  '${measuredImpact.entryCount} entries. Cleanup is blocked:\n\n'
+                  '${measuredImpact.blockers.map((blocker) => '• $blocker').join('\n')}',
+              confirmLabel: 'Close',
+              cancelLabel: 'Cancel',
+            ),
+          );
+          return;
+        }
       } catch (error) {
         if (!mounted) return;
         AleraToast.show(
           context,
           message: 'Could not inspect workspace storage: $error',
           tone: AleraToastTone.error,
-        );
-        return;
-      }
-      if (!mounted) return;
-      if (!impact.safeToClean) {
-        await showDialog<bool>(
-          context: context,
-          builder: (_) => AleraConfirmDialog(
-            title: 'Cleanup Unavailable',
-            message:
-                'Alera measured ${formatResourceMemory(impact!.sizeBytes)} across '
-                '${impact.entryCount} entries. Cleanup is blocked:\n\n'
-                '${impact.blockers.map((blocker) => '• $blocker').join('\n')}',
-            confirmLabel: 'Close',
-            cancelLabel: 'Cancel',
-          ),
         );
         return;
       }

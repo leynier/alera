@@ -252,6 +252,7 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     required Project project,
     required Workspace workspace,
     bool deleteBranch = true,
+    String? activeWorkspaceId,
   }) async {
     if (deleteWorkspaceFailure case final Object failure) {
       throw failure;
