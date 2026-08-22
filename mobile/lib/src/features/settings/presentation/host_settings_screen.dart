@@ -178,8 +178,16 @@ class _SettingsBody extends ConsumerWidget {
                 SwitchListTile(
                   value: settings.agentStatusHooks[agent] == true,
                   onChanged: (value) => controller.setAgentHook(agent, value),
-                  title: Text('${agentHookLabels[agent]} Hooks'),
-                  subtitle: const Text('Report direct terminal agent status.'),
+                  title: Text(
+                    agent == 'fx'
+                        ? 'fx Status'
+                        : '${agentHookLabels[agent]} Hooks',
+                  ),
+                  subtitle: Text(
+                    agent == 'fx'
+                        ? 'Report status through the built-in Herdr integration on macOS and Linux.'
+                        : 'Report direct terminal agent status.',
+                  ),
                 ),
             ],
           ),
