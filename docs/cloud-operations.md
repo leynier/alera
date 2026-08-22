@@ -15,17 +15,17 @@ Use a dedicated versioned Google Cloud Storage bucket for OpenTofu state. State 
 
 ## Production CD
 
-The normal production path is `.github/workflows/cloud-deploy.yml`. A merge into `main` that changes `cloud/`, `edge/`, `infra/production/`, `tool/cloud/`, or the workflow runs the full backend, PostgreSQL, container, Edge, and OpenTofu gates before deploying. The workflow builds and publishes a `linux/amd64` image, resolves its immutable digest, applies the guarded OpenTofu plan, deploys the Worker, and verifies public health, public JWKS, and the direct-origin JWKS rejection.
+The normal production path is `.github/workflows/cloud-deploy.yml`. A merge into `main` that changes `cloud/`, `edge/`, `infra/production/`, `tool/cloud/`, or the workflow runs the full backend, PostgreSQL, container, Edge, and OpenTofu gates before deploying. Before any build or apply, the hosted identity checks the Cloud Run service, Artifact Registry repository, versioned state bucket, and enabled versions of every required runtime secret. The workflow then builds and publishes a `linux/amd64` image, resolves its immutable digest, applies the guarded OpenTofu plan, deploys the Worker, and verifies public health, public JWKS, the expected relay state, the SQLite Durable Object namespace, and the direct-origin JWKS rejection.
 
-The deployment job uses the `cloud-production` GitHub Environment. Google authentication is keyless through the WIF bootstrap under `infra/bootstrap/github`; Cloudflare uses independent DNS and Worker tokens. The environment is limited to `main` and has no manual approval. A push event is authorized only when its SHA is the merge commit of a pull request merged into `main`; `workflow_dispatch` from `main` is the explicit operational exception.
+The deployment job uses the `cloud-production` GitHub Environment. Google authentication is keyless through the WIF bootstrap under `infra/bootstrap/github`; Cloudflare uses independent DNS and Worker tokens. The bootstrap deployment uses its existing project IAM administration grant once to add the read-only bucket metadata role represented by `google_project_iam_member.production_state_metadata_reader`, allowing the subsequent production preflight to remain read-only. The environment is limited to `main` and has no manual approval. A push event is authorized only when its SHA is the merge commit of a pull request merged into `main`; `workflow_dispatch` from `main` is the explicit operational exception.
 
 Manual runs support:
 
 - `plan`: build and publish an immutable candidate image, then produce and validate the production plan without applying it.
 - `deploy`: run the same path used after an authorized merge.
-- `rollback`: restore an explicitly supplied full image digest and Worker version id.
+- `rollback`: restore an explicitly supplied full image digest and Worker version id, with the expected `disabled` or `enabled` relay state.
 
-If verification fails after apply, the workflow rolls the Worker back to the version captured before deployment, reapplies OpenTofu with the previous Cloud Run digest, and repeats the probes. Structural infrastructure changes are not automatically undone. The failed run summary preserves the identifiers required for a manual rollback.
+If verification fails after apply, the workflow first asks Cloudflare to restore the Worker version captured before deployment. Cloudflare rejects a version rollback across a Durable Object class lifecycle migration. In that case the workflow deploys the current Worker code forward with `RELAY_ENABLED=false`, which preserves the migrated namespace without exposing the relay. It then reapplies OpenTofu with the previous Cloud Run digest and repeats the namespace, health, JWKS, relay, and direct-origin probes. Structural infrastructure changes are not automatically undone. The failed run summary preserves the identifiers and expected relay state required for a manual rollback.
 
 ## Local Backend
 
@@ -152,9 +152,13 @@ Before the Worker route exists, the public hostname fails closed because it is n
 ```sh
 curl --fail https://api.alera.build/health
 curl --fail https://api.alera.build/.well-known/jwks.json
+tool/cloud/verify_production.sh \
+  https://api.alera.build \
+  "$(tofu -chdir=infra/production output -raw cloud_run_origin_url)" \
+  disabled
 ```
 
-The direct Cloud Run `/health` may answer, but a direct request to any account or JWKS route must fail without the private header.
+Use `disabled` while the bootstrap Worker proxies `/v1/relay/deploy-probe` to the backend for a 404, and `enabled` after relay activation makes the Worker return 426 without a WebSocket upgrade. The direct Cloud Run `/health` may answer, but a direct request to any account or JWKS route must fail without the private header.
 
 ## Firebase Client Files
 
