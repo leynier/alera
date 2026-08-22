@@ -150,7 +150,7 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('This removes the worktree for "Feature login".'),
+      find.textContaining('This removes the worktree for "Feature login".'),
       findsOneWidget,
     );
     expect(find.textContaining('deletes branch'), findsNothing);
@@ -491,7 +491,7 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
