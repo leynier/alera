@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_control.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_review_bar.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_selection_order.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
@@ -22,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'create_workspace_manual.dart';
 part 'create_workspace_prompt.dart';
+part 'create_workspace_prompt_attachments.dart';
 
 class CreateWorkspaceScreen extends ConsumerStatefulWidget {
   const CreateWorkspaceScreen({
