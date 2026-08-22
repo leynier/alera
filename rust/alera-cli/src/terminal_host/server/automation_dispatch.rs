@@ -31,6 +31,12 @@ fn next_due_occurrence(
 
 impl ServerActor {
     pub(super) async fn handle_automation_tick(&mut self) {
+        // Runtime mutations may delete a workspace on a worker while this
+        // actor remains responsive. Do not create a new durable run or owner
+        // after the mutation's ownership checks have started.
+        if self.emulator_requests.has_runtime_mutations() {
+            return;
+        }
         let maintenance_now = Utc::now();
         if let Err(error) = self
             .runtime_store

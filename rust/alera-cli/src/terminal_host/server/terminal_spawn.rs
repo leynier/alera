@@ -275,6 +275,15 @@ impl ServerActor {
         initial_output_stream_bytes: u64,
         forced_agent_hook: Option<&str>,
     ) -> HostResult<()> {
+        // This is the final owner-creation boundary for client, automation,
+        // and orchestration launches. Runtime mutations perform filesystem
+        // cleanup concurrently with the actor, so no new terminal owner may
+        // cross this fence while one is outstanding.
+        if self.emulator_requests.has_runtime_mutations() {
+            return Err(HostError::state(
+                "A runtime mutation is in progress. Wait for it to finish and retry.",
+            ));
+        }
         self.disarm_terminal_pulse(&session_id);
         self.account_push.damper.reset_session(&session_id);
         let mut agent_settings = self

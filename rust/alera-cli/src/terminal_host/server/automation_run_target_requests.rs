@@ -136,11 +136,45 @@ impl ServerActor {
         }
         if safe_workspace_cleanup {
             if let Some(workspace_id) = &run.workspace_id {
+                let has_live_session = self
+                    .sessions
+                    .values()
+                    .any(|session| session.workspace_id == *workspace_id && session.running());
+                let has_live_browser = self.browser.has_pages_for_workspace(workspace_id);
+                if has_live_session
+                    || has_live_browser
+                    || self.emulator_requests.has_runtime_mutations()
+                {
+                    let reason = if has_live_session {
+                        "managed workspace still has a live terminal session or process"
+                    } else if has_live_browser {
+                        "managed workspace still has a live browser session"
+                    } else {
+                        "another runtime mutation is in progress"
+                    };
+                    let _ = self
+                        .runtime_store
+                        .insert_automation_audit_event(
+                            Some(&run.automation_id),
+                            Some(&run.id),
+                            "cleanupPreserved",
+                            AutomationActor {
+                                kind: AutomationActorKind::ManagedAgent,
+                                id: run.actor_id.clone(),
+                                label: Some("automation cleanup guard".to_string()),
+                            },
+                            None,
+                            Value::String(reason.to_string()),
+                        )
+                        .await;
+                    return;
+                }
                 let _ = crate::managed_workspace::remove_managed_workspace(
                     &self.runtime_store,
                     crate::managed_workspace::ManagedWorkspaceRemoveRequest {
                         id: workspace_id.clone(),
                         delete_branch: Some(true),
+                        active_workspace_id: None,
                     },
                 )
                 .await;

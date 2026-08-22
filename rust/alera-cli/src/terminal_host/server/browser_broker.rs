@@ -154,6 +154,12 @@ impl BrowserBroker {
         pages
     }
 
+    pub(super) fn has_pages_for_workspace(&self, workspace_id: &str) -> bool {
+        self.pages
+            .values()
+            .any(|page| page.workspace_id == workspace_id)
+    }
+
     pub(super) fn register_driver(&mut self, driver: BrowserDriver) -> BrowserDrain {
         let drain = self.remove_driver(driver.owner_client_id);
         self.drivers.insert(driver.owner_client_id, driver);

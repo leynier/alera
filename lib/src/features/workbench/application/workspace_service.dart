@@ -68,6 +68,7 @@ abstract interface class ManagedWorkspaceRuntime {
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
   });
 }
 

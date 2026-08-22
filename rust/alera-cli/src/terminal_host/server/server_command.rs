@@ -74,6 +74,11 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    WorkspaceStorageMeasured {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
     WorkspaceSetupFinished {
         client_id: u64,
         request_id: i64,

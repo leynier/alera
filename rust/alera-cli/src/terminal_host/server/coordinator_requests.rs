@@ -259,6 +259,12 @@ impl ServerActor {
     /// process messages -> re-assert gate blocks -> warn stale dispatches ->
     /// dispatch ready tasks -> check convergence.
     pub(super) async fn handle_coordinator_tick(&mut self, run_id: String) {
+        // A queued runtime mutation may be removing the coordinator's target
+        // workspace on another task. The periodic ticker will retry after the
+        // mutation completes.
+        if self.emulator_requests.has_runtime_mutations() {
+            return;
+        }
         let Some(handle) = self.coordinators.get(&run_id) else {
             return;
         };
