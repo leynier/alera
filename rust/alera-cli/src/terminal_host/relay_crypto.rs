@@ -367,9 +367,9 @@ mod tests {
     }
 
     fn handshake_nonce() -> [u8; 16] {
-        let mut bytes = [0_u8; 16];
-        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut bytes);
-        bytes
+        let high = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+        let low = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+        ((high << 64) | low).to_be_bytes()
     }
 
     fn session(parameters: RelaySessionParameters<'_>) -> RelaySession {
