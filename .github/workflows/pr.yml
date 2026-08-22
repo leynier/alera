@@ -32,7 +32,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           submodules: false
+
+      - name: Whitespace
+        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace

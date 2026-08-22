@@ -98,6 +98,12 @@ resource "google_storage_bucket_iam_member" "production_state" {
   member = google_service_account.github_deployer.member
 }
 
+resource "google_project_iam_member" "production_state_metadata_reader" {
+  project = var.gcp_project_id
+  role    = "roles/storage.legacyBucketReader"
+  member  = google_service_account.github_deployer.member
+}
+
 data "google_service_account" "cloud_runtime" {
   account_id = var.runtime_service_account_id
 }

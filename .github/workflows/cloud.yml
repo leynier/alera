@@ -106,6 +106,12 @@ jobs:
       - name: Test
         run: bun test
 
+      - name: Bundle Worker
+        run: bunx wrangler deploy --dry-run
+
+      - name: Bundle Relay-Disabled Recovery
+        run: ../tool/cloud/deploy_worker_relay_disabled.sh . --dry-run
+
   infrastructure:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -137,6 +143,9 @@ jobs:
       - name: Test Plan Guard
         working-directory: tool/cloud
         run: python3 -m unittest -v test_validate_tofu_plan.py
+
+      - name: Validate Deployment Scripts
+        run: bash -n tool/cloud/deploy_worker_relay_disabled.sh tool/cloud/verify_production.sh tool/cloud/verify_worker_namespace.sh
 
   cloud-ready:
     name: cloud-ready
