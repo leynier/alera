@@ -197,9 +197,9 @@ jobs:
 
           bucket_versioning="$(
             gcloud storage buckets describe "gs://$STATE_BUCKET" \
-              --format='value(versioning.enabled)'
+              --format='value(versioning_enabled)'
           )"
-          if [[ "$bucket_versioning" != "True" ]]; then
+          if [[ "${bucket_versioning,,}" != "true" ]]; then
             echo "OpenTofu state bucket $STATE_BUCKET must have object versioning enabled." >&2
             exit 1
           fi
