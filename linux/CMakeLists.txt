@@ -83,8 +83,14 @@ else()
   set(ALERA_CLI_PROFILE_DIR "debug")
 endif()
 set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera")
+if(DEFINED ENV{VULKAN_SDK} AND NOT "$ENV{VULKAN_SDK}" STREQUAL "")
+  set(ALERA_VULKAN_SDK "$ENV{VULKAN_SDK}")
+else()
+  set(ALERA_VULKAN_SDK "/usr")
+endif()
 add_custom_target(alera_cli_sidecar ALL
-  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli ${ALERA_CLI_CARGO_PROFILE_ARG}
+  COMMAND "${CMAKE_COMMAND}" -E env "VULKAN_SDK=${ALERA_VULKAN_SDK}"
+    "${CARGO_EXECUTABLE}" build --locked -p alera-cli ${ALERA_CLI_CARGO_PROFILE_ARG}
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
   WORKING_DIRECTORY "${ALERA_CLI_DIR}"
   COMMENT "Building Alera CLI sidecar (Rust)"

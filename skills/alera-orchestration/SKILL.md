@@ -25,7 +25,7 @@ alera orchestration --json run-list --workspace <workspace-id>
 alera orchestration --json status --id <run-id>
 ```
 
-Use `--agent codex|claude|copilot|cursor|agy|opencode|pi|amp`. The runtime may create workers through the built-in adapter registry.
+Use `--agent codex|claude|copilot|cursor|agy|opencode|opencode2|pi|amp|grok`. The runtime may create workers through the built-in adapter registry.
 
 To discover the launch configurations the user declared, read the catalog:
 

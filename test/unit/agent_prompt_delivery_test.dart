@@ -20,8 +20,8 @@ void main() {
           AgentType.opencode2: AgentPromptDelivery.longOption,
           AgentType.pi: AgentPromptDelivery.positional,
           AgentType.amp: AgentPromptDelivery.stdinScript,
-          // Hook-only, with no spawn adapter, so the default is what it gets.
           AgentType.grok: AgentPromptDelivery.positionalAfterTerminator,
+          AgentType.fx: AgentPromptDelivery.terminalAfterReady,
         },
       );
     });
@@ -43,6 +43,10 @@ void main() {
         agentPromptDeliveryDescription(AgentType.amp),
         contains('standard input'),
       );
+      expect(
+        agentPromptDeliveryDescription(AgentType.fx),
+        contains('report that its interactive interface is ready'),
+      );
     });
 
     test('previews the launch line in the shape each agent accepts', () {
@@ -53,6 +57,10 @@ void main() {
       expect(
         agentPromptDeliveryPreview(AgentType.claude, 'claude --model opus'),
         "claude --model opus -- 'Dispatched Prompt'",
+      );
+      expect(
+        agentPromptDeliveryPreview(AgentType.grok, 'grok --effort high'),
+        "grok --effort high -- 'Dispatched Prompt'",
       );
       expect(
         agentPromptDeliveryPreview(AgentType.copilot, 'copilot'),
@@ -73,6 +81,7 @@ void main() {
       expect(agentPromptDeliveryPreview(AgentType.codex, '   '), '');
       // Amp's prompt never reaches the command line.
       expect(agentPromptDeliveryPreview(AgentType.amp, 'amp'), '');
+      expect(agentPromptDeliveryPreview(AgentType.fx, 'fx'), '');
     });
   });
 }

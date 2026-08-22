@@ -8,6 +8,8 @@ use git2::{
     RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
 };
 
+#[path = "git_ancestry_impl.rs"]
+mod git_ancestry_impl;
 #[path = "git_commit_state_impl.rs"]
 mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
@@ -397,6 +399,14 @@ pub fn current_branch(path: String) -> Result<String, GitError> {
 
 pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {
     core_git::branch_exists(&repo_path, &branch).map_err(Into::into)
+}
+
+pub fn is_ancestor(
+    path: String,
+    ancestor_ref: String,
+    descendant_ref: String,
+) -> Result<bool, GitError> {
+    git_ancestry_impl::is_ancestor(path, ancestor_ref, descendant_ref)
 }
 
 pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {

@@ -35,6 +35,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
         AiTextGenerationOperation.pullRequestDetails,
         AiTextGenerationOperation.readingDiff,
         AiTextGenerationOperation.workspaceIdentity,
+        AiTextGenerationOperation.speechMessage,
       ];
 
   final Map<AiTextGenerationAgent, _AiTextModelDiscoveryState> _discovery =
@@ -288,6 +289,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
             ? diffOnlyAiTextAgents
             : AiTextGenerationAgent.values,
         allowGlobal: !isReadingDiff || globalSupported,
+        allowCustom: operation != AiTextGenerationOperation.speechMessage,
         onChanged: (agent) {
           final previousAgent = isReadingDiff
               ? readingDiffAgentForSettings(settings)

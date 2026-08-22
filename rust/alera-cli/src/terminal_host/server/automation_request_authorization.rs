@@ -1,6 +1,6 @@
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::mobile_terminal_requests::mobile_request_allowed;
+use super::mobile_gateway_surface::mobile_request_allowed;
 use super::{ClientKind, ServerActor};
 
 impl ServerActor {

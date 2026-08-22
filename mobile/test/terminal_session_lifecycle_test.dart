@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,6 +69,8 @@ void main() {
 
       final attachCompletion = Completer<void>();
       client.attachCompletion = attachCompletion.future;
+      // Only a connection that fails its probe still reattaches on resume.
+      client.probeError = StateError('connection gone');
       lifecycle.setLifecycleState(AppLifecycleState.inactive);
       lifecycle.setLifecycleState(AppLifecycleState.resumed);
       await _waitUntil(() => client.attachments.length == 2);
@@ -92,8 +95,43 @@ void main() {
     },
   );
 
+  test('A live connection keeps the terminal attached on resume', () async {
+    // Reattaching regardless takes the tab through its loading state, which
+    // disposes the compose bar and the attachment pick it is waiting on.
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
+    final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+    final container = ProviderContainer(
+      overrides: [
+        terminalClientProvider('host-1').overrideWith((ref) async => client),
+        appLifecycleControllerProvider.overrideWith(() => lifecycle),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      terminalSessionControllerProvider('host-1', 'tab-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    await container.read(
+      terminalSessionControllerProvider('host-1', 'tab-1').future,
+    );
+
+    lifecycle.setLifecycleState(AppLifecycleState.inactive);
+    lifecycle.setLifecycleState(AppLifecycleState.resumed);
+    await _waitUntil(() => client.probeCount == 1);
+    await pumpEventQueue();
+
+    expect(client.attachments, hasLength(1));
+    expect(
+      container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
+      isA<AsyncData<TerminalTabSession>>(),
+    );
+  });
+
   test(
-    'Open session starts again when the app returns to foreground',
+    'A lost connection reattaches when the app returns to foreground',
     () async {
       final client = FakeTerminalClient()
         ..tabs = <WorkspaceTabSummary>[
@@ -122,6 +160,7 @@ void main() {
       await notifier.resize(48, 22);
       final foregroundAttach = Completer<void>();
       client.attachCompletion = foregroundAttach.future;
+      client.probeError = StateError('connection gone');
 
       lifecycle.setLifecycleState(AppLifecycleState.inactive);
       expect(client.attachments, hasLength(1));

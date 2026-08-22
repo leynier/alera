@@ -1,9 +1,10 @@
 const OPENCODE_GO_PROVIDER: &str = "opencode-go";
 const OPENCODE_ZEN_PROVIDER: &str = "opencode";
-const OPENCODE_GO_LIMITS: [(i64, f64, &str); 3] = [
-    (5 * 60, 12.0, "5 Hour"),
-    (7 * 24 * 60, 30.0, "Weekly"),
-    (30 * 24 * 60, 60.0, "Monthly"),
+const OPENCODE_GO_USAGE_URL: &str = "https://opencode.ai/zen/go/v1/usage";
+const OPENCODE_GO_LIMITS: [(i64, &str); 3] = [
+    (5 * 60, "5 Hour"),
+    (7 * 24 * 60, "Weekly"),
+    (30 * 24 * 60, "Monthly"),
 ];
 
 #[derive(Debug, Clone, Serialize)]
@@ -18,28 +19,6 @@ struct QuotaAmount {
     reset_description: Option<String>,
 }
 
-fn estimated_snapshot(
-    account_id: &str,
-    display_name: &str,
-    windows: Vec<QuotaWindow>,
-    amounts: Vec<QuotaAmount>,
-) -> QuotaSnapshot {
-    QuotaSnapshot {
-        provider: "opencode".to_string(),
-        account_id: account_id.to_string(),
-        display_name: display_name.to_string(),
-        status: "ok".to_string(),
-        updated_at: now_millis(),
-        error: None,
-        windows,
-        buckets: Vec::new(),
-        amounts,
-        data_quality: Some("estimated".to_string()),
-        scope: Some("host".to_string()),
-        rate_limit_reset_credits: None,
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 struct OpenCodeUsageEntry {
     provider: String,
@@ -48,15 +27,28 @@ struct OpenCodeUsageEntry {
 }
 
 async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
+    let display_name = if account == "go" {
+        "OpenCode Go"
+    } else {
+        "OpenCode Zen"
+    };
     let provider = if account == "go" {
         OPENCODE_GO_PROVIDER
     } else {
         OPENCODE_ZEN_PROVIDER
     };
-    let display_name = if account == "go" {
-        "OpenCode Go"
-    } else {
-        "OpenCode Zen"
+
+    if account == "go" {
+        return fetch_opencode_go_snapshot(display_name).await;
+    }
+
+    let Some(_api_key) = opencode_auth_key(provider).await else {
+        return QuotaSnapshot::unavailable(
+            "opencode",
+            account,
+            display_name,
+            "OpenCode Zen API key was not found",
+        );
     };
     let Some(database) = opencode_database_path().await else {
         return QuotaSnapshot::unavailable(
@@ -77,23 +69,15 @@ async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
             );
         }
     };
-    let provider_entries = entries
-        .into_iter()
-        .filter(|entry| entry.provider == provider)
-        .collect::<Vec<_>>();
-    if account == "go" {
-        let windows = opencode_go_windows(&provider_entries, now_millis());
-        return estimated_snapshot(account, display_name, windows, Vec::new());
-    }
     let now = now_millis();
     let month_start = now - 30 * 24 * 60 * 60 * 1000;
-    let spent = provider_entries
-        .iter()
-        .filter(|entry| entry.created_at >= month_start)
+    let spent = entries
+        .into_iter()
+        .filter(|entry| entry.provider == provider && entry.created_at >= month_start)
         .map(|entry| entry.cost)
         .sum::<f64>();
-    let reset = next_local_month_reset(now);
-    estimated_snapshot(
+    QuotaSnapshot::estimated(
+        "opencode",
         account,
         display_name,
         Vec::new(),
@@ -103,30 +87,187 @@ async fn fetch_opencode_snapshot(account: &str) -> QuotaSnapshot {
             spent_amount: Some(spent.max(0.0)),
             remaining_amount: None,
             limit_amount: None,
-            resets_at: Some(reset),
+            resets_at: None,
             reset_description: Some("Host-local estimate; Zen balance is unavailable".to_string()),
         }],
     )
 }
 
+async fn fetch_opencode_go_snapshot(display_name: &str) -> QuotaSnapshot {
+    let Some(api_key) = opencode_auth_key(OPENCODE_GO_PROVIDER).await else {
+        return QuotaSnapshot::unavailable(
+            "opencode",
+            "go",
+            display_name,
+            "OpenCode Go API key was not found",
+        );
+    };
+    let response = match reqwest::Client::new()
+        .get(OPENCODE_GO_USAGE_URL)
+        .header(AUTHORIZATION, format!("Bearer {api_key}"))
+        .header(ACCEPT, "application/json")
+        .timeout(FETCH_TIMEOUT)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            return QuotaSnapshot::error(
+                "opencode",
+                "go",
+                display_name,
+                format!("OpenCode Go usage request failed: {error}"),
+            );
+        }
+    };
+    let status = response.status();
+    if status == reqwest::StatusCode::UNAUTHORIZED {
+        return QuotaSnapshot::unavailable(
+            "opencode",
+            "go",
+            display_name,
+            "OpenCode Go API key was rejected",
+        );
+    }
+    if status == reqwest::StatusCode::FORBIDDEN {
+        return QuotaSnapshot::unavailable(
+            "opencode",
+            "go",
+            display_name,
+            "OpenCode Go subscription is not active",
+        );
+    }
+    if !status.is_success() {
+        return QuotaSnapshot::error(
+            "opencode",
+            "go",
+            display_name,
+            format!("OpenCode Go usage request failed (HTTP {status})"),
+        );
+    }
+    let data: Value = match response.json().await {
+        Ok(value) => value,
+        Err(error) => {
+            return QuotaSnapshot::error(
+                "opencode",
+                "go",
+                display_name,
+                format!("Unable to parse OpenCode Go usage: {error}"),
+            );
+        }
+    };
+    match parse_opencode_go_usage(&data) {
+        Some(windows) => QuotaSnapshot::ok("opencode", "go", display_name, windows, Vec::new()),
+        None => QuotaSnapshot::error(
+            "opencode",
+            "go",
+            display_name,
+            "OpenCode Go usage response did not include usage windows",
+        ),
+    }
+}
+
 async fn opencode_database_path() -> Option<PathBuf> {
+    let data_dirs = opencode_data_dirs().await;
     if let Some(value) = shell_environment_value("OPENCODE_DB").await {
-        let path = PathBuf::from(value);
+        let path = PathBuf::from(value.trim());
         if path.is_absolute() {
             return Some(path);
         }
+        if !path.as_os_str().is_empty() {
+            return data_dirs.first().map(|data_dir| data_dir.join(path));
+        }
     }
-    let data = if let Some(value) = shell_environment_value("OPENCODE_DATA_DIR").await {
-        PathBuf::from(value)
-    } else if cfg!(windows) {
-        PathBuf::from(shell_environment_value("LOCALAPPDATA").await?)
-            .join("opencode")
-    } else if let Some(value) = shell_environment_value("XDG_DATA_HOME").await {
-        PathBuf::from(value).join("opencode")
+    data_dirs
+        .iter()
+        .map(|data_dir| data_dir.join("opencode.db"))
+        .find(|path| path.exists())
+        .or_else(|| {
+            data_dirs
+                .first()
+                .map(|data_dir| data_dir.join("opencode.db"))
+        })
+}
+
+async fn opencode_data_dirs() -> Vec<PathBuf> {
+    let explicit = shell_environment_value("OPENCODE_DATA_DIR").await;
+    let xdg_data_home = shell_environment_value("XDG_DATA_HOME").await;
+    let home = home_dir();
+    let platform_data = if cfg!(any(target_os = "windows", target_os = "macos")) {
+        dirs::data_local_dir()
     } else {
-        home_dir()?.join(".local/share/opencode")
+        None
     };
-    Some(data.join("opencode.db"))
+    opencode_data_dir_candidates(
+        explicit.as_deref(),
+        xdg_data_home.as_deref(),
+        home.as_deref(),
+        platform_data.as_deref(),
+    )
+}
+
+fn opencode_data_dir_candidates(
+    explicit: Option<&str>,
+    xdg_data_home: Option<&str>,
+    home: Option<&std::path::Path>,
+    platform_data: Option<&std::path::Path>,
+) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(value) = explicit {
+        let path = PathBuf::from(value.trim());
+        if !path.as_os_str().is_empty() {
+            paths.push(path);
+        }
+        return paths;
+    }
+    if let Some(value) = xdg_data_home {
+        let path = PathBuf::from(value.trim());
+        if !path.as_os_str().is_empty() {
+            paths.push(path.join("opencode"));
+        }
+    }
+    if let Some(home) = home {
+        paths.push(home.join(".local/share/opencode"));
+    }
+    if let Some(platform_data) = platform_data {
+        paths.push(platform_data.join("opencode"));
+    }
+    let mut unique = Vec::with_capacity(paths.len());
+    for path in paths {
+        if !unique.iter().any(|candidate| candidate == &path) {
+            unique.push(path);
+        }
+    }
+    unique
+}
+
+async fn opencode_auth_key(provider: &str) -> Option<String> {
+    for data_dir in opencode_data_dirs().await {
+        let path = data_dir.join("auth.json");
+        let Ok(raw) = tokio::fs::read_to_string(path).await else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_str(&raw) else {
+            continue;
+        };
+        if let Some(key) = parse_opencode_auth_key(&value, provider) {
+            return Some(key);
+        }
+    }
+    None
+}
+
+fn parse_opencode_auth_key(value: &Value, provider: &str) -> Option<String> {
+    let entry = value.get(provider)?;
+    if entry.get("type").and_then(Value::as_str) != Some("api") {
+        return None;
+    }
+    entry
+        .get("key")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|key| !key.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 async fn read_opencode_usage(path: &PathBuf) -> Result<Vec<OpenCodeUsageEntry>> {
@@ -148,36 +289,57 @@ async fn read_opencode_usage(path: &PathBuf) -> Result<Vec<OpenCodeUsageEntry>> 
         pool.close().await;
         return Ok(result);
     }
+    let result = read_session_message_usage(&pool).await?;
+    if !result.is_empty() {
+        pool.close().await;
+        return Ok(result);
+    }
     let result = read_session_usage(&pool).await?;
     pool.close().await;
     Ok(result)
 }
 
 async fn read_message_usage(pool: &sqlx::SqlitePool) -> Result<Vec<OpenCodeUsageEntry>> {
-    let tables = sqlx::query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('message', 'session_message')",
+    let exists = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'message'",
     )
-    .fetch_all(pool)
+    .fetch_one(pool)
     .await?;
+    if exists == 0 {
+        return Ok(Vec::new());
+    }
+    let rows = sqlx::query("SELECT time_created, data FROM message")
+        .fetch_all(pool)
+        .await?;
     let mut entries = Vec::new();
-    for table in tables {
-        let name: String = table.try_get("name")?;
-        let rows = match name.as_str() {
-            "message" => sqlx::query("SELECT time_created, data FROM message")
-                .fetch_all(pool)
-                .await,
-            "session_message" => sqlx::query("SELECT time_created, data FROM session_message")
-                .fetch_all(pool)
-                .await,
-            _ => continue,
-        };
-        let Ok(rows) = rows else { continue };
-        for row in rows {
-            let created_at: i64 = row.try_get("time_created")?;
-            let data: String = row.try_get("data")?;
-            if let Some(entry) = parse_opencode_usage_entry(created_at, &data) {
-                entries.push(entry);
-            }
+    for row in rows {
+        let created_at: i64 = row.try_get("time_created")?;
+        let data: String = row.try_get("data")?;
+        if let Some(entry) = parse_opencode_usage_entry(created_at, &data) {
+            entries.push(entry);
+        }
+    }
+    Ok(entries)
+}
+
+async fn read_session_message_usage(pool: &sqlx::SqlitePool) -> Result<Vec<OpenCodeUsageEntry>> {
+    let exists = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'session_message'",
+    )
+    .fetch_one(pool)
+    .await?;
+    if exists == 0 {
+        return Ok(Vec::new());
+    }
+    let rows = sqlx::query("SELECT time_created, data FROM session_message")
+        .fetch_all(pool)
+        .await?;
+    let mut entries = Vec::new();
+    for row in rows {
+        let created_at: i64 = row.try_get("time_created")?;
+        let data: String = row.try_get("data")?;
+        if let Some(entry) = parse_session_message_usage_entry(created_at, &data) {
+            entries.push(entry);
         }
     }
     Ok(entries)
@@ -192,12 +354,10 @@ async fn read_session_usage(pool: &sqlx::SqlitePool) -> Result<Vec<OpenCodeUsage
     if exists == 0 {
         return Ok(Vec::new());
     }
-    let mut entries = Vec::new();
-    let Ok(rows) = sqlx::query("SELECT time_created, cost, model FROM session")
+    let rows = sqlx::query("SELECT time_created, cost, model FROM session")
         .fetch_all(pool)
-        .await else {
-        return Ok(Vec::new());
-    };
+        .await?;
+    let mut entries = Vec::new();
     for row in rows {
         let created_at: i64 = row.try_get("time_created")?;
         let cost: f64 = row.try_get("cost")?;
@@ -235,81 +395,64 @@ fn parse_opencode_usage_entry(created_at: i64, raw: &str) -> Option<OpenCodeUsag
         .and_then(Value::as_str)?
         .trim();
     let cost = info.get("cost").and_then(numeric)?;
-    (provider == OPENCODE_GO_PROVIDER || provider == OPENCODE_ZEN_PROVIDER)
-        .then_some(OpenCodeUsageEntry {
+    (provider == OPENCODE_GO_PROVIDER || provider == OPENCODE_ZEN_PROVIDER).then_some(
+        OpenCodeUsageEntry {
             provider: provider.to_string(),
             cost: cost.max(0.0),
             created_at,
-        })
+        },
+    )
 }
 
-fn opencode_go_windows(entries: &[OpenCodeUsageEntry], now: i64) -> Vec<QuotaWindow> {
-    OPENCODE_GO_LIMITS
-        .iter()
-        .map(|(minutes, limit, label)| {
-            let start = now - minutes * 60 * 1000;
-            let recent = entries
-                .iter()
-                .filter(|entry| entry.created_at >= start)
-                .collect::<Vec<_>>();
-            let used = recent.iter().map(|entry| entry.cost).sum::<f64>();
-            let resets_at = recent.iter().map(|entry| entry.created_at).min().map(|oldest| {
-                oldest + minutes * 60 * 1000
-            });
-            QuotaWindow {
-                label: (*label).to_string(),
-                used_percent: ((used / limit) * 100.0).clamp(0.0, 100.0),
-                window_minutes: Some(*minutes),
-                resets_at,
-                reset_description: Some("Host-local estimate".to_string()),
-            }
-        })
-        .collect()
+fn parse_session_message_usage_entry(created_at: i64, raw: &str) -> Option<OpenCodeUsageEntry> {
+    let value: Value = serde_json::from_str(raw).ok()?;
+    if value.get("type").and_then(Value::as_str) != Some("assistant") {
+        return None;
+    }
+    let model = value.get("model")?;
+    let provider = model
+        .get("providerID")
+        .or_else(|| model.get("providerId"))
+        .and_then(Value::as_str)?
+        .trim();
+    let cost = value.get("cost").and_then(numeric)?;
+    (provider == OPENCODE_GO_PROVIDER || provider == OPENCODE_ZEN_PROVIDER).then_some(
+        OpenCodeUsageEntry {
+            provider: provider.to_string(),
+            cost: cost.max(0.0),
+            created_at,
+        },
+    )
 }
 
-fn next_local_month_reset(now: i64) -> i64 {
-    now + 30 * 24 * 60 * 60 * 1000
+fn parse_opencode_go_usage(data: &Value) -> Option<Vec<QuotaWindow>> {
+    let usage = data.get("usage")?;
+    let mut windows = Vec::new();
+    for (key, (minutes, label)) in [
+        ("rolling", OPENCODE_GO_LIMITS[0]),
+        ("weekly", OPENCODE_GO_LIMITS[1]),
+        ("monthly", OPENCODE_GO_LIMITS[2]),
+    ] {
+        let item = usage.get(key)?;
+        let percent = numeric(item.get("percent")?)?;
+        let resets_at = item
+            .get("resetsAt")
+            .and_then(Value::as_str)
+            .and_then(parse_timestamp_millis);
+        windows.push(QuotaWindow {
+            label: label.to_string(),
+            used_percent: percent.clamp(0.0, 100.0),
+            window_minutes: Some(minutes),
+            resets_at,
+            reset_description: Some("OpenCode account usage".to_string()),
+        });
+    }
+    Some(windows)
 }
 
 #[cfg(test)]
 mod opencode_tests {
     use super::*;
 
-    #[test]
-    fn parses_assistant_usage_for_supported_open_code_providers() {
-        let entry = parse_opencode_usage_entry(
-            1_000,
-            r#"{"role":"assistant","providerID":"opencode-go","cost":1.25}"#,
-        )
-        .expect("entry");
-        assert_eq!(entry.provider, OPENCODE_GO_PROVIDER);
-        assert_eq!(entry.cost, 1.25);
-    }
-
-    #[test]
-    fn ignores_user_messages_and_other_providers() {
-        assert!(parse_opencode_usage_entry(
-            1_000,
-            r#"{"role":"user","providerID":"opencode-go","cost":1.25}"#,
-        )
-        .is_none());
-        assert!(parse_opencode_usage_entry(
-            1_000,
-            r#"{"role":"assistant","providerID":"anthropic","cost":1.25}"#,
-        )
-        .is_none());
-    }
-
-    #[test]
-    fn calculates_go_windows_from_dollar_limits() {
-        let entries = vec![OpenCodeUsageEntry {
-            provider: OPENCODE_GO_PROVIDER.to_string(),
-            cost: 6.0,
-            created_at: 9_000,
-        }];
-        let windows = opencode_go_windows(&entries, 10_000);
-        assert_eq!(windows.len(), 3);
-        assert_eq!(windows[0].used_percent, 50.0);
-        assert!(windows[0].resets_at.is_some());
-    }
+    include!("opencode_tests.rs");
 }

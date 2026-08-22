@@ -50,6 +50,7 @@ pub const RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY: &str = "mobilePromp
 pub const RUNTIME_HOST_MOBILE_PROMPT_ATTACHMENT_READ_CAPABILITY: &str =
     "mobilePromptAttachmentReadV1";
 pub const RUNTIME_HOST_AI_DICTATION_CAPABILITY: &str = "aiDictationV1";
+pub const RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY: &str = "aiDictationModelsV2";
 /// Desktop account management backed by the Alera cloud identity service.
 /// Account verbs remain unavailable to paired mobile clients.
 pub const RUNTIME_HOST_ACCOUNT_CAPABILITY: &str = "aleraAccountV1";
@@ -86,6 +87,7 @@ pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
 pub const RUNTIME_HOST_MANAGED_AGENT_PROFILES_CAPABILITY: &str =
     "orchestrationManagedAgentProfilesV1";
 pub const RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY: &str = "aiTextWorkspaceIdentityV1";
+pub const RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY: &str = "aiTextSpeechMessageV1";
 pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProfilePromptLaunchV1";
 // Advertised once runs carry a user-approved execution policy. A run without a
 // policy schedules exactly as before, so this stays a feature check.

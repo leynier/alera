@@ -3,6 +3,8 @@ import 'package:alera/src/core/build_flavor.dart';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 const _compiledRuntimeArchivePublicKey = String.fromEnvironment(
   'ALERA_UPDATE_MANIFEST_PUBLIC_KEY',
@@ -59,12 +61,12 @@ final class DefaultTerminalHostProcessLauncher
       ],
       workingDirectory: command.workingDirectory,
       mode: ProcessStartMode.detached,
-      environment: _terminalHostEnvironment(),
+      environment: await _terminalHostEnvironment(),
     );
   }
 }
 
-Map<String, String> _terminalHostEnvironment() {
+Future<Map<String, String>> _terminalHostEnvironment() async {
   final environment = <String, String>{
     'ALERA_TERMINAL_HOST': '1',
     // The sidecar tags its crash reports with this so dev noise can be filtered
@@ -75,6 +77,12 @@ Map<String, String> _terminalHostEnvironment() {
     environment['ALERA_RUNTIME_ARCHIVE_PUBLIC_KEY'] =
         _compiledRuntimeArchivePublicKey;
   }
+  final support = await getApplicationSupportDirectory();
+  environment['ALERA_WHISPER_MODEL_ROOT'] = p.join(
+    support.path,
+    'models',
+    'ai-dictation',
+  );
   return environment;
 }
 

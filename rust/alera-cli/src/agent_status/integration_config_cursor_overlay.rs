@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
+use super::managed_command;
 use super::path_string;
 #[cfg(not(windows))]
 use super::sh_quote;
-use super::{clean_managed_definitions, managed_command, object_field};
-use super::{read_json_object, write_json_object};
+use super::write_json_object;
 
 /// Events Alera registers with Cursor. `sessionStart` is deliberately absent:
 /// it fires when the CLI opens, before any prompt, and the normalizer maps it
@@ -128,42 +128,7 @@ pub(super) fn clear_stale_state(runtime_dir: &Path, home: &Path) -> anyhow::Resu
 /// still fire, so leaving them behind would deliver every event twice once the
 /// plugin is in place. Definitions the user wrote are left untouched.
 fn cleanup_user_hooks(home: &Path) -> anyhow::Result<()> {
-    let path = home.join(".cursor/hooks.json");
-    let Some(mut config) = read_json_object(&path)? else {
-        return Ok(());
-    };
-    let mut changed = false;
-    {
-        let hooks = object_field(&mut config, "hooks");
-        let mut kept = Map::new();
-        for (event, value) in std::mem::take(hooks) {
-            let Some(definitions) = value.as_array() else {
-                // Not an array Alera could have written; leave it alone.
-                kept.insert(event, value);
-                continue;
-            };
-            let had = definitions.len();
-            let cleaned = clean_managed_definitions(Some(value));
-            if cleaned.len() != had {
-                changed = true;
-            }
-            if !cleaned.is_empty() || had == 0 {
-                kept.insert(event, Value::Array(cleaned));
-            }
-        }
-        *hooks = kept;
-    }
-    if !changed {
-        return Ok(());
-    }
-    if config
-        .get("hooks")
-        .and_then(Value::as_object)
-        .is_some_and(Map::is_empty)
-    {
-        config.remove("hooks");
-    }
-    write_json_object(&path, &config)
+    super::user_hooks::cleanup_managed_hooks_file(&home.join(".cursor/hooks.json"))
 }
 
 fn wrapper_file_name() -> &'static str {

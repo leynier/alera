@@ -54,6 +54,32 @@ class AndroidEnvironment {
   /// Target being built.
   final Target target;
 
+  File sharedCxxRuntime() {
+    final ndkLibraryTriple = switch (target.rust) {
+      'armv7-linux-androideabi' => 'arm-linux-androideabi',
+      'aarch64-linux-android' => 'aarch64-linux-android',
+      'i686-linux-android' => 'i686-linux-android',
+      'x86_64-linux-android' => 'x86_64-linux-android',
+      _ => throw StateError('Unsupported Android target: ${target.rust}'),
+    };
+    return File(
+      path.join(
+        sdkPath,
+        'ndk',
+        ndkVersion,
+        'toolchains',
+        'llvm',
+        'prebuilt',
+        _hostArchitecture,
+        'sysroot',
+        'usr',
+        'lib',
+        ndkLibraryTriple,
+        'libc++_shared.so',
+      ),
+    );
+  }
+
   bool ndkIsInstalled() {
     final ndkPath = path.join(sdkPath, 'ndk', ndkVersion);
     final ndkPackageXml = File(path.join(ndkPath, 'package.xml'));
@@ -82,18 +108,22 @@ class AndroidEnvironment {
   }
 
   Future<Map<String, String>> buildEnvironment() async {
-    final hostArch = Platform.isMacOS
-        ? "darwin-x86_64"
-        : (Platform.isLinux ? "linux-x86_64" : "windows-x86_64");
-
     final ndkPath = path.join(sdkPath, 'ndk', ndkVersion);
     final toolchainPath = path.join(
       ndkPath,
       'toolchains',
       'llvm',
       'prebuilt',
-      hostArch,
+      _hostArchitecture,
       'bin',
+    );
+    final sysrootPath = path.join(
+      ndkPath,
+      'toolchains',
+      'llvm',
+      'prebuilt',
+      _hostArchitecture,
+      'sysroot',
     );
 
     final minSdkVersion =
@@ -162,8 +192,36 @@ class AndroidEnvironment {
       // Recognized by main() so we know when we're acting as a wrapper
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
+      'ANDROID_NDK_HOME': ndkPath,
+      'CMAKE_TOOLCHAIN_FILE': _createCmakeToolchain(ndkPath),
+      'BINDGEN_EXTRA_CLANG_ARGS_${target.rust}':
+          '$targetArg --sysroot=$sysrootPath',
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
     };
+  }
+
+  String get _hostArchitecture => Platform.isMacOS
+      ? 'darwin-x86_64'
+      : (Platform.isLinux ? 'linux-x86_64' : 'windows-x86_64');
+
+  String _createCmakeToolchain(String ndkPath) {
+    final toolchainDirectory = Directory(
+      path.join(targetTempDir, 'cargokit', 'android_toolchain'),
+    )..createSync(recursive: true);
+    final ndkToolchainPath = path
+        .join(ndkPath, 'build', 'cmake', 'android.toolchain.cmake')
+        .replaceAll(r'\', '/');
+    final toolchainFile = File(
+      path.join(toolchainDirectory.path, '${target.rust}.cmake'),
+    );
+
+    // NDK 28 defaults its legacy toolchain to armeabi-v7a unless ANDROID_ABI
+    // is cached before the toolchain is included and forwarded to try_compile.
+    toolchainFile.writeAsStringSync(
+      'set(ANDROID_ABI [=[${target.android}]=] CACHE STRING [[]] FORCE)\n'
+      'include([=[$ndkToolchainPath]=])\n',
+    );
+    return toolchainFile.path;
   }
 
   // Workaround for libgcc missing in NDK23, inspired by cargo-ndk

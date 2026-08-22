@@ -19,8 +19,7 @@ const OPTION_TERMINATOR: &str = "--";
 
 /// The argv tokens the initial prompt contributes, in order.
 ///
-/// Empty for [`AgentStartupPrompt::StdinScript`], whose prompt never reaches
-/// the command line at all.
+/// Empty when the prompt never reaches the command line at launch.
 pub fn initial_prompt_arguments(adapter: &AgentAdapter, prompt: &str) -> Vec<String> {
     match adapter.startup_prompt {
         AgentStartupPrompt::PositionalAfterTerminator => {
@@ -28,7 +27,7 @@ pub fn initial_prompt_arguments(adapter: &AgentAdapter, prompt: &str) -> Vec<Str
         }
         AgentStartupPrompt::Positional => vec![defuse_leading_dash(prompt)],
         AgentStartupPrompt::LongOption(flag) => vec![format!("{flag}={prompt}")],
-        AgentStartupPrompt::StdinScript => Vec::new(),
+        AgentStartupPrompt::StdinScript | AgentStartupPrompt::TerminalAfterReady => Vec::new(),
     }
 }
 
@@ -164,7 +163,7 @@ mod tests {
 
     #[test]
     fn claude_and_cursor_take_the_same_terminated_positional() {
-        for agent_type in ["claude", "cursor"] {
+        for agent_type in ["claude", "cursor", "grok"] {
             assert_eq!(
                 initial_prompt_arguments(adapter(agent_type), "- Ship it"),
                 ["--", "- Ship it"],
@@ -229,6 +228,15 @@ mod tests {
         assert_eq!(
             command_with_initial_prompt(adapter("amp"), "amp --mode high", "- Ship it", "/bin/zsh"),
             "amp --mode high"
+        );
+    }
+
+    #[test]
+    fn fx_contributes_no_arguments_until_its_ready_event() {
+        assert!(initial_prompt_arguments(adapter("fx"), "- Ship it").is_empty());
+        assert_eq!(
+            command_with_initial_prompt(adapter("fx"), "fx", "- Ship it", "/bin/zsh"),
+            "fx"
         );
     }
 }

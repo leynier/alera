@@ -718,6 +718,7 @@ void main() {
         pi: true,
         amp: true,
         grok: true,
+        fx: true,
       );
       for (final agentType in AgentType.values) {
         expect(isAgentStatusHookEnabled(allEnabled, agentType), isTrue);

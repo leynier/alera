@@ -24,6 +24,16 @@ Future<bool> branchExists({required String repoPath, required String branch}) =>
       branch: branch,
     );
 
+Future<bool> isAncestor({
+  required String path,
+  required String ancestorRef,
+  required String descendantRef,
+}) => RustLib.instance.api.crateApiGitIsAncestor(
+  path: path,
+  ancestorRef: ancestorRef,
+  descendantRef: descendantRef,
+);
+
 Future<bool> isValidBranchName({required String name}) =>
     RustLib.instance.api.crateApiGitIsValidBranchName(name: name);
 

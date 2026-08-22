@@ -118,13 +118,13 @@ fn transcribe_inner(
     }
 
     let context =
-        WhisperContext::new_with_params(&request.model_path, WhisperContextParameters::default())
+        WhisperContext::new_with_params(&request.model_path, desktop_whisper_context_parameters())
             .map_err(|native_error| {
-            error(
-                AiDictationErrorKind::Model,
-                format!("The Whisper model could not be loaded: {native_error:?}"),
-            )
-        })?;
+                error(
+                    AiDictationErrorKind::Model,
+                    format!("The Whisper model could not be loaded: {native_error:?}"),
+                )
+            })?;
     let mut state = context.create_state().map_err(|native_error| {
         error(
             AiDictationErrorKind::Model,
@@ -198,6 +198,17 @@ fn transcribe_inner(
         detected_language,
         duration_millis,
     })
+}
+
+fn desktop_whisper_context_parameters() -> WhisperContextParameters<'static> {
+    WhisperContextParameters {
+        use_gpu: cfg!(target_os = "macos")
+            || cfg!(all(
+                target_arch = "x86_64",
+                any(target_os = "linux", target_os = "windows")
+            )),
+        ..Default::default()
+    }
 }
 
 fn read_audio(path: &str) -> Result<(Vec<f32>, i64), AiDictationError> {
@@ -310,5 +321,15 @@ mod tests {
     #[test]
     fn cancellation_is_idempotent_for_unknown_request() {
         cancel_whisper("missing".to_string());
+    }
+
+    #[test]
+    fn hardware_acceleration_matches_the_supported_desktop_targets() {
+        let expected = cfg!(target_os = "macos")
+            || cfg!(all(
+                target_arch = "x86_64",
+                any(target_os = "linux", target_os = "windows")
+            ));
+        assert_eq!(desktop_whisper_context_parameters().use_gpu, expected);
     }
 }

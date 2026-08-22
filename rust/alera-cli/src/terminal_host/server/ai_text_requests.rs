@@ -14,14 +14,16 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
 use super::ai_text_failure_detail::ai_text_failure_detail;
+use super::ai_text_fx_plan::plan_fx_command;
 use super::ai_text_grok_plan::plan_grok_command;
+use super::ai_text_model_defaults::default_model;
 use super::ai_text_open_code::open_code_run_arguments;
 use super::ai_text_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
-const SUPPORTED_AGENTS: [&str; 11] = [
+pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
     "codex",
     "claude",
     "copilot",
@@ -32,6 +34,7 @@ const SUPPORTED_AGENTS: [&str; 11] = [
     "pi",
     "amp",
     "grok",
+    "fx",
     "custom",
 ];
 
@@ -124,7 +127,7 @@ impl ServerActor {
     }
 }
 
-fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
+pub(super) fn active_generations() -> &'static Mutex<HashMap<String, oneshot::Sender<()>>> {
     ACTIVE_GENERATIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -156,7 +159,7 @@ async fn generate_workspace_identity(
     parse_workspace_identity(&result)
 }
 
-fn plan_command(
+pub(super) fn plan_command(
     settings: &RuntimeAiTextGenerationSettings,
     operation: &str,
     prompt: &str,
@@ -186,6 +189,9 @@ fn plan_command(
         .or_else(|| settings.selected_thinking_by_model.get(model))
         .map(String::as_str)
         .filter(|value| !value.trim().is_empty());
+    if agent == "fx" {
+        return Ok(plan_fx_command(selected_model, prompt));
+    }
     let timeout = settings.timeout_seconds;
     let (binary, arguments, stdin_payload, label) = match agent {
         "claude" => (
@@ -405,7 +411,7 @@ fn tokenize_command(template: &str) -> Vec<String> {
     tokens
 }
 
-async fn run_command(
+pub(super) async fn run_command(
     plan: AiTextCommandPlan,
     working_directory: &str,
     timeout_seconds: u64,
@@ -478,21 +484,6 @@ async fn run_command(
         let _ = std::fs::remove_dir_all(directory);
     }
     result
-}
-
-fn default_model(agent: &str) -> &'static str {
-    match agent {
-        "claude" => "sonnet",
-        "codex" => "gpt-5.5",
-        "copilot" => "gpt-5.4",
-        "cursor" => "auto",
-        "agy" => "", // empty => AGY uses its own default model
-        "opencode" | "opencode2" => "opencode/deepseek-v4-flash-free",
-        "pi" => "github-copilot/gpt-5.4-mini",
-        "amp" => "smart",
-        "grok" => "grok-4.5",
-        _ => "custom",
-    }
 }
 
 #[cfg(test)]

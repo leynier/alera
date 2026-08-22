@@ -1,22 +1,17 @@
-import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
-import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   late Directory supportDirectory;
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
     supportDirectory = await Directory.systemTemp.createTemp(
-      'alera-mobile-model-test-',
+      'alera-mobile-dictation-model-',
     );
   });
 
@@ -26,136 +21,108 @@ void main() {
     }
   });
 
-  test(
-    'disposal cancels an active transfer and removes its staging file',
-    () async {
-      final client = _CancellableClient();
-      final store = _store(client, supportDirectory, const <int>[1]);
-      final download = store.download();
-      await client.streamListened.future;
-      client.add(const <int>[1]);
-      await Future<void>.delayed(Duration.zero);
-
-      store.dispose();
-
-      await expectLater(
-        download,
-        throwsA(isA<MobileAiModelDownloadCancelled>()),
-      );
-      expect(await File('${await store.path()}.download').exists(), isFalse);
-    },
-  );
-
-  test('an interrupted transfer cleans up and can be retried', () async {
-    const bytes = <int>[1, 2, 3];
-    final client = _QueuedClient(<http.StreamedResponse>[
-      http.StreamedResponse(
-        Stream<List<int>>.error(
-          http.ClientException('Connection closed while receiving data.'),
-        ),
-        HttpStatus.ok,
-        contentLength: bytes.length,
-      ),
+  test('downloads, verifies, and removes a model', () async {
+    const bytes = <int>[1, 2, 3, 4];
+    final store = _store(supportDirectory, <http.StreamedResponse>[
       http.StreamedResponse(
         Stream<List<int>>.value(bytes),
         HttpStatus.ok,
         contentLength: bytes.length,
       ),
-    ]);
-    final store = _store(client, supportDirectory, bytes);
-    addTearDown(store.dispose);
+    ], bytes);
 
-    await expectLater(
-      store.download(),
-      throwsA(isA<MobileAiModelDownloadException>()),
-    );
-    expect(await File('${await store.path()}.download').exists(), isFalse);
+    final path = await store.download('test-model');
 
-    final destination = await store.download();
-
-    expect(await File(destination).readAsBytes(), bytes);
-    expect(await store.isInstalled(), isTrue);
+    expect(await File(path).readAsBytes(), bytes);
+    expect(await store.isInstalled('test-model'), isTrue);
+    await store.remove('test-model');
+    expect(await store.isInstalled('test-model'), isFalse);
   });
 
-  testWidgets('the settings screen offers retry after an interruption', (
-    tester,
-  ) async {
-    final store = _RetryModelStore();
-    await tester.pumpWidget(
-      MaterialApp(home: MobileAiDictationSettingsScreen(modelStore: store)),
-    );
-    await tester.pumpAndSettle();
+  test(
+    'retains a partial transfer and resumes it with a range request',
+    () async {
+      const bytes = <int>[1, 2, 3, 4];
+      final requests = <http.BaseRequest>[];
+      final client = _QueuedClient(<http.StreamedResponse>[
+        http.StreamedResponse(
+          Stream<List<int>>.value(bytes.sublist(2)),
+          HttpStatus.partialContent,
+          contentLength: 2,
+          headers: const <String, String>{
+            HttpHeaders.contentRangeHeader: 'bytes 2-3/4',
+          },
+        ),
+      ], requests);
+      final store = _customStore(supportDirectory, client, bytes);
+      final partial = File(await store.partialPath('test-model'));
+      await partial.parent.create(recursive: true);
+      await partial.writeAsBytes(bytes.sublist(0, 2));
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Download'));
-    await tester.pumpAndSettle();
+      final path = await store.download('test-model');
 
-    expect(find.text(MobileAiModelDownloadException.message), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+      expect(await File(path).readAsBytes(), bytes);
+      expect(requests.single.headers[HttpHeaders.rangeHeader], 'bytes=2-');
+    },
+  );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
-    await tester.pumpAndSettle();
+  test('rejects a model with the wrong checksum', () async {
+    const expected = <int>[1, 2, 3, 4];
+    const received = <int>[4, 3, 2, 1];
+    final store = _store(supportDirectory, <http.StreamedResponse>[
+      http.StreamedResponse(
+        Stream<List<int>>.value(received),
+        HttpStatus.ok,
+        contentLength: received.length,
+      ),
+    ], expected);
 
-    expect(find.widgetWithText(FilledButton, 'Ready'), findsOneWidget);
-    expect(find.text(MobileAiModelDownloadException.message), findsNothing);
+    await expectLater(store.download('test-model'), throwsA(isA<StateError>()));
+    expect(await store.isInstalled('test-model'), isFalse);
+    expect(await File(await store.partialPath('test-model')).exists(), isFalse);
   });
 }
 
 MobileAiDictationModelStore _store(
-  http.Client client,
   Directory supportDirectory,
-  List<int> expectedBytes,
+  List<http.StreamedResponse> responses,
+  List<int> expected,
+) => _customStore(
+  supportDirectory,
+  _QueuedClient(responses, <http.BaseRequest>[]),
+  expected,
+);
+
+MobileAiDictationModelStore _customStore(
+  Directory supportDirectory,
+  http.Client client,
+  List<int> expected,
 ) => MobileAiDictationModelStore(
-  client: client,
-  downloadUrl: Uri.parse('https://example.test/ggml-base.bin'),
-  expectedSha256: sha256.convert(expectedBytes).toString(),
+  clientFactory: () => client,
   supportDirectory: () async => supportDirectory,
+  catalog: <MobileAiDictationModel>[
+    MobileAiDictationModel(
+      id: 'test-model',
+      label: 'Test Model',
+      description: 'Test model.',
+      fileName: 'model.bin',
+      uri: 'https://example.test/model.bin',
+      sha256: sha256.convert(expected).toString(),
+      sizeBytes: expected.length,
+    ),
+  ],
 );
 
 final class _QueuedClient extends http.BaseClient {
-  _QueuedClient(Iterable<http.StreamedResponse> responses)
+  _QueuedClient(Iterable<http.StreamedResponse> responses, this.requests)
     : _responses = Queue<http.StreamedResponse>.of(responses);
 
   final Queue<http.StreamedResponse> _responses;
+  final List<http.BaseRequest> requests;
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
-      _responses.removeFirst();
-}
-
-final class _CancellableClient extends http.BaseClient {
-  final streamListened = Completer<void>();
-  late final StreamController<List<int>> _stream = StreamController<List<int>>(
-    onListen: streamListened.complete,
-  );
-
-  void add(List<int> bytes) => _stream.add(bytes);
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
-      http.StreamedResponse(_stream.stream, HttpStatus.ok, contentLength: 2);
-
-  @override
-  void close() {
-    _stream.addError(
-      http.ClientException('Connection closed while receiving data.'),
-    );
-    unawaited(_stream.close());
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
+    return _responses.removeFirst();
   }
-}
-
-final class _RetryModelStore implements MobileAiDictationModels {
-  var _attempts = 0;
-
-  @override
-  Future<String> download({void Function(double)? onProgress}) async {
-    _attempts += 1;
-    if (_attempts == 1) throw const MobileAiModelDownloadException();
-    return 'ggml-base.bin';
-  }
-
-  @override
-  Future<bool> isInstalled() async => false;
-
-  @override
-  void dispose() {}
 }

@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_restore_progress.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -177,5 +178,85 @@ void main() {
 
     expect(writes, isEmpty);
     expect(subject.pendingChars, 0);
+  });
+
+  group('restore progress', () {
+    late List<TerminalRestoreProgress?> reported;
+
+    TerminalOutputBatcher restoring({int maxCharsPerFrame = 100}) {
+      final subject = TerminalOutputBatcher(
+        write: writes.add,
+        onRestoreProgress: reported.add,
+        maxCharsPerFrame: maxCharsPerFrame,
+        maxPendingChars: 4096,
+      );
+      addTearDown(subject.dispose);
+      return subject;
+    }
+
+    setUp(() => reported = <TerminalRestoreProgress?>[]);
+
+    test('is reported before the first frame draws any of the snapshot', () {
+      // The cover has to be up before the emulator is written to, or the first
+      // 64 KB of history is already on screen when it appears.
+      final subject = restoring();
+
+      subject.addSnapshot('s' * 250);
+
+      expect(writes, isEmpty);
+      expect(reported.single?.totalChars, 250);
+      expect(reported.single?.writtenChars, 0);
+    });
+
+    test('advances per frame and clears once the snapshot is fully in', () {
+      final subject = restoring();
+
+      subject.addSnapshot('s' * 250);
+      subject.flushFrame();
+      subject.flushFrame();
+      subject.flushFrame();
+
+      expect(reported.map((progress) => progress?.writtenChars), <int?>[
+        0,
+        100,
+        200,
+        null,
+      ]);
+      expect(subject.debugRestoring, isFalse);
+    });
+
+    test('live output queued behind a restore does not hold the cover up', () {
+      // The cover is for the history replay. Output that arrived while it
+      // drained is ordinary live output and must not extend the wait.
+      final subject = restoring();
+
+      subject.addSnapshot('s' * 100);
+      subject.add('l' * 500);
+      subject.flushFrame();
+
+      expect(reported.last, isNull);
+      expect(subject.pendingChars, 500);
+    });
+
+    test('a batcher discarded mid-restore takes its own cover down', () {
+      // Replacing the emulator disposes the batcher; nothing else would clear
+      // a progress value left behind, and the cover would never lift.
+      final subject = restoring();
+
+      subject.addSnapshot('s' * 250);
+      subject.dispose();
+
+      expect(reported.last, isNull);
+    });
+
+    test('a batcher that never restored reports nothing on dispose', () {
+      final subject = restoring();
+
+      subject.add('live');
+      subject.flushFrame();
+      subject.dispose();
+
+      expect(reported, isEmpty);
+    });
   });
 }

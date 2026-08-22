@@ -40,6 +40,7 @@ const String mobileAgentQuotaClaudeTuiCapability = 'agentQuotaClaudeTuiV1';
 const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
+const String aiTextSpeechMessageCapability = 'aiTextSpeechMessageV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String codexChatTabCapability = 'codexChatTabV1';
 const String codexGoalsCapability = 'codexGoalsV1';
@@ -63,6 +64,8 @@ class MobileTerminalOutputEvent {
     this.sessionId,
     this.data, {
     this.replacesScrollback = false,
+    this.snapshotCols,
+    this.snapshotRows,
   });
 
   final String sessionId;
@@ -72,6 +75,11 @@ class MobileTerminalOutputEvent {
   /// in the output stream, so these bytes replace the emulator contents instead
   /// of being appended to them.
   final bool replacesScrollback;
+
+  /// The size the replacing snapshot was written at, when the host states one.
+  /// Only meaningful alongside [replacesScrollback].
+  final int? snapshotCols;
+  final int? snapshotRows;
 }
 
 const int defaultTerminalCols = 80;
@@ -85,6 +93,12 @@ abstract interface class MobileTerminalClient {
 
   /// Whether [writeTerminal] may use `bracketedPaste` and `deferredEnter`.
   bool get supportsDeferredTerminalInput;
+
+  /// Cheap round trip that proves this connection is still usable. Returning
+  /// to the foreground does not, by itself, mean a session was lost, and a
+  /// blind re-attach costs the tab its loading state.
+  Future<void> probeConnection();
+
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
   Future<MobileTerminalSession> createTerminal(
     String workspaceId, {
@@ -93,10 +107,18 @@ abstract interface class MobileTerminalClient {
     int rows,
     bool autoCloseOnSuccess = false,
   });
+
+  /// Attaches to [tabId]'s session, claiming the viewport driver seat.
+  ///
+  /// [cols] and [rows] are null until the terminal has been laid out, and stay
+  /// off the request when they are: the host resizes the live PTY to whatever
+  /// viewport a phone claims, so sending a placeholder resizes the session
+  /// twice per tab open and makes a full-screen agent redraw itself at a
+  /// geometry nobody is looking at.
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols,
-    int rows,
+    int? cols,
+    int? rows,
   });
   Future<MobileTerminalSession> restartTerminal(
     String tabId, {

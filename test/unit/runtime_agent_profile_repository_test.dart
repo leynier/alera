@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_profiles/infra/runtime_agent_profile_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,7 +119,7 @@ void main() {
   });
 
   group('spawnableAgentProfileAdapters', () {
-    test('matches the nine adapters the host registry supports', () {
+    test('matches the adapters the host registry supports', () {
       expect(
         spawnableAgentProfileAdapters.map((adapter) => adapter.key).toList(),
         <String>[
@@ -131,10 +132,11 @@ void main() {
           'opencode2',
           'pi',
           'amp',
+          'grok',
+          'fx',
         ],
       );
-      // grok is a hook agent with no spawn adapter, so no profile may target it.
-      expect(agentProfileAdapterFromKey('grok'), isNull);
+      expect(agentProfileAdapterFromKey('fx'), AgentType.fx);
       expect(agentProfileAdapterFromKey('codex'), isNotNull);
     });
 

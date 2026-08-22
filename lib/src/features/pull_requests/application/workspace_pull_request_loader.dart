@@ -2,12 +2,14 @@ import 'package:alera/src/features/pull_requests/application/base_branch_resolve
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
+import 'package:alera/src/features/pull_requests/application/forge_stack_provider.dart';
 import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -46,6 +48,9 @@ class WorkspacePullRequestLoader {
         unavailableReason: PullRequestUnavailableReason.unsupported,
       );
     }
+    final stackProvider = forge is ForgeStackProvider
+        ? forge as ForgeStackProvider
+        : null;
     final authStatus = await forge.checkAuth(identity: identity);
     final branch = await _resolveBranch(scope);
     final baseInfo = await _resolveBaseBranches(scope);
@@ -87,6 +92,8 @@ class WorkspacePullRequestLoader {
       }
       var checks = const <ReviewCheck>[];
       var comments = const <ReviewComment>[];
+      HostedReviewStack? stack;
+      String? stackErrorMessage;
       if (review != null) {
         final checksFuture = forge.getChecks(
           identity: identity,
@@ -106,12 +113,26 @@ class WorkspacePullRequestLoader {
         ]);
         checks = results[0] as List<ReviewCheck>;
         comments = results[1] as List<ReviewComment>;
+        if (stackProvider != null) {
+          try {
+            stack = await stackProvider.getStackForReview(
+              identity: identity,
+              repoPath: scope.repoPath,
+              reviewNumber: review.number,
+            );
+          } on ForgeException catch (error) {
+            stackErrorMessage = error.message;
+          }
+        }
       }
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: authStatus,
         review: review,
         suggestedReview: suggestedReview,
+        stack: stack,
+        stackSupported: stackProvider != null,
+        stackErrorMessage: stackErrorMessage,
         checks: checks,
         comments: comments,
         linkedManually: linkedManually,

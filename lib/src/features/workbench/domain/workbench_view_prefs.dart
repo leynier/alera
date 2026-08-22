@@ -62,6 +62,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.gitDiffGroupMode = GitDiffGroupMode.byArea,
     this.pullRequestCreateAction = PullRequestCreateAction.publish,
     this.workspaceKindFilter = WorkspaceKindFilter.all,
+    this.showActiveWorkspacesOnly = false,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -125,6 +126,11 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// so previously persisted prefs (missing the key) keep today's behavior.
   final WorkspaceKindFilter workspaceKindFilter;
 
+  /// Whether the sidebar hides workspaces without an open terminal or Codex
+  /// tab. Defaults to false so older persisted preferences keep showing all
+  /// workspaces.
+  final bool showActiveWorkspacesOnly;
+
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
     projectSort: WorkbenchSortBy.name,
@@ -147,6 +153,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     gitDiffGroupMode: GitDiffGroupMode.byArea,
     pullRequestCreateAction: PullRequestCreateAction.publish,
     workspaceKindFilter: WorkspaceKindFilter.all,
+    showActiveWorkspacesOnly: false,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

@@ -28,6 +28,16 @@ extension JsonPayloadFields on Map<String, Object?> {
     throw FormatException('$key is required');
   }
 
+  /// A count that only means anything above zero, so a host that omits the
+  /// field and one that sends a placeholder are read the same way.
+  int? optionalPositiveInt(String key) {
+    final value = this[key];
+    if (value is int && value > 0) {
+      return value;
+    }
+    return null;
+  }
+
   DateTime? optionalDateTime(String key) {
     final value = optionalString(key);
     if (value == null) {

@@ -189,6 +189,14 @@ class AgentsSettingsPane extends ConsumerWidget {
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(AgentType.grok, value),
               ),
+              SettingsSwitchRow(
+                title: 'fx Status',
+                description:
+                    'Receive fx lifecycle state through its built-in local Herdr integration on macOS and Linux.',
+                value: agents.agentStatusHooks.fx,
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(AgentType.fx, value),
+              ),
             ],
           ),
         ),

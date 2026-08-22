@@ -12,6 +12,7 @@ part 'fake_git_backend_defaults.dart';
 part 'fake_git_backend_diffs.dart';
 part 'fake_git_backend_hosted_review.dart';
 part 'fake_git_backend_status.dart';
+part 'fake_git_backend_workspaces.dart';
 
 /// In-memory [GitBackend] for unit tests. Field names mirror the behaviours the
 /// previous `ProcessRunner` fakes configured, so tests can program repository
@@ -20,7 +21,8 @@ class FakeGitBackend
     with
         _FakeGitBackendStatus,
         _FakeGitBackendDiffs,
-        _FakeGitBackendHostedReview
+        _FakeGitBackendHostedReview,
+        _FakeGitBackendWorkspaceState
     implements GitBackend {
   @override
   final List<GitBackendCall> calls = <GitBackendCall>[];
@@ -38,9 +40,17 @@ class FakeGitBackend
 
   bool listBranchesFails = false;
 
+  @override
   String headBranch = 'main';
 
+  @override
   bool headBranchFails = false;
+
+  /// Per-ref ancestry responses. Unspecified pairs default to true so tests
+  /// that do not care about graph shape preserve their existing behavior.
+  final Map<(String, String), bool> ancestorResults =
+      <(String, String), bool>{};
+  GitException? isAncestorError;
 
   /// Names rejected by [isValidBranchName].
   final Set<String> invalidBranchNames = <String>{};
@@ -57,9 +67,11 @@ class FakeGitBackend
   bool worktreeListFails = false;
 
   /// Remotes reported by [listRemotes], keyed by name → url.
+  @override
   Map<String, String?> remotesByName = <String, String?>{};
 
   /// When set, [listRemotes] throws.
+  @override
   bool listRemotesFails = false;
 
   /// Target branch names whose [createWorktree] should fail.
@@ -119,6 +131,7 @@ class FakeGitBackend
   GitException? commitError;
   GitException? amendCommitError;
   GitException? fetchError;
+  void Function()? onFetch;
   GitException? pullError;
   GitException? refreshSourceBranchError;
   GitException? pushError;
@@ -152,15 +165,6 @@ class FakeGitBackend
   }
 
   @override
-  Future<String> currentBranch(String path) async {
-    calls.add(GitBackendCall('currentBranch', <String, Object?>{'path': path}));
-    if (headBranchFails) {
-      throw const GitInternalException('no head');
-    }
-    return headBranch;
-  }
-
-  @override
   Future<bool> branchExists(String repoPath, String branch) async {
     calls.add(
       GitBackendCall('branchExists', <String, Object?>{
@@ -169,6 +173,26 @@ class FakeGitBackend
       }),
     );
     return sourceBranches.contains(branch);
+  }
+
+  @override
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) async {
+    calls.add(
+      GitBackendCall('isAncestor', <String, Object?>{
+        'path': path,
+        'ancestorRef': ancestorRef,
+        'descendantRef': descendantRef,
+      }),
+    );
+    final error = isAncestorError;
+    if (error != null) {
+      throw error;
+    }
+    return ancestorResults[(ancestorRef, descendantRef)] ?? true;
   }
 
   @override
@@ -275,18 +299,6 @@ class FakeGitBackend
         GitWorktreeEntry(path: repoPath, branch: headBranch),
       for (final entry in liveBranchByPath.entries)
         GitWorktreeEntry(path: entry.key, branch: entry.value),
-    ];
-  }
-
-  @override
-  Future<List<GitRemote>> listRemotes(String path) async {
-    calls.add(GitBackendCall('listRemotes', <String, Object?>{'path': path}));
-    if (listRemotesFails) {
-      throw const GitInternalException('not a git repository');
-    }
-    return <GitRemote>[
-      for (final entry in remotesByName.entries)
-        GitRemote(name: entry.key, url: entry.value),
     ];
   }
 
@@ -576,6 +588,7 @@ class FakeGitBackend
   @override
   Future<void> fetch(String path) async {
     calls.add(GitBackendCall('fetch', <String, Object?>{'path': path}));
+    onFetch?.call();
     final error = fetchError;
     if (error != null) {
       throw error;

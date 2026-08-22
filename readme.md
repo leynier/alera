@@ -100,6 +100,10 @@ Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, an
 
 Per-terminal configuration: font, size, theme, behaviour. Built on top of the same engine that powers Ghostty for predictable, high-fidelity rendering.
 
+### 🎙️ AI dictation
+
+Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, while mobile can use on-device Whisper, offline system recognition, or an explicitly approved paired-device or online system provider. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Text subscription.
+
 ### 🗃️ File explorer, search & previews
 
 Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals.
@@ -110,7 +114,7 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 
 ### ✅ Pull requests & checks
 
-Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
+Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
 
 ### 🖥️ Truly native, truly cross-platform
 
@@ -140,7 +144,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive
 - **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
-- **Voice, automations, MCP management, skills, and more**
+- **Automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
 
@@ -162,7 +166,7 @@ Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHE
 
 To add the repository by hand instead, see the manual setup on the [download page](https://alera.build/download). The signing key is published at `https://updates.alera.build/linux/alera-archive-keyring.asc` with fingerprint `5DE97E7CFE234A1C5869EC54708DA940734CF23A`.
 
-On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1` and `gtk3` through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
+On a distribution with no package of ours, download `alera-<version>-linux-x64.tar.gz` from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1`, `gtk3`, and the Vulkan loader through your own package manager first, since a tarball declares no dependencies. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf, which is what resolves those dependencies.
 
 ### macOS
 

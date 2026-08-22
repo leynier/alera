@@ -18,6 +18,7 @@ import 'package:path/path.dart' as p;
 import 'fake_git_backend.dart';
 
 part 'ai_text_generation_grok_test_cases.dart';
+part 'ai_text_generation_fx_test_cases.dart';
 part 'ai_text_generation_agy_test_cases.dart';
 part 'ai_text_generation_reading_diff_test_cases.dart';
 part 'ai_text_generation_reading_diff_lifecycle_test_cases.dart';
@@ -27,6 +28,7 @@ part 'ai_text_generation_test_harness.dart';
 void main() {
   group('AI text generation', () {
     _registerGrokAiTextGenerationTests();
+    _registerFxAiTextGenerationTests();
     _registerAgyAiTextGenerationTests();
     _registerAiTextReadingDiffTests();
     _registerAiTextReadingDiffLifecycleTests();

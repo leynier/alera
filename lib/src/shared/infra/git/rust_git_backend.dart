@@ -37,6 +37,19 @@ class RustGitBackend with _RustGitBackendHostedReview implements GitBackend {
       _guard(() => rust.branchExists(repoPath: repoPath, branch: branch));
 
   @override
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) => _guard(
+    () => rust.isAncestor(
+      path: path,
+      ancestorRef: ancestorRef,
+      descendantRef: descendantRef,
+    ),
+  );
+
+  @override
   Future<bool> isValidBranchName(String name) =>
       _guard(() => rust.isValidBranchName(name: name));
 

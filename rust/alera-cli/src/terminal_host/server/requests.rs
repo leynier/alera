@@ -22,7 +22,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-pub(super) use super::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
+pub(super) use super::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -949,10 +949,15 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.cancel_ai_text_generation(payload)
             }
-            "aiDictation.transcribe" | "mobile.aiDictation.transcribe" => {
+            "aiDictation.transcribe" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                super::ai_dictation_requests::transcribe(payload).await
+                super::ai_dictation_requests::transcribe(payload, true, &self.runtime_dir).await
+            }
+            "mobile.aiDictation.transcribe" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::transcribe(payload, false, &self.runtime_dir).await
             }
             "aiDictation.cancel" | "mobile.aiDictation.cancel" => {
                 self.require_auth(client_id)?;

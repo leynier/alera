@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{start_agent_integrations, start_hook_receiver};
+use crate::agent_status::{start_agent_integrations, start_fx_herdr_receiver, start_hook_receiver};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -59,9 +59,12 @@ mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_dictation_requests;
 mod ai_text_failure_detail;
+mod ai_text_fx_plan;
 mod ai_text_grok_plan;
+mod ai_text_model_defaults;
 mod ai_text_open_code;
 mod ai_text_requests;
+mod ai_text_speech_message;
 mod ai_text_workspace_identity;
 mod automation_actor;
 mod automation_catalog_requests;
@@ -115,7 +118,10 @@ mod host_service_requests;
 mod host_status;
 mod lifecycle;
 mod managed_workspace_requests;
+mod mobile_gateway_surface;
 mod mobile_terminal_requests;
+#[cfg(test)]
+mod mobile_terminal_viewport_tests;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod orchestration_agent_spawn_requests;

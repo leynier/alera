@@ -3,6 +3,8 @@ use git2::{Oid, Repository};
 use std::path::Path;
 use std::process::Command;
 
+#[path = "git_ancestry_tests.rs"]
+mod git_ancestry_tests;
 #[path = "git_diff_blob_tests.rs"]
 mod git_diff_blob_tests;
 #[path = "git_diff_edge_tests.rs"]

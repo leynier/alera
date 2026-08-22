@@ -23,6 +23,13 @@ class E2eGitBackend implements GitBackend {
   Future<bool> branchExists(String repoPath, String branch) async => false;
 
   @override
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) async => false;
+
+  @override
   Future<bool> isValidBranchName(String name) async => true;
 
   @override

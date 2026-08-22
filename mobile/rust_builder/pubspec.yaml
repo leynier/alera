@@ -1,0 +1,20 @@
+name: alera_mobile_native
+description: Native Whisper inference for the Alera mobile app.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true

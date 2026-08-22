@@ -54,6 +54,9 @@ class PullRequestComposer extends ConsumerStatefulWidget {
     required this.onCreate,
     required this.onLink,
     required this.onCreateActionChanged,
+    this.canCreateStack = false,
+    this.creatingStack = false,
+    this.onCreateStack,
   });
 
   final String repoPath;
@@ -67,6 +70,9 @@ class PullRequestComposer extends ConsumerStatefulWidget {
   final ValueChanged<CreateReviewDraft> onCreate;
   final ValueChanged<String> onLink;
   final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
+  final bool canCreateStack;
+  final bool creatingStack;
+  final Future<void> Function(CreateReviewDraft draft)? onCreateStack;
 
   @override
   ConsumerState<PullRequestComposer> createState() =>
@@ -157,27 +163,43 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     ];
   }
 
-  void _submitCreate() {
+  CreateReviewDraft? _validatedCreateDraft() {
     final title = _titleController.text.trim();
     final base = _baseBranch.trim();
     if (title.isEmpty) {
       setState(() => _errorText = 'Title is required');
-      return;
+      return null;
     }
     if (base.isEmpty) {
       setState(() => _errorText = 'Base branch is required');
-      return;
+      return null;
     }
     final body = _bodyController.text.trim();
     setState(() => _errorText = null);
-    widget.onCreate(
-      CreateReviewDraft(
-        title: title,
-        baseBranch: base,
-        body: body.isEmpty ? null : body,
-        draft: widget.createAction == PullRequestCreateAction.draft,
-      ),
+    return CreateReviewDraft(
+      title: title,
+      baseBranch: base,
+      body: body.isEmpty ? null : body,
+      draft: widget.createAction == PullRequestCreateAction.draft,
     );
+  }
+
+  void _submitCreate() {
+    final draft = _validatedCreateDraft();
+    if (draft != null) {
+      widget.onCreate(draft);
+    }
+  }
+
+  Future<void> _submitCreateStack() async {
+    final callback = widget.onCreateStack;
+    if (callback == null) {
+      return;
+    }
+    final draft = _validatedCreateDraft();
+    if (draft != null) {
+      await callback(draft);
+    }
   }
 
   void _submitLink() {
@@ -368,6 +390,23 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                         : const Icon(AleraIcons.link, size: 16),
                     label: const Text('Link'),
                   ),
+                if (widget.canCreateStack &&
+                    widget.onCreateStack != null) ...<Widget>[
+                  const SizedBox(height: AleraTokens.space8),
+                  OutlinedButton.icon(
+                    onPressed: widget.busy || _generating
+                        ? null
+                        : () => unawaited(_submitCreateStack()),
+                    icon: widget.creatingStack
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(AleraIcons.gitGraph, size: 16),
+                    label: const Text('Create Stack'),
+                  ),
+                ],
               ],
             ),
           ),

@@ -40,6 +40,8 @@ class AiTextGenerationOperationMapper
         return AiTextGenerationOperation.readingDiff;
       case r'workspaceIdentity':
         return AiTextGenerationOperation.workspaceIdentity;
+      case r'speechMessage':
+        return AiTextGenerationOperation.speechMessage;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -58,6 +60,8 @@ class AiTextGenerationOperationMapper
         return r'readingDiff';
       case AiTextGenerationOperation.workspaceIdentity:
         return r'workspaceIdentity';
+      case AiTextGenerationOperation.speechMessage:
+        return r'speechMessage';
     }
   }
 }
@@ -110,6 +114,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return AiTextGenerationAgent.amp;
       case r'grok':
         return AiTextGenerationAgent.grok;
+      case r'fx':
+        return AiTextGenerationAgent.fx;
       case r'custom':
         return AiTextGenerationAgent.custom;
       default:
@@ -140,6 +146,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return r'amp';
       case AiTextGenerationAgent.grok:
         return r'grok';
+      case AiTextGenerationAgent.fx:
+        return r'fx';
       case AiTextGenerationAgent.custom:
         return r'custom';
     }

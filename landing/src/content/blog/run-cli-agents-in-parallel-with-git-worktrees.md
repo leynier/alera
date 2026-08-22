@@ -34,7 +34,7 @@ The loop itself is three steps:
 
 1. Register a project (local folder or clone)
 2. Open a linked worktree workspace for each task you want in flight
-3. Launch Claude, Codex, Amp, or any other CLI agent in that workspace's terminals
+3. Launch Claude, Codex, Amp, fx, or any other CLI agent in that workspace's terminals
 
 The one annoyance left in this loop used to be setup: every new worktree needs its `.env`, its dependencies, its bootstrap commands. We automated that ritual with [`alera.toml`](/blog/automate-new-worktree-setup-with-alera-toml), and when the work is done, [pull requests and CI checks stay scoped to the same worktree](/blog/pull-requests-and-ci-checks-per-worktree) so what you review is exactly what the agent produced.
 

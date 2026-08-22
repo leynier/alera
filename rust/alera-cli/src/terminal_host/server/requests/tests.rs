@@ -1,11 +1,12 @@
 use super::*;
-use crate::terminal_host::server::mobile_terminal_requests::mobile_request_allowed;
+use crate::terminal_host::server::mobile_gateway_surface::mobile_request_allowed;
 
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
     PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
+    RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY, RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
     RUNTIME_HOST_CODEX_GOALS_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
@@ -390,6 +391,7 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_CHAT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_GOALS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY));
 }
 
 #[test]
@@ -427,6 +429,7 @@ fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
     assert!(!MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_ACCOUNT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY));
     assert!(
         MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY)
     );

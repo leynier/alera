@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
+import 'package:alera/src/features/pull_requests/application/forge_stack_provider.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/review_reference_parser.dart';
@@ -11,14 +12,17 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment_task_list.dart';
+import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -30,12 +34,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'workspace_pull_request_controller.g.dart';
 part 'workspace_pull_request_review_actions.dart';
 part 'workspace_pull_request_review_editing.dart';
+part 'workspace_pull_request_stack_actions.dart';
+part 'workspace_pull_request_stack_validation.dart';
 
 @Riverpod(keepAlive: true)
 class WorkspacePullRequestController extends _$WorkspacePullRequestController
     with
         _WorkspacePullRequestReviewActions,
-        _WorkspacePullRequestReviewEditing {
+        _WorkspacePullRequestReviewEditing,
+        _WorkspacePullRequestStackActions {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -272,6 +279,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     required WorkspacePullRequestScope scope,
     required PullRequestAction action,
     required Future<void> Function() body,
+    bool reloadAfterFailure = false,
   }) async {
     _pollTimer?.cancel();
     final current = state.value ?? const WorkspacePullRequestState();
@@ -284,34 +292,70 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         _resetPollInterval();
       }
     } on _ActionError catch (error) {
-      if (!_disposed) {
-        state = AsyncData(
-          (state.value ?? current).copyWith(
-            clearAction: true,
-            errorMessage: error.message,
-          ),
-        );
-      }
+      await _recordActionFailure(
+        scope: scope,
+        previous: current,
+        message: error.message,
+        reload: reloadAfterFailure,
+      );
     } on ForgeException catch (error) {
-      if (!_disposed) {
-        state = AsyncData(
-          (state.value ?? current).copyWith(
-            clearAction: true,
-            errorMessage: error.message,
-          ),
-        );
-      }
+      await _recordActionFailure(
+        scope: scope,
+        previous: current,
+        message: error.message,
+        reload: reloadAfterFailure,
+      );
+    } on GitException catch (error) {
+      await _recordActionFailure(
+        scope: scope,
+        previous: current,
+        message: error.context,
+        reload: reloadAfterFailure,
+      );
     } catch (error) {
-      if (!_disposed) {
-        state = AsyncData(
-          (state.value ?? current).copyWith(
-            clearAction: true,
-            errorMessage: error.toString(),
-          ),
-        );
-      }
+      await _recordActionFailure(
+        scope: scope,
+        previous: current,
+        message: error.toString(),
+        reload: reloadAfterFailure,
+      );
     }
     _schedulePoll(scope);
+  }
+
+  Future<void> _recordActionFailure({
+    required WorkspacePullRequestScope scope,
+    required WorkspacePullRequestState previous,
+    required String message,
+    required bool reload,
+  }) async {
+    if (_disposed) {
+      return;
+    }
+    if (reload) {
+      try {
+        final reloaded = await _loader.load(scope);
+        if (!_disposed) {
+          state = AsyncData(
+            _applyPendingCommentBodies(
+              reloaded,
+            ).copyWith(clearAction: true, errorMessage: message),
+          );
+          _resetPollInterval();
+          return;
+        }
+      } catch (_) {
+        // Preserve the previous snapshot when the recovery reload also fails.
+      }
+    }
+    if (!_disposed) {
+      state = AsyncData(
+        (state.value ?? previous).copyWith(
+          clearAction: true,
+          errorMessage: message,
+        ),
+      );
+    }
   }
 
   Future<void> _refresh({required _RefreshOrigin origin}) {

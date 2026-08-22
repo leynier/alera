@@ -10,7 +10,7 @@ Our days already revolved around CLI coding agents. Claude Code in one terminal,
 
 The new wave of AI IDEs did not solve it for us. They wrap a single chat backend inside an Electron shell and ask you to leave your CLI behind. We did not want to leave the CLI behind. The CLI is where the agents live.
 
-So Alera takes the opposite bet. It is a native, performance-first workbench for CLI coding agents: Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, or anything else that runs in a terminal. Flutter and Rust under the hood, Ghostty's VTE for terminal parsing. No Electron, no bundled Chromium, no browser pretending to be a terminal.
+So Alera takes the opposite bet. It is a native, performance-first workbench for CLI coding agents: Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, Grok Build, fx, or anything else that runs in a terminal. Flutter and Rust under the hood, Ghostty's VTE for terminal parsing. No Electron, no bundled Chromium, no browser pretending to be a terminal.
 
 ## What You Can Do Today
 

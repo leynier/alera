@@ -55,7 +55,6 @@ axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"
 if-addrs = "0.13"
 hound = "3.5"
-whisper-rs = "0.16.0"
 serde_urlencoded = "0.7"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 async-trait = "0.1.91"
@@ -83,6 +82,12 @@ keyring = { version = "3.6.3", features = [
     "vendored",
 ] }
 
+[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))'.dependencies]
+whisper-rs = { version = "0.16.0", features = ["vulkan"] }
+
+[target.'cfg(not(any(target_os = "macos", all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))))'.dependencies]
+whisper-rs = "0.16.0"
+
 # Signalling a PTY shell's descendants. Already in the tree through
 # portable-pty, so declaring it directly adds no crate.
 [target.'cfg(unix)'.dependencies]
@@ -98,6 +103,7 @@ windows = { version = "0.62.2", features = ["Win32_System_RemoteDesktop", "Win32
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-application-services = "0.3"
 objc2-core-foundation = "0.3"
+whisper-rs = { version = "0.16.0", features = ["coreml", "metal"] }
 
 [dev-dependencies]
 tempfile = "3"

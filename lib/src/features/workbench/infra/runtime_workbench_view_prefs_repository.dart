@@ -85,6 +85,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'allSectionCollapsed': prefs.allSectionCollapsed,
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
+    'showActiveWorkspacesOnly': prefs.showActiveWorkspacesOnly,
   };
 }
 
@@ -124,6 +125,9 @@ WorkbenchViewPrefs _mergeShared(
       shared['workspaceKindFilter'],
       local.workspaceKindFilter,
     ),
+    showActiveWorkspacesOnly:
+        shared['showActiveWorkspacesOnly'] as bool? ??
+        local.showActiveWorkspacesOnly,
   );
 }
 

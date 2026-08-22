@@ -8,6 +8,7 @@ const List<AiThinkingLevel> grokThinkingLevels = <AiThinkingLevel>[
   AiThinkingLevel(id: 'medium', label: 'Medium'),
   AiThinkingLevel(id: 'high', label: 'High'),
   AiThinkingLevel(id: 'xhigh', label: 'Extra High'),
+  AiThinkingLevel(id: 'max', label: 'Max'),
 ];
 
 final AiTextAgentSpec grokAiTextAgentSpec = AiTextAgentSpec(
@@ -18,13 +19,13 @@ final AiTextAgentSpec grokAiTextAgentSpec = AiTextAgentSpec(
   parseModels: parseGrokModels,
   models: const <AiTextModel>[
     AiTextModel(
-      id: 'grok-4.5',
-      label: 'Grok 4.5',
+      id: 'grok-4.6',
+      label: 'Grok 4.6',
       thinkingLevels: grokThinkingLevels,
       defaultThinkingLevel: 'default',
     ),
   ],
-  defaultModelId: 'grok-4.5',
+  defaultModelId: 'grok-4.6',
   nativeStructuredOutput: AiNativeStructuredOutput.jsonSchemaArgument,
   diffOnlyAccess: AiTextDiffOnlyAccess.toolFree,
   buildArgs:

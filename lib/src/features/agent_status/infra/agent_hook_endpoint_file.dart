@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
@@ -103,9 +104,7 @@ Future<void> writeAgentHookEndpointFile({
     mode: FileMode.writeOnly,
   );
   if (!Platform.isWindows) {
-    try {
-      await Process.run('chmod', <String>['600', tmpPath]);
-    } catch (_) {}
+    setPosixFileMode(tmpPath, posixPrivateFileMode);
   }
   await tmp.rename(filePath);
 }
