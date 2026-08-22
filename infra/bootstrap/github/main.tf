@@ -100,7 +100,7 @@ resource "google_storage_bucket_iam_member" "production_state" {
 
 resource "google_project_iam_member" "production_state_metadata_reader" {
   project = var.gcp_project_id
-  role    = "roles/storage.legacyBucketReader"
+  role    = "roles/storage.bucketViewer"
   member  = google_service_account.github_deployer.member
 }
 
