@@ -60,7 +60,12 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       return activityCache[workspace.id];
     }
     final tabs = state.tabsFor(workspace.id);
-    final activity = tabs.any((tab) => tab.kind == WorkspaceTabKind.terminal)
+    final activity =
+        tabs.any(
+          (tab) =>
+              tab.kind == WorkspaceTabKind.terminal ||
+              tab.kind == WorkspaceTabKind.codex,
+        )
         ? agentActivityRank(
             attention: attentionOf(workspace),
             fallback: fallbackActivityOf(workspace),
@@ -75,6 +80,9 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       return false;
     }
     if (!workspaceMatchesTagFilter(prefs, workspace)) {
+      return false;
+    }
+    if (!workspaceMatchesActiveFilter(prefs, state.tabsFor(workspace.id))) {
       return false;
     }
     if (query.isEmpty) {
@@ -173,6 +181,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       query.isNotEmpty ||
       prefs.selectedTagIds.isNotEmpty ||
       prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
+      prefs.showActiveWorkspacesOnly ||
       !prefs.showPinnedWorkspacesBelow;
 
   final pinnedRows = <WorkbenchSidebarRow>[];
@@ -340,7 +349,8 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   final filtersHideEmptyProjects =
       query.isNotEmpty ||
       prefs.selectedTagIds.isNotEmpty ||
-      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all ||
+      prefs.showActiveWorkspacesOnly;
   final visibleProjects = state.projects
       .where((project) => _projectVisible(prefs, project))
       .toList(growable: false);
@@ -352,7 +362,13 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
     return state
         .workspacesFor(project.id)
         .where(
-          (workspace) => _workspaceVisible(prefs, query, project, workspace),
+          (workspace) => _workspaceVisible(
+            prefs,
+            query,
+            project,
+            workspace,
+            state.tabsFor(workspace.id),
+          ),
         );
   }
 
@@ -412,11 +428,15 @@ bool _workspaceVisible(
   String query,
   Project project,
   Workspace workspace,
+  Iterable<WorkspaceTabRecord> tabs,
 ) {
   if (!workspaceMatchesKindFilter(prefs, workspace)) {
     return false;
   }
   if (!workspaceMatchesTagFilter(prefs, workspace)) {
+    return false;
+  }
+  if (!workspaceMatchesActiveFilter(prefs, tabs)) {
     return false;
   }
   if (query.isEmpty) {
@@ -457,7 +477,13 @@ int countVisibleWorkspaces(WorkbenchState state) {
       continue;
     }
     for (final workspace in state.workspacesFor(project.id)) {
-      if (_workspaceVisible(prefs, query, project, workspace)) {
+      if (_workspaceVisible(
+        prefs,
+        query,
+        project,
+        workspace,
+        state.tabsFor(workspace.id),
+      )) {
         count++;
       }
     }

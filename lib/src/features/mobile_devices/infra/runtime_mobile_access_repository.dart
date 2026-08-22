@@ -44,6 +44,7 @@ class RuntimeMobileAccessRepository {
     String? bindHost,
     int? port,
     MobileEndpointMode? endpointMode,
+    MobileNetbirdEndpoint? netbirdEndpoint,
   }) async {
     final payload = await _client
         .runtimeRequest('mobile.settings.update', <String, Object?>{
@@ -52,6 +53,7 @@ class RuntimeMobileAccessRepository {
           'bindHost': ?bindHost,
           'port': ?port,
           'endpointMode': ?endpointMode?.wireName,
+          'netbirdEndpoint': ?netbirdEndpoint?.wireName,
         });
     return MobileGatewaySettings.fromJson(_mapFromPayload(payload));
   }

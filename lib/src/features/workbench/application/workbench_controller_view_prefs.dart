@@ -42,6 +42,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(workspaceKindFilter: filter));
   }
 
+  void setShowActiveWorkspacesOnly(bool show) {
+    if (state.viewPrefs.showActiveWorkspacesOnly == show) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(showActiveWorkspacesOnly: show));
+  }
+
   void setShowPinnedWorkspacesBelow(bool show) {
     if (state.viewPrefs.showPinnedWorkspacesBelow == show) {
       return;
@@ -239,16 +246,10 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
-    final nextTab = _supportedContextPanelTabForProjectWorkspace(
-      project: state.activeProject,
-      workspace: state.activeWorkspace,
-      prefs: state.viewPrefs,
-      tab: tab,
-    );
-    if (state.viewPrefs.activeContextPanelTab == nextTab) {
+    if (state.viewPrefs.activeContextPanelTab == tab) {
       return;
     }
-    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: nextTab));
+    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
   }
 
   void setExplorerMode(WorkspaceExplorerMode mode) {
@@ -267,6 +268,13 @@ mixin _WorkbenchControllerViewPrefs
       return;
     }
     _updateViewPrefs(state.viewPrefs.copyWith(gitDiffViewMode: mode));
+  }
+
+  void setGitDiffGroupMode(GitDiffGroupMode mode) {
+    if (state.viewPrefs.gitDiffGroupMode == mode) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(gitDiffGroupMode: mode));
   }
 
   void setPullRequestCreateAction(PullRequestCreateAction action) {
@@ -339,16 +347,8 @@ mixin _WorkbenchControllerViewPrefs
     final nextRoots = Map<String, String>.from(
       state.viewPrefs.sourceControlRootByWorkspaceId,
     )..remove(workspace.id);
-    final nextTab =
-        state.viewPrefs.activeContextPanelTab ==
-            WorkbenchContextPanelTab.gitDiff
-        ? WorkbenchContextPanelTab.explorer
-        : state.viewPrefs.activeContextPanelTab;
     _updateViewPrefs(
-      state.viewPrefs.copyWith(
-        sourceControlRootByWorkspaceId: nextRoots,
-        activeContextPanelTab: nextTab,
-      ),
+      state.viewPrefs.copyWith(sourceControlRootByWorkspaceId: nextRoots),
     );
   }
 

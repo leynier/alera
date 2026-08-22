@@ -9,11 +9,13 @@ class AgentIdentityIcon extends StatelessWidget {
     required this.agentType,
     this.size = 14,
     this.color = AleraTokens.foregroundMuted,
+    this.showTooltip = true,
   });
 
   final String agentType;
   final double size;
   final Color color;
+  final bool showTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,7 @@ class AgentIdentityIcon extends StatelessWidget {
                   : null,
             ),
     );
-    return Tooltip(message: label, child: icon);
+    return showTooltip ? Tooltip(message: label, child: icon) : icon;
   }
 }
 
@@ -62,9 +64,11 @@ String agentDisplayName(String agentType) => switch (agentType) {
   'cursor' => 'Cursor',
   'agy' => 'Antigravity',
   'opencode' => 'OpenCode',
+  'opencode2' => 'OpenCode 2',
   'pi' => 'Pi',
   'amp' => 'Amp',
   'grok' => 'Grok Build',
+  'fx' => 'fx',
   _ => 'Agent',
 };
 
@@ -80,12 +84,13 @@ _AgentIconAsset? _agentAsset(String agentType) => switch (agentType) {
     raster: true,
   ),
   'agy' => const _AgentIconAsset(path: 'assets/agents/agy.png', raster: true),
-  'opencode' => const _AgentIconAsset(
+  'opencode' || 'opencode2' => const _AgentIconAsset(
     path: 'assets/agents/opencode.png',
     raster: true,
   ),
   'pi' => const _AgentIconAsset(path: 'assets/agents/pi.svg'),
   'amp' => const _AgentIconAsset(path: 'assets/agents/amp.png', raster: true),
   'grok' => const _AgentIconAsset(path: 'assets/agents/grok.svg'),
+  'fx' => const _AgentIconAsset(path: 'assets/agents/fx.svg'),
   _ => null,
 };

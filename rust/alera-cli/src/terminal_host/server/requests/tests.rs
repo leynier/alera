@@ -1,16 +1,19 @@
 use super::*;
+use crate::terminal_host::server::mobile_gateway_surface::mobile_request_allowed;
 
 use crate::mobile_access::MOBILE_PROTOCOL_VERSION;
+use crate::terminal_host::server::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
 use crate::terminal_host::server::mobile_hello_requests::MobileHelloRequest;
-use crate::terminal_host::server::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
 use crate::terminal_host::protocol::{
     PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
+    RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY, RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
+    RUNTIME_HOST_CLOUD_PUSH_CAPABILITY, RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
+    RUNTIME_HOST_CODEX_GOALS_CAPABILITY, RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY,
+    RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY, RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
@@ -64,6 +67,111 @@ async fn soft_shutdown_counts_a_runtime_mutation_without_an_emulator_manager() {
     while let Ok(command) = inbox_receiver.try_recv() {
         assert!(!matches!(command, ServerCommand::RequestedShutdown));
     }
+}
+
+#[tokio::test]
+async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::local_client(handle),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+    let now = chrono::Utc::now();
+    actor
+        .runtime_store
+        .upsert_workspace_tab(alera_core::runtime::WorkspaceTabRecord {
+            id: "stale-codex-tab".to_string(),
+            workspace_id: "missing-workspace".to_string(),
+            kind: crate::terminal_host::protocol::CODEX_TAB_KIND.to_string(),
+            title: "Codex Chat".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({
+                "codexThreadId": "thread-stale",
+                "codexThreadOwnedByAlera": true,
+            }),
+        })
+        .await
+        .unwrap();
+    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "tab.remove",
+                "payload": {"id": "stale-codex-tab"},
+            })
+            .to_string(),
+        )
+        .await;
+    let completion = inbox_receiver.recv().await.unwrap();
+    actor.handle(completion).await;
+    let response = loop {
+        let response = receiver.recv().await.unwrap().as_json().unwrap();
+        if response["id"] == 1 {
+            break response;
+        }
+    };
+
+    assert_eq!(response["ok"], true);
+    assert!(actor
+        .runtime_store
+        .find_workspace_tab("stale-codex-tab")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn shutdown_response_precedes_disposal_marker() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir,
+        std::collections::HashMap::from([(
+            1,
+            crate::terminal_host::server::actor_test_harness::local_client(handle),
+        )]),
+        std::collections::HashMap::new(),
+    )
+    .await;
+    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_line(
+            1,
+            serde_json::json!({
+                "id": 1,
+                "type": "host.shutdown",
+                "payload": {},
+            })
+            .to_string(),
+        )
+        .await;
+
+    let response = receiver.recv().await.unwrap().as_json().unwrap();
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["ok"], true);
+    let marker = receiver.recv().await.unwrap();
+    assert!(matches!(
+        marker,
+        crate::terminal_host::client::ClientFrame::OrderedControl { frame, .. }
+            if matches!(
+                *frame,
+                crate::terminal_host::client::ClientFrame::ShutdownRuntimeAfterWrite { .. }
+            )
+    ));
+    assert!(inbox_receiver.try_recv().is_err());
 }
 
 #[tokio::test]
@@ -122,6 +230,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.runtimeSettings.get"));
     assert!(mobile_request_allowed("mobile.runtimeSettings.update"));
     assert!(mobile_request_allowed("agentQuota.snapshot"));
+    assert!(mobile_request_allowed("agentUsage.snapshot"));
     assert!(mobile_request_allowed("agentQuota.fetchClaudeTui"));
     assert!(mobile_request_allowed("agentQuota.consumeCodexResetCredit"));
     assert!(mobile_request_allowed("cliRegistration.status"));
@@ -139,6 +248,37 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.promptImage.chunk"));
     assert!(mobile_request_allowed("mobile.promptImage.complete"));
     assert!(mobile_request_allowed("mobile.promptImage.cancel"));
+    for request in [
+        "codex.tab.create",
+        "codex.thread.open",
+        "codex.thread.list",
+        "codex.thread.resume",
+        "codex.thread.history",
+        "codex.thread.new",
+        "codex.thread.clear",
+        "codex.thread.snapshot",
+        "codex.thread.items.list",
+        "codex.goal.get",
+        "codex.goal.set",
+        "codex.goal.clear",
+        "codex.model.list",
+        "codex.collaborationModes.list",
+        "codex.skills.list",
+        "codex.apps.list",
+        "codex.turn.start",
+        "codex.turn.interrupt",
+        "codex.turn.steer",
+        "codex.thread.rename",
+        "codex.thread.compact",
+        "codex.review.branches",
+        "codex.review.start",
+        "codex.response",
+    ] {
+        assert!(
+            mobile_request_allowed(request),
+            "{request} should be allowed"
+        );
+    }
 }
 
 #[test]
@@ -160,6 +300,8 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
     assert!(!mobile_request_allowed("account.status"));
     assert!(!mobile_request_allowed("account.signIn.start"));
     assert!(!mobile_request_allowed("account.signOut"));
+    assert!(!mobile_request_allowed("terminal.pulse.status"));
+    assert!(!mobile_request_allowed("terminal.pulse.configure"));
 }
 
 #[test]
@@ -249,6 +391,10 @@ fn mobile_hello_advertises_deferred_terminal_input() {
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_RESTART_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_CHAT_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_GOALS_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY));
 }
 
 #[test]
@@ -286,6 +432,7 @@ fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
     assert!(!MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_ACCOUNT_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_CODEX_RESET_CREDITS_CAPABILITY));
     assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY));
+    assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY));
     assert!(
         MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY)
     );

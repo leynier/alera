@@ -435,6 +435,7 @@ class _RecordingRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     this.executable = executable;
     this.arguments = arguments;

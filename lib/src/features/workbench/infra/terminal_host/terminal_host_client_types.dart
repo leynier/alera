@@ -9,6 +9,7 @@ final class _TerminalHostConnection {
     required this.supportsOrchestration,
     required this.supportsTerminalRestart,
     required this.supportsDeferredInput,
+    required this.supportsTerminalPulse,
   }) : _reader = null {
     _socketSub = _socket!.cast<List<int>>().listen(
       _consume,
@@ -30,6 +31,7 @@ final class _TerminalHostConnection {
     required this.supportsOrchestration,
     required this.supportsTerminalRestart,
     required this.supportsDeferredInput,
+    required this.supportsTerminalPulse,
   }) : _reader = reader,
        _socket = null {
     lines = reader.lines;
@@ -49,6 +51,7 @@ final class _TerminalHostConnection {
   final bool supportsOrchestration;
   final bool supportsTerminalRestart;
   final bool supportsDeferredInput;
+  final bool supportsTerminalPulse;
 
   /// One reader for the whole connection. It starts newline-delimited so the
   /// handshake works against a host without the capability, and switches to
@@ -150,6 +153,7 @@ final class _TerminalHostControl {
     this.supportsBinaryFrames = false,
     this.supportsTerminalRestart = false,
     this.supportsDeferredInput = false,
+    this.supportsTerminalPulse = false,
   });
 
   final int port;
@@ -159,6 +163,7 @@ final class _TerminalHostControl {
   final bool supportsBinaryFrames;
   final bool supportsTerminalRestart;
   final bool supportsDeferredInput;
+  final bool supportsTerminalPulse;
 }
 
 final class _PendingHostRequest {
@@ -168,9 +173,16 @@ final class _PendingHostRequest {
   final Completer<Object?> completer;
 }
 
+final class _RuntimeMutationInProgressError extends StateError {
+  _RuntimeMutationInProgressError() : super(_runtimeMutationInProgressMessage);
+}
+
 enum _HostConnectionRole { terminal, runtime }
 
 const Duration _terminalHostConnectTimeout = Duration(seconds: 2);
 const Duration _terminalHostRequestTimeout = Duration(seconds: 10);
+const Duration _runtimeMutationRetryDelay = Duration(milliseconds: 50);
+const String _runtimeMutationInProgressMessage =
+    'A runtime mutation is in progress. Wait for it to finish and retry.';
 const String _orchestrationHostRestartRequiredMessage =
     'The running terminal host does not support orchestration. Restart Alera to replace the terminal host before using orchestration.';

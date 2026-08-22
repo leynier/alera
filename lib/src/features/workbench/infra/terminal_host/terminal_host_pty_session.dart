@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
+
+part 'terminal_host_pty_session_pulse.dart';
 
 final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   factory TerminalHostPtySessionFactory({required TerminalHostClient client}) {
@@ -29,7 +32,11 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
 }
 
 final class TerminalHostPtySession
-    implements RecoverableTerminalPtySession, DeferredEnterTerminalPtySession {
+    with _TerminalPulsePtySessionSupport
+    implements
+        RecoverableTerminalPtySession,
+        DeferredEnterTerminalPtySession,
+        TerminalPulsePtySession {
   factory TerminalHostPtySession({
     required TerminalHostClient client,
     required String sessionId,
@@ -46,7 +53,9 @@ final class TerminalHostPtySession
     this._tabId,
   );
 
+  @override
   final TerminalHostClient _client;
+  @override
   final String _sessionId;
   final String _workspaceId;
   final String _tabId;
@@ -449,6 +458,8 @@ final class TerminalHostPtySession
         // Driver presence is consumed by the workbench overlay, not the PTY
         // session stream.
         break;
+      case TerminalHostPulseChangedEvent(:final state):
+        _events.add(TerminalPtyPulseChangedEvent(state));
     }
   }
 

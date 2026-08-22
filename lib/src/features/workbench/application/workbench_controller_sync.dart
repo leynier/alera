@@ -21,6 +21,17 @@ mixin _WorkbenchControllerSync
         if (!validProjectIds.contains(entry.key))
           for (final workspace in entry.value) workspace.id,
     };
+    for (final entry in state.workspacesByProject.entries) {
+      if (validProjectIds.contains(entry.key)) {
+        continue;
+      }
+      for (final workspace in entry.value) {
+        _releaseHostedReviewTabsInBackground(
+          workspace,
+          state.tabsFor(workspace.id),
+        );
+      }
+    }
     final prunedSourceControlRoots =
         Map<String, String>.from(prefs.sourceControlRootByWorkspaceId)
           ..removeWhere(
@@ -71,17 +82,8 @@ mixin _WorkbenchControllerSync
       workspacesByProject: updatedWorkspaces,
       preferredWorkspaceId: state.activeWorkspaceId,
     );
-    final activeWorkspace = _workspaceById(
-      updatedWorkspaces,
-      activeWorkspaceId,
-    );
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: _projectById(projects, activeProjectId),
-      workspace: activeWorkspace,
-      prefs: prunedViewPrefs,
-    );
-    final viewPrefsChanged =
-        prefsChanged || !identical(nextViewPrefs, prunedViewPrefs);
+    final nextViewPrefs = prunedViewPrefs;
+    final viewPrefsChanged = prefsChanged;
 
     state = state.copyWith(
       projects: projects,
@@ -150,6 +152,15 @@ mixin _WorkbenchControllerSync
         .map((entry) => entry.key)
         .toList(growable: false);
     for (final workspaceId in removedWorkspaceIds) {
+      final workspace = _workspaceById(workspaceId);
+      if (workspace != null) {
+        _releaseHostedReviewTabsInBackground(
+          workspace,
+          state.tabsFor(workspaceId),
+        );
+      }
+    }
+    for (final workspaceId in removedWorkspaceIds) {
       _tabSubs.remove(workspaceId)?.cancel();
       _tabSubProjectIds.remove(workspaceId);
     }
@@ -217,16 +228,8 @@ mixin _WorkbenchControllerSync
             sourceControlRootByWorkspaceId: prunedSourceControlRoots,
           )
         : expandedViewPrefs;
-    final activeWorkspace = _workspaceById(nextWorkspaces, activeWorkspaceId);
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: _projectById(state.projects, candidateProjectId),
-      workspace: activeWorkspace,
-      prefs: workspacePrunedViewPrefs,
-    );
-    final viewPrefsChanged =
-        expansionChanged ||
-        sourceControlRootsChanged ||
-        !identical(nextViewPrefs, workspacePrunedViewPrefs);
+    final nextViewPrefs = workspacePrunedViewPrefs;
+    final viewPrefsChanged = expansionChanged || sourceControlRootsChanged;
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,
@@ -242,6 +245,15 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    final liveTabIds = <String>{for (final tab in tabs) tab.id};
+    final removedTabs = state
+        .tabsFor(workspaceId)
+        .where((tab) => !liveTabIds.contains(tab.id));
+    final workspace = _workspaceById(workspaceId);
+    if (workspace != null) {
+      _releaseHostedReviewTabsInBackground(workspace, removedTabs);
+    }
+    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;

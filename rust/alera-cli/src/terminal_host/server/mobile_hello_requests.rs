@@ -5,7 +5,7 @@ use crate::mobile_access::{authenticate_mobile_device, MOBILE_PROTOCOL_VERSION};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
-use super::mobile_terminal_requests::MOBILE_HELLO_CAPABILITIES;
+use super::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
 use super::request_payloads::parse_payload;
 use super::ServerActor;
 
@@ -19,6 +19,8 @@ pub(super) struct MobileHelloRequest {
     pub(super) cloud_device_id: Option<String>,
     #[serde(default)]
     relay_client_id: Option<String>,
+    #[serde(default)]
+    supported_tab_kinds: Vec<String>,
 }
 
 impl ServerActor {
@@ -96,6 +98,10 @@ impl ServerActor {
                 .cloud_device_id
                 .filter(|cloud_device_id| !cloud_device_id.trim().is_empty())
                 .or_else(|| client.relay_client_id.clone());
+            client.supports_codex_tab_kind = request
+                .supported_tab_kinds
+                .iter()
+                .any(|kind| kind == crate::terminal_host::protocol::CODEX_TAB_KIND);
         }
         self.cancel_shutdown_timer();
         if binary_frames {
@@ -109,6 +115,7 @@ impl ServerActor {
             "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
             "authenticated": true,
             "binaryFrames": binary_frames,
+            "supportedTabKinds": request.supported_tab_kinds,
             "device": device,
         }))
     }

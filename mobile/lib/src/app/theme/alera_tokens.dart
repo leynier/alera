@@ -23,8 +23,11 @@ abstract final class AleraTokens {
 
   /// Minimum comfortable finger tap target (Material / HIG ~48dp).
   static const double minTapTarget = space48;
+  static const double iconSm = space12;
 
   static const double emptyStateMaxWidth = 520.0;
+  static const double conversationMaxWidth = 760.0;
+  static const double chatBubbleMaxWidth = 620.0;
 
   // Control radii match desktop so ported DS widgets look identical.
   static const double radiusSm = 4.0;
@@ -58,6 +61,20 @@ abstract final class AleraTokens {
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
   static const Duration durationSpin = Duration(milliseconds: 1200);
+  static const Duration codexShimmerCadence = Duration(milliseconds: 80);
+  static const Duration codexShimmerCycle = Duration(milliseconds: 1600);
+  static const Duration codexElapsedTimeRefreshInterval = Duration(seconds: 1);
+  static const double codexPlanPreviewHeight = 248;
+  static const double codexPlanPreviewFadeHeight = space48 * 2;
+  static const double codexChatFooterMaxHeight =
+      codexPlanPreviewHeight + minTapTarget * 4;
+  static const double codexComposerRadius = radiusXl;
+  static const double codexComposerSingleRowMinWidth = 520;
+  static const double codexCatalogRowHeight = minTapTarget + space24;
+  static const int codexCatalogVisibleRowCount = 2;
+  static const double codexInlineEditorMaxHeight = minTapTarget * 3.5;
+  static const int codexRasterPreviewCacheDimension = 2048;
+  static const double codexPickerHeightFactor = 0.72;
 
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
@@ -71,6 +88,7 @@ abstract final class AleraTokens {
   static const double emptyIcon = 44;
   static const double successIcon = 64;
   static const double terminalPreviewHeight = 280;
+  static const double terminalRestoreProgressWidth = 180;
   static const double keyColumnWidth = 104;
   static const double strokeSm = 2;
   static const double strokeMd = 3;
@@ -78,7 +96,10 @@ abstract final class AleraTokens {
   static const double scrimAlpha = 0.55;
   static const double squareAspectRatio = 1;
   static const double pairingViewfinderSize = 260;
-  static const double tabStripHeight = 56;
+
+  /// Hugs a 40dp chip with [spaceXs] above and below. A taller strip only adds
+  /// dead space between the app bar title and the tabs.
+  static const double tabStripHeight = 48;
 
   /// Matches desktop terminal/browser tab title max width.
   static const double tabTitleMaxWidthTerminal = 92;
@@ -87,6 +108,14 @@ abstract final class AleraTokens {
   static const double tabTitleMaxWidthEditor = 180;
   static const double accessoryBarHeight = minTapTarget + spaceSm;
   static const int composeBarMaxLines = 4;
+
+  /// Single inset and gap for the terminal input stack. The quick-key strip,
+  /// the compose field, and every trailing action share it so the mode toggle
+  /// and Send land in one column.
+  static const double terminalInputInset = space8;
+
+  /// Width of the fade that reveals more quick keys past the edge of the strip.
+  static const double terminalAccessoryFadeWidth = space24;
 
   static const Duration keyRepeatInterval = Duration(milliseconds: 90);
   static const int pairingInputMinLines = 6;

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 /// Ratchet check for AGENTS.md file-length guidance (default 500 lines).
 ///
 /// Fails when a scanned source file exceeds [maxLines] **and** either:
@@ -242,14 +244,6 @@ int _countLines(File file) {
 }
 
 String _posixRelative(Directory root, File file) {
-  final rootPath = root.uri.resolve('.').toFilePath();
-  final filePath = file.absolute.path;
-  var relative = filePath;
-  if (filePath.startsWith(rootPath)) {
-    relative = filePath.substring(rootPath.length);
-    if (relative.startsWith(Platform.pathSeparator)) {
-      relative = relative.substring(1);
-    }
-  }
+  final relative = p.relative(file.absolute.path, from: root.absolute.path);
   return relative.replaceAll(r'\', '/');
 }

@@ -39,9 +39,12 @@ A new Flutter FFI plugin project.
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # `-lz` and `-liconv` satisfy the system zlib/iconv symbols that the
-    # vendored libgit2 (via the git2 crate) depends on; cargokit only produces
-    # the static library, so these transitive system links are declared here.
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libalera_native.a -lz -liconv',
+    # Cargokit only produces the Rust static library, so native dependencies
+    # used inside it must be repeated when CocoaPods links the plugin framework.
+    # libgit2 needs zlib/iconv, while whisper.cpp needs libc++, Accelerate,
+    # Foundation, Core ML, Metal, and MetalKit. Cargokit only produces the
+    # Rust static library, so these framework dependencies must be repeated
+    # when CocoaPods links the plugin framework.
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libalera_native.a -lz -liconv -lc++ -framework Accelerate -framework Foundation -framework CoreML -framework Metal -framework MetalKit',
   }
 end

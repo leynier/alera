@@ -5,21 +5,28 @@ use std::path::Path;
 use std::process::Child;
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 use base64::engine::general_purpose::STANDARD;
+#[cfg(unix)]
 use base64::Engine as _;
 use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: i64 = 4;
 
 #[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
+#[cfg(unix)]
 mod deferred_delivery_cases;
 #[path = "orchestration_review_regressions/orchestration_pain_point_cases.rs"]
+#[cfg(unix)]
 mod orchestration_pain_point_cases;
 #[path = "orchestration_review_regressions/readiness_spawn_exit_cases.rs"]
+#[cfg(unix)]
 mod readiness_spawn_exit_cases;
 #[path = "orchestration_review_regressions/terminal_prune_cases.rs"]
+#[cfg(unix)]
 mod terminal_prune_cases;
 #[path = "orchestration_review_regressions/terminal_wait_input_cases.rs"]
+#[cfg(unix)]
 mod terminal_wait_input_cases;
 
 struct HostGuard(Child);
@@ -100,6 +107,7 @@ fn send(writer: &mut TcpStream, message: Value) {
     writer.flush().unwrap();
 }
 
+#[cfg(unix)]
 fn send_batch(writer: &mut TcpStream, messages: &[Value]) {
     let mut batch = Vec::new();
     for message in messages {
@@ -255,6 +263,7 @@ fn expect_ok(response: Value) -> Value {
     response["payload"].clone()
 }
 
+#[cfg(unix)]
 fn collect_output(
     reader: &mut BufReader<TcpStream>,
     session_id: &str,
@@ -322,6 +331,7 @@ fn attach_shell_session(
     ));
 }
 
+#[cfg(unix)]
 fn occurrences(haystack: &str, needle: &str) -> usize {
     haystack.match_indices(needle).count()
 }
@@ -1349,9 +1359,12 @@ fn coordinator_waits_for_spawned_worker_presence_before_creating_another() {
     ));
 }
 
+/// A coordinator-spawned Claude worker is dispatched at spawn, like every other
+/// agent. Waiting for it to announce itself first would wait forever: a worker
+/// that has been asked nothing never reports that it is idle.
 #[test]
 #[cfg(unix)]
-fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
+fn coordinator_dispatches_a_spawned_claude_worker_without_waiting_for_presence() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake_app(&mut writer, &mut reader, &host.token);
@@ -1428,8 +1441,18 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         "orchestration.dispatchShow",
         json!({"task": &task_id}),
     ));
-    assert!(show["active"].is_null(), "{show}");
+    assert_eq!(
+        show["active"]["status"],
+        json!("awaiting_acceptance"),
+        "{show}"
+    );
+    assert_eq!(
+        show["active"]["assignee_handle"],
+        json!(worker_handle),
+        "{show}"
+    );
 
+    // A presence report on an already dispatched worker changes nothing.
     expect_ok(request(
         &mut writer,
         &mut reader,
@@ -1451,11 +1474,7 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         json!("awaiting_acceptance"),
         "{show}"
     );
-    assert_eq!(
-        show["active"]["assignee_handle"],
-        json!(worker_handle),
-        "{show}"
-    );
+    assert_eq!(show["history"].as_array().unwrap().len(), 1, "{show}");
 
     expect_ok(request(
         &mut writer,

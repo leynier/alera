@@ -36,8 +36,12 @@ class AiTextGenerationOperationMapper
         return AiTextGenerationOperation.pullRequestDetails;
       case r'branchName':
         return AiTextGenerationOperation.branchName;
+      case r'readingDiff':
+        return AiTextGenerationOperation.readingDiff;
       case r'workspaceIdentity':
         return AiTextGenerationOperation.workspaceIdentity;
+      case r'speechMessage':
+        return AiTextGenerationOperation.speechMessage;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -52,8 +56,12 @@ class AiTextGenerationOperationMapper
         return r'pullRequestDetails';
       case AiTextGenerationOperation.branchName:
         return r'branchName';
+      case AiTextGenerationOperation.readingDiff:
+        return r'readingDiff';
       case AiTextGenerationOperation.workspaceIdentity:
         return r'workspaceIdentity';
+      case AiTextGenerationOperation.speechMessage:
+        return r'speechMessage';
     }
   }
 }
@@ -98,12 +106,16 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return AiTextGenerationAgent.agy;
       case r'opencode':
         return AiTextGenerationAgent.opencode;
+      case r'opencode2':
+        return AiTextGenerationAgent.opencode2;
       case r'pi':
         return AiTextGenerationAgent.pi;
       case r'amp':
         return AiTextGenerationAgent.amp;
       case r'grok':
         return AiTextGenerationAgent.grok;
+      case r'fx':
+        return AiTextGenerationAgent.fx;
       case r'custom':
         return AiTextGenerationAgent.custom;
       default:
@@ -126,12 +138,16 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return r'agy';
       case AiTextGenerationAgent.opencode:
         return r'opencode';
+      case AiTextGenerationAgent.opencode2:
+        return r'opencode2';
       case AiTextGenerationAgent.pi:
         return r'pi';
       case AiTextGenerationAgent.amp:
         return r'amp';
       case AiTextGenerationAgent.grok:
         return r'grok';
+      case AiTextGenerationAgent.fx:
+        return r'fx';
       case AiTextGenerationAgent.custom:
         return r'custom';
     }

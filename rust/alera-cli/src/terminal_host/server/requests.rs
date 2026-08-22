@@ -8,7 +8,6 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
-use crate::managed_workspace::{ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest};
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
@@ -23,10 +22,8 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
-use super::mobile_terminal_requests::mobile_request_allowed;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
-use super::runtime_mutations::RuntimeMutationRequest;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -44,6 +41,7 @@ impl ServerActor {
     /// response target.
     pub(super) async fn handle_line(&mut self, client_id: u64, line: String) {
         let mut restart_after_response = false;
+        let mut shutdown_after_response = false;
         let decoded: Value = match serde_json::from_str(&line) {
             Ok(value) => value,
             // jsonDecode threw: no request id is available, so drop the client.
@@ -60,6 +58,7 @@ impl ServerActor {
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
                 restart_after_response = request_type == "host.restart";
+                shutdown_after_response = request_type == "host.shutdown";
                 if let Some(id) = request_id {
                     if self.emulator_requests.has_runtime_mutations()
                         && conflicts_with_runtime_mutation(&request_type)
@@ -92,7 +91,10 @@ impl ServerActor {
                         }
                         return;
                     }
-                    match self.try_start_deferred_request(client_id, id, &request_type, &payload) {
+                    match self
+                        .try_start_deferred_request(client_id, id, &request_type, &payload)
+                        .await
+                    {
                         Ok(true) => return,
                         Ok(false) => {}
                         Err(error) => {
@@ -133,6 +135,14 @@ impl ServerActor {
                     if restart_after_response {
                         self.restart_runtime_after_client_write(client_id);
                     }
+                    if shutdown_after_response {
+                        self.shutdown_runtime_after_client_write(client_id);
+                    }
+                } else if shutdown_after_response {
+                    // There is no response to order against for a malformed
+                    // request without an id, so preserve the legacy shutdown
+                    // behavior for that case.
+                    let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 }
             }
             Err(error) => {
@@ -142,180 +152,6 @@ impl ServerActor {
                     self.dispose_client(client_id).await;
                 }
             }
-        }
-    }
-
-    fn try_start_deferred_request(
-        &mut self,
-        client_id: u64,
-        request_id: i64,
-        request_type: &str,
-        payload: &Value,
-    ) -> HostResult<bool> {
-        if self.try_start_account_request(client_id, request_id, request_type, payload)? {
-            return Ok(true);
-        }
-        match request_type {
-            "aiText.workspaceIdentity.generate" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "workspace.createManaged" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let mut request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
-                request.setup_script_directory = self.setup_script_directory();
-                self.start_managed_workspace_create(client_id, request_id, request);
-                Ok(true)
-            }
-            "workspace.runSetup" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let copies_only = payload
-                    .get("copiesOnly")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                self.start_workspace_setup(client_id, request_id, workspace_id, copies_only);
-                Ok(true)
-            }
-            "workspace.removeManaged" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveManagedWorkspace { request },
-                );
-                Ok(true)
-            }
-            "project.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "id")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProject { project_id },
-                );
-                Ok(true)
-            }
-            "workspace.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "id")?;
-                let cascade_tabs = payload
-                    .get("cascadeTabs")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(true);
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspace {
-                        workspace_id,
-                        cascade_tabs,
-                    },
-                );
-                Ok(true)
-            }
-            "workspace.removeForProject" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let project_id = require_string_key(payload, "projectId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveProjectWorkspaces { project_id },
-                );
-                Ok(true)
-            }
-            "workspace.sleep" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::SleepWorkspace { workspace_id },
-                );
-                Ok(true)
-            }
-            "tab.remove" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let tab_id = require_string_key(payload, "id")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveTab { tab_id },
-                );
-                Ok(true)
-            }
-            "tab.removeForWorkspace" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                let workspace_id = require_string_key(payload, "workspaceId")?;
-                self.start_runtime_mutation(
-                    client_id,
-                    request_id,
-                    RuntimeMutationRequest::RemoveWorkspaceTabs { workspace_id },
-                );
-                Ok(true)
-            }
-            "write" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.queue_terminal_input(client_id, request_id, payload)
-            }
-            "agentQuota.snapshot" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "agentQuota.fetchClaudeTui" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_claude_tui_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            "agentQuota.consumeCodexResetCredit" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_agent_quota_codex_reset_request(client_id, request_id, payload);
-                Ok(true)
-            }
-            "cliRegistration.status" | "cliRegistration.install" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_cli_registration_request(
-                    client_id,
-                    request_id,
-                    request_type.ends_with("install"),
-                );
-                Ok(true)
-            }
-            "agentSkill.install" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_skill_install_request(client_id, request_id, payload)?;
-                Ok(true)
-            }
-            _ if request_type.starts_with("emulator.") => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                self.start_emulator_request(
-                    client_id,
-                    request_id,
-                    request_type.to_string(),
-                    payload.clone(),
-                );
-                Ok(true)
-            }
-            _ => Ok(false),
         }
     }
 
@@ -351,6 +187,11 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
+            request_type if request_type.starts_with("codex.") => {
+                self.handle_codex_request(client_id, request_type, payload)
+                    .await
+            }
+            "mobile.workspaceQuickOpen.stop" => self.stop_mobile_workspace_quick_open(payload),
             "configure" => {
                 self.require_auth(client_id)?;
                 // Crash reporting is a live switch rather than a start-up flag:
@@ -400,7 +241,6 @@ impl ServerActor {
                         return Err(HostError::state(message));
                     }
                 }
-                let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 Ok(json!({
                     "stopped": true,
                     "forced": force,
@@ -519,13 +359,18 @@ impl ServerActor {
                         "terminal.reclaim is only available to desktop clients.",
                     ));
                 }
-                let session_id = self.require_session(payload)?;
+                let session_id = self.require_session_id(payload)?;
                 let restored = self.reclaim_terminal_for_desktop(&session_id);
                 Ok(json!({ "restored": restored }))
             }
             "terminal.driver.list" => {
                 self.require_auth(client_id)?;
                 Ok(self.terminal_driver_list_payload())
+            }
+            "terminal.pulse.status" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, "terminal.pulse.status")?;
+                self.terminal_pulse_status(payload).await
             }
             "setOutputPaused" => {
                 self.require_auth(client_id)?;
@@ -599,10 +444,18 @@ impl ServerActor {
                 self.handle_resource_snapshot(payload)
             }
             ty if ty.starts_with("agentCanvas.") => self.canvas(client_id, ty, payload).await,
+            _ if request_type.starts_with("automation.") => {
+                self.handle_automation_request(client_id, request_type, payload)
+                    .await
+            }
             "shellEnvironment.reload" => {
                 self.require_auth(client_id)?;
-                let path_count = crate::login_shell_environment::reload_login_shell_path().await;
-                Ok(json!({ "pathEntryCount": path_count }))
+                let (path_count, variable_count) =
+                    crate::login_shell_environment::reload_login_shell_environment().await;
+                Ok(json!({
+                    "pathEntryCount": path_count,
+                    "variableCount": variable_count,
+                }))
             }
             _ if request_type.starts_with("computer.") => {
                 self.require_auth(client_id)?;
@@ -640,7 +493,7 @@ impl ServerActor {
             }
             "mobile.runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                const ALLOWED: [&str; 7] = [
+                const ALLOWED: [&str; 8] = [
                     "workspaceDirectory",
                     "confirmProjectRemoval",
                     "confirmWorkspaceRemoval",
@@ -648,6 +501,7 @@ impl ServerActor {
                     "agentStatusHooks",
                     "agentQuotas",
                     "mobilePushNotifications",
+                    "automation",
                 ];
                 if let Some(key) = payload
                     .as_object()
@@ -814,7 +668,9 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
                 if self.is_mobile_client(client_id) {
-                    Ok(self.mobile_workspace_tabs_payload(tabs))
+                    Ok(self.mobile_workspace_tabs_payload(
+                        self.workspace_tabs_for_client(client_id, tabs),
+                    ))
                 } else {
                     Ok(json!(self.workspace_tabs_for_client(client_id, tabs)))
                 }
@@ -840,12 +696,15 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
                 let title = require_string_key(payload, "title")?;
-                let value =
-                    json_result(self.runtime_store.rename_workspace_tab(&id, &title).await)?;
-                self.broadcast_workspace_tabs_changed(
-                    value.get("workspaceId").and_then(Value::as_str),
-                );
-                Ok(value)
+                let tab = self
+                    .runtime_store
+                    .rename_workspace_tab(&id, &title)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let workspace_id = tab.workspace_id.clone();
+                let tab = self.workspace_tab_for_client(client_id, tab);
+                self.broadcast_workspace_tabs_changed(Some(&workspace_id));
+                Ok(json!(tab))
             }
             "linkedReview.find" => {
                 self.require_auth(client_id)?;
@@ -1023,6 +882,21 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.cancel_ai_text_generation(payload)
             }
+            "aiDictation.transcribe" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::transcribe(payload, true, &self.runtime_dir).await
+            }
+            "mobile.aiDictation.transcribe" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::transcribe(payload, false, &self.runtime_dir).await
+            }
+            "aiDictation.cancel" | "mobile.aiDictation.cancel" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::cancel(payload)
+            }
             "agentProfile.upsert" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_upsert(payload).await
@@ -1178,24 +1052,6 @@ impl ServerActor {
             .get(&client_id)
             .is_some_and(|client| client.kind == ClientKind::Mobile)
     }
-
-    pub(super) fn require_request_allowed(
-        &self,
-        client_id: u64,
-        request_type: &str,
-    ) -> HostResult<()> {
-        let Some(client) = self.clients.get(&client_id) else {
-            return Err(HostError::state(
-                "Terminal host client is not authenticated.",
-            ));
-        };
-        if client.kind == ClientKind::Local || mobile_request_allowed(request_type) {
-            return Ok(());
-        }
-        Err(HostError::state(format!(
-            "Mobile clients cannot call terminal host request: {request_type}"
-        )))
-    }
 }
 
 /// Validate the request envelope. The payload-object check precedes the id/type
@@ -1346,6 +1202,10 @@ fn host_shutdown_busy_message(
         usize::from(has_push_subscriptions)
     ))
 }
+
+#[cfg(test)]
+#[path = "requests/access_cases.rs"]
+mod access_cases;
 
 #[cfg(test)]
 mod tests;

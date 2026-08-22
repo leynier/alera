@@ -11,6 +11,7 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -51,6 +52,8 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
     required this.sourceControlScope,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.groupMode,
+    required this.onGroupModeChanged,
     required this.onOpenGitDiff,
     required this.onOpenGitCommitDiff,
     this.onClearSourceControlRoot,
@@ -60,6 +63,8 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   final WorkspaceSourceControlScope sourceControlScope;
   final GitDiffViewMode viewMode;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
+  final GitDiffGroupMode groupMode;
+  final ValueChanged<GitDiffGroupMode> onGroupModeChanged;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
   final VoidCallback? onClearSourceControlRoot;
@@ -71,6 +76,7 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
 
 class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   final TextEditingController _filterController = TextEditingController();
   final Set<String> _collapsedSections = <String>{};
   final Set<String> _collapsedTreeNodes = <String>{};
@@ -128,6 +134,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
     _commitMessageGenerationId += 1;
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _filterController.dispose();
     super.dispose();
   }
@@ -159,8 +166,10 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       children: <Widget>[
         _SourceControlToolbar(
           messageController: _messageController,
+          messageFocusNode: _messageFocusNode,
           filterController: _filterController,
           viewMode: widget.viewMode,
+          groupMode: widget.groupMode,
           state: state,
           aiTextSettings: aiTextSettings,
           generatingCommitMessage: _generatingCommitMessage,
@@ -177,6 +186,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           onToggleCollapseAll: () =>
               _toggleAllVisibleNodes(state.asData?.value),
           onViewModeChanged: widget.onViewModeChanged,
+          onGroupModeChanged: widget.onGroupModeChanged,
           onOpenAll: () => unawaited(
             widget.onOpenGitDiff(
               scope: WorkspaceGitDiffScope.all,
@@ -207,7 +217,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                       );
                     }
                     return _GitDiffGroups(
-                      groups: status.effectiveGroups,
+                      groups: _groupsFor(status),
                       workspacePath: widget.sourceControlScope.path,
                       viewMode: widget.viewMode,
                       busy: data.isBusy,
@@ -224,6 +234,9 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                       onStageArea: _stageArea,
                       onUnstageArea: _unstageArea,
                       onDiscardArea: _discardAreaWithConfirmation,
+                      onStagePath: _stage,
+                      onUnstagePath: _unstage,
+                      onDiscardPath: _discard,
                     );
                   },
                 ),
@@ -310,6 +323,10 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   Future<void> _stage(String? filePath) {
     return _run(() => _notifier.stage(filePath), successMessage: 'Staged');
+  }
+
+  Future<void> _unstage(String? filePath) {
+    return _run(() => _notifier.unstage(filePath), successMessage: 'Unstaged');
   }
 
   Future<void> _stageArea(GitChangeArea area, String? filePath) {
@@ -583,18 +600,23 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
   }
 
-  void _toggleSectionCollapsed(GitChangeArea area) {
+  List<GitChangeGroup> _groupsFor(GitStatusResult status) {
+    if (widget.groupMode == GitDiffGroupMode.unified) {
+      return GitChangeGroup.unifiedFromEntries(status.entries);
+    }
+    return status.effectiveGroups;
+  }
+
+  void _toggleSectionCollapsed(String key) {
     setState(() {
-      final key = _sectionKey(area);
       if (!_collapsedSections.add(key)) {
         _collapsedSections.remove(key);
       }
     });
   }
 
-  void _toggleTreeNodeCollapsed(GitChangeArea area, String path) {
+  void _toggleTreeNodeCollapsed(String key) {
     setState(() {
-      final key = _treeNodeKey(area, path);
       if (!_collapsedTreeNodes.add(key)) {
         _collapsedTreeNodes.remove(key);
       }
@@ -655,24 +677,19 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     }
     final status = _filteredStatus(state.status);
     final keys = <String>{};
-    for (final group in status.effectiveGroups) {
+    for (final group in _groupsFor(status)) {
       if (group.entries.isEmpty) {
         continue;
       }
-      keys.add(_sectionKey(group.area));
+      keys.add(_sectionKeyForGroup(group));
+      final folderAreaKey = group.unified ? 'unified' : group.area.key;
       for (final row in group.treeRows) {
         if (row.kind == GitChangeTreeRowKind.directory) {
-          keys.add(_treeNodeKey(group.area, row.path));
+          keys.add('folder:$folderAreaKey:${row.path}');
         }
       }
     }
     return keys;
-  }
-
-  String _sectionKey(GitChangeArea area) => 'section:${area.key}';
-
-  String _treeNodeKey(GitChangeArea area, String path) {
-    return 'folder:${area.key}:$path';
   }
 
   Future<bool> _run(

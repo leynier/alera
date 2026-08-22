@@ -6,12 +6,14 @@ class _CollapsedSidebar extends StatelessWidget {
     required this.controller,
     required this.onAddProject,
     required this.onOpenSettings,
+    required this.onOpenAutomations,
   });
 
   final WorkbenchState state;
   final WorkbenchController controller;
   final VoidCallback onAddProject;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenAutomations;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,10 @@ class _CollapsedSidebar extends StatelessWidget {
               ),
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
-            _CollapsedSidebarFooter(onOpenSettings: onOpenSettings),
+            _CollapsedSidebarFooter(
+              onOpenSettings: onOpenSettings,
+              onOpenAutomations: onOpenAutomations,
+            ),
           ],
         ),
       ),

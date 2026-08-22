@@ -67,11 +67,47 @@ endif()
 # the build profile is selected with generator expressions at build time.
 set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
 set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
-set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+# Sibling of the native cargokit target (R:\c\n). Keep this short enough
+# that ggml-vulkan's nested TryCompile object stays under MAX_PATH.
+if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
+  set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/cli")
+else()
+  set(ALERA_CLI_CARGO_TARGET_DIR "$ENV{SystemDrive}/c/cli")
+endif()
+file(MAKE_DIRECTORY "${ALERA_CLI_CARGO_TARGET_DIR}")
+# Cargo without --target writes host-layout <target-dir>/<profile>/alera.exe.
+# A rustc target triple nested under that prefix is the other layout.
+set(ALERA_CLI_HOST_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+set(ALERA_CLI_TRIPLE_OUTPUT "${ALERA_CLI_CARGO_TARGET_DIR}/x86_64-pc-windows-msvc/${ALERA_CLI_PROFILE_DIR}/alera.exe")
+set(ALERA_CLI_STAGED "${CMAKE_CURRENT_BINARY_DIR}/sidecar/$<CONFIG>/alera.exe")
+find_program(ALERA_NINJA_EXECUTABLE ninja)
+if(NOT ALERA_NINJA_EXECUTABLE)
+  message(FATAL_ERROR "Ninja is required to build the Windows Whisper backend")
+endif()
 add_custom_target(alera_cli_sidecar ALL
-  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli
+  # The sidecar shares whisper-rs-sys with the Flutter plugin. Use Ninja for
+  # that nested CMake build to avoid MSBuild FileTracker's legacy path limit.
+  # CMAKE_GENERATOR (not only the rustc target-specific form) is required so
+  # vulkan-shaders-gen's nested cmake configure inherits Ninja.
+  COMMAND "${CMAKE_COMMAND}" -E env
+    "CARGO_TARGET_DIR=${ALERA_CLI_CARGO_TARGET_DIR}"
+    "CMAKE_GENERATOR=Ninja"
+    "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+    "CMAKE_MAKE_PROGRAM=${ALERA_NINJA_EXECUTABLE}"
+    "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${ALERA_NINJA_EXECUTABLE}"
+    "CFLAGS=/FS"
+    "CXXFLAGS=/FS"
+    "CL=/FS"
+    "_CL_=/Z7 /FS"
+    "GGML_CCACHE=OFF"
+    "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
-  BYPRODUCTS "${ALERA_CLI_OUTPUT}"
+  COMMAND "${CMAKE_COMMAND}"
+    "-DALERA_SIDECAR_HOST=${ALERA_CLI_HOST_OUTPUT}"
+    "-DALERA_SIDECAR_TRIPLE=${ALERA_CLI_TRIPLE_OUTPUT}"
+    "-DALERA_SIDECAR_STAGED=${ALERA_CLI_STAGED}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/stage_alera_sidecar.cmake"
+  BYPRODUCTS "${ALERA_CLI_STAGED}"
   WORKING_DIRECTORY "${ALERA_CLI_DIR}"
   COMMENT "Building Alera CLI sidecar (Rust)"
   VERBATIM
@@ -139,7 +175,7 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-install(PROGRAMS "${ALERA_CLI_OUTPUT}"
+install(PROGRAMS "${ALERA_CLI_STAGED}"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
   COMPONENT Runtime)
 
@@ -157,6 +193,15 @@ if(PLUGIN_BUNDLED_LIBRARIES)
   install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
+  foreach(ALERA_PLUGIN_LIBRARY ${PLUGIN_BUNDLED_LIBRARIES})
+    get_filename_component(ALERA_PLUGIN_LIBRARY_NAME
+      "${ALERA_PLUGIN_LIBRARY}" NAME)
+    if(ALERA_PLUGIN_LIBRARY_NAME STREQUAL "vulkan-1.dll")
+      install(FILES "${ALERA_PLUGIN_LIBRARY}"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
+        COMPONENT Runtime)
+    endif()
+  endforeach()
 endif()
 
 # Copy the native assets provided by the build.dart from all packages.

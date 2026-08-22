@@ -45,6 +45,8 @@ class Environment {
   static String get javaHome => _getEnvPath("CARGOKIT_JAVA_HOME");
   static List<String> get targetPlatforms =>
       _getEnv("CARGOKIT_TARGET_PLATFORMS").split(',');
+  static bool get bundleSharedCxxRuntime =>
+      _getEnv("CARGOKIT_BUNDLE_SHARED_CXX_RUNTIME") == 'true';
 
   // CMAKE
   static String get targetPlatform => _getEnv("CARGOKIT_TARGET_PLATFORM");

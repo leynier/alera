@@ -115,6 +115,12 @@ class _WorkspaceViewOptions extends ConsumerWidget {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
+              title: const Text('Active Workspaces Only'),
+              value: prefs.showActiveWorkspacesOnly,
+              onChanged: controller.setShowActiveWorkspacesOnly,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Repeat Pinned Workspaces'),
               value: prefs.showPinnedWorkspacesBelow,
               onChanged: controller.setShowPinnedWorkspacesBelow,

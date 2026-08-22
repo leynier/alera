@@ -189,8 +189,8 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     final file = File(path);
     file.parent.createSync(recursive: true);
     if (file.existsSync() && file.readAsStringSync() == content) {
-      if (_platform == ManagedAgentHookPlatform.posix) {
-        Process.runSync('chmod', <String>['755', path]);
+      if (_platform == ManagedAgentHookPlatform.posix && !Platform.isWindows) {
+        setPosixFileMode(path, posixExecutableFileMode);
       }
       return;
     }
@@ -199,8 +199,8 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
       '.${DateTime.now().microsecondsSinceEpoch}.tmp',
     );
     final tmp = File(tmpPath)..writeAsStringSync(content);
-    if (_platform == ManagedAgentHookPlatform.posix) {
-      Process.runSync('chmod', <String>['755', tmpPath]);
+    if (_platform == ManagedAgentHookPlatform.posix && !Platform.isWindows) {
+      setPosixFileMode(tmpPath, posixExecutableFileMode);
     }
     tmp.renameSync(path);
   }

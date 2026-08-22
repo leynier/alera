@@ -42,6 +42,9 @@ pub struct ManagedWorkspaceCreateRequest {
     /// which is what the `alera` CLI and the mobile gateway still want.
     #[serde(default)]
     pub defer_setup: bool,
+    /// Skips both copy and command setup for callers with an explicit policy.
+    #[serde(default)]
+    pub skip_setup: bool,
     /// Directory the deferred setup script is written to. The host fills this
     /// in from its own state directory; a caller cannot choose it.
     #[serde(skip)]
@@ -53,6 +56,12 @@ pub struct ManagedWorkspaceRemoveRequest {
     pub id: String,
     #[serde(default)]
     pub delete_branch: Option<bool>,
+}
+
+struct ManagedWorkspaceRemoval {
+    workspace: Workspace,
+    project: Project,
+    branch_to_delete: Option<String>,
 }
 pub async fn create_managed_workspace(
     store: &RuntimeStore,
@@ -184,6 +193,13 @@ pub async fn create_managed_workspace(
             .await?
             .ok_or_else(|| anyhow!("Workspace disappeared after linking: {}", workspace.id))?;
     }
+    if request.skip_setup {
+        return Ok(WorkspaceCreationResult {
+            workspace,
+            setup_report: alera_core::runtime::WorktreeSetupReport::empty(),
+            deferred_setup_command: None,
+        });
+    }
     if request.defer_setup {
         let (setup_report, deferred_setup_command) = prepare_deferred_worktree_setup(
             store,
@@ -210,6 +226,41 @@ pub async fn remove_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceRemoveRequest,
 ) -> Result<Workspace> {
+    let removal = managed_workspace_removal(store, &request).await?;
+    let workspace = removal.workspace;
+    let project = removal.project;
+    let branch_to_delete = removal.branch_to_delete;
+    match core_git::remove_worktree(&project.repo_path, &workspace.path, true) {
+        Ok(()) => {}
+        Err(error)
+            if error.kind == GitErrorKind::WorktreeNotFound
+                && filesystem_entry_is_missing(&workspace.path)? => {}
+        Err(error) => return Err(error).context("git worktree remove failed"),
+    }
+    if let Some(branch) = branch_to_delete {
+        match core_git::delete_branch(&project.repo_path, &branch, true) {
+            Ok(()) => {}
+            Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
+            Err(error) => {
+                return Err(error).with_context(|| format!("git branch -D {branch} failed"));
+            }
+        }
+    }
+    store.remove_workspace(&workspace.id, true).await?;
+    Ok(workspace)
+}
+
+pub async fn validate_managed_workspace_removal(
+    store: &RuntimeStore,
+    request: &ManagedWorkspaceRemoveRequest,
+) -> Result<()> {
+    managed_workspace_removal(store, request).await.map(drop)
+}
+
+async fn managed_workspace_removal(
+    store: &RuntimeStore,
+    request: &ManagedWorkspaceRemoveRequest,
+) -> Result<ManagedWorkspaceRemoval> {
     let workspace = store
         .find_workspace(&request.id)
         .await?
@@ -221,32 +272,26 @@ pub async fn remove_managed_workspace(
         .find_project(&workspace.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
-    match core_git::remove_worktree(&project.repo_path, &workspace.path, true) {
-        Ok(()) => {}
-        Err(error)
-            if error.kind == GitErrorKind::WorktreeNotFound
-                && filesystem_entry_is_missing(&workspace.path)? => {}
-        Err(error) => return Err(error).context("git worktree remove failed"),
-    }
     let should_delete_branch = request
         .delete_branch
         .unwrap_or(!workspace.reuses_existing_branch);
-    if should_delete_branch {
-        let branch = workspace
-            .branch
-            .as_deref()
-            .filter(|branch| !branch.is_empty())
-            .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?;
-        match core_git::delete_branch(&project.repo_path, branch, true) {
-            Ok(()) => {}
-            Err(error) if error.kind == GitErrorKind::BranchNotFound => {}
-            Err(error) => {
-                return Err(error).with_context(|| format!("git branch -D {branch} failed"));
-            }
-        }
-    }
-    store.remove_workspace(&workspace.id, true).await?;
-    Ok(workspace)
+    let branch_to_delete = if should_delete_branch {
+        Some(
+            workspace
+                .branch
+                .as_deref()
+                .filter(|branch| !branch.is_empty())
+                .ok_or_else(|| anyhow!("Workspace Branch Is Required"))?
+                .to_string(),
+        )
+    } else {
+        None
+    };
+    Ok(ManagedWorkspaceRemoval {
+        workspace,
+        project,
+        branch_to_delete,
+    })
 }
 
 fn filesystem_entry_is_missing(path: &str) -> Result<bool> {
@@ -484,6 +529,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -533,6 +579,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("missing-parent".to_string()),
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -606,6 +653,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: Some("parent".to_string()),
                 defer_setup: false,
+                skip_setup: false,
                 setup_script_directory: None,
             },
         )
@@ -647,6 +695,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
             },
         )
@@ -696,6 +745,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(scripts.clone()),
             },
         )
@@ -730,6 +780,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
             },
         )
@@ -769,6 +820,7 @@ mod tests {
                 path: Some(worktree_path.to_string_lossy().into_owned()),
                 parent_workspace_id: None,
                 defer_setup: true,
+                skip_setup: false,
                 setup_script_directory: Some(dir.path().join("scripts")),
             },
         )

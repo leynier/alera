@@ -7,11 +7,16 @@ import 'package:alera/src/features/workbench/infra/prompt_workspace_runtime_clie
 import 'package:alera/src/features/workbench/presentation/prompt_workspace_dialog.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'prompt_workspace_dialog_clipboard_test_cases.dart';
+part 'prompt_workspace_dialog_test_support.dart';
 
 void main() {
   _registerPromptWorkspaceClipboardTests();
@@ -38,79 +43,86 @@ void main() {
     String? launchedProfileId;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: FilledButton(
-              onPressed: () async {
-                dialogResult = await showDialog<PromptWorkspaceDialogResult>(
-                  context: context,
-                  builder: (_) => PromptWorkspaceDialog(
-                    projects: <Project>[project],
-                    agentProfiles: <AgentProfile>[profile, preferredProfile],
-                    defaultAgentProfileId: preferredProfile.id,
-                    loadBranches: (_) async => <String>['main'],
-                    checkBranchExists: (_, _) async => false,
-                    workspaceBranches: (_) => const <String>{},
-                    parentWorkspaces: const <Workspace>[],
-                    generateIdentity:
-                        ({
-                          required operationId,
-                          required projectId,
-                          required prompt,
-                        }) async {
-                          generatedPrompt = prompt;
-                          return const GeneratedWorkspaceIdentity(
-                            workspaceName: 'Prompt Workspace',
-                            branchName: 'feat/prompt-workspace',
-                          );
-                        },
-                    cancelGeneration: (_) async {},
-                    createWorkspace:
-                        ({
-                          required project,
-                          required sourceBranch,
-                          required newBranchName,
-                          required name,
-                          parentWorkspaceId,
-                        }) async {
-                          createdBranch = newBranchName;
-                          createdName = name;
-                          createdParentWorkspaceId = parentWorkspaceId;
-                          return WorkspaceCreationResult(
-                            workspace: Workspace(
-                              id: 'workspace-1',
-                              projectId: project.id,
-                              name: name,
-                              branch: newBranchName,
-                              sourceBranch: sourceBranch,
-                              path: '/repo/alera-workspace',
-                              kind: WorkspaceKind.linked,
-                              status: WorkspaceStatus.active,
-                              createdAt: now,
-                              updatedAt: now,
-                            ),
-                            setupReport: WorktreeSetupReport.empty,
-                          );
-                        },
-                    launchAgent:
-                        ({
-                          required workspaceId,
-                          required profileId,
-                          required prompt,
-                        }) async {
-                          launchedPrompt = prompt;
-                          launchedProfileId = profileId;
-                          return AgentProfileLaunchResult(
-                            tabId: 'tab-1',
-                            agentType: preferredProfile.agentType,
-                            profileId: profileId,
-                          );
-                        },
-                  ),
-                );
-              },
-              child: const Text('Open'),
+      ProviderScope(
+        overrides: [
+          settingsControllerProvider.overrideWith(
+            _PromptSettingsController.new,
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () async {
+                  dialogResult = await showDialog<PromptWorkspaceDialogResult>(
+                    context: context,
+                    builder: (_) => PromptWorkspaceDialog(
+                      projects: <Project>[project],
+                      agentProfiles: <AgentProfile>[profile, preferredProfile],
+                      defaultAgentProfileId: preferredProfile.id,
+                      loadBranches: (_) async => <String>['main'],
+                      checkBranchExists: (_, _) async => false,
+                      workspaceBranches: (_) => const <String>{},
+                      parentWorkspaces: const <Workspace>[],
+                      generateIdentity:
+                          ({
+                            required operationId,
+                            required projectId,
+                            required prompt,
+                          }) async {
+                            generatedPrompt = prompt;
+                            return const GeneratedWorkspaceIdentity(
+                              workspaceName: 'Prompt Workspace',
+                              branchName: 'feat/prompt-workspace',
+                            );
+                          },
+                      cancelGeneration: (_) async {},
+                      createWorkspace:
+                          ({
+                            required project,
+                            required sourceBranch,
+                            required newBranchName,
+                            required name,
+                            parentWorkspaceId,
+                          }) async {
+                            createdBranch = newBranchName;
+                            createdName = name;
+                            createdParentWorkspaceId = parentWorkspaceId;
+                            return WorkspaceCreationResult(
+                              workspace: Workspace(
+                                id: 'workspace-1',
+                                projectId: project.id,
+                                name: name,
+                                branch: newBranchName,
+                                sourceBranch: sourceBranch,
+                                path: '/repo/alera-workspace',
+                                kind: WorkspaceKind.linked,
+                                status: WorkspaceStatus.active,
+                                createdAt: now,
+                                updatedAt: now,
+                              ),
+                              setupReport: WorktreeSetupReport.empty,
+                            );
+                          },
+                      launchAgent:
+                          ({
+                            required workspaceId,
+                            required profileId,
+                            required prompt,
+                          }) async {
+                            launchedPrompt = prompt;
+                            launchedProfileId = profileId;
+                            return AgentProfileLaunchResult(
+                              tabId: 'tab-1',
+                              agentType: preferredProfile.agentType,
+                              profileId: profileId,
+                            );
+                          },
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
@@ -119,6 +131,20 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    final promptField = tester.getRect(
+      find.widgetWithText(TextField, 'Initial Prompt'),
+    );
+    final dictationControl = tester.getRect(
+      find.byKey(const ValueKey<String>('prompt-workspace-dictation-control')),
+    );
+    expect(
+      dictationControl.top - promptField.top,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
+    expect(
+      promptField.right - dictationControl.right,
+      lessThanOrEqualTo(AleraTokens.space12),
+    );
     await tester.enterText(
       find.widgetWithText(TextField, 'Initial Prompt'),
       'Build workspace creation',
@@ -442,57 +468,5 @@ void main() {
 
       expect(createdParentWorkspaceId, orcaFeature.id);
     },
-  );
-}
-
-Project _project({
-  required String id,
-  required String name,
-  required DateTime now,
-}) {
-  return Project(
-    id: id,
-    name: name,
-    repoPath: '/repo/${name.toLowerCase()}',
-    createdAt: now,
-    updatedAt: now,
-  );
-}
-
-AgentProfile _profile({
-  required String id,
-  required String name,
-  String agentType = 'codex',
-  String command = 'codex',
-  required DateTime now,
-}) {
-  return AgentProfile(
-    id: id,
-    name: name,
-    agentType: agentType,
-    command: command,
-    createdAt: now,
-    updatedAt: now,
-  );
-}
-
-Workspace _workspace({
-  required String id,
-  required String projectId,
-  required String name,
-  required String branch,
-  required WorkspaceKind kind,
-  required DateTime now,
-}) {
-  return Workspace(
-    id: id,
-    projectId: projectId,
-    name: name,
-    branch: branch,
-    path: '/repo/$projectId/$id',
-    kind: kind,
-    status: WorkspaceStatus.active,
-    createdAt: now,
-    updatedAt: now,
   );
 }

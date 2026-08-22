@@ -56,6 +56,7 @@ class _ProjectWorkbenchSidebarState
         controller: controller,
         onAddProject: _addProject,
         onOpenSettings: () => unawaited(_openSettings()),
+        onOpenAutomations: () => unawaited(_openAutomations()),
       );
     }
     final sidebarWidth = _transientSidebarWidth ?? state.viewPrefs.sidebarWidth;
@@ -134,6 +135,7 @@ class _ProjectWorkbenchSidebarState
                 _SidebarFooter(
                   onAddProject: _addProject,
                   onOpenSettings: () => unawaited(_openSettings()),
+                  onOpenAutomations: () => unawaited(_openAutomations()),
                 ),
               ],
             ),

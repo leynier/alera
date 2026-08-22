@@ -61,7 +61,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
         ),
         feedback: _DraggedTabFeedback(
           tab: tab,
-          title: session?.displayTitle ?? tab.title,
+          title: session?.displayTitle ?? _workspaceTabTitle(tab),
         ),
         childWhenDragging: Opacity(
           opacity: 0.45,
@@ -128,7 +128,7 @@ class _WorkspaceTabChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = terminalSession;
     if (session == null) {
-      return _buildChip(context, tab.title);
+      return _buildChip(context, _workspaceTabTitle(tab));
     }
     // Title only: listening to the whole session rebuilt every chip on each
     // OSC title change, which shells emit per prompt.
@@ -213,12 +213,15 @@ class _WorkspaceTabChip extends StatelessWidget {
           ),
           enabled: closeRight.isNotEmpty,
         ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.changeTitle,
-          label: 'Change Title',
-          leading: Icon(AleraIcons.edit, size: 16),
-        ),
+        if (tab.kind !=
+            WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[
+          const PopupMenuDivider(height: AleraTokens.space8),
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: _TabMenuAction.changeTitle,
+            label: 'Change Title',
+            leading: Icon(AleraIcons.edit, size: 16),
+          ),
+        ],
       ],
     );
     if (selected == null || !context.mounted) {
@@ -244,7 +247,8 @@ class _WorkspaceTabChip extends StatelessWidget {
           context,
           title: 'Change Terminal Title',
           labelText: 'Terminal Title',
-          initialValue: terminalSession?.displayTitle ?? tab.title,
+          initialValue:
+              terminalSession?.displayTitle ?? _workspaceTabTitle(tab),
           confirmLabel: 'Change Title',
         );
         if (title != null) {
@@ -386,6 +390,15 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
         size: 12,
         color: color,
       ),
+      WorkspaceTabKind.codex => ExcludeSemantics(
+        child: AgentIdentityIcon(
+          key: ValueKey<String>('workspace-tab-codex-icon-${tab.id}'),
+          agentType: AgentType.codex,
+          size: 12,
+          color: color,
+          showTooltip: false,
+        ),
+      ),
       WorkspaceTabKind.browser => Icon(
         AleraIcons.public,
         size: 12,
@@ -407,6 +420,7 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
     WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
+    WorkspaceTabKind.codex => 132,
     WorkspaceTabKind.mobileEmulator => 132,
   };
 }

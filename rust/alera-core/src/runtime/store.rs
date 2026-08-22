@@ -125,6 +125,12 @@ impl RuntimeStore {
             "INTEGER NOT NULL DEFAULT 0",
         )
         .await?;
+        self.ensure_column(
+            "mobileAccessSettings",
+            "netbirdEndpoint",
+            "TEXT NOT NULL DEFAULT 'ip'",
+        )
+        .await?;
         self.ensure_column("browserProfiles", "sourceFamily", "TEXT")
             .await?;
         self.ensure_column("browserProfiles", "sourceProfileName", "TEXT")
@@ -359,7 +365,8 @@ impl RuntimeStore {
 
     pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
         let row = sqlx::query(
-            "SELECT enabled, remoteAccessEnabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt \
+            "SELECT enabled, remoteAccessEnabled, bindHost, port, endpointMode, netbirdEndpoint, \
+             serverPublicKeyB64, updatedAt \
              FROM mobileAccessSettings WHERE id = 1",
         )
         .fetch_optional(&self.pool)
@@ -385,11 +392,13 @@ impl RuntimeStore {
         settings.updated_at = Utc::now();
         sqlx::query(
             "INSERT INTO mobileAccessSettings \
-             (id, enabled, remoteAccessEnabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt) \
-             VALUES (1, ?, ?, ?, ?, ?, ?, ?) \
+             (id, enabled, remoteAccessEnabled, bindHost, port, endpointMode, netbirdEndpoint, \
+             serverPublicKeyB64, updatedAt) \
+             VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              enabled = excluded.enabled, remoteAccessEnabled = excluded.remoteAccessEnabled, bindHost = excluded.bindHost, port = excluded.port, \
              endpointMode = excluded.endpointMode, \
+             netbirdEndpoint = excluded.netbirdEndpoint, \
              serverPublicKeyB64 = excluded.serverPublicKeyB64, updatedAt = excluded.updatedAt",
         )
         .bind(if settings.enabled { 1_i64 } else { 0_i64 })
@@ -397,6 +406,7 @@ impl RuntimeStore {
         .bind(&settings.bind_host)
         .bind(settings.port)
         .bind(settings.endpoint_mode.as_str())
+        .bind(settings.netbird_endpoint.as_str())
         .bind(&settings.server_public_key_b64)
         .bind(format_timestamp(settings.updated_at))
         .execute(&self.pool)
@@ -1788,7 +1798,7 @@ pub fn parse_timestamp(value: &str) -> DateTime<Utc> {
 }
 
 fn empty_to_none(value: Option<String>) -> Option<String> {
-    value.and_then(|v| if v.trim().is_empty() { None } else { Some(v) })
+    value.filter(|v| !v.trim().is_empty())
 }
 
 #[cfg(test)]

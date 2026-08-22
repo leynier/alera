@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 part 'managed_agent_hook_installer_test_harness.dart';
 part 'managed_agent_hook_installer_grok_test_cases.dart';
 part 'managed_agent_hook_installer_amp_test_cases.dart';
+part 'managed_agent_hook_installer_agy_test_cases.dart';
 
 void main() {
   group('ManagedAgentHookInstallService', () {
@@ -31,6 +32,7 @@ void main() {
     });
     _registerGrokHookInstallerTests(() => home, () => service);
     _registerAmpHookInstallerTests(() => home, () => service);
+    _registerAgyHookInstallerTests(() => home, () => service);
     test('does not install Codex hooks into the user config', () {
       final configPath = p.join(home.path, '.codex', 'hooks.json');
       _writeJson(configPath, <String, Object?>{
@@ -144,21 +146,50 @@ void main() {
     });
 
     test('reports malformed JSON configs as errors', () {
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
       File(configPath)
         ..createSync(recursive: true)
         ..writeAsStringSync('{not json');
+
+      final status = service.status(AgentType.copilot);
+      final install = service.install(AgentType.copilot);
+      final remove = service.remove(AgentType.copilot);
+
+      expect(status.state, ManagedAgentHookInstallState.error);
+      expect(install.state, ManagedAgentHookInstallState.error);
+      expect(remove.state, ManagedAgentHookInstallState.error);
+      expect(
+        status.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+      expect(
+        install.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+      expect(
+        remove.detail,
+        contains('Could not parse Copilot hooks/alera.json.'),
+      );
+    });
+
+    test('never writes Cursor hooks into the user config', () {
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
 
       final status = service.status(AgentType.cursor);
       final install = service.install(AgentType.cursor);
       final remove = service.remove(AgentType.cursor);
 
-      expect(status.state, ManagedAgentHookInstallState.error);
-      expect(install.state, ManagedAgentHookInstallState.error);
-      expect(remove.state, ManagedAgentHookInstallState.error);
-      expect(status.detail, contains('Could not parse Cursor hooks.json.'));
-      expect(install.detail, contains('Could not parse Cursor hooks.json.'));
-      expect(remove.detail, contains('Could not parse Cursor hooks.json.'));
+      for (final result in <ManagedAgentHookInstallStatus>[
+        status,
+        install,
+        remove,
+      ]) {
+        expect(result.state, ManagedAgentHookInstallState.notInstalled);
+        expect(result.managedHooksPresent, isFalse);
+        expect(result.configPath, configPath);
+        expect(result.detail, contains('per-session plugin'));
+      }
+      expect(File(configPath).existsSync(), isFalse);
     });
 
     test('reports partial Copilot configs when disabled or missing events', () {
@@ -275,68 +306,6 @@ void main() {
       expect(_commandsFor(nextHooks, 'Stop'), <String>['echo user stop']);
     });
 
-    test('installs Cursor hooks with top-level commands', () {
-      final status = service.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final config = _readJson(configPath);
-      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(config['version'], 1);
-      expect(
-        hooks.keys,
-        containsAll(<String>[
-          'beforeSubmitPrompt',
-          'preToolUse',
-          'postToolUse',
-          'postToolUseFailure',
-          'beforeShellExecution',
-          'beforeMCPExecution',
-          'afterAgentResponse',
-          'stop',
-        ]),
-      );
-      final promptDefinitions =
-          hooks['beforeSubmitPrompt'] as List? ?? const <Object?>[];
-      expect(promptDefinitions.single, isA<Map>());
-      expect((promptDefinitions.single as Map)['bash'], isNull);
-      expect((promptDefinitions.single as Map)['powershell'], isNull);
-      expect(
-        _directCommandsFor(hooks, 'beforeSubmitPrompt').single,
-        contains('ALERA_CURSOR_HOOK_EVENT'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.sh'),
-        ).readAsStringSync(),
-        allOf(contains('/hook/cursor'), contains(r'payload=$(cat)')),
-      );
-    });
-
-    test('installs Cursor hooks with cmd scripts on Windows', () {
-      final windowsService = ManagedAgentHookInstallService(
-        homeDirectory: home.path,
-        platform: ManagedAgentHookPlatform.windows,
-        environment: <String, String>{'USERPROFILE': home.path},
-      );
-
-      final status = windowsService.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final hooks = _hooks(configPath);
-      final command = _directCommandsFor(hooks, 'beforeSubmitPrompt').single;
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(command, contains('ALERA_CURSOR_HOOK_EVENT'));
-      expect(command, contains('alera-cursor-hook.cmd'));
-      expect(command, isNot(contains('bash')));
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.cmd'),
-        ).readAsStringSync(),
-        allOf(contains('/hook/cursor'), contains('ALERA_AGENT_HOOK_ENDPOINT')),
-      );
-    });
-
     test('installs Copilot PowerShell hooks on Windows with quoted paths', () {
       final quotedHome = Directory(p.join(home.path, "quoted'home"))
         ..createSync(recursive: true);
@@ -360,172 +329,6 @@ void main() {
       expect(command, contains(r'$env:ALERA_COPILOT_HOOK_EVENT'));
       expect(command, contains("quoted''home"));
       expect(command, contains('alera-copilot-hook.ps1'));
-    });
-
-    test('removes only Alera-managed Cursor hooks', () {
-      service.install(AgentType.cursor);
-      final configPath = p.join(home.path, '.cursor', 'hooks.json');
-      final config = _readJson(configPath);
-      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
-      hooks['preToolUse'] = <Object?>[
-        <String, Object?>{'command': 'echo user cursor hook'},
-        ...(hooks['preToolUse'] as List),
-      ];
-      config['hooks'] = hooks;
-      _writeJson(configPath, config);
-
-      final status = service.remove(AgentType.cursor);
-      final nextHooks = _hooks(configPath);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(_directCommandsFor(nextHooks, 'preToolUse'), <String>[
-        'echo user cursor hook',
-      ]);
-      expect(nextHooks['beforeSubmitPrompt'], isNull);
-    });
-
-    test('installs AGY hooks in the Gemini global hooks bundle', () {
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      _writeJson(configPath, <String, Object?>{
-        'user-hook': <String, Object?>{
-          'PreInvocation': <Object?>[
-            <String, Object?>{'type': 'command', 'command': 'echo user'},
-          ],
-        },
-        'alera-status': <String, Object?>{
-          'PreInvocation': <Object?>[
-            <String, Object?>{'type': 'command', 'command': 'echo alera-extra'},
-          ],
-          'PreToolUse': <Object?>[
-            <String, Object?>{
-              'matcher': '*',
-              'hooks': <Object?>[
-                <String, Object?>{
-                  'type': 'command',
-                  'command': '/tmp/agent-hooks/alera-agy-hook.sh',
-                },
-              ],
-            },
-          ],
-        },
-      });
-
-      final status = service.install(AgentType.agy);
-      final config = _readJson(configPath);
-      final bundle = Map<String, Object?>.from(config['alera-status'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(config['user-hook'], isNotNull);
-      expect(
-        bundle.keys,
-        containsAll(<String>[
-          'PreInvocation',
-          'PostInvocation',
-          'PostToolUse',
-          'Stop',
-        ]),
-      );
-      expect(bundle['PreToolUse'], isNull);
-      expect(
-        _commandsFor(bundle, 'PreInvocation'),
-        containsAll(<String>['echo alera-extra']),
-      );
-      expect(
-        _commandsFor(bundle, 'PreInvocation').last,
-        contains('ALERA_AGY_EVENT'),
-      );
-      // Lifecycle events must be flat `{ type, command }` (AGY does not run
-      // the nested Claude-style `{ hooks: [...] }` shape for PreInvocation).
-      final preInvocation = (bundle['PreInvocation'] as List).last as Map;
-      expect(preInvocation['type'], 'command');
-      expect(preInvocation['command'], contains('ALERA_AGY_EVENT'));
-      expect(preInvocation.containsKey('hooks'), isFalse);
-      expect(preInvocation['timeout'], 10);
-      final postToolUse = (bundle['PostToolUse'] as List).single as Map;
-      expect(postToolUse['matcher'], '*');
-      expect(postToolUse['hooks'], isA<List>());
-      expect(
-        _commandsFor(bundle, 'PostToolUse').single,
-        contains('alera-agy-hook.sh'),
-      );
-      final script = File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
-      ).readAsStringSync();
-      expect(script, contains('/hook/agy'));
-      expect(script, contains(r'case "$ALERA_AGY_EVENT" in'));
-      expect(script, contains("payload='{}'"));
-      expect(script, contains('payload@-'));
-      // Empty stdin must still post the lifecycle event name.
-      expect(script, isNot(contains('*)\n      exit 0')));
-    });
-
-    test('installs AGY wrapper scripts on Windows', () {
-      final windowsService = ManagedAgentHookInstallService(
-        homeDirectory: home.path,
-        platform: ManagedAgentHookPlatform.windows,
-        environment: <String, String>{'USERPROFILE': home.path},
-      );
-
-      final status = windowsService.install(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final bundle = Map<String, Object?>.from(
-        _readJson(configPath)['alera-status'] as Map,
-      );
-
-      expect(status.state, ManagedAgentHookInstallState.installed);
-      expect(
-        _commandsFor(bundle, 'Stop').single,
-        contains('alera-agy-stop.cmd'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'),
-        ).readAsStringSync(),
-        contains('ALERA_AGY_EVENT=Stop'),
-      );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
-        ).readAsStringSync(),
-        allOf(
-          contains('/hook/agy'),
-          contains(
-            r'if ([string]::IsNullOrWhiteSpace($inputData)) { $payload=@{} }',
-          ),
-        ),
-      );
-    });
-
-    test('removes only Alera-managed AGY bundle entries', () {
-      service.install(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final config = _readJson(configPath);
-      final bundle = Map<String, Object?>.from(config['alera-status'] as Map);
-      bundle['PreInvocation'] = <Object?>[
-        <String, Object?>{'type': 'command', 'command': 'echo user'},
-        ...(bundle['PreInvocation'] as List),
-      ];
-      config['alera-status'] = bundle;
-      _writeJson(configPath, config);
-
-      final status = service.remove(AgentType.agy);
-      final next = _readJson(configPath);
-      final nextBundle = Map<String, Object?>.from(next['alera-status'] as Map);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(_commandsFor(nextBundle, 'PreInvocation'), <String>['echo user']);
-      expect(nextBundle['Stop'], isNull);
-    });
-
-    test('removes empty AGY bundles after deleting managed commands', () {
-      service.install(AgentType.agy);
-
-      final status = service.remove(AgentType.agy);
-      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
-      final config = _readJson(configPath);
-
-      expect(status.state, ManagedAgentHookInstallState.notInstalled);
-      expect(config.containsKey('alera-status'), isFalse);
     });
 
     test('installs and removes the managed OpenCode status plugin', () {

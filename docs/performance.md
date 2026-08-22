@@ -49,6 +49,12 @@ Capture idle, a common workbench flow, a terminal-output burst, a quota refresh,
 
 The latest detailed macOS investigation and before/after results are recorded in [`performance-resource-profile-2026-07-19.md`](performance-resource-profile-2026-07-19.md).
 
+## Resource Sampling Cadence
+
+The sidecar's own process-table sweep is demand-driven: nothing samples until a client asks, and the ticker stops itself once they stop asking. The cadence is not fixed in the host. Each `resources.snapshot` request states the interval the caller polls at (`intervalMs`), and the host both samples at that interval and sizes its idle window around it. Closing the resource panel therefore makes the host proportionally cheaper rather than merely making the app ask less often.
+
+Deriving the idle window from the stated cadence is what keeps it correct. When it was a fixed constant it had to agree with a polling interval chosen in Dart, the two drifted, and the ticker stopped under a chip that was still polling on time - which is what made the panel appear to work only while hovered. A client that states nothing gets the host's own defaults, so an older app is unaffected.
+
 ## Where A Frame's CPU Goes On Linux
 
 Measured on a Wayland session with an Intel Arc GPU, Flutter 3.44.8, with `perf` at thread granularity against the installed release build while agents streamed into a visible terminal:
@@ -93,6 +99,18 @@ flutter test integration_test/quick_open_benchmark.dart -d linux
 ```
 
 The harness creates 40,000 files, starts one snapshot index, verifies that every eligible file was indexed, and sends 100 FRB queries. It reports the scan duration and query p50/p95. The query path measures native indexing and ranking plus the FRB call, while the dialog itself is covered by `test/widget/quick_open_dialog_test.dart`; compare results on the same machine and Flutter revision. The working tree is temporary and is removed after the run.
+
+## Codex Chat Timeline Harness
+
+Run the non-gating long-thread benchmark on Linux:
+
+```bash
+flutter test integration_test/codex_chat_timeline_benchmark.dart -d linux
+```
+
+The harness mounts a 240-turn Codex thread, verifies that slivers build only the visible subset, then delivers 120 incremental assistant updates through the runtime event path. It reports initial mount time and p50/p95 build and raster durations. Compare results on the same machine and Flutter revision; timing is informational because display composition and debug/profile mode materially affect the result. Widget and Rust tests separately enforce delta identity preservation and snapshot-delta correctness.
+
+On the Linux development machine on 2026-08-04, the focused optimization run built 5 of 240 timeline turns. Reusing unchanged entry widgets reduced Debug build duration from 29.22 ms p50 and 41.38 ms p95 to 2.35 ms p50 and 5.45 ms p95; raster duration remained within noise at 0.63 ms p50 and 1.50 ms p95. These values are a same-machine comparison, not a portable budget.
 
 ## Measurement Rules
 

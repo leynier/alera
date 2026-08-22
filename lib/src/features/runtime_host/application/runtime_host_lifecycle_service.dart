@@ -115,7 +115,7 @@ final class RuntimeHostLifecycleService {
     RuntimeHostForceConfirm? confirmForce,
   }) async {
     try {
-      await _client.shutdownRuntime(force: force);
+      await _requestShutdown(force: force);
     } on RuntimeHostBusyException catch (busy) {
       if (force || confirmForce == null) {
         rethrow;
@@ -128,7 +128,7 @@ final class RuntimeHostLifecycleService {
       if (!confirmed) {
         return false;
       }
-      await _client.shutdownRuntime(force: true);
+      await _requestShutdown(force: true);
     }
     await _waitUntilStopped();
     return true;
@@ -185,14 +185,8 @@ final class RuntimeHostLifecycleService {
     }
 
     try {
-      await _client.shutdownRuntime(force: false);
-      await _waitUntilStopped();
+      await _shutdownForAppQuit(force: false);
       return true;
-    } on StateError catch (error) {
-      if (error.message.contains('No live Alera runtime host')) {
-        return true;
-      }
-      rethrow;
     } on RuntimeHostBusyException catch (busy) {
       if (confirmBusyQuit == null) {
         return false;
@@ -209,8 +203,7 @@ final class RuntimeHostLifecycleService {
         case RuntimeHostQuitDecision.leaveRuntimeOpen:
           return true;
         case RuntimeHostQuitDecision.forceStop:
-          await _client.shutdownRuntime(force: true);
-          await _waitUntilStopped();
+          await _shutdownForAppQuit(force: true);
           return true;
       }
     }
@@ -219,12 +212,63 @@ final class RuntimeHostLifecycleService {
   Future<void> _waitUntilStopped() async {
     final deadline = DateTime.now().add(_shutdownSettleTimeout);
     while (DateTime.now().isBefore(deadline)) {
-      final status = await _client.probeRuntimeStatus();
-      if (status == null) {
-        return;
+      try {
+        final status = await _client.probeRuntimeStatus();
+        if (status == null) {
+          return;
+        }
+      } catch (error) {
+        if (_isHostGone(error)) {
+          return;
+        }
+        if (!_isTransientShutdownDisconnect(error)) {
+          rethrow;
+        }
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
+    throw StateError('The runtime host did not stop in time.');
+  }
+
+  /// App quit only needs the shutdown request accepted. The sidecar is
+  /// detached, so waiting for its cleanup would keep the native window open
+  /// while it terminates terminal trees and flushes its stores.
+  Future<void> _shutdownForAppQuit({required bool force}) {
+    return _requestShutdown(force: force);
+  }
+
+  /// Ask the live host to stop.
+  ///
+  /// Force-stop closes client sockets while the sidecar is still tearing down
+  /// sessions, so the RPC can finish as EOF or "connection closed" instead of
+  /// a JSON reply. That still means shutdown was accepted.
+  Future<void> _requestShutdown({required bool force}) async {
+    try {
+      await _client.shutdownRuntime(force: force);
+    } catch (error) {
+      if (_isExpectedShutdownDisconnect(error)) {
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  bool _isExpectedShutdownDisconnect(Object error) {
+    return _isHostGone(error) || _isTransientShutdownDisconnect(error);
+  }
+
+  bool _isHostGone(Object error) {
+    return error is StateError &&
+        error.message.contains('No live Alera runtime host');
+  }
+
+  bool _isTransientShutdownDisconnect(Object error) {
+    if (error is TerminalHostConnectionClosedException ||
+        error is TerminalHostRequestTimeoutException) {
+      return true;
+    }
+    return error is StateError &&
+        error.message.contains('Terminal host connection closed');
   }
 }
 

@@ -84,6 +84,19 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    MobileWorkspaceFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        result: HostResult<Value>,
+    },
+    MobilePromptFileFinished {
+        client_id: u64,
+        request_id: i64,
+        request_type: String,
+        upload_id: Option<String>,
+        result: HostResult<Value>,
+    },
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
@@ -144,6 +157,26 @@ pub enum ServerCommand {
         session_id: String,
         session_instance_id: u64,
     },
+    TerminalPulseFileChanged {
+        workspace_id: String,
+        watcher_generation: u64,
+        event_sequence: u64,
+    },
+    TerminalPulseWatcherStarted {
+        workspace_id: String,
+        generation: u64,
+        result: HostResult<super::terminal_pulse::WorkspacePulseWatcher>,
+    },
+    TerminalPulseWatcherFailed {
+        workspace_id: String,
+        watcher_generation: u64,
+        error: String,
+    },
+    TerminalPulseDue {
+        session_id: String,
+        session_instance_id: u64,
+        generation: u64,
+    },
     ProjectCloneChanged {
         job_id: String,
     },
@@ -160,8 +193,30 @@ pub enum ServerCommand {
     ResourceSampleReady {
         snapshot: Value,
     },
+    /// Wakes the durable automation scheduler to evaluate due occurrences.
+    AutomationTick,
     BrowserRequestTimeout {
         correlation_id: String,
+    },
+    /// A notification or server request emitted by the shared Codex process.
+    CodexMessage {
+        message: Value,
+    },
+    CodexProcessExited {
+        reason: String,
+    },
+    CodexMalformed {
+        reason: String,
+    },
+    CodexPresenceTick,
+    CodexFlush {
+        tab_id: String,
+    },
+    CodexAutoResolve {
+        tab_id: String,
+        thread_id: String,
+        request_id: Value,
+        server_instance: std::sync::Arc<()>,
     },
     Account(account_requests::AccountCommand),
     Push(push_delivery::PushCommand),

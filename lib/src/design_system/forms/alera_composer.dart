@@ -18,6 +18,8 @@ class AleraComposer extends StatefulWidget {
     required this.onTextActionSelected,
     this.onPaste,
     this.attachmentBar,
+    this.footer,
+    this.trailingAction,
     this.hasAttachments = false,
     this.enabled = true,
     this.hintText = 'Write a prompt for this terminal',
@@ -36,6 +38,8 @@ class AleraComposer extends StatefulWidget {
   /// `false` preserves Flutter's normal text-paste behavior.
   final Future<bool> Function()? onPaste;
   final Widget? attachmentBar;
+  final Widget? footer;
+  final Widget? trailingAction;
   final bool hasAttachments;
   final bool enabled;
   final String hintText;
@@ -172,43 +176,54 @@ class _AleraComposerState extends State<AleraComposer> {
               },
               child: _buildTextField(context),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AleraTokens.space8,
-                0,
-                AleraTokens.space8,
-                AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _TextActionsMenu(
-                        actions: widget.textActions,
-                        enabled: textActionsEnabled,
-                        onSelected: widget.onTextActionSelected,
+            if (widget.footer case final Widget footer)
+              footer
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AleraTokens.space8,
+                  0,
+                  AleraTokens.space8,
+                  AleraTokens.space8,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            _TextActionsMenu(
+                              actions: widget.textActions,
+                              enabled: textActionsEnabled,
+                              onSelected: widget.onTextActionSelected,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  AleraIconButton(
-                    key: const ValueKey<String>('composer-send-button'),
-                    tooltip: 'Send Prompt',
-                    icon: AleraIcons.arrowUp,
-                    iconColor: _canSend
-                        ? AleraTokens.onAccent
-                        : AleraTokens.foregroundFaint,
-                    backgroundColor: _canSend
-                        ? AleraTokens.accent
-                        : AleraTokens.surface,
-                    borderRadius: AleraTokens.radiusPill,
-                    minSize: AleraTokens.space32,
-                    onPressed: _canSend ? _send : null,
-                  ),
-                ],
+                    const SizedBox(width: AleraTokens.space8),
+                    ?widget.trailingAction,
+                    if (widget.trailingAction != null)
+                      const SizedBox(width: AleraTokens.space4),
+                    AleraIconButton(
+                      key: const ValueKey<String>('composer-send-button'),
+                      tooltip: 'Send Prompt',
+                      icon: AleraIcons.arrowUp,
+                      iconColor: _canSend
+                          ? AleraTokens.onAccent
+                          : AleraTokens.foregroundFaint,
+                      backgroundColor: _canSend
+                          ? AleraTokens.accent
+                          : AleraTokens.surface,
+                      borderRadius: AleraTokens.radiusPill,
+                      minSize: AleraTokens.space32,
+                      onPressed: _canSend ? _send : null,
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

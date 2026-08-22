@@ -152,91 +152,108 @@ void main() {
       expect(sink.events.single.payload['prompt'], 'ship it');
     });
 
-    test('accepts Cursor, OpenCode, Pi, Amp, and Grok hook routes', () async {
-      final cursorResponse = await _post(
-        receiver.endpoint!.port,
-        path: '/hook/cursor',
-        token: 'token-1',
-        body: jsonEncode(<String, Object?>{
-          'terminalSessionId': 'session-0',
-          'workspaceId': 'workspace-1',
-          'tabId': 'tab-0',
-          'payload': <String, Object?>{
-            'hook_event_name': 'beforeSubmitPrompt',
-            'prompt': 'ship cursor',
-          },
-        }),
-        contentType: ContentType.json,
-      );
-      final openCodeResponse = await _post(
-        receiver.endpoint!.port,
-        path: '/hook/opencode',
-        token: 'token-1',
-        body: jsonEncode(<String, Object?>{
-          'terminalSessionId': 'session-1',
-          'workspaceId': 'workspace-1',
-          'tabId': 'tab-1',
-          'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
-        }),
-        contentType: ContentType.json,
-      );
-      final piResponse = await _post(
-        receiver.endpoint!.port,
-        path: '/hook/pi',
-        token: 'token-1',
-        body: jsonEncode(<String, Object?>{
-          'terminalSessionId': 'session-2',
-          'workspaceId': 'workspace-1',
-          'tabId': 'tab-2',
-          'payload': <String, Object?>{
-            'hook_event_name': 'before_agent_start',
-            'prompt': 'run tests',
-          },
-        }),
-        contentType: ContentType.json,
-      );
-      final ampResponse = await _post(
-        receiver.endpoint!.port,
-        path: '/hook/amp',
-        token: 'token-1',
-        body: jsonEncode(<String, Object?>{
-          'terminalSessionId': 'session-3',
-          'workspaceId': 'workspace-1',
-          'tabId': 'tab-3',
-          'payload': <String, Object?>{
-            'hook_event_name': 'agent.start',
-            'message': 'ship amp',
-          },
-        }),
-        contentType: ContentType.json,
-      );
-      final grokResponse = await _post(
-        receiver.endpoint!.port,
-        path: '/hook/grok',
-        token: 'token-1',
-        body: jsonEncode(<String, Object?>{
-          'terminalSessionId': 'session-4',
-          'workspaceId': 'workspace-1',
-          'tabId': 'tab-4',
-          'hookEventName': 'UserPromptSubmit',
-          'payload': <String, Object?>{'prompt': 'ship grok'},
-        }),
-        contentType: ContentType.json,
-      );
+    test(
+      'accepts Cursor, OpenCode, OpenCode 2, Pi, Amp, and Grok hook routes',
+      () async {
+        final cursorResponse = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/cursor',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-0',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-0',
+            'payload': <String, Object?>{
+              'hook_event_name': 'beforeSubmitPrompt',
+              'prompt': 'ship cursor',
+            },
+          }),
+          contentType: ContentType.json,
+        );
+        final openCodeResponse = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/opencode',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-1',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-1',
+            'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
+          }),
+          contentType: ContentType.json,
+        );
+        final openCode2Response = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/opencode2',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-1b',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-1b',
+            'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
+          }),
+          contentType: ContentType.json,
+        );
+        final piResponse = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/pi',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-2',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-2',
+            'payload': <String, Object?>{
+              'hook_event_name': 'before_agent_start',
+              'prompt': 'run tests',
+            },
+          }),
+          contentType: ContentType.json,
+        );
+        final ampResponse = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/amp',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-3',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-3',
+            'payload': <String, Object?>{
+              'hook_event_name': 'agent.start',
+              'message': 'ship amp',
+            },
+          }),
+          contentType: ContentType.json,
+        );
+        final grokResponse = await _post(
+          receiver.endpoint!.port,
+          path: '/hook/grok',
+          token: 'token-1',
+          body: jsonEncode(<String, Object?>{
+            'terminalSessionId': 'session-4',
+            'workspaceId': 'workspace-1',
+            'tabId': 'tab-4',
+            'hookEventName': 'UserPromptSubmit',
+            'payload': <String, Object?>{'prompt': 'ship grok'},
+          }),
+          contentType: ContentType.json,
+        );
 
-      expect(cursorResponse.statusCode, HttpStatus.noContent);
-      expect(openCodeResponse.statusCode, HttpStatus.noContent);
-      expect(piResponse.statusCode, HttpStatus.noContent);
-      expect(ampResponse.statusCode, HttpStatus.noContent);
-      expect(grokResponse.statusCode, HttpStatus.noContent);
-      expect(sink.events.map((event) => event.agentType), <AgentType>[
-        AgentType.cursor,
-        AgentType.opencode,
-        AgentType.pi,
-        AgentType.amp,
-        AgentType.grok,
-      ]);
-    });
+        expect(cursorResponse.statusCode, HttpStatus.noContent);
+        expect(openCodeResponse.statusCode, HttpStatus.noContent);
+        expect(openCode2Response.statusCode, HttpStatus.noContent);
+        expect(piResponse.statusCode, HttpStatus.noContent);
+        expect(ampResponse.statusCode, HttpStatus.noContent);
+        expect(grokResponse.statusCode, HttpStatus.noContent);
+        expect(sink.events.map((event) => event.agentType), <AgentType>[
+          AgentType.cursor,
+          AgentType.opencode,
+          AgentType.opencode2,
+          AgentType.pi,
+          AgentType.amp,
+          AgentType.grok,
+        ]);
+      },
+    );
 
     test('ignores disabled agents with 204', () async {
       await receiver.dispose();

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
-  test('packages Linux releases without desktop tarballs', () {
+  test('packages Linux releases as packages plus one tarball', () {
     final workflow = File(
       '.github/workflows/release-cut.yml',
     ).readAsStringSync();
@@ -15,20 +15,20 @@ void main() {
 
     expect(workflow, contains('- name: Package Linux release'));
     expect(workflow, isNot(contains('- name: Package RC Linux release')));
-    expect(workflow, isNot(contains('alera-\${RELEASE_VERSION}-linux.tar.gz')));
+    // The unmanaged install path, for distributions with no package of ours
+    // and for the in-place updates only a directory Alera owns can take.
+    expect(workflow, contains('alera-\${RELEASE_VERSION}-linux-x64.tar.gz'));
     expect(
       workflow,
       contains(
         'bash tool/release/build_linux_repositories.sh public release-assets',
       ),
     );
-    expect(
-      workflow,
-      contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
-      reason:
-          'Linux is the one platform excluded from automatic installation, '
-          'because dpkg and rpm do not resolve the libmpv dependency closure',
-    );
+    // Auto-install is no longer decided per platform. Which installation may
+    // be replaced is decided at runtime, by whether a package manager owns it
+    // and whether Alera can write to it.
+    expect(workflow, contains('auto_install_enabled=true'));
+    expect(workflow, isNot(contains('if [[ "\$PLATFORM" != "linux" ]]; then')));
     expect(
       workflow,
       isNot(
@@ -45,6 +45,8 @@ void main() {
     expect(packageScript, contains('Depends:'));
     expect(packageScript, contains('libmpv2'));
     expect(packageScript, contains('Requires: mpv-libs'));
+    expect(packageScript, contains('libvulkan1'));
+    expect(packageScript, contains('Requires: vulkan-loader'));
   });
 
   test(

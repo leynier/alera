@@ -8,16 +8,19 @@ import 'package:logging/logging.dart';
 final Logger _log = Logger('AleraCliSkillService');
 
 const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
+const String _aleraCliSkillAgentName = 'codex';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraComputerUseSkillName = 'computer-use';
 const String aleraEmulatorSkillName = 'alera-emulator';
+const String aleraAgentCanvasSkillName = 'agent-canvas';
 
 enum AleraAgentSkill {
   cli(aleraCliSkillName),
   orchestration(aleraOrchestrationSkillName),
   computerUse(aleraComputerUseSkillName),
-  emulator(aleraEmulatorSkillName);
+  emulator(aleraEmulatorSkillName),
+  agentCanvas(aleraAgentCanvasSkillName);
 
   const AleraAgentSkill(this.name);
 
@@ -84,7 +87,7 @@ String _windowsAutoInstallCommand(AleraAgentSkill skill) {
 }
 
 String _installCommandFor(AleraCliSkillRunner runner, AleraAgentSkill skill) {
-  return '${runner.label} skills add $aleraCliSkillRepositoryUrl --skill ${skill.name} --global';
+  return '${runner.label} ${_skillInstallArguments(skill).join(' ')}';
 }
 
 List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
@@ -93,7 +96,12 @@ List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
   aleraCliSkillRepositoryUrl,
   '--skill',
   skill.name,
+  // Explicit selection avoids the Skills CLI expanding Codex to project-only
+  // universal agents such as PromptScript during a global installation.
+  '--agent',
+  _aleraCliSkillAgentName,
   '--global',
+  '--yes',
 ];
 
 class AleraCliSkillInstallAttempt {

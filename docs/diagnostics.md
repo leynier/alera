@@ -61,6 +61,8 @@ The sidecar installs a panic hook that writes the message, location and backtrac
 
 Both Flutter apps install `FlutterError.onError`, `PlatformDispatcher.instance.onError` and a guarding zone, and the desktop adds a Riverpod `ProviderObserver` so a failing provider is recorded rather than only rendered as an `AsyncError`.
 
+Mobile classifies unavailable WebSocket transports at the runtime boundary as `HostUnreachableException` or `RuntimeConnectionLost`. Those typed failures stay in the local log and drive the existing Retry UI, but `beforeSend` and the zone handler drop them from Sentry so issues like "No route to host" do not file as crashes. Authentication, TLS, protocol, programming, and unrelated network errors are not filtered.
+
 ## Rules For Contributors
 
 - New diagnostics in the sidecar use `tracing::warn!`/`error!`/`info!`, never `eprintln!`. The `println!`/`eprintln!` calls in `main.rs` and the `*_commands.rs` files are user-facing command output, which is a different thing and stays as it is.

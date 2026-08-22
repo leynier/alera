@@ -4,6 +4,7 @@ import 'package:file_selector_platform_interface/file_selector_platform_interfac
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:path/path.dart' as p;
 
 part 'add_project_dialog_local_test_cases.dart';
 part 'add_project_dialog_clone_test_cases.dart';

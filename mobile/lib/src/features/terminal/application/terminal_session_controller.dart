@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_compose_delivery.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
@@ -13,54 +14,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
 
-/// Raised into the session state when the desktop takes the viewport back
-/// (`terminalDriverChanged` with a desktop driver); the tabs screen reacts by
-/// leaving the terminal.
-class DesktopReclaimedTerminal implements Exception {
-  const DesktopReclaimedTerminal();
-
-  @override
-  String toString() => 'Desktop took back the terminal';
-}
-
-/// A live attachment to one terminal tab: the session handle, the scrollback
-/// snapshot to replay, and the filtered output stream.
-class TerminalTabSession {
-  TerminalTabSession({
-    required this.sessionId,
-    required List<int> snapshot,
-    required this.running,
-    required this.output,
-  }) : _snapshot = _TerminalSnapshotPayload(snapshot);
-
-  final String sessionId;
-  final bool running;
-  final _TerminalSnapshotPayload _snapshot;
-
-  /// Carries the full event, not just the bytes, so a resync answer that
-  /// replaces the scrollback stays ordered against the live output around it.
-  final Stream<MobileTerminalOutputEvent> output;
-
-  /// Transfers the one-shot restore payload to the emulator and releases the
-  /// controller's reference so rendered scrollback is not retained twice.
-  List<int> takeSnapshot() => _snapshot.take();
-
-  int get retainedSnapshotBytes => _snapshot.retainedBytes;
-}
-
-class _TerminalSnapshotPayload {
-  _TerminalSnapshotPayload(this._bytes);
-
-  List<int>? _bytes;
-
-  int get retainedBytes => _bytes?.length ?? 0;
-
-  List<int> take() {
-    final value = _bytes;
-    _bytes = null;
-    return value ?? const <int>[];
-  }
-}
+const Duration _foregroundProbeTimeout = Duration(seconds: 8);
 
 @riverpod
 class TerminalSessionController extends _$TerminalSessionController {
@@ -72,9 +26,12 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _disposed = false;
   bool _recovering = false;
   bool _desktopReclaimed = false;
+  Completer<void>? _recoveryCompletion;
   MobileTerminalClient? _pendingRecoveryClient;
-  int _cols = defaultTerminalCols;
-  int _rows = defaultTerminalRows;
+  // Null until the terminal has been laid out. Claiming a viewport resizes the
+  // live PTY, so a guess here is a resize to a size nobody is looking at.
+  int? _cols;
+  int? _rows;
 
   bool get supportsRestart => _client?.supportsTerminalRestart ?? false;
 
@@ -106,7 +63,11 @@ class TerminalSessionController extends _$TerminalSessionController {
     final client = await ref.read(terminalClientProvider(hostId).future);
     // The runtime restarts exited sessions under the same handle during
     // attach, so a single attach always yields a usable session.
-    final session = await client.attachTerminal(tabId);
+    final session = await client.attachTerminal(
+      tabId,
+      cols: _cols,
+      rows: _rows,
+    );
     return _bindSession(client, session);
   }
 
@@ -122,8 +83,35 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     final client = _client;
     if (client != null) {
-      unawaited(_recoverWithClient(client, showStartingState: true));
+      unawaited(_recoverIfConnectionLost(client));
     }
+  }
+
+  /// Returning to the foreground does not, by itself, mean the session is
+  /// gone. Re-attaching regardless takes the tab through its loading state,
+  /// which disposes the compose bar along with whatever it was waiting on: a
+  /// path picked from the gallery landed on a dead controller and vanished,
+  /// and the terminal appeared to restart every time the picker closed. One
+  /// round trip separates the two cases, and a connection that answers is
+  /// still delivering output, so nothing needs re-attaching.
+  Future<void> _recoverIfConnectionLost(MobileTerminalClient client) async {
+    try {
+      await client.probeConnection().timeout(_foregroundProbeTimeout);
+      return;
+    } on Object catch (error, stackTrace) {
+      if (_disposed || !identical(_client, client)) {
+        return;
+      }
+      _logger.warning(
+        'foreground probe failed for terminal $tabId; reattaching',
+        error,
+        stackTrace,
+      );
+    }
+    if (_disposed || _desktopReclaimed || !identical(_client, client)) {
+      return;
+    }
+    await _recoverWithClient(client, showStartingState: true);
   }
 
   void _registerCleanup() {
@@ -156,6 +144,8 @@ class TerminalSessionController extends _$TerminalSessionController {
         sessionId: sessionId,
         snapshot: session.attachment.snapshot,
         running: session.attachment.running,
+        snapshotCols: session.attachment.snapshotCols,
+        snapshotRows: session.attachment.snapshotRows,
         output: client.terminalOutput.where(
           (event) => event.sessionId == sessionId,
         ),
@@ -215,6 +205,8 @@ class TerminalSessionController extends _$TerminalSessionController {
       sessionId: sessionId,
       snapshot: session.attachment.snapshot,
       running: session.attachment.running,
+      snapshotCols: session.attachment.snapshotCols,
+      snapshotRows: session.attachment.snapshotRows,
       output: client.terminalOutput.where(
         (event) => event.sessionId == sessionId,
       ),
@@ -231,9 +223,11 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     if (_recovering) {
       _pendingRecoveryClient = client;
-      return;
+      return _recoveryCompletion?.future ?? Future<void>.value();
     }
     _recovering = true;
+    final completion = Completer<void>();
+    _recoveryCompletion = completion;
     var nextClient = client;
     try {
       while (!_desktopReclaimed && !_disposed) {
@@ -276,6 +270,8 @@ class TerminalSessionController extends _$TerminalSessionController {
     } finally {
       _pendingRecoveryClient = null;
       _recovering = false;
+      _recoveryCompletion = null;
+      completion.complete();
     }
   }
 
@@ -284,8 +280,8 @@ class TerminalSessionController extends _$TerminalSessionController {
       _logger.warning('ignoring terminal reconnect after controller disposal');
       return;
     }
-    _recovering = true;
     state = const AsyncLoading<TerminalTabSession>(progress: 0.25);
+    final previousClient = _client;
     try {
       ref.invalidate(hostConnectionControllerProvider(hostId));
       ref.invalidate(terminalClientProvider(hostId));
@@ -296,19 +292,13 @@ class TerminalSessionController extends _$TerminalSessionController {
         );
         return;
       }
-      final session = await client.attachTerminal(
-        tabId,
-        cols: _cols,
-        rows: _rows,
-      );
-      if (_disposed) {
-        _logger.warning(
-          'discarding terminal reconnect session after controller disposal',
-        );
-        unawaited(_detachQuietly(client, session.attachment.sessionId));
-        return;
+      final activeRecovery = _recoveryCompletion;
+      if (activeRecovery != null) {
+        await activeRecovery.future;
+      } else if (identical(previousClient, client) ||
+          !identical(_client, client)) {
+        await _recoverWithClient(client);
       }
-      state = AsyncData(_bindSession(client, session));
     } catch (error, stackTrace) {
       if (_disposed) {
         _logger.warning(
@@ -319,8 +309,6 @@ class TerminalSessionController extends _$TerminalSessionController {
         return;
       }
       state = AsyncError(error, stackTrace);
-    } finally {
-      _recovering = false;
     }
   }
 
@@ -350,11 +338,13 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     state = const AsyncLoading<TerminalTabSession>(progress: 0.75);
     try {
+      // A restart mints a new PTY, so unlike attach it always needs a size;
+      // an unmeasured terminal has nothing better than the default to give.
       final session = await client.restartTerminal(
         tabId,
         sessionId: _sessionId,
-        cols: _cols,
-        rows: _rows,
+        cols: _cols ?? defaultTerminalCols,
+        rows: _rows ?? defaultTerminalRows,
       );
       if (_disposed) {
         _logger.warning(
@@ -377,50 +367,40 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
   }
 
-  /// Raw keystrokes: the accessory bar and direct mode. These must never be
-  /// pasted or deferred, since each one is already a single key.
-  Future<void> write(List<int> bytes) async {
-    final session = await future;
-    final client = await ref.read(terminalClientProvider(hostId).future);
-    await client.writeTerminal(session.sessionId, bytes);
-  }
+  /// Raw accessory/direct keys are never pasted or deferred.
+  Future<void> write(List<int> bytes) => _runAttachedOperation(
+    (client, sessionId) => client.writeTerminal(sessionId, bytes),
+  );
 
-  /// Text from an explicit Paste action. It never submits the prompt, but it
-  /// uses bracketed paste when control characters or a large payload require
-  /// protection from the foreground line editor.
-  Future<void> pasteText(String text) async {
-    final session = await future;
-    final client = await ref.read(terminalClientProvider(hostId).future);
+  /// Explicit paste never submits and brackets only when the text needs it.
+  Future<void> pasteText(String text) => _runAttachedOperation((client, id) {
     final delivery = TerminalComposeDelivery.forText(
       text,
       withEnter: false,
       hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
     );
-    await client.writeTerminal(
-      session.sessionId,
+    return client.writeTerminal(
+      id,
       delivery.bytes,
       bracketedPaste: delivery.bracketedPaste,
     );
-  }
+  });
 
-  /// Compose-mode send. The prompt and its Enter become separate PTY writes
-  /// when the host supports it, because an agent TUI reads a CR arriving inside
-  /// an input burst as a literal newline instead of a submit.
-  Future<void> sendComposedText(String text, {required bool withEnter}) async {
-    final session = await future;
-    final client = await ref.read(terminalClientProvider(hostId).future);
-    final delivery = TerminalComposeDelivery.forText(
-      text,
-      withEnter: withEnter,
-      hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
-    );
-    await client.writeTerminal(
-      session.sessionId,
-      delivery.bytes,
-      bracketedPaste: delivery.bracketedPaste,
-      deferredEnter: delivery.deferredEnter,
-    );
-  }
+  /// Compose send separates prompt bytes from Enter when the host supports it.
+  Future<void> sendComposedText(String text, {required bool withEnter}) =>
+      _runAttachedOperation((client, id) {
+        final delivery = TerminalComposeDelivery.forText(
+          text,
+          withEnter: withEnter,
+          hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
+        );
+        return client.writeTerminal(
+          id,
+          delivery.bytes,
+          bracketedPaste: delivery.bracketedPaste,
+          deferredEnter: delivery.deferredEnter,
+        );
+      });
 
   Future<void> resize(int cols, int rows) async {
     if (cols <= 0 || rows <= 0) {
@@ -428,10 +408,74 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
     _cols = cols;
     _rows = rows;
-    final session = await future;
-    final client = await ref.read(terminalClientProvider(hostId).future);
-    await client.resizeTerminal(session.sessionId, cols, rows);
+    await _runAttachedOperation(
+      (client, sessionId) => client.resizeTerminal(sessionId, cols, rows),
+    );
   }
+
+  Future<void> _runAttachedOperation(
+    Future<void> Function(MobileTerminalClient client, String sessionId)
+    operation,
+  ) async {
+    final session = await future;
+    if (_disposed) {
+      return;
+    }
+    final client = _client;
+    if (client == null) {
+      throw StateError('Terminal session has no bound client.');
+    }
+    try {
+      await operation(client, session.sessionId);
+      return;
+    } on Object catch (error) {
+      if (!_isSessionNotAttached(error)) {
+        rethrow;
+      }
+      await (_recoveryCompletion?.future ?? _recoverWithClient(client));
+      if (_disposed) {
+        return;
+      }
+      if (state case AsyncError(:final error, :final stackTrace)) {
+        _logger.warning(
+          'terminal late attach recovery failed',
+          error,
+          stackTrace,
+        );
+        return;
+      }
+      final recovered = switch (state) {
+        AsyncData(value: final value) => value,
+        _ => null,
+      };
+      final recoveredClient = _client;
+      if (recovered == null || recoveredClient == null) {
+        return;
+      }
+      try {
+        await operation(recoveredClient, recovered.sessionId);
+      } on Object catch (retryError, retryStackTrace) {
+        if (!_isSessionNotAttached(retryError)) {
+          rethrow;
+        }
+        if (_disposed) {
+          _logger.warning('terminal retry failed after controller disposal');
+          return;
+        }
+        _logger.warning(
+          'terminal session remained unavailable after reattach',
+          retryError,
+          retryStackTrace,
+        );
+        state = AsyncError(retryError, retryStackTrace);
+      }
+    }
+  }
+
+  bool _isSessionNotAttached(Object error) =>
+      (error is StateError ? error.message : error.toString()).contains(
+        'Terminal session is not attached',
+      );
 
   Future<void> _detachQuietly(
     MobileTerminalClient client,
@@ -449,5 +493,4 @@ class TerminalSessionController extends _$TerminalSessionController {
   }
 }
 
-/// Convenience for pre-resolving the session id of a tab without attaching.
 String terminalSessionIdOf(WorkspaceTabSummary tab) => tab.terminalSessionId;

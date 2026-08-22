@@ -45,6 +45,7 @@ class RustProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     final session = _ProcessSession(executable, arguments);
     session.listen(
@@ -53,6 +54,7 @@ class RustProcessRunner implements ProcessRunner {
         arguments: arguments,
         workingDirectory: workingDirectory,
         environment: environment,
+        includeParentEnvironment: includeParentEnvironment,
       ),
     );
     return session.started;

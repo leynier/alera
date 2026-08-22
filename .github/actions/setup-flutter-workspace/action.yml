@@ -72,12 +72,44 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        packages="clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libjson-glib-dev libsecret-1-dev libsqlite3-dev libssl-dev libepoxy-dev libmpv-dev"
+        packages="clang libclang-dev cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libjson-glib-dev libsecret-1-dev libsqlite3-dev libssl-dev libepoxy-dev libmpv-dev libvulkan-dev glslc"
         if [ "${{ inputs.xvfb }}" = "true" ]; then
           packages="${packages} xvfb"
         fi
         sudo apt-get update
         sudo apt-get install -y ${packages} ${{ inputs.extra-linux-packages }}
+        echo "VULKAN_SDK=/usr" >> "$GITHUB_ENV"
+
+    - name: Install libclang on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+        brew install llvm
+        echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
+
+    - name: Install LLVM on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install llvm --no-progress --yes
+        "LIBCLANG_PATH=C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Install Vulkan SDK on Windows
+      if: runner.os == 'Windows' && inputs.rust == 'true'
+      shell: pwsh
+      run: |
+        $version = '1.4.350.0'
+        winget install --exact --id KhronosGroup.VulkanSDK --version $version --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+        if ($LASTEXITCODE -ne 0) {
+          throw "Vulkan SDK installation failed with code $LASTEXITCODE."
+        }
+        $sdk = "C:\VulkanSDK\$version"
+        if (-not (Test-Path -LiteralPath "$sdk\Lib\vulkan-1.lib") -or -not (Test-Path -LiteralPath "$sdk\Bin\glslc.exe")) {
+          throw "Vulkan SDK $version is incomplete at $sdk."
+        }
+        "VULKAN_SDK=$sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        "$sdk\Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Enable Linux desktop
       if: inputs.enable-linux-desktop == 'true'

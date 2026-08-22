@@ -128,9 +128,11 @@ class AgentAwakeService {
       AgentType.cursor => _hookSettings.cursor,
       AgentType.agy => _hookSettings.agy,
       AgentType.opencode => _hookSettings.opencode,
+      AgentType.opencode2 => _hookSettings.opencode2,
       AgentType.pi => _hookSettings.pi,
       AgentType.amp => _hookSettings.amp,
       AgentType.grok => _hookSettings.grok,
+      AgentType.fx => _hookSettings.fx,
     };
   }
 

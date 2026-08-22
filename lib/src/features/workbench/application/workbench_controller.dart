@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';
 import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_providers.dart';
 import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
@@ -40,6 +41,7 @@ part 'workbench_controller_browser.dart';
 part 'workbench_controller_projects.dart';
 part 'workbench_controller_navigation.dart';
 part 'workbench_controller_tab_opening.dart';
+part 'workbench_controller_pull_request_diff_tabs.dart';
 part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
@@ -51,6 +53,7 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerInternals,
         _WorkbenchControllerBrowser,
         _WorkbenchControllerTabOpening,
+        _WorkbenchControllerPullRequestDiffTabs,
         _WorkbenchControllerProjects,
         _WorkbenchControllerNavigation,
         // Creation builds on project selection and tab opening so the prompt

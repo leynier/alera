@@ -87,43 +87,6 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
-  WorkbenchContextPanelTab _supportedContextPanelTabForProjectWorkspace({
-    required Project? project,
-    required Workspace? workspace,
-    required WorkbenchViewPrefs prefs,
-    required WorkbenchContextPanelTab tab,
-  }) {
-    if (workspace == null) {
-      return tab;
-    }
-    final sourceControlScope = WorkspaceSourceControlScope.resolve(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-    );
-    if (sourceControlScope == null && tab == WorkbenchContextPanelTab.gitDiff) {
-      return WorkbenchContextPanelTab.explorer;
-    }
-    return tab;
-  }
-
-  WorkbenchViewPrefs _viewPrefsForProjectContext({
-    required Project? project,
-    required Workspace? workspace,
-    required WorkbenchViewPrefs prefs,
-  }) {
-    final activeContextPanelTab = _supportedContextPanelTabForProjectWorkspace(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-      tab: prefs.activeContextPanelTab,
-    );
-    if (activeContextPanelTab == prefs.activeContextPanelTab) {
-      return prefs;
-    }
-    return prefs.copyWith(activeContextPanelTab: activeContextPanelTab);
-  }
-
   Project? _projectById(Iterable<Project> projects, String? projectId) {
     if (projectId == null) {
       return null;
@@ -136,21 +99,94 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     return null;
   }
 
-  Workspace? _workspaceById(
-    Map<String, List<Workspace>> workspacesByProject,
-    String? workspaceId,
-  ) {
-    if (workspaceId == null) {
-      return null;
+  Workspace? _workspaceById(String workspaceId) {
+    return state.workspacesByProject.values
+        .expand((workspaces) => workspaces)
+        .where((workspace) => workspace.id == workspaceId)
+        .firstOrNull;
+  }
+
+  Future<void> _releaseHostedReviewTab(
+    Workspace workspace,
+    WorkspaceTabRecord tab, {
+    String? fallbackWorkspacePath,
+  }) async {
+    final retentionId = tab.gitDiffHostedReviewRetentionId;
+    if (tab.gitDiffSource != WorkspaceGitDiffSource.pullRequest ||
+        retentionId == null) {
+      return;
     }
-    for (final workspaces in workspacesByProject.values) {
-      for (final workspace in workspaces) {
-        if (workspace.id == workspaceId) {
-          return workspace;
-        }
+    await _releaseHostedReviewRetention(
+      workspace: workspace,
+      relativeRoot: tab.gitDiffRoot,
+      retentionId: retentionId,
+      fallbackWorkspacePath: fallbackWorkspacePath,
+    );
+  }
+
+  Future<void> _releaseHostedReviewRetention({
+    required Workspace workspace,
+    required String? relativeRoot,
+    required String retentionId,
+    String? fallbackWorkspacePath,
+  }) async {
+    final path = relativeRoot == null
+        ? workspace.path
+        : sourceControlRootAbsolutePath(
+            workspacePath: workspace.path,
+            relativeRoot: relativeRoot,
+          );
+    try {
+      await ref
+          .read(gitBackendProvider)
+          .releaseHostedReviewRange(path: path, retentionId: retentionId);
+    } catch (_) {
+      if (fallbackWorkspacePath == null ||
+          fallbackWorkspacePath == workspace.path) {
+        return;
+      }
+      final fallbackPath = relativeRoot == null
+          ? fallbackWorkspacePath
+          : sourceControlRootAbsolutePath(
+              workspacePath: fallbackWorkspacePath,
+              relativeRoot: relativeRoot,
+            );
+      try {
+        await ref
+            .read(gitBackendProvider)
+            .releaseHostedReviewRange(
+              path: fallbackPath,
+              retentionId: retentionId,
+            );
+      } catch (_) {
+        // A stale retention ref must never make a persisted tab impossible to close.
       }
     }
-    return null;
+  }
+
+  Future<void> _persistHostedReviewRetention({
+    required Workspace workspace,
+    required String? relativeRoot,
+    required String retentionId,
+  }) {
+    final path = relativeRoot == null
+        ? workspace.path
+        : sourceControlRootAbsolutePath(
+            workspacePath: workspace.path,
+            relativeRoot: relativeRoot,
+          );
+    return ref
+        .read(gitBackendProvider)
+        .persistHostedReviewRange(path: path, retentionId: retentionId);
+  }
+
+  void _releaseHostedReviewTabsInBackground(
+    Workspace workspace,
+    Iterable<WorkspaceTabRecord> tabs,
+  ) {
+    for (final tab in tabs) {
+      unawaited(_releaseHostedReviewTab(workspace, tab));
+    }
   }
 
   Future<void> _activateAddedProject(Project project) async {
@@ -166,11 +202,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     final expandedPrefs = changedPrefs
         ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
         : prefs;
-    final nextViewPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: null,
-      prefs: expandedPrefs,
-    );
+    final nextViewPrefs = expandedPrefs;
     final prefsChanged = !identical(nextViewPrefs, prefs);
     state = state.copyWith(
       viewPrefs: nextViewPrefs,
@@ -319,10 +351,28 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   }
 
   void _setTabsForWorkspace(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;
     state = state.copyWith(tabsByWorkspace: nextTabs);
+  }
+
+  void _removeMissingCodexDrafts(
+    String workspaceId,
+    List<WorkspaceTabRecord> tabs,
+  ) {
+    final retainedIds = <String>{for (final tab in tabs) tab.id};
+    _removeCodexDrafts(
+      state.tabsFor(workspaceId).where((tab) => !retainedIds.contains(tab.id)),
+    );
+  }
+
+  void _removeCodexDrafts(Iterable<WorkspaceTabRecord> tabs) {
+    final draftStore = ref.read(codexComposerDraftStoreProvider);
+    for (final tab in tabs) {
+      if (tab.kind == WorkspaceTabKind.codex) draftStore.remove(tab.id);
+    }
   }
 
   String _newPaneGroupId() => 'pane-${_uuid.v4()}';

@@ -18,6 +18,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 import '../unit/fake_source_control_watcher.dart';
@@ -53,14 +54,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_terminalDragPaths(tester), <String>{
-      '/tmp/project/src',
-      '/tmp/project/readme.md',
+      p.join('/tmp/project', 'src'),
+      p.join('/tmp/project', 'readme.md'),
     });
 
     final source = tester.getCenter(find.text('readme.md'));
     final target = tester.getCenter(find.text('src'));
     final gesture = await tester.startGesture(source);
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    // Path drag starts after horizontal touch slop, not after long-press.
+    await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
+    await tester.pump();
     await gesture.moveTo(target);
     await tester.pump();
     await gesture.up();
@@ -95,12 +98,12 @@ void main() {
         await _pumpSourceControl(tester, backend, viewMode: viewMode);
 
         final paths = _terminalDragPaths(tester);
-        expect(paths, contains('/tmp/project/lib/main.dart'));
-        expect(paths, contains('/tmp/project/lib/old file.dart'));
+        expect(paths, contains(p.join('/tmp/project', 'lib', 'main.dart')));
+        expect(paths, contains(p.join('/tmp/project', 'lib', 'old file.dart')));
         if (viewMode == GitDiffViewMode.tree) {
-          expect(paths, contains('/tmp/project/lib'));
+          expect(paths, contains(p.join('/tmp/project', 'lib')));
         } else {
-          expect(paths, isNot(contains('/tmp/project/lib')));
+          expect(paths, isNot(contains(p.join('/tmp/project', 'lib'))));
         }
       },
     );
@@ -142,8 +145,8 @@ void main() {
     expect(
       _terminalDragPaths(tester),
       containsAll(<String>[
-        '/tmp/project/modules/sample',
-        '/tmp/project/modules/sample/README.md',
+        p.join('/tmp/project', 'modules', 'sample'),
+        p.join('/tmp/project', 'modules', 'sample', 'README.md'),
       ]),
     );
   });
@@ -180,6 +183,8 @@ Future<void> _pumpSourceControl(
               ),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
+              groupMode: GitDiffGroupMode.byArea,
+              onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
               onOpenGitCommitDiff:
@@ -205,11 +210,11 @@ Future<void> _pumpSourceControl(
 
 Set<String> _terminalDragPaths(WidgetTester tester) {
   final finder = find.byWidgetPredicate(
-    (widget) => widget is TerminalPathLongPressDraggable,
+    (widget) => widget is TerminalPathDraggable,
   );
   return <String>{
     for (final element in finder.evaluate())
-      ...(element.widget as TerminalPathLongPressDraggable).data.paths,
+      ...(element.widget as TerminalPathDraggable).data.paths,
   };
 }
 

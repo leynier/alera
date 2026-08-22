@@ -203,6 +203,8 @@ void _registerTerminalRuntimeFactoryGroup() {
               }
             case TerminalPtyErrorEvent():
               break;
+            case TerminalPtyPulseChangedEvent():
+              break;
           }
         });
         addTearDown(sub.cancel);
@@ -269,6 +271,8 @@ void _registerTerminalRuntimeFactoryGroup() {
                 exitCompleter.complete();
               }
             case TerminalPtyErrorEvent():
+              break;
+            case TerminalPtyPulseChangedEvent():
               break;
           }
         });

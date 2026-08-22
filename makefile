@@ -5,6 +5,7 @@ APP_DEVICE_ARG = $(if $(APP_DEVICE),--device "$(APP_DEVICE)",)
 ALERA_FLAVOR ?= dev
 ALERA_APP_ID ?= $(if $(filter release,$(ALERA_FLAVOR)),dev.leynier.alera,dev.leynier.alera.dev)
 ALERA_CLI_BUNDLE_DIR ?= .dart_tool/alera
+ALERA_RUNTIME_DEV_BUNDLE_DIR ?= .dart_tool/alera-dev
 ALERA_CLI_DEBUG_TOKEN ?= dev-token
 ALERA_HOST_EMPTY_SHUTDOWN_SECONDS ?= 30
 ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
@@ -15,21 +16,25 @@ PERF_APP_PID ?=
 PERF_APP_PID_ARG = $(if $(PERF_APP_PID),--app-pid "$(PERF_APP_PID)",)
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug app-profile app-debug-bundled-cli debug-processes host-stop perf-linux perf-macos-resources
+.PHONY: help init-submodules init-reference-submodules update-submodules frb-generate rust-test cli-build cli-help runtime-dev-build host-debug app-debug app-profile app-debug-bundled-cli app-debug-runtime-dev debug-processes host-stop perf-linux perf-macos-resources
 
 # List available make targets.
 help:
 	$(DART) $(ALERA_DEBUG_TOOL) help
 
-# Initialize all git submodules at their pinned commits.
+# Initialize only the source submodules required to resolve and build Alera.
+# The Dart initializer also repairs an existing nested clone that does not yet
+# contain the pinned Ghostty commit, without overwriting local submodule work.
 init-submodules:
+	$(DART) tool/development/initialize_required_submodules.dart
+
+# Initialize the optional reference projects used for contributor research.
+init-reference-submodules:
 	git submodule update --init --recursive -- reference_projects/jean
 	git submodule update --init -- reference_projects/t3code
 	git submodule update --init --recursive -- reference_projects/CodexMonitor
 	git submodule update --init --recursive -- reference_projects/1Code
 	git submodule update --init --recursive -- reference_projects/orca
-	git submodule update --init --recursive -- third_party/xterm
-	git submodule update --init --recursive -- third_party/dart_terminal
 	git submodule update --init --recursive -- reference_projects/code_forge
 	git submodule update --init --recursive -- reference_projects/flutter_directory_tree
 	git submodule update --init --recursive -- reference_projects/directory_tree
@@ -66,6 +71,11 @@ cli-build:
 cli-help:
 	$(DART) $(ALERA_DEBUG_TOOL) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
+# Compile the Rust runtime host with the Cargo dev profile into an isolated
+# bundle used only by development app launches.
+runtime-dev-build:
+	$(DART) $(ALERA_DEBUG_TOOL) runtime-dev-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
+
 # Run the runtime host in the foreground for direct stdout/stderr debugging.
 host-debug:
 	$(DART) $(ALERA_DEBUG_TOOL) host-debug --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
@@ -81,6 +91,12 @@ app-profile:
 # Run the Flutter app against the locally compiled CLI bundle.
 app-debug-bundled-cli:
 	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+
+# Run Alera Dev against a freshly compiled dev-profile runtime host. Its app
+# id, runtime directory, control file, process, and persisted state are all
+# separate from the release app.
+app-debug-runtime-dev:
+	$(DART) $(ALERA_DEBUG_TOOL) app-debug-runtime-dev --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor dev --cargo "$(CARGO)" --bundle-dir "$(ALERA_RUNTIME_DEV_BUNDLE_DIR)"
 
 # Inspect running Alera app and runtime-host processes.
 debug-processes:

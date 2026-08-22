@@ -208,6 +208,36 @@ void main() {
     expect(find.text('CCS Profile'), findsNothing);
   });
 
+  testWidgets('managed Grok Build exposes permission, sandbox, and effort', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _EditorHarness(
+        adapter: AgentType.grok,
+        launchMode: AgentProfileLaunchMode.managed,
+        managedConfig: const <String, Object?>{
+          'model': 'grok-4.6',
+          'effort': 'high',
+          'permissionMode': 'acceptEdits',
+          'sandbox': 'workspace',
+        },
+      ),
+    );
+
+    expect(find.text('Managed Options'), findsOneWidget);
+    expect(find.text('Persona'), findsOneWidget);
+    expect(find.text('Reasoning Effort'), findsOneWidget);
+    expect(find.text('Permission Mode'), findsOneWidget);
+    expect(find.text('Sandbox'), findsOneWidget);
+    expect(find.text('Disable Web Search'), findsOneWidget);
+    expect(
+      find.text(
+        'grok --model grok-4.6 --effort high --permission-mode acceptEdits --sandbox workspace',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('managed mode surfaces reduced protection warnings', (
     tester,
   ) async {

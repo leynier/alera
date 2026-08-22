@@ -3,8 +3,10 @@ part of 'workspace_git_diff_panel.dart';
 class _SourceControlToolbar extends StatelessWidget {
   const _SourceControlToolbar({
     required this.messageController,
+    required this.messageFocusNode,
     required this.filterController,
     required this.viewMode,
+    required this.groupMode,
     required this.state,
     required this.aiTextSettings,
     required this.generatingCommitMessage,
@@ -20,14 +22,17 @@ class _SourceControlToolbar extends StatelessWidget {
     required this.onClearSourceControlRoot,
     required this.onToggleCollapseAll,
     required this.onViewModeChanged,
+    required this.onGroupModeChanged,
     required this.onOpenAll,
     required this.onPrimaryAction,
     required this.onSelectMenuAction,
   });
 
   final TextEditingController messageController;
+  final FocusNode messageFocusNode;
   final TextEditingController filterController;
   final GitDiffViewMode viewMode;
+  final GitDiffGroupMode groupMode;
   final AsyncValue<WorkspaceSourceControlState> state;
   final AiTextGenerationSettings aiTextSettings;
   final bool generatingCommitMessage;
@@ -43,6 +48,7 @@ class _SourceControlToolbar extends StatelessWidget {
   final VoidCallback? onClearSourceControlRoot;
   final VoidCallback onToggleCollapseAll;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
+  final ValueChanged<GitDiffGroupMode> onGroupModeChanged;
   final VoidCallback onOpenAll;
   final ValueChanged<_SourceControlMenuAction> onPrimaryAction;
   final ValueChanged<_SourceControlMenuAction> onSelectMenuAction;
@@ -75,73 +81,105 @@ class _SourceControlToolbar extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Source Control',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              if (onClearSourceControlRoot != null) ...<Widget>[
-                AleraIconButton(
-                  tooltip: 'Clear Source Control Root',
-                  icon: AleraIcons.close,
-                  onPressed: busy ? null : onClearSourceControlRoot,
-                ),
-                const SizedBox(width: AleraTokens.space2),
-              ],
-              if (aiTextSettings.enabled ||
-                  generatingCommitMessage) ...<Widget>[
-                _AiCommitMessageButton(
-                  generating: generatingCommitMessage,
-                  canGenerate: canGenerateCommitMessage,
-                  onGenerate: onGenerateCommitMessage,
-                  onCancel: onCancelGenerateCommitMessage,
-                ),
-                const SizedBox(width: AleraTokens.space2),
-              ],
-              AleraIconButton(
-                tooltip: 'All changes',
-                icon: AleraIcons.diff,
-                onPressed: busy ? null : onOpenAll,
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: viewMode == GitDiffViewMode.tree
-                    ? 'Show flat list'
-                    : 'Show tree',
-                icon: viewMode == GitDiffViewMode.tree
-                    ? AleraIcons.listView
-                    : AleraIcons.gitGraph,
-                onPressed: busy
-                    ? null
-                    : () => onViewModeChanged(
-                        viewMode == GitDiffViewMode.tree
-                            ? GitDiffViewMode.flat
-                            : GitDiffViewMode.tree,
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (onClearSourceControlRoot != null) ...<Widget>[
+                        AleraIconButton(
+                          tooltip: 'Clear Source Control Root',
+                          icon: AleraIcons.close,
+                          onPressed: busy ? null : onClearSourceControlRoot,
+                        ),
+                        const SizedBox(width: AleraTokens.space2),
+                      ],
+                      if (aiTextSettings.enabled ||
+                          generatingCommitMessage) ...<Widget>[
+                        _AiCommitMessageButton(
+                          generating: generatingCommitMessage,
+                          canGenerate: canGenerateCommitMessage,
+                          onGenerate: onGenerateCommitMessage,
+                          onCancel: onCancelGenerateCommitMessage,
+                        ),
+                        const SizedBox(width: AleraTokens.space2),
+                      ],
+                      AleraIconButton(
+                        tooltip: 'All Changes',
+                        icon: AleraIcons.diff,
+                        onPressed: busy ? null : onOpenAll,
                       ),
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: filterVisible ? 'Hide file filter' : 'Search files',
-                icon: AleraIcons.search,
-                onPressed: busy ? null : onToggleFilter,
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: allCollapsed ? 'Expand All' : 'Collapse All',
-                icon: allCollapsed
-                    ? AleraIcons.expandAll
-                    : AleraIcons.collapseAll,
-                onPressed: busy ? null : onToggleCollapseAll,
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: 'Refresh',
-                icon: AleraIcons.gitRefresh,
-                onPressed: busy ? null : onRefresh,
+                      const SizedBox(width: AleraTokens.space2),
+                      AleraIconButton(
+                        tooltip: viewMode == GitDiffViewMode.tree
+                            ? 'Show Flat List'
+                            : 'Show Tree',
+                        icon: viewMode == GitDiffViewMode.tree
+                            ? AleraIcons.listView
+                            : AleraIcons.gitGraph,
+                        onPressed: busy
+                            ? null
+                            : () => onViewModeChanged(
+                                viewMode == GitDiffViewMode.tree
+                                    ? GitDiffViewMode.flat
+                                    : GitDiffViewMode.tree,
+                              ),
+                      ),
+                      const SizedBox(width: AleraTokens.space2),
+                      AleraIconButton(
+                        tooltip: groupMode == GitDiffGroupMode.byArea
+                            ? 'Show All Changes'
+                            : 'Group By Staged State',
+                        icon: groupMode == GitDiffGroupMode.byArea
+                            ? AleraIcons.gridView
+                            : AleraIcons.outline,
+                        onPressed: busy
+                            ? null
+                            : () => onGroupModeChanged(
+                                groupMode == GitDiffGroupMode.byArea
+                                    ? GitDiffGroupMode.unified
+                                    : GitDiffGroupMode.byArea,
+                              ),
+                      ),
+                      const SizedBox(width: AleraTokens.space2),
+                      AleraIconButton(
+                        tooltip: filterVisible
+                            ? 'Hide File Filter'
+                            : 'Search Files',
+                        icon: AleraIcons.search,
+                        onPressed: busy ? null : onToggleFilter,
+                      ),
+                      const SizedBox(width: AleraTokens.space2),
+                      AleraIconButton(
+                        tooltip: allCollapsed ? 'Expand All' : 'Collapse All',
+                        icon: allCollapsed
+                            ? AleraIcons.expandAll
+                            : AleraIcons.collapseAll,
+                        onPressed: busy ? null : onToggleCollapseAll,
+                      ),
+                      const SizedBox(width: AleraTokens.space2),
+                      AleraIconButton(
+                        tooltip: 'Refresh',
+                        icon: AleraIcons.gitRefresh,
+                        onPressed: busy ? null : onRefresh,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AleraTokens.space8),
           _CommitMessageField(
             controller: messageController,
+            focusNode: messageFocusNode,
             enabled: !busy,
             generating: generatingCommitMessage,
             onChanged: (_) => onMessageChanged(),

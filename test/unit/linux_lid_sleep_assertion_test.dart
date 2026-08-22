@@ -132,6 +132,7 @@ class _FakeProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     calls.add(_StartCall(executable, List<String>.from(arguments)));
     final next = queuedStarts.isEmpty

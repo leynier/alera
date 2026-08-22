@@ -65,6 +65,8 @@ mixin MobileRuntimeTerminalOutputResync {
           sessionId,
           base64Decode(encoded),
           replacesScrollback: true,
+          snapshotCols: payload.optionalPositiveInt('snapshotCols'),
+          snapshotRows: payload.optionalPositiveInt('snapshotRows'),
         ),
       );
     } on Object catch (error, stackTrace) {

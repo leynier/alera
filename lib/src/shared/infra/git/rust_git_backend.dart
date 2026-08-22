@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:alera/src/rust/api/git.dart' as rust;
+import 'package:alera/src/rust/api/git/git_hosted_review.dart'
+    as hosted_review_rust;
 import 'package:alera/src/rust/api/git_diff_blob.dart' as rust_blob;
 import 'package:alera/src/rust/api/git_explorer_status.dart' as explorer_rust;
+import 'package:alera/src/rust/api/reading_diff.dart' as rust_reading_diff;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -11,12 +14,10 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'rust_git_backend_enum_mappers.dart';
+part 'rust_git_backend_hosted_review.dart';
 
-/// [GitBackend] backed by the Rust crate through flutter_rust_bridge. This is
-/// the only place that knows about the generated bridge types; it translates
-/// the native `GitError` into a domain [GitException] and the native worktree
-/// records into [GitWorktreeEntry].
-class RustGitBackend implements GitBackend {
+/// Rust-backed [GitBackend] translating bridge values into domain values.
+class RustGitBackend with _RustGitBackendHostedReview implements GitBackend {
   const RustGitBackend();
 
   @override
@@ -34,6 +35,19 @@ class RustGitBackend implements GitBackend {
   @override
   Future<bool> branchExists(String repoPath, String branch) =>
       _guard(() => rust.branchExists(repoPath: repoPath, branch: branch));
+
+  @override
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) => _guard(
+    () => rust.isAncestor(
+      path: path,
+      ancestorRef: ancestorRef,
+      descendantRef: descendantRef,
+    ),
+  );
 
   @override
   Future<bool> isValidBranchName(String name) =>
@@ -170,6 +184,27 @@ class RustGitBackend implements GitBackend {
       });
 
   @override
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  }) => _guard(
+    () => rust_reading_diff.gitReadingDiffPatch(
+      path: path,
+      filePath: filePath,
+      oldPath: oldPath,
+      area: area == null ? null : _toRustArea(area),
+      commitOid: commitOid,
+      parentOid: parentOid,
+      baseRef: baseRef,
+    ),
+  );
+
+  @override
   Future<Uint8List?> diffBlobBytes({
     required String path,
     required String filePath,
@@ -236,14 +271,17 @@ class RustGitBackend implements GitBackend {
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) => _guard(() async {
     final result = await rust.gitRangeContext(
       path: path,
       baseRef: baseRef,
       commitLimit: commitLimit,
+      headRef: headRef,
     );
     return GitRangeContext(
       baseRef: result.baseRef,
+      headOid: result.headOid,
       headBranch: result.headBranch,
       mergeBase: result.mergeBase,
       commits: result.commits
@@ -371,43 +409,6 @@ class RustGitBackend implements GitBackend {
   @override
   Future<void> stashPop({required String path, required int stashIndex}) =>
       _guard(() => rust.gitStashPop(path: path, stashIndex: stashIndex));
-
-  Future<T> _guard<T>(Future<T> Function() body) async {
-    try {
-      return await body();
-    } on rust.GitError catch (error) {
-      throw _toException(error);
-    }
-  }
-
-  GitException _toException(rust.GitError error) {
-    final context = error.context;
-    return switch (error.kind) {
-      rust.GitErrorKind.notARepository => NotARepositoryException(context),
-      rust.GitErrorKind.accessDenied => AccessDeniedException(context),
-      rust.GitErrorKind.branchNotFound => BranchNotFoundException(context),
-      rust.GitErrorKind.branchAlreadyExists => BranchAlreadyExistsException(
-        context,
-      ),
-      rust.GitErrorKind.invalidBranchName => InvalidBranchNameException(
-        context,
-      ),
-      rust.GitErrorKind.worktreeAlreadyExists => WorktreeAlreadyExistsException(
-        context,
-      ),
-      rust.GitErrorKind.worktreeNotFound => WorktreeNotFoundException(context),
-      rust.GitErrorKind.cloneFailed => CloneFailedException(context),
-      rust.GitErrorKind.gitCli => GitCliException(context),
-      rust.GitErrorKind.detachedHead => DetachedHeadException(context),
-      rust.GitErrorKind.noUpstream => NoUpstreamException(context),
-      rust.GitErrorKind.remoteNotFound => RemoteNotFoundException(context),
-      rust.GitErrorKind.nothingToCommit => NothingToCommitException(context),
-      rust.GitErrorKind.workspaceScope => WorkspaceScopeException(context),
-      rust.GitErrorKind.missingIdentity => MissingIdentityException(context),
-      rust.GitErrorKind.conflict => GitConflictException(context),
-      rust.GitErrorKind.internal => GitInternalException(context),
-    };
-  }
 
   GitChangeEntry _toChangeEntry(rust.GitChangeEntry entry) {
     return GitChangeEntry(

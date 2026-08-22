@@ -51,7 +51,7 @@ void main() {
     test('enables autonomous updates everywhere a package manager does not', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      ).readAsStringSync().replaceAll('\r\n', '\n');
 
       expect(
         workflow,
@@ -62,14 +62,17 @@ void main() {
       // Scoped to the block that decides auto-install. The signing steps still
       // check these secrets, and must, to decide whether they can sign at all.
       final decision = workflow.substring(
-        workflow.indexOf('auto_install_enabled=false'),
+        workflow.indexOf('auto_install_enabled=true'),
         workflow.indexOf('dart run desktop_updater:release'),
       );
 
       expect(
-        decision,
-        contains('if [[ "\$PLATFORM" != "linux" ]]; then'),
-        reason: 'Linux updates go through apt or dnf so dependencies resolve',
+        workflow,
+        isNot(contains('if [[ "\$PLATFORM" != "linux" ]]; then')),
+        reason:
+            'which installation may be replaced is decided at runtime, by '
+            'whether a package manager owns it and whether Alera can write '
+            'to it, not by the platform it was built for',
       );
       expect(
         decision,
@@ -122,7 +125,7 @@ void main() {
     test('builds native apps and cross runtimes in parallel', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      ).readAsStringSync().replaceAll('\r\n', '\n');
       final appJob = workflow.substring(
         workflow.indexOf('  build_desktop_app:'),
         workflow.indexOf('  build_runtime_cross:'),
@@ -186,6 +189,26 @@ void main() {
       expect(packageJob, contains('name: release-runtime'));
     });
 
+    test('caches both standard and shortened Cargokit build layouts', () {
+      final desktopBuild = File(
+        '.github/workflows/desktop-build.yml',
+      ).readAsStringSync();
+      final warmCache = File(
+        '.github/workflows/warm-cache.yml',
+      ).readAsStringSync();
+      final release = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final cachePaths = RegExp(
+        r'path: \|\s+build/\*\*/cargokit_build\s+build/\*\*/ck',
+      );
+
+      expect(cachePaths.allMatches(desktopBuild), hasLength(1));
+      expect(cachePaths.allMatches(warmCache), hasLength(2));
+      expect(cachePaths.allMatches(release), hasLength(1));
+      expect(desktopBuild, contains(r'-name ck'));
+    });
+
     test('gates publishing on complete desktop runtime packaging', () {
       final workflow = File(
         '.github/workflows/release-cut.yml',
@@ -201,6 +224,36 @@ void main() {
           "needs.build_desktop_app.result == 'success' && needs.package_runtime.result == 'success'",
         ),
       );
+    });
+
+    test('builds and ships macOS for Apple Silicon only', () {
+      final appInfo = File(
+        'macos/Runner/Configs/AppInfo.xcconfig',
+      ).readAsStringSync();
+      final podfile = File('macos/Podfile').readAsStringSync();
+      final xcodeProject = File(
+        'macos/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final helperAssets = File(
+        'tool/native_helpers/native_helper_assets.json',
+      ).readAsStringSync();
+      final releaseWorkflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final buildWorkflow = File(
+        '.github/workflows/desktop-build.yml',
+      ).readAsStringSync();
+
+      expect(appInfo, contains('ARCHS = arm64'));
+      expect(appInfo, contains('EXCLUDED_ARCHS[sdk=macosx*] = x86_64'));
+      expect(podfile, contains("config.build_settings['ARCHS'] = 'arm64'"));
+      // The sidecar is pinned to the triple instead of inheriting the build
+      // machine, so the shipped binary cannot depend on which runner ran.
+      expect(xcodeProject, contains('aarch64-apple-darwin'));
+      expect(helperAssets, isNot(contains('"x86_64"')));
+      for (final workflow in <String>[releaseWorkflow, buildWorkflow]) {
+        expect(workflow, contains('verify_macos_arm64_only.sh'));
+      }
     });
 
     test('uses dedicated R2 sccache credentials with local fallback', () {
@@ -252,6 +305,27 @@ void main() {
         contains(r'if ($pendingModeration -and -not $hasApprovedVersion) {'),
       );
       expect(chocolateyJob, contains('choco push \$package'));
+    });
+
+    test('publishes desktop packages when the mobile build is skipped', () {
+      final workflow = File(
+        '.github/workflows/release-cut.yml',
+      ).readAsStringSync();
+      final packageJob = workflow.substring(
+        workflow.indexOf('  publish_packages:'),
+        workflow.indexOf('  publish_chocolatey:'),
+      );
+      final chocolateyJob = workflow.substring(
+        workflow.indexOf('  publish_chocolatey:'),
+      );
+
+      expect(packageJob, contains('!cancelled()'));
+      expect(packageJob, contains("needs.publish.result == 'success'"));
+      expect(chocolateyJob, contains('!cancelled()'));
+      expect(
+        chocolateyJob,
+        contains("needs.publish_packages.result == 'success'"),
+      );
     });
 
     test('cleans closed pull request caches without a checkout', () {

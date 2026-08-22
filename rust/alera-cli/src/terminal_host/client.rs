@@ -35,6 +35,12 @@ pub enum ClientFrame {
     RestartRuntimeAfterWrite {
         inbox: UnboundedSender<ServerCommand>,
     },
+    /// Re-enters the actor only after this connection has written every frame
+    /// queued before the marker. Shutdown uses it so the caller receives the
+    /// successful response before disposal drops the connection.
+    ShutdownRuntimeAfterWrite {
+        inbox: UnboundedSender<ServerCommand>,
+    },
     /// Control frames carry the last terminal sequence accepted before them.
     /// The writer uses it as a causal barrier between snapshot replies and
     /// output produced after that snapshot.
@@ -71,7 +77,9 @@ impl ClientFrame {
                     }),
                 ))
             }
-            ClientFrame::UpgradeToBinary | ClientFrame::RestartRuntimeAfterWrite { .. } => None,
+            ClientFrame::UpgradeToBinary
+            | ClientFrame::RestartRuntimeAfterWrite { .. }
+            | ClientFrame::ShutdownRuntimeAfterWrite { .. } => None,
             ClientFrame::OrderedControl { .. } | ClientFrame::SequencedTerminal { .. } => {
                 unreachable!("payload strips internal ordering envelopes")
             }
@@ -388,6 +396,10 @@ async fn write_frame(
         }
         ClientFrame::RestartRuntimeAfterWrite { inbox } => {
             let _ = inbox.send(ServerCommand::RequestedRestart);
+            Ok(())
+        }
+        ClientFrame::ShutdownRuntimeAfterWrite { inbox } => {
+            let _ = inbox.send(ServerCommand::RequestedShutdown);
             Ok(())
         }
         ClientFrame::Json(value) if *binary => {

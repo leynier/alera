@@ -90,6 +90,7 @@ class TextActionMapper extends ClassMapperBase<TextAction> {
     return ensureInitialized().decodeJson<TextAction>(json);
   }
 }
+
 mixin TextActionMappable {
   String toJson() {
     return TextActionMapper.ensureInitialized().encodeJson<TextAction>(
@@ -341,3 +342,4 @@ class _TextActionsSettingsCopyWithImpl<$R, $Out>
   $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
       _TextActionsSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
+

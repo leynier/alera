@@ -42,11 +42,15 @@ Workspace _workspace(
   );
 }
 
-WorkspaceTabRecord _tab(String id, String workspaceId) {
+WorkspaceTabRecord _tab(
+  String id,
+  String workspaceId, {
+  WorkspaceTabKind kind = WorkspaceTabKind.terminal,
+}) {
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.terminal,
+    kind: kind,
     title: id,
     createdAt: _now,
     updatedAt: _now,
@@ -54,11 +58,13 @@ WorkspaceTabRecord _tab(String id, String workspaceId) {
 }
 
 AgentStatusEntry _status(WorkspaceTabRecord tab, AgentStatusState state) {
+  final isCodex = tab.kind == WorkspaceTabKind.codex;
+  final handle = isCodex ? 'codex:${tab.id}' : tab.terminalSessionId;
   return AgentStatusEntry(
-    terminalSessionId: tab.terminalSessionId,
+    terminalSessionId: handle,
     workspaceId: tab.workspaceId,
     tabId: tab.id,
-    agentType: AgentType.claude,
+    agentType: isCodex ? AgentType.codex : AgentType.claude,
     state: state,
     prompt: state.name,
     updatedAt: _now,
@@ -286,6 +292,76 @@ void main() {
       'w-active',
       'w-inactive',
     ]);
+  });
+
+  test('an open Codex tab is active without a live agent status', () {
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(
+      groupBy: WorkbenchGroupBy.none,
+      workspaceSort: WorkbenchSortBy.activity,
+    );
+    final project = _project('p-alera', 'alera');
+    final active = _workspace('w-active', project.id, 'zebra');
+    final inactive = _workspace('w-inactive', project.id, 'alpha');
+    final state = WorkbenchState(
+      projects: <Project>[project],
+      workspacesByProject: <String, List<Workspace>>{
+        project.id: <Workspace>[inactive, active],
+      },
+      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+        active.id: <WorkspaceTabRecord>[
+          _tab('c-active', active.id, kind: WorkspaceTabKind.codex),
+        ],
+      },
+      viewPrefs: prefs,
+      bootstrapped: true,
+    );
+
+    expect(_workspaceIds(buildSidebarRows(state)), <String>[
+      'w-active',
+      'w-inactive',
+    ]);
+  });
+
+  test('a waiting Codex tab outranks a working terminal', () {
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(
+      groupBy: WorkbenchGroupBy.none,
+      workspaceSort: WorkbenchSortBy.activity,
+    );
+    final project = _project('p-alera', 'alera');
+    final working = _workspace('w-working', project.id, 'alpha');
+    final waiting = _workspace('w-waiting', project.id, 'zeta');
+    final workingTab = _tab('t-working', working.id);
+    final waitingTab = _tab(
+      'c-waiting',
+      waiting.id,
+      kind: WorkspaceTabKind.codex,
+    );
+    final state = WorkbenchState(
+      projects: <Project>[project],
+      workspacesByProject: <String, List<Workspace>>{
+        project.id: <Workspace>[working, waiting],
+      },
+      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+        working.id: <WorkspaceTabRecord>[workingTab],
+        waiting.id: <WorkspaceTabRecord>[waitingTab],
+      },
+      viewPrefs: prefs,
+      bootstrapped: true,
+    );
+    final statuses = <String, AgentStatusEntry>{
+      workingTab.terminalSessionId: _status(
+        workingTab,
+        AgentStatusState.working,
+      ),
+      'codex:${waitingTab.id}': _status(waitingTab, AgentStatusState.waiting),
+    };
+
+    expect(
+      _workspaceIds(
+        buildSidebarRows(state, agentStatuses: statuses, now: _now),
+      ),
+      <String>['w-waiting', 'w-working'],
+    );
   });
 
   test('global pinned section keeps active workspaces first', () {

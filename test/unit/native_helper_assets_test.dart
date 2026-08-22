@@ -54,7 +54,7 @@ void main() {
         derivation.dependencyLockSha256,
         'ba95ccfd76f628fcf173102770f9e2fbeee0320823b9f1b508a0b8ff51f890ca',
       );
-      expect(derivation.architectures, <String>['arm64', 'x86_64']);
+      expect(derivation.architectures, <String>['arm64']);
       expect(derivation.dependencies, hasLength(1));
       expect(
         derivation.dependencies.single.sourceSha256,
@@ -313,11 +313,14 @@ void main() {
         '.github/actions/setup-flutter-workspace/action.yml',
       ).readAsStringSync();
       expect(setup, contains('libepoxy-dev libmpv-dev'));
+      expect(setup, contains('libvulkan-dev glslc'));
       final linuxPackage = File(
         'tool/release/package_linux.sh',
       ).readAsStringSync();
       expect(linuxPackage, contains('libmpv2'));
       expect(linuxPackage, contains('mpv-libs'));
+      expect(linuxPackage, contains('libvulkan1'));
+      expect(linuxPackage, contains('vulkan-loader'));
     });
 
     test('verifies hash-pinned Windows video files', () async {
@@ -450,10 +453,11 @@ void main() {
         'await _prepareCliNativeHelpers(destinationDir)',
       );
       final sidecarCopy = debugContext.indexOf(
-        'await source.copy(destination.path)',
+        'await source.copy(staged.path)',
       );
       expect(helperPreparation, greaterThanOrEqualTo(0));
       expect(sidecarCopy, greaterThan(helperPreparation));
+      expect(debugContext, contains('await staged.rename(destination.path)'));
       expect(
         debugContext,
         contains('final helperExit = await _prepareCliNativeHelpers'),

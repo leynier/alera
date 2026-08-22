@@ -3,13 +3,14 @@ import 'dart:typed_data';
 
 import 'package:alera_mobile/src/features/runtime/domain/agent_profile_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
-import 'package:alera_mobile/src/features/runtime/domain/prompt_image_upload.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
+
+import 'fake_workspace_files_client.dart';
 
 WorkspaceTabSummary fakeTab({
   required String id,
@@ -37,20 +38,31 @@ WorkspaceTabSummary fakeTab({
 /// In-memory stand-in for the runtime gateway covering both the terminal and
 /// workspace client surfaces. Records calls as readable strings.
 class FakeTerminalClient
+    with FakeWorkspaceFilesClient
     implements MobileTerminalClient, MobileWorkspaceClient {
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final StreamController<MobileTerminalOutputEvent> _output =
       StreamController<MobileTerminalOutputEvent>.broadcast();
+  @override
   final List<String> calls = <String>[];
 
   /// The raw payload of each `writeTerminal`, for tests that care about the
   /// bytes and not just their count.
   final List<List<int>> writes = <List<int>>[];
-  final List<({String tabId, int cols, int rows})> attachments =
-      <({String tabId, int cols, int rows})>[];
+  final List<({String tabId, int? cols, int? rows})> attachments =
+      <({String tabId, int? cols, int? rows})>[];
+  final List<Object> writeErrors = <Object>[];
+  final List<Object> resizeErrors = <Object>[];
   Future<void>? attachCompletion;
+  Future<void>? removeTabCompletion;
+  Future<void>? terminateCompletion;
   List<int> attachmentSnapshot = const <int>[];
+
+  /// The size the host says [attachmentSnapshot] was written at. Left null to
+  /// stand in for a host that predates the field.
+  int? attachmentSnapshotCols;
+  int? attachmentSnapshotRows;
   List<WorkspaceTabSummary> tabs = <WorkspaceTabSummary>[];
   List<String> projectBranches = const <String>[];
   List<AgentProfileSummary> agentProfiles = const <AgentProfileSummary>[
@@ -63,11 +75,7 @@ class FakeTerminalClient
       );
   String? deferredSetupCommand;
   Object? linkError;
-  Object? promptImageUploadError;
-  int? failPromptImageUploadAt;
-  final List<List<int>> promptImageChunks = <List<int>>[];
   int _createdTabs = 0;
-  int _promptImageUploads = 0;
 
   void emitEvent(String name) {
     _events.add(MobileRuntimeEvent(name, const <String, Object?>{}));
@@ -175,6 +183,20 @@ class FakeTerminalClient
   Future<List<AgentPresenceSummary>> listAgentPresence() async =>
       const <AgentPresenceSummary>[];
 
+  /// Fails the foreground connection probe, so a test can drive the branch
+  /// that still needs a re-attach.
+  Object? probeError;
+  int probeCount = 0;
+
+  @override
+  Future<void> probeConnection() async {
+    probeCount += 1;
+    calls.add('probeConnection');
+    if (probeError != null) {
+      throw probeError!;
+    }
+  }
+
   @override
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
     calls.add('listTabs $workspaceId');
@@ -212,8 +234,8 @@ class FakeTerminalClient
   @override
   Future<MobileTerminalSession> attachTerminal(
     String tabId, {
-    int cols = defaultTerminalCols,
-    int rows = defaultTerminalRows,
+    int? cols,
+    int? rows,
   }) async {
     calls.add('attach $tabId');
     attachments.add((tabId: tabId, cols: cols, rows: rows));
@@ -226,6 +248,8 @@ class FakeTerminalClient
         created: false,
         running: true,
         snapshot: attachmentSnapshot,
+        snapshotCols: attachmentSnapshotCols,
+        snapshotRows: attachmentSnapshotRows,
       ),
     );
   }
@@ -261,12 +285,18 @@ class FakeTerminalClient
       'write $sessionId ${bytes.length} '
       'paste=$bracketedPaste enter=$deferredEnter',
     );
+    if (writeErrors.isNotEmpty) {
+      throw writeErrors.removeAt(0);
+    }
     writes.add(bytes);
   }
 
   @override
   Future<void> resizeTerminal(String sessionId, int cols, int rows) async {
     calls.add('resize $sessionId $cols $rows');
+    if (resizeErrors.isNotEmpty) {
+      throw resizeErrors.removeAt(0);
+    }
   }
 
   @override
@@ -277,6 +307,7 @@ class FakeTerminalClient
   @override
   Future<void> terminateSession(String sessionId) async {
     calls.add('terminate $sessionId');
+    await terminateCompletion;
   }
 
   @override
@@ -311,30 +342,6 @@ class FakeTerminalClient
   @override
   Future<void> cancelWorkspaceIdentity(String operationId) async {
     calls.add('cancelWorkspaceIdentity $operationId');
-  }
-
-  @override
-  Future<PromptImageUploadResult> uploadPromptImage({
-    required String format,
-    required int sizeBytes,
-    required Stream<List<int>> Function() openRead,
-  }) async {
-    calls.add('uploadPromptImage $format $sizeBytes');
-    if (failPromptImageUploadAt != null) {
-      if (failPromptImageUploadAt == _promptImageUploads + 1) {
-        throw promptImageUploadError ??
-            StateError('prompt image upload failed');
-      }
-    } else if (promptImageUploadError != null) {
-      throw promptImageUploadError!;
-    }
-    await for (final chunk in openRead()) {
-      promptImageChunks.add(List<int>.from(chunk));
-    }
-    _promptImageUploads += 1;
-    return PromptImageUploadResult(
-      hostPath: '/runtime/prompt-images/upload-$_promptImageUploads.$format',
-    );
   }
 
   @override
@@ -418,6 +425,7 @@ class FakeTerminalClient
   @override
   Future<void> removeTab(String tabId) async {
     calls.add('removeTab $tabId');
+    await removeTabCompletion;
     tabs = <WorkspaceTabSummary>[
       for (final tab in tabs)
         if (tab.id != tabId) tab,

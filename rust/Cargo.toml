@@ -12,7 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 # native hooks via `cargo build --locked -p alera-cli`). One lock file, one
 # target dir; the FRB build only compiles the root package.
 [workspace]
-members = ["alera-cli", "alera-core"]
+members = ["alera-cli", "alera-core", "alera-mobile-native"]
 resolver = "2"
 
 [dependencies]
@@ -39,6 +39,16 @@ regex = "1"
 merman = { version = "0.7", default-features = false, features = ["render"] }
 png = "0.18"
 tempfile = "3"
+hound = "3.5"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+whisper-rs = { version = "0.16.0", features = ["coreml", "metal"] }
+
+[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))'.dependencies]
+whisper-rs = { version = "0.16.0", features = ["vulkan"] }
+
+[target.'cfg(not(any(target_os = "macos", all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))))'.dependencies]
+whisper-rs = "0.16.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -31,6 +31,15 @@ impl DemandDrivenTicker {
         }
     }
 
+    /// Re-point the idle window at a client's actual polling period.
+    ///
+    /// A window fixed at construction has to agree with a cadence chosen
+    /// elsewhere - in Alera's case in another language - and when the two drift
+    /// apart the ticker stops under a client that is still polling on time.
+    pub fn set_idle_stop(&mut self, idle_stop: Duration) {
+        self.idle_stop = idle_stop;
+    }
+
     /// Record that a client asked for this work.
     pub fn note_request(&mut self) {
         self.last_request_at = Some(Instant::now());
@@ -49,16 +58,17 @@ impl DemandDrivenTicker {
 
     /// Begin ticking every `interval`, replacing any previous task.
     ///
+    /// The first tick fires immediately rather than after `interval`, so a
+    /// consumer polling at a slow cadence is not left with nothing to answer
+    /// with for its first two rounds.
+    ///
     /// `tick` returns whether to keep going, so a consumer whose receiver is
     /// gone ends the loop instead of ticking into nothing.
     pub fn start(&mut self, interval: Duration, tick: impl Fn() -> bool + Send + 'static) {
         self.stop();
         self.task = Some(tokio::spawn(async move {
-            loop {
+            while tick() {
                 tokio::time::sleep(interval).await;
-                if !tick() {
-                    break;
-                }
             }
         }));
     }
@@ -124,6 +134,33 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(60)).await;
 
         assert_eq!(ticks.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn the_first_tick_does_not_wait_out_the_interval() {
+        let ticks = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&ticks);
+        let mut ticker = DemandDrivenTicker::new(IDLE_STOP);
+
+        ticker.start(Duration::from_secs(30), move || {
+            counted.fetch_add(1, Ordering::SeqCst);
+            true
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        assert_eq!(ticks.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_widened_idle_window_keeps_an_older_request_fresh() {
+        let mut ticker = DemandDrivenTicker::new(Duration::from_millis(1));
+        ticker.note_request();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(ticker.is_idle());
+
+        ticker.set_idle_stop(Duration::from_secs(30));
+
+        assert!(!ticker.is_idle());
     }
 
     #[tokio::test]

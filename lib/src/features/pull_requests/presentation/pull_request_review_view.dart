@@ -9,15 +9,20 @@ import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
+import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_comment_markdown.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_link_dialog.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_section.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:flutter/material.dart';
 
 part 'pull_request_review_actions.dart';
@@ -30,6 +35,12 @@ class PullRequestReviewView extends StatefulWidget {
   const PullRequestReviewView({
     super.key,
     required this.review,
+    this.stack,
+    this.stackSupported = false,
+    this.stackErrorMessage,
+    this.localWorkspaceBranches = const <String>{},
+    this.stackWorkspaceCandidates = const <ReviewStackWorkspaceCandidate>[],
+    this.stackDefaultDraft = false,
     required this.checks,
     required this.comments,
     required this.baseBranches,
@@ -41,7 +52,11 @@ class PullRequestReviewView extends StatefulWidget {
     this.savingCommentIds = const <String>{},
     required this.action,
     required this.onOpenUrl,
+    this.onOpenDiff,
+    this.onOpenWorkspaceBranch,
     required this.onUnlink,
+    this.onLinkStack = _ignorePullRequestStackLink,
+    this.onCreateStackFromWorkspaces = _ignorePullRequestWorkspaceStack,
     required this.onMerge,
     required this.onClose,
     required this.onDraftStatusChanged,
@@ -52,6 +67,12 @@ class PullRequestReviewView extends StatefulWidget {
   });
 
   final HostedReview review;
+  final HostedReviewStack? stack;
+  final bool stackSupported;
+  final String? stackErrorMessage;
+  final Set<String> localWorkspaceBranches;
+  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
+  final bool stackDefaultDraft;
   final List<ReviewCheck> checks;
   final List<ReviewComment> comments;
   final List<String> baseBranches;
@@ -63,7 +84,12 @@ class PullRequestReviewView extends StatefulWidget {
   final Set<String> savingCommentIds;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
+  final VoidCallback? onOpenDiff;
+  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
   final Future<void> Function() onUnlink;
+  final Future<void> Function(List<int> reviewNumbers) onLinkStack;
+  final Future<void> Function(ReviewStackWorkspaceRequest request)
+  onCreateStackFromWorkspaces;
   final Future<void> Function(ReviewMergeMethod method) onMerge;
   final Future<void> Function() onClose;
   final Future<void> Function(bool draft) onDraftStatusChanged;
@@ -80,6 +106,12 @@ class PullRequestReviewView extends StatefulWidget {
 Future<void> _ignorePullRequestTaskToggle(
   String commentId,
   int itemIndex,
+) async {}
+
+Future<void> _ignorePullRequestStackLink(List<int> reviewNumbers) async {}
+
+Future<void> _ignorePullRequestWorkspaceStack(
+  ReviewStackWorkspaceRequest request,
 ) async {}
 
 class _PullRequestReviewViewState extends State<PullRequestReviewView> {
@@ -110,7 +142,10 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
     final base = _baseBranch;
     final input = UpdateReviewInput(
       title: title.isEmpty || title == review.title ? null : title,
-      baseBranch: base == null || base == review.baseBranch ? null : base,
+      baseBranch:
+          widget.stack != null || base == null || base == review.baseBranch
+          ? null
+          : base,
     );
     if (input.isEmpty) {
       setState(() => _editing = false);
@@ -133,6 +168,21 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
     ];
   }
 
+  bool get _canCreateStackFromWorkspaces {
+    final existingBranches = widget.stack?.entries
+        .map((entry) => entry.review.headBranch)
+        .whereType<String>()
+        .toSet();
+    final eligible = widget.stackWorkspaceCandidates.where(
+      (candidate) => !(existingBranches?.contains(candidate.branch) ?? false),
+    );
+    if (widget.stack != null) {
+      return eligible.isNotEmpty;
+    }
+    return eligible.length >= 2 &&
+        eligible.any((candidate) => candidate.current);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -149,6 +199,26 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                 _header(theme, review),
                 const SizedBox(height: AleraTokens.space8),
                 if (_editing) _editor(theme) else _summary(theme, review),
+                if (widget.stackSupported) ...<Widget>[
+                  const SizedBox(height: AleraTokens.space16),
+                  PullRequestStackSection(
+                    stack: widget.stack,
+                    currentReviewNumber: review.number,
+                    canManage: review.isOpen,
+                    enabled: !_busy,
+                    managing: widget.action == PullRequestAction.linkStack,
+                    canCreateFromWorkspaces: _canCreateStackFromWorkspaces,
+                    creatingFromWorkspaces:
+                        widget.action == PullRequestAction.createStack,
+                    errorMessage: widget.stackErrorMessage,
+                    localWorkspaceBranches: widget.localWorkspaceBranches,
+                    onOpenUrl: widget.onOpenUrl,
+                    onOpenWorkspaceBranch: widget.onOpenWorkspaceBranch,
+                    onManage: () => unawaited(_openStackDialog()),
+                    onCreateFromWorkspaces: () =>
+                        unawaited(_openWorkspaceStackDialog()),
+                  ),
+                ],
                 const SizedBox(height: AleraTokens.space16),
                 Text(
                   widget.checks.isEmpty
@@ -189,6 +259,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
           const SizedBox(height: AleraTokens.space8),
           _PullRequestReviewActions(
             review: review,
+            stack: widget.stack,
             mergeMethods: widget.mergeMethods,
             canCloseReview: widget.canCloseReview,
             canChangeDraftStatus: widget.canChangeDraftStatus,
@@ -201,6 +272,49 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
         ],
       ),
     );
+  }
+
+  Future<void> _openStackDialog() async {
+    if (_busy) {
+      return;
+    }
+    final reviewNumbers = await showDialog<List<int>>(
+      context: context,
+      builder: (_) => PullRequestStackLinkDialog(
+        currentReviewNumber: widget.review.number,
+        stack: widget.stack,
+      ),
+    );
+    if (!mounted || reviewNumbers == null) {
+      return;
+    }
+    await widget.onLinkStack(reviewNumbers);
+  }
+
+  Future<void> _openWorkspaceStackDialog() async {
+    if (_busy || !_canCreateStackFromWorkspaces) {
+      return;
+    }
+    final suggestedBase =
+        widget.stack?.baseBranch ??
+        widget.review.baseBranch ??
+        (widget.baseBranches.isEmpty ? 'main' : widget.baseBranches.first);
+    final request = await showDialog<ReviewStackWorkspaceRequest>(
+      context: context,
+      builder: (_) => PullRequestStackWorkspaceDialog(
+        currentTitle: widget.review.title,
+        currentDraft: widget.review.state == HostedReviewState.draft,
+        stack: widget.stack,
+        candidates: widget.stackWorkspaceCandidates,
+        baseBranches: widget.baseBranches,
+        suggestedBaseBranch: suggestedBase,
+        defaultDraft: widget.stackDefaultDraft,
+      ),
+    );
+    if (!mounted || request == null) {
+      return;
+    }
+    await widget.onCreateStackFromWorkspaces(request);
   }
 
   Widget _header(ThemeData theme, HostedReview review) {
@@ -227,6 +341,11 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             icon: AleraIcons.edit,
             onPressed: _busy ? null : _startEditing,
           ),
+        AleraIconButton(
+          tooltip: 'Open Pull Request Diff',
+          icon: AleraIcons.diff,
+          onPressed: widget.onOpenDiff,
+        ),
         AleraIconButton(
           tooltip: 'Open In Browser',
           icon: AleraIcons.external,
@@ -292,10 +411,19 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
         AleraDropdownField<String>(
           labelText: 'Base Branch',
           value: _baseBranch,
-          enabled: !_busy,
+          enabled: !_busy && widget.stack == null,
           entries: _baseEntries,
           onChanged: (value) => setState(() => _baseBranch = value),
         ),
+        if (widget.stack != null) ...<Widget>[
+          const SizedBox(height: AleraTokens.space4),
+          Text(
+            'The base branch is managed by the pull request stack.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+        ],
         const SizedBox(height: AleraTokens.space12),
         Row(
           children: <Widget>[

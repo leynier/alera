@@ -5,6 +5,7 @@ import 'package:alera_mobile/src/features/hosts/application/paired_hosts_control
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
+import 'package:alera_mobile/src/features/automations/presentation/automations_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
@@ -68,6 +69,14 @@ class HostDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AleraTokens.spaceMd),
               _WorkspacesCard(workspaces: dashboard.workspaces),
+              const SizedBox(height: AleraTokens.spaceMd),
+              _AutomationsCard(
+                onOpen: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AutomationsScreen(host: currentHost),
+                  ),
+                ),
+              ),
             ],
           ),
           AsyncError(:final error) => _ErrorState(
@@ -256,6 +265,45 @@ class _WorkspacesCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AutomationsCard extends StatelessWidget {
+  const _AutomationsCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: AleraTokens.contentPadding,
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.checklist_rtl,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: AleraTokens.spaceSm),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('Automations'),
+                  SizedBox(height: AleraTokens.space2),
+                  Text('View schedules and start approved runs.'),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onOpen,
+              icon: const Icon(Icons.arrow_forward),
+              tooltip: 'Open Automations',
+            ),
           ],
         ),
       ),

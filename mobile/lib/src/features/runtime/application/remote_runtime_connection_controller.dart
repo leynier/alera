@@ -6,6 +6,7 @@ import 'package:alera_mobile/src/features/accounts/application/cloud_account_pro
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -14,6 +15,13 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 part 'remote_runtime_connection_controller.g.dart';
 
 bool isRelayFallbackTransportFailure(Object error) {
+  // `MobileRuntimeClient.connect` normalizes an unreachable direct endpoint
+  // into `HostUnreachableException`, so the raw transport types only survive
+  // on paths that skip that boundary.
+  if (error is HostUnreachableException) {
+    final cause = error.cause;
+    return cause == null || isRelayFallbackTransportFailure(cause);
+  }
   return error is SocketException ||
       error is TimeoutException ||
       error is WebSocketChannelException;

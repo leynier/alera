@@ -29,7 +29,9 @@
 	<key>NSLocationUsageDescription</key>
 	<string>Allow Browser Tabs To Use Your Location After You Approve A Site.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow Browser Tabs To Use Your Microphone After You Approve A Site.</string>
+	<string>Allow Browser Tabs And AI Dictation To Use Your Microphone After You Approve Access.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Convert Your Speech To Text For AI Dictation.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

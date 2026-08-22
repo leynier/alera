@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+use super::worktree_setup_models::{WorktreeSetupConfig, WorktreeSetupReport};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -213,6 +215,8 @@ pub struct MobileAccessSettings {
     #[serde(default)]
     pub endpoint_mode: MobileEndpointMode,
     #[serde(default)]
+    pub netbird_endpoint: MobileNetbirdEndpoint,
+    #[serde(default)]
     pub server_public_key_b64: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
@@ -225,6 +229,7 @@ impl Default for MobileAccessSettings {
             bind_host: "127.0.0.1".to_string(),
             port: 6768,
             endpoint_mode: MobileEndpointMode::default(),
+            netbird_endpoint: MobileNetbirdEndpoint::default(),
             server_public_key_b64: None,
             updated_at: Utc::now(),
         }
@@ -237,7 +242,35 @@ pub enum MobileEndpointMode {
     #[default]
     Loopback,
     Tailscale,
+    Netbird,
     Manual,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MobileNetbirdEndpoint {
+    #[default]
+    Ip,
+    Dns,
+    Interface,
+}
+
+impl MobileNetbirdEndpoint {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MobileNetbirdEndpoint::Ip => "ip",
+            MobileNetbirdEndpoint::Dns => "dns",
+            MobileNetbirdEndpoint::Interface => "interface",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "dns" => MobileNetbirdEndpoint::Dns,
+            "interface" => MobileNetbirdEndpoint::Interface,
+            _ => MobileNetbirdEndpoint::Ip,
+        }
+    }
 }
 
 impl MobileEndpointMode {
@@ -245,6 +278,7 @@ impl MobileEndpointMode {
         match self {
             MobileEndpointMode::Loopback => "loopback",
             MobileEndpointMode::Tailscale => "tailscale",
+            MobileEndpointMode::Netbird => "netbird",
             MobileEndpointMode::Manual => "manual",
         }
     }
@@ -252,6 +286,7 @@ impl MobileEndpointMode {
     pub fn from_db(value: &str) -> Self {
         match value {
             "tailscale" => MobileEndpointMode::Tailscale,
+            "netbird" => MobileEndpointMode::Netbird,
             "manual" => MobileEndpointMode::Manual,
             _ => MobileEndpointMode::Loopback,
         }
@@ -413,68 +448,6 @@ impl ProjectConfig {
 pub struct NewWorkspaceConfig {
     #[serde(default)]
     pub prompt_append: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupConfig {
-    #[serde(default)]
-    pub copy: Vec<WorktreeCopyRule>,
-    #[serde(default)]
-    pub setup: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeCopyRule {
-    pub from: String,
-    #[serde(default)]
-    pub to: Option<String>,
-    #[serde(default)]
-    pub overwrite: bool,
-}
-
-impl WorktreeCopyRule {
-    pub fn destination(&self) -> &str {
-        self.to.as_deref().unwrap_or(&self.from)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupReport {
-    #[serde(default)]
-    pub steps: Vec<WorktreeSetupStepReport>,
-}
-
-impl WorktreeSetupReport {
-    pub fn empty() -> Self {
-        Self { steps: Vec::new() }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupStepReport {
-    pub kind: WorktreeSetupStepKind,
-    pub label: String,
-    pub succeeded: bool,
-    #[serde(default)]
-    pub message: Option<String>,
-    #[serde(default)]
-    pub exit_code: Option<i64>,
-    #[serde(default)]
-    pub stdout_tail: Option<String>,
-    #[serde(default)]
-    pub stderr_tail: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum WorktreeSetupStepKind {
-    Copy,
-    Command,
-    Config,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

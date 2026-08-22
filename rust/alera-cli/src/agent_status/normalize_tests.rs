@@ -22,13 +22,34 @@ fn every_supported_agent_reports_working() {
         ("cursor", "beforeSubmitPrompt"),
         ("agy", "PreInvocation"),
         ("opencode", "SessionBusy"),
+        ("opencode2", "SessionBusy"),
         ("pi", "agent_start"),
         ("amp", "session.start"),
         ("grok", "UserPromptSubmit"),
+        ("fx", "Working"),
     ] {
         let status = normalize_hook_event(&event(agent_type, event_name, json!({})), None)
             .unwrap_or_else(|| panic!("{agent_type} event was not normalized"));
         assert_eq!(status.state, AgentPresenceState::Working, "{agent_type}");
+    }
+}
+
+// Cursor emits the `before` event whether or not the user is asked, so the
+// `after` event is the only thing that ends the wait for a long command.
+#[test]
+fn cursor_execution_events_close_the_approval_wait() {
+    for event_name in ["beforeShellExecution", "beforeMCPExecution"] {
+        let status = normalize_hook_event(&event("cursor", event_name, json!({})), None).unwrap();
+        assert_eq!(status.state, AgentPresenceState::Waiting, "{event_name}");
+    }
+    for event_name in ["afterShellExecution", "afterMCPExecution"] {
+        let status = normalize_hook_event(
+            &event("cursor", event_name, json!({ "command": "sleep 30" })),
+            None,
+        )
+        .unwrap();
+        assert_eq!(status.state, AgentPresenceState::Working, "{event_name}");
+        assert_eq!(status.tool_input.as_deref(), Some("sleep 30"));
     }
 }
 
@@ -95,6 +116,24 @@ fn lifecycle_events_are_detected_before_state_normalization() {
         "session_shutdown",
         json!({})
     )));
+    assert!(hook_event_closes_session(&event(
+        "fx",
+        "SessionEnd",
+        json!({})
+    )));
+}
+
+#[test]
+fn fx_herdr_states_map_to_presence_states() {
+    for (event_name, expected) in [
+        ("Working", AgentPresenceState::Working),
+        ("Blocked", AgentPresenceState::Blocked),
+        ("Idle", AgentPresenceState::Done),
+    ] {
+        let status =
+            normalize_hook_event(&event("fx", event_name, json!({})), None).expect("fx status");
+        assert_eq!(status.state, expected, "{event_name}");
+    }
 }
 
 #[test]

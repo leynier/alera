@@ -52,6 +52,7 @@ void main() {
           'antigravity',
           'minimax',
           'zai',
+          'opencode',
         ],
       );
     },
@@ -95,6 +96,7 @@ void main() {
         AgentQuotaProviderId.codex,
       ]);
       expect(local.claudeDefaultEnabled, isFalse);
+      expect(local.claudeDefaultShowInUsage, isTrue);
       expect(local.selectedClaudeProfile, 'leynierdev');
       expect(local.unpinnedQuotaKeys, <String>['codex', 'claude:leynierdev']);
     },

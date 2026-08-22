@@ -1,6 +1,20 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
+import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
+import 'package:alera/src/rust/api/reading_diff.dart' as rust;
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -10,10 +24,18 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
+part 'workspace_git_diff_surface_pull_request_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_support.dart';
+part 'workspace_git_diff_surface_test_support.dart';
+
 void main() {
+  _registerWorkspaceGitDiffSurfacePullRequestTests();
+  _registerWorkspaceGitDiffSurfaceReadingDiffTests();
   testWidgets('diff surface caps rendered line previews', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = GitDiffResult(
@@ -144,6 +166,7 @@ void main() {
 
     expect(_openFileButton(tester).onPressed, isNotNull);
     expect(find.byTooltip('Open file'), findsOneWidget);
+    expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
   });
 
   testWidgets('diff surface disables opening rename-out old paths', (
@@ -278,7 +301,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'diff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'filePath': 'lib/main.dart',
         'area': GitChangeArea.unstaged,
       },
@@ -392,7 +415,7 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'commitDiff').single.args,
       <String, Object?>{
-        'path': '/tmp/project/packages/app',
+        'path': p.join('/tmp/project', 'packages', 'app'),
         'commitOid': 'abc123456789',
         'parentOid': 'def987654321',
         'filePath': 'lib/main.dart',
@@ -402,128 +425,4 @@ void main() {
     expect(find.text('Commit · lib/main.dart'), findsOneWidget);
     expect(_openFileButton(tester).onPressed, isNull);
   });
-}
-
-Future<void> _pumpDiffSurface(
-  WidgetTester tester, {
-  required FakeGitBackend backend,
-  WorkbenchController? controller,
-  WorkspaceTabRecord? tab,
-}) {
-  return tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        gitBackendProvider.overrideWithValue(backend),
-        if (controller != null)
-          workbenchControllerProvider.overrideWith(() => controller),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: WorkspaceGitDiffSurface(
-              workspace: _workspace(),
-              tab: tab ?? _diffTab(),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-IconButton _openFileButton(WidgetTester tester) {
-  final finder = find.ancestor(
-    of: find.byIcon(AleraIcons.external),
-    matching: find.byType(IconButton),
-  );
-  return tester.widget<IconButton>(finder);
-}
-
-Workspace _workspace() {
-  final now = DateTime.utc(2026, 6, 6);
-  return Workspace(
-    id: 'workspace-1',
-    projectId: 'project-1',
-    name: 'Main',
-    path: '/tmp/project',
-    createdAt: now,
-    updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
-  );
-}
-
-WorkspaceTabRecord _diffTab({
-  WorkspaceGitDiffSource source = WorkspaceGitDiffSource.workingTree,
-  WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
-  String filePath = 'lib/large.dart',
-  String title = 'large.dart unstaged',
-  GitChangeArea? area = GitChangeArea.unstaged,
-  String? gitDiffRoot,
-  String? oldPath,
-  String? commitOid,
-  String? parentOid,
-  String? compareRef,
-}) {
-  final now = DateTime.utc(2026, 6, 6);
-  final payload = <String, Object?>{
-    workspaceTabGitDiffSourcePayloadKey: source.key,
-    workspaceTabGitDiffScopePayloadKey: scope.key,
-    workspaceTabFilePathPayloadKey: filePath,
-  };
-  if (area != null) {
-    payload[workspaceTabGitDiffAreaPayloadKey] = area.key;
-  }
-  if (oldPath != null) {
-    payload[workspaceTabGitDiffOldPathPayloadKey] = oldPath;
-  }
-  if (commitOid != null) {
-    payload[workspaceTabGitDiffCommitOidPayloadKey] = commitOid;
-  }
-  if (parentOid != null) {
-    payload[workspaceTabGitDiffParentOidPayloadKey] = parentOid;
-  }
-  if (compareRef != null) {
-    payload[workspaceTabGitDiffCompareRefPayloadKey] = compareRef;
-  }
-  if (gitDiffRoot != null) {
-    payload[workspaceTabGitDiffRootPayloadKey] = gitDiffRoot;
-  }
-  return WorkspaceTabRecord(
-    id: 'tab-1',
-    workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.gitDiff,
-    title: title,
-    createdAt: now,
-    updatedAt: now,
-    payload: payload,
-  );
-}
-
-class _GitDiffSurfaceTestController extends WorkbenchController {
-  final List<String> openedRelativePaths = <String>[];
-
-  @override
-  WorkbenchState build() => const WorkbenchState();
-
-  @override
-  Future<WorkspaceTabRecord> openEditorTab({
-    required Workspace workspace,
-    required String relativePath,
-    String? targetGroupId,
-  }) async {
-    openedRelativePaths.add(relativePath);
-    final now = DateTime.utc(2026, 6, 6);
-    return WorkspaceTabRecord(
-      id: 'editor-${openedRelativePaths.length}',
-      workspaceId: workspace.id,
-      kind: WorkspaceTabKind.editor,
-      title: relativePath.split('/').last,
-      createdAt: now,
-      updatedAt: now,
-      payload: <String, Object?>{workspaceTabFilePathPayloadKey: relativePath},
-    );
-  }
 }

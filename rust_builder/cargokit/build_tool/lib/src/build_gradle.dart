@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
+import 'android_environment.dart';
 import 'artifacts_provider.dart';
 import 'builder.dart';
 import 'environment.dart';
@@ -43,6 +44,21 @@ class BuildGradle {
         if (lib.type == AritifactType.dylib) {
           File(lib.path).copySync(path.join(outputDir, lib.finalFileName));
         }
+      }
+      if (Environment.bundleSharedCxxRuntime) {
+        final runtime = AndroidEnvironment(
+          sdkPath: environment.androidSdkPath!,
+          ndkVersion: environment.androidNdkVersion!,
+          minSdkVersion: environment.androidMinSdkVersion!,
+          targetTempDir: environment.targetTempDir,
+          target: target,
+        ).sharedCxxRuntime();
+        if (!runtime.existsSync()) {
+          throw BuildException(
+            'Android shared C++ runtime was not found at ${runtime.path}',
+          );
+        }
+        runtime.copySync(path.join(outputDir, 'libc++_shared.so'));
       }
     }
   }

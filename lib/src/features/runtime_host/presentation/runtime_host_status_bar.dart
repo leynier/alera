@@ -108,6 +108,9 @@ class _RuntimeHostStatusBarControlState
     if (error is TerminalHostStartupException) {
       return 'Could not start the runtime host. Try again.';
     }
+    if (error is StateError && error.message.contains('did not stop in time')) {
+      return 'The runtime host did not stop in time. Try again.';
+    }
     return 'Runtime host action failed. Try again.';
   }
 

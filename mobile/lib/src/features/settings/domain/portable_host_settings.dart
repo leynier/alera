@@ -8,9 +8,11 @@ const List<String> supportedAgentHooks = <String>[
   'cursor',
   'agy',
   'opencode',
+  'opencode2',
   'pi',
   'amp',
   'grok',
+  'fx',
 ];
 
 const Map<String, String> agentHookLabels = <String, String>{
@@ -20,9 +22,11 @@ const Map<String, String> agentHookLabels = <String, String>{
   'cursor': 'Cursor',
   'agy': 'Antigravity',
   'opencode': 'OpenCode',
+  'opencode2': 'OpenCode 2',
   'pi': 'Pi',
   'amp': 'Amp',
   'grok': 'Grok Build',
+  'fx': 'fx',
 };
 
 class PortableHostSettings {

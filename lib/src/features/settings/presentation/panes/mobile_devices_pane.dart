@@ -127,6 +127,7 @@ class _MobileDevicesSettingsPaneState
       onRemoteAccessChanged: (enabled) =>
           _applySettings(remoteAccessEnabled: enabled),
       onModeSelected: _selectMode,
+      onNetbirdEndpointSelected: _selectNetbirdEndpoint,
       onBindHostChanged: (_) => setState(() {}),
       onPortChanged: (value) => setState(() => _gatewayPort = value),
       onApply: _applySettings,
@@ -134,15 +135,17 @@ class _MobileDevicesSettingsPaneState
   }
 
   Widget _pairingGroup(MobileAccessStatus status) {
-    final tailscaleMode =
-        displayedEndpointMode(status.settings) == MobileEndpointMode.tailscale;
+    final overlayMode = switch (displayedEndpointMode(status.settings)) {
+      MobileEndpointMode.tailscale || MobileEndpointMode.netbird => true,
+      _ => false,
+    };
     return AleraSettingsGroup(
       title: 'Link A Device',
       description:
           'Generates a one-time QR offer for the Alera mobile app. The QR is '
           'only shown at creation time.',
       children: <Widget>[
-        if (!tailscaleMode)
+        if (!overlayMode)
           AleraSettingRow(
             title: 'Endpoint',
             description:
@@ -258,9 +261,13 @@ class _MobileDevicesSettingsPaneState
   }
 
   Future<void> _selectMode(MobileEndpointMode mode) async {
-    // Only the mode is sent: the runtime resolves the tailnet bind host or
+    // Only the mode is sent: the runtime resolves the overlay bind host or
     // resets loopback itself, so a stale local bind host must not ride along.
     await _updateSettings(endpointMode: mode);
+  }
+
+  Future<void> _selectNetbirdEndpoint(MobileNetbirdEndpoint endpoint) async {
+    await _updateSettings(netbirdEndpoint: endpoint);
   }
 
   Future<void> _updateSettings({
@@ -269,6 +276,7 @@ class _MobileDevicesSettingsPaneState
     String? bindHost,
     int? port,
     MobileEndpointMode? endpointMode,
+    MobileNetbirdEndpoint? netbirdEndpoint,
   }) async {
     setState(() {
       _applying = true;
@@ -283,6 +291,7 @@ class _MobileDevicesSettingsPaneState
             bindHost: bindHost,
             port: port,
             endpointMode: endpointMode,
+            netbirdEndpoint: netbirdEndpoint,
           );
       if (!mounted) {
         return;

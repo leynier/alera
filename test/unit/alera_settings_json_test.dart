@@ -23,6 +23,7 @@ void main() {
             pi: true,
             amp: true,
             grok: true,
+            fx: true,
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
@@ -43,6 +44,13 @@ void main() {
             AiTextGenerationOperation.commitMessage:
                 'Use conventional commits.',
           },
+        ),
+        codexChat: CodexChatSettings(
+          selectedModel: 'gpt-current',
+          reasoningEffort: 'xhigh',
+          speedMode: 'fast',
+          permissionMode: 'never',
+          planMode: true,
         ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
@@ -90,6 +98,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.pi, isTrue);
       expect(restored.agents.agentStatusHooks.amp, isTrue);
       expect(restored.agents.agentStatusHooks.grok, isTrue);
+      expect(restored.agents.agentStatusHooks.fx, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.agents.defaultAgentProfileId, 'prof_1');
@@ -108,6 +117,11 @@ void main() {
         ),
         'Use conventional commits.',
       );
+      expect(restored.codexChat.selectedModel, 'gpt-current');
+      expect(restored.codexChat.reasoningEffort, 'xhigh');
+      expect(restored.codexChat.speedMode, 'fast');
+      expect(restored.codexChat.permissionMode, 'never');
+      expect(restored.codexChat.planMode, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);

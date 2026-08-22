@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_quota.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,6 +19,16 @@ void main() {
     );
 
     expect(entry.matches('accessibility'), isTrue);
+    expect(entry.groupId, 'cliSkill');
+  });
+
+  test('Agent Canvas skill is searchable in the agents skill group', () {
+    final entry = agentsSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Agent Canvas Skill',
+    );
+
+    expect(entry.matches('canvas'), isTrue);
+    expect(entry.matches('decision'), isTrue);
     expect(entry.groupId, 'cliSkill');
   });
 

@@ -10,6 +10,7 @@ enum AgentQuotaProviderId {
   antigravity,
   minimax,
   zai,
+  opencode,
 }
 
 extension AgentQuotaProviderIdLabel on AgentQuotaProviderId {
@@ -22,6 +23,7 @@ extension AgentQuotaProviderIdLabel on AgentQuotaProviderId {
     AgentQuotaProviderId.antigravity => 'Antigravity',
     AgentQuotaProviderId.minimax => 'MiniMax',
     AgentQuotaProviderId.zai => 'Z.ai',
+    AgentQuotaProviderId.opencode => 'OpenCode',
   };
 }
 
@@ -30,10 +32,19 @@ class ClaudeQuotaProfileSettings with ClaudeQuotaProfileSettingsMappable {
   const ClaudeQuotaProfileSettings({
     required this.alias,
     required this.profile,
+    this.showInUsage = true,
+    this.usageDisplayName,
   });
 
   final String alias;
   final String profile;
+  final bool showInUsage;
+  final String? usageDisplayName;
+
+  String get usageLabel {
+    final configured = usageDisplayName?.trim();
+    return configured == null || configured.isEmpty ? alias : configured;
+  }
 
   factory ClaudeQuotaProfileSettings.fromJson(Map<String, Object?> json) =>
       ClaudeQuotaProfileSettingsMapper.fromMap(Map<String, dynamic>.from(json));
@@ -69,6 +80,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   const AgentQuotaHostSettings({
     this.enabledProviders = AgentQuotaProviderId.values,
     this.claudeDefaultEnabled = true,
+    this.claudeDefaultShowInUsage = true,
     this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
     this.selectedClaudeProfile = 'default',
     this.environment = AgentQuotaEnvironmentSettings.defaults,
@@ -77,6 +89,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
 
   final List<AgentQuotaProviderId> enabledProviders;
   final bool claudeDefaultEnabled;
+  final bool claudeDefaultShowInUsage;
   final List<ClaudeQuotaProfileSettings> claudeProfiles;
   final String selectedClaudeProfile;
   final AgentQuotaEnvironmentSettings environment;
@@ -88,13 +101,14 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   static const AgentQuotaHostSettings defaults = AgentQuotaHostSettings();
 
   /// Stable pin key: provider name for single-account providers, and
-  /// `claude:<accountId>` for Claude, matching the status bar account keys.
+  /// `provider:<accountId>` for providers with multiple accounts.
   static String quotaPinKey(
     AgentQuotaProviderId provider, {
     String claudeAccountId = 'default',
   }) {
-    if (provider == AgentQuotaProviderId.claude) {
-      return 'claude:$claudeAccountId';
+    if (provider == AgentQuotaProviderId.claude ||
+        provider == AgentQuotaProviderId.opencode) {
+      return '${provider.name}:$claudeAccountId';
     }
     return provider.name;
   }

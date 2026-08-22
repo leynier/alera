@@ -10,6 +10,9 @@ concurrency:
   group: desktop-builds-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   ALERA_FLAVOR: release
 
@@ -49,7 +52,9 @@ jobs:
       - name: Restore cargokit build
         uses: actions/cache/restore@v6
         with:
-          path: build/**/cargokit_build
+          path: |
+            build/**/cargokit_build
+            build/**/ck
           key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
           restore-keys: |
             cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
@@ -80,18 +85,20 @@ jobs:
           dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
             --platform "$PLATFORM" \
             --bundle "$bundle"
+          if [[ "$PLATFORM" == "macos" ]]; then
+            bash tool/release/verify_macos_arm64_only.sh "$bundle"
+          fi
 
-      # The cargokit temp directory layout differs per platform and is only
-      # confirmed for Linux, so report what was actually produced until the
-      # macOS and Windows paths have been observed on a real run.
+      # The shortened Windows layout avoids MSBuild's legacy path limit while
+      # the other platforms retain Cargokit's standard directory name.
       - name: Report cargokit build layout
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          found=$(find build -type d -name cargokit_build 2>/dev/null || true)
+          found=$(find build -type d \( -name cargokit_build -o -name ck \) 2>/dev/null || true)
           if [ -z "$found" ]; then
-            echo "No cargokit_build directory under build/ on ${{ runner.os }}."
+            echo "No Cargokit build directory under build/ on ${{ runner.os }}."
             exit 0
           fi
           echo "$found" | while read -r dir; do

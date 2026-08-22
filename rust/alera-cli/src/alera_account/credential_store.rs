@@ -141,7 +141,7 @@ fn remove_fallback(path: &Path) -> Result<()> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::{write_fallback, StoredAccountCredential};
 

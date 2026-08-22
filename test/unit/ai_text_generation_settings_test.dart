@@ -10,7 +10,9 @@ void main() {
         'Commit Messages',
         'Pull Request Details',
         'Branch Names',
+        'Reading Diffs',
         'Workspace Identity',
+        'Speech Messages',
       ],
     );
     expect(AiTextGenerationAgent.codex.agentType, AgentType.codex);
@@ -19,9 +21,11 @@ void main() {
     expect(AiTextGenerationAgent.cursor.agentType, AgentType.cursor);
     expect(AiTextGenerationAgent.agy.agentType, AgentType.agy);
     expect(AiTextGenerationAgent.opencode.agentType, AgentType.opencode);
+    expect(AiTextGenerationAgent.opencode2.agentType, AgentType.opencode2);
     expect(AiTextGenerationAgent.pi.agentType, AgentType.pi);
     expect(AiTextGenerationAgent.amp.agentType, AgentType.amp);
     expect(AiTextGenerationAgent.grok.agentType, AgentType.grok);
+    expect(AiTextGenerationAgent.fx.agentType, AgentType.fx);
     expect(AiTextGenerationAgent.custom.agentType, isNull);
     expect(
       AiTextGenerationAgent.values.map((agent) => agent.label),
@@ -32,9 +36,11 @@ void main() {
         'Cursor',
         'Antigravity',
         'OpenCode',
+        'OpenCode 2',
         'Pi',
         'Amp',
         'Grok Build',
+        'fx',
         'Custom Command',
       ]),
     );
@@ -72,6 +78,7 @@ void main() {
       selectedModelByAgent: <AiTextGenerationAgent, String>{
         AiTextGenerationAgent.codex: 'gpt-global',
         AiTextGenerationAgent.claude: 'sonnet',
+        AiTextGenerationAgent.opencode: 'provider/reading-model',
       },
       promptSettingsByOperation:
           <AiTextGenerationOperation, AiTextGenerationPromptSettings>{
@@ -81,6 +88,10 @@ void main() {
                 ),
             AiTextGenerationOperation.pullRequestDetails:
                 AiTextGenerationPromptSettings(model: 'gpt-pull-request'),
+            AiTextGenerationOperation.readingDiff:
+                AiTextGenerationPromptSettings(
+                  agent: AiTextGenerationAgent.opencode,
+                ),
           },
     );
 
@@ -99,6 +110,14 @@ void main() {
     expect(
       settings.modelForOperation(AiTextGenerationOperation.pullRequestDetails),
       'gpt-pull-request',
+    );
+    expect(
+      settings.agentFor(AiTextGenerationOperation.readingDiff),
+      AiTextGenerationAgent.opencode,
+    );
+    expect(
+      settings.modelForOperation(AiTextGenerationOperation.readingDiff),
+      'provider/reading-model',
     );
     expect(
       settings.modelForOperation(AiTextGenerationOperation.workspaceIdentity),

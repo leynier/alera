@@ -7,12 +7,16 @@ import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_restart_result.dart';
 import 'package:alera_mobile/src/features/runtime/application/remote_runtime_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+export 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart'
+    show HostUnreachableException, RuntimeConnectionLost;
 
 part 'host_connection_controller.g.dart';
 
@@ -26,16 +30,6 @@ const List<Duration> _retryDelays = <Duration>[
   Duration(seconds: 16),
   Duration(seconds: 30),
 ];
-
-/// The runtime socket ended without the app asking it to, so every stream and
-/// pending request on that client is dead. Raised into the provider so screens
-/// stop showing a live-looking connection and offer their Retry instead.
-class RuntimeConnectionLost implements Exception {
-  const RuntimeConnectionLost();
-
-  @override
-  String toString() => 'Lost the connection to the host';
-}
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
 /// connected and authenticated before it is exposed. Transport failures recover

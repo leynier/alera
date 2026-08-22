@@ -10,6 +10,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
@@ -19,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'pull_request_composer_actions.dart';
+part 'pull_request_composer_form.dart';
 
 /// User-entered result of the inline create-pull-request form.
 class CreateReviewDraft {
@@ -52,6 +54,9 @@ class PullRequestComposer extends ConsumerStatefulWidget {
     required this.onCreate,
     required this.onLink,
     required this.onCreateActionChanged,
+    this.canCreateStack = false,
+    this.creatingStack = false,
+    this.onCreateStack,
   });
 
   final String repoPath;
@@ -65,6 +70,9 @@ class PullRequestComposer extends ConsumerStatefulWidget {
   final ValueChanged<CreateReviewDraft> onCreate;
   final ValueChanged<String> onLink;
   final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
+  final bool canCreateStack;
+  final bool creatingStack;
+  final Future<void> Function(CreateReviewDraft draft)? onCreateStack;
 
   @override
   ConsumerState<PullRequestComposer> createState() =>
@@ -76,6 +84,8 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   late final TextEditingController _linkController;
+  late final FocusNode _titleFocusNode;
+  late final FocusNode _bodyFocusNode;
   late String _baseBranch;
   String? _errorText;
   bool _generating = false;
@@ -90,6 +100,8 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     _titleController = TextEditingController(text: widget.headBranch ?? '');
     _bodyController = TextEditingController();
     _linkController = TextEditingController();
+    _titleFocusNode = FocusNode();
+    _bodyFocusNode = FocusNode();
     _baseBranch = _resolveBaseBranch(widget.suggestedBaseBranch);
   }
 
@@ -126,6 +138,8 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     _titleController.dispose();
     _bodyController.dispose();
     _linkController.dispose();
+    _titleFocusNode.dispose();
+    _bodyFocusNode.dispose();
     super.dispose();
   }
 
@@ -149,27 +163,43 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     ];
   }
 
-  void _submitCreate() {
+  CreateReviewDraft? _validatedCreateDraft() {
     final title = _titleController.text.trim();
     final base = _baseBranch.trim();
     if (title.isEmpty) {
       setState(() => _errorText = 'Title is required');
-      return;
+      return null;
     }
     if (base.isEmpty) {
       setState(() => _errorText = 'Base branch is required');
-      return;
+      return null;
     }
     final body = _bodyController.text.trim();
     setState(() => _errorText = null);
-    widget.onCreate(
-      CreateReviewDraft(
-        title: title,
-        baseBranch: base,
-        body: body.isEmpty ? null : body,
-        draft: widget.createAction == PullRequestCreateAction.draft,
-      ),
+    return CreateReviewDraft(
+      title: title,
+      baseBranch: base,
+      body: body.isEmpty ? null : body,
+      draft: widget.createAction == PullRequestCreateAction.draft,
     );
+  }
+
+  void _submitCreate() {
+    final draft = _validatedCreateDraft();
+    if (draft != null) {
+      widget.onCreate(draft);
+    }
+  }
+
+  Future<void> _submitCreateStack() async {
+    final callback = widget.onCreateStack;
+    if (callback == null) {
+      return;
+    }
+    final draft = _validatedCreateDraft();
+    if (draft != null) {
+      await callback(draft);
+    }
   }
 
   void _submitLink() {
@@ -288,6 +318,8 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     );
   }
 
+  void _update(VoidCallback callback) => setState(callback);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -358,6 +390,23 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                         : const Icon(AleraIcons.link, size: 16),
                     label: const Text('Link'),
                   ),
+                if (widget.canCreateStack &&
+                    widget.onCreateStack != null) ...<Widget>[
+                  const SizedBox(height: AleraTokens.space8),
+                  OutlinedButton.icon(
+                    onPressed: widget.busy || _generating
+                        ? null
+                        : () => unawaited(_submitCreateStack()),
+                    icon: widget.creatingStack
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(AleraIcons.gitGraph, size: 16),
+                    label: const Text('Create Stack'),
+                  ),
+                ],
               ],
             ),
           ),
@@ -380,102 +429,6 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildCreateForm(ThemeData theme, {required bool aiEnabled}) {
-    final enabled = !widget.busy && widget.canCreate && !_generating;
-    final canGenerate =
-        aiEnabled && widget.canCreate && !widget.busy && !_generating;
-    final titleField = TextField(
-      controller: _titleController,
-      contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
-      enabled: enabled,
-      style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
-      cursorColor: AleraTokens.foreground,
-      decoration: pullRequestFieldDecoration(theme, hint: 'Title'),
-      onChanged: (_) {
-        if (_errorText != null) {
-          setState(() => _errorText = null);
-        }
-      },
-    );
-    final descriptionField = TextField(
-      controller: _bodyController,
-      contextMenuBuilder: AleraTextActionsScope.buildContextMenu,
-      enabled: enabled,
-      minLines: 3,
-      maxLines: 20,
-      style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
-      cursorColor: AleraTokens.foreground,
-      decoration: pullRequestFieldDecoration(theme, hint: 'Description'),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        AleraDropdownField<String>(
-          labelText: 'Base Branch',
-          value: _baseBranch,
-          enabled: enabled,
-          entries: _baseEntries,
-          onChanged: (value) {
-            setState(() {
-              _baseBranch = value;
-              _errorText = null;
-            });
-          },
-        ),
-        const SizedBox(height: AleraTokens.space12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                'Title',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-              ),
-            ),
-            if (aiEnabled || _generating)
-              _AiPullRequestButton(
-                generating: _generating,
-                canGenerate: canGenerate,
-                onGenerate: () => unawaited(_generateDetails()),
-                onCancel: _cancelGenerate,
-              ),
-          ],
-        ),
-        const SizedBox(height: AleraTokens.space4),
-        if (_generating) _AiDimmedBlock(child: titleField) else titleField,
-        const SizedBox(height: AleraTokens.space12),
-        _labeledField(
-          theme,
-          label: 'Description',
-          child: _generating
-              ? _AiGeneratingOverlay(child: descriptionField)
-              : descriptionField,
-        ),
-      ],
-    );
-  }
-
-  Widget _labeledField(
-    ThemeData theme, {
-    required String label,
-    required Widget child,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space4),
-        child,
-      ],
     );
   }
 }

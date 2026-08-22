@@ -176,6 +176,24 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
     _$headSha,
     opt: true,
   );
+  static String? _$headRepositoryUrl(HostedReview v) => v.headRepositoryUrl;
+  static const Field<HostedReview, String> _f$headRepositoryUrl = Field(
+    'headRepositoryUrl',
+    _$headRepositoryUrl,
+    opt: true,
+  );
+  static String? _$comparisonBaseSha(HostedReview v) => v.comparisonBaseSha;
+  static const Field<HostedReview, String> _f$comparisonBaseSha = Field(
+    'comparisonBaseSha',
+    _$comparisonBaseSha,
+    opt: true,
+  );
+  static String? _$mergeCommitSha(HostedReview v) => v.mergeCommitSha;
+  static const Field<HostedReview, String> _f$mergeCommitSha = Field(
+    'mergeCommitSha',
+    _$mergeCommitSha,
+    opt: true,
+  );
   static HostedReviewMergeable _$mergeable(HostedReview v) => v.mergeable;
   static const Field<HostedReview, HostedReviewMergeable> _f$mergeable = Field(
     'mergeable',
@@ -196,6 +214,9 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
     #baseBranch: _f$baseBranch,
     #headBranch: _f$headBranch,
     #headSha: _f$headSha,
+    #headRepositoryUrl: _f$headRepositoryUrl,
+    #comparisonBaseSha: _f$comparisonBaseSha,
+    #mergeCommitSha: _f$mergeCommitSha,
     #mergeable: _f$mergeable,
   };
 
@@ -211,6 +232,9 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
       baseBranch: data.dec(_f$baseBranch),
       headBranch: data.dec(_f$headBranch),
       headSha: data.dec(_f$headSha),
+      headRepositoryUrl: data.dec(_f$headRepositoryUrl),
+      comparisonBaseSha: data.dec(_f$comparisonBaseSha),
+      mergeCommitSha: data.dec(_f$mergeCommitSha),
       mergeable: data.dec(_f$mergeable),
     );
   }
@@ -288,6 +312,9 @@ abstract class HostedReviewCopyWith<$R, $In extends HostedReview, $Out>
     String? baseBranch,
     String? headBranch,
     String? headSha,
+    String? headRepositoryUrl,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
     HostedReviewMergeable? mergeable,
   });
   HostedReviewCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -313,6 +340,9 @@ class _HostedReviewCopyWithImpl<$R, $Out>
     Object? baseBranch = $none,
     Object? headBranch = $none,
     Object? headSha = $none,
+    Object? headRepositoryUrl = $none,
+    Object? comparisonBaseSha = $none,
+    Object? mergeCommitSha = $none,
     HostedReviewMergeable? mergeable,
   }) => $apply(
     FieldCopyWithData({
@@ -326,6 +356,9 @@ class _HostedReviewCopyWithImpl<$R, $Out>
       if (baseBranch != $none) #baseBranch: baseBranch,
       if (headBranch != $none) #headBranch: headBranch,
       if (headSha != $none) #headSha: headSha,
+      if (headRepositoryUrl != $none) #headRepositoryUrl: headRepositoryUrl,
+      if (comparisonBaseSha != $none) #comparisonBaseSha: comparisonBaseSha,
+      if (mergeCommitSha != $none) #mergeCommitSha: mergeCommitSha,
       if (mergeable != null) #mergeable: mergeable,
     }),
   );
@@ -341,6 +374,15 @@ class _HostedReviewCopyWithImpl<$R, $Out>
     baseBranch: data.get(#baseBranch, or: $value.baseBranch),
     headBranch: data.get(#headBranch, or: $value.headBranch),
     headSha: data.get(#headSha, or: $value.headSha),
+    headRepositoryUrl: data.get(
+      #headRepositoryUrl,
+      or: $value.headRepositoryUrl,
+    ),
+    comparisonBaseSha: data.get(
+      #comparisonBaseSha,
+      or: $value.comparisonBaseSha,
+    ),
+    mergeCommitSha: data.get(#mergeCommitSha, or: $value.mergeCommitSha),
     mergeable: data.get(#mergeable, or: $value.mergeable),
   );
 

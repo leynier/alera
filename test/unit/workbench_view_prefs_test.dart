@@ -15,6 +15,7 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.selectedTagIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedParentWorkspaceIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow, isTrue);
+      expect(WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly, isFalse);
       expect(
         WorkbenchViewPrefs.defaults.sourceControlRootByWorkspaceId,
         isEmpty,
@@ -46,6 +47,7 @@ void main() {
         selectedTagIds: <String>{'tag-1'},
         collapsedParentWorkspaceIds: <String>{'w-parent'},
         showPinnedWorkspacesBelow: false,
+        showActiveWorkspacesOnly: true,
         sourceControlRootByWorkspaceId: <String, String>{
           'w-folder': 'packages/app',
         },
@@ -67,6 +69,7 @@ void main() {
       expect(restored.selectedTagIds, <String>{'tag-1'});
       expect(restored.collapsedParentWorkspaceIds, <String>{'w-parent'});
       expect(restored.showPinnedWorkspacesBelow, isFalse);
+      expect(restored.showActiveWorkspacesOnly, isTrue);
       expect(restored.sourceControlRootByWorkspaceId, <String, String>{
         'w-folder': 'packages/app',
       });
@@ -115,6 +118,18 @@ void main() {
       expect(restored.workspaceSort, WorkbenchSortBy.recent);
       expect(restored.workspaceKindFilter, WorkspaceKindFilter.all);
       expect(restored.showPinnedWorkspacesBelow, isTrue);
+      expect(restored.showActiveWorkspacesOnly, isFalse);
+      expect(restored.gitDiffGroupMode, GitDiffGroupMode.byArea);
+    });
+
+    test('round-trips the git diff group mode', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        gitDiffGroupMode: GitDiffGroupMode.unified,
+      );
+      final restored = WorkbenchViewPrefs.fromJson(
+        Map<String, Object?>.from(prefs.toMap()),
+      );
+      expect(restored.gitDiffGroupMode, GitDiffGroupMode.unified);
     });
 
     test('round-trips the workspace kind filter', () {

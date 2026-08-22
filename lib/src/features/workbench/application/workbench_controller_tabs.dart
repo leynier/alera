@@ -22,6 +22,10 @@ mixin _WorkbenchControllerTabs
     final priorActiveTabId = state.layoutFor(workspace.id)?.activeTabId;
     final closedActiveTab =
         priorActiveTabId != null && ids.contains(priorActiveTabId);
+    final closingTabs = <String, WorkspaceTabRecord>{
+      for (final tab in state.tabsFor(workspace.id))
+        if (ids.contains(tab.id)) tab.id: tab,
+    };
     try {
       _closingTabWorkspaceIds.add(workspace.id);
       final emulatorLeases = ref.read(mobileEmulatorLeaseCoordinatorProvider);
@@ -40,6 +44,13 @@ mixin _WorkbenchControllerTabs
           await _workspaceBrowserTabService.closeTab(tabId);
         } else {
           await _workspaceTabService.closeTab(tabId);
+        }
+        final closedTab = closingTabs[tabId];
+        if (closedTab != null) {
+          await _releaseHostedReviewTab(workspace, closedTab);
+        }
+        if (closingTabs[tabId]?.kind == WorkspaceTabKind.codex) {
+          ref.read(codexComposerDraftStoreProvider).remove(tabId);
         }
         if (emulatorTabIds.contains(tabId)) {
           emulatorLeases.close(tabId);

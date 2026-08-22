@@ -16,6 +16,7 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_profiles/domain/managed_agent_profile_options.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/automations/presentation/automation_policy_sections.dart';
 import 'package:alera/src/features/command_terminal/domain/command_terminal_request.dart';
 import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -157,45 +158,56 @@ class _AgentProfilesSettingsPaneState
                     ),
                   ),
                 ),
-          detail: AgentProfileEditor(
-            nameController: _nameController,
-            commandController: _commandController,
-            customPromptController: _customPromptController,
-            descriptionController: _descriptionController,
-            quotaGroupController: _quotaGroupController,
-            adapter: _adapter,
-            launchMode: _launchMode,
-            managedConfig: _managedConfig,
-            models: _modelsFor(_adapter),
-            personas: _personasFor(_adapter),
-            hasSelection: _selectedProfileId != null,
-            saving: _saving,
-            modelsLoading: _loadingModels.contains(_adapter),
-            personasLoading: _loadingPersonas.contains(_adapter),
-            discoveryError: _discoveryErrors[_adapter],
-            error: _error,
-            onAdapterChanged: _selectAdapter,
-            onLaunchModeChanged: (value) {
-              setState(() {
-                _launchMode = value;
-                _error = null;
-              });
-              if (value == AgentProfileLaunchMode.managed) {
-                _scheduleDiscovery(_adapter);
-              }
-            },
-            onManagedConfigChanged: _updateManagedConfig,
-            onRefreshModels: _canDiscoverModels(_adapter)
-                ? () => unawaited(_discoverModels(_adapter))
-                : null,
-            onRefreshPersonas: _canDiscoverPersonas(_adapter)
-                ? () => unawaited(_discoverPersonas(_adapter))
-                : null,
-            onSave: _saveProfile,
-            onRemove: selectedProfile == null
-                ? null
-                : () => _removeProfile(selectedProfile),
-            onTestCommand: () => unawaited(_testCommand()),
+          detail: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AgentProfileEditor(
+                  nameController: _nameController,
+                  commandController: _commandController,
+                  customPromptController: _customPromptController,
+                  descriptionController: _descriptionController,
+                  quotaGroupController: _quotaGroupController,
+                  adapter: _adapter,
+                  launchMode: _launchMode,
+                  managedConfig: _managedConfig,
+                  models: _modelsFor(_adapter),
+                  personas: _personasFor(_adapter),
+                  hasSelection: _selectedProfileId != null,
+                  saving: _saving,
+                  modelsLoading: _loadingModels.contains(_adapter),
+                  personasLoading: _loadingPersonas.contains(_adapter),
+                  discoveryError: _discoveryErrors[_adapter],
+                  error: _error,
+                  onAdapterChanged: _selectAdapter,
+                  onLaunchModeChanged: (value) {
+                    setState(() {
+                      _launchMode = value;
+                      _error = null;
+                    });
+                    if (value == AgentProfileLaunchMode.managed) {
+                      _scheduleDiscovery(_adapter);
+                    }
+                  },
+                  onManagedConfigChanged: _updateManagedConfig,
+                  onRefreshModels: _canDiscoverModels(_adapter)
+                      ? () => unawaited(_discoverModels(_adapter))
+                      : null,
+                  onRefreshPersonas: _canDiscoverPersonas(_adapter)
+                      ? () => unawaited(_discoverPersonas(_adapter))
+                      : null,
+                  onSave: _saveProfile,
+                  onRemove: selectedProfile == null
+                      ? null
+                      : () => _removeProfile(selectedProfile),
+                  onTestCommand: () => unawaited(_testCommand()),
+                ),
+                if (selectedProfile != null) ...<Widget>[
+                  const SizedBox(height: AleraTokens.space16),
+                  AutomationProfilePolicySection(profileId: selectedProfile.id),
+                ],
+              ],
+            ),
           ),
         );
       },

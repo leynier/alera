@@ -46,6 +46,7 @@ void main() {
         final snapshot = await fetchResourceSnapshot(
           client: client,
           appPid: 1234,
+          interval: resourceSnapshotOpenInterval,
         );
 
         expect(client.types, <String>['resources.snapshot']);
@@ -55,6 +56,26 @@ void main() {
       },
     );
 
+    test('sends the polling cadence the host should size itself for', () async {
+      // The host derives both its sampling interval and the window it waits
+      // before stopping from this. Omitting it left the sampler stopped under a
+      // chip that was still polling, so the panel only ever had data on hover.
+      final client = _FakeRuntimeHostClient(
+        payload: <String, Object?>{'warming': false},
+      );
+
+      await fetchResourceSnapshot(
+        client: client,
+        appPid: 1,
+        interval: resourceSnapshotClosedInterval,
+      );
+
+      expect(
+        client.requests.single['intervalMs'],
+        resourceSnapshotClosedInterval.inMilliseconds,
+      );
+    });
+
     test('a host that rejects the verb degrades instead of throwing', () async {
       // An older sidecar has no resource monitor. The chip is ambient UI and
       // must not break the status bar when it is missing.
@@ -62,9 +83,14 @@ void main() {
         failure: StateError('Unsupported request type: resources.snapshot'),
       );
 
-      final snapshot = await fetchResourceSnapshot(client: client, appPid: 1);
+      final snapshot = await fetchResourceSnapshot(
+        client: client,
+        appPid: 1,
+        interval: resourceSnapshotOpenInterval,
+      );
 
       expect(snapshot.hasReading, isFalse);
+      expect(snapshot.warming, isFalse);
       expect(snapshot.error, contains('resources.snapshot'));
       expect(snapshot.sessions, isEmpty);
     });
@@ -72,7 +98,11 @@ void main() {
     test('a non-object response is reported as an error', () async {
       final client = _FakeRuntimeHostClient(payload: 'nonsense');
 
-      final snapshot = await fetchResourceSnapshot(client: client, appPid: 1);
+      final snapshot = await fetchResourceSnapshot(
+        client: client,
+        appPid: 1,
+        interval: resourceSnapshotOpenInterval,
+      );
 
       expect(snapshot.hasReading, isFalse);
       expect(snapshot.error, contains('unexpected resource payload'));
@@ -82,7 +112,8 @@ void main() {
   group('polling cadence', () {
     test('the panel polls faster while it is open', () {
       // Open matches the host's own 2s sampling; closed keeps the chip fresh
-      // without paying for a sweep nobody is watching.
+      // without paying for a sweep nobody is watching. Both travel to the host
+      // as intervalMs, so neither has to agree with a constant over there.
       expect(resourceSnapshotOpenInterval, const Duration(seconds: 2));
       expect(resourceSnapshotClosedInterval, const Duration(seconds: 15));
       expect(

@@ -7,6 +7,7 @@ use crate::cli::TabCreateArgs;
 
 const SUPPORTED_TAB_KINDS: &[&str] = &[
     "terminal",
+    "codex",
     "editor",
     "markdownViewer",
     "pdf",

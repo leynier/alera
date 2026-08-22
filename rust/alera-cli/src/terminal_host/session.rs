@@ -1,17 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{ChildKiller, MasterPty, PtySize};
 use serde_json::{json, Value};
 
 use crate::terminal_host::buffer::ScrollbackBuffer;
 use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHistoryStore};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
-use crate::terminal_host::resources::{seal_shell_process, ShellProcess};
+use crate::terminal_host::resources::ShellProcess;
+
+#[cfg(test)]
+use crate::terminal_host::resources::seal_shell_process;
 
 mod checkpoint_restore;
 #[cfg(test)]
@@ -20,6 +23,7 @@ mod input_queue;
 mod io_threads;
 mod output_backpressure;
 mod output_batching;
+mod pty_spawn;
 mod shell_tree_termination;
 #[cfg(test)]
 mod tests;
@@ -29,6 +33,7 @@ mod title_tracker;
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
 use io_threads::{spawn_reader, spawn_writer};
+use pty_spawn::{spawn_pty, SpawnedPty};
 use shell_tree_termination::kill_shell_tree;
 use title_tracker::TerminalTitleTracker;
 
@@ -47,6 +52,8 @@ fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
 #[derive(Debug)]
 pub enum PtyEvent {
     Output(Vec<u8>),
+    #[cfg(windows)]
+    ChildExited,
     Exit(i32),
     Error(String),
     InputWritten {
@@ -78,6 +85,10 @@ pub enum PtyWriteCompletion {
     },
     StartupSubmit {
         session_instance_id: u64,
+    },
+    TerminalPulse {
+        session_instance_id: u64,
+        active: Arc<AtomicBool>,
     },
 }
 
@@ -173,53 +184,24 @@ impl Session {
             .next_output_sequence(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let pty_system = native_pty_system();
-        let pair = pty_system
-            .openpty(PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|error| HostError::state(error.to_string()))?;
-
-        let mut command = CommandBuilder::new(&launch.shell);
-        command.args(&launch.arguments);
-        // Always pass the configured environment map explicitly so portable_pty
-        // clears the inherited environment and applies only these entries.
-        command.env_clear();
-        for (key, value) in &launch.environment {
-            command.env(key, value);
-        }
-        // The orchestration identity: agents inside this PTY self-identify in
-        // `alera orchestration` commands without an RPC round-trip. The handle
-        // is the session id, which is also the key the app uses for agent
-        // status entries.
-        command.env("ALERA_TERMINAL_HANDLE", &id);
-        // The working directory is persisted as session metadata; shell startup
-        // preparation owns any cwd changes that should happen inside the PTY.
-
-        let child = pair
-            .slave
-            .spawn_command(command)
-            .map_err(|error| HostError::state(error.to_string()))?;
-        // Drop the slave so the master observes EOF once the child exits.
-        drop(pair.slave);
-
-        let killer = child.clone_killer();
-        // Read before the child moves into the reader thread, which owns it
-        // until exit. This is the root the resource sampler walks down from,
-        // sealed with its start time so a later sweep can prove the pid still
-        // holds this shell.
-        let shell = child.process_id().and_then(seal_shell_process);
-        let reader = pair
-            .master
-            .try_clone_reader()
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let writer = pair
-            .master
-            .take_writer()
-            .map_err(|error| HostError::state(error.to_string()))?;
+        #[cfg(windows)]
+        let spawned = {
+            let launch = launch.clone();
+            let terminal_handle = id.clone();
+            tokio::task::spawn_blocking(move || spawn_pty(launch, terminal_handle, cols, rows))
+                .await
+                .map_err(|error| HostError::state(format!("PTY setup worker failed: {error}")))??
+        };
+        #[cfg(not(windows))]
+        let spawned = spawn_pty(launch.clone(), id.clone(), cols, rows)?;
+        let SpawnedPty {
+            child,
+            master,
+            reader,
+            writer,
+            killer,
+            shell,
+        } = spawned;
         let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
         let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(on_event);
 
@@ -243,7 +225,7 @@ impl Session {
             exit_code: None,
             ended_at: None,
             shell,
-            master: Some(pair.master),
+            master: Some(master),
             input_tx: Some(input_tx),
             killer: Some(killer),
             terminated: false,
@@ -369,11 +351,19 @@ impl Session {
         Some(json!({ "sessionId": self.id, "exitCode": exit_code }))
     }
 
+    #[cfg(windows)]
+    pub fn close_pty_after_child_exit(&mut self) {
+        self.input_tx = None;
+        self.master = None;
+        self.killer = None;
+    }
+
     pub fn error_payload(&self, message: &str) -> Value {
         json!({ "sessionId": self.id, "error": message })
     }
 
     pub fn attachment_payload(&self, created: bool, restore_bytes: usize) -> Value {
+        let (cols, rows) = self.current_dims;
         json!({
             "sessionId": self.id,
             "created": created,
@@ -381,16 +371,27 @@ impl Session {
             "exitCode": self.exit_code,
             "driver": self.driver.payload(),
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
+            // The size the snapshot bytes were written at. A client whose own
+            // viewport is narrower has to replay them here and then resize,
+            // letting its emulator reflow wrapped lines, because re-parsing the
+            // stream at another width lands every absolute cursor move and hard
+            // wrap in the wrong column. Additive: a client that ignores these
+            // behaves exactly as it does today.
+            "snapshotCols": cols,
+            "snapshotRows": rows,
         })
     }
 
     /// What a client that lost its place should replay, capped so a resync does
     /// not hand it more history than its emulator will keep.
     pub fn restore_payload(&self, restore_bytes: usize) -> Value {
+        let (cols, rows) = self.current_dims;
         json!({
             "sessionId": self.id,
             "snapshotBase64": encode_bytes(&self.buffer.tail(restore_bytes)),
             "resetInteractionModes": true,
+            "snapshotCols": cols,
+            "snapshotRows": rows,
         })
     }
 

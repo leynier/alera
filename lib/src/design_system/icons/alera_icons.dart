@@ -36,8 +36,12 @@ abstract final class AleraIcons {
   static const IconData check = LucideIcons.check;
   static const IconData doneAll = LucideIcons.checkCheck;
   static const IconData send = LucideIcons.send;
+  static const IconData mic = LucideIcons.mic;
   static const IconData pin = LucideIcons.pin;
   static const IconData pinOff = LucideIcons.pinOff;
+  static const IconData maximize = LucideIcons.maximize2;
+  static const IconData minimize = LucideIcons.minimize2;
+  static const IconData contextCompact = LucideIcons.foldHorizontal;
 
   // Search
   static const IconData search = LucideIcons.search;
@@ -70,6 +74,7 @@ abstract final class AleraIcons {
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData file = LucideIcons.fileText;
   static const IconData fileGeneric = LucideIcons.file;
+  static const IconData read = LucideIcons.bookOpen;
   static const IconData newFile = LucideIcons.filePlus;
   static const IconData copyFiles = LucideIcons.files;
   static const IconData symlink = LucideIcons.link;
@@ -99,6 +104,7 @@ abstract final class AleraIcons {
   static const IconData gitMerge = LucideIcons.gitMerge;
   static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData gitPullRequestClosed = LucideIcons.gitPullRequestClosed;
+  static const IconData review = LucideIcons.fileSearch;
   static const IconData checks = LucideIcons.listChecks;
   static const IconData diff = LucideIcons.gitCompare;
 
@@ -130,7 +136,9 @@ abstract final class AleraIcons {
   static const IconData success = LucideIcons.circleCheck;
   static const IconData error = LucideIcons.circleAlert;
   static const IconData info = LucideIcons.info;
+  static const IconData question = LucideIcons.circleQuestionMark;
   static const IconData loading = LucideIcons.loaderCircle;
+  static const IconData speedFast = LucideIcons.zap600;
   static const IconData stop = LucideIcons.circleStop;
   static const IconData circle = LucideIcons.circle;
   static const IconData radioOff = LucideIcons.circle;
@@ -144,6 +152,8 @@ abstract final class AleraIcons {
   static const IconData visible = LucideIcons.eye;
   static const IconData hidden = LucideIcons.eyeOff;
   static const IconData preview = LucideIcons.scanEye;
+  static const IconData viewImage = LucideIcons.image;
+  static const IconData audio = LucideIcons.audioLines;
   static const IconData imageError = LucideIcons.imageOff;
 
   // Views / layout
@@ -161,6 +171,7 @@ abstract final class AleraIcons {
   static const IconData agent = LucideIcons.bot;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
+  static const IconData pulse = LucideIcons.activity;
   static const IconData profile = LucideIcons.circleUserRound;
   static const IconData devTools = LucideIcons.wrench;
   static const IconData warning = LucideIcons.triangleAlert;
@@ -170,6 +181,8 @@ abstract final class AleraIcons {
   // Prompt composer: write/send a message into the active terminal.
   static const IconData composer = LucideIcons.messageSquarePlus;
   static const IconData ai = LucideIcons.sparkles;
+  static const IconData plan = LucideIcons.lightbulb;
+  static const IconData planActive = LucideIcons.lightbulb600;
   static const IconData package = LucideIcons.package;
   static const IconData public = LucideIcons.globe;
   static const IconData theme = LucideIcons.moon;

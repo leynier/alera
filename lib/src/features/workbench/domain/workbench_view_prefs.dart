@@ -24,6 +24,11 @@ enum WorkspaceExplorerMode { hideIgnored, showAll }
 @MappableEnum()
 enum GitDiffViewMode { tree, flat }
 
+/// Whether Source Control lists files under Staged/Unstaged/Untracked headers
+/// or in a single Changes section.
+@MappableEnum()
+enum GitDiffGroupMode { byArea, unified }
+
 /// Preferred primary action for the Checks-panel create-PR split button.
 @MappableEnum()
 enum PullRequestCreateAction { publish, draft }
@@ -54,8 +59,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
     this.gitDiffViewMode = GitDiffViewMode.tree,
+    this.gitDiffGroupMode = GitDiffGroupMode.byArea,
     this.pullRequestCreateAction = PullRequestCreateAction.publish,
     this.workspaceKindFilter = WorkspaceKindFilter.all,
+    this.showActiveWorkspacesOnly = false,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -108,6 +115,9 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final WorkspaceExplorerMode explorerMode;
   final GitDiffViewMode gitDiffViewMode;
 
+  /// Whether Source Control groups files by staged state or shows one list.
+  final GitDiffGroupMode gitDiffGroupMode;
+
   /// Sticky create-PR split-button action (publish vs draft). App-wide and
   /// persisted with the rest of the workbench view prefs.
   final PullRequestCreateAction pullRequestCreateAction;
@@ -115,6 +125,11 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// Which workspace kinds the sidebar shows. Defaults to [WorkspaceKindFilter.all]
   /// so previously persisted prefs (missing the key) keep today's behavior.
   final WorkspaceKindFilter workspaceKindFilter;
+
+  /// Whether the sidebar hides workspaces without an open terminal or Codex
+  /// tab. Defaults to false so older persisted preferences keep showing all
+  /// workspaces.
+  final bool showActiveWorkspacesOnly;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
@@ -135,8 +150,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,
     explorerMode: WorkspaceExplorerMode.hideIgnored,
     gitDiffViewMode: GitDiffViewMode.tree,
+    gitDiffGroupMode: GitDiffGroupMode.byArea,
     pullRequestCreateAction: PullRequestCreateAction.publish,
     workspaceKindFilter: WorkspaceKindFilter.all,
+    showActiveWorkspacesOnly: false,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

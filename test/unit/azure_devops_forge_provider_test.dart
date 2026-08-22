@@ -30,7 +30,7 @@ void main() {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''
 [{"pullRequestId":42,"title":"feat: older","status":"active","creationDate":"2026-07-10T00:00:00Z","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"abc"}},
- {"pullRequestId":43,"title":"feat: newest","status":"active","creationDate":"2026-07-11T00:00:00Z","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"def"}}]
+ {"pullRequestId":43,"title":"feat: newest","status":"active","creationDate":"2026-07-11T00:00:00Z","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"def"},"lastMergeTargetCommit":{"commitId":"base-def"},"sourceRepository":{"remoteUrl":"https://dev.azure.com/myorg/fork/_git/myrepo"}}]
 '''),
       ]);
       final provider = AzureDevOpsForgeProvider(runner);
@@ -57,6 +57,11 @@ void main() {
       expect(review.mergeable, HostedReviewMergeable.mergeable);
       expect(review.headBranch, 'feature');
       expect(review.baseBranch, 'main');
+      expect(review.comparisonBaseSha, 'base-def');
+      expect(
+        review.headRepositoryUrl,
+        'https://dev.azure.com/myorg/fork/_git/myrepo',
+      );
       expect(
         review.url,
         'https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/43',

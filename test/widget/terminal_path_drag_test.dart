@@ -7,9 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
-  testWidgets('long-press drag pastes paths and focuses the terminal', (
+  testWidgets('path drag pastes paths and focuses the terminal', (
     tester,
   ) async {
     final session = _CapturingTerminalSessionHandle();
@@ -19,6 +20,102 @@ void main() {
 
     expect(session.pasted, <String>["/tmp/foo '/tmp/my file' "]);
     expect(session.focusRequests, 1);
+  });
+
+  testWidgets('path drag pastes workspace files as relative paths', (
+    tester,
+  ) async {
+    final session = _CapturingTerminalSessionHandle(
+      workspacePath: '/tmp/project',
+    );
+
+    await _pumpDragHarness(
+      tester,
+      session,
+      paths: const <String>[
+        '/tmp/project/packages/app/main.dart',
+        '/tmp/other/absolute.txt',
+      ],
+    );
+    await _dragSourceToTerminal(tester);
+
+    expect(session.pasted, <String>[
+      '${p.join('packages', 'app', 'main.dart')} /tmp/other/absolute.txt ',
+    ]);
+    expect(session.focusRequests, 1);
+  });
+
+  testWidgets('vertical pans prefer scroll over path drag', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 120,
+            child: ListView(
+              children: <Widget>[
+                SizedBox(
+                  height: 80,
+                  child: Center(
+                    child: TerminalPathDraggable<TerminalPathDragData>(
+                      data: const TerminalPathDragData(
+                        paths: <String>['/tmp/foo'],
+                      ),
+                      feedback: const Material(child: Text('Dragging Paths')),
+                      child: const Text('Drag Paths'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 400, child: Text('Below')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Drag Paths')),
+    );
+    await gesture.moveBy(const Offset(0, -(kTouchSlop + 20)));
+    await tester.pump();
+    expect(find.text('Dragging Paths'), findsNothing);
+    await gesture.up();
+    await tester.pump();
+  });
+
+  testWidgets('sub-touch-slop mouse moves keep competing taps', (tester) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: GestureDetector(
+              onTap: () => taps += 1,
+              child: TerminalPathDraggable<TerminalPathDragData>(
+                data: const TerminalPathDragData(paths: <String>['/tmp/foo']),
+                feedback: const Material(child: Text('Dragging Paths')),
+                child: const Text('Drag Paths'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Use a mouse pointer so the test fails if we regress to ImmediateMultiDrag
+    // (kPrecisePointerHitSlop = 1px) instead of kTouchSlop.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Drag Paths')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(2, 0));
+    await tester.pump();
+    expect(find.text('Dragging Paths'), findsNothing);
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 1);
   });
 
   testWidgets('terminal error state rejects in-app path drags', (tester) async {
@@ -94,7 +191,7 @@ Future<void> _pumpDragHarness(
             SizedBox(
               width: 200,
               child: Center(
-                child: TerminalPathLongPressDraggable<TerminalPathDragData>(
+                child: TerminalPathDraggable<TerminalPathDragData>(
                   data: TerminalPathDragData(paths: paths),
                   feedback: const Material(child: Text('Dragging Paths')),
                   child: const Text('Drag Paths'),
@@ -117,7 +214,9 @@ Future<void> _dragSourceToTerminal(
   final gesture = await tester.startGesture(
     tester.getCenter(find.text('Drag Paths')),
   );
-  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+  // Path drag starts after horizontal touch slop, not after long-press.
+  await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
+  await tester.pump();
   expect(find.text('Dragging Paths'), findsOneWidget);
 
   await gesture.moveTo(
@@ -129,12 +228,15 @@ Future<void> _dragSourceToTerminal(
 }
 
 class _CapturingTerminalSessionHandle extends TerminalSessionHandle {
-  _CapturingTerminalSessionHandle({this.error});
+  _CapturingTerminalSessionHandle({this.error, this.workspacePath});
 
   final String? error;
   final List<String> pasted = <String>[];
   int focusRequests = 0;
   final ValueNotifier<String> _title = ValueNotifier<String>('Terminal');
+
+  @override
+  final String? workspacePath;
 
   @override
   String get tabId => 'tab';

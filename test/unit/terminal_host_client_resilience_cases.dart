@@ -16,6 +16,17 @@ Future<TerminalHostOutputResyncRequiredEvent> _sendOutputResyncEvent(
 }
 
 void _registerTerminalHostClientResilienceTests() {
+  test('pulse state distinguishes an unavailable status from disarmed', () {
+    final state = TerminalPulseState.fromJson(<String, Object?>{
+      'configuration': const TerminalPulseConfiguration().toJson(),
+      'error': 'status unavailable',
+    });
+
+    expect(state.armed, isFalse);
+    expect(state.statusKnown, isFalse);
+    expect(state.error, 'status unavailable');
+  });
+
   test('write-side host closure reaches the caller as a typed error', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-host-client-write-close-',

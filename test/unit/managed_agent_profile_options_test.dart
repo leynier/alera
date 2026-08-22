@@ -22,6 +22,9 @@ void main() {
         piThinkingOptions,
         piTrustOptions,
         ampModeOptions,
+        grokEffortOptions,
+        grokPermissionOptions,
+        grokSandboxOptions,
       ];
 
       for (final catalog in catalogs) {
@@ -48,9 +51,11 @@ void main() {
           AgentType.cursor: true,
           AgentType.agy: true,
           AgentType.opencode: true,
+          AgentType.opencode2: true,
           AgentType.pi: true,
           AgentType.amp: false,
           AgentType.grok: true,
+          AgentType.fx: false,
         },
       );
       expect(
@@ -65,9 +70,11 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: true,
           AgentType.opencode: true,
+          AgentType.opencode2: true,
           AgentType.pi: false,
           AgentType.amp: false,
-          AgentType.grok: false,
+          AgentType.grok: true,
+          AgentType.fx: false,
         },
       );
     });
@@ -136,7 +143,20 @@ void main() {
         30,
       );
       expect(managedAgentRiskScore(AgentType.amp, const {}), 0);
+      expect(
+        managedAgentRiskScore(AgentType.grok, const <String, Object?>{
+          'permissionMode': 'bypassPermissions',
+        }),
+        100,
+      );
+      expect(
+        managedAgentRiskScore(AgentType.grok, const <String, Object?>{
+          'permissionMode': 'dontAsk',
+        }),
+        40,
+      );
       expect(managedAgentRiskScore(AgentType.grok, const {}), 0);
+      expect(managedAgentRiskScore(AgentType.fx, const {}), 0);
       expect(managedAgentRiskScore(AgentType.codex, const {}), 0);
     });
 
@@ -202,7 +222,20 @@ void main() {
         <String>{'projectTrust'},
       );
       expect(managedAgentRiskMarkers(AgentType.amp, const {}), isEmpty);
+      expect(
+        managedAgentRiskMarkers(AgentType.grok, const <String, Object?>{
+          'permissionMode': 'bypassPermissions',
+        }),
+        <String>{'bypassPermissions'},
+      );
+      expect(
+        managedAgentRiskMarkers(AgentType.grok, const <String, Object?>{
+          'permissionMode': 'dontAsk',
+        }),
+        <String>{'dontAsk'},
+      );
       expect(managedAgentRiskMarkers(AgentType.grok, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(AgentType.fx, const {}), isEmpty);
       expect(managedAgentRiskMarkers(AgentType.codex, const {}), isEmpty);
     });
 
@@ -234,9 +267,13 @@ void main() {
               'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
               'This profile lets OpenCode approve actions automatically.',
+          AgentType.opencode2:
+              'This profile lets OpenCode approve actions automatically.',
           AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
-          AgentType.grok: '',
+          AgentType.grok:
+              'This profile lets Grok Build continue with reduced permission prompts.',
+          AgentType.fx: '',
         },
       );
     });
@@ -336,9 +373,11 @@ void main() {
           AgentType.cursor: false,
           AgentType.agy: false,
           AgentType.opencode: false,
+          AgentType.opencode2: false,
           AgentType.pi: false,
           AgentType.amp: false,
           AgentType.grok: false,
+          AgentType.fx: false,
         },
       );
     });
@@ -369,7 +408,7 @@ void main() {
       );
     });
 
-    test('renders Agy, OpenCode, Pi, Amp, and Grok options', () {
+    test('renders Agy, OpenCode, Pi, Amp, Grok, and fx options', () {
       expect(
         managedAgentCommandPreview(AgentType.agy, const <String, Object?>{
           'model': 'gemini',
@@ -389,6 +428,15 @@ void main() {
           'autoApprove': true,
         }),
         'opencode --model gpt --agent build --auto',
+      );
+      expect(
+        managedAgentCommandPreview(AgentType.opencode2, const <String, Object?>{
+          'model': 'gpt',
+          'agent': 'build',
+          'autoApprove': true,
+        }),
+        // Interactive opencode2 only accepts --auto on the default TUI.
+        'opencode2 --auto',
       );
       expect(
         managedAgentCommandPreview(AgentType.pi, const <String, Object?>{
@@ -416,6 +464,18 @@ void main() {
           'fast': true,
         }),
         'amp --mode ultra --fast',
+      );
+      expect(
+        managedAgentCommandPreview(AgentType.grok, const <String, Object?>{
+          'model': 'grok-4.6',
+          'effort': 'high',
+          'agent': 'grok-build',
+          'permissionMode': 'acceptEdits',
+          'sandbox': 'workspace',
+          'disableWebSearch': true,
+        }),
+        'grok --model grok-4.6 --effort high --agent grok-build '
+        '--permission-mode acceptEdits --sandbox workspace --disable-web-search',
       );
       expect(managedAgentCommandPreview(AgentType.grok, const {}), 'grok');
     });

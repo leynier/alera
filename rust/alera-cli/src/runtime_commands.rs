@@ -120,8 +120,18 @@ async fn update_runtime_agents(
     args: RuntimeAgentsChangeArgs,
     enabled: bool,
 ) -> i32 {
-    const SUPPORTED_AGENTS: [&str; 9] = [
-        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok",
+    const SUPPORTED_AGENTS: [&str; 11] = [
+        "codex",
+        "claude",
+        "copilot",
+        "cursor",
+        "agy",
+        "opencode",
+        "opencode2",
+        "pi",
+        "amp",
+        "grok",
+        "fx",
     ];
     let agents = if args.all {
         SUPPORTED_AGENTS

@@ -92,6 +92,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
     required this.error,
     required this.onRefresh,
     required this.onTogglePinned,
+    this.onOpenUsage,
     this.trailing,
   });
 
@@ -102,6 +103,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
   final String? error;
   final VoidCallback onRefresh;
   final AgentQuotaPinToggle onTogglePinned;
+  final VoidCallback? onOpenUsage;
   final Widget? trailing;
 
   @override
@@ -112,7 +114,9 @@ class _CollapsedQuotaBar extends StatelessWidget {
               .map(
                 (snapshot) => _quotaTooltip(
                   snapshot,
-                  profileLabel: snapshot.provider == AgentQuotaProviderId.claude
+                  profileLabel:
+                      snapshot.provider == AgentQuotaProviderId.claude ||
+                          snapshot.provider == AgentQuotaProviderId.opencode
                       ? snapshot.displayName
                       : null,
                 ),
@@ -131,9 +135,11 @@ class _CollapsedQuotaBar extends StatelessWidget {
                 emptyMessage: error ?? 'No quota data',
                 hostId: hostId,
                 onTogglePinned: onTogglePinned,
+                onOpenUsage: onOpenUsage,
                 profileLabels: <String, String>{
                   for (final snapshot in snapshots)
-                    if (snapshot.provider == AgentQuotaProviderId.claude)
+                    if (snapshot.provider == AgentQuotaProviderId.claude ||
+                        snapshot.provider == AgentQuotaProviderId.opencode)
                       snapshot.key: snapshot.displayName,
                 },
               ),

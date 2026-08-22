@@ -2,7 +2,7 @@ use alera_core::runtime::{WorkspaceStatus, WorkspaceTabRecord};
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupDelivery};
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
 
 use super::agent_prompt_composition::compose_agent_prompt;
 use super::host_service_requests::required_non_blank;
@@ -51,18 +51,17 @@ impl ServerActor {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
         })?;
         let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
+        let prompt_after_ready = adapter.startup_prompt == AgentStartupPrompt::TerminalAfterReady;
         let id = uuid::Uuid::new_v4().to_string();
-        let initial_prompt = (adapter.startup_delivery
-            == AgentStartupDelivery::InitialPromptArgument)
-            .then_some(prompt.clone());
-        let pending_prompt = (adapter.startup_delivery == AgentStartupDelivery::ReadinessInjection)
-            .then(|| {
-                json!({
-                    "prompt": prompt,
-                    "agent": profile.agent_type,
-                })
-            });
         let now = chrono::Utc::now();
+        let automation_run_id = payload
+            .get("automationRunId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let automation_owned = payload
+            .get("automationOwned")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -80,12 +79,19 @@ impl ServerActor {
                     }
                 }),
                 "initialManagedAgentLaunch": managed_launch,
-                "initialPrompt": initial_prompt,
-                "initialPromptOnce": initial_prompt.is_some(),
-                "pendingAgentPrompt": pending_prompt,
+                // Most adapters take the prompt at launch. fx receives it
+                // after its built-in lifecycle reports that the TUI is ready.
+                "initialPrompt": (!prompt_after_ready).then(|| prompt.clone()),
+                "initialPromptOnce": true,
+                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                    "agent": adapter.agent_type,
+                    "prompt": prompt,
+                })),
                 "agentProfileId": profile.id,
                 "agentType": profile.agent_type,
                 "spawnOnCreate": true,
+                "automationRunId": automation_run_id,
+                "automationOwned": automation_owned,
             }),
         };
         let saved = self.upsert_workspace_tab_and_spawn(tab).await?;
@@ -96,6 +102,11 @@ impl ServerActor {
         }))
     }
 
+    /// Types a prompt into an agent that reported it is idle.
+    ///
+    /// fx has no interactive initial-prompt argument. Its lifecycle receiver
+    /// reports the first idle state after the TUI is ready, which makes this
+    /// PTY paste deterministic. Older tabs may also still carry the payload.
     pub(super) async fn deliver_pending_agent_prompt(&mut self, session_id: &str) {
         if !self.agent_presence.is_injection_ready(session_id) {
             return;

@@ -11,6 +11,21 @@ Thanks for contributing to Alera.
 
 ## Local Setup
 
+All platforms require Flutter 3.44.8 or newer with Dart 3.12.1 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.44.8. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
+
+### Windows
+
+Install Visual Studio 2022 with the **Desktop development with C++** workload and a Windows 10 or 11 SDK, Git for Windows, Flutter, and Rustup. PowerShell 7 is recommended. The repository setup checks those prerequisites, enables Git long paths, installs Zig, LLVM, and the pinned Vulkan SDK when requested, configures LLVM headers for Bindgen, pins native builds to the supported Visual Studio 2022 CMake generator, repairs nested submodules, resolves dependencies, and runs the native-asset preflight:
+
+```powershell
+pwsh -File tool/development/setup_windows.ps1 -InstallMissingTools
+flutter run -d windows
+```
+
+Use `pwsh -File tool/development/setup_windows.ps1 -CheckOnly` for a read-only prerequisite check. The first native preflight can spend several minutes compiling Ghostty without output. GNU Make is optional for initial setup; install it if you want to use the convenience targets documented below.
+
+### Linux
+
 On Ubuntu and Debian, install the native dependencies required by the Linux desktop build:
 
 ```bash
@@ -27,13 +42,17 @@ sudo apt-get install -y \
   libsqlite3-dev \
   libssl-dev \
   libepoxy-dev \
-  libmpv-dev
+  libmpv-dev \
+  libvulkan-dev \
+  glslc
 ```
 
-These packages provide the compiler toolchain and the native browser, video, storage, and security libraries used by the desktop plugins.
+These packages provide the compiler toolchain and the native browser, video, storage, security, and Vulkan compute libraries used by the desktop app. Cargo builds outside Flutter should set `VULKAN_SDK=/usr`.
+
+### Common setup
 
 ```bash
-git submodule update --init third_party/xterm third_party/dart_terminal
+make init-submodules
 flutter pub get
 flutter analyze
 flutter test

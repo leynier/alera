@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
+import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
@@ -58,7 +59,22 @@ final class AgentRuntimeOverlayService {
 
   Future<AgentRuntimeOverlayPreparation> prepareOpenCodeForTerminalLaunch({
     required String terminalSessionId,
+    bool includeV1Plugin = true,
+    bool includeV2Plugin = false,
   }) {
+    // v1 and v2 share OPENCODE_CONFIG_DIR. Write only the plugins the user
+    // enabled so auto-discovery in either binary does not load the other API.
+    final managedFiles = <String, String>{
+      if (includeV1Plugin)
+        'alera-agent-status.js': aleraOpenCodeStatusPluginSource(),
+      if (includeV2Plugin)
+        'alera-agent-status-v2.js': aleraOpenCode2StatusPluginSource(),
+    };
+    if (managedFiles.isEmpty) {
+      return Future<AgentRuntimeOverlayPreparation>.value(
+        const AgentRuntimeOverlayPreparation(environment: <String, String>{}),
+      );
+    }
     return _prepareOverlay(
       agentKey: 'opencode',
       terminalSessionId: terminalSessionId,
@@ -67,8 +83,7 @@ final class AgentRuntimeOverlayService {
       sourceEnvKey: 'ALERA_OPENCODE_SOURCE_CONFIG_DIR',
       defaultSourcePath: _defaultOpenCodeConfigDir(),
       managedSubdirectory: 'plugins',
-      managedFileName: 'alera-agent-status.js',
-      managedFileContent: aleraOpenCodeStatusPluginSource(),
+      managedFiles: managedFiles,
     );
   }
 
@@ -83,8 +98,9 @@ final class AgentRuntimeOverlayService {
       sourceEnvKey: 'ALERA_PI_SOURCE_AGENT_DIR',
       defaultSourcePath: p.join(_homeDirectory, '.pi', 'agent'),
       managedSubdirectory: 'extensions',
-      managedFileName: 'alera-agent-status.ts',
-      managedFileContent: aleraPiStatusExtensionSource(),
+      managedFiles: <String, String>{
+        'alera-agent-status.ts': aleraPiStatusExtensionSource(),
+      },
     );
   }
 
@@ -115,7 +131,7 @@ final class AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: overlay.path,
           managedSubdirectory: 'hooks',
-          managedFileName: 'alera.json',
+          managedFileNames: const <String>{'alera.json'},
         );
       }
       final status = ManagedAgentHookInstallService(
@@ -160,50 +176,6 @@ final class AgentRuntimeOverlayService {
     );
   }
 
-  Future<AgentRuntimeOverlayPreparation> prepareCursorForTerminalLaunch({
-    required String terminalSessionId,
-  }) async {
-    final support = await _applicationSupportDirectory();
-    final root = _overlayRoot(support, 'cursor');
-    final overlay = _overlayDirectory(root, terminalSessionId);
-    final pluginRoot = Directory(p.join(overlay.path, 'plugin'));
-    try {
-      _safeRemoveOverlay(overlay.path, root);
-      overlay.createSync(recursive: true);
-      final status = ManagedAgentHookInstallService(
-        homeDirectory: overlay.path,
-        platform: _platform,
-        environment: <String, String>{..._environment, 'HOME': overlay.path},
-      ).install(AgentType.cursor);
-      if (status.state == ManagedAgentHookInstallState.error) {
-        // coverage:ignore-start
-        // Cursor hook files are generated into a fresh overlay; install status
-        // errors here are filesystem races and fall back through the catch path.
-        throw StateError(status.detail ?? 'Could not install Cursor hooks.');
-        // coverage:ignore-end
-      }
-      _writeCursorPlugin(pluginRoot);
-      final wrapperBin = _wrapperBinDirectory(support, terminalSessionId);
-      _writeAgentWrapper(
-        directory: wrapperBin,
-        executableName: 'cursor-agent',
-        source: _cursorAgentWrapperSource(pluginRoot.path, wrapperBin.path),
-      );
-      return AgentRuntimeOverlayPreparation(
-        overlayPath: overlay.path,
-        environment: <String, String>{
-          'ALERA_CURSOR_PLUGIN_DIR': pluginRoot.path,
-          'ALERA_AGENT_WRAPPER_PATH': wrapperBin.path,
-        },
-      );
-    } catch (_) {
-      _safeRemoveOverlay(overlay.path, root);
-      return const AgentRuntimeOverlayPreparation(
-        environment: <String, String>{},
-      );
-    }
-  }
-
   Future<AgentRuntimeOverlayPreparation> prepareAmpForTerminalLaunch({
     required String terminalSessionId,
   }) async {
@@ -221,7 +193,7 @@ final class AgentRuntimeOverlayService {
           sourcePath: source.path,
           overlayPath: ampConfigDir,
           managedSubdirectory: 'plugins',
-          managedFileName: 'alera-agent-status.ts',
+          managedFileNames: const <String>{'alera-agent-status.ts'},
         );
       }
       _writeManagedFile(

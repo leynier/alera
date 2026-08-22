@@ -1,5 +1,9 @@
+mod agent_prompt_stdin_script;
 mod agent_quota;
 mod agent_status;
+mod automation_autostart;
+mod automation_commands;
+mod automation_ssh_precheck;
 mod browser_commands;
 mod canvas_commands;
 mod cli;
@@ -15,11 +19,13 @@ mod computer_output;
 mod computer_use;
 mod emulator_commands;
 mod host_tools;
+mod hosted_review_retention;
 mod login_shell_environment;
 mod managed_workspace;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
 mod mobile_access;
+mod netbird;
 mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_terminal_commands;
@@ -104,6 +110,7 @@ fn main() {
 async fn run(cli: Cli) -> i32 {
     match cli.command {
         Command::RuntimeHost(args) => runtime_host_command::run(args).await,
+        Command::AutomationHost(args) => runtime_host_command::run_automation_host(args).await,
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => runtime_host_command::run(args).await,
@@ -119,6 +126,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Browser(command) => browser_commands::run(command).await,
         Command::Emulator(command) => emulator_commands::run(command).await,
         Command::Canvas(command) => canvas_commands::run(command).await,
+        Command::Automation(command) => automation_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
@@ -275,7 +283,7 @@ async fn run_project_command(command: ProjectCommand) -> i32 {
                 &runtime,
                 "project.remove",
                 &payload,
-                |store| async move { store.remove_project(&id).await },
+                |store| async move { hosted_review_retention::remove_project(store, &id).await },
             )
             .await
             {
@@ -386,7 +394,7 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 &runtime,
                 "workspace.remove",
                 &payload,
-                |store| async move { store.remove_workspace(&id, true).await },
+                |store| async move { hosted_review_retention::remove_workspace(store, &id).await },
             )
             .await
             {
@@ -578,7 +586,10 @@ async fn run_tab_command(command: TabCommand) -> i32 {
             let payload = json!({ "id": id });
             let removed_id = id.clone();
             match runtime_host_or_store_unit(&runtime, "tab.remove", &payload, |store| async move {
-                store.remove_workspace_tab(&id).await
+                let retentions = hosted_review_retention::for_tab(&store, &id).await;
+                store.remove_workspace_tab(&id).await?;
+                hosted_review_retention::release(retentions);
+                Ok(())
             })
             .await
             {
@@ -763,7 +774,12 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 remote_access_enabled: None,
                 bind_host: args.bind_host,
                 port: args.port,
-                endpoint_mode: args.tailscale.then_some(MobileEndpointMode::Tailscale),
+                endpoint_mode: if args.netbird {
+                    Some(MobileEndpointMode::Netbird)
+                } else {
+                    args.tailscale.then_some(MobileEndpointMode::Tailscale)
+                },
+                netbird_endpoint: args.netbird.then_some(args.netbird_endpoint.into()),
             };
             match mobile_runtime_host_request::<MobileAccessSettings, _>(
                 &runtime,
@@ -783,6 +799,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 bind_host: None,
                 port: None,
                 endpoint_mode: None,
+                netbird_endpoint: None,
             };
             let fallback_request = request.clone();
             match mobile_runtime_host_or_store(
@@ -1069,7 +1086,7 @@ async fn open_store(args: &RuntimeDirArgs) -> anyhow::Result<RuntimeStore> {
     RuntimeStore::open(&runtime_dir(args)).await
 }
 
-fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
+pub(crate) fn runtime_dir(args: &RuntimeDirArgs) -> PathBuf {
     if let Some(dir) = args
         .runtime_dir
         .as_ref()

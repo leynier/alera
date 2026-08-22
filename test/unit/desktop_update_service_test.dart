@@ -124,6 +124,9 @@ void main() {
             loadLinuxInstallerKind: () async => installerKind,
             platform: 'linux',
             backend: backend,
+            // The payload prefix the deb and rpm install under, so the
+            // detection that routes the update runs for real here.
+            resolvedExecutable: '/opt/alera/alera',
           );
 
           final result = await service.checkForUpdates();
@@ -140,7 +143,7 @@ void main() {
               isA<StateError>().having(
                 (error) => error.message,
                 'message',
-                contains('apt, dnf'),
+                contains('apt or dnf'),
               ),
             ),
           );
@@ -149,7 +152,9 @@ void main() {
       );
     }
 
-    test('reports unsupported Linux distributions as manual', () async {
+    // A distribution with no deb or rpm of ours is the tarball case, which is
+    // exactly the installation Alera may replace in place.
+    test('installs in place on a distribution with no package', () async {
       final service = DesktopAleraUpdateService(
         config: _config(
           channel: AleraUpdateChannel.rc,
@@ -161,14 +166,71 @@ void main() {
         backend: _FakeDesktopUpdaterBackend(
           candidate: _candidate(platform: 'linux', version: '1.2.3-rc.0'),
         ),
+        resolvedExecutable: '/home/leynier/.local/share/alera/alera',
+        probeInstallDirectory: () async => true,
       );
 
       final result = await service.checkForUpdates();
 
       expect(result.latest?.installerKind, 'zip');
-      expect(result.autoInstallAllowed, isFalse);
-      expect(result.message, contains('requires a supported Linux package'));
+      expect(result.autoInstallAllowed, isTrue);
+      expect(result.message, contains('ready to install'));
     });
+
+    // Failing part way through the swap is the one outcome that leaves the
+    // user without an app, so an unwritable directory never gets that far.
+    test('refuses an in-place update it could not write', () async {
+      final service = DesktopAleraUpdateService(
+        config: _config(autoInstallEnabled: true),
+        loadPackageInfo: () async => _packageInfo('1'),
+        loadLinuxInstallerKind: () async => null,
+        platform: 'linux',
+        backend: _FakeDesktopUpdaterBackend(
+          candidate: _candidate(platform: 'linux'),
+        ),
+        resolvedExecutable: '/usr/local/alera/alera',
+        probeInstallDirectory: () async => false,
+      );
+
+      final result = await service.checkForUpdates();
+
+      expect(result.autoInstallAllowed, isFalse);
+      await expectLater(
+        service.installUpdate(result.latest!),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('cannot write to its own installation directory'),
+          ),
+        ),
+      );
+    });
+
+    // A directory the user extracted themselves is invisible to apt and dnf,
+    // so pointing it at the repository would upgrade nothing, or another copy.
+    test(
+      'does not send an unmanaged Linux install to the repository',
+      () async {
+        final service = DesktopAleraUpdateService(
+          config: _config(autoInstallEnabled: true),
+          loadPackageInfo: () async => _packageInfo('1'),
+          loadLinuxInstallerKind: () async => 'deb',
+          platform: 'linux',
+          backend: _FakeDesktopUpdaterBackend(
+            candidate: _candidate(platform: 'linux'),
+          ),
+          resolvedExecutable: '/home/leynier/.local/share/alera/alera',
+          // Isolates the routing from the writability decision.
+          probeInstallDirectory: () async => false,
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(result.message, isNot(contains('package repository')));
+        expect(result.message, contains('requires a supported Linux package'));
+      },
+    );
 
     test('keeps package-managed installations on their manager path', () async {
       final launched = <Uri>[];

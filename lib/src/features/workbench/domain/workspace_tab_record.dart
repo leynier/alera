@@ -6,6 +6,7 @@ part 'workspace_tab_record.mapper.dart';
 @MappableEnum()
 enum WorkspaceTabKind {
   terminal('terminal'),
+  codex('codex'),
   editor('editor'),
   markdownViewer('markdownViewer'),
   pdf('pdf'),
@@ -35,10 +36,14 @@ enum WorkspaceTabKind {
 
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
+const String workspaceTabCodexThreadIdPayloadKey = 'codexThreadId';
+const String workspaceTabCodexSnapshotPayloadKey = 'codexSnapshot';
+const String workspaceTabCodexActiveTurnIdPayloadKey = 'codexActiveTurnId';
 const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
 const String workspaceTabInitialCommandOncePayloadKey = 'initialCommandOnce';
 const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
 const String workspaceTabAutoCloseOnSuccessPayloadKey = 'autoCloseOnSuccess';
+const String workspaceTabTerminalPulsePayloadKey = 'terminalPulse';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
@@ -56,6 +61,10 @@ const String workspaceTabGitDiffCommitSubjectPayloadKey =
     'gitDiffCommitSubject';
 const String workspaceTabGitDiffCommitMessagePayloadKey =
     'gitDiffCommitMessage';
+const String workspaceTabGitDiffPullRequestNumberPayloadKey =
+    'gitDiffPullRequestNumber';
+const String workspaceTabGitDiffHostedReviewRetentionIdPayloadKey =
+    'gitDiffHostedReviewRetentionId';
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
 const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
 
@@ -115,7 +124,8 @@ class WorkspaceMobileEmulatorPayload {
 
 enum WorkspaceGitDiffSource {
   workingTree('workingTree'),
-  commit('commit');
+  commit('commit'),
+  pullRequest('pullRequest');
 
   const WorkspaceGitDiffSource(this.key);
 
@@ -186,6 +196,20 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     return value is String && value.trim().isNotEmpty ? value : id;
   }
 
+  String? get codexThreadId =>
+      _nonEmptyPayloadString(workspaceTabCodexThreadIdPayloadKey);
+
+  Map<String, Object?> get codexSnapshot {
+    final value = payload[workspaceTabCodexSnapshotPayloadKey];
+    if (value is Map) {
+      return Map<String, Object?>.from(value);
+    }
+    return const <String, Object?>{};
+  }
+
+  String? get codexActiveTurnId =>
+      _nonEmptyPayloadString(workspaceTabCodexActiveTurnIdPayloadKey);
+
   /// Command written into the terminal after the shell starts, e.g. an agent
   /// CLI launched by an orchestration coordinator. Runs once for each newly
   /// created PTY, including a transparent remint after host recovery.
@@ -207,6 +231,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   /// removed automatically. Failed commands stay visible for inspection.
   bool get autoCloseOnSuccess =>
       payload[workspaceTabAutoCloseOnSuccessPayloadKey] == true;
+
+  TerminalPulseConfiguration get terminalPulse =>
+      TerminalPulseConfiguration.fromJson(
+        payload[workspaceTabTerminalPulsePayloadKey],
+      );
 
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];
@@ -274,6 +303,15 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   String? get gitDiffCommitMessage =>
       _nonEmptyPayloadString(workspaceTabGitDiffCommitMessagePayloadKey);
 
+  int? get gitDiffPullRequestNumber {
+    final value = payload[workspaceTabGitDiffPullRequestNumberPayloadKey];
+    return value is int && value > 0 ? value : null;
+  }
+
+  String? get gitDiffHostedReviewRetentionId => _nonEmptyPayloadString(
+    workspaceTabGitDiffHostedReviewRetentionIdPayloadKey,
+  );
+
   String? get gitDiffOldPath =>
       _nonEmptyPayloadString(workspaceTabGitDiffOldPathPayloadKey);
 
@@ -284,4 +322,57 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
 
   factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>
       WorkspaceTabRecordMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+final class TerminalPulseConfiguration {
+  const TerminalPulseConfiguration({
+    this.command = 'r',
+    this.appendEnter = true,
+    this.delayMilliseconds = 2000,
+  });
+
+  factory TerminalPulseConfiguration.fromJson(Object? value) {
+    if (value is! Map) {
+      return const TerminalPulseConfiguration();
+    }
+    final command = value['command'];
+    final delayMilliseconds = value['delayMs'];
+    return TerminalPulseConfiguration(
+      command: command is String && command.isNotEmpty ? command : 'r',
+      appendEnter: value['appendEnter'] != false,
+      delayMilliseconds: delayMilliseconds is int && delayMilliseconds > 0
+          ? delayMilliseconds
+          : 2000,
+    );
+  }
+
+  final String command;
+  final bool appendEnter;
+  final int delayMilliseconds;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'command': command,
+    'appendEnter': appendEnter,
+    'delayMs': delayMilliseconds,
+  };
+
+  TerminalPulseConfiguration copyWith({
+    String? command,
+    bool? appendEnter,
+    int? delayMilliseconds,
+  }) => TerminalPulseConfiguration(
+    command: command ?? this.command,
+    appendEnter: appendEnter ?? this.appendEnter,
+    delayMilliseconds: delayMilliseconds ?? this.delayMilliseconds,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is TerminalPulseConfiguration &&
+      other.command == command &&
+      other.appendEnter == appendEnter &&
+      other.delayMilliseconds == delayMilliseconds;
+
+  @override
+  int get hashCode => Object.hash(command, appendEnter, delayMilliseconds);
 }

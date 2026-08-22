@@ -1,6 +1,6 @@
 use alera_core::runtime::{
-    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeMobilePushSettings,
-    RuntimeTextActionsSettings,
+    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeAutomationSettings,
+    RuntimeMobilePushSettings, RuntimeTextActionsSettings,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -117,6 +117,32 @@ impl ServerActor {
             } else {
                 0
             };
+        }
+        if let Some(value) = payload.get("automation") {
+            let settings: RuntimeAutomationSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("automation settings are invalid."))?;
+            runtime_value(
+                self.runtime_store
+                    .set_automation_settings(settings.clone())
+                    .await,
+            )?;
+            let home = std::env::var_os("HOME")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| self.runtime_dir.clone());
+            let app_data = std::env::var_os("APPDATA").map(std::path::PathBuf::from);
+            let xdg_config = std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from);
+            if let Ok(executable) = std::env::current_exe() {
+                let paths = crate::automation_autostart::build_autostart_paths(
+                    crate::automation_autostart::current_platform(),
+                    &home,
+                    app_data.as_deref(),
+                    xdg_config.as_deref(),
+                    &executable,
+                    &self.runtime_dir,
+                );
+                crate::automation_autostart::reconcile_autostart(&settings, &paths)
+                    .map_err(|error| HostError::state(error.to_string()))?;
+            }
         }
         if refresh_push_subscriptions {
             self.start_push_subscription_sync(None);
@@ -268,20 +294,32 @@ impl ServerActor {
     }
 }
 
+const AI_TEXT_AGENTS: [&str; 12] = [
+    "codex",
+    "claude",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
+    "grok",
+    "fx",
+    "custom",
+];
+
 fn validate_ai_text_generation_settings(
     settings: &RuntimeAiTextGenerationSettings,
 ) -> HostResult<()> {
-    const AGENTS: [&str; 10] = [
-        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
-    ];
-    if !AGENTS.contains(&settings.agent.trim()) {
+    if !AI_TEXT_AGENTS.contains(&settings.agent.trim()) {
         return Err(HostError::format("aiTextGeneration.agent is unsupported."));
     }
     if settings
         .prompt_settings_by_operation
         .values()
         .filter_map(|prompt| prompt.agent.as_deref())
-        .any(|agent| !AGENTS.contains(&agent.trim()))
+        .any(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
     {
         return Err(HostError::format(
             "aiTextGeneration prompt agent is unsupported.",
@@ -311,9 +349,6 @@ fn validate_ai_text_generation_settings(
 }
 
 fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> HostResult<()> {
-    const AGENTS: [&str; 10] = [
-        "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok", "custom",
-    ];
     let mut ids = std::collections::HashSet::new();
     let mut names = std::collections::HashSet::new();
     for action in &settings.actions {
@@ -336,7 +371,7 @@ fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> Host
         if action
             .agent_override
             .as_deref()
-            .is_some_and(|agent| !AGENTS.contains(&agent.trim()))
+            .is_some_and(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
         {
             return Err(HostError::format(
                 "textActions contains an unsupported agent.",

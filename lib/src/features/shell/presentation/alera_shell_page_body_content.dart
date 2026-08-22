@@ -60,6 +60,12 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                   );
                 }
               : null,
+          onCreateCodexTab: ({targetGroupId}) async {
+            await controller.createCodexTab(
+              workspace,
+              targetGroupId: targetGroupId,
+            );
+          },
           onOpenMobileEmulator: ({targetGroupId}) async {
             final existing = tabs.any(
               (tab) => tab.kind == WorkspaceTabKind.mobileEmulator,

@@ -40,6 +40,7 @@ class AgentHookReconciliationService implements AgentHookReconciler {
           : await claudeRuntimeHome.remove(),
     );
     results.add(managedHooks.remove(AgentType.opencode));
+    results.add(managedHooks.remove(AgentType.opencode2));
     results.add(managedHooks.remove(AgentType.pi));
     return results;
   }
@@ -53,9 +54,11 @@ List<AgentType> enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
     if (settings.cursor) AgentType.cursor,
     if (settings.agy) AgentType.agy,
     if (settings.opencode) AgentType.opencode,
+    if (settings.opencode2) AgentType.opencode2,
     if (settings.pi) AgentType.pi,
     if (settings.amp) AgentType.amp,
     if (settings.grok) AgentType.grok,
+    if (settings.fx) AgentType.fx,
   ];
 }
 
@@ -67,8 +70,10 @@ List<AgentType> _globalManagedAgentTypes() {
           agentType != AgentType.copilot &&
           agentType != AgentType.cursor &&
           agentType != AgentType.opencode &&
+          agentType != AgentType.opencode2 &&
           agentType != AgentType.pi &&
-          agentType != AgentType.amp)
+          agentType != AgentType.amp &&
+          agentType != AgentType.fx)
         agentType,
   ];
 }

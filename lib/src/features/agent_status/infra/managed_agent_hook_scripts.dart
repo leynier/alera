@@ -7,7 +7,9 @@ extension _ManagedAgentHookScripts on ManagedAgentHookInstallService {
   }) {
     if (descriptor.agentType == AgentType.agy &&
         _platform == ManagedAgentHookPlatform.windows) {
-      return _agyWindowsWrapperPath(event.eventName);
+      // Quoted so a profile path containing a space stays one token once AGY
+      // hands the command to cmd.
+      return '"${_agyWindowsWrapperPath(event.eventName)}"';
     }
     return switch (_platform) {
       ManagedAgentHookPlatform.posix =>
@@ -129,7 +131,11 @@ extension _ManagedAgentHookScripts on ManagedAgentHookInstallService {
       _ManagedHookDefinitionShape.agyToolCommand => <String, Object?>{
         if (event.matcher != null) 'matcher': event.matcher,
         'hooks': <Object?>[
-          <String, Object?>{'type': 'command', 'command': command},
+          <String, Object?>{
+            'type': 'command',
+            'command': command,
+            'timeout': 10,
+          },
         ],
       },
     };

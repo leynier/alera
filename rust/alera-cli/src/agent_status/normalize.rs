@@ -24,6 +24,7 @@ pub fn hook_event_closes_session(event: &AgentHookEvent) -> bool {
             | ("cursor", "sessionEnd")
             | ("pi", "session_shutdown")
             | ("grok", "SessionEnd")
+            | ("fx", "SessionEnd")
     )
 }
 
@@ -110,7 +111,12 @@ fn normalize_state(
         "cursor" => match name {
             "beforeSubmitPrompt" | "sessionStart" | "preToolUse" | "postToolUse"
             | "postToolUseFailure" => Some(AgentPresenceState::Working),
+            // Cursor fires these before every execution, approval prompt or
+            // not, and never tells the hook which it was. The matching `after`
+            // event is what ends the wait, so a long command does not sit
+            // marked as needing attention for its whole run.
             "beforeShellExecution" | "beforeMCPExecution" => Some(AgentPresenceState::Waiting),
+            "afterShellExecution" | "afterMCPExecution" => Some(AgentPresenceState::Working),
             "afterAgentResponse"
                 if previous.is_some_and(|entry| entry.state == AgentPresenceState::Done) =>
             {
@@ -120,6 +126,9 @@ fn normalize_state(
             "stop" | "sessionEnd" => Some(AgentPresenceState::Done),
             _ => None,
         },
+        // Alera never installs `PreToolUse` for agy: Antigravity requires a
+        // `decision` there, which an observational hook cannot give without
+        // taking over the permission policy. Those arms serve user-written hooks.
         "agy" => match name {
             "PreInvocation" | "PostInvocation" | "PostToolUse" => Some(AgentPresenceState::Working),
             "PreToolUse" if human_input => Some(AgentPresenceState::Waiting),
@@ -133,7 +142,7 @@ fn normalize_state(
             "Stop" => Some(AgentPresenceState::Done),
             _ => None,
         },
-        "opencode" => match name {
+        "opencode" | "opencode2" => match name {
             "SessionBusy" | "MessagePart" => Some(AgentPresenceState::Working),
             "PermissionRequest" | "AskUserQuestion" => Some(AgentPresenceState::Waiting),
             "SessionIdle" => Some(AgentPresenceState::Done),
@@ -157,6 +166,12 @@ fn normalize_state(
             _ => None,
         },
         "grok" => normalize_grok(event, name),
+        "fx" => match name {
+            "Working" => Some(AgentPresenceState::Working),
+            "Blocked" => Some(AgentPresenceState::Blocked),
+            "Idle" => Some(AgentPresenceState::Done),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -285,7 +300,7 @@ fn normalized_event_name(event: &AgentHookEvent) -> Option<String> {
 fn assistant_message(event: &AgentHookEvent, name: &str) -> Option<String> {
     if matches!(
         (event.agent_type.as_str(), name),
-        ("opencode", "MessagePart") | ("pi", "message_end")
+        ("opencode", "MessagePart") | ("opencode2", "MessagePart") | ("pi", "message_end")
     ) && first_string(&event.payload, &["role"]).as_deref() == Some("assistant")
     {
         return first_string(&event.payload, &["text"]);
@@ -321,6 +336,7 @@ fn starts_new_turn(event: &AgentHookEvent, name: &str) -> bool {
             | ("amp", "session.start")
             | ("amp", "agent.start")
             | ("grok", "UserPromptSubmit")
+            | ("fx", "Working")
     )
 }
 
@@ -333,7 +349,12 @@ fn is_human_input_tool(value: &str) -> bool {
     [
         "askuser",
         "askuserquestion",
+        "askquestion",
+        "askpermission",
+        "askapproval",
         "requestuserinput",
+        "requestpermission",
+        "requestapproval",
         "humaninput",
         "elicitation",
     ]

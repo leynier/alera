@@ -80,14 +80,18 @@
   "linux": {
     "buildPackages": [
       "libepoxy-dev",
-      "libmpv-dev"
+      "libmpv-dev",
+      "libvulkan-dev",
+      "glslc"
     ],
     "runtimePackages": {
       "deb": [
-        "libmpv2"
+        "libmpv2",
+        "libvulkan1"
       ],
       "rpm": [
-        "mpv-libs"
+        "mpv-libs",
+        "vulkan-loader"
       ]
     },
     "requiredLibraries": [

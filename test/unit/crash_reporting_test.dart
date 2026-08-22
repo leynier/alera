@@ -43,6 +43,22 @@ void main() {
     expect(CrashReporting.filterEvent(event), isNull);
   });
 
+  test('keeps terminal host request timeouts as actionable failures', () {
+    CrashReporting.setEnabled(true);
+    const timeout = TerminalHostRequestTimeoutException(
+      'tab.remove',
+      Duration(seconds: 10),
+    );
+    final event = SentryEvent(throwable: timeout);
+
+    expect(CrashReporting.filterEvent(event), same(event));
+    expect(
+      timeout.toString(),
+      'Terminal host request "tab.remove" timed out after 10000 ms. '
+      'The connection was closed.',
+    );
+  });
+
   test('keeps terminal host startup failures', () {
     CrashReporting.setEnabled(true);
     final event = SentryEvent(

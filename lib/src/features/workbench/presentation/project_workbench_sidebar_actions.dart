@@ -17,6 +17,8 @@ mixin _ProjectWorkbenchSidebarActions
 
   Future<void> _openSettings() => openSettingsDialog(context);
 
+  Future<void> _openAutomations() => openAutomationsDialog(context);
+
   Future<void> _openProjectSettings(Project project) => openSettingsDialog(
     context,
     initialSectionId: 'projects',
@@ -391,6 +393,9 @@ mixin _ProjectWorkbenchSidebarActions
     if (tabRecord == null) {
       return;
     }
+    if (tabRecord.kind == WorkspaceTabKind.codex) {
+      return;
+    }
     ref
         .read(terminalRuntimeProvider)
         .sessionFor(workspace: workspace, tab: tabRecord)
@@ -398,7 +403,14 @@ mixin _ProjectWorkbenchSidebarActions
   }
 
   Future<void> _closeTerminal(Workspace workspace, String tabId) async {
-    ref.read(terminalRuntimeProvider).closeTab(tabId);
+    final tab = ref
+        .read(workbenchControllerProvider)
+        .tabsFor(workspace.id)
+        .where((candidate) => candidate.id == tabId)
+        .firstOrNull;
+    if (tab?.kind != WorkspaceTabKind.codex) {
+      ref.read(terminalRuntimeProvider).closeTab(tabId);
+    }
     try {
       await ref
           .read(workbenchControllerProvider.notifier)

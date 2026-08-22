@@ -9,16 +9,28 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            AleraTextField(
+            AiDictationFieldOverlay(
               controller: _promptController,
-              labelText: 'Initial Prompt',
-              hintText:
-                  'Describe what the agent should build or paste an image',
-              minLines: 4,
-              maxLines: 8,
-              autofocus: true,
+              focusNode: _promptFocusNode,
+              initialPrompt:
+                  'The user is describing a software task for Alera.',
+              controlKey: const ValueKey<String>(
+                'prompt-workspace-dictation-control',
+              ),
               enabled: !_working && created == null,
-              onPaste: _pastePromptClipboard,
+              child: AleraTextField(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                labelText: 'Initial Prompt',
+                hintText:
+                    'Describe what the agent should build or paste an image',
+                minLines: 4,
+                maxLines: 8,
+                autofocus: true,
+                enabled: !_working && created == null,
+                onPaste: _pastePromptClipboard,
+                suffix: const SizedBox(width: AleraTokens.space32),
+              ),
             ),
             const SizedBox(height: AleraTokens.space16),
             AleraDropdownField<Project>(

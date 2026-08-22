@@ -17,6 +17,7 @@ class MobileViewPrefs {
     this.projectSort = MobileWorkbenchSortBy.name,
     this.workspaceSort = MobileWorkbenchSortBy.name,
     this.workspaceKindFilter = MobileWorkspaceKindFilter.all,
+    this.showActiveWorkspacesOnly = false,
     this.selectedProjectIds = const <String>{},
     this.selectedTagIds = const <String>{},
     this.collapsedProjectIds = const <String>{},
@@ -32,6 +33,7 @@ class MobileViewPrefs {
   final MobileWorkbenchSortBy projectSort;
   final MobileWorkbenchSortBy workspaceSort;
   final MobileWorkspaceKindFilter workspaceKindFilter;
+  final bool showActiveWorkspacesOnly;
   final Set<String> selectedProjectIds;
   final Set<String> selectedTagIds;
   final Set<String> collapsedProjectIds;
@@ -47,6 +49,7 @@ class MobileViewPrefs {
     MobileWorkbenchSortBy? projectSort,
     MobileWorkbenchSortBy? workspaceSort,
     MobileWorkspaceKindFilter? workspaceKindFilter,
+    bool? showActiveWorkspacesOnly,
     Set<String>? selectedProjectIds,
     Set<String>? selectedTagIds,
     Set<String>? collapsedProjectIds,
@@ -64,6 +67,8 @@ class MobileViewPrefs {
       projectSort: projectSort ?? this.projectSort,
       workspaceSort: workspaceSort ?? this.workspaceSort,
       workspaceKindFilter: workspaceKindFilter ?? this.workspaceKindFilter,
+      showActiveWorkspacesOnly:
+          showActiveWorkspacesOnly ?? this.showActiveWorkspacesOnly,
       selectedProjectIds: selectedProjectIds ?? this.selectedProjectIds,
       selectedTagIds: selectedTagIds ?? this.selectedTagIds,
       collapsedProjectIds: collapsedProjectIds ?? this.collapsedProjectIds,
@@ -93,6 +98,7 @@ class MobileViewPrefs {
       workspaceKindFilter: MobileWorkspaceKindFilter.values.byName(
         json.optionalString('workspaceKindFilter') ?? 'all',
       ),
+      showActiveWorkspacesOnly: json['showActiveWorkspacesOnly'] == true,
       selectedProjectIds: json.stringList('selectedProjectIds').toSet(),
       selectedTagIds: json.stringList('selectedTagIds').toSet(),
       collapsedProjectIds: json.stringList('collapsedProjectIds').toSet(),
@@ -118,6 +124,7 @@ class MobileViewPrefs {
       'projectSort': projectSort.name,
       'workspaceSort': workspaceSort.name,
       'workspaceKindFilter': workspaceKindFilter.name,
+      'showActiveWorkspacesOnly': showActiveWorkspacesOnly,
       'selectedProjectIds': selectedProjectIds.toList(),
       'selectedTagIds': selectedTagIds.toList(),
       'collapsedProjectIds': collapsedProjectIds.toList(),

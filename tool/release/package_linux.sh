@@ -53,6 +53,29 @@ deb_root="$stage/deb"
 install_payload "$deb_root"
 mkdir -p "$deb_root/DEBIAN"
 installed_size="$(du -sk "$deb_root/opt/alera" | awk '{print $1}')"
+# The dependency lists below are hand written, so they can only stay honest if
+# every entry is one `ldd` over the bundle resolves. An extra name makes users
+# install a library Alera never loads: `libayatana-appindicator3` was listed
+# here for a tray that no binary in the bundle links or dlopens.
+#
+# These stay declared rather than copied into the payload, which is not the
+# same tradeoff for each of them:
+#
+#   libsecret-1-0, libsqlite3-0  Already dependencies of libwebkit2gtk-4.1-0,
+#     so declaring them costs the user no extra install. Shipping our own would
+#     put a second copy under the same SONAME into the process that hosts the
+#     system WebKit, and whichever loads first wins for both.
+#   libmpv2, libjson-glib-1.0-0  Not reachable by dropping a .so into lib/ as
+#     things stand: only `alera` carries RUNPATH `$ORIGIN/lib`, while the
+#     plugins that actually need these keep the build tree's RUNPATH, so the
+#     loader never searches lib/ for them. Bundling either means fixing that
+#     first.
+#   libgtk-3-0, libwebkit2gtk-4.1-0  Never bundle. GTK loads theme, GIO,
+#     pixbuf and input method modules from the system that are built against
+#     the system GTK, so a second one breaks IME. WebKitGTK links that same
+#     GTK, needs its own libexec helper processes, and takes browser-engine
+#     CVE fixes from the distribution within days rather than at our release
+#     cadence.
 cat >"$deb_root/DEBIAN/control" <<DEB
 Package: alera
 Version: ${deb_version}
@@ -61,7 +84,7 @@ Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libayatana-appindicator3-1 | libappindicator3-1, libmpv2
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libmpv2, libvulkan1
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
@@ -92,6 +115,7 @@ Requires: libsecret
 Requires: sqlite
 Requires: openssl-libs
 Requires: mpv-libs
+Requires: vulkan-loader
 
 %description
 ${description}

@@ -84,7 +84,9 @@ class _AgentRunRowState extends State<_AgentRunRow> {
                     child: Padding(
                       padding: const EdgeInsets.only(left: AleraTokens.space4),
                       child: AleraIconButton(
-                        tooltip: 'Close Terminal',
+                        tooltip: widget.tab.kind == WorkspaceTabKind.codex
+                            ? 'Close Codex'
+                            : 'Close Terminal',
                         onPressed: widget.onClose,
                         icon: AleraIcons.close,
                         iconSize: 12,

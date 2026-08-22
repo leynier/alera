@@ -137,7 +137,9 @@ jobs:
       - name: Restore cargokit build
         uses: actions/cache/restore@v6
         with:
-          path: build/**/cargokit_build
+          path: |
+            build/**/cargokit_build
+            build/**/ck
           key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
           restore-keys: |
             cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
@@ -185,10 +187,13 @@ jobs:
           archive_url="${BASE_URL}/updates/${CHANNEL}/app-archive.json"
           update_base_url="${BASE_URL}/updates/${CHANNEL}"
           runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
-          # Auto-install is enabled on every platform whose artifacts a package
-          # manager does not own. Linux is the exception, and not because of
-          # signing: a raw dpkg or rpm transaction does not resolve the libmpv
-          # dependency closure, so those updates go through apt or dnf.
+          # Auto-install is enabled on every platform. Whether it may run is
+          # decided at runtime, not per platform: Alera never replaces an
+          # installation a package manager owns, and on Linux it also refuses a
+          # directory it cannot write. A deb or rpm install is therefore still
+          # upgraded through apt or dnf, while a tarball install replaces its
+          # own directory, which runs no dpkg transaction and so needs no
+          # dependency resolution.
           #
           # It deliberately does not depend on Authenticode or Developer ID
           # signing. Update integrity comes from the Ed25519-signed manifest,
@@ -197,10 +202,7 @@ jobs:
           # the OS shows on first launch, not whether an update can be trusted
           # in transit, so withholding auto-install until a certificate exists
           # only left users on older builds.
-          auto_install_enabled=false
-          if [[ "$PLATFORM" != "linux" ]]; then
-            auto_install_enabled=true
-          fi
+          auto_install_enabled=true
           dart run desktop_updater:release publish \
             --platform "$PLATFORM" \
             --base-url "$update_base_url" \
@@ -313,6 +315,11 @@ jobs:
           tar -czf "runtime-native-${PLATFORM}-${NATIVE_ARCH}.tar.gz" \
             -C runtime-native-input "$PLATFORM"
 
+      - name: Verify macOS ships arm64 only
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: bash tool/release/verify_macos_arm64_only.sh "$BUNDLE_DIR/Alera.app"
+
       - name: Package macOS release asset
         if: matrix.platform == 'macos'
         shell: bash
@@ -323,7 +330,20 @@ jobs:
           dart tool/native_helpers/verify_desktop_runtime_bundle.dart \
             --platform macos \
             --bundle "$BUNDLE_DIR"
-          tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
+          # Only the app, never the directory that contains it. BUNDLE_DIR is
+          # the Xcode products root on macOS (it is the runnable bundle itself
+          # on Windows and Linux), so archiving `.` shipped every dSYM, every
+          # per-pod build product and a loose copy of each framework alongside
+          # Alera.app: 450 MB published where the app is 271 MB.
+          # COPYFILE_DISABLE keeps macOS tar from adding its `._*` AppleDouble
+          # files for the xattrs Xcode leaves behind.
+          asset="release-assets/alera-${RELEASE_VERSION}-macos.tar.gz"
+          COPYFILE_DISABLE=1 tar -czf "$asset" -C "$BUNDLE_DIR" Alera.app
+          roots="$(tar -tzf "$asset" | awk -F/ '{print $1}' | sort -u)"
+          if [[ "$roots" != "Alera.app" ]]; then
+            echo "::error::macOS asset must contain only Alera.app, got: $roots"
+            exit 1
+          fi
 
       - name: Package Windows release assets
         if: matrix.platform == 'windows'
@@ -346,6 +366,11 @@ jobs:
         run: |
           set -euo pipefail
           bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
+          # The unmanaged install path. Distributions outside the deb and rpm
+          # families have no package to install, and only a directory Alera
+          # owns can be replaced in place by the updater.
+          tar -czf "release-assets/alera-${RELEASE_VERSION}-linux-x64.tar.gz" \
+            -C "$BUNDLE_DIR" .
 
       - name: Upload updater artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -426,11 +451,75 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Tune Windows build environment
         if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
+
+      - name: Configure Windows ARM64 native toolchain
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installationPath = & $vswhere `
+            -latest `
+            -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 `
+            -property installationPath
+          if (-not $installationPath) {
+            throw 'Visual Studio ARM64 build tools are unavailable.'
+          }
+
+          $devCmd = Join-Path $installationPath 'Common7\Tools\VsDevCmd.bat'
+          $devEnvironment = & cmd.exe /d /s /c `
+            "`"$devCmd`" -no_logo -arch=arm64 -host_arch=x64 && set"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to resolve the Visual Studio ARM64 environment.'
+          }
+
+          $environment = @{}
+          foreach ($line in $devEnvironment) {
+            $separator = $line.IndexOf('=')
+            if ($separator -gt 0) {
+              $environment[$line.Substring(0, $separator)] = $line.Substring($separator + 1)
+            }
+          }
+          foreach ($name in @('INCLUDE', 'LIB', 'LIBPATH')) {
+            if (-not $environment[$name]) {
+              throw "Visual Studio did not provide $name for ARM64."
+            }
+            "$name=$($environment[$name])" | Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+          }
+
+          $linker = Join-Path `
+            $environment['VCToolsInstallDir'] `
+            'bin\Hostx64\arm64\link.exe'
+          $ninja = Join-Path `
+            $installationPath `
+            'Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe'
+          $clangCl = (Get-Command clang-cl.exe -ErrorAction Stop).Source
+          foreach ($path in @($linker, $ninja, $clangCl)) {
+            if (-not (Test-Path $path -PathType Leaf)) {
+              throw "Required Windows ARM64 tool is unavailable: $path"
+            }
+          }
+
+          @(
+            "CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=$linker"
+            'CMAKE_GENERATOR_aarch64_pc_windows_msvc=Ninja'
+            "CMAKE_MAKE_PROGRAM=$ninja"
+            "CC_aarch64_pc_windows_msvc=$clangCl"
+            "CXX_aarch64_pc_windows_msvc=$clangCl"
+            'CXXFLAGS_aarch64_pc_windows_msvc=-Xclang -fexceptions -Xclang -fcxx-exceptions'
+          ) | Out-File `
+            -FilePath $env:GITHUB_ENV `
+            -Encoding utf8 `
+            -Append
 
       - name: Setup Rust and sccache
         uses: ./.github/actions/setup-rust-sccache
@@ -647,6 +736,24 @@ jobs:
           )
           flutter build apk --release "${firebase_defines[@]}"
           flutter build apk --release --split-per-abi "${firebase_defines[@]}"
+
+      - name: Verify Android native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          readelf="$(find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" -name llvm-readelf -type f | head -1)"
+          test -n "$readelf"
+          extract_dir="$(mktemp -d)"
+          trap 'rm -rf "$extract_dir"' EXIT
+          for apk in mobile/build/app/outputs/flutter-apk/*-release.apk; do
+            apk_dir="$extract_dir/$(basename "$apk" .apk)"
+            unzip -q "$apk" 'lib/*/libalera_mobile_native.so' 'lib/*/libc++_shared.so' -d "$apk_dir"
+            while IFS= read -r native; do
+              abi="$(basename "$(dirname "$native")")"
+              "$readelf" -d "$native" | grep -q 'Shared library: \[libc++_shared.so\]'
+              test -f "$apk_dir/lib/$abi/libc++_shared.so"
+            done < <(find "$apk_dir/lib" -name libalera_mobile_native.so -type f)
+          done
 
       - name: Verify Android APK signatures
         shell: bash
@@ -995,14 +1102,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.plan.outputs.desktop_tag }}
-        run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" "public/$ALERA_RUNTIME_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          bash tool/release/upload_release_assets.sh \
+            "$TAG" \
+            "$GITHUB_REPOSITORY" \
+            release-assets/* \
+            "public/$ALERA_ARCHIVE_FILE" \
+            "public/$ALERA_RUNTIME_ARCHIVE_FILE"
 
       - name: Upload mobile release assets
         if: needs.plan.outputs.mobile_should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.plan.outputs.mobile_tag }}
-        run: gh release upload "$TAG" mobile-release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          bash tool/release/upload_release_assets.sh \
+            "$TAG" \
+            "$GITHUB_REPOSITORY" \
+            mobile-release-assets/*
 
       - name: Attest desktop release assets
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1160,13 +1277,34 @@ jobs:
           PUSHED_MAIN: ${{ steps.push_refs.outputs.pushed_main }}
         run: |
           set +e
+          delete_unpublished_release() {
+            local tag="$1"
+            local max_attempts=3
+            for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+              if gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes; then
+                return 0
+              fi
+              if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                echo "::notice::Release $tag is already absent."
+                return 0
+              fi
+              if ((attempt < max_attempts)); then
+                echo "::warning::Failed to delete release $tag on attempt $attempt; retrying."
+                sleep "$((attempt * 2))"
+              fi
+            done
+            echo "::error::Failed to delete unpublished release $tag after $max_attempts attempts." >&2
+            return 1
+          }
+
+          cleanup_failed=false
           delete_refspecs=()
           if [[ "$DESKTOP_SHOULD_RELEASE" == "true" && "$DESKTOP_PUBLISHED" != "true" ]]; then
-            gh release delete "$DESKTOP_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_unpublished_release "$DESKTOP_TAG" || cleanup_failed=true
             delete_refspecs+=(":refs/tags/$DESKTOP_TAG")
           fi
           if [[ "$MOBILE_SHOULD_RELEASE" == "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
-            gh release delete "$MOBILE_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_unpublished_release "$MOBILE_TAG" || cleanup_failed=true
             delete_refspecs+=(":refs/tags/$MOBILE_TAG")
           fi
           if ((${#delete_refspecs[@]} > 0)); then
@@ -1174,6 +1312,9 @@ jobs:
           fi
           if [[ "$PUSHED_MAIN" == "true" && "$DESKTOP_PUBLISHED" != "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
             git push --force-with-lease origin HEAD~1:refs/heads/main
+          fi
+          if [[ "$cleanup_failed" == "true" ]]; then
+            exit 1
           fi
 
   # The desktop packages are downstream of a release that is already public:
@@ -1186,6 +1327,8 @@ jobs:
       - plan
       - publish
     if: >-
+      !cancelled() &&
+      needs.publish.result == 'success' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
       needs.plan.outputs.channel == 'stable'
     runs-on: ubuntu-latest
@@ -1294,6 +1437,8 @@ jobs:
       - plan
       - publish_packages
     if: >-
+      !cancelled() &&
+      needs.publish_packages.result == 'success' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
       needs.plan.outputs.channel == 'stable'
     runs-on: windows-latest

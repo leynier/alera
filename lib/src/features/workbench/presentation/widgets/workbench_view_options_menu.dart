@@ -37,6 +37,8 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
         prefs.selectedTagIds.isNotEmpty ||
         prefs.workspaceKindFilter !=
             WorkbenchViewPrefs.defaults.workspaceKindFilter ||
+        prefs.showActiveWorkspacesOnly !=
+            WorkbenchViewPrefs.defaults.showActiveWorkspacesOnly ||
         prefs.showPinnedWorkspacesBelow !=
             WorkbenchViewPrefs.defaults.showPinnedWorkspacesBelow ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
@@ -286,6 +288,15 @@ class _WorkbenchViewOptionsPanelState
                   _WorkspaceKindSegmented(
                     value: prefs.workspaceKindFilter,
                     onChanged: controller.setWorkspaceKindFilter,
+                  ),
+                  const SizedBox(height: AleraTokens.space6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AleraCheckbox(
+                      value: prefs.showActiveWorkspacesOnly,
+                      onChanged: controller.setShowActiveWorkspacesOnly,
+                      label: 'Active Workspaces Only',
+                    ),
                   ),
                   const SizedBox(height: AleraTokens.space6),
                   Align(

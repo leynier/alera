@@ -1,0 +1,43 @@
+group 'dev.leynier.alera_mobile_native'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.2'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'dev.leynier.alera_mobile_native'
+    compileSdkVersion 36
+    ndkVersion android.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        minSdkVersion 23
+    }
+}
+
+apply from: "../../../rust_builder/cargokit/gradle/plugin.gradle"
+cargokit {
+    manifestDir = "../../../rust/alera-mobile-native"
+    libname = "alera_mobile_native"
+    bundleSharedCxxRuntime = true
+}

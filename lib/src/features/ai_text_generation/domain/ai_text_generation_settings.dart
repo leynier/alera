@@ -8,7 +8,9 @@ enum AiTextGenerationOperation {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
   branchName('branchName'),
-  workspaceIdentity('workspaceIdentity');
+  readingDiff('readingDiff'),
+  workspaceIdentity('workspaceIdentity'),
+  speechMessage('speechMessage');
 
   const AiTextGenerationOperation(this.key);
 
@@ -18,7 +20,9 @@ enum AiTextGenerationOperation {
     AiTextGenerationOperation.commitMessage => 'Commit Messages',
     AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
     AiTextGenerationOperation.branchName => 'Branch Names',
+    AiTextGenerationOperation.readingDiff => 'Reading Diffs',
     AiTextGenerationOperation.workspaceIdentity => 'Workspace Identity',
+    AiTextGenerationOperation.speechMessage => 'Speech Messages',
   };
 }
 
@@ -30,9 +34,11 @@ enum AiTextGenerationAgent {
   cursor('cursor'),
   agy('agy'),
   opencode('opencode'),
+  opencode2('opencode2'),
   pi('pi'),
   amp('amp'),
   grok('grok'),
+  fx('fx'),
   custom('custom');
 
   const AiTextGenerationAgent(this.key);
@@ -46,9 +52,11 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.cursor => 'Cursor',
     AiTextGenerationAgent.agy => 'Antigravity',
     AiTextGenerationAgent.opencode => 'OpenCode',
+    AiTextGenerationAgent.opencode2 => 'OpenCode 2',
     AiTextGenerationAgent.pi => 'Pi',
     AiTextGenerationAgent.amp => 'Amp',
     AiTextGenerationAgent.grok => 'Grok Build',
+    AiTextGenerationAgent.fx => 'fx',
     AiTextGenerationAgent.custom => 'Custom Command',
   };
 
@@ -59,9 +67,11 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.cursor => AgentType.cursor,
     AiTextGenerationAgent.agy => AgentType.agy,
     AiTextGenerationAgent.opencode => AgentType.opencode,
+    AiTextGenerationAgent.opencode2 => AgentType.opencode2,
     AiTextGenerationAgent.pi => AgentType.pi,
     AiTextGenerationAgent.amp => AgentType.amp,
     AiTextGenerationAgent.grok => AgentType.grok,
+    AiTextGenerationAgent.fx => AgentType.fx,
     AiTextGenerationAgent.custom => null,
   };
 }

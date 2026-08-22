@@ -1,6 +1,7 @@
 import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_submission.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   test('classifies ACP-compatible image extensions', () {
@@ -62,6 +63,41 @@ void main() {
         attachments: const <TerminalComposerAttachment>[],
       ),
       'Text only',
+    );
+  });
+
+  test('relativizes attachment paths inside the workspace', () {
+    expect(
+      buildTerminalComposerSubmission(
+        prompt: 'Review these',
+        workspacePath: '/tmp/project',
+        attachments: const <TerminalComposerAttachment>[
+          TerminalComposerAttachment(
+            id: 'image',
+            kind: TerminalComposerAttachmentKind.image,
+            path: '/tmp/project/assets/before.png',
+            displayName: 'before.png',
+          ),
+          TerminalComposerAttachment(
+            id: 'file',
+            kind: TerminalComposerAttachmentKind.file,
+            path: '/tmp/project/docs/report.pdf',
+            displayName: 'report.pdf',
+          ),
+          TerminalComposerAttachment(
+            id: 'outside',
+            kind: TerminalComposerAttachmentKind.file,
+            path: '/tmp/other/notes.txt',
+            displayName: 'notes.txt',
+          ),
+        ],
+      ),
+      'Review these\n\n'
+      'Attached images:\n'
+      '${p.join('assets', 'before.png')}\n'
+      'Attached files:\n'
+      '${p.join('docs', 'report.pdf')}\n'
+      '/tmp/other/notes.txt',
     );
   });
 }

@@ -11,7 +11,7 @@ void main() {
           runner: AleraCliSkillRunner.auto,
           operatingSystem: 'linux',
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-cli --global || bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
+        'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes || bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
     });
 
@@ -23,8 +23,8 @@ void main() {
       expect(
         command,
         'if (Get-Command npx -ErrorAction SilentlyContinue) '
-        '{ npx skills add https://github.com/leynier/alera --skill alera-cli --global } '
-        'else { bunx skills add https://github.com/leynier/alera --skill alera-cli --global }',
+        '{ npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes } '
+        'else { bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes }',
       );
       expect(command, isNot(contains('||')));
       expect(command, isNot(contains('\n')));
@@ -38,7 +38,7 @@ void main() {
 
       expect(command.split('; '), <String>[
         for (final skill in AleraAgentSkill.values)
-          'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --global',
+          'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --agent codex --global --yes',
       ]);
       expect(command, isNot(contains('\n')));
     });
@@ -63,7 +63,7 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           operatingSystem: 'windows',
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-cli --global',
+        'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
       expect(
         aleraCliSkillInstallCommand(
@@ -71,7 +71,7 @@ void main() {
           skill: AleraAgentSkill.orchestration,
           operatingSystem: 'windows',
         ),
-        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global',
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
       );
     });
 
@@ -81,7 +81,7 @@ void main() {
           runner: AleraCliSkillRunner.bunx,
           skill: AleraAgentSkill.orchestration,
         ),
-        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global',
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
       );
     });
 
@@ -91,7 +91,7 @@ void main() {
           runner: AleraCliSkillRunner.bunx,
           skill: AleraAgentSkill.computerUse,
         ),
-        'bunx skills add https://github.com/leynier/alera --skill computer-use --global',
+        'bunx skills add https://github.com/leynier/alera --skill computer-use --agent codex --global --yes',
       );
     });
 
@@ -101,7 +101,17 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           skill: AleraAgentSkill.emulator,
         ),
-        'npx skills add https://github.com/leynier/alera --skill alera-emulator --global',
+        'npx skills add https://github.com/leynier/alera --skill alera-emulator --agent codex --global --yes',
+      );
+    });
+
+    test('builds the Agent Canvas skill command without confirmation', () {
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.npx,
+          skill: AleraAgentSkill.agentCanvas,
+        ),
+        'npx skills add https://github.com/leynier/alera --skill agent-canvas --agent codex --global --yes',
       );
     });
 
@@ -130,7 +140,10 @@ void main() {
         'https://github.com/leynier/alera',
         '--skill',
         'alera-cli',
+        '--agent',
+        'codex',
         '--global',
+        '--yes',
       ]);
       expect(
         runner.runs.single.environment,
@@ -366,6 +379,7 @@ class _FakeProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) {
     throw UnimplementedError();
   }

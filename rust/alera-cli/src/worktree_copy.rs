@@ -164,7 +164,7 @@ fn is_within_or_equal(parent: &Path, child: &Path) -> bool {
     child == parent || child.starts_with(parent)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::prepare_target;
 

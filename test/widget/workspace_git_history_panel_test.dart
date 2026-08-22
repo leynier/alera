@@ -155,6 +155,8 @@ Future<void> _pumpPanel(
               ),
               viewMode: GitDiffViewMode.flat,
               onViewModeChanged: (_) {},
+              groupMode: GitDiffGroupMode.byArea,
+              onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
               onOpenGitCommitDiff:

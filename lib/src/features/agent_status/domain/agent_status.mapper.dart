@@ -93,12 +93,16 @@ class AgentTypeMapper extends EnumMapper<AgentType> {
         return AgentType.agy;
       case r'opencode':
         return AgentType.opencode;
+      case r'opencode2':
+        return AgentType.opencode2;
       case r'pi':
         return AgentType.pi;
       case r'amp':
         return AgentType.amp;
       case r'grok':
         return AgentType.grok;
+      case r'fx':
+        return AgentType.fx;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -119,12 +123,16 @@ class AgentTypeMapper extends EnumMapper<AgentType> {
         return r'agy';
       case AgentType.opencode:
         return r'opencode';
+      case AgentType.opencode2:
+        return r'opencode2';
       case AgentType.pi:
         return r'pi';
       case AgentType.amp:
         return r'amp';
       case AgentType.grok:
         return r'grok';
+      case AgentType.fx:
+        return r'fx';
     }
   }
 }

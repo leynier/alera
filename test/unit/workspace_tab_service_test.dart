@@ -106,6 +106,20 @@ void main() {
       },
     );
 
+    test('createCodexTab uses the Codex Chat title', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21),
+      );
+
+      final tab = await service.createCodexTab('workspace-1');
+
+      expect(tab.kind, WorkspaceTabKind.codex);
+      expect(tab.title, 'Codex Chat');
+      expect(repository.tabs.single.title, 'Codex Chat');
+    });
+
     test(
       'openOrCreateEditorTab creates an editor tab for a normalized path',
       () async {
@@ -484,6 +498,56 @@ void main() {
       },
     );
 
+    test(
+      'openOrCreateGitPullRequestDiffTab stores and reuses the PR range',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 8, 10),
+        );
+
+        final first = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'base123',
+          retentionId: 'retention-1',
+          subject: 'feat: subscription-backed reading diffs',
+        );
+        final second = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'base123',
+          retentionId: 'retention-2',
+        );
+        final retargeted = await service.openOrCreateGitPullRequestDiffTab(
+          workspaceId: 'workspace-1',
+          pullRequestNumber: 385,
+          commitOid: 'head123',
+          parentOid: 'new-base456',
+          retentionId: 'retention-3',
+        );
+
+        expect(second.id, first.id);
+        expect(retargeted.id, isNot(first.id));
+        expect(first.title, 'Pull request #385');
+        expect(first.gitDiffSource, WorkspaceGitDiffSource.pullRequest);
+        expect(first.gitDiffScope, WorkspaceGitDiffScope.all);
+        expect(first.gitDiffPullRequestNumber, 385);
+        expect(first.gitDiffCommitOid, 'head123');
+        expect(first.gitDiffParentOid, 'base123');
+        expect(first.gitDiffHostedReviewRetentionId, 'retention-1');
+        expect(retargeted.gitDiffHostedReviewRetentionId, 'retention-3');
+        expect(
+          first.gitDiffCommitSubject,
+          'feat: subscription-backed reading diffs',
+        );
+        expect(repository.tabs, hasLength(2));
+      },
+    );
+
     test('updates git diff roots after a folder move', () async {
       final repository = _FakeWorkbenchRepository()
         ..tabs.add(
@@ -516,61 +580,92 @@ void main() {
       expect(repository.tabs.single.title, 'app changes');
     });
 
-    test('does not retarget commit diff tabs after a folder move', () async {
-      final repository = _FakeWorkbenchRepository()
-        ..tabs.addAll(<WorkspaceTabRecord>[
-          WorkspaceTabRecord(
-            id: 'working-tree-tab',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'app changes',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabGitDiffScopePayloadKey: 'all',
-              workspaceTabGitDiffRootPayloadKey: 'packages/app',
-            },
-          ),
-          WorkspaceTabRecord(
-            id: 'commit-tab',
-            workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
-            title: 'main.dart abc1234',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
-            payload: const <String, Object?>{
-              workspaceTabGitDiffSourcePayloadKey: 'commit',
-              workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
-              workspaceTabGitDiffOldPathPayloadKey:
-                  'packages/app/lib/old_main.dart',
-              workspaceTabGitDiffScopePayloadKey: 'file',
-              workspaceTabGitDiffRootPayloadKey: 'packages/app',
-              workspaceTabGitDiffCommitOidPayloadKey: 'abc123456789',
-              workspaceTabGitDiffParentOidPayloadKey: 'def987654321',
-              workspaceTabGitDiffCompareRefPayloadKey: 'abc1234',
-            },
-          ),
-        ]);
-      final service = WorkspaceTabService(
-        repository: repository,
-        now: () => DateTime.utc(2026, 5, 21, 1),
-      );
+    test(
+      'updates commit-backed roots without retargeting historical file paths',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.addAll(<WorkspaceTabRecord>[
+            WorkspaceTabRecord(
+              id: 'working-tree-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'app changes',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffScopePayloadKey: 'all',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+              },
+            ),
+            WorkspaceTabRecord(
+              id: 'commit-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'main.dart abc1234',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffSourcePayloadKey: 'commit',
+                workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
+                workspaceTabGitDiffOldPathPayloadKey:
+                    'packages/app/lib/old_main.dart',
+                workspaceTabGitDiffScopePayloadKey: 'file',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+                workspaceTabGitDiffCommitOidPayloadKey: 'abc123456789',
+                workspaceTabGitDiffParentOidPayloadKey: 'def987654321',
+                workspaceTabGitDiffCompareRefPayloadKey: 'abc1234',
+              },
+            ),
+            WorkspaceTabRecord(
+              id: 'pull-request-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'Pull request #385',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabGitDiffSourcePayloadKey: 'pullRequest',
+                workspaceTabGitDiffScopePayloadKey: 'all',
+                workspaceTabGitDiffRootPayloadKey: 'packages/app',
+                workspaceTabGitDiffCommitOidPayloadKey: 'head123',
+                workspaceTabGitDiffParentOidPayloadKey: 'base123',
+                workspaceTabGitDiffPullRequestNumberPayloadKey: 385,
+                workspaceTabGitDiffHostedReviewRetentionIdPayloadKey:
+                    '0123456789abcdef0123456789abcdef',
+              },
+            ),
+          ]);
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
 
-      final result = await service.updateFileTabPathsAfterMove(
-        workspaceId: 'workspace-1',
-        oldRelativePath: 'packages',
-        newRelativePath: 'modules',
-      );
+        final result = await service.updateFileTabPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'packages',
+          newRelativePath: 'modules',
+        );
 
-      expect(result.updatedTabs.single.id, 'working-tree-tab');
-      expect(repository.tabs[0].gitDiffRoot, 'modules/app');
-      expect(repository.tabs[1].filePath, 'packages/app/lib/main.dart');
-      expect(
-        repository.tabs[1].gitDiffOldPath,
-        'packages/app/lib/old_main.dart',
-      );
-      expect(repository.tabs[1].gitDiffRoot, 'packages/app');
-    });
+        expect(
+          result.updatedTabs.map((tab) => tab.id),
+          containsAll(<String>[
+            'working-tree-tab',
+            'commit-tab',
+            'pull-request-tab',
+          ]),
+        );
+        expect(repository.tabs[0].gitDiffRoot, 'modules/app');
+        expect(repository.tabs[1].filePath, 'packages/app/lib/main.dart');
+        expect(
+          repository.tabs[1].gitDiffOldPath,
+          'packages/app/lib/old_main.dart',
+        );
+        expect(repository.tabs[1].gitDiffRoot, 'modules/app');
+        expect(repository.tabs[2].title, 'Pull request #385');
+        expect(repository.tabs[2].gitDiffRoot, 'modules/app');
+        expect(repository.tabs[2].gitDiffCommitOid, 'head123');
+      },
+    );
 
     test('updates git diff roots and file paths after a folder move', () async {
       final repository = _FakeWorkbenchRepository()

@@ -7,8 +7,10 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/browser/presentation/browser_tab_surface.dart';
+import 'package:alera/src/features/codex_chat/presentation/codex_chat_surface.dart';
 import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_surface.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
@@ -41,6 +43,7 @@ typedef CreateTerminalTabCallback =
     Future<void> Function({String? targetGroupId});
 typedef CreateBrowserTabCallback =
     Future<void> Function({String? targetGroupId});
+typedef CreateCodexTabCallback = Future<void> Function({String? targetGroupId});
 typedef OpenMobileEmulatorTabCallback =
     Future<void> Function({String? targetGroupId});
 typedef OpenFileTabCallback =
@@ -71,6 +74,17 @@ typedef UpdateWorkbenchSplitRatioCallback =
 typedef RenameWorkspaceTabCallback =
     Future<void> Function({required String tabId, required String title});
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
+
+@visibleForTesting
+String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
+    _workspaceTabTitle(tab);
+
+String _workspaceTabTitle(WorkspaceTabRecord tab) {
+  // The tab identifies the Codex surface. Conversation titles remain metadata
+  // for history and resume, rather than replacing this stable product label.
+  if (tab.kind == WorkspaceTabKind.codex) return 'Codex Chat';
+  return tab.title;
+}
 
 @visibleForTesting
 int splitRatioFlexForTesting(double ratio) =>
@@ -171,6 +185,7 @@ class WorkspaceWorkbenchView extends StatefulWidget {
     required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onCreateBrowserTab,
+    this.onCreateCodexTab,
     this.onOpenMobileEmulator,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
@@ -198,6 +213,7 @@ class WorkspaceWorkbenchView extends StatefulWidget {
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final CreateBrowserTabCallback? onCreateBrowserTab;
+  final CreateCodexTabCallback? onCreateCodexTab;
   final OpenMobileEmulatorTabCallback? onOpenMobileEmulator;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
@@ -251,6 +267,7 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
           completionAcknowledgements: widget.completionAcknowledgements,
           onCreateTab: widget.onCreateTab,
           onCreateBrowserTab: widget.onCreateBrowserTab,
+          onCreateCodexTab: widget.onCreateCodexTab,
           onOpenEditorTab: widget.onOpenEditorTab,
           onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
           onSelectTab: widget.onSelectTab,

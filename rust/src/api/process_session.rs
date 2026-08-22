@@ -26,6 +26,9 @@ const READ_CHUNK_BYTES: usize = 64 * 1024;
 /// How long output already in flight may take to drain once the child exited.
 const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_millis(250);
 
+#[cfg(windows)]
+const PROCESS_TREE_KILL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// A running command the Dart side still holds a handle to.
 struct Session {
     /// Dropped by `close_stdin`, which is what closes the child's stdin.
@@ -43,7 +46,23 @@ pub(super) fn run(
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
 ) -> Result<ProcessRunResult, String> {
-    let mut command = build_command(&executable, &arguments, working_directory, environment);
+    run_with_environment_mode(executable, arguments, working_directory, environment, true)
+}
+
+fn run_with_environment_mode(
+    executable: String,
+    arguments: Vec<String>,
+    working_directory: Option<String>,
+    environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
+) -> Result<ProcessRunResult, String> {
+    let mut command = build_command(
+        &executable,
+        &arguments,
+        working_directory,
+        environment,
+        include_parent_environment,
+    );
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -60,14 +79,30 @@ pub(super) fn run(
     })
 }
 
+#[cfg(test)]
+pub(super) fn run_without_parent_environment_for_tests(
+    executable: String,
+    arguments: Vec<String>,
+    environment: HashMap<String, String>,
+) -> Result<ProcessRunResult, String> {
+    run_with_environment_mode(executable, arguments, None, Some(environment), false)
+}
+
 pub(super) fn start(
     executable: String,
     arguments: Vec<String>,
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
     events: StreamSink<ProcessEvent>,
 ) {
-    let mut command = build_command(&executable, &arguments, working_directory, environment);
+    let mut command = build_command(
+        &executable,
+        &arguments,
+        working_directory,
+        environment,
+        include_parent_environment,
+    );
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -193,8 +228,17 @@ fn build_command(
     arguments: &[String],
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
 ) -> Command {
-    let mut command = match shell_invocation(executable, arguments) {
+    #[cfg(windows)]
+    let executable = resolve_windows_executable(
+        executable,
+        working_directory.as_deref(),
+        environment.as_ref(),
+    );
+    #[cfg(not(windows))]
+    let executable = executable.to_string();
+    let mut command = match shell_invocation(&executable, arguments) {
         ShellInvocation::Posix { program, arguments } => {
             let mut command = windowless_async_command(program);
             command.args(arguments);
@@ -208,8 +252,6 @@ fn build_command(
             let mut command = windowless_async_command(program);
             #[cfg(windows)]
             {
-                use std::os::windows::process::CommandExt;
-
                 command.raw_arg(&raw_arguments);
             }
             #[cfg(not(windows))]
@@ -222,8 +264,10 @@ fn build_command(
     if let Some(working_directory) = working_directory {
         command.current_dir(working_directory);
     }
+    if !include_parent_environment {
+        command.env_clear();
+    }
     if let Some(environment) = environment {
-        // Additive, like `Process.run(includeParentEnvironment: true)`.
         command.envs(environment);
     }
     // The shell does not necessarily exec the command it was given, so killing
@@ -233,6 +277,55 @@ fn build_command(
     command.process_group(0);
     command.kill_on_drop(true);
     command
+}
+
+#[cfg(windows)]
+fn resolve_windows_executable(
+    executable: &str,
+    working_directory: Option<&str>,
+    environment: Option<&HashMap<String, String>>,
+) -> String {
+    if executable.contains(['/', '\\']) {
+        return executable.to_string();
+    }
+    let environment_value = |name: &str| {
+        environment
+            .and_then(|values| {
+                values
+                    .iter()
+                    .find(|(key, _)| key.eq_ignore_ascii_case(name))
+                    .map(|(_, value)| value.clone())
+            })
+            .or_else(|| std::env::var(name).ok())
+    };
+    let extensions = if std::path::Path::new(executable).extension().is_some() {
+        vec![String::new()]
+    } else {
+        environment_value("PATHEXT")
+            .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string())
+            .split(';')
+            .filter(|extension| !extension.is_empty())
+            .map(str::to_string)
+            .collect()
+    };
+    let mut directories = Vec::new();
+    if let Some(working_directory) = working_directory {
+        directories.push(std::path::PathBuf::from(working_directory));
+    } else if let Ok(current_directory) = std::env::current_dir() {
+        directories.push(current_directory);
+    }
+    if let Some(path) = environment_value("PATH") {
+        directories.extend(std::env::split_paths(&path));
+    }
+    for directory in directories {
+        for extension in &extensions {
+            let candidate = directory.join(format!("{executable}{extension}"));
+            if candidate.is_file() {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+    executable.to_string()
 }
 
 /// Waits for the child, killing it if the Dart side asks in the meantime.
@@ -246,7 +339,7 @@ async fn wait_for_exit(child: &mut Child, kill: Arc<Notify>) -> Result<i32, Stri
                     .map_err(|error| error.to_string());
             }
             _ = kill.notified() => {
-                kill_group(child);
+                terminate_invocation(child).await;
                 let _ = child.start_kill();
             }
         }
@@ -254,10 +347,10 @@ async fn wait_for_exit(child: &mut Child, kill: Arc<Notify>) -> Result<i32, Stri
 }
 
 /// Signals everything the invocation started, not just the shell that fronts
-/// it. Windows has no equivalent here: `start_kill` reaches `cmd.exe` alone,
-/// which is what `Process.kill` did before this moved into Rust.
+/// it. `start_kill` remains the final fallback for a child that exits while the
+/// platform tree termination is being requested.
 #[allow(unused_variables)]
-fn kill_group(child: &Child) {
+async fn terminate_invocation(child: &Child) {
     #[cfg(unix)]
     if let Some(pid) = child.id() {
         // Safe: `kill` only reads the group id, and a group that already exited
@@ -266,6 +359,26 @@ fn kill_group(child: &Child) {
             libc::kill(-(pid as i32), libc::SIGKILL);
         }
     }
+    #[cfg(windows)]
+    if let Some(pid) = child.id() {
+        let mut command = windowless_async_command("taskkill.exe");
+        command
+            .args(windows_process_tree_kill_arguments(pid))
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let _ = tokio::time::timeout(PROCESS_TREE_KILL_TIMEOUT, command.status()).await;
+    }
+}
+
+#[cfg(any(windows, test))]
+pub(super) fn windows_process_tree_kill_arguments(pid: u32) -> Vec<String> {
+    vec![
+        "/PID".to_string(),
+        pid.to_string(),
+        "/T".to_string(),
+        "/F".to_string(),
+    ]
 }
 
 fn forward<R>(
@@ -365,7 +478,7 @@ pub(super) fn wait_for_exit_in_tests(
     kill: std::sync::Arc<Notify>,
     delay: std::time::Duration,
 ) -> Result<i32, String> {
-    let mut command = build_command(executable, arguments, None, None);
+    let mut command = build_command(executable, arguments, None, None, true);
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

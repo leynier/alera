@@ -96,7 +96,11 @@ async fn fetch_codex_via_rpc() -> QuotaSnapshot {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true);
-        crate::login_shell_environment::apply_login_shell_path(&mut command).await;
+        crate::login_shell_environment::apply_login_shell_environment(
+            &mut command,
+            &BTreeMap::new(),
+        )
+        .await;
         let mut child = command
             .spawn()
             .context("Codex CLI not found or could not start")?;
@@ -176,8 +180,8 @@ async fn fetch_codex_via_rpc() -> QuotaSnapshot {
 }
 
 async fn read_codex_backend_auth() -> Result<Option<CodexBackendAuth>> {
-    let home = std::env::var("CODEX_HOME")
-        .ok()
+    let home = shell_environment_value("CODEX_HOME")
+        .await
         .map(PathBuf::from)
         .or_else(|| home_dir().map(|home| home.join(".codex")));
     let Some(home) = home else {

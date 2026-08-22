@@ -117,7 +117,7 @@ class _AgentQuotaHoverSection extends StatelessWidget {
                 ),
               ),
               AleraBadge(
-                label: _quotaStatusLabel(snapshot.status),
+                label: _quotaStatusLabel(snapshot),
                 color: statusColor.withAlpha(28),
                 foregroundColor: statusColor,
               ),
@@ -169,6 +169,9 @@ class _ClaudeTryWithTuiButtonState
       return;
     }
     setState(() => _loading = true);
+    // The hover card can be disposed while the TUI request is in flight. Keep
+    // its longer-lived scope so the cached result still triggers a refresh.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final hostId = widget.hostId;
       final targets = ref.read(sshTargetsProvider).value ?? const <SshTarget>[];
@@ -183,11 +186,10 @@ class _ClaudeTryWithTuiButtonState
             accountId: widget.snapshot.accountId,
             displayName: widget.snapshot.displayName,
           );
-      ref.invalidate(agentQuotaStateProvider);
     } on Object {
       // Status bar refresh / next poll shows the updated error snapshot.
-      ref.invalidate(agentQuotaStateProvider);
     } finally {
+      container.invalidate(agentQuotaStateProvider);
       if (mounted) {
         setState(() => _loading = false);
       }
@@ -248,7 +250,7 @@ class _QuotaHoverReading extends StatelessWidget {
             ),
             const SizedBox(width: AleraTokens.space12),
             Text(
-              '${entry.remainingPercent.round()}% Left',
+              entry.valueText ?? '${entry.remainingPercent.round()}% Left',
               style: AleraTokens.monoStyle.copyWith(
                 fontSize: 11,
                 color: color,
@@ -258,15 +260,16 @@ class _QuotaHoverReading extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space6),
-        LinearProgressIndicator(
-          value: entry.remainingPercent / 100,
-          minHeight: AleraTokens.space4,
-          color: color,
-          backgroundColor: AleraTokens.surfaceVariant,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
-          semanticsLabel: '$label Remaining',
-          semanticsValue: '${entry.remainingPercent.round()}%',
-        ),
+        if (entry.valueText == null)
+          LinearProgressIndicator(
+            value: entry.remainingPercent / 100,
+            minHeight: AleraTokens.space4,
+            color: color,
+            backgroundColor: AleraTokens.surfaceVariant,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+            semanticsLabel: '$label Remaining',
+            semanticsValue: '${entry.remainingPercent.round()}%',
+          ),
         const SizedBox(height: AleraTokens.space6),
         Text(
           reset,
@@ -305,6 +308,7 @@ class _QuotaHoverEntry {
     required this.remainingPercent,
     required this.resetsAt,
     required this.resetDescription,
+    this.valueText,
   });
 
   final AgentQuotaProviderId provider;
@@ -312,6 +316,7 @@ class _QuotaHoverEntry {
   final double remainingPercent;
   final DateTime? resetsAt;
   final String? resetDescription;
+  final String? valueText;
 }
 
 List<_QuotaHoverEntry> _quotaHoverEntries(AgentQuotaSnapshot snapshot) {
@@ -332,6 +337,15 @@ List<_QuotaHoverEntry> _quotaHoverEntries(AgentQuotaSnapshot snapshot) {
         resetsAt: bucket.resetsAt,
         resetDescription: bucket.resetDescription,
       ),
+    for (final amount in snapshot.amounts)
+      _QuotaHoverEntry(
+        provider: snapshot.provider,
+        label: amount.label,
+        remainingPercent: 100,
+        resetsAt: amount.resetsAt,
+        resetDescription: amount.resetDescription,
+        valueText: _formatQuotaAmount(amount),
+      ),
   ]..sort(
     (left, right) => _readingOrder(
       snapshot.provider,
@@ -348,7 +362,12 @@ String _quotaHoverLabel(AgentQuotaProviderId provider, String value) {
   return normalized[0].toUpperCase() + normalized.substring(1);
 }
 
-String _quotaStatusLabel(AgentQuotaStatus status) {
+String _quotaStatusLabel(AgentQuotaSnapshot snapshot) {
+  if (snapshot.status == AgentQuotaStatus.ok &&
+      snapshot.dataQuality == 'estimated') {
+    return 'Estimated';
+  }
+  final status = snapshot.status;
   return switch (status) {
     AgentQuotaStatus.ok => 'Live',
     AgentQuotaStatus.stale => 'Stale',

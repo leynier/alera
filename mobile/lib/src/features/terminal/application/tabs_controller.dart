@@ -88,10 +88,20 @@ class TabsController extends _$TabsController {
     return session.tab.id;
   }
 
-  Future<void> closeTab(WorkspaceTabSummary tab) async {
+  Future<String> createCodexTab() async {
+    final client = await ref.read(terminalClientProvider(hostId).future);
+    if (client is! MobileCodexClient) {
+      throw UnsupportedError('This mobile client cannot create Codex tabs.');
+    }
+    final tab = await (client as MobileCodexClient).createCodexTab(workspaceId);
+    ref.invalidateSelf();
+    return tab.id;
+  }
+
+  Future<bool> closeTab(WorkspaceTabSummary tab) async {
     final client = await ref.read(terminalClientProvider(hostId).future);
     if (!ref.mounted) {
-      return;
+      return false;
     }
     if (tab.isTerminal) {
       try {
@@ -101,16 +111,16 @@ class TabsController extends _$TabsController {
       }
     }
     if (!ref.mounted) {
-      return;
+      return false;
     }
     final workspaceClient = await ref.read(
       workspaceClientProvider(hostId).future,
     );
     await workspaceClient.removeTab(tab.id);
-    if (!ref.mounted) {
-      return;
+    if (ref.mounted) {
+      ref.invalidateSelf();
     }
-    ref.invalidateSelf();
+    return true;
   }
 
   Future<void> renameTab(WorkspaceTabSummary tab, String title) async {

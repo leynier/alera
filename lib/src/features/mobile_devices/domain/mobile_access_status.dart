@@ -4,6 +4,7 @@ import 'package:alera/src/features/mobile_devices/domain/mobile_pairing_offer.da
 enum MobileEndpointMode {
   loopback,
   tailscale,
+  netbird,
   manual;
 
   /// Defaults to loopback for unknown values so the desktop keeps working
@@ -11,8 +12,25 @@ enum MobileEndpointMode {
   static MobileEndpointMode fromWire(Object? value) {
     return switch (value) {
       'tailscale' => MobileEndpointMode.tailscale,
+      'netbird' => MobileEndpointMode.netbird,
       'manual' => MobileEndpointMode.manual,
       _ => MobileEndpointMode.loopback,
+    };
+  }
+
+  String get wireName => name;
+}
+
+enum MobileNetbirdEndpoint {
+  ip,
+  dns,
+  interface;
+
+  static MobileNetbirdEndpoint fromWire(Object? value) {
+    return switch (value) {
+      'dns' => MobileNetbirdEndpoint.dns,
+      'interface' => MobileNetbirdEndpoint.interface,
+      _ => MobileNetbirdEndpoint.ip,
     };
   }
 
@@ -26,6 +44,7 @@ class MobileGatewaySettings {
     required this.port,
     this.remoteAccessEnabled = false,
     this.endpointMode = MobileEndpointMode.loopback,
+    this.netbirdEndpoint = MobileNetbirdEndpoint.ip,
     this.serverPublicKeyB64,
   });
 
@@ -45,6 +64,7 @@ class MobileGatewaySettings {
       bindHost: bindHost,
       port: port.toInt(),
       endpointMode: MobileEndpointMode.fromWire(json['endpointMode']),
+      netbirdEndpoint: MobileNetbirdEndpoint.fromWire(json['netbirdEndpoint']),
       serverPublicKeyB64: publicKey is String && publicKey.trim().isNotEmpty
           ? publicKey
           : null,
@@ -56,6 +76,7 @@ class MobileGatewaySettings {
   final String bindHost;
   final int port;
   final MobileEndpointMode endpointMode;
+  final MobileNetbirdEndpoint netbirdEndpoint;
   final String? serverPublicKeyB64;
 }
 
@@ -86,6 +107,49 @@ class MobileTailscaleStatus {
   final String? error;
 }
 
+class MobileNetbirdStatus {
+  const MobileNetbirdStatus({
+    required this.detected,
+    required this.connected,
+    this.netbirdIp,
+    this.profileName,
+    this.managementUrl,
+    this.managementKind,
+    this.dnsHostname,
+    this.interfaceName,
+    this.error,
+  });
+
+  factory MobileNetbirdStatus.fromJson(Map<String, Object?> json) {
+    String? optionalString(String key) {
+      final value = json[key];
+      return value is String && value.trim().isNotEmpty ? value : null;
+    }
+
+    return MobileNetbirdStatus(
+      detected: json['detected'] == true,
+      connected: json['connected'] == true,
+      netbirdIp: optionalString('netbirdIp'),
+      profileName: optionalString('profileName'),
+      managementUrl: optionalString('managementUrl'),
+      managementKind: optionalString('managementKind'),
+      dnsHostname: optionalString('dnsHostname'),
+      interfaceName: optionalString('interfaceName'),
+      error: optionalString('error'),
+    );
+  }
+
+  final bool detected;
+  final bool connected;
+  final String? netbirdIp;
+  final String? profileName;
+  final String? managementUrl;
+  final String? managementKind;
+  final String? dnsHostname;
+  final String? interfaceName;
+  final String? error;
+}
+
 class MobileAccessStatus {
   const MobileAccessStatus({
     required this.protocolVersion,
@@ -94,6 +158,7 @@ class MobileAccessStatus {
     required this.activePairings,
     this.runtimeHostActive,
     this.tailscale,
+    this.netbird,
   });
 
   factory MobileAccessStatus.fromJson(Map<String, Object?> json) {
@@ -104,6 +169,7 @@ class MobileAccessStatus {
     final version = json['protocolVersion'];
     final runtimeHostActive = json['runtimeHostActive'];
     final tailscale = json['tailscale'];
+    final netbird = json['netbird'];
     return MobileAccessStatus(
       protocolVersion: version is num ? version.toInt() : 0,
       settings: MobileGatewaySettings.fromJson(
@@ -124,6 +190,9 @@ class MobileAccessStatus {
       tailscale: tailscale is Map
           ? MobileTailscaleStatus.fromJson(Map<String, Object?>.from(tailscale))
           : null,
+      netbird: netbird is Map
+          ? MobileNetbirdStatus.fromJson(Map<String, Object?>.from(netbird))
+          : null,
     );
   }
 
@@ -133,4 +202,5 @@ class MobileAccessStatus {
   final List<MobilePairingOffer> activePairings;
   final bool? runtimeHostActive;
   final MobileTailscaleStatus? tailscale;
+  final MobileNetbirdStatus? netbird;
 }

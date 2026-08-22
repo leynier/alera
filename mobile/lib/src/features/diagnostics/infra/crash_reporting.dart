@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/core/diagnostics/sentry_dsn.dart';
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
+import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -28,6 +29,10 @@ abstract final class CrashReporting {
     if (!_enabled) {
       return null;
     }
+    // Ordinary host reachability is connection state with retry UI, not a crash.
+    if (_isReachabilityNoise(event)) {
+      return null;
+    }
     final message = event.message;
     if (message != null) {
       event.message = SentryMessage(
@@ -49,6 +54,20 @@ abstract final class CrashReporting {
       }
     }
     return event;
+  }
+
+  static bool _isReachabilityNoise(SentryEvent event) {
+    final throwable = event.throwable;
+    if (throwable != null && isHostReachabilityFailure(throwable)) {
+      return true;
+    }
+    for (final exception in event.exceptions ?? const <SentryException>[]) {
+      final nested = exception.throwable;
+      if (nested != null && isHostReachabilityFailure(nested)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static void _applyOptions(SentryFlutterOptions options, String release) {

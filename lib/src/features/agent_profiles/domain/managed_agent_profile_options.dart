@@ -116,6 +116,33 @@ const List<ManagedAgentOption> ampModeOptions = <ManagedAgentOption>[
   ManagedAgentOption('ultra', 'Ultra'),
 ];
 
+const List<ManagedAgentOption> grokEffortOptions = <ManagedAgentOption>[
+  ManagedAgentOption('none', 'None'),
+  ManagedAgentOption('minimal', 'Minimal'),
+  ManagedAgentOption('low', 'Low'),
+  ManagedAgentOption('medium', 'Medium'),
+  ManagedAgentOption('high', 'High'),
+  ManagedAgentOption('xhigh', 'Extra High'),
+  ManagedAgentOption('max', 'Max'),
+];
+
+const List<ManagedAgentOption> grokPermissionOptions = <ManagedAgentOption>[
+  ManagedAgentOption('default', 'Default'),
+  ManagedAgentOption('acceptEdits', 'Accept Edits'),
+  ManagedAgentOption('auto', 'Auto'),
+  ManagedAgentOption('dontAsk', 'Do Not Ask'),
+  ManagedAgentOption('bypassPermissions', 'Bypass Permissions'),
+  ManagedAgentOption('plan', 'Plan'),
+];
+
+const List<ManagedAgentOption> grokSandboxOptions = <ManagedAgentOption>[
+  ManagedAgentOption('off', 'Off'),
+  ManagedAgentOption('workspace', 'Workspace'),
+  ManagedAgentOption('devbox', 'Devbox'),
+  ManagedAgentOption('read-only', 'Read Only'),
+  ManagedAgentOption('strict', 'Strict'),
+];
+
 /// The profile switcher a Claude Code profile may launch through. It takes the
 /// profile as its first positional argument and forwards the rest to `claude`
 /// unchanged. Mirrors `CCS_EXECUTABLE` in the Rust launch builder.
@@ -126,7 +153,7 @@ bool agentProfileSupportsCcsProfile(AgentType adapter) {
 }
 
 bool agentProfileSupportsModel(AgentType adapter) {
-  return adapter != AgentType.amp;
+  return adapter != AgentType.amp && adapter != AgentType.fx;
 }
 
 bool agentProfileSupportsPersona(AgentType adapter) {
@@ -134,7 +161,9 @@ bool agentProfileSupportsPersona(AgentType adapter) {
     AgentType.claude ||
     AgentType.copilot ||
     AgentType.agy ||
-    AgentType.opencode => true,
+    AgentType.opencode ||
+    AgentType.opencode2 ||
+    AgentType.grok => true,
     _ => false,
   };
 }
@@ -167,11 +196,15 @@ int managedAgentRiskScore(AgentType adapter, Map<String, Object?> config) {
     case AgentType.agy:
       addWhen(config['skipPermissions'] == true, 100);
     case AgentType.opencode:
+    case AgentType.opencode2:
       addWhen(config['autoApprove'] == true, 60);
     case AgentType.pi:
       addWhen(config['projectTrust'] == 'approve', 30);
-    case AgentType.amp:
     case AgentType.grok:
+      addWhen(config['permissionMode'] == 'bypassPermissions', 100);
+      addWhen(config['permissionMode'] == 'dontAsk', 40);
+    case AgentType.amp:
+    case AgentType.fx:
       break;
   }
   return score;
@@ -214,11 +247,18 @@ Set<String> managedAgentRiskMarkers(
     case AgentType.agy:
       markWhen(config['skipPermissions'] == true, 'skipPermissions');
     case AgentType.opencode:
+    case AgentType.opencode2:
       markWhen(config['autoApprove'] == true, 'autoApprove');
     case AgentType.pi:
       markWhen(config['projectTrust'] == 'approve', 'projectTrust');
-    case AgentType.amp:
     case AgentType.grok:
+      markWhen(
+        config['permissionMode'] == 'bypassPermissions',
+        'bypassPermissions',
+      );
+      markWhen(config['permissionMode'] == 'dontAsk', 'dontAsk');
+    case AgentType.amp:
+    case AgentType.fx:
       break;
   }
   return markers;
@@ -237,10 +277,13 @@ String managedAgentRiskWarning(AgentType adapter, Map<String, Object?> config) {
     AgentType.cursor =>
       'This profile reduces Cursor review, sandbox, or trust protections.',
     AgentType.agy => 'This profile lets Antigravity skip permission checks.',
-    AgentType.opencode =>
+    AgentType.opencode || AgentType.opencode2 =>
       'This profile lets OpenCode approve actions automatically.',
     AgentType.pi => 'This profile pre-approves project trust for Pi.',
-    AgentType.amp || AgentType.grok => '',
+    AgentType.grok =>
+      'This profile lets Grok Build continue with reduced permission prompts.',
+    AgentType.amp => '',
+    AgentType.fx => '',
   };
 }
 
@@ -336,6 +379,9 @@ String managedAgentCommandPreview(
       stringOption('model', '--model');
       stringOption('agent', '--agent');
       flag('autoApprove', '--auto');
+    case AgentType.opencode2:
+      // Interactive opencode2 only accepts --auto on the default TUI command.
+      flag('autoApprove', '--auto');
     case AgentType.pi:
       stringOption('model', '--model');
       stringOption('thinking', '--thinking');
@@ -348,7 +394,16 @@ String managedAgentCommandPreview(
       stringOption('mode', '--mode');
       flag('fast', '--fast');
     case AgentType.grok:
-      break;
+      stringOption('model', '--model');
+      stringOption('effort', '--effort');
+      stringOption('agent', '--agent');
+      stringOption('permissionMode', '--permission-mode');
+      stringOption('sandbox', '--sandbox');
+      flag('disableWebSearch', '--disable-web-search');
+    case AgentType.fx:
+      flag('resumeLast', '--continue');
+      flag('noAdditionalDirs', '--no-additional-dirs');
+      flag('record', '--record');
   }
   return <String>[
     executable,

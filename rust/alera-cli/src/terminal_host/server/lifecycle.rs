@@ -80,6 +80,7 @@ impl ServerActor {
             || !self.coordinators.is_empty()
             || self.browser.active_jobs() > 0
             || self.account_push.active_subscriptions > 0
+            || self.automations_active
         {
             self.cancel_shutdown_timer();
             return;

@@ -6,8 +6,8 @@ import 'package:alera/src/features/agent_status/application/agent_hook_reconcili
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
@@ -58,7 +58,10 @@ void main() {
 
     await tester.tap(find.text('Copy'));
     await tester.pump();
-    expect(clipboardText, contains('--skill alera-cli --global'));
+    expect(
+      clipboardText,
+      contains('--skill alera-cli --agent codex --global --yes'),
+    );
     expect(runtime.lastTab, isNull);
 
     final mouse = await tester.createGesture(
@@ -88,7 +91,7 @@ void main() {
     await tester.pump();
     expect(
       clipboardText,
-      'bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
+      'bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
     );
     expect(runtime.lastTab, isNull);
 
@@ -98,7 +101,7 @@ void main() {
     expect(find.text('Install Alera CLI Skill'), findsOneWidget);
     expect(
       runtime.lastTab?.initialCommand,
-      'bunx skills add https://github.com/leynier/alera --skill alera-cli --global',
+      'bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
     );
 
     // The dialog owns the session: closing it terminates the shell tree.
@@ -106,35 +109,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(runtime.closedTabIds, <String>[runtime.lastTab!.id]);
-  });
-
-  testWidgets('registration control surfaces refresh failures', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          aleraCliRegistrationServiceProvider.overrideWithValue(
-            _FakeAleraCliRegistrationService(
-              statusError: StateError('missing'),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: AleraCliRegistrationControl(),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Registration check failed'), findsOneWidget);
-    expect(find.textContaining('missing'), findsOneWidget);
   });
 
   testWidgets('orchestration reapplies selected hooks after the terminal', (
@@ -221,6 +195,32 @@ void main() {
     expect(runtime.lastTab?.initialCommand, contains('--skill computer-use'));
   });
 
+  testWidgets('Agent Canvas control installs the Agent Canvas skill', (
+    tester,
+  ) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [terminalRuntimeProvider.overrideWithValue(runtime)],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(body: AleraAgentCanvasSkillControl()),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Install / Update'));
+    await tester.pumpAndSettle();
+
+    expect(
+      runtime.lastTab?.initialCommand,
+      aleraCliSkillInstallCommand(
+        runner: AleraCliSkillRunner.auto,
+        skill: AleraAgentSkill.agentCanvas,
+      ),
+    );
+  });
+
   testWidgets('all skills control runs every skill in the embedded terminal', (
     tester,
   ) async {
@@ -254,7 +254,10 @@ void main() {
     final command = runtime.lastTab?.initialCommand;
     expect(command, isNotNull);
     for (final skill in AleraAgentSkill.values) {
-      expect(command, contains('--skill ${skill.name} --global'));
+      expect(
+        command,
+        contains('--skill ${skill.name} --agent codex --global --yes'),
+      );
     }
     expect(command, isNot(contains('\n')));
     expect(service.skills, isEmpty);
@@ -327,41 +330,12 @@ void main() {
 
     expect(clipboardText, isNotNull);
     for (final skill in AleraAgentSkill.values) {
-      expect(clipboardText, contains('--skill ${skill.name} --global'));
+      expect(
+        clipboardText,
+        contains('--skill ${skill.name} --agent codex --global --yes'),
+      );
     }
     expect(runtime.lastTab, isNull);
-  });
-
-  testWidgets('registration control surfaces install failures', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          aleraCliRegistrationServiceProvider.overrideWithValue(
-            _FakeAleraCliRegistrationService(
-              installError: StateError('permission denied'),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          theme: buildAleraDarkTheme(),
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: AleraCliRegistrationControl(),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-
-    await tester.tap(find.text('Register'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Registration failed'), findsOneWidget);
-    expect(find.textContaining('permission denied'), findsOneWidget);
   });
 }
 
@@ -434,47 +408,11 @@ class _NoopProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) {
     throw UnimplementedError();
   }
 }
-
-class _FakeAleraCliRegistrationService extends AleraCliRegistrationService {
-  _FakeAleraCliRegistrationService({this.statusError, this.installError})
-    : super(processRunner: _NoopProcessRunner());
-
-  final Object? statusError;
-  final Object? installError;
-
-  @override
-  Future<AleraCliRegistrationStatus> status() async {
-    final error = statusError;
-    if (error != null) {
-      throw error;
-    }
-    return _notRegisteredStatus;
-  }
-
-  @override
-  Future<AleraCliRegistrationStatus> installOrUpdate() async {
-    final error = installError;
-    if (error != null) {
-      throw error;
-    }
-    return _notRegisteredStatus;
-  }
-}
-
-const _notRegisteredStatus = AleraCliRegistrationStatus(
-  commandName: 'alera',
-  commandPath: '/Users/test/.local/bin/alera',
-  pathDirectory: '/Users/test/.local/bin',
-  pathConfigured: false,
-  launcherPath: '/Applications/Alera.app/alera',
-  installMethod: AleraCliRegistrationInstallMethod.wrapper,
-  state: AleraCliRegistrationState.notInstalled,
-  detail: 'Register the Alera command to use it from terminals and agents.',
-);
 
 class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
   const _FakeCommandEnvironmentResolver();

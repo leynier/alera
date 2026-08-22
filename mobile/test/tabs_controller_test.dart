@@ -5,11 +5,14 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_terminal_client.dart';
+
+part 'tabs_controller_test_support.dart';
 
 void main() {
   test('Lists tabs and creates numbered terminal tabs', () async {
@@ -49,7 +52,7 @@ void main() {
         tabsControllerProvider('host-1', 'workspace-1').future,
       );
 
-      await notifier.closeTab(client.tabs.single);
+      expect(await notifier.closeTab(client.tabs.single), isTrue);
 
       expect(
         client.calls.where(
@@ -61,6 +64,52 @@ void main() {
       final terminateIndex = client.calls.indexOf('terminate session-tab-1');
       final removeIndex = client.calls.indexOf('removeTab tab-1');
       expect(terminateIndex, lessThan(removeIndex));
+    },
+  );
+
+  test('Closing a Codex tab removes it without terminal termination', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[
+        fakeTab(id: 'codex-1', title: 'Codex', kind: 'codex'),
+      ];
+    final container = _container(client);
+    final notifier = container.read(
+      tabsControllerProvider('host-1', 'workspace-1').notifier,
+    );
+    await container.read(
+      tabsControllerProvider('host-1', 'workspace-1').future,
+    );
+
+    expect(await notifier.closeTab(client.tabs.single), isTrue);
+
+    expect(client.calls, contains('removeTab codex-1'));
+    expect(client.calls.where((call) => call.startsWith('terminate')), isEmpty);
+  });
+
+  test(
+    'Closing reports failure when its provider is disposed in flight',
+    () async {
+      final termination = Completer<void>();
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..terminateCompletion = termination.future;
+      final container = _container(client);
+      final notifier = container.read(
+        tabsControllerProvider('host-1', 'workspace-1').notifier,
+      );
+      await container.read(
+        tabsControllerProvider('host-1', 'workspace-1').future,
+      );
+
+      final closing = notifier.closeTab(client.tabs.single);
+      await Future<void>.delayed(Duration.zero);
+      container.dispose();
+      termination.complete();
+
+      expect(await closing, isFalse);
+      expect(client.calls, isNot(contains('removeTab tab-1')));
     },
   );
 
@@ -105,10 +154,23 @@ void main() {
       runtimeTitle: 'Ignored Runtime Title',
       manualTitle: true,
     );
+    final manualCodex = fakeTab(
+      id: 'codex-1',
+      title: 'Renamed Chat',
+      kind: 'codex',
+      manualTitle: true,
+    );
+    final automaticCodex = fakeTab(
+      id: 'codex-2',
+      title: 'Codex',
+      kind: 'codex',
+    );
 
     expect(automatic.displayTitle, 'Review Tests');
     expect(generic.displayTitle, 'Terminal 2');
     expect(manual.displayTitle, 'Pinned Title');
+    expect(manualCodex.displayTitle, 'Renamed Chat');
+    expect(automaticCodex.displayTitle, 'Codex Chat');
   });
 
   test('Loads the current runtime title from the initial tab list', () async {
@@ -431,31 +493,4 @@ void main() {
       );
     },
   );
-}
-
-ProviderContainer _container(FakeTerminalClient client) {
-  final container = ProviderContainer(
-    overrides: [
-      terminalClientProvider('host-1').overrideWith((ref) async => client),
-      workspaceClientProvider('host-1').overrideWith((ref) async => client),
-    ],
-  );
-  addTearDown(container.dispose);
-  addTearDown(client.dispose);
-  final subscription = container.listen(
-    tabsControllerProvider('host-1', 'workspace-1'),
-    (_, _) {},
-  );
-  addTearDown(subscription.close);
-  return container;
-}
-
-Future<void> _waitUntil(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!condition()) {
-    if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException('Condition was not reached.');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
 }

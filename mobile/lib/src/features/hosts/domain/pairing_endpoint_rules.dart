@@ -1,6 +1,6 @@
 import 'dart:io';
 
-void validatePairingEndpoint(String endpoint) {
+void validatePairingEndpoint(String endpoint, {String? endpointNetwork}) {
   final uri = Uri.tryParse(endpoint.trim());
   if (uri == null ||
       uri.scheme.isEmpty ||
@@ -13,12 +13,38 @@ void validatePairingEndpoint(String endpoint) {
   }
   if (uri.scheme == 'ws' &&
       !_isLocalPairingHost(uri.host) &&
-      !_isTailscalePairingHost(uri.host)) {
+      !_isPrivateOverlayPairingHost(uri.host) &&
+      !(endpointNetwork == 'netbird' && _isDnsHostname(uri.host))) {
     throw const FormatException(
       'Plaintext pairing endpoint must use localhost, loopback, or a '
-      'Tailscale Tailnet address',
+      'private overlay address',
     );
   }
+}
+
+bool _isDnsHostname(String host) {
+  final normalized = host.toLowerCase().trim().replaceFirst(RegExp(r'\.$'), '');
+  return normalized.isNotEmpty &&
+      normalized.contains('.') &&
+      !normalized.contains(':') &&
+      !normalized.startsWith('.') &&
+      !normalized.endsWith('.') &&
+      normalized
+          .split('.')
+          .every(
+            (label) =>
+                label.isNotEmpty &&
+                label.length <= 63 &&
+                !label.startsWith('-') &&
+                !label.endsWith('-') &&
+                label.codeUnits.every(
+                  (code) =>
+                      (code >= 48 && code <= 57) ||
+                      (code >= 65 && code <= 90) ||
+                      (code >= 97 && code <= 122) ||
+                      code == 45,
+                ),
+          );
 }
 
 bool _isLocalPairingHost(String host) {
@@ -29,10 +55,10 @@ bool _isLocalPairingHost(String host) {
   return InternetAddress.tryParse(host)?.isLoopback ?? false;
 }
 
-/// Tailscale tailnet ranges (IPv4 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48).
+/// Private overlay ranges (IPv4 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48).
 /// Traffic to these addresses rides the device's WireGuard tunnel, so
 /// plaintext ws:// is acceptable. Mirrors the runtime's `is_tailscale_ip`.
-bool _isTailscalePairingHost(String host) {
+bool _isPrivateOverlayPairingHost(String host) {
   final address = InternetAddress.tryParse(host);
   if (address == null) {
     return false;

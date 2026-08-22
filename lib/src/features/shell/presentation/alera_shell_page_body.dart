@@ -110,7 +110,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             workspace: workspace,
                             prefs: shell.viewPrefs,
                             sourceControlScope: sourceControlScope,
-                            sourceControlAvailable: sourceControlScope != null,
                             focusedSourceControlRoot: canSelectSourceControlRoot
                                 ? shell
                                       .viewPrefs
@@ -123,6 +122,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             onSetContextPanelTab: controller.setContextPanelTab,
                             onSetExplorerMode: controller.setExplorerMode,
                             onSetGitDiffViewMode: controller.setGitDiffViewMode,
+                            onSetGitDiffGroupMode:
+                                controller.setGitDiffGroupMode,
                             onFocusSourceControlFolder:
                                 canSelectSourceControlRoot
                                 ? (relativePath) {

@@ -68,10 +68,15 @@ mixin _WorkbenchControllerProjects
 
   Future<void> sleepWorkspace(Workspace workspace) async {
     try {
+      final workspaceTabs = state.tabsFor(workspace.id);
       _closingTabWorkspaceIds.add(workspace.id);
       _workspaceIdsWithClearedLayout.add(workspace.id);
       _tabFocusHistory.forget(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
+      _removeCodexDrafts(workspaceTabs);
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(workspace, tab);
+      }
 
       final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
         state.tabsByWorkspace,
@@ -84,13 +89,7 @@ mixin _WorkbenchControllerProjects
       )..remove(workspace.id);
       final wasActive = state.activeWorkspaceId == workspace.id;
       final prefs = state.viewPrefs;
-      final nextPrefs = wasActive
-          ? _viewPrefsForProjectContext(
-              project: state.activeProject,
-              workspace: null,
-              prefs: prefs,
-            )
-          : prefs;
+      final nextPrefs = prefs;
 
       state = state.copyWith(
         tabsByWorkspace: tabsByWorkspace,
@@ -114,10 +113,19 @@ mixin _WorkbenchControllerProjects
 
   Future<void> removeProject(String projectId) async {
     try {
-      for (final workspace in state.workspacesFor(projectId)) {
-        _tabFocusHistory.forget(workspace.id);
-      }
+      final removedTabs = <WorkspaceTabRecord>[
+        for (final workspace in state.workspacesFor(projectId))
+          ...state.tabsFor(workspace.id),
+      ];
+      final removedWorkspaces = state.workspacesFor(projectId);
       await _projectsService.removeProject(projectId);
+      for (final workspace in removedWorkspaces) {
+        _tabFocusHistory.forget(workspace.id);
+        for (final tab in state.tabsFor(workspace.id)) {
+          await _releaseHostedReviewTab(workspace, tab);
+        }
+      }
+      _removeCodexDrafts(removedTabs);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -131,6 +139,7 @@ mixin _WorkbenchControllerProjects
     bool deleteBranch = true,
   }) async {
     try {
+      final workspaceTabs = state.tabsFor(workspace.id);
       final terminalSessionIds = state
           .tabsFor(workspace.id)
           .where((tab) => tab.kind == WorkspaceTabKind.terminal)
@@ -142,6 +151,14 @@ mixin _WorkbenchControllerProjects
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(
+          workspace,
+          tab,
+          fallbackWorkspacePath: project.repoPath,
+        );
+      }
+      _removeCodexDrafts(workspaceTabs);
       _tabFocusHistory.forget(workspace.id);
       ref
           .read(workspaceActivityControllerProvider.notifier)
@@ -394,11 +411,7 @@ mixin _WorkbenchControllerProjects
     bool recordHistory = true,
   }) async {
     final prefs = state.viewPrefs;
-    final nextPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: workspace,
-      prefs: prefs,
-    );
+    final nextPrefs = prefs;
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
@@ -428,11 +441,7 @@ mixin _WorkbenchControllerProjects
 
   Future<void> activateProject(Project project) async {
     final prefs = state.viewPrefs;
-    final nextPrefs = _viewPrefsForProjectContext(
-      project: project,
-      workspace: null,
-      prefs: prefs,
-    );
+    final nextPrefs = prefs;
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: null,

@@ -51,8 +51,11 @@ void main() {
       expect(agents.agentStatusHooks.cursor, isFalse);
       expect(agents.agentStatusHooks.agy, isFalse);
       expect(agents.agentStatusHooks.opencode, isFalse);
+      expect(agents.agentStatusHooks.opencode2, isFalse);
       expect(agents.agentStatusHooks.pi, isFalse);
       expect(agents.agentStatusHooks.amp, isFalse);
+      expect(agents.agentStatusHooks.grok, isFalse);
+      expect(agents.agentStatusHooks.fx, isFalse);
       expect(agents.agentStatusHooks.anyEnabled, isFalse);
       expect(agents.agentStatusNotificationsEnabled, isFalse);
       expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
@@ -107,7 +110,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        9,
+        11,
       );
     });
 
@@ -165,6 +168,7 @@ void main() {
       expect(hooks.claude, isTrue);
       expect(hooks.pi, isTrue);
       expect(hooks.grok, isFalse);
+      expect(hooks.fx, isFalse);
       expect(hooks.anyEnabled, isTrue);
     });
 

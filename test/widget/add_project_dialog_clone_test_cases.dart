@@ -31,7 +31,7 @@ void _registerAddProjectDialogCloneTests() {
           )
           .controller
           ?.text,
-      '/projects/alera',
+      p.join('/projects', 'alera'),
     );
     expect(
       fakePlatform.requests.single.confirmButtonText,

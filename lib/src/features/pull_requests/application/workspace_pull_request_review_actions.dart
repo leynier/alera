@@ -9,6 +9,10 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
   Future<void> mergeReview(ReviewMergeMethod method) async {
     final current = state.value;
     final review = current?.review;
+    if (current?.stack != null) {
+      await _controller.mergeCurrentReviewStack(method);
+      return;
+    }
     if (current == null ||
         review == null ||
         review.state != HostedReviewState.open ||

@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 
 void main() {
   group('AleraCliRegistrationService', () {
+    setUp(_fakeExecutablePaths.clear);
+
     test('installs a POSIX wrapper into user bin', () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'alera-cli-registration-',
@@ -29,6 +31,8 @@ void main() {
           <String, String>{'PATH': userBin},
         ),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -76,6 +80,8 @@ void main() {
           <String, String>{'PATH': p.dirname(commandPath)},
         ),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -102,16 +108,24 @@ void main() {
       await shadowDir.create(recursive: true);
       final shadowCommand = File(p.join(shadowDir.path, 'alera'));
       await shadowCommand.writeAsString('shadow command\n');
-      await Process.run('chmod', <String>['755', shadowCommand.path]);
+      _fakeExecutablePaths.add(shadowCommand.path);
       final userBin = p.join(home.path, '.local', 'bin');
       final service = AleraCliRegistrationService(
         cliResolver: const _FakeAleraCliResolver(
           AleraCliCommand(executable: '/Applications/Alera.app/alera'),
         ),
         commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
-          <String, String>{'PATH': '${shadowDir.path}:$userBin:/usr/bin'},
+          <String, String>{
+            'PATH': <String>[
+              shadowDir.path,
+              userBin,
+              p.join(tempDir.path, 'usr', 'bin'),
+            ].join(_testPathListSeparator),
+          },
         ),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -146,9 +160,17 @@ void main() {
           AleraCliCommand(executable: '/Applications/Alera.app/alera'),
         ),
         commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
-          <String, String>{'PATH': '${shadowDir.path}:$userBin:/usr/bin'},
+          <String, String>{
+            'PATH': <String>[
+              shadowDir.path,
+              userBin,
+              p.join(tempDir.path, 'usr', 'bin'),
+            ].join(_testPathListSeparator),
+          },
         ),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -181,6 +203,8 @@ void main() {
         commandEnvironmentResolverFactory: () =>
             _FakeCommandEnvironmentResolver(environment),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -217,6 +241,8 @@ void main() {
           <String, String>{'PATH': '$userBin:/usr/bin'},
         ),
         processRunner: const _FakeProcessRunner(applyChmod: false),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: _testPathListSeparator,
         applicationSupportDirectory: () async => support,
         operatingSystem: 'macos',
         homePath: home.path,
@@ -249,6 +275,8 @@ void main() {
           <String, String>{'Path': '$commandDir;C:\\Windows'},
         ),
         processRunner: _FakeProcessRunner(),
+        executableChecker: _fakeIsExecutable,
+        pathListSeparator: ';',
         applicationSupportDirectory: () async => support,
         operatingSystem: 'windows',
         localAppDataPath: localAppData,
@@ -293,6 +321,8 @@ void main() {
             },
           ),
           processRunner: _FakeProcessRunner(),
+          executableChecker: _fakeIsExecutable,
+          pathListSeparator: ';',
           applicationSupportDirectory: () async => support,
           operatingSystem: 'windows',
           localAppDataPath: localAppData,
@@ -345,12 +375,7 @@ class _FakeProcessRunner implements ProcessRunner {
     Map<String, String>? environment,
   }) async {
     if (applyChmod && executable == 'chmod') {
-      final result = await Process.run(executable, arguments);
-      return ProcessRunOutput(
-        exitCode: result.exitCode,
-        stdout: result.stdout as String,
-        stderr: result.stderr as String,
-      );
+      _fakeExecutablePaths.add(arguments.last);
     }
     return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
   }
@@ -361,7 +386,15 @@ class _FakeProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) {
     throw UnimplementedError();
   }
+}
+
+final Set<String> _fakeExecutablePaths = <String>{};
+final String _testPathListSeparator = Platform.isWindows ? ';' : ':';
+
+Future<bool> _fakeIsExecutable(String path) async {
+  return _fakeExecutablePaths.contains(path);
 }

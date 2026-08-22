@@ -5,10 +5,18 @@ use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
 
 use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
-use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
+use self::cursor_overlay::prepare_cursor;
+use super::integration_hook_scripts::write_managed_script;
+use super::integration_plugins::{
+    install_amp_plugin, install_opencode2_plugin, install_opencode_plugin, install_pi_plugin,
+};
 
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
+#[path = "integration_config_cursor_overlay.rs"]
+mod cursor_overlay;
+#[path = "integration_config_user_hooks.rs"]
+mod user_hooks;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -16,7 +24,10 @@ const LEGACY_MANAGED_MARKERS: [&str; 9] = [
     "alera-claude-hook.",
     "alera-copilot-hook.",
     "alera-cursor-hook.",
-    "alera-agy-hook.",
+    // Antigravity is the one agent whose desktop installer also writes per-event
+    // Windows wrappers (`alera-agy-stop.cmd` and friends), so the marker has to
+    // cover the whole `alera-agy-*` family rather than just the core script.
+    "alera-agy-",
     "alera-opencode-hook.",
     "alera-pi-hook.",
     "alera-amp-hook.",
@@ -25,6 +36,7 @@ const LEGACY_MANAGED_MARKERS: [&str; 9] = [
 
 pub fn prepare_enabled_integrations(
     runtime_dir: &Path,
+    session_id: Option<&str>,
     settings: &RuntimeAgentStatusHookSettings,
     environment: &mut BTreeMap<String, String>,
 ) -> Vec<String> {
@@ -54,12 +66,19 @@ pub fn prepare_enabled_integrations(
             Err(error) => warnings.push(format!("Claude: {error}")),
         }
     }
+    // The Cursor plugin is per terminal session, so it can only be built when a
+    // session is being launched. `reconcile_agent_integrations` has none.
+    if let (true, Some(session_id)) = (settings.cursor, session_id) {
+        if let Err(error) = prepare_cursor(runtime_dir, session_id, &script, environment) {
+            warnings.push(format!("Cursor: {error}"));
+        }
+    }
     for result in [
         settings.copilot.then(|| install_copilot(&script)),
-        settings.cursor.then(|| install_cursor(&script)),
         settings.agy.then(|| install_agy(&script)),
         settings.grok.then(|| install_grok(&script)),
         settings.opencode.then(install_opencode_plugin),
+        settings.opencode2.then(install_opencode2_plugin),
         settings.pi.then(install_pi_plugin),
         settings.amp.then(install_amp_plugin),
     ]
@@ -73,12 +92,34 @@ pub fn prepare_enabled_integrations(
     warnings
 }
 
+/// Host start: clear what a previous run left behind, then reconcile.
+///
+/// The clearing has to happen here and only here. The host owns no PTY yet, so
+/// this is the one moment a per-session leftover is provably dead, and it is
+/// also the only point that runs when every hook toggle is off.
+pub fn start_agent_integrations(
+    runtime_dir: &Path,
+    settings: &RuntimeAgentStatusHookSettings,
+) -> Vec<String> {
+    let mut warnings =
+        match home_dir().and_then(|home| cursor_overlay::clear_stale_state(runtime_dir, &home)) {
+            Ok(()) => Vec::new(),
+            Err(error) => vec![format!("Cursor: {error}")],
+        };
+    match home_dir().and_then(|home| user_hooks::cleanup_claude_user_hooks(&home)) {
+        Ok(()) => {}
+        Err(error) => warnings.push(format!("Claude: {error}")),
+    }
+    warnings.extend(reconcile_agent_integrations(runtime_dir, settings));
+    warnings
+}
+
 pub fn reconcile_agent_integrations(
     runtime_dir: &Path,
     settings: &RuntimeAgentStatusHookSettings,
 ) -> Vec<String> {
     let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    prepare_enabled_integrations(runtime_dir, settings, &mut environment)
+    prepare_enabled_integrations(runtime_dir, None, settings, &mut environment)
 }
 
 fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
@@ -221,28 +262,6 @@ fn install_copilot(script: &Path) -> anyhow::Result<()> {
     )
 }
 
-fn install_cursor(script: &Path) -> anyhow::Result<()> {
-    let path = home_dir()?.join(".cursor/hooks.json");
-    let mut config = read_json_object(&path)?.unwrap_or_default();
-    config.insert("version".to_string(), json!(1));
-    let hooks = object_field(&mut config, "hooks");
-    for event in [
-        "beforeSubmitPrompt",
-        "stop",
-        "preToolUse",
-        "postToolUse",
-        "postToolUseFailure",
-        "beforeShellExecution",
-        "beforeMCPExecution",
-        "afterAgentResponse",
-    ] {
-        let mut definitions = clean_managed_definitions(hooks.remove(event));
-        definitions.push(json!({ "command": managed_command(script, "cursor", event) }));
-        hooks.insert(event.to_string(), Value::Array(definitions));
-    }
-    write_json_object(&path, &config)
-}
-
 fn install_grok(script: &Path) -> anyhow::Result<()> {
     let home = env_path("GROK_HOME").unwrap_or(home_dir()?.join(".grok"));
     let path = home.join("hooks/alera-status.json");
@@ -277,18 +296,32 @@ fn install_grok(script: &Path) -> anyhow::Result<()> {
 fn install_agy(script: &Path) -> anyhow::Result<()> {
     let path = home_dir()?.join(".gemini/config/hooks.json");
     let mut config = read_json_object(&path)?.unwrap_or_default();
-    let bundle = object_field(&mut config, "alera-status");
-    for event in ["PreInvocation", "PostInvocation", "Stop"] {
-        bundle.insert(
-            event.to_string(),
-            json!([{ "type": "command", "command": managed_command(script, "agy", event), "timeout": 10 }]),
-        );
-    }
-    bundle.insert(
-        "PostToolUse".to_string(),
-        json!([{ "matcher": "*", "hooks": [{ "type": "command", "command": managed_command(script, "agy", "PostToolUse") }] }]),
-    );
+    apply_agy_bundle(&mut config, script);
     write_json_object(&path, &config)
+}
+
+// Antigravity keeps each hook set under its own top-level key and uses two
+// schemas inside it: lifecycle events take a flat `{ type, command }` handler,
+// tool events a matcher wrapping `hooks`. `PreToolUse` is deliberately absent -
+// Antigravity requires a permission `decision` from it, which an observational
+// hook cannot give without taking over the user's tool policy.
+fn apply_agy_bundle(config: &mut Map<String, Value>, script: &Path) {
+    let bundle = object_field(config, "alera-status");
+    // Installing is an explicit request to enable, so the documented `enabled`
+    // opt-out cannot survive it. Every other non-event key is left alone.
+    bundle.remove("enabled");
+    for event in ["PreInvocation", "PostInvocation", "Stop"] {
+        let mut definitions = clean_managed_definitions(bundle.remove(event));
+        definitions.push(
+            json!({ "type": "command", "command": managed_command(script, "agy", event), "timeout": 10 }),
+        );
+        bundle.insert(event.to_string(), Value::Array(definitions));
+    }
+    let mut tool_definitions = clean_managed_definitions(bundle.remove("PostToolUse"));
+    tool_definitions.push(
+        json!({ "matcher": "*", "hooks": [{ "type": "command", "command": managed_command(script, "agy", "PostToolUse"), "timeout": 10 }] }),
+    );
+    bundle.insert("PostToolUse".to_string(), Value::Array(tool_definitions));
 }
 
 // Non-tool events have nothing to match on. Their schemas expect the key to be
@@ -322,28 +355,6 @@ fn managed_command(script: &Path, agent: &str, event: &str) -> String {
             sh_quote(&path_string(script)),
         )
     }
-}
-
-fn write_managed_script() -> anyhow::Result<PathBuf> {
-    let directory = home_dir()?.join(".alera/agent-hooks");
-    std::fs::create_dir_all(&directory)?;
-    #[cfg(windows)]
-    let (path, contents) = (
-        directory.join("alera-runtime-agent-hook.cmd"),
-        WINDOWS_HOOK_SCRIPT,
-    );
-    #[cfg(not(windows))]
-    let (path, contents) = (
-        directory.join("alera-runtime-agent-hook.sh"),
-        POSIX_HOOK_SCRIPT,
-    );
-    std::fs::write(&path, contents)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
-    }
-    Ok(path)
 }
 
 fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
@@ -433,7 +444,7 @@ fn link_if_present(source: &Path, target: &Path) {
     }
 }
 
-fn home_dir() -> anyhow::Result<PathBuf> {
+pub(super) fn home_dir() -> anyhow::Result<PathBuf> {
     dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not resolve the user home directory."))
 }
 
@@ -447,48 +458,10 @@ fn path_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+#[cfg(not(windows))]
 fn sh_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
-
-const POSIX_HOOK_SCRIPT: &str = r#"#!/bin/sh
-if [ -z "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -n "$ALERA_RUNTIME_DIR" ]; then
-  ALERA_AGENT_HOOK_ENDPOINT="$ALERA_RUNTIME_DIR/agent-hooks/endpoint.env"
-fi
-if [ -n "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -r "$ALERA_AGENT_HOOK_ENDPOINT" ]; then
-  . "$ALERA_AGENT_HOOK_ENDPOINT" 2>/dev/null || :
-fi
-if [ -z "$ALERA_AGENT_HOOK_PORT" ] || [ -z "$ALERA_AGENT_HOOK_TOKEN" ] || [ -z "$ALERA_TERMINAL_SESSION_ID" ] || [ -z "$ALERA_WORKSPACE_ID" ] || [ -z "$ALERA_TAB_ID" ] || [ -z "$ALERA_AGENT_TYPE" ]; then
-  exit 0
-fi
-payload=$(cat)
-if [ -z "$payload" ]; then payload='{}'; fi
-curl -sS -X POST "http://127.0.0.1:${ALERA_AGENT_HOOK_PORT}/hook/${ALERA_AGENT_TYPE}" \
-  --connect-timeout 0.5 --max-time 1.5 \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -H "X-Alera-Agent-Hook-Token: ${ALERA_AGENT_HOOK_TOKEN}" \
-  --data-urlencode "terminalSessionId=${ALERA_TERMINAL_SESSION_ID}" \
-  --data-urlencode "workspaceId=${ALERA_WORKSPACE_ID}" \
-  --data-urlencode "tabId=${ALERA_TAB_ID}" \
-  --data-urlencode "hookEventName=${ALERA_AGENT_HOOK_EVENT}" \
-  --data-urlencode "version=${ALERA_AGENT_HOOK_VERSION}" \
-  --data-urlencode "payload=${payload}" >/dev/null 2>&1 || true
-exit 0
-"#;
-
-#[cfg(windows)]
-const WINDOWS_HOOK_SCRIPT: &str = r#"@echo off
-setlocal
-if not defined ALERA_AGENT_HOOK_ENDPOINT if defined ALERA_RUNTIME_DIR set "ALERA_AGENT_HOOK_ENDPOINT=%ALERA_RUNTIME_DIR%\agent-hooks\endpoint.cmd"
-if defined ALERA_AGENT_HOOK_ENDPOINT if exist "%ALERA_AGENT_HOOK_ENDPOINT%" call "%ALERA_AGENT_HOOK_ENDPOINT%" 2>nul
-if "%ALERA_AGENT_HOOK_PORT%"=="" exit /b 0
-if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0
-if "%ALERA_TERMINAL_SESSION_ID%"=="" exit /b 0
-if "%ALERA_WORKSPACE_ID%"=="" exit /b 0
-if "%ALERA_TAB_ID%"=="" exit /b 0
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
-exit /b 0
-"#;
 
 #[cfg(test)]
 #[path = "integration_config_tests.rs"]

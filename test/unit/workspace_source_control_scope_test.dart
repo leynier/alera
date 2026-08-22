@@ -3,6 +3,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   test('normalizes workspace paths without trimming significant spaces', () {
@@ -81,7 +82,7 @@ void main() {
         },
       ),
     );
-    expect(folderScope?.path, '/repo/alera/packages/app');
+    expect(folderScope?.path, p.join('/repo/alera', 'packages', 'app'));
     expect(folderScope?.displayPath, 'packages/app');
     expect(
       WorkspaceSourceControlScope.resolve(

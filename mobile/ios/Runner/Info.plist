@@ -35,8 +35,12 @@
 		<string>Scan Alera pairing codes.</string>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>Connect to Alera hosts on your local network.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Record speech for AI Dictation.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Choose images to include in a workspace prompt.</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>Convert your speech to text for AI Dictation.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

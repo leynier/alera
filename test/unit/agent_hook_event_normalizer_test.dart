@@ -487,6 +487,29 @@ void main() {
       );
     });
 
+    test('ends the Cursor approval wait when the execution starts', () {
+      final shell = normalizeAgentHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'afterShellExecution',
+          payload: const <String, Object?>{'command': 'sleep 30'},
+        ),
+      );
+      expect(shell?.state, AgentStatusState.working);
+      expect(shell?.toolName, 'Shell');
+      expect(shell?.toolInput, 'sleep 30');
+
+      final mcp = normalizeAgentHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'afterMCPExecution',
+          payload: const <String, Object?>{'tool_name': 'Browser'},
+        ),
+      );
+      expect(mcp?.state, AgentStatusState.working);
+      expect(mcp?.toolName, 'Browser');
+    });
+
     test('extracts Cursor shell, MCP, and tool response snapshots', () {
       final shell = normalizeAgentHookEvent(
         _event(

@@ -4,10 +4,17 @@ mod agent_profile_models;
 mod agent_profile_store;
 #[cfg(test)]
 mod agent_profile_store_tests;
+mod agent_quota_settings_models;
 mod alera_account_models;
 mod alera_account_store;
 #[cfg(test)]
 mod alera_account_store_tests;
+mod automation_catalog_store;
+mod automation_models;
+mod automation_run_store;
+mod automation_schedule;
+mod automation_store;
+mod automation_templates;
 mod browser_certificate_store;
 #[cfg(test)]
 mod browser_certificate_store_tests;
@@ -56,11 +63,20 @@ mod workbench_shared_state_store_tests;
 mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
+mod worktree_setup_models;
 
 pub use agent_canvas_models::*;
 pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult};
 pub use agent_profile_models::*;
+pub use agent_quota_settings_models::*;
 pub use alera_account_models::*;
+#[allow(unused_imports)]
+pub use automation_catalog_store::*;
+pub use automation_models::*;
+#[allow(unused_imports)]
+pub use automation_run_store::*;
+pub use automation_schedule::*;
+pub use automation_templates::*;
 pub use browser_models::*;
 pub use browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
@@ -79,3 +95,4 @@ pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use store::*;
 pub use workbench_shared_state_models::*;
+pub use worktree_setup_models::*;

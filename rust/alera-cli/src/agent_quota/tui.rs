@@ -43,6 +43,23 @@ enum TuiCompletion {
     Antigravity,
 }
 
+/// Environment for a quota CLI, or `None` when the shell could not be probed
+/// and the inherited environment has to stand in.
+///
+/// The CLI is exec'd directly rather than through a shell, so unlike a terminal
+/// tab nothing re-sources the user's rc files for it. Without this it would run
+/// with whatever launchd handed the app, missing both the PATH that resolves
+/// the binary and the exports the CLI reads its own configuration from.
+fn tui_command_environment(
+    login_shell_environment: Option<BTreeMap<String, String>>,
+    overrides: BTreeMap<String, String>,
+) -> Option<BTreeMap<String, String>> {
+    let mut environment = login_shell_environment?;
+    environment.extend(overrides);
+    environment.insert("TERM".to_string(), "xterm-256color".to_string());
+    Some(environment)
+}
+
 async fn run_tui_command(
     command: &str,
     arguments: &[&str],
@@ -56,6 +73,10 @@ async fn run_tui_command(
         .map(|argument| (*argument).to_string())
         .collect::<Vec<_>>();
     let slash_command = slash_command.to_string();
+    let resolved = tui_command_environment(
+        crate::login_shell_environment::login_shell_command_environment().await,
+        environment.clone(),
+    );
     tokio::task::spawn_blocking(move || -> Result<String> {
         let pty_system = native_pty_system();
         let pair = pty_system.openpty(PtySize {
@@ -68,10 +89,22 @@ async fn run_tui_command(
         for argument in arguments {
             builder.arg(argument);
         }
-        for (key, value) in environment {
-            builder.env(key, value);
+        match resolved {
+            // `CommandBuilder` seeds itself from this process, so clearing is
+            // what makes the resolved environment authoritative.
+            Some(resolved) => {
+                builder.env_clear();
+                for (key, value) in resolved {
+                    builder.env(key, value);
+                }
+            }
+            None => {
+                for (key, value) in environment {
+                    builder.env(key, value);
+                }
+                builder.env("TERM", "xterm-256color");
+            }
         }
-        builder.env("TERM", "xterm-256color");
         let mut child = pair
             .slave
             .spawn_command(builder)

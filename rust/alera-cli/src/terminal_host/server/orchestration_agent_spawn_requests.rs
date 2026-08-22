@@ -2,7 +2,7 @@ use alera_core::runtime::{OrchestrationDispatchStatus, WorkspaceStatus, Workspac
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupDelivery};
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
 use crate::terminal_host::orchestration::coordinator_loop::CoordinatorConfig;
 use crate::terminal_host::orchestration::dispatch_preamble::{build_dispatch_bootstrap, BaseDrift};
 
@@ -57,9 +57,18 @@ impl ServerActor {
                 .is_owned_orchestration_spawn(session_id, &dispatch.task_id)
                 .await
         {
-            self.runtime_store
+            let failed = self
+                .runtime_store
                 .fail_orchestration_startup(&dispatch.id, reason)
-                .await
+                .await;
+            if failed.is_ok() {
+                // The tab has to say a failure is already on the task's budget.
+                // A spawn timeout arriving afterwards finds the dispatch no
+                // longer active and would otherwise charge the task a second
+                // time for the same dead terminal.
+                self.mark_owned_spawn_failure(session_id, reason).await;
+            }
+            failed
         } else {
             self.runtime_store
                 .fail_orchestration_dispatch(&dispatch.id, reason)
@@ -97,67 +106,33 @@ impl ServerActor {
             ));
             return Ok(());
         }
-        let spec_preview: String = ready
-            .first()
-            .map(|task| task.spec.chars().take(40).collect())
-            .unwrap_or_else(|| "orchestration".to_string());
-        let adapter = adapter_for(&config.agent_type)
+        adapter_for(&config.agent_type)
             .ok_or_else(|| anyhow::anyhow!("unsupported agent type: {}", config.agent_type))?;
-        if adapter.startup_delivery == AgentStartupDelivery::InitialPromptArgument {
-            for task in ready {
-                let Some(preflight) = self.coordinator_dispatch_preflight(config, task).await
-                else {
-                    continue;
-                };
-                let profile = self.coordinator_profile_for_task(task).await;
-                let handle = self
-                    .coordinator_spawn_predispatched_worker(
-                        workspace_id,
-                        &config.agent_type,
-                        &task.id,
-                        config.coordinator_handle.as_deref(),
-                        preflight,
-                        profile.as_deref(),
-                    )
-                    .await?;
-                self.coordinator_log(&format!(
-                    "created Codex worker terminal {handle} with pre-dispatch for {}",
-                    task.id
-                ));
-                break;
-            }
-            return Ok(());
+        // Every adapter is pre-dispatched. Waiting for the agent to announce
+        // itself first is not an option any more, and never was a working one:
+        // a worker that has been asked nothing never reports that it is idle,
+        // so a bare terminal would sit there holding the task forever.
+        for task in ready {
+            let Some(preflight) = self.coordinator_dispatch_preflight(config, task).await else {
+                continue;
+            };
+            let profile = self.coordinator_profile_for_task(task).await;
+            let handle = self
+                .coordinator_spawn_predispatched_worker(
+                    workspace_id,
+                    &config.agent_type,
+                    &task.id,
+                    config.coordinator_handle.as_deref(),
+                    preflight,
+                    profile.as_deref(),
+                )
+                .await?;
+            self.coordinator_log(&format!(
+                "created worker terminal {handle} with pre-dispatch for {}",
+                task.id
+            ));
+            break;
         }
-        let now = chrono::Utc::now();
-        let id = uuid::Uuid::new_v4().to_string();
-        // Hook-driven adapters get a bare terminal that dispatches once the
-        // agent reports presence, so the stage profile only decides the command.
-        let (launch_command, managed_launch) = match ready.first() {
-            None => (None, None),
-            Some(task) => self
-                .coordinator_profile_launch_for_task(task)
-                .await
-                .unwrap_or((None, None)),
-        };
-        let tab = WorkspaceTabRecord {
-            id: id.clone(),
-            workspace_id: workspace_id.clone(),
-            kind: "terminal".to_string(),
-            title: format!("Worker: {spec_preview}"),
-            created_at: now,
-            updated_at: now,
-            payload: json!({
-                "terminalSessionId": id,
-                "initialCommand": launch_command
-                    .unwrap_or_else(|| adapter.default_command.to_string()),
-                "initialManagedAgentLaunch": managed_launch,
-                "spawnOnCreate": true,
-            }),
-        };
-        self.upsert_workspace_tab_and_spawn(tab)
-            .await
-            .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
-        self.coordinator_log(&format!("created worker terminal tab {id}"));
         Ok(())
     }
 
@@ -238,36 +213,22 @@ impl ServerActor {
             .get("keepOnFailure")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let bootstrap = (adapter.startup_delivery == AgentStartupDelivery::InitialPromptArgument)
-            .then(build_dispatch_bootstrap);
-        let mut dispatch_response = if bootstrap.is_some() {
-            Some(
-                self.orchestration_dispatch(&json!({
-                    "task": task_id,
-                    "to": id,
-                    "from": from,
-                    "inject": false,
-                    "completionPolicy": "return-immediately",
-                    "terminalPolicy": "keep-open",
-                    "agentProfile": resolved.profile_name,
-                    "agentQuotaGroup": resolved.quota_group,
-                }))
-                .await?,
-            )
-        } else {
-            None
-        };
+        let bootstrap = build_dispatch_bootstrap();
+        let prompt_after_ready = adapter.startup_prompt == AgentStartupPrompt::TerminalAfterReady;
+        let mut dispatch_response = Some(
+            self.orchestration_dispatch(&json!({
+                "task": task_id,
+                "to": id,
+                "from": from,
+                "inject": false,
+                "completionPolicy": "return-immediately",
+                "terminalPolicy": "keep-open",
+                "agentProfile": resolved.profile_name,
+                "agentQuotaGroup": resolved.quota_group,
+            }))
+            .await?,
+        );
         let now = chrono::Utc::now();
-        let pending_orchestration =
-            (adapter.startup_delivery == AgentStartupDelivery::ReadinessInjection).then(|| {
-                json!({
-                    "task": task_id,
-                    "from": from,
-                    "agent": agent_type,
-                    "profile": resolved.profile_name,
-                    "quotaGroup": resolved.quota_group,
-                })
-            });
         let orchestration_preflight = preflight.as_ref().and_then(|(task_spec, base_drift)| {
             dispatch_response.as_ref().and_then(|response| {
                 let dispatch_id = response.pointer("/dispatch/id")?.as_str()?;
@@ -295,9 +256,15 @@ impl ServerActor {
                 "terminalSessionId": id,
                 "initialCommand": command,
                 "initialManagedAgentLaunch": resolved.managed_launch,
-                "initialPrompt": bootstrap.clone(),
+                "initialPrompt": (!prompt_after_ready).then(|| bootstrap.clone()),
+                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                    "agent": adapter.agent_type,
+                    "prompt": bootstrap.clone(),
+                })),
+                // The adapter decides the prompt's shape at spawn, so the tab
+                // has to name its agent rather than only the spawn metadata.
+                "agentType": agent_type,
                 "spawnOnCreate": true,
-                "pendingOrchestration": pending_orchestration,
                 "orchestrationPreflight": orchestration_preflight,
                 "orchestrationSpawn": {
                     "task": task_id,
@@ -331,7 +298,7 @@ impl ServerActor {
             "coordinatorHandle": task.coordinator_handle,
             "assigneeHandle": id,
             "startupState": "terminal_started",
-            "acceptanceState": if bootstrap.is_some() { "awaiting_acceptance" } else { "pending_agent_readiness" },
+            "acceptanceState": "awaiting_acceptance",
         });
         if let Some(dispatch) = dispatch_response.take() {
             response["dispatch"] = dispatch["dispatch"].clone();
