@@ -1,7 +1,9 @@
 import 'package:alera_mobile/src/features/updater/application/mobile_update_providers.dart';
 import 'package:alera_mobile/src/features/updater/domain/mobile_release.dart';
+import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:alera_mobile/src/features/updater/presentation/mobile_update_prompt.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -71,13 +73,28 @@ void main() {
     expect(opened, <Uri>[_release.apkUrl]);
   });
 
-  testWidgets('default download launcher requests an external application', (
+  testWidgets('download opens the apk in the standalone browser', (
     tester,
   ) async {
     final previousPlatform = UrlLauncherPlatform.instance;
     final fakePlatform = _RecordingUrlLauncherPlatform();
     UrlLauncherPlatform.instance = fakePlatform;
     addTearDown(() => UrlLauncherPlatform.instance = previousPlatform);
+
+    final opened = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel(mobileExternalBrowserChannelName),
+      (call) async {
+        opened.add(call);
+        return true;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel(mobileExternalBrowserChannelName),
+        null,
+      ),
+    );
 
     final copied = <String>[];
     await _pump(tester, release: _release, copied: copied);
@@ -86,10 +103,13 @@ void main() {
     await tester.tap(find.text('Download'));
     await tester.pumpAndSettle();
 
-    expect(fakePlatform.launchedUrls, <String>[_release.apkUrl.toString()]);
-    expect(fakePlatform.modes, <PreferredLaunchMode>[
-      PreferredLaunchMode.externalApplication,
-    ]);
+    expect(copied, isEmpty);
+    expect(opened, hasLength(1));
+    expect(opened.single.method, 'open');
+    expect(opened.single.arguments, <String, Object>{
+      'url': _release.apkUrl.toString(),
+    });
+    expect(fakePlatform.launchedUrls, isEmpty);
   });
 
   testWidgets('copies the apk link without opening it', (tester) async {
