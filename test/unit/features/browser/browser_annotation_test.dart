@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('serializes anchors and preserves comment copies', () {
-    const anchor = BrowserAnnotationAnchor(
+    final anchor = BrowserAnnotationAnchor(
       x: -0.2,
       y: 0.4,
       width: 1.4,
@@ -22,9 +22,9 @@ void main() {
       'name': 'Save',
       'tag': 'button',
     });
-    expect(const BrowserAnnotationElement(anchor: anchor).anchor, anchor);
+    expect(BrowserAnnotationElement(anchor: anchor).anchor, anchor);
 
-    const comment = BrowserAnnotationComment(
+    final comment = BrowserAnnotationComment(
       id: 'comment',
       kind: BrowserAnnotationKind.element,
       anchor: anchor,
