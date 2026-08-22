@@ -9,6 +9,16 @@ mixin MobileRuntimeClientHostTools {
     Duration? timeout,
   ]);
 
+  Future<void> _refreshCrashReportingRuntimeContext() async {
+    try {
+      final status = await requestMap('status.get');
+      CrashReporting.updateRuntimeContext(this, status);
+    } on Object {
+      // Version metadata must never make an otherwise compatible host unusable.
+      CrashReporting.clearRuntimeContext(this);
+    }
+  }
+
   Future<PortableHostSettings> loadPortableSettings() async {
     final payload = await requestMap('mobile.runtimeSettings.get');
     return PortableHostSettings.fromJson(payload);

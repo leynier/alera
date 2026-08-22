@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
@@ -110,13 +111,11 @@ class MobileRuntimeClient
       StreamController<MobileRuntimeEvent>.broadcast();
   final StreamController<MobileTerminalOutputEvent> _terminalOutput =
       StreamController<MobileTerminalOutputEvent>.broadcast();
-
   late final StreamSubscription<Object?> _subscription;
   int _nextRequestId = 1;
   bool _disposed = false;
   Object? _closedError;
   StackTrace? _closedStackTrace;
-
   Set<String> _runtimeCapabilities = const <String>{};
   bool _binaryFrames = false;
 
@@ -263,6 +262,7 @@ class MobileRuntimeClient
     // The response decides, not the request: an older runtime simply omits it
     // and keeps sending base64 inside JSON.
     _binaryFrames = payload['binaryFrames'] == true;
+    await _refreshCrashReportingRuntimeContext();
     return payload;
   }
 
@@ -386,6 +386,7 @@ class MobileRuntimeClient
       return;
     }
     _disposed = true;
+    CrashReporting.clearRuntimeContext(this);
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
         completer.completeError(StateError('Mobile runtime client closed.'));
@@ -454,6 +455,7 @@ class MobileRuntimeClient
     // The single funnel every transport failure passes through, and the most
     // common thing a user reports about this app.
     final normalized = normalizeHostConnectionError(error);
+    CrashReporting.clearRuntimeContext(this);
     Logger('MobileRuntimeClient').warning(
       'runtime connection failed with ${_pending.length} pending requests',
       error,

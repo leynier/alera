@@ -23,6 +23,10 @@ Future<void> _bootstrap() async {
   installGlobalErrorHandlers();
 
   final info = await PackageInfo.fromPlatform();
+  CrashReporting.configureAppVersion(
+    version: info.version,
+    build: info.buildNumber,
+  );
   final crashReportingEnabled = await readCrashReportingEnabled();
 
   await CrashReporting.run(

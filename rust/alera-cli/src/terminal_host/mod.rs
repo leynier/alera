@@ -16,6 +16,7 @@ pub mod protocol;
 pub(crate) mod push_notifications;
 pub mod resources;
 pub(crate) mod restart;
+pub(crate) mod runtime_build_info;
 pub mod server;
 pub mod session;
 pub mod sleep_detector;

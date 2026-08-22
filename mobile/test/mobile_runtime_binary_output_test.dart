@@ -69,10 +69,10 @@ void main() {
     addTearDown(client.dispose);
 
     await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
-    expect(
-      (runtime.requests.single['payload']! as Map)['binaryFrames'],
-      isTrue,
+    final hello = runtime.requests.singleWhere(
+      (request) => request['type'] == 'mobile.hello',
     );
+    expect((hello['payload']! as Map)['binaryFrames'], isTrue);
 
     final output = client.terminalOutput.first;
     // Bytes that are not valid UTF-8, so a JSON round-trip without base64

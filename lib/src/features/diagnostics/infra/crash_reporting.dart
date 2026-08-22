@@ -19,12 +19,48 @@ import 'package:sentry/sentry.dart';
 /// errors are already covered by the global handlers, and the crashes worth
 /// catching natively happen in the Rust sidecar, which reports them itself.
 abstract final class CrashReporting {
+  static const String _surface = 'desktop';
+  static const String _versionsContextKey = 'alera_versions';
+
   static bool _enabled = false;
   static bool _initialized = false;
+  static String _appVersion = 'unknown';
+  static String _appBuild = 'unknown';
+  static _RuntimeVersionContext? _runtime;
 
   static bool get isEnabled => _enabled;
 
   static void setEnabled(bool enabled) => _enabled = enabled;
+
+  static void configureAppVersion({
+    required String version,
+    required String build,
+  }) {
+    _appVersion = _knownValue(version) ?? 'unknown';
+    _appBuild = _knownValue(build) ?? 'unknown';
+  }
+
+  /// Records the version reported by the host that answered `status.get`.
+  ///
+  /// The bundled sidecar is deliberately not used as a fallback: a persistent
+  /// host may outlive an app update, so only the live reply identifies the code
+  /// that actually served an operation.
+  static void updateRuntimeContext(Map<String, Object?> status) {
+    final version = _knownValue(status['runtimeHostVersion']);
+    if (version == null) {
+      _runtime = null;
+      return;
+    }
+    _runtime = _RuntimeVersionContext(
+      version: version,
+      build: _knownValue(status['runtimeHostCommit']),
+      protocol: status['protocolVersion'] is int
+          ? status['protocolVersion'] as int
+          : null,
+    );
+  }
+
+  static void clearRuntimeContext() => _runtime = null;
 
   /// Masks every text-bearing field of an event, then drops it entirely when
   /// reporting is off.
@@ -48,6 +84,7 @@ abstract final class CrashReporting {
             true) {
       return null;
     }
+    _applyVersionContext(event);
     final message = event.message;
     if (message != null) {
       event.message = SentryMessage(
@@ -71,6 +108,33 @@ abstract final class CrashReporting {
     return event;
   }
 
+  static void _applyVersionContext(SentryEvent event) {
+    final runtime = _runtime;
+    final tags = event.tags ??= <String, String>{};
+    tags['surface'] = _surface;
+    tags['app_version'] = _appVersion;
+    tags['app_build'] = _appBuild;
+    tags['runtime_state'] = runtime == null ? 'unavailable' : 'connected';
+    if (runtime != null) {
+      tags['runtime_version'] = runtime.version;
+      if (runtime.build case final build?) {
+        tags['runtime_build'] = build;
+      }
+      if (runtime.protocol case final protocol?) {
+        tags['runtime_protocol'] = protocol.toString();
+      }
+    }
+    event.contexts[_versionsContextKey] = <String, Object?>{
+      'surface': _surface,
+      'app_version': _appVersion,
+      'app_build': _appBuild,
+      'runtime_state': runtime == null ? 'unavailable' : 'connected',
+      if (runtime != null) 'runtime_version': runtime.version,
+      'runtime_build': ?runtime?.build,
+      'runtime_protocol': ?runtime?.protocol,
+    };
+  }
+
   static void _applyOptions(SentryOptions options, String release) {
     options.dsn = kAleraDesktopSentryDsn;
     // The app handles repository paths, branch names and command lines; there
@@ -78,6 +142,7 @@ abstract final class CrashReporting {
     options.sendDefaultPii = false;
     options.environment = kAleraFlavor;
     options.release = release;
+    options.dist = _appBuild == 'unknown' ? null : _appBuild;
     options.beforeSend = (event, hint) async => filterEvent(event);
   }
 
@@ -102,5 +167,25 @@ abstract final class CrashReporting {
   static void resetForTesting() {
     _enabled = false;
     _initialized = false;
+    _appVersion = 'unknown';
+    _appBuild = 'unknown';
+    _runtime = null;
   }
+}
+
+String? _knownValue(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty || text == 'unknown' ? null : text;
+}
+
+final class _RuntimeVersionContext {
+  const _RuntimeVersionContext({
+    required this.version,
+    required this.build,
+    required this.protocol,
+  });
+
+  final String version;
+  final String? build;
+  final int? protocol;
 }

@@ -6,7 +6,9 @@
 //! thread that performs it.
 
 use super::redaction::redact;
-use sentry::protocol::Event;
+use crate::terminal_host::protocol::PROTOCOL_VERSION;
+use crate::terminal_host::runtime_build_info::{self, RUNTIME_SURFACE};
+use sentry::protocol::{Context, Event, Value};
 use sentry::ClientOptions;
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -62,9 +64,35 @@ pub fn redact_event(mut event: Event<'static>) -> Event<'static> {
     event
 }
 
+fn enrich_version_context(mut event: Event<'static>) -> Event<'static> {
+    let version = runtime_build_info::version();
+    let build = runtime_build_info::build();
+    event.release = Some(runtime_build_info::release());
+    event.dist = build.map(Cow::Borrowed);
+    event.tags.insert("surface".into(), RUNTIME_SURFACE.into());
+    event.tags.insert("runtime_version".into(), version.into());
+    event
+        .tags
+        .insert("runtime_protocol".into(), PROTOCOL_VERSION.to_string());
+    if let Some(build) = build {
+        event.tags.insert("runtime_build".into(), build.into());
+    }
+    let mut versions = std::collections::BTreeMap::new();
+    versions.insert("surface".into(), Value::String(RUNTIME_SURFACE.into()));
+    versions.insert("runtime_version".into(), Value::String(version.into()));
+    versions.insert("runtime_protocol".into(), Value::from(PROTOCOL_VERSION));
+    if let Some(build) = build {
+        versions.insert("runtime_build".into(), Value::String(build.into()));
+    }
+    event
+        .contexts
+        .insert("alera_versions".into(), Context::Other(versions));
+    event
+}
+
 pub fn client_options() -> ClientOptions {
     let mut options = ClientOptions::default();
-    options.release = sentry::release_name!();
+    options.release = Some(runtime_build_info::release());
     options.environment = Some(Cow::Owned(environment()));
     // The host handles repository paths, branch names and command lines;
     // there is no reason to attach IPs or request headers on top.
@@ -73,7 +101,7 @@ pub fn client_options() -> ClientOptions {
         if !is_enabled() {
             return None;
         }
-        Some(redact_event(event))
+        Some(redact_event(enrich_version_context(event)))
     }));
     options
 }
@@ -138,5 +166,25 @@ mod tests {
         // Only asserts the fallback shape; the variable may legitimately be set
         // in a developer shell.
         assert!(!environment().is_empty());
+    }
+
+    #[test]
+    fn version_context_identifies_the_runtime_build_and_protocol() {
+        let event = enrich_version_context(Event::default());
+        assert_eq!(event.release, Some(runtime_build_info::release()));
+        assert_eq!(event.dist.as_deref(), runtime_build_info::build());
+        assert_eq!(
+            event.tags.get("surface").map(String::as_str),
+            Some("runtime")
+        );
+        assert_eq!(
+            event.tags.get("runtime_version").map(String::as_str),
+            Some(runtime_build_info::version())
+        );
+        assert_eq!(
+            event.tags.get("runtime_protocol").map(String::as_str),
+            Some(PROTOCOL_VERSION.to_string()).as_deref()
+        );
+        assert!(event.contexts.contains_key("alera_versions"));
     }
 }

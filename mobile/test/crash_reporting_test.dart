@@ -36,6 +36,55 @@ void main() {
     );
   });
 
+  test('adds app and authenticated runtime version context', () {
+    final connection = Object();
+    CrashReporting.configureAppVersion(version: '0.29.0', build: '104');
+    CrashReporting.updateRuntimeContext(connection, <String, Object?>{
+      'runtimeHostVersion': '1.7.0',
+      'runtimeHostCommit': 'abc1234',
+      'protocolVersion': 4,
+    });
+    CrashReporting.setEnabled(true);
+
+    final event = CrashReporting.filterEvent(SentryEvent());
+
+    expect(event!.tags, containsPair('surface', 'mobile'));
+    expect(event.tags, containsPair('app_version', '0.29.0'));
+    expect(event.tags, containsPair('app_build', '104'));
+    expect(event.tags, containsPair('runtime_state', 'connected'));
+    expect(event.tags, containsPair('runtime_version', '1.7.0'));
+    expect(event.tags, containsPair('runtime_build', 'abc1234'));
+    expect(event.tags, containsPair('runtime_protocol', '4'));
+    expect(
+      event.contexts['alera_versions'],
+      containsPair('runtime_version', '1.7.0'),
+    );
+  });
+
+  test('does not misattribute errors when connected host versions differ', () {
+    CrashReporting.updateRuntimeContext(Object(), <String, Object?>{
+      'runtimeHostVersion': '1.7.0',
+      'runtimeHostCommit': 'aaa',
+      'protocolVersion': 4,
+    });
+    CrashReporting.updateRuntimeContext(Object(), <String, Object?>{
+      'runtimeHostVersion': '1.8.0',
+      'runtimeHostCommit': 'bbb',
+      'protocolVersion': 4,
+    });
+    CrashReporting.setEnabled(true);
+
+    final event = CrashReporting.filterEvent(SentryEvent());
+
+    expect(event!.tags, containsPair('runtime_state', 'multiple'));
+    expect(event.tags, isNot(contains('runtime_version')));
+    expect(
+      (event.contexts['alera_versions']
+          as Map<String, Object?>)['runtime_versions'],
+      hasLength(2),
+    );
+  });
+
   test('drops typed host reachability events', () {
     CrashReporting.setEnabled(true);
     final failure = HostUnreachableException(
