@@ -81,6 +81,10 @@ pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProf
 // This is additive so a newer app can remain attached to an older host.
 pub const RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY: &str =
     "orchestrationAgentProfileOrderingV1";
+// Advertised once profile mutations require monotonic revision tokens. New
+// clients remain read-only against older hosts instead of risking lost writes.
+pub const RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
+    "orchestrationAgentProfileRevisionsV1";
 // Advertised once agent profiles may carry validated, adapter-specific launch
 // configuration. This is additive so a new app can fall back to Command when
 // attached to an older live host.
@@ -380,7 +384,14 @@ pub fn ok_response(id: i64, payload: Value) -> Value {
 
 /// Build an error response frame `{id, ok: false, error}`.
 pub fn error_response(id: i64, error: &HostError) -> Value {
-    json!({ "id": id, "ok": false, "error": error.wire_message() })
+    let mut response = json!({ "id": id, "ok": false, "error": error.wire_message() });
+    if let Some(code) = error.wire_code() {
+        response["errorCode"] = json!(code);
+    }
+    if let Some(details) = error.wire_details() {
+        response["errorDetails"] = details.clone();
+    }
+    response
 }
 
 /// Build an event frame `{event, payload}`.

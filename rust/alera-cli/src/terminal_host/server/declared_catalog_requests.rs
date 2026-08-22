@@ -2,7 +2,9 @@
 //! targets. Both are configuration rather than run state, both are edited from
 //! Settings, and both broadcast a change event the app watches.
 
-use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, SshTarget};
+use std::collections::HashMap;
+
+use alera_core::runtime::{AgentProfile, AgentProfileLaunchMode, RuntimeStoreError, SshTarget};
 use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -75,12 +77,18 @@ impl ServerActor {
     }
 
     pub(super) async fn agent_profile_upsert(&mut self, payload: &Value) -> HostResult<Value> {
+        let is_update = optional_profile_string(payload, "id").is_some();
+        let expected_revision = if is_update {
+            Some(required_revision(payload, "expectedRevision")?)
+        } else {
+            optional_revision(payload, "expectedRevision")?
+        };
         let profile = profile_from_payload(payload)?;
         let stored = self
             .runtime_store
-            .upsert_agent_profile(profile)
+            .upsert_agent_profile(profile, expected_revision)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(agent_profile_store_error)?;
         let value =
             serde_json::to_value(stored).map_err(|error| HostError::format(error.to_string()))?;
         self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
@@ -103,11 +111,26 @@ impl ServerActor {
                     .ok_or_else(|| HostError::format("ids must contain profile IDs."))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        let expected_revisions = payload
+            .get("expectedRevisions")
+            .and_then(Value::as_object)
+            .ok_or_else(|| HostError::format("expectedRevisions must be a JSON object."))?
+            .iter()
+            .map(|(id, value)| {
+                let revision = value
+                    .as_i64()
+                    .filter(|revision| *revision >= 0)
+                    .ok_or_else(|| {
+                        HostError::format("expectedRevisions must contain non-negative integers.")
+                    })?;
+                Ok((id.clone(), revision))
+            })
+            .collect::<HostResult<HashMap<_, _>>>()?;
         let profiles = self
             .runtime_store
-            .reorder_agent_profiles(&profile_ids)
+            .reorder_agent_profiles(&profile_ids, &expected_revisions)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(agent_profile_store_error)?;
         let items =
             serde_json::to_value(profiles).map_err(|error| HostError::format(error.to_string()))?;
         self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
@@ -120,11 +143,12 @@ impl ServerActor {
 
     pub(super) async fn agent_profile_remove(&mut self, payload: &Value) -> HostResult<Value> {
         let id = require_profile_string(payload, "id")?;
+        let expected_revision = required_revision(payload, "expectedRevision")?;
         let removed = self
             .runtime_store
-            .remove_agent_profile(&id)
+            .remove_agent_profile(&id, expected_revision)
             .await
-            .map_err(|error| HostError::state(error.to_string()))?;
+            .map_err(agent_profile_store_error)?;
         if removed {
             self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
             self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
@@ -178,9 +202,45 @@ fn profile_from_payload(payload: &Value) -> HostResult<AgentProfile> {
         custom_prompt: optional_profile_string(payload, "customPrompt").unwrap_or_default(),
         description: optional_profile_string(payload, "description").unwrap_or_default(),
         quota_group: optional_profile_string(payload, "quotaGroup"),
+        revision: 0,
         created_at: now,
         updated_at: now,
     })
+}
+
+fn required_revision(payload: &Value, key: &str) -> HostResult<i64> {
+    optional_revision(payload, key)?.ok_or_else(|| HostError::format(format!("{key} is required.")))
+}
+
+fn optional_revision(payload: &Value, key: &str) -> HostResult<Option<i64>> {
+    match payload.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => value
+            .as_i64()
+            .filter(|revision| *revision >= 0)
+            .map(Some)
+            .ok_or_else(|| HostError::format(format!("{key} must be a non-negative integer."))),
+    }
+}
+
+fn agent_profile_store_error(error: anyhow::Error) -> HostError {
+    if let Some(RuntimeStoreError::AgentProfileRevisionConflict {
+        profile_id,
+        expected,
+        current,
+    }) = error.downcast_ref::<RuntimeStoreError>()
+    {
+        return HostError::conflict(
+            "agent_profile_revision_conflict",
+            error.to_string(),
+            json!({
+                "profileId": profile_id,
+                "expectedRevision": expected,
+                "currentRevision": current,
+            }),
+        );
+    }
+    HostError::state(error.to_string())
 }
 
 fn require_profile_string(payload: &Value, key: &str) -> HostResult<String> {

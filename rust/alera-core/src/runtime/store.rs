@@ -28,6 +28,14 @@ const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
 pub enum RuntimeStoreError {
     #[error("{0}")]
     Message(String),
+    #[error(
+        "Agent profile revision conflict for {profile_id}: expected {expected:?}, current {current:?}. Refresh the profile and try again."
+    )]
+    AgentProfileRevisionConflict {
+        profile_id: String,
+        expected: Option<i64>,
+        current: Option<i64>,
+    },
 }
 
 #[derive(Clone)]
@@ -150,6 +158,8 @@ impl RuntimeStore {
         self.ensure_column("agentProfiles", "sortOrder", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_column("agentProfiles", "customPrompt", "TEXT NOT NULL DEFAULT ''")
+            .await?;
+        self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE
         // IF NOT EXISTS is a no-op on an existing database, so every column

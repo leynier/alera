@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde_json::json;
 use sqlx::sqlite::SqliteConnectOptions;
+use std::collections::HashMap;
 
 use super::{AgentProfile, AgentProfileLaunchMode, RuntimeStore, RUNTIME_DATABASE_FILE_NAME};
 
@@ -23,6 +24,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
         custom_prompt: String::new(),
         description: String::new(),
         quota_group: None,
+        revision: 0,
         created_at: now,
         updated_at: now,
     }
@@ -32,11 +34,11 @@ fn profile(id: &str, name: &str) -> AgentProfile {
 async fn upserts_and_lists_profiles_in_saved_order() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_b", "Zed Runner"))
+        .upsert_agent_profile(profile("prof_b", "Zed Runner"), None)
         .await
         .unwrap();
     store
-        .upsert_agent_profile(profile("prof_a", "Alpha Runner"))
+        .upsert_agent_profile(profile("prof_a", "Alpha Runner"), None)
         .await
         .unwrap();
 
@@ -53,15 +55,25 @@ async fn reorders_profiles_transactionally_and_persists_the_order() {
         ("prof_b", "Beta"),
         ("prof_c", "Charlie"),
     ] {
-        store.upsert_agent_profile(profile(id, name)).await.unwrap();
+        store
+            .upsert_agent_profile(profile(id, name), None)
+            .await
+            .unwrap();
     }
 
     let reordered = store
-        .reorder_agent_profiles(&[
-            "prof_c".to_string(),
-            "prof_a".to_string(),
-            "prof_b".to_string(),
-        ])
+        .reorder_agent_profiles(
+            &[
+                "prof_c".to_string(),
+                "prof_a".to_string(),
+                "prof_b".to_string(),
+            ],
+            &HashMap::from([
+                ("prof_a".to_string(), 0),
+                ("prof_b".to_string(), 0),
+                ("prof_c".to_string(), 0),
+            ]),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -93,16 +105,19 @@ async fn reorders_profiles_transactionally_and_persists_the_order() {
 async fn rejects_an_incomplete_profile_order_without_mutating_it() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_a", "Alpha"))
+        .upsert_agent_profile(profile("prof_a", "Alpha"), None)
         .await
         .unwrap();
     store
-        .upsert_agent_profile(profile("prof_b", "Beta"))
+        .upsert_agent_profile(profile("prof_b", "Beta"), None)
         .await
         .unwrap();
 
     assert!(store
-        .reorder_agent_profiles(&["prof_a".to_string()])
+        .reorder_agent_profiles(
+            &["prof_a".to_string()],
+            &HashMap::from([("prof_a".to_string(), 0)]),
+        )
         .await
         .is_err());
     let profiles = store.list_agent_profiles().await.unwrap();
@@ -119,7 +134,7 @@ async fn rejects_an_incomplete_profile_order_without_mutating_it() {
 async fn resolves_a_profile_by_name_case_insensitively() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_a", "Codex Sol"))
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
         .await
         .unwrap();
 
@@ -136,12 +151,12 @@ async fn resolves_a_profile_by_name_case_insensitively() {
 async fn rejects_a_duplicate_name_from_another_profile() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_a", "Codex Sol"))
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
         .await
         .unwrap();
 
     let error = store
-        .upsert_agent_profile(profile("prof_b", "codex sol"))
+        .upsert_agent_profile(profile("prof_b", "codex sol"), None)
         .await
         .unwrap_err();
     assert!(
@@ -154,14 +169,15 @@ async fn rejects_a_duplicate_name_from_another_profile() {
 async fn updating_the_same_profile_keeps_its_own_name() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_a", "Codex Sol"))
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
         .await
         .unwrap();
 
     let mut updated = profile("prof_a", "Codex Sol");
     updated.command = "codex --model gpt-5.6-sol".to_string();
-    let stored = store.upsert_agent_profile(updated).await.unwrap();
+    let stored = store.upsert_agent_profile(updated, Some(0)).await.unwrap();
     assert_eq!(stored.command, "codex --model gpt-5.6-sol");
+    assert_eq!(stored.revision, 1);
     assert_eq!(store.list_agent_profiles().await.unwrap().len(), 1);
 }
 
@@ -174,7 +190,7 @@ async fn trims_fields_and_drops_a_blank_quota_group() {
     raw.description = "  Backend work  ".to_string();
     raw.quota_group = Some("   ".to_string());
 
-    let stored = store.upsert_agent_profile(raw).await.unwrap();
+    let stored = store.upsert_agent_profile(raw, None).await.unwrap();
     assert_eq!(stored.name, "Codex Sol");
     assert_eq!(stored.command, "codex");
     assert_eq!(stored.custom_prompt, "Always Explain The Tradeoffs");
@@ -187,11 +203,14 @@ async fn rejects_empty_required_fields() {
     let (_dir, store) = store().await;
     let mut blank_name = profile("prof_a", "   ");
     blank_name.command = "codex".to_string();
-    assert!(store.upsert_agent_profile(blank_name).await.is_err());
+    assert!(store.upsert_agent_profile(blank_name, None).await.is_err());
 
     let mut blank_command = profile("prof_b", "Codex Sol");
     blank_command.command = "   ".to_string();
-    assert!(store.upsert_agent_profile(blank_command).await.is_err());
+    assert!(store
+        .upsert_agent_profile(blank_command, None)
+        .await
+        .is_err());
 }
 
 #[tokio::test]
@@ -205,7 +224,7 @@ async fn round_trips_managed_configuration() {
         "webSearch": true
     }));
 
-    let stored = store.upsert_agent_profile(managed).await.unwrap();
+    let stored = store.upsert_agent_profile(managed, None).await.unwrap();
     assert_eq!(stored.launch_mode, AgentProfileLaunchMode::Managed);
     assert_eq!(
         stored.managed_config,
@@ -219,7 +238,7 @@ async fn command_profiles_discard_managed_configuration() {
     let mut command = profile("prof_command", "Command Codex");
     command.managed_config = Some(json!({"model": "ignored"}));
 
-    let stored = store.upsert_agent_profile(command).await.unwrap();
+    let stored = store.upsert_agent_profile(command, None).await.unwrap();
     assert_eq!(stored.launch_mode, AgentProfileLaunchMode::Command);
     assert_eq!(stored.managed_config, None);
 }
@@ -269,6 +288,7 @@ async fn migrates_existing_profiles_to_command_mode() {
     assert_eq!(profile.command, "codex --search");
     assert_eq!(profile.managed_config, None);
     assert_eq!(profile.custom_prompt, "");
+    assert_eq!(profile.revision, 0);
 }
 
 #[tokio::test]
@@ -278,18 +298,69 @@ async fn rejects_managed_configuration_that_is_not_an_object() {
     managed.launch_mode = AgentProfileLaunchMode::Managed;
     managed.managed_config = Some(json!(["not", "an", "object"]));
 
-    assert!(store.upsert_agent_profile(managed).await.is_err());
+    assert!(store.upsert_agent_profile(managed, None).await.is_err());
 }
 
 #[tokio::test]
 async fn removes_a_profile_and_reports_whether_it_existed() {
     let (_dir, store) = store().await;
     store
-        .upsert_agent_profile(profile("prof_a", "Codex Sol"))
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
         .await
         .unwrap();
 
-    assert!(store.remove_agent_profile("prof_a").await.unwrap());
-    assert!(!store.remove_agent_profile("prof_a").await.unwrap());
+    assert!(store.remove_agent_profile("prof_a", 0).await.unwrap());
+    assert!(!store.remove_agent_profile("prof_a", 0).await.unwrap());
     assert!(store.list_agent_profiles().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn rejects_stale_updates_without_overwriting_the_current_profile() {
+    let (_dir, store) = store().await;
+    let created = store
+        .upsert_agent_profile(profile("prof_a", "Original"), None)
+        .await
+        .unwrap();
+    let mut first_update = created.clone();
+    first_update.name = "Current".to_string();
+    store
+        .upsert_agent_profile(first_update, Some(created.revision))
+        .await
+        .unwrap();
+
+    let mut stale = created;
+    stale.name = "Stale".to_string();
+    let error = store
+        .upsert_agent_profile(stale, Some(0))
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("revision conflict"));
+    assert_eq!(
+        store
+            .find_agent_profile("prof_a")
+            .await
+            .unwrap()
+            .unwrap()
+            .name,
+        "Current"
+    );
+}
+
+#[tokio::test]
+async fn rejects_a_stale_remove() {
+    let (_dir, store) = store().await;
+    let created = store
+        .upsert_agent_profile(profile("prof_a", "Original"), None)
+        .await
+        .unwrap();
+    store
+        .upsert_agent_profile(created.clone(), Some(created.revision))
+        .await
+        .unwrap();
+
+    let error = store.remove_agent_profile("prof_a", 0).await.unwrap_err();
+
+    assert!(error.to_string().contains("revision conflict"));
+    assert!(store.find_agent_profile("prof_a").await.unwrap().is_some());
 }
