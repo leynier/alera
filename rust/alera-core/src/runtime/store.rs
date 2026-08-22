@@ -5,13 +5,13 @@ use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::{Row, SqlitePool};
-use thiserror::Error;
 use uuid::Uuid;
 
 use super::browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, sanitize_browser_tab_payload,
 };
 use super::runtime_schema::RUNTIME_SCHEMA;
+use super::store_error::RuntimeStoreError;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
@@ -23,20 +23,6 @@ use super::{
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
 pub const LOCAL_HOST_ID: &str = "local";
 const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
-
-#[derive(Debug, Error)]
-pub enum RuntimeStoreError {
-    #[error("{0}")]
-    Message(String),
-    #[error(
-        "Agent profile revision conflict for {profile_id}: expected {expected:?}, current {current:?}. Refresh the profile and try again."
-    )]
-    AgentProfileRevisionConflict {
-        profile_id: String,
-        expected: Option<i64>,
-        current: Option<i64>,
-    },
-}
 
 #[derive(Clone)]
 pub struct RuntimeStore {

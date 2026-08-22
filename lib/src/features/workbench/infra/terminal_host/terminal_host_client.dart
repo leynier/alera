@@ -23,6 +23,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
+part 'terminal_host_client_guarded_requests.dart';
 part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
@@ -35,7 +36,8 @@ final class SocketTerminalHostClient
     with
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
-        _TerminalPulseHostClientSupport
+        _TerminalPulseHostClientSupport,
+        _GuardedRuntimeHostClientSupport
     implements
         TerminalHostClient,
         TerminalPulseHostClient,
@@ -313,35 +315,6 @@ final class SocketTerminalHostClient
     Duration? timeout,
   ]) {
     return _runtimeRequest(type, payload, timeout);
-  }
-
-  @override
-  Future<Object?> guardedRuntimeRequest(
-    String type,
-    Map<String, Object?> payload, {
-    required void Function(Map<String, Object?> status) validateStatus,
-    Duration? timeout,
-  }) async {
-    if (_disposed) {
-      throw StateError('Terminal host client is disposed.');
-    }
-    final connection = await _connectRuntime(
-      requireOrchestration: type.startsWith('orchestration.'),
-    );
-    final status = asTerminalHostMap(
-      await _requestOnConnection(
-        connection,
-        'status.get',
-        const <String, Object?>{},
-        timeout: timeout,
-      ),
-      'runtime status',
-    );
-    validateStatus(status);
-    if (connection.isClosed) {
-      throw const TerminalHostConnectionClosedException();
-    }
-    return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
   Future<_TerminalHostConnection> _connectTerminal() {
