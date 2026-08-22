@@ -26,14 +26,17 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(OUTPUT_LIB "${CMAKE_CURRENT_BINARY_DIR}/${CARGOKIT_LIB_FULL_NAME}")
     endif()
     if(WIN32)
-        # Native dependency scratch paths can exceed MSBuild's 260-character FileTracker limit.
+        # Native cargo --target-dir must stay a few characters. ggml-vulkan's
+        # nested vulkan-shaders-gen TryCompile writes
+        # .../CMakeScratch/TryCompile-XXXX/CMakeFiles/cmTC_XXXXXXXX.dir/testCCompiler.c.obj
+        # (~245 characters under the cargo triple). R:\c\alera_native is 17
+        # characters and that object is 263, so cl.exe fails with C1083 and an
+        # empty generated-file name. Use a one-letter suffix; do not append
+        # the crate name. The sidecar keeps a sibling /cli directory.
         if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
-            # CI maps a drive letter onto RUNNER_TEMP. The prefix must stay
-            # tiny: ggml-vulkan's nested TryCompile PDB is ~234 characters
-            # under the cargo target triple.
-            set(CARGOKIT_TEMP_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/${CARGOKIT_LIB_NAME}")
+            set(CARGOKIT_TEMP_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/n")
         else()
-            set(CARGOKIT_TEMP_DIR "$ENV{SystemDrive}/c/${CARGOKIT_LIB_NAME}")
+            set(CARGOKIT_TEMP_DIR "$ENV{SystemDrive}/c/n")
         endif()
     else()
         set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
@@ -73,8 +76,8 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
             "CMAKE_MAKE_PROGRAM=${CARGOKIT_NINJA_EXECUTABLE}"
             "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${CARGOKIT_NINJA_EXECUTABLE}"
             # CFLAGS/CXXFLAGS reach cc-rs. Nested TryCompile calls cl.exe,
-            # which reads CL (prepend) and _CL_ (append). /Z7 after CMake's
-            # /Zi avoids PDB files that still overflow MAX_PATH.
+            # which reads CL (prepend) and _CL_ (append). /FS serializes PDB
+            # writes; /Z7 prefers C7 debug info when CMake still passes /Zi.
             "CFLAGS=/FS"
             "CXXFLAGS=/FS"
             "CL=/FS"
