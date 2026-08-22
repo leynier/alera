@@ -10,7 +10,7 @@ That is not a dodge. It is the design. We never wanted Alera to be a product you
 
 ## First-Class Today
 
-Some agents get more than a PTY. These ship with icons, managed lifecycle hooks, and live activity tracking in the workbench:
+Some agents get more than a PTY. These ship with icons, managed lifecycle integrations, and live activity tracking in the workbench:
 
 - Claude Code
 - Codex
@@ -21,8 +21,9 @@ Some agents get more than a PTY. These ship with icons, managed lifecycle hooks,
 - Copilot
 - Pi
 - Grok Build
+- fx
 
-The hooks stream status into Alera, which is what lets the sidebar and activity surfaces tell you who is working and who is quietly waiting for your input. When you run a handful of agents at once, that glanceable state is the difference between conducting and guessing.
+These integrations stream status into Alera, which is what lets the sidebar and activity surfaces tell you who is working and who is quietly waiting for your input. When you run a handful of agents at once, that glanceable state is the difference between conducting and guessing.
 
 ## Everything Else
 
@@ -32,7 +33,7 @@ We like this rule because it ages well. The agent landscape reshuffles monthly. 
 
 ## Orchestration Adapters
 
-If you go further and coordinate agents through [orchestration](/blog/inter-agent-orchestration-in-alera), agent profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, `grok`, and related defaults). Profiles are your configuration: you approve the launch command, the coordinator dispatches to it, and nobody invents commands on your behalf.
+If you go further and coordinate agents through [orchestration](/blog/inter-agent-orchestration-in-alera), agent profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, `amp`, `grok`, `fx`, and related defaults). Profiles are your configuration: you approve the launch command, the coordinator dispatches to it, and nobody invents commands on your behalf.
 
 ## Tips From Our Own Setup
 

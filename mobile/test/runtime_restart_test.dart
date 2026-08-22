@@ -71,8 +71,19 @@ void main() {
       ),
     );
     await _pumpUntil(tester, find.text('General'));
-    await tester.scrollUntilVisible(find.text('Restart Runtime'), 200);
+    await tester.scrollUntilVisible(find.text('fx Status'), 200);
     await tester.pump();
+
+    expect(find.text('fx Status'), findsOneWidget);
+    expect(
+      find.text(
+        'Report status through the built-in Herdr integration on macOS and Linux.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.fling(find.byType(ListView), const Offset(0, 3000), 2000);
+    await tester.pumpAndSettle();
 
     expect(find.text('Restart Runtime'), findsOneWidget);
     await tester.tap(find.text('Restart Runtime'));

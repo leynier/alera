@@ -68,6 +68,7 @@ String agentDisplayName(String agentType) => switch (agentType) {
   'pi' => 'Pi',
   'amp' => 'Amp',
   'grok' => 'Grok Build',
+  'fx' => 'fx',
   _ => 'Agent',
 };
 
@@ -90,5 +91,6 @@ _AgentIconAsset? _agentAsset(String agentType) => switch (agentType) {
   'pi' => const _AgentIconAsset(path: 'assets/agents/pi.svg'),
   'amp' => const _AgentIconAsset(path: 'assets/agents/amp.png', raster: true),
   'grok' => const _AgentIconAsset(path: 'assets/agents/grok.svg'),
+  'fx' => const _AgentIconAsset(path: 'assets/agents/fx.svg'),
   _ => null,
 };
