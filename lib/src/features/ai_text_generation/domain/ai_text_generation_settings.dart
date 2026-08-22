@@ -8,6 +8,7 @@ enum AiTextGenerationOperation {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
   branchName('branchName'),
+  readingDiff('readingDiff'),
   workspaceIdentity('workspaceIdentity'),
   speechMessage('speechMessage');
 
@@ -19,6 +20,7 @@ enum AiTextGenerationOperation {
     AiTextGenerationOperation.commitMessage => 'Commit Messages',
     AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
     AiTextGenerationOperation.branchName => 'Branch Names',
+    AiTextGenerationOperation.readingDiff => 'Reading Diffs',
     AiTextGenerationOperation.workspaceIdentity => 'Workspace Identity',
     AiTextGenerationOperation.speechMessage => 'Speech Messages',
   };

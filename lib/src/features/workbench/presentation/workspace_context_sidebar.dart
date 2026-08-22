@@ -137,6 +137,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                                 ),
                                 workspace: workspace,
                                 repoPath: sourceControlScope.path,
+                                gitDiffRoot: sourceControlScope.relativeRoot,
                               ),
                       WorkbenchContextPanelTab.agentCanvas => AgentCanvasPanel(
                         workspace: workspace,

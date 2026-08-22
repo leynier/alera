@@ -24,6 +24,7 @@ GitCommitCompareResult _defaultGitCommitCompareResult() =>
 
 GitRangeContext _defaultGitRangeContext() => const GitRangeContext(
   baseRef: 'main',
+  headOid: 'abc1234',
   headBranch: 'feature',
   commits: <GitRangeCommit>[
     GitRangeCommit(

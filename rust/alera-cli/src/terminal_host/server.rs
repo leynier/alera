@@ -58,6 +58,7 @@ mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod ai_dictation_requests;
+mod ai_text_failure_detail;
 mod ai_text_fx_plan;
 mod ai_text_grok_plan;
 mod ai_text_model_defaults;

@@ -153,6 +153,7 @@ class CliAiTextGenerationService implements AiTextGenerationService {
           ),
         ),
       AiTextGenerationOperation.branchName ||
+      AiTextGenerationOperation.readingDiff ||
       AiTextGenerationOperation.workspaceIdentity ||
       AiTextGenerationOperation.speechMessage =>
         throw AiTextGenerationException(

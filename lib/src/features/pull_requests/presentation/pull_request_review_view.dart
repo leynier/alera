@@ -52,6 +52,7 @@ class PullRequestReviewView extends StatefulWidget {
     this.savingCommentIds = const <String>{},
     required this.action,
     required this.onOpenUrl,
+    this.onOpenDiff,
     this.onOpenWorkspaceBranch,
     required this.onUnlink,
     this.onLinkStack = _ignorePullRequestStackLink,
@@ -83,6 +84,7 @@ class PullRequestReviewView extends StatefulWidget {
   final Set<String> savingCommentIds;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
+  final VoidCallback? onOpenDiff;
   final Future<void> Function(String branch)? onOpenWorkspaceBranch;
   final Future<void> Function() onUnlink;
   final Future<void> Function(List<int> reviewNumbers) onLinkStack;
@@ -339,6 +341,11 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             icon: AleraIcons.edit,
             onPressed: _busy ? null : _startEditing,
           ),
+        AleraIconButton(
+          tooltip: 'Open Pull Request Diff',
+          icon: AleraIcons.diff,
+          onPressed: widget.onOpenDiff,
+        ),
         AleraIconButton(
           tooltip: 'Open In Browser',
           icon: AleraIcons.external,

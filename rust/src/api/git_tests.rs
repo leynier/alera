@@ -11,6 +11,8 @@ mod git_diff_blob_tests;
 mod git_diff_edge_tests;
 #[path = "git_explorer_status_tests.rs"]
 mod git_explorer_status_tests;
+#[path = "git_range_tests.rs"]
+mod git_range_tests;
 #[path = "git_stage_pathspec_tests.rs"]
 mod git_stage_pathspec_tests;
 #[path = "git_submodule_tests.rs"]

@@ -36,6 +36,8 @@ class AiTextGenerationOperationMapper
         return AiTextGenerationOperation.pullRequestDetails;
       case r'branchName':
         return AiTextGenerationOperation.branchName;
+      case r'readingDiff':
+        return AiTextGenerationOperation.readingDiff;
       case r'workspaceIdentity':
         return AiTextGenerationOperation.workspaceIdentity;
       case r'speechMessage':
@@ -54,6 +56,8 @@ class AiTextGenerationOperationMapper
         return r'pullRequestDetails';
       case AiTextGenerationOperation.branchName:
         return r'branchName';
+      case AiTextGenerationOperation.readingDiff:
+        return r'readingDiff';
       case AiTextGenerationOperation.workspaceIdentity:
         return r'workspaceIdentity';
       case AiTextGenerationOperation.speechMessage:

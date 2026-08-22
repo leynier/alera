@@ -16,14 +16,19 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_forge_provider.dart';
 import '../unit/fake_git_backend.dart';
+
+part 'workspace_pull_requests_panel_reading_diff_cases.dart';
 
 HostedReview _review(int number) => HostedReview(
   provider: GitHostingProvider.github,
@@ -34,14 +39,60 @@ HostedReview _review(int number) => HostedReview(
   author: 'leynier',
   baseBranch: 'main',
   headBranch: 'feature',
+  headSha: 'head-$number',
+  comparisonBaseSha: 'base-$number',
+  mergeCommitSha: 'merge-$number',
 );
 
 class _PanelWorkbenchController extends WorkbenchController {
+  final List<
+    ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+  >
+  openedPullRequestDiffs =
+      <
+        ({int number, String commitOid, String? gitDiffRoot, String parentOid})
+      >[];
+
   @override
   WorkbenchState build() => const WorkbenchState();
+
+  @override
+  Future<WorkspaceTabRecord> openGitPullRequestDiffTab({
+    required Workspace workspace,
+    String? gitDiffRoot,
+    required int pullRequestNumber,
+    required String commitOid,
+    required String parentOid,
+    required String retentionId,
+    String? subject,
+    String? targetGroupId,
+  }) async {
+    openedPullRequestDiffs.add((
+      number: pullRequestNumber,
+      commitOid: commitOid,
+      gitDiffRoot: gitDiffRoot,
+      parentOid: parentOid,
+    ));
+    final now = DateTime.utc(2026, 8, 10);
+    return WorkspaceTabRecord(
+      id: 'pr-diff',
+      workspaceId: workspace.id,
+      kind: WorkspaceTabKind.gitDiff,
+      title: 'Pull request #$pullRequestNumber',
+      createdAt: now,
+      updatedAt: now,
+      payload: <String, Object?>{
+        workspaceTabGitDiffSourcePayloadKey:
+            WorkspaceGitDiffSource.pullRequest.key,
+        workspaceTabGitDiffHostedReviewRetentionIdPayloadKey: retentionId,
+      },
+    );
+  }
 }
 
 void main() {
+  _registerWorkspacePullRequestsPanelReadingDiffTests();
+
   testWidgets('places borderless dictation controls in pull request fields', (
     tester,
   ) async {

@@ -21,6 +21,17 @@ mixin _WorkbenchControllerSync
         if (!validProjectIds.contains(entry.key))
           for (final workspace in entry.value) workspace.id,
     };
+    for (final entry in state.workspacesByProject.entries) {
+      if (validProjectIds.contains(entry.key)) {
+        continue;
+      }
+      for (final workspace in entry.value) {
+        _releaseHostedReviewTabsInBackground(
+          workspace,
+          state.tabsFor(workspace.id),
+        );
+      }
+    }
     final prunedSourceControlRoots =
         Map<String, String>.from(prefs.sourceControlRootByWorkspaceId)
           ..removeWhere(
@@ -141,6 +152,15 @@ mixin _WorkbenchControllerSync
         .map((entry) => entry.key)
         .toList(growable: false);
     for (final workspaceId in removedWorkspaceIds) {
+      final workspace = _workspaceById(workspaceId);
+      if (workspace != null) {
+        _releaseHostedReviewTabsInBackground(
+          workspace,
+          state.tabsFor(workspaceId),
+        );
+      }
+    }
+    for (final workspaceId in removedWorkspaceIds) {
       _tabSubs.remove(workspaceId)?.cancel();
       _tabSubProjectIds.remove(workspaceId);
     }
@@ -225,6 +245,14 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    final liveTabIds = <String>{for (final tab in tabs) tab.id};
+    final removedTabs = state
+        .tabsFor(workspaceId)
+        .where((tab) => !liveTabIds.contains(tab.id));
+    final workspace = _workspaceById(workspaceId);
+    if (workspace != null) {
+      _releaseHostedReviewTabsInBackground(workspace, removedTabs);
+    }
     _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,

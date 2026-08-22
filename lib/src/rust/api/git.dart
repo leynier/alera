@@ -103,16 +103,18 @@ Future<GitDiffResult> gitCommitDiff({
   oldPath: oldPath,
 );
 
-/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref], HEAD)
-/// to HEAD for AI pull-request generation.
+/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref],
+/// [head_ref]) to [head_ref]. HEAD is used when no explicit head is provided.
 Future<GitRangeContext> gitRangeContext({
   required String path,
   required String baseRef,
   int? commitLimit,
+  String? headRef,
 }) => RustLib.instance.api.crateApiGitGitRangeContext(
   path: path,
   baseRef: baseRef,
   commitLimit: commitLimit,
+  headRef: headRef,
 );
 
 Future<GitRepositoryState> gitRepositoryState({required String path}) =>
@@ -777,6 +779,7 @@ class GitRangeCommit {
 /// Tree-to-tree range summary used for AI pull-request prompts.
 class GitRangeContext {
   final String baseRef;
+  final String headOid;
   final String? headBranch;
   final String? mergeBase;
   final List<GitRangeCommit> commits;
@@ -785,6 +788,7 @@ class GitRangeContext {
 
   const GitRangeContext({
     required this.baseRef,
+    required this.headOid,
     this.headBranch,
     this.mergeBase,
     required this.commits,
@@ -795,6 +799,7 @@ class GitRangeContext {
   @override
   int get hashCode =>
       baseRef.hashCode ^
+      headOid.hashCode ^
       headBranch.hashCode ^
       mergeBase.hashCode ^
       commits.hashCode ^
@@ -807,6 +812,7 @@ class GitRangeContext {
       other is GitRangeContext &&
           runtimeType == other.runtimeType &&
           baseRef == other.baseRef &&
+          headOid == other.headOid &&
           headBranch == other.headBranch &&
           mergeBase == other.mergeBase &&
           commits == other.commits &&

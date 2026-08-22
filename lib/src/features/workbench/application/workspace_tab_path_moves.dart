@@ -39,9 +39,6 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
       if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
         continue;
       }
-      if (tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
-        continue;
-      }
       final root = tab.gitDiffRoot!;
       final nextRoot = _replacePathPrefix(
         path: root,
@@ -52,12 +49,14 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
         continue;
       }
       final next = tab.copyWith(
-        title: _titleForGitDiff(
-          scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
-          path: tab.filePath,
-          area: tab.gitDiffArea,
-          root: nextRoot,
-        ),
+        title: _isCommitBackedGitDiff(tab)
+            ? tab.title
+            : _titleForGitDiff(
+                scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
+                path: tab.filePath,
+                area: tab.gitDiffArea,
+                root: nextRoot,
+              ),
         updatedAt: _now(),
         payload: <String, Object?>{
           ...tab.payload,
@@ -85,8 +84,7 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     for (final originalTab in tabs) {
       final rootWasRetargeted = updatedById.containsKey(originalTab.id);
       final tab = updatedById[originalTab.id] ?? originalTab;
-      if (tab.kind == WorkspaceTabKind.gitDiff &&
-          tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+      if (_isCommitBackedGitDiff(tab)) {
         continue;
       }
       if (!_isFileTabKind(tab.kind)) {
@@ -192,6 +190,11 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
     return tab.kind == WorkspaceTabKind.editor ||
         tab.kind == WorkspaceTabKind.pdf ||
         tab.kind == WorkspaceTabKind.markdownViewer;
+  }
+
+  bool _isCommitBackedGitDiff(WorkspaceTabRecord tab) {
+    return tab.kind == WorkspaceTabKind.gitDiff &&
+        tab.gitDiffSource != WorkspaceGitDiffSource.workingTree;
   }
 
   WorkspaceTabKind? _fileTabKindAfterPathMove({

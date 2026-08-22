@@ -13,6 +13,7 @@ use tokio::sync::oneshot;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{error_response, ok_response};
 
+use super::ai_text_failure_detail::ai_text_failure_detail;
 use super::ai_text_fx_plan::plan_fx_command;
 use super::ai_text_grok_plan::plan_grok_command;
 use super::ai_text_model_defaults::default_model;
@@ -20,7 +21,6 @@ use super::ai_text_open_code::open_code_run_arguments;
 use super::ai_text_workspace_identity::{parse_workspace_identity, workspace_identity_prompt};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
-
 const MAX_ARGV_PROMPT_BYTES: usize = 24_000;
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 pub(super) const SUPPORTED_AGENTS: [&str; 12] = [
@@ -465,11 +465,13 @@ pub(super) async fn run_command(
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                let detail = stderr.lines().find(|line| !line.trim().is_empty()).unwrap_or_default();
-                Err(HostError::state(if detail.is_empty() {
-                    format!("{} failed. Check the agent CLI configuration and try again.", plan.label)
-                } else {
-                    format!("{} failed: {}", plan.label, detail.trim())
+                let detail = ai_text_failure_detail(&stdout, &stderr);
+                Err(HostError::state(match detail {
+                    Some(detail) => format!("{} failed: {detail}", plan.label),
+                    None => format!(
+                        "{} failed. Check the agent CLI configuration and try again.",
+                        plan.label
+                    ),
                 }))
             } else if output.stdout.len() > MAX_OUTPUT_BYTES {
                 Err(HostError::state(format!("{} returned too much output.", plan.label)))

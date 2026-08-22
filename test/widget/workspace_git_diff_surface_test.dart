@@ -1,6 +1,20 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
+import 'package:alera/src/features/reading_diff/application/reading_diff_service.dart';
+import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
+import 'package:alera/src/rust/api/reading_diff.dart' as rust;
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -14,9 +28,14 @@ import 'package:path/path.dart' as p;
 
 import '../unit/fake_git_backend.dart';
 
+part 'workspace_git_diff_surface_pull_request_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_cases.dart';
+part 'workspace_git_diff_surface_reading_diff_support.dart';
 part 'workspace_git_diff_surface_test_support.dart';
 
 void main() {
+  _registerWorkspaceGitDiffSurfacePullRequestTests();
+  _registerWorkspaceGitDiffSurfaceReadingDiffTests();
   testWidgets('diff surface caps rendered line previews', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = GitDiffResult(
@@ -147,6 +166,7 @@ void main() {
 
     expect(_openFileButton(tester).onPressed, isNotNull);
     expect(find.byTooltip('Open file'), findsOneWidget);
+    expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
   });
 
   testWidgets('diff surface disables opening rename-out old paths', (

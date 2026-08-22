@@ -9,7 +9,7 @@
 1235	test/unit/terminal_host_client_test.dart
 1410	rust/alera-cli/src/terminal_host/server/requests.rs
 1339	test/widget/workspace_explorer_test.dart
-1388	rust/src/api/git.rs
+1391	rust/src/api/git.rs
 1396	rust/src/api/workspace_files.rs
 1519	rust/alera-cli/tests/terminal_host_conformance.rs
 1724	test/widget/workspace_git_diff_panel_test.dart

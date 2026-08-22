@@ -45,6 +45,10 @@ mixin _WorkbenchControllerTabs
         } else {
           await _workspaceTabService.closeTab(tabId);
         }
+        final closedTab = closingTabs[tabId];
+        if (closedTab != null) {
+          await _releaseHostedReviewTab(workspace, closedTab);
+        }
         if (closingTabs[tabId]?.kind == WorkspaceTabKind.codex) {
           ref.read(codexComposerDraftStoreProvider).remove(tabId);
         }

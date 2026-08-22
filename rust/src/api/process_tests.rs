@@ -201,11 +201,39 @@ fn run_adds_the_requested_environment() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn run_can_replace_the_parent_environment() {
+    let environment = std::collections::HashMap::from([(
+        "ALERA_ENVIRONMENT_PROBE".to_string(),
+        "isolated".to_string(),
+    )]);
+
+    let result = super::process_session::run_without_parent_environment_for_tests(
+        "/usr/bin/env".to_string(),
+        Vec::new(),
+        environment,
+    )
+    .expect("environment probe runs");
+
+    assert!(result.stdout.contains("ALERA_ENVIRONMENT_PROBE=isolated"));
+    assert!(!result.stdout.contains("HOME="));
+    assert!(!result.stdout.contains("PATH="));
+}
+
 #[test]
 fn writing_to_an_unknown_session_is_refused_instead_of_panicking() {
     assert!(!process_write_stdin(i64::MAX, vec![b'x']));
     assert!(!process_kill(i64::MAX));
     process_close_stdin(i64::MAX);
+}
+
+#[test]
+fn windows_cancellation_targets_the_whole_process_tree() {
+    assert_eq!(
+        super::process_session::windows_process_tree_kill_arguments(42),
+        args(&["/PID", "42", "/T", "/F"]),
+    );
 }
 
 #[test]

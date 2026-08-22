@@ -182,3 +182,22 @@ fn fx_passes_an_explicit_model_through_the_environment() {
         Some("xai/grok-4.1-fast")
     );
 }
+
+#[test]
+fn failure_detail_extracts_a_multiline_json_message() {
+    let stderr = r#"
+ERROR: {
+  "type": "error",
+  "error": {
+    "code": "invalid_json_schema",
+    "message": "The version property must declare an integer type."
+  },
+  "status": 400
+}
+"#;
+
+    assert_eq!(
+        ai_text_failure_detail("", stderr).as_deref(),
+        Some("The version property must declare an integer type.")
+    );
+}

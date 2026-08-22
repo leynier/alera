@@ -9,6 +9,30 @@ part 'codex_chat_snapshot_coverage_test_cases.dart';
 void main() {
   final now = DateTime.utc(2026, 8, 3, 12);
 
+  test('input attachments and draft items retain their values', () {
+    const attachment = CodexInputAttachment(
+      id: 'attachment-1',
+      path: '/tmp/image.png',
+      isImage: true,
+      mimeType: 'image/png',
+      displayName: 'image.png',
+      sizeBytes: 42,
+      detail: 'high',
+    );
+    const draftItem = CodexDraftItem(
+      id: 'skill-1',
+      kind: CodexDraftItemKind.skill,
+      name: 'Review',
+      path: '/skills/review',
+      tokenText: r'$Review',
+    );
+
+    expect(attachment.path, '/tmp/image.png');
+    expect(attachment.isImage, isTrue);
+    expect(draftItem.kind, CodexDraftItemKind.skill);
+    expect(draftItem.tokenText, r'$Review');
+  });
+
   test('model parsing accepts every current compatibility shape', () {
     final model = CodexModelOption.fromJson(<String, Object?>{
       'model': 'gpt-nested',

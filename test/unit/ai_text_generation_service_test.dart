@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
@@ -11,12 +13,15 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import 'fake_git_backend.dart';
 
 part 'ai_text_generation_grok_test_cases.dart';
 part 'ai_text_generation_fx_test_cases.dart';
 part 'ai_text_generation_agy_test_cases.dart';
+part 'ai_text_generation_reading_diff_test_cases.dart';
+part 'ai_text_generation_reading_diff_lifecycle_test_cases.dart';
 part 'ai_text_generation_prompt_override_test_cases.dart';
 part 'ai_text_generation_test_harness.dart';
 
@@ -25,6 +30,8 @@ void main() {
     _registerGrokAiTextGenerationTests();
     _registerFxAiTextGenerationTests();
     _registerAgyAiTextGenerationTests();
+    _registerAiTextReadingDiffTests();
+    _registerAiTextReadingDiffLifecycleTests();
     _registerAiTextPromptOverrideTests();
 
     test('builds commit prompts with staged context and instructions', () {

@@ -60,6 +60,7 @@ pub fn process_start(
     arguments: Vec<String>,
     working_directory: Option<String>,
     environment: Option<HashMap<String, String>>,
+    include_parent_environment: bool,
     events: StreamSink<ProcessEvent>,
 ) {
     process_session::start(
@@ -67,6 +68,7 @@ pub fn process_start(
         arguments,
         working_directory,
         environment,
+        include_parent_environment,
         events,
     );
 }
