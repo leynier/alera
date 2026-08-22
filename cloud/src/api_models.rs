@@ -66,11 +66,16 @@ impl ClientKind {
                 "enrollment:write".to_owned(),
                 "push:send".to_owned(),
                 "runtime:write".to_owned(),
+                "relay:identity".to_owned(),
+                "relay:grant".to_owned(),
             ],
             Self::Mobile => vec![
                 "account:read".to_owned(),
                 "push:register".to_owned(),
                 "subscription:write".to_owned(),
+                "runtime:discover".to_owned(),
+                "relay:identity".to_owned(),
+                "relay:grant".to_owned(),
             ],
         }
     }
@@ -285,6 +290,60 @@ pub struct SubscriptionResponse {
     pub runtime_id: String,
     pub categories: SubscriptionCategories,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterRelayIdentityRequest {
+    pub public_key: String,
+    pub key_version: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayIdentityResponse {
+    pub client_id: String,
+    pub client_kind: String,
+    pub public_key: String,
+    pub key_version: i32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayGrantRequest {
+    pub runtime_id: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayGrantResponse {
+    pub grant: String,
+    pub relay_url: String,
+    pub expires_in: i64,
+    pub account_id: Uuid,
+    pub runtime_id: String,
+    pub client_id: String,
+    pub client_kind: String,
+    pub client_key_version: i32,
+    pub client_public_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_public_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRelaySummary {
+    pub id: String,
+    pub name: String,
+    pub last_seen_at: DateTime<Utc>,
+    pub relay_public_key: String,
+    pub relay_key_version: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeDiscoveryResponse {
+    pub runtimes: Vec<RuntimeRelaySummary>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]

@@ -45,6 +45,47 @@ function relayAttachment(role: 'runtime' | 'mobile', clientId: string, expiresIn
   };
 }
 
+async function signedRelayGrant(expiresIn = 120) {
+  const keyPair = (await crypto.subtle.generateKey({ name: 'Ed25519', namedCurve: 'Ed25519' }, true, [
+    'sign',
+    'verify',
+  ])) as CryptoKeyPair;
+  const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey;
+  const header = base64Url(JSON.stringify({ alg: 'EdDSA', typ: 'relay+jwt', kid: 'key-1' }));
+  const encodedClaims = base64Url(JSON.stringify(relayAttachment('mobile', 'mobile-1', expiresIn)));
+  const signingInput = `${header}.${encodedClaims}`;
+  const signature = new Uint8Array(
+    await crypto.subtle.sign({ name: 'Ed25519' }, keyPair.privateKey, new TextEncoder().encode(signingInput)),
+  );
+  return {
+    grant: `${signingInput}.${base64Url(signature)}`,
+    publicJwk,
+    signingInput,
+  };
+}
+
+function relayJwks(publicJwk: JsonWebKey) {
+  return async () =>
+    new Response(
+      JSON.stringify({
+        keys: [{ ...publicJwk, kid: 'key-1', alg: 'EdDSA' }],
+      }),
+    );
+}
+
+function relayEnvironment(stub: DurableObjectStub): EdgeEnvironment {
+  return {
+    ...environment(),
+    RELAY_ENABLED: 'true',
+    RELAY_ISSUER: 'https://api.alera.build',
+    RELAY_JWKS_URL: 'https://api.alera.build/.well-known/jwks.json',
+    RELAY_OBJECTS: {
+      idFromName: () => ({}) as DurableObjectId,
+      get: () => stub,
+    },
+  };
+}
+
 class TestSocket {
   constructor(readonly attachment: ReturnType<typeof relayAttachment>) {}
 
@@ -217,19 +258,44 @@ describe('Alera API edge', () => {
     expect(response.status).toBe(426);
   });
 
-  test('rejects enabled relay connections when the Durable Object binding is missing', async () => {
-    const response = await handleRequest(
-      new Request('https://api.alera.build/v1/relay/runtime-1', {
-        headers: { upgrade: 'websocket' },
-      }),
+  for (const [missingValue, relayConfiguration] of [
+    [
+      'Durable Object binding',
       {
-        ...environment(),
-        RELAY_ENABLED: 'true',
+        RELAY_ISSUER: 'https://api.alera.build',
+        RELAY_JWKS_URL: 'https://api.alera.build/.well-known/jwks.json',
       },
-    );
+    ],
+    [
+      'issuer',
+      {
+        RELAY_JWKS_URL: 'https://api.alera.build/.well-known/jwks.json',
+        RELAY_OBJECTS: {} as EdgeEnvironment['RELAY_OBJECTS'],
+      },
+    ],
+    [
+      'JWKS URL',
+      {
+        RELAY_ISSUER: 'https://api.alera.build',
+        RELAY_OBJECTS: {} as EdgeEnvironment['RELAY_OBJECTS'],
+      },
+    ],
+  ] as const) {
+    test(`rejects enabled relay connections when the ${missingValue} is missing`, async () => {
+      const response = await handleRequest(
+        new Request('https://api.alera.build/v1/relay/runtime-1', {
+          headers: { upgrade: 'websocket' },
+        }),
+        {
+          ...environment(),
+          RELAY_ENABLED: 'true',
+          ...relayConfiguration,
+        },
+      );
 
-    expect(response.status).toBe(503);
-  });
+      expect(response.status).toBe(503);
+    });
+  }
 
   test('requires a bearer grant for relay connections', async () => {
     const response = await handleRequest(
@@ -248,34 +314,7 @@ describe('Alera API edge', () => {
   });
 
   test('verifies a grant and forwards only claims to the runtime object', async () => {
-    const keyPair = (await crypto.subtle.generateKey({ name: 'Ed25519', namedCurve: 'Ed25519' }, true, [
-      'sign',
-      'verify',
-    ])) as CryptoKeyPair;
-    const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey;
-    const now = Math.floor(Date.now() / 1000);
-    const claims = {
-      iss: 'https://api.alera.build',
-      aud: 'alera-relay',
-      exp: now + 120,
-      iat: now,
-      nbf: now,
-      jti: 'grant-1',
-      accountId: 'account-1',
-      runtimeId: 'runtime-1',
-      clientId: 'mobile-1',
-      role: 'mobile',
-      keyVersion: 1,
-      clientPublicKey: base64Url(new Uint8Array(32).fill(1)),
-      runtimePublicKey: base64Url(new Uint8Array(32).fill(2)),
-    };
-    const header = base64Url(JSON.stringify({ alg: 'EdDSA', typ: 'relay+jwt', kid: 'key-1' }));
-    const encodedClaims = base64Url(JSON.stringify(claims));
-    const signingInput = `${header}.${encodedClaims}`;
-    const signature = new Uint8Array(
-      await crypto.subtle.sign({ name: 'Ed25519' }, keyPair.privateKey, new TextEncoder().encode(signingInput)),
-    );
-    const grant = `${signingInput}.${base64Url(signature)}`;
+    const { grant, publicJwk } = await signedRelayGrant();
     const forwarded: Request[] = [];
     const stub = {
       fetch(request: Request) {
@@ -283,16 +322,7 @@ describe('Alera API edge', () => {
         return Promise.resolve(new Response('connected'));
       },
     } as unknown as DurableObjectStub;
-    const environmentWithRelay = {
-      ...environment(),
-      RELAY_ENABLED: 'true',
-      RELAY_ISSUER: 'https://api.alera.build',
-      RELAY_JWKS_URL: 'https://api.alera.build/.well-known/jwks.json',
-      RELAY_OBJECTS: {
-        idFromName: () => ({}) as DurableObjectId,
-        get: () => stub,
-      },
-    } as EdgeEnvironment;
+    const environmentWithRelay = relayEnvironment(stub);
     const response = await handleRequest(
       new Request('https://api.alera.build/v1/relay/runtime-1', {
         headers: {
@@ -302,17 +332,63 @@ describe('Alera API edge', () => {
       }),
       environmentWithRelay,
       undefined,
-      async () =>
-        new Response(
-          JSON.stringify({
-            keys: [{ ...publicJwk, kid: 'key-1', alg: 'EdDSA' }],
-          }),
-        ),
+      relayJwks(publicJwk),
     );
 
     expect(response.status).toBe(200);
     expect(forwarded).toHaveLength(1);
     expect(forwarded[0].headers.get('authorization')).toBeNull();
     expect(forwarded[0].headers.get('x-alera-relay-claims')).toBeTruthy();
+  });
+
+  test('rejects a relay grant with an invalid signature during the handshake', async () => {
+    const { publicJwk, signingInput } = await signedRelayGrant();
+    let forwarded = false;
+    const stub = {
+      fetch() {
+        forwarded = true;
+        return Promise.resolve(new Response('unexpected'));
+      },
+    } as unknown as DurableObjectStub;
+    const invalidGrant = `${signingInput}.${base64Url(new Uint8Array(64))}`;
+    const response = await handleRequest(
+      new Request('https://api.alera.build/v1/relay/runtime-1', {
+        headers: {
+          authorization: `Bearer ${invalidGrant}`,
+          upgrade: 'websocket',
+        },
+      }),
+      relayEnvironment(stub),
+      undefined,
+      relayJwks(publicJwk),
+    );
+
+    expect(response.status).toBe(403);
+    expect(forwarded).toBeFalse();
+  });
+
+  test('rejects an expired relay grant during the handshake', async () => {
+    const { grant, publicJwk } = await signedRelayGrant(-1);
+    let forwarded = false;
+    const stub = {
+      fetch() {
+        forwarded = true;
+        return Promise.resolve(new Response('unexpected'));
+      },
+    } as unknown as DurableObjectStub;
+    const response = await handleRequest(
+      new Request('https://api.alera.build/v1/relay/runtime-1', {
+        headers: {
+          authorization: `Bearer ${grant}`,
+          upgrade: 'websocket',
+        },
+      }),
+      relayEnvironment(stub),
+      undefined,
+      relayJwks(publicJwk),
+    );
+
+    expect(response.status).toBe(403);
+    expect(forwarded).toBeFalse();
   });
 });

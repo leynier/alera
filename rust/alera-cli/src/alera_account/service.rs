@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use alera_core::runtime::{LocalAleraAccount, RuntimeStore};
 use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use chrono::{Duration, Utc};
 use tokio::sync::Mutex;
 
@@ -13,6 +14,7 @@ use super::cloud_client::{
     PushEventRequest, DEFAULT_CLOUD_BASE_URL,
 };
 use super::credential_store::{AccountCredentialStore, StoredAccountCredential};
+use crate::terminal_host::relay_crypto::IdentityKeyPair;
 
 #[derive(Debug, Clone)]
 struct AccessSession {
@@ -111,9 +113,17 @@ impl AleraAccountService {
             .alera_account()
             .await?
             .filter(|account| account.account_id == envelope.account.id);
+        let previous_credential = self.credentials.load().await?;
         self.credentials
             .save(&StoredAccountCredential {
                 refresh_token: envelope.refresh_token,
+                relay_private_key_b64: previous_credential
+                    .as_ref()
+                    .and_then(|credential| credential.relay_private_key_b64.clone()),
+                relay_key_version: previous_credential
+                    .as_ref()
+                    .map(|credential| credential.relay_key_version)
+                    .unwrap_or(1),
             })
             .await?;
         *self.session.lock().await = Some(AccessSession {
@@ -167,6 +177,8 @@ impl AleraAccountService {
         self.credentials
             .save(&StoredAccountCredential {
                 refresh_token: envelope.refresh_token.clone(),
+                relay_private_key_b64: credential.relay_private_key_b64,
+                relay_key_version: credential.relay_key_version,
             })
             .await?;
         let local = LocalAleraAccount {
@@ -226,6 +238,69 @@ impl AleraAccountService {
         let response = self.cloud.runtime_subscriptions(&token).await?;
         self.persist_subscription_count(response.active_subscriptions)
             .await
+    }
+
+    pub(crate) async fn relay_identity(&self) -> Result<IdentityKeyPair> {
+        let credential = self
+            .credentials
+            .load()
+            .await?
+            .ok_or_else(|| anyhow!("Alera account is signed out"))?;
+        let key_version = credential.relay_key_version.max(1);
+        let (identity, encoded) = match credential.relay_private_key_b64.as_deref() {
+            Some(encoded) => match URL_SAFE_NO_PAD.decode(encoded) {
+                Ok(bytes) if bytes.len() == 32 => {
+                    let mut private = [0_u8; 32];
+                    private.copy_from_slice(&bytes);
+                    let identity = IdentityKeyPair::from_private(private);
+                    (identity, encoded.to_owned())
+                }
+                _ => {
+                    let identity = IdentityKeyPair::generate();
+                    let encoded = URL_SAFE_NO_PAD.encode(identity.private_bytes());
+                    (identity, encoded)
+                }
+            },
+            None => {
+                let identity = IdentityKeyPair::generate();
+                let encoded = URL_SAFE_NO_PAD.encode(identity.private_bytes());
+                (identity, encoded)
+            }
+        };
+        if credential.relay_private_key_b64.as_deref() != Some(encoded.as_str())
+            || credential.relay_key_version != key_version
+        {
+            self.credentials
+                .save(&StoredAccountCredential {
+                    refresh_token: credential.refresh_token,
+                    relay_private_key_b64: Some(encoded),
+                    relay_key_version: key_version,
+                })
+                .await?;
+        }
+        let token = self.access_token().await?;
+        let response = self
+            .cloud
+            .register_relay_identity(
+                &token,
+                &URL_SAFE_NO_PAD.encode(identity.public_bytes()),
+                key_version,
+            )
+            .await?;
+        if response.client_id != self.runtime_id
+            || response.client_kind != "runtime"
+            || response.public_key != URL_SAFE_NO_PAD.encode(identity.public_bytes())
+            || response.key_version != key_version
+        {
+            return Err(anyhow!("cloud returned an invalid relay identity"));
+        }
+        Ok(identity)
+    }
+
+    pub(crate) async fn relay_grant(&self) -> Result<super::cloud_client::RelayGrant> {
+        let _ = self.relay_identity().await?;
+        let token = self.access_token().await?;
+        self.cloud.relay_grant(&token, &self.runtime_id).await
     }
 
     async fn persist_subscription_count(&self, count: i64) -> Result<usize> {

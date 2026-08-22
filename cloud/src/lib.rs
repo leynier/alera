@@ -12,6 +12,7 @@ pub mod mobile;
 pub mod oauth;
 pub mod push;
 pub mod quota;
+pub mod relay;
 pub mod runtimes;
 pub mod signing;
 pub mod state;

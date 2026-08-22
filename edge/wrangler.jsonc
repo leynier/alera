@@ -11,7 +11,7 @@
     }
   ],
   "vars": {
-    "RELAY_ENABLED": "false",
+    "RELAY_ENABLED": "true",
     "RELAY_ISSUER": "https://api.alera.build",
     "RELAY_JWKS_URL": "https://api.alera.build/.well-known/jwks.json"
   },

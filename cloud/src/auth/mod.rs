@@ -13,7 +13,7 @@ use crate::{api_models::ClientKind, error::ApiError, state::AppState};
 
 pub use handlers::{create_transaction, exchange, jwks, refresh, revoke};
 pub use sessions::{create_session, revoke_family, rotate_session};
-pub use tokens::{AccessClaims, TokenService};
+pub use tokens::{AccessClaims, RelayGrantInput, TokenService};
 pub use transactions::create_link_transaction;
 
 #[derive(Clone, Debug)]

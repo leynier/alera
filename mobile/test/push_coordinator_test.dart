@@ -280,6 +280,9 @@ class _FakeCloudApi implements AleraCloudApi {
   ) async => session;
 
   @override
+  Future<void> revokeSession(CloudAccountSession session) async {}
+
+  @override
   Future<CloudEnrollmentResult> redeemEnrollment({
     required String code,
     required String deviceId,

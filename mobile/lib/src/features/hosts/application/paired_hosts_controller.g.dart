@@ -63,3 +63,44 @@ abstract class _$PairedHostsController
     return element.handleCreate(ref, build);
   }
 }
+
+@ProviderFor(availableHosts)
+final availableHostsProvider = AvailableHostsProvider._();
+
+final class AvailableHostsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<PairedHostProfile>>,
+          List<PairedHostProfile>,
+          FutureOr<List<PairedHostProfile>>
+        >
+    with
+        $FutureModifier<List<PairedHostProfile>>,
+        $FutureProvider<List<PairedHostProfile>> {
+  AvailableHostsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'availableHostsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$availableHostsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<List<PairedHostProfile>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<PairedHostProfile>> create(Ref ref) {
+    return availableHosts(ref);
+  }
+}
+
+String _$availableHostsHash() => r'f1137021fbbf1ce325197ab9cdc0ee8e3d47b30b';

@@ -276,7 +276,7 @@ async function handleRelayRequest(
   if (request.method !== 'GET' || !isWebSocketUpgrade(request)) {
     return jsonError(426, 'websocket_required', 'The relay requires a WebSocket connection.');
   }
-  if (!env.RELAY_OBJECTS) {
+  if (!env.RELAY_OBJECTS || !env.RELAY_ISSUER || !env.RELAY_JWKS_URL) {
     return jsonError(503, 'relay_not_configured', 'The relay is not configured.');
   }
   const token = bearerToken(request);

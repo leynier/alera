@@ -138,7 +138,7 @@ final class MobileAiDictationControllerProvider
 }
 
 String _$mobileAiDictationControllerHash() =>
-    r'601042f8e5401bf8b5ecc4915188f447eae164b7';
+    r'3305771d0599aadef0cd96c0db83b0c643a6d3a9';
 
 final class MobileAiDictationControllerFamily extends $Family
     with

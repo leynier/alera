@@ -49,6 +49,7 @@ class AiDictationProviderPolicyMapper
     }
   }
 }
+
 extension AiDictationProviderPolicyMapperExtension
     on AiDictationProviderPolicy {
   String toValue() {
