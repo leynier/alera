@@ -132,6 +132,7 @@ class AgentAwakeService {
       AgentType.pi => _hookSettings.pi,
       AgentType.amp => _hookSettings.amp,
       AgentType.grok => _hookSettings.grok,
+      AgentType.fx => _hookSettings.fx,
     };
   }
 

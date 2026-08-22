@@ -2,7 +2,7 @@ use alera_core::runtime::{OrchestrationDispatchStatus, WorkspaceStatus, Workspac
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_registry::adapter_for;
+use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
 use crate::terminal_host::orchestration::coordinator_loop::CoordinatorConfig;
 use crate::terminal_host::orchestration::dispatch_preamble::{build_dispatch_bootstrap, BaseDrift};
 
@@ -214,6 +214,7 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let bootstrap = build_dispatch_bootstrap();
+        let prompt_after_ready = adapter.startup_prompt == AgentStartupPrompt::TerminalAfterReady;
         let mut dispatch_response = Some(
             self.orchestration_dispatch(&json!({
                 "task": task_id,
@@ -255,7 +256,11 @@ impl ServerActor {
                 "terminalSessionId": id,
                 "initialCommand": command,
                 "initialManagedAgentLaunch": resolved.managed_launch,
-                "initialPrompt": bootstrap.clone(),
+                "initialPrompt": (!prompt_after_ready).then(|| bootstrap.clone()),
+                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                    "agent": adapter.agent_type,
+                    "prompt": bootstrap.clone(),
+                })),
                 // The adapter decides the prompt's shape at spawn, so the tab
                 // has to name its agent rather than only the spawn metadata.
                 "agentType": agent_type,

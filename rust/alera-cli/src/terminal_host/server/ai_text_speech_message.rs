@@ -4,9 +4,8 @@ use tokio::sync::oneshot;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-use super::ai_text_requests::{
-    active_generations, default_model, plan_command, run_command, SUPPORTED_AGENTS,
-};
+use super::ai_text_model_defaults::default_model;
+use super::ai_text_requests::{active_generations, plan_command, run_command, SUPPORTED_AGENTS};
 use super::host_service_requests::required_non_blank;
 use super::{ServerActor, ServerCommand};
 

@@ -299,6 +299,15 @@ class AgentProfileManagedEditor extends StatelessWidget {
           keyName: 'disableWebSearch',
         ),
       ],
+      AgentType.fx => <Widget>[
+        _boolRow(title: 'Resume Latest Session', keyName: 'resumeLast'),
+        _boolRow(
+          title: 'Ignore Additional Directories',
+          description: 'Do not load additional directories configured by fx.',
+          keyName: 'noAdditionalDirs',
+        ),
+        _boolRow(title: 'Record Session', keyName: 'record'),
+      ],
     };
   }
 

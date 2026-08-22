@@ -23,6 +23,7 @@ void main() {
             pi: true,
             amp: true,
             grok: true,
+            fx: true,
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
@@ -97,6 +98,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.pi, isTrue);
       expect(restored.agents.agentStatusHooks.amp, isTrue);
       expect(restored.agents.agentStatusHooks.grok, isTrue);
+      expect(restored.agents.agentStatusHooks.fx, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.agents.defaultAgentProfileId, 'prof_1');

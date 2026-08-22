@@ -178,6 +178,14 @@ class CliAiTextAgentRunner implements AiTextAgentRunner {
     }
     Directory? promptDirectory;
     final environmentOverrides = <String, String>{};
+    if (agent == AiTextGenerationAgent.fx) {
+      environmentOverrides.addAll(<String, String>{
+        'FX_PERMISSION_MODE': 'ask',
+        'FX_AUTO_UPGRADE': '0',
+        'FX_HERDR': '0',
+        if (model.id.trim().isNotEmpty) 'FX_MODEL': model.id.trim(),
+      });
+    }
     var deliveredPrompt = '';
     if (spec.promptDelivery == AiPromptDelivery.argv) {
       deliveredPrompt = request.prompt;

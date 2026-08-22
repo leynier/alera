@@ -27,7 +27,8 @@ final class AgentHookLifecycleGuard {
       AgentType.opencode ||
       AgentType.opencode2 ||
       AgentType.pi ||
-      AgentType.grok => true,
+      AgentType.grok ||
+      AgentType.fx => true,
     };
   }
 

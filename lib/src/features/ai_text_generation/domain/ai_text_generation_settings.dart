@@ -36,6 +36,7 @@ enum AiTextGenerationAgent {
   pi('pi'),
   amp('amp'),
   grok('grok'),
+  fx('fx'),
   custom('custom');
 
   const AiTextGenerationAgent(this.key);
@@ -53,6 +54,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.pi => 'Pi',
     AiTextGenerationAgent.amp => 'Amp',
     AiTextGenerationAgent.grok => 'Grok Build',
+    AiTextGenerationAgent.fx => 'fx',
     AiTextGenerationAgent.custom => 'Custom Command',
   };
 
@@ -67,6 +69,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.pi => AgentType.pi,
     AiTextGenerationAgent.amp => AgentType.amp,
     AiTextGenerationAgent.grok => AgentType.grok,
+    AiTextGenerationAgent.fx => AgentType.fx,
     AiTextGenerationAgent.custom => null,
   };
 }

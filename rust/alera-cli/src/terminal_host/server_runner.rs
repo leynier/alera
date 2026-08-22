@@ -39,6 +39,9 @@ pub async fn run_terminal_host_server(
     if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
         tracing::warn!("alera agent hook receiver unavailable: {error}");
     }
+    if let Err(error) = start_fx_herdr_receiver(&runtime_dir, inbox.clone()).await {
+        tracing::warn!("alera fx lifecycle receiver unavailable: {error}");
+    }
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
