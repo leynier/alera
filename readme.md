@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>The native, performance-first agentic development environment.</strong><br/>
-  Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor or any other CLI agent side-by-side, each in its own Git worktree, all tracked in one place.<br/>
+  Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor, fx or any other CLI agent side-by-side, each in its own Git worktree, all tracked in one place.<br/>
   Built with <strong>Flutter + Rust + Ghostty</strong>. No Electron. No bundled Chromium. Available for <strong>macOS, Windows, and Linux</strong>.
 </p>
 
@@ -52,8 +52,9 @@ Alera works with **any CLI agent**. The agents below ship with first-class integ
   <a href="https://opencode.ai/docs/cli/"><kbd><img src="assets/agents/opencode.png" width="16" valign="middle" /> OpenCode</kbd></a> &nbsp;
   <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" /> Cursor</kbd></a> &nbsp;
   <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" /> GitHub Copilot</kbd></a> &nbsp;
-  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a>
-  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a>
+  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a> &nbsp;
+  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a> &nbsp;
+  <a href="https://fx.sh"><kbd><img src="assets/agents/fx.svg" width="16" valign="middle" /> fx</kbd></a>
 </p>
 
 Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Continue, Aider, your own scripts) works out of the box. Activity tracking is incrementally rolling out per agent.
@@ -78,7 +79,7 @@ Open multiple terminals per workspace, organised in tabs. Run Claude Code in one
 
 ### 📡 Live agent activity tracking
 
-Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot and Pi stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
+Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot, Pi and fx stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
 
 ### 📊 Agent quota tracking
 
