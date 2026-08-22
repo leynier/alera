@@ -1,0 +1,63 @@
+name: Setup Rust checks
+description: >-
+  Installs the Linux packages the workspace cargo clippy/test graph needs
+  (including Whisper/Vulkan), configures a faster CI compile profile, and sets
+  up the pinned Rust toolchain plus sccache. Optional `check` runs the same
+  cargo invocations used by pr.yml and warm-cache.yml so sccache keys match.
+
+inputs:
+  check:
+    description: >-
+      Cargo check to run after setup. `clippy` runs fmt plus clippy. `test`
+      runs the workspace tests. `all` runs clippy then test, for cache warming.
+      `setup` only prepares the environment.
+    required: false
+    default: setup
+
+runs:
+  using: composite
+  steps:
+    - name: Install Linux dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install --yes libdbus-1-dev pkg-config libvulkan-dev glslc ninja-build lld
+
+    - name: Configure Rust check environment
+      shell: bash
+      run: |
+        set -euo pipefail
+        {
+          echo "VULKAN_SDK=/usr"
+          # whisper-rs-sys compiles ggml and vulkan-shaders-gen through cmake.
+          # Ninja is the generator Windows CI already requires for that graph.
+          echo "CMAKE_GENERATOR=Ninja"
+          # Dev-profile debuginfo dominates link time and is unused by these tests.
+          echo "CARGO_PROFILE_DEV_DEBUG=line-tables-only"
+          echo "RUSTFLAGS=-C link-arg=-fuse-ld=lld"
+        } >> "$GITHUB_ENV"
+
+    - name: Setup Rust and sccache
+      uses: ./.github/actions/setup-rust-sccache
+
+    - name: Format
+      if: inputs.check == 'clippy' || inputs.check == 'all'
+      shell: bash
+      working-directory: rust
+      run: cargo fmt --check
+
+    # --workspace is required because rust/ has a root package (alera_native),
+    # so a bare clippy/test would skip the alera-cli member. --locked keeps the
+    # PR graph on the committed Cargo.lock.
+    - name: Clippy
+      if: inputs.check == 'clippy' || inputs.check == 'all'
+      shell: bash
+      working-directory: rust
+      run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+    - name: Test
+      if: inputs.check == 'test' || inputs.check == 'all'
+      shell: bash
+      working-directory: rust
+      run: cargo test --workspace --locked
