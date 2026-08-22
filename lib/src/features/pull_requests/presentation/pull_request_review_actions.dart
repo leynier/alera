@@ -3,6 +3,7 @@ part of 'pull_request_review_view.dart';
 class _PullRequestReviewActions extends StatefulWidget {
   const _PullRequestReviewActions({
     required this.review,
+    required this.stack,
     required this.mergeMethods,
     required this.canCloseReview,
     required this.canChangeDraftStatus,
@@ -14,6 +15,7 @@ class _PullRequestReviewActions extends StatefulWidget {
   });
 
   final HostedReview review;
+  final HostedReviewStack? stack;
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
   final bool canChangeDraftStatus;
@@ -89,7 +91,8 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       _PullRequestReviewAction.mergeCommit ||
       _PullRequestReviewAction.squash ||
       _PullRequestReviewAction.rebase =>
-        widget.action == PullRequestAction.merge,
+        widget.action == PullRequestAction.merge ||
+            widget.action == PullRequestAction.mergeStack,
       _PullRequestReviewAction.close =>
         widget.action == PullRequestAction.close,
       _PullRequestReviewAction.markReady ||
@@ -104,11 +107,20 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       busy: showProgress,
       primaryEnabled: primaryEnabled,
       menuEnabled: !_busy && actions.length > 1,
+      labelFor: _actionLabel,
       onPressed: () => unawaited(_confirmAction(action)),
       onSelected: (selected) {
         setState(() => _selectedAction = selected);
       },
     );
+  }
+
+  String _actionLabel(_PullRequestReviewAction action) {
+    final method = action.mergeMethod;
+    if (method != null && widget.stack != null) {
+      return '${method.label} Stack Through #${widget.review.number}';
+    }
+    return action.label;
   }
 
   Future<void> _confirmAction(_PullRequestReviewAction action) async {
@@ -139,14 +151,22 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
   }
 
   Future<void> _confirmMerge(ReviewMergeMethod method) async {
+    final stack = widget.stack;
+    final affected = stack
+        ?.entriesThrough(widget.review.number)
+        .where((entry) => entry.review.state != HostedReviewState.merged)
+        .length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: '${method.label} PR #${widget.review.number}?',
-        message:
-            'This will update the pull request on '
-            '${widget.review.provider.label}.',
-        confirmLabel: method.label,
+        title: stack == null
+            ? '${method.label} PR #${widget.review.number}?'
+            : '${method.label} Stack Through #${widget.review.number}?',
+        message: stack == null
+            ? 'This will update the pull request on '
+                  '${widget.review.provider.label}.'
+            : 'This will merge $affected pull ${affected == 1 ? 'request' : 'requests'} atomically through #${widget.review.number}. Pull requests above it will remain open.',
+        confirmLabel: stack == null ? method.label : '${method.label} Stack',
       ),
     );
     if (confirmed == true) {
@@ -155,11 +175,20 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
   }
 
   Future<void> _confirmClose() async {
+    final stack = widget.stack;
+    final currentPosition = stack?.positionForReview(widget.review.number);
+    final hasOpenMembersAbove =
+        currentPosition != null &&
+        stack!.entries.any(
+          (entry) => entry.position > currentPosition && entry.review.isOpen,
+        );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
         title: 'Close Pull Request #${widget.review.number}?',
-        message: 'This will close the pull request without merging it.',
+        message: hasOpenMembersAbove
+            ? 'This will close the pull request without merging it and block the open stack members above it until the chain is repaired.'
+            : 'This will close the pull request without merging it.',
         confirmLabel: 'Close Pull Request',
         destructive: true,
       ),
@@ -271,6 +300,7 @@ class _PullRequestActionButton extends StatelessWidget {
     required this.busy,
     required this.primaryEnabled,
     required this.menuEnabled,
+    required this.labelFor,
     required this.onPressed,
     required this.onSelected,
   });
@@ -280,6 +310,7 @@ class _PullRequestActionButton extends StatelessWidget {
   final bool busy;
   final bool primaryEnabled;
   final bool menuEnabled;
+  final String Function(_PullRequestReviewAction action) labelFor;
   final VoidCallback onPressed;
   final ValueChanged<_PullRequestReviewAction> onSelected;
 
@@ -337,7 +368,7 @@ class _PullRequestActionButton extends StatelessWidget {
                             const SizedBox(width: AleraTokens.space8),
                             Flexible(
                               child: Text(
-                                action.label,
+                                labelFor(action),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: textStyle,
@@ -419,7 +450,7 @@ class _PullRequestActionButton extends StatelessWidget {
         for (final option in readyActions)
           AleraDropdownEntry<_PullRequestReviewAction>(
             value: option,
-            label: option.label,
+            label: labelFor(option),
             selected: option == action,
             leading: Icon(option.icon, size: 16),
           ),
@@ -428,7 +459,7 @@ class _PullRequestActionButton extends StatelessWidget {
         for (final option in mergeActions)
           AleraDropdownEntry<_PullRequestReviewAction>(
             value: option,
-            label: option.label,
+            label: labelFor(option),
             selected: option == action,
             leading: Icon(option.icon, size: 16),
           ),
@@ -438,7 +469,7 @@ class _PullRequestActionButton extends StatelessWidget {
         for (final option in otherActions)
           AleraDropdownEntry<_PullRequestReviewAction>(
             value: option,
-            label: option.label,
+            label: labelFor(option),
             selected: option == action,
             leading: Icon(
               option.icon,

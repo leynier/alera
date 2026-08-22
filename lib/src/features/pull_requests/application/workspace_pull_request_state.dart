@@ -1,6 +1,7 @@
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
@@ -15,7 +16,10 @@ enum PullRequestAction {
   unlink,
   create,
   update,
+  createStack,
+  linkStack,
   merge,
+  mergeStack,
   close,
   draftStatus,
   comment,
@@ -29,6 +33,9 @@ class WorkspacePullRequestState {
     this.authStatus = ForgeAuthStatus.unknown,
     this.review,
     this.suggestedReview,
+    this.stack,
+    this.stackSupported = false,
+    this.stackErrorMessage,
     this.checks = const <ReviewCheck>[],
     this.comments = const <ReviewComment>[],
     this.linkedManually = false,
@@ -54,6 +61,15 @@ class WorkspacePullRequestState {
   /// Active branch review currently ignored by the workspace. The link form
   /// offers it as an explicit suggestion without displaying it automatically.
   final HostedReview? suggestedReview;
+
+  /// GitHub-native stack containing [review], ordered bottom to top.
+  final HostedReviewStack? stack;
+
+  /// Whether the resolved forge exposes native stack operations.
+  final bool stackSupported;
+
+  /// A stack-specific load failure that does not hide the pull request itself.
+  final String? stackErrorMessage;
 
   final List<ReviewCheck> checks;
   final List<ReviewComment> comments;
@@ -87,6 +103,8 @@ class WorkspacePullRequestState {
   bool get hasReview => review != null;
   bool get providerAvailable => identity != null;
   bool get isAuthenticated => authStatus == ForgeAuthStatus.authenticated;
+  bool get canManageStack =>
+      stackSupported && isAuthenticated && review?.isOpen == true;
   bool get supportsCreation =>
       providerAvailable &&
       isAuthenticated &&
@@ -102,6 +120,11 @@ class WorkspacePullRequestState {
     ForgeAuthStatus? authStatus,
     HostedReview? review,
     HostedReview? suggestedReview,
+    HostedReviewStack? stack,
+    bool clearStack = false,
+    bool? stackSupported,
+    String? stackErrorMessage,
+    bool clearStackError = false,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
     bool? linkedManually,
@@ -126,6 +149,11 @@ class WorkspacePullRequestState {
       authStatus: authStatus ?? this.authStatus,
       review: review ?? this.review,
       suggestedReview: suggestedReview ?? this.suggestedReview,
+      stack: clearStack ? null : (stack ?? this.stack),
+      stackSupported: stackSupported ?? this.stackSupported,
+      stackErrorMessage: clearStackError
+          ? null
+          : (stackErrorMessage ?? this.stackErrorMessage),
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
       linkedManually: linkedManually ?? this.linkedManually,
@@ -153,8 +181,12 @@ class WorkspacePullRequestState {
     final commentPart = comments
         .map((comment) => '${comment.id}:${comment.createdAt}:${comment.body}')
         .join('|');
+    final stackPart = stack == null
+        ? ''
+        : '${stack!.number}:${stack!.open}:'
+              '${stack!.entries.map((entry) => '${entry.review.number}:${entry.review.state.name}:${entry.review.baseBranch}').join('|')}';
     return '${review?.number}:${review?.state.name}:${review?.title}:'
         '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
-        '${review?.baseBranch}:$checkPart:$commentPart';
+        '${review?.baseBranch}:$stackPart:$checkPart:$commentPart';
   }
 }

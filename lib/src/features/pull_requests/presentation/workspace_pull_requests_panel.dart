@@ -7,10 +7,14 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
+import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
@@ -36,6 +40,34 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final localContext = ref.watch(
+      workbenchControllerProvider.select((state) {
+        Project? project;
+        for (final candidate in state.projects) {
+          if (candidate.id == workspace.projectId) {
+            project = candidate;
+            break;
+          }
+        }
+        return (
+          project: project,
+          workspaces: state.workspacesFor(workspace.projectId),
+        );
+      }),
+    );
+    final workspaceByBranch = <String, Workspace>{};
+    for (final candidate in localContext.workspaces) {
+      final branch = candidate.branch?.trim();
+      if (!candidate.isActive || branch == null || branch.isEmpty) {
+        continue;
+      }
+      workspaceByBranch.putIfAbsent(branch, () => candidate);
+    }
+    final stackWorkspaceCandidates = buildReviewStackWorkspaceCandidates(
+      workspaces: localContext.workspaces,
+      currentWorkspaceId: workspace.id,
+      currentRepoPath: repoPath,
+    );
     final overrideAsync = ref.watch(
       effectiveHostingProviderOverrideProvider(workspace.projectId),
     );
@@ -55,6 +87,22 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
           key: ValueKey<WorkspacePullRequestScope>(scope),
           scope: scope,
           repoPath: repoPath,
+          workspaceByBranch: workspaceByBranch,
+          stackWorkspaceCandidates: stackWorkspaceCandidates,
+          onOpenWorkspaceBranch: localContext.project == null
+              ? null
+              : (branch) async {
+                  final target = workspaceByBranch[branch];
+                  if (target == null) {
+                    return;
+                  }
+                  await ref
+                      .read(workbenchControllerProvider.notifier)
+                      .selectWorkspace(
+                        project: localContext.project!,
+                        workspace: target,
+                      );
+                },
         );
       },
     );
@@ -68,10 +116,16 @@ class _VisiblePullRequestsPanel extends ConsumerStatefulWidget {
     super.key,
     required this.scope,
     required this.repoPath,
+    required this.workspaceByBranch,
+    required this.stackWorkspaceCandidates,
+    required this.onOpenWorkspaceBranch,
   });
 
   final WorkspacePullRequestScope scope;
   final String repoPath;
+  final Map<String, Workspace> workspaceByBranch;
+  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
+  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
 
   @override
   ConsumerState<_VisiblePullRequestsPanel> createState() =>
@@ -111,17 +165,26 @@ class _VisiblePullRequestsPanelState
       loading: WorkspacePullRequestsPanel._loading,
       error: (error, _) =>
           _MessageBody(icon: AleraIcons.error, message: error.toString()),
-      data: (state) => _PullRequestBody(
-        repoPath: widget.repoPath,
-        state: state,
-        createAction: createAction,
-        controller: _controller,
-        onOpenUrl: (url) =>
-            ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
-        onCreateActionChanged: (action) => ref
-            .read(workbenchControllerProvider.notifier)
-            .setPullRequestCreateAction(action),
-      ),
+      data: (state) {
+        final candidates = applyLiveReviewStackWorkspaceBranch(
+          candidates: widget.stackWorkspaceCandidates,
+          branch: state.currentBranch,
+        );
+        return _PullRequestBody(
+          repoPath: widget.repoPath,
+          state: state,
+          createAction: createAction,
+          controller: _controller,
+          localWorkspaceBranches: widget.workspaceByBranch.keys.toSet(),
+          stackWorkspaceCandidates: candidates,
+          onOpenWorkspaceBranch: widget.onOpenWorkspaceBranch,
+          onOpenUrl: (url) =>
+              ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
+          onCreateActionChanged: (action) => ref
+              .read(workbenchControllerProvider.notifier)
+              .setPullRequestCreateAction(action),
+        );
+      },
     );
   }
 }
@@ -132,6 +195,9 @@ class _PullRequestBody extends StatelessWidget {
     required this.state,
     required this.createAction,
     required this.controller,
+    required this.localWorkspaceBranches,
+    required this.stackWorkspaceCandidates,
+    required this.onOpenWorkspaceBranch,
     required this.onOpenUrl,
     required this.onCreateActionChanged,
   });
@@ -140,6 +206,9 @@ class _PullRequestBody extends StatelessWidget {
   final WorkspacePullRequestState state;
   final PullRequestCreateAction createAction;
   final WorkspacePullRequestController controller;
+  final Set<String> localWorkspaceBranches;
+  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
+  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
   final Future<void> Function(String url) onOpenUrl;
   final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
 
@@ -155,12 +224,12 @@ class _PullRequestBody extends StatelessWidget {
         ),
         if (state.errorMessage != null)
           _ErrorBanner(message: state.errorMessage!),
-        Expanded(child: _content()),
+        Expanded(child: _content(context)),
       ],
     );
   }
 
-  Widget _content() {
+  Widget _content(BuildContext context) {
     if (state.unavailableReason != null) {
       return _unavailable(state.unavailableReason!);
     }
@@ -186,6 +255,12 @@ class _PullRequestBody extends StatelessWidget {
     if (review != null) {
       return PullRequestReviewView(
         review: review,
+        stack: state.stack,
+        stackSupported: state.stackSupported,
+        stackErrorMessage: state.stackErrorMessage,
+        localWorkspaceBranches: localWorkspaceBranches,
+        stackWorkspaceCandidates: stackWorkspaceCandidates,
+        stackDefaultDraft: createAction == PullRequestCreateAction.draft,
         checks: state.checks,
         comments: state.comments,
         baseBranches: state.baseBranches,
@@ -197,7 +272,10 @@ class _PullRequestBody extends StatelessWidget {
         savingCommentIds: state.savingCommentIds,
         action: state.action,
         onOpenUrl: onOpenUrl,
+        onOpenWorkspaceBranch: onOpenWorkspaceBranch,
         onUnlink: controller.unlink,
+        onLinkStack: controller.linkReviewStack,
+        onCreateStackFromWorkspaces: controller.createReviewStackFromWorkspaces,
         onMerge: controller.mergeReview,
         onClose: controller.closeReview,
         onDraftStatusChanged: controller.setReviewDraft,
@@ -208,6 +286,12 @@ class _PullRequestBody extends StatelessWidget {
       );
     }
     final canCreate = state.supportsCreation && state.currentBranch != null;
+    final canCreateStack =
+        state.stackSupported &&
+        state.isAuthenticated &&
+        state.currentBranch?.trim().isNotEmpty == true &&
+        stackWorkspaceCandidates.length >= 2 &&
+        stackWorkspaceCandidates.any((candidate) => candidate.current);
     return PullRequestComposer(
       repoPath: repoPath,
       headBranch: state.currentBranch,
@@ -217,6 +301,8 @@ class _PullRequestBody extends StatelessWidget {
       busy: state.isBusy,
       suggestedReview: state.suggestedReview,
       createAction: createAction,
+      canCreateStack: canCreateStack,
+      creatingStack: state.action == PullRequestAction.createStack,
       onCreate: (draft) {
         final identity = state.identity;
         final head = state.currentBranch;
@@ -234,9 +320,33 @@ class _PullRequestBody extends StatelessWidget {
           ),
         );
       },
+      onCreateStack: (draft) =>
+          _openWorkspaceStackDialog(context, currentDraft: draft),
       onLink: controller.link,
       onCreateActionChanged: onCreateActionChanged,
     );
+  }
+
+  Future<void> _openWorkspaceStackDialog(
+    BuildContext context, {
+    required CreateReviewDraft currentDraft,
+  }) async {
+    final request = await showDialog<ReviewStackWorkspaceRequest>(
+      context: context,
+      builder: (_) => PullRequestStackWorkspaceDialog(
+        currentTitle: currentDraft.title,
+        currentBody: currentDraft.body,
+        currentDraft: currentDraft.draft,
+        candidates: stackWorkspaceCandidates,
+        baseBranches: state.baseBranches,
+        suggestedBaseBranch: currentDraft.baseBranch,
+        defaultDraft: currentDraft.draft,
+      ),
+    );
+    if (request == null || !context.mounted) {
+      return;
+    }
+    await controller.createReviewStackFromWorkspaces(request);
   }
 
   Widget _unavailable(PullRequestUnavailableReason reason) {

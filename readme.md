@@ -114,7 +114,7 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 
 ### ✅ Pull requests & checks
 
-Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
+Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
 
 ### 🖥️ Truly native, truly cross-platform
 
