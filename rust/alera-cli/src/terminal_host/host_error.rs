@@ -1,6 +1,6 @@
 use std::fmt;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 /// Errors surfaced to clients over the wire. [`HostError::State`] renders its
 /// message as-is because some client recovery paths pattern-match exact text,
@@ -47,18 +47,13 @@ impl HostError {
         }
     }
 
-    pub fn wire_code(&self) -> Option<&str> {
-        match self {
-            HostError::Conflict { code, .. } => Some(code),
-            _ => None,
+    pub fn wire_response(&self, id: i64) -> Value {
+        let mut response = json!({ "id": id, "ok": false, "error": self.wire_message() });
+        if let HostError::Conflict { code, details, .. } = self {
+            response["errorCode"] = json!(code);
+            response["errorDetails"] = details.clone();
         }
-    }
-
-    pub fn wire_details(&self) -> Option<&Value> {
-        match self {
-            HostError::Conflict { details, .. } => Some(details),
-            _ => None,
-        }
+        response
     }
 }
 
