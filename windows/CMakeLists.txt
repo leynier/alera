@@ -93,6 +93,7 @@ add_custom_target(alera_cli_sidecar ALL
     "CXXFLAGS=/FS"
     "CL=/FS"
     "_CL_=/Z7 /FS"
+    "GGML_CCACHE=OFF"
     "${CARGO_EXECUTABLE}" build --locked -p alera-cli
     --profile $<IF:$<CONFIG:Release>,release,dev>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"

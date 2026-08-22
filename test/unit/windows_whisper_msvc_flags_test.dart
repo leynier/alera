@@ -16,6 +16,7 @@ void main() {
       expect(source, contains('"_CL_=/Z7 /FS"'));
       expect(source, contains('"CMAKE_GENERATOR=Ninja"'));
       expect(source, contains('CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja'));
+      expect(source, contains('"GGML_CCACHE=OFF"'));
     }
     expect(cargokit, contains('ALERA_CARGOKIT_TEMP_DIR'));
     expect(cargokit, contains(r'SystemDrive}/c/${CARGOKIT_LIB_NAME}'));
