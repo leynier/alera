@@ -126,7 +126,18 @@ fn codex_spawn_creates_dispatch_before_first_hook() {
         "tab.find",
         json!({"id": handle}),
     ));
-    let prompt = tab["payload"]["initialPrompt"].as_str().unwrap();
+    assert!(tab["payload"].get("initialPrompt").is_none(), "{tab}");
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let stored = runtime.block_on(async {
+        alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap()
+            .find_workspace_tab(handle)
+            .await
+            .unwrap()
+            .unwrap()
+    });
+    let prompt = stored.payload["initialPrompt"].as_str().unwrap();
     assert!(prompt.contains("dispatch-accept"), "{prompt}");
     assert!(prompt.contains("--json context"), "{prompt}");
     assert!(!prompt.contains("=== TASK ==="), "{prompt}");

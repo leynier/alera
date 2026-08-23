@@ -3,12 +3,17 @@ use serde_json::{json, Value};
 use sha2::{Digest as _, Sha256};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
+use crate::terminal_host::orchestration::agent_profile_launch_snapshot::{
+    AgentInitialDeliveryMechanismV1, AgentInitialDeliveryReplayV1, AgentProfileLaunchSnapshotV1,
+    AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY,
+};
+use crate::terminal_host::orchestration::agent_registry::adapter_for;
 
 use super::agent_prompt_composition::compose_agent_prompt;
 use super::client_delivery::LocalClientRole;
 use super::host_service_requests::required_non_blank;
 use super::orchestration_profile_spawn::launch_for_profile;
+use super::tab_compatibility::redact_private_tab_payload;
 use super::{ClientKind, ServerActor};
 
 const CLIENT_MUTATION_ID_MAX_BYTES: usize = 128;
@@ -81,7 +86,9 @@ impl ServerActor {
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?
             {
-                Some(AgentProfileLaunchReceiptOutcome::Replay(result)) => return Ok(result),
+                Some(AgentProfileLaunchReceiptOutcome::Replay(result)) => {
+                    return Ok(redact_agent_profile_launch_result(result));
+                }
                 Some(AgentProfileLaunchReceiptOutcome::Conflict) => {
                     return Err(HostError::state(
                         "clientMutationId was already used with a different agentProfile.launch payload.",
@@ -127,9 +134,37 @@ impl ServerActor {
             HostError::format(format!("Unsupported agent type: {}", profile.agent_type))
         })?;
         let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
-        let prompt_after_ready = adapter.startup_prompt == AgentStartupPrompt::TerminalAfterReady;
+        let launch_snapshot = AgentProfileLaunchSnapshotV1::new(
+            &profile,
+            adapter,
+            command,
+            managed_launch,
+            AgentInitialDeliveryReplayV1::Once,
+        )
+        .map_err(HostError::format)?;
+        let prompt_after_ready = launch_snapshot.initial_delivery.mechanism
+            == AgentInitialDeliveryMechanismV1::TerminalAfterReady;
         let id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
+        let mut tab_payload = json!({
+            "terminalSessionId": id,
+            // Most adapters take the prompt at launch. fx receives it
+            // after its built-in lifecycle reports that the TUI is ready.
+            "initialPrompt": (!prompt_after_ready).then(|| prompt.clone()),
+            "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                "agent": adapter.agent_type,
+                "prompt": prompt,
+            })),
+            "spawnOnCreate": true,
+            "automationRunId": automation_run_id,
+            "automationOwned": automation_owned,
+        });
+        tab_payload[AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY] = serde_json::to_value(launch_snapshot)
+            .map_err(|error| {
+                HostError::state(format!(
+                    "could not encode agent profile launch snapshot: {error}"
+                ))
+            })?;
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -137,38 +172,18 @@ impl ServerActor {
             title: profile.name.clone(),
             created_at: now,
             updated_at: now,
-            payload: json!({
-                "terminalSessionId": id,
-                "initialCommand": command.unwrap_or_else(|| {
-                    if managed_launch.is_some() {
-                        String::new()
-                    } else {
-                        adapter.default_command.to_string()
-                    }
-                }),
-                "initialManagedAgentLaunch": managed_launch,
-                // Most adapters take the prompt at launch. fx receives it
-                // after its built-in lifecycle reports that the TUI is ready.
-                "initialPrompt": (!prompt_after_ready).then(|| prompt.clone()),
-                "initialPromptOnce": true,
-                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
-                    "agent": adapter.agent_type,
-                    "prompt": prompt,
-                })),
-                "agentProfileId": profile.id,
-                "agentType": profile.agent_type,
-                "spawnOnCreate": true,
-                "automationRunId": automation_run_id,
-                "automationOwned": automation_owned,
-            }),
+            payload: tab_payload,
         };
+        let mut projected_tab = tab.clone();
+        redact_private_tab_payload(&mut projected_tab);
         let result = json!({
-            "tab": tab,
+            "tab": projected_tab,
             "agentType": adapter.agent_type,
             "profileId": profile.id,
         });
         let Some(mutation_id) = client_mutation_id.as_deref() else {
-            let saved = self.upsert_workspace_tab_and_spawn(tab).await?;
+            let mut saved = self.upsert_workspace_tab_and_spawn(tab).await?;
+            redact_private_tab_payload(&mut saved);
             return Ok(json!({
                 "tab": saved,
                 "agentType": adapter.agent_type,
@@ -183,7 +198,9 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
         {
-            AgentProfileLaunchReceiptOutcome::Replay(result) => return Ok(result),
+            AgentProfileLaunchReceiptOutcome::Replay(result) => {
+                return Ok(redact_agent_profile_launch_result(result));
+            }
             AgentProfileLaunchReceiptOutcome::Conflict => {
                 return Err(HostError::state(
                     "clientMutationId was already used with a different agentProfile.launch payload.",
@@ -238,6 +255,9 @@ impl ServerActor {
         let Some(session) = self.sessions.get(session_id) else {
             return;
         };
+        if session.initial_agent_prompt_delivered {
+            return;
+        }
         let tab_id = session.tab_id.clone();
         let instance_id = session.instance_id();
         let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(&tab_id).await else {
@@ -280,6 +300,7 @@ impl ServerActor {
         {
             return;
         }
+        session.initial_agent_prompt_delivered = true;
         tab.payload["pendingAgentPrompt"] = Value::Null;
         tab.updated_at = chrono::Utc::now();
         let workspace_id = tab.workspace_id.clone();
@@ -288,6 +309,18 @@ impl ServerActor {
         }
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
     }
+}
+
+fn redact_agent_profile_launch_result(mut result: Value) -> Value {
+    let Some(tab_value) = result.get_mut("tab") else {
+        return result;
+    };
+    let Ok(mut tab) = serde_json::from_value::<WorkspaceTabRecord>(tab_value.clone()) else {
+        return result;
+    };
+    redact_private_tab_payload(&mut tab);
+    *tab_value = json!(tab);
+    result
 }
 
 fn agent_profile_launch_payload_digest(

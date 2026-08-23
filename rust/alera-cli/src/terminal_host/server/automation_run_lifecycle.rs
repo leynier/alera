@@ -6,6 +6,7 @@ use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 
 use super::super::requests::terminal_session_id_from_tab;
+use super::super::terminal_startup_commands::agent_profile_id;
 use super::{managed_actor, ServerActor};
 use crate::terminal_host::host_error::{HostError, HostResult};
 
@@ -39,11 +40,7 @@ impl ServerActor {
                     workspace_id: Some(workspace_id.clone()),
                     tab_id: Some(tab_id.clone()),
                     session_id: Some(session_id.clone()),
-                    profile_id: tab
-                        .payload
-                        .get("agentProfileId")
-                        .and_then(Value::as_str)
-                        .map(str::to_string),
+                    profile_id: agent_profile_id(&tab).map(str::to_string),
                     conversation_id: Some(conversation_id.clone()),
                     terminal_handle: Some(session_id),
                 })

@@ -7,6 +7,10 @@ use alera_core::runtime::{
 use serde_json::Value;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::orchestration::agent_profile_launch_snapshot::{
+    AgentInitialDeliveryReplayV1, AgentProfileLaunchSnapshotV1,
+};
+use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::managed_agent_launch::{
     build_managed_agent_launch, ManagedAgentLaunch,
 };
@@ -20,6 +24,7 @@ pub(super) struct ResolvedSpawnProfile {
     /// `None` leaves the adapter's default command in place.
     pub command: Option<String>,
     pub managed_launch: Option<ManagedAgentLaunch>,
+    pub launch_snapshot: Option<AgentProfileLaunchSnapshotV1>,
     pub profile_name: Option<String>,
     pub quota_group: Option<String>,
 }
@@ -39,6 +44,7 @@ impl ServerActor {
                 agent_type,
                 command: optional_string(payload, "command"),
                 managed_launch: None,
+                launch_snapshot: None,
                 profile_name: None,
                 quota_group: None,
             });
@@ -54,10 +60,22 @@ impl ServerActor {
                 ))
             })?;
         let (command, managed_launch) = launch_for_profile(&profile).map_err(HostError::format)?;
+        let adapter = adapter_for(&profile.agent_type).ok_or_else(|| {
+            HostError::format(format!("unsupported agent type: {}", profile.agent_type))
+        })?;
+        let launch_snapshot = AgentProfileLaunchSnapshotV1::new(
+            &profile,
+            adapter,
+            command.clone(),
+            managed_launch.clone(),
+            AgentInitialDeliveryReplayV1::OnRestart,
+        )
+        .map_err(HostError::format)?;
         Ok(ResolvedSpawnProfile {
             agent_type: profile.agent_type,
             command,
             managed_launch,
+            launch_snapshot: Some(launch_snapshot),
             profile_name: Some(profile.name),
             quota_group: profile.quota_group,
         })

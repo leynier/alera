@@ -1,4 +1,5 @@
 pub mod agent_presence;
+pub mod agent_profile_launch_snapshot;
 pub mod agent_prompt_injection;
 pub mod agent_registry;
 pub mod agent_startup_command;

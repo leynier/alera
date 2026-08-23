@@ -165,9 +165,12 @@ mod session_termination_tests;
 mod tab_compatibility;
 #[cfg(test)]
 mod tab_compatibility_tests;
+#[cfg(test)]
+mod tab_profile_launch_compatibility_tests;
 mod terminal_driver;
 mod terminal_input_requests;
 mod terminal_launch_defaults;
+mod terminal_prompt_rearm;
 mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
