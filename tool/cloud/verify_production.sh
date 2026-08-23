@@ -59,6 +59,30 @@ if [[ "$relay_status" != "$expected_relay_status" ]]; then
   exit 1
 fi
 
+for relay_control_path in /v1/relay/identity /v1/relay/grants; do
+  relay_control_status=""
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    if relay_control_status="$(
+      curl \
+        --silent \
+        --show-error \
+        --output /dev/null \
+        --write-out '%{http_code}' \
+        --max-time 20 \
+        --header 'content-type: application/json' \
+        --data '{}' \
+        "$public_url$relay_control_path"
+    )" && [[ "$relay_control_status" == "401" ]]; then
+      break
+    fi
+    sleep 5
+  done
+  if [[ "$relay_control_status" != "401" ]]; then
+    echo "public relay control path $relay_control_path returned $relay_control_status; expected 401" >&2
+    exit 1
+  fi
+done
+
 origin_status="$(
   curl \
     --silent \
@@ -73,4 +97,4 @@ if [[ "$origin_status" != "401" ]]; then
   exit 1
 fi
 
-echo "public health and JWKS succeeded; relay was $relay_state; direct origin JWKS remained closed"
+echo "public health and JWKS succeeded; relay was $relay_state; relay control paths reached the backend; direct origin JWKS remained closed"
