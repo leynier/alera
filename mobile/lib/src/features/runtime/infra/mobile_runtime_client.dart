@@ -14,6 +14,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
@@ -193,6 +194,19 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(aiDictationCapability);
   bool get supportsAiDictationModels =>
       _runtimeCapabilities.contains(aiDictationModelsCapability);
+  bool get supportsAiDictationBackends =>
+      _runtimeCapabilities.contains(aiDictationBackendsCapability);
+
+  Future<SpeechCapabilities> fetchAiDictationCapabilities() async {
+    if (!supportsAiDictationBackends) {
+      return const SpeechCapabilities(
+        platform: 'unknown',
+        backends: <SpeechBackendCapability>[],
+      );
+    }
+    final payload = await requestMap('mobile.aiDictation.capabilities');
+    return SpeechCapabilities.fromJson(payload);
+  }
 
   Future<Map<String, Object?>> transcribeMobileAudio({
     required String requestId,

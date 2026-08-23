@@ -420,7 +420,7 @@ String _modelStatus(
   MobileAiModelTransferStatus.idle when transfer.installed =>
     selected ? 'Installed and selected.' : 'Installed on this device.',
   MobileAiModelTransferStatus.idle =>
-    '${model.description} Download size ${_formatBytes(model.sizeBytes)}.',
+    '${model.description} Download size ${_formatBytes(model.totalBytes)}.',
 };
 
 String _formatBytes(int bytes) => bytes < 1024 * 1024

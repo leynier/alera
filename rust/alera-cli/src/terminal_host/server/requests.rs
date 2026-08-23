@@ -959,6 +959,11 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 super::ai_dictation_requests::transcribe(payload, false, &self.runtime_dir).await
             }
+            "mobile.aiDictation.capabilities" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                super::ai_dictation_requests::capabilities(&self.runtime_dir)
+            }
             "aiDictation.cancel" | "mobile.aiDictation.cancel" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
