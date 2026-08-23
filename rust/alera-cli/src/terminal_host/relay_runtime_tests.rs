@@ -1,7 +1,12 @@
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::{error::UrlError, http::header, Error};
 
-use super::{connect_async, relay_request};
+use super::{connect_async, relay_request, RELAY_PRESENCE_INTERVAL};
+
+#[test]
+fn relay_presence_refreshes_before_cloud_expiry() {
+    assert!(RELAY_PRESENCE_INTERVAL < std::time::Duration::from_secs(180));
+}
 
 #[test]
 fn relay_request_preserves_websocket_handshake_headers() {

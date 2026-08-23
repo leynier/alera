@@ -10,11 +10,14 @@ use tokio::sync::Mutex;
 use crate::mobile_access::runtime_id;
 
 use super::cloud_client::{
-    AuthEnvelope, AuthProvider, AuthTransaction, CloudAccountClient, MobileEnrollment,
-    PushEventRequest, DEFAULT_CLOUD_BASE_URL,
+    AuthEnvelope, AuthProvider, AuthTransaction, CloudAccountClient, CloudRequestError,
+    MobileEnrollment, PushEventRequest, DEFAULT_CLOUD_BASE_URL,
 };
 use super::credential_store::{AccountCredentialStore, StoredAccountCredential};
 use crate::terminal_host::relay_crypto::IdentityKeyPair;
+
+const MAX_RELAY_IDENTITY_ROTATIONS: usize = 8;
+const MAX_RELAY_KEY_VERSION: i32 = 1_000_000;
 
 #[derive(Debug, Clone)]
 struct AccessSession {
@@ -29,6 +32,7 @@ pub(crate) struct AleraAccountService {
     cloud: CloudAccountClient,
     credentials: AccountCredentialStore,
     session: Arc<Mutex<Option<AccessSession>>>,
+    relay_identity_registration: Arc<Mutex<()>>,
 }
 
 impl AleraAccountService {
@@ -42,6 +46,7 @@ impl AleraAccountService {
             store,
             cloud: CloudAccountClient::new(base_url)?,
             session: Arc::new(Mutex::new(None)),
+            relay_identity_registration: Arc::new(Mutex::new(())),
         })
     }
 
@@ -241,13 +246,14 @@ impl AleraAccountService {
     }
 
     pub(crate) async fn relay_identity(&self) -> Result<IdentityKeyPair> {
-        let credential = self
+        let _registration = self.relay_identity_registration.lock().await;
+        let mut credential = self
             .credentials
             .load()
             .await?
             .ok_or_else(|| anyhow!("Alera account is signed out"))?;
-        let key_version = credential.relay_key_version.max(1);
-        let (identity, encoded) = match credential.relay_private_key_b64.as_deref() {
+        let mut key_version = credential.relay_key_version.max(1);
+        let (mut identity, encoded) = match credential.relay_private_key_b64.as_deref() {
             Some(encoded) => match URL_SAFE_NO_PAD.decode(encoded) {
                 Ok(bytes) if bytes.len() == 32 => {
                     let mut private = [0_u8; 32];
@@ -270,31 +276,52 @@ impl AleraAccountService {
         if credential.relay_private_key_b64.as_deref() != Some(encoded.as_str())
             || credential.relay_key_version != key_version
         {
-            self.credentials
-                .save(&StoredAccountCredential {
-                    refresh_token: credential.refresh_token,
-                    relay_private_key_b64: Some(encoded),
-                    relay_key_version: key_version,
-                })
-                .await?;
+            credential.relay_private_key_b64 = Some(encoded);
+            credential.relay_key_version = key_version;
+            self.credentials.save(&credential).await?;
         }
-        let token = self.access_token().await?;
-        let response = self
-            .cloud
-            .register_relay_identity(
-                &token,
-                &URL_SAFE_NO_PAD.encode(identity.public_bytes()),
-                key_version,
-            )
-            .await?;
-        if response.client_id != self.runtime_id
-            || response.client_kind != "runtime"
-            || response.public_key != URL_SAFE_NO_PAD.encode(identity.public_bytes())
-            || response.key_version != key_version
-        {
-            return Err(anyhow!("cloud returned an invalid relay identity"));
+
+        for rotation in 0..=MAX_RELAY_IDENTITY_ROTATIONS {
+            let public_key = URL_SAFE_NO_PAD.encode(identity.public_bytes());
+            let token = self.access_token().await?;
+            match self
+                .cloud
+                .register_relay_identity(&token, &public_key, key_version)
+                .await
+            {
+                Ok(response) => {
+                    if response.client_id != self.runtime_id
+                        || response.client_kind != "runtime"
+                        || response.public_key != public_key
+                        || response.key_version != key_version
+                    {
+                        return Err(anyhow!("cloud returned an invalid relay identity"));
+                    }
+                    return Ok(identity);
+                }
+                Err(error)
+                    if rotation < MAX_RELAY_IDENTITY_ROTATIONS
+                        && error
+                            .downcast_ref::<CloudRequestError>()
+                            .is_some_and(CloudRequestError::is_relay_key_rotation_conflict) =>
+                {
+                    credential = self
+                        .credentials
+                        .load()
+                        .await?
+                        .ok_or_else(|| anyhow!("Alera account is signed out"))?;
+                    key_version =
+                        next_relay_key_version(credential.relay_key_version.max(key_version))?;
+                    identity = IdentityKeyPair::generate();
+                    credential.relay_private_key_b64 =
+                        Some(URL_SAFE_NO_PAD.encode(identity.private_bytes()));
+                    credential.relay_key_version = key_version;
+                    self.credentials.save(&credential).await?;
+                }
+                Err(error) => return Err(error),
+            }
         }
-        Ok(identity)
+        unreachable!("relay identity rotation loop always returns")
     }
 
     pub(crate) async fn relay_grant(&self) -> Result<super::cloud_client::RelayGrant> {
@@ -340,5 +367,28 @@ impl AleraAccountService {
         self.credentials.delete().await?;
         *self.session.lock().await = None;
         self.store.clear_alera_account().await
+    }
+}
+
+fn next_relay_key_version(current: i32) -> Result<i32> {
+    let next = current
+        .checked_add(1)
+        .filter(|version| *version <= MAX_RELAY_KEY_VERSION)
+        .ok_or_else(|| anyhow!("relay identity key version is exhausted"))?;
+    Ok(next)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{next_relay_key_version, MAX_RELAY_KEY_VERSION};
+
+    #[test]
+    fn relay_key_versions_advance_monotonically() {
+        assert_eq!(next_relay_key_version(1).unwrap(), 2);
+        assert_eq!(
+            next_relay_key_version(MAX_RELAY_KEY_VERSION - 1).unwrap(),
+            MAX_RELAY_KEY_VERSION
+        );
+        assert!(next_relay_key_version(MAX_RELAY_KEY_VERSION).is_err());
     }
 }
