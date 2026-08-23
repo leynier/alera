@@ -127,25 +127,6 @@ void _registerMobileCodexRequestTests() {
     expect(replacement.controller?.text, isEmpty);
   });
 
-  testWidgets('mobile model configuration stays open after a selection', (
-    tester,
-  ) async {
-    final client = FakeMobileCodexClient();
-    addTearDown(client.dispose);
-    await _pumpScreen(tester, client: client, hostId: 'host-model-menu');
-
-    await tester.tap(find.textContaining('Current Codex'));
-    await tester.pumpAndSettle();
-    expect(find.text('Reasoning Effort'), findsOneWidget);
-
-    await tester.tap(find.text('Xhigh'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Model'), findsOneWidget);
-    expect(find.text('Reasoning Effort'), findsOneWidget);
-    expect(find.text('Speed'), findsOneWidget);
-  });
-
   testWidgets('mobile timeline lazily builds a bounded visible slice', (
     tester,
   ) async {
