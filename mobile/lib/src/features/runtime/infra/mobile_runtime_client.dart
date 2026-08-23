@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_wire.dart';
@@ -36,9 +37,6 @@ part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
-
-const Duration _defaultRequestTimeout = Duration(seconds: 20);
-const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
 
 class MobileRuntimeClient
     with
@@ -157,7 +155,6 @@ class MobileRuntimeClient
   bool _disposed = false;
   Object? _closedError;
   StackTrace? _closedStackTrace;
-
   Set<String> _runtimeCapabilities = const <String>{};
   bool _binaryFrames = false;
   @override
@@ -258,6 +255,7 @@ class MobileRuntimeClient
     // The response decides, not the request: an older runtime simply omits it
     // and keeps sending base64 inside JSON.
     _binaryFrames = payload['binaryFrames'] == true;
+    await _refreshCrashReportingRuntimeContext();
     return payload;
   }
 
@@ -464,6 +462,7 @@ class MobileRuntimeClient
     // common thing a user reports about this app.
     final normalized = normalizeHostConnectionError(error);
     final firstFailure = _closedError == null;
+    CrashReporting.clearRuntimeContext(this);
     Logger('MobileRuntimeClient').warning(
       'runtime connection failed with ${_pending.length} pending requests',
       error,

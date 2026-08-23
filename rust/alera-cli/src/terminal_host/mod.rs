@@ -21,6 +21,7 @@ mod relay_runtime_auth;
 pub mod relay_wire;
 pub mod resources;
 pub(crate) mod restart;
+pub(crate) mod runtime_build_info;
 pub mod server;
 pub mod session;
 pub mod sleep_detector;

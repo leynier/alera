@@ -75,6 +75,7 @@ void main() {
     expect(result.hostPath, endsWith('.png'));
     expect(requests.map((request) => request['type']), <Object?>[
       'mobile.hello',
+      'status.get',
       'mobile.promptImage.start',
       'mobile.promptImage.chunk',
       'mobile.promptImage.chunk',

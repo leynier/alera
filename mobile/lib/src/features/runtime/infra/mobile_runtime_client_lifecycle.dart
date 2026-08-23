@@ -1,11 +1,15 @@
 part of 'mobile_runtime_client.dart';
 
+const Duration _defaultRequestTimeout = Duration(seconds: 20);
+const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
+
 extension MobileRuntimeClientLifecycle on MobileRuntimeClient {
   Future<void> dispose() async {
     if (_disposed) {
       return;
     }
     _disposed = true;
+    CrashReporting.clearRuntimeContext(this);
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
         completer.completeError(StateError('Mobile runtime client closed.'));

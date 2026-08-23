@@ -34,6 +34,53 @@ void main() {
     expect(CrashReporting.filterEvent(event), isNotNull);
   });
 
+  test('adds canonical app and unavailable runtime version context', () {
+    CrashReporting.configureAppVersion(version: '0.64.0', build: '112');
+    CrashReporting.setEnabled(true);
+
+    final event = CrashReporting.filterEvent(SentryEvent());
+
+    expect(event!.tags, containsPair('surface', 'desktop'));
+    expect(event.tags, containsPair('app_version', '0.64.0'));
+    expect(event.tags, containsPair('app_build', '112'));
+    expect(event.tags, containsPair('runtime_state', 'unavailable'));
+    expect(event.contexts['alera_versions'], <String, Object?>{
+      'surface': 'desktop',
+      'app_version': '0.64.0',
+      'app_build': '112',
+      'runtime_state': 'unavailable',
+    });
+  });
+
+  test('adds the live runtime version returned by status.get', () {
+    CrashReporting.configureAppVersion(version: '0.64.0', build: '112');
+    CrashReporting.updateRuntimeContext(<String, Object?>{
+      'runtimeHostVersion': '1.7.0',
+      'runtimeHostCommit': 'abc1234',
+      'protocolVersion': 4,
+    });
+    CrashReporting.setEnabled(true);
+
+    final event = CrashReporting.filterEvent(SentryEvent());
+
+    expect(event!.tags, containsPair('runtime_state', 'connected'));
+    expect(event.tags, containsPair('runtime_version', '1.7.0'));
+    expect(event.tags, containsPair('runtime_build', 'abc1234'));
+    expect(event.tags, containsPair('runtime_protocol', '4'));
+    expect(
+      event.contexts['alera_versions'],
+      containsPair('runtime_version', '1.7.0'),
+    );
+    expect(
+      event.contexts['alera_versions'],
+      containsPair('runtime_build', 'abc1234'),
+    );
+    expect(
+      event.contexts['alera_versions'],
+      containsPair('runtime_protocol', 4),
+    );
+  });
+
   test('drops expected terminal host connection closures', () {
     CrashReporting.setEnabled(true);
     final event = SentryEvent(

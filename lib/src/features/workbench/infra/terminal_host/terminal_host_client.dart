@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
+import 'package:alera/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
@@ -724,6 +725,7 @@ final class SocketTerminalHostClient
       _emitConnectionError(closedError);
     }
     if (identical(_runtimeConnection, connection)) {
+      CrashReporting.clearRuntimeContext();
       _runtimeConnection = null;
       _runtimeConnectionFuture = null;
       unawaited(_runtimeLineSub?.cancel());
