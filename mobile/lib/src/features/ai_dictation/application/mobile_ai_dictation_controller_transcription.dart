@@ -20,19 +20,18 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
     final generation = _activeGeneration;
     if (generation == null) return;
     await _player?.pause();
+    if (!_isCurrentGeneration(generation)) return;
     final settings = await ref.read(
       mobileAiDictationSettingsControllerProvider.future,
     );
-    _validateSettings(settings);
     if (!_isCurrentGeneration(generation)) return;
+    _validateSettings(settings);
     state = state.copyWith(
       stage: MobileAiDictationStage.transcribing,
       clearWarning: true,
     );
-    _requestLocation = settings.location;
     final requestId =
         'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}';
-    _requestId = requestId;
     try {
       final assembler = MobileAiDictationTranscriptAssembler();
       if (settings.location == MobileAiDictationLocation.thisDevice) {
@@ -44,15 +43,20 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
         final transfers = ref.read(
           mobileAiDictationModelTransfersProvider.notifier,
         );
-        if (!await transfers.isInstalled(settings.localModelId)) {
+        final installed = await transfers.isInstalled(settings.localModelId);
+        if (!_isCurrentGeneration(generation)) return;
+        if (!installed) {
           throw StateError(
             'Download the selected Whisper model in Settings first.',
           );
         }
         final modelPath = await transfers.modelPath(settings.localModelId);
+        if (!_isCurrentGeneration(generation)) return;
         for (var index = 0; index < _audioPaths.length; index++) {
           final segmentRequestId = '$requestId-$index';
-          _requestId = segmentRequestId;
+          _trackActiveRequest(segmentRequestId, () async {
+            _whisper.cancel(segmentRequestId);
+          });
           try {
             final result = await _whisper.transcribe(
               requestId: segmentRequestId,
@@ -61,31 +65,45 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
               language: _whisperLanguage(settings.language),
               initialPrompt: assembler.prompt,
             );
+            if (!_isCurrentGeneration(generation)) return;
             assembler.add(result.text);
           } on Object catch (error) {
+            if (!_isCurrentGeneration(generation)) return;
             if (!_isSilentSegmentError(error)) rethrow;
+          } finally {
+            _clearActiveRequest(segmentRequestId);
           }
         }
       } else {
         final client = await ref.read(
           hostConnectionControllerProvider(hostId).future,
         );
+        if (!_isCurrentGeneration(generation)) return;
         for (var index = 0; index < _audioPaths.length; index++) {
           final segmentRequestId = '$requestId-$index';
-          _requestId = segmentRequestId;
+          final audio = await File(_audioPaths[index]).readAsBytes();
+          if (!_isCurrentGeneration(generation)) return;
+          _trackActiveRequest(
+            segmentRequestId,
+            () => client.cancelMobileAudioTranscription(segmentRequestId),
+          );
           try {
             final response = await client.transcribeMobileAudio(
               requestId: segmentRequestId,
-              audio: await File(_audioPaths[index]).readAsBytes(),
+              audio: audio,
               engine: settings.engine.name,
               modelId: settings.remoteModelId,
               language: _whisperLanguage(settings.language),
               initialPrompt: assembler.prompt,
             );
+            if (!_isCurrentGeneration(generation)) return;
             final text = response['text']?.toString().trim() ?? '';
             if (text.isNotEmpty) assembler.add(text);
           } on Object catch (error) {
+            if (!_isCurrentGeneration(generation)) return;
             if (!_isSilentSegmentError(error)) rethrow;
+          } finally {
+            _clearActiveRequest(segmentRequestId);
           }
         }
       }
@@ -94,15 +112,12 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
       if (!_isCurrentGeneration(generation)) return;
       await _finalize(text, generation: generation);
     } on Object catch (error, stackTrace) {
-      if (_cancelRequested) return;
+      if (!_isCurrentGeneration(generation)) return;
       _log.warning('mobile dictation transcription failed', error, stackTrace);
       state = state.copyWith(
         stage: MobileAiDictationStage.recorded,
         warning: 'Transcription failed: $error',
       );
-    } finally {
-      _requestId = null;
-      _requestLocation = null;
     }
   }
 
@@ -180,18 +195,14 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
     }
     _log.warning('mobile speech recognition failed: ${error.errorMsg}');
     _elapsedTimer?.cancel();
-    _activeGeneration = null;
-    _generation++;
+    _operation.complete();
     state = MobileAiDictationState(
       warning: 'Speech recognition failed: ${error.errorMsg}',
     );
   }
 
   Future<void> _finalize(String rawText, {int? generation}) async {
-    if (_cancelRequested ||
-        _finalizing ||
-        rawText.trim().isEmpty ||
-        generation != null && !_isCurrentGeneration(generation)) {
+    if (!_canContinue(generation) || _finalizing || rawText.trim().isEmpty) {
       return;
     }
     _finalizing = true;
@@ -208,7 +219,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
         error,
         stackTrace,
       );
-      if (!_cancelRequested) {
+      if (_canContinue(generation)) {
         await _reset(
           deleteRecording: true,
           warning: 'The dictation settings could not be loaded.',
@@ -216,16 +227,14 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
       }
       return;
     }
-    if (_cancelRequested ||
-        generation != null && !_isCurrentGeneration(generation)) {
-      return;
-    }
+    if (!_canContinue(generation)) return;
     if (settings.rewriteMode != MobileAiDictationRewriteMode.off) {
       state = state.copyWith(stage: MobileAiDictationStage.improving);
       try {
         final client = await ref.read(
           hostConnectionControllerProvider(hostId).future,
         );
+        if (!_canContinue(generation)) return;
         final response = await client.processSpeechMessage(
           operationId: 'mobile-speech-${DateTime.now().microsecondsSinceEpoch}',
           text: output,
@@ -233,10 +242,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
           workspaceId: _workspaceId,
           tabId: _tabId,
         );
-        if (_cancelRequested ||
-            generation != null && !_isCurrentGeneration(generation)) {
-          return;
-        }
+        if (!_canContinue(generation)) return;
         final processed = response['text']?.toString().trim() ?? '';
         if (processed.isEmpty) {
           throw StateError('The speech processing agent returned no text.');
@@ -248,10 +254,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
             'The raw transcript was used because speech processing failed.';
       }
     }
-    if (_cancelRequested ||
-        generation != null && !_isCurrentGeneration(generation)) {
-      return;
-    }
+    if (!_canContinue(generation)) return;
     try {
       _onText?.call(output);
     } on Object catch (error, stackTrace) {
