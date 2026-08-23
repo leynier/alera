@@ -119,6 +119,7 @@ mod host_status;
 mod lifecycle;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
+mod mobile_hello_requests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
@@ -143,6 +144,7 @@ mod prompt_image_store;
 mod pty_event_forwarder;
 mod pty_events;
 mod push_delivery;
+mod remote_relay;
 mod request_payloads;
 mod requests;
 mod resource_requests;
@@ -200,6 +202,7 @@ struct ClientState {
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
     cloud_device_id: Option<String>,
+    relay_client_id: Option<String>,
 }
 
 struct SshBootstrapJobState {
@@ -307,6 +310,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
         self.replace_mobile_gateway(replacement).await;
+        self.restart_remote_relay().await;
         Ok(saved)
     }
 
@@ -422,6 +426,29 @@ impl ServerActor {
                         mobile_device_id: None,
                         mobile_device_name: None,
                         cloud_device_id: None,
+                        relay_client_id: None,
+                    },
+                );
+            }
+            ServerCommand::RelayClientConnected {
+                id,
+                handle,
+                client_id,
+            } => {
+                self.clients.insert(
+                    id,
+                    ClientState {
+                        handle,
+                        authenticated: false,
+                        binary_frames: false,
+                        supports_mobile_emulator_tab_kind: false,
+                        supports_codex_tab_kind: false,
+                        kind: ClientKind::Mobile,
+                        local_role: client_delivery::LocalClientRole::Cli,
+                        mobile_device_id: None,
+                        mobile_device_name: Some("Remote Mobile".to_string()),
+                        cloud_device_id: Some(client_id.clone()),
+                        relay_client_id: Some(client_id),
                     },
                 );
             }
@@ -1100,6 +1127,7 @@ impl ServerActor {
         self.disposed = true;
         self.cancel_shutdown_timer();
         self.codex = None;
+        self.stop_remote_relay().await;
         if let Some(handle) = self.mobile_gateway.take() {
             handle.abort();
         }

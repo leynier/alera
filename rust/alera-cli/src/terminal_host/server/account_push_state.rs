@@ -4,6 +4,7 @@ use std::time::Instant;
 use alera_core::runtime::RuntimeStore;
 use anyhow::Result;
 use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 use crate::terminal_host::alera_account::AleraAccountService;
 use crate::terminal_host::push_notifications::{PushDamper, PushEvent};
@@ -20,6 +21,8 @@ pub(super) struct AccountPushState {
     pub(super) pending_events: Vec<PushEvent>,
     pub(super) batch_started: Option<Instant>,
     pub(super) flush_generation: u64,
+    pub(super) relay_task: Option<JoinHandle<()>>,
+    pub(super) relay_stop: Option<oneshot::Sender<()>>,
 }
 
 impl AccountPushState {
@@ -51,6 +54,8 @@ impl AccountPushState {
             pending_events: Vec::new(),
             batch_started: None,
             flush_generation: 0,
+            relay_task: None,
+            relay_stop: None,
         })
     }
 }

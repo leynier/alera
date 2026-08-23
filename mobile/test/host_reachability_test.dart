@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alera_mobile/src/features/runtime/application/remote_runtime_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -59,6 +60,38 @@ void main() {
       expect(normalizeHostConnectionError(stateError), same(stateError));
       expect(normalizeHostConnectionError(formatError), same(formatError));
       expect(isHostReachabilityFailure(tlsError), isFalse);
+    });
+  });
+
+  group('isRelayFallbackTransportFailure', () {
+    test('accepts only normalized reachability failures', () {
+      final socketError = const SocketException('Connection refused');
+
+      expect(isRelayFallbackTransportFailure(socketError), isTrue);
+      expect(
+        isRelayFallbackTransportFailure(HostUnreachableException(socketError)),
+        isTrue,
+      );
+      expect(
+        isRelayFallbackTransportFailure(const RuntimeConnectionLost()),
+        isTrue,
+      );
+    });
+
+    test('does not hide TLS or protocol failures behind relay fallback', () {
+      final tlsError = WebSocketChannelException.from(
+        const HandshakeException('Certificate verification failed.'),
+      );
+      final protocolError = WebSocketChannelException(
+        'The server returned HTTP status 401.',
+      );
+
+      expect(isRelayFallbackTransportFailure(tlsError), isFalse);
+      expect(isRelayFallbackTransportFailure(protocolError), isFalse);
+      expect(
+        isRelayFallbackTransportFailure(HostUnreachableException(tlsError)),
+        isFalse,
+      );
     });
   });
 }

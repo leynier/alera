@@ -55,7 +55,7 @@ class _MobileDevicesSettingsPaneState
   void _seedFromSettings(MobileGatewaySettings settings) {
     final signature =
         '${settings.enabled}|${settings.bindHost}|${settings.port}|'
-        '${settings.endpointMode.name}';
+        '${settings.endpointMode.name}|${settings.remoteAccessEnabled}';
     if (_gatewaySignature == signature) {
       return;
     }
@@ -124,6 +124,8 @@ class _MobileDevicesSettingsPaneState
       gatewayPort: _gatewayPort,
       applying: _applying,
       onEnabledChanged: (enabled) => _applySettings(enabled: enabled),
+      onRemoteAccessChanged: (enabled) =>
+          _applySettings(remoteAccessEnabled: enabled),
       onModeSelected: _selectMode,
       onNetbirdEndpointSelected: _selectNetbirdEndpoint,
       onBindHostChanged: (_) => setState(() {}),
@@ -245,10 +247,14 @@ class _MobileDevicesSettingsPaneState
     );
   }
 
-  Future<void> _applySettings({bool? enabled}) async {
+  Future<void> _applySettings({
+    bool? enabled,
+    bool? remoteAccessEnabled,
+  }) async {
     final bindHost = _bindHostController.text.trim();
     await _updateSettings(
       enabled: enabled,
+      remoteAccessEnabled: remoteAccessEnabled,
       bindHost: bindHost.isEmpty ? null : bindHost,
       port: _gatewayPort,
     );
@@ -266,6 +272,7 @@ class _MobileDevicesSettingsPaneState
 
   Future<void> _updateSettings({
     bool? enabled,
+    bool? remoteAccessEnabled,
     String? bindHost,
     int? port,
     MobileEndpointMode? endpointMode,
@@ -280,6 +287,7 @@ class _MobileDevicesSettingsPaneState
           .read(mobileAccessRepositoryProvider)
           .updateSettings(
             enabled: enabled,
+            remoteAccessEnabled: remoteAccessEnabled,
             bindHost: bindHost,
             port: port,
             endpointMode: endpointMode,

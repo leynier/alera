@@ -1,6 +1,6 @@
 # Alera Cloud
 
-`alera-cloud` is Alera's HTTP control plane for account identity, mobile enrollment, push subscriptions, and FCM delivery. It is intentionally separate from `rust/` and never parses or proxies the terminal-host protocol.
+`alera-cloud` is Alera's HTTP control plane for account identity, mobile enrollment, push subscriptions, FCM delivery, and short-lived relay grants. It is intentionally separate from `rust/` and never parses or proxies the terminal-host protocol.
 
 ## Local Development
 
@@ -44,6 +44,9 @@ All JSON uses camelCase. Every route except `GET /health` requires the `x-alera-
 | `DELETE` | `/v1/mobile/subscriptions/{runtimeId}` | Bearer mobile | Remove the runtime subscription |
 | `GET` | `/v1/runtime/subscriptions` | Bearer runtime | Return the authoritative active subscription count |
 | `POST` | `/v1/runtime/events` | Bearer runtime | Accept an idempotent event and fan out to owned devices |
+| `POST` | `/v1/relay/identity` | Bearer runtime or mobile | Register or rotate the caller's long-lived relay public key |
+| `GET` | `/v1/mobile/runtimes` | Bearer mobile | Discover active, account-owned runtimes with relay public keys |
+| `POST` | `/v1/relay/grants` | Bearer runtime or mobile | Issue a 120-second, audience-bound relay grant |
 
 Interactive OAuth accepts only exact loopback HTTP callbacks at `127.0.0.1` or `localhost` with an explicit port and `/callback` path. Transactions expire after five minutes and are consumed before provider exchange. Google ID tokens are verified against its cached JWKS, including the RS256 signature, issuer, audience, expiry, authorized presenter, and transaction nonce. The JWKS cache honors Google's `Cache-Control` lifetime and refreshes early when a token names a new key. GitHub exchange always occurs server-side because its client secret cannot ship in Alera binaries.
 
@@ -65,9 +68,17 @@ Limits default to 10 runtimes and 5 mobile installations per account. Push deliv
 
 `ALERA_PUSH_DELIVERY_ENABLED` defaults to `true`. Setting it to `false` is the global delivery circuit breaker: authenticated runtime event requests receive `503 push_delivery_disabled` before event persistence or quota consumption. Provider delivery makes at most three attempts per device, with 100 ms and 300 ms delays, and retries only rate-limited or transient FCM failures.
 
+## Relay Privacy And Security
+
+Relay identities are account-scoped public keys. A runtime or mobile installation keeps its private identity key in its local credential boundary; the cloud database never receives that private key. Key registration is monotonic by `(account, client kind, client id, key version)`, and revocation or account transfer prevents new grants.
+
+The cloud signs grants with the same Ed25519 JWKS published for access-token verification. Each grant binds the account, runtime, client, role, identity key version, both identity public keys, audience, expiry, and a unique id. The edge verifies that grant before selecting the per-runtime Durable Object. The Object forwards bounded WebSocket frames between one runtime and at most eight mobile clients without storing payloads, creating timers, or opening outbound sockets.
+
+The relay sees connection metadata, frame sizes, and timing only. The runtime and mobile client perform an authenticated X25519 handshake and derive independent directional ChaCha20-Poly1305 keys with HKDF-SHA256, transcript binding, monotonic counters, and replay rejection. The cloud and relay never receive terminal commands, output, workspace content, or session keys. See [`../docs/remote-access-relay.md`](../docs/remote-access-relay.md) for the threat model, privacy boundary, and operational checklist.
+
 ## Data And Retention
 
-Provider access tokens and authorization codes are used only during exchange and are never stored. PostgreSQL stores account emails and provider ids, hashed refresh tokens, runtime and device metadata, FCM tokens required for delivery, subscriptions, event payloads, and delivery outcomes.
+Provider access tokens and authorization codes are used only during exchange and are never stored. PostgreSQL stores account emails and provider ids, hashed refresh tokens, runtime and device metadata, relay public keys, FCM tokens required for delivery, subscriptions, event payloads, and delivery outcomes. It does not store relay frames or private identity keys. Relay grants are short-lived JWTs and are not persisted.
 
 Cleanup removes expired OAuth transactions and enrollment codes after one day, runtime events and delivery attempts after 30 days, hourly and burst quota rows after seven days, daily quota rows after 90 days, expired or revoked sessions after their retention window, and tombstones when they expire. Cloud Run with zero minimum instances performs this work after service activity, so an entirely inactive database may retain expired operational rows until the next startup.
 
@@ -96,4 +107,6 @@ The PostgreSQL contract tests cover migrations, refresh rotation and replay revo
 - Push sending and its bounded transient retries are synchronous. The final attempt is persisted, but a durable delayed retry worker is not part of this workspace yet.
 - Runtime transfer is owner-authorized and explicitly confirmed with the runtime id, but v1 does not require a second acceptance from the target account.
 - FCM is best effort. An accepted event or FCM message id is not proof that a device displayed a notification.
-- A future remote terminal relay must remain opaque and end-to-end encrypted. It is not implemented here.
+- Relay is live-only. It has no offline queue, command history, frame persistence, or delivery guarantee when either endpoint is disconnected.
+- The first relay release does not provide key transparency. A malicious cloud operator or compromised account authority could substitute an identity public key during registration; the threat model documents this limitation and the account and revocation authority explicitly.
+- A future release may add operational metrics that count connection outcomes and bounded byte totals, but must not add payload logging or plaintext inspection.

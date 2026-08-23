@@ -113,6 +113,119 @@ class CloudAccountSession {
   }
 }
 
+class CloudRuntimeProfile {
+  const CloudRuntimeProfile({
+    required this.id,
+    required this.name,
+    required this.lastSeenAt,
+    required this.relayPublicKey,
+    required this.relayKeyVersion,
+  });
+
+  final String id;
+  final String name;
+  final DateTime lastSeenAt;
+  final String relayPublicKey;
+  final int relayKeyVersion;
+
+  factory CloudRuntimeProfile.fromJson(Map<String, Object?> json) {
+    return CloudRuntimeProfile(
+      id: _requiredString(json, 'id'),
+      name: _requiredString(json, 'name'),
+      lastSeenAt: DateTime.parse(_requiredString(json, 'lastSeenAt')).toUtc(),
+      relayPublicKey: _requiredString(json, 'relayPublicKey'),
+      relayKeyVersion: _requiredInt(json, 'relayKeyVersion'),
+    );
+  }
+}
+
+class CloudAuthTransaction {
+  const CloudAuthTransaction({
+    required this.transactionId,
+    required this.state,
+    required this.authorizationUrl,
+    required this.expiresAt,
+  });
+
+  final String transactionId;
+  final String state;
+  final Uri authorizationUrl;
+  final DateTime expiresAt;
+
+  factory CloudAuthTransaction.fromJson(Map<String, Object?> json) {
+    return CloudAuthTransaction(
+      transactionId: _requiredString(json, 'transactionId'),
+      state: _requiredString(json, 'state'),
+      authorizationUrl: Uri.parse(_requiredString(json, 'authorizationUrl')),
+      expiresAt: DateTime.parse(_requiredString(json, 'expiresAt')).toUtc(),
+    );
+  }
+}
+
+class CloudRelayIdentityRegistration {
+  const CloudRelayIdentityRegistration({
+    required this.clientId,
+    required this.clientKind,
+    required this.publicKey,
+    required this.keyVersion,
+  });
+
+  final String clientId;
+  final String clientKind;
+  final String publicKey;
+  final int keyVersion;
+
+  factory CloudRelayIdentityRegistration.fromJson(Map<String, Object?> json) {
+    return CloudRelayIdentityRegistration(
+      clientId: _requiredString(json, 'clientId'),
+      clientKind: _requiredString(json, 'clientKind'),
+      publicKey: _requiredString(json, 'publicKey'),
+      keyVersion: _requiredInt(json, 'keyVersion'),
+    );
+  }
+}
+
+class CloudRelayGrant {
+  const CloudRelayGrant({
+    required this.grant,
+    required this.relayUrl,
+    required this.expiresIn,
+    required this.accountId,
+    required this.runtimeId,
+    required this.clientId,
+    required this.clientKind,
+    required this.clientKeyVersion,
+    required this.clientPublicKey,
+    required this.runtimePublicKey,
+  });
+
+  final String grant;
+  final Uri relayUrl;
+  final int expiresIn;
+  final String accountId;
+  final String runtimeId;
+  final String clientId;
+  final String clientKind;
+  final int clientKeyVersion;
+  final String clientPublicKey;
+  final String? runtimePublicKey;
+
+  factory CloudRelayGrant.fromJson(Map<String, Object?> json) {
+    return CloudRelayGrant(
+      grant: _requiredString(json, 'grant'),
+      relayUrl: Uri.parse(_requiredString(json, 'relayUrl')),
+      expiresIn: _requiredInt(json, 'expiresIn'),
+      accountId: _requiredString(json, 'accountId'),
+      runtimeId: _requiredString(json, 'runtimeId'),
+      clientId: _requiredString(json, 'clientId'),
+      clientKind: _requiredString(json, 'clientKind'),
+      clientKeyVersion: _requiredInt(json, 'clientKeyVersion'),
+      clientPublicKey: _requiredString(json, 'clientPublicKey'),
+      runtimePublicKey: _optionalString(json, 'runtimePublicKey'),
+    );
+  }
+}
+
 class CloudEnrollmentResult {
   const CloudEnrollmentResult({required this.session, required this.runtimeId});
 
@@ -165,6 +278,19 @@ String? _optionalString(Map<String, Object?> json, String key) {
     return null;
   }
   return value.trim();
+}
+
+int _requiredInt(Map<String, Object?> json, String key) {
+  final value = json[key];
+  final parsed = switch (value) {
+    int number => number,
+    String encoded => int.tryParse(encoded),
+    _ => null,
+  };
+  if (parsed == null) {
+    throw FormatException('Missing $key');
+  }
+  return parsed;
 }
 
 List<String> _stringList(Object? value) {

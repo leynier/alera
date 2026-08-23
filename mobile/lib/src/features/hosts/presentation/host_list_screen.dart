@@ -29,6 +29,9 @@ class HostListScreen extends ConsumerWidget {
     WidgetRef ref,
     PairedHostProfile host,
   ) async {
+    if (host.isRemote) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -57,6 +60,9 @@ class HostListScreen extends ConsumerWidget {
     WidgetRef ref,
     PairedHostProfile host,
   ) async {
+    if (host.isRemote) {
+      return;
+    }
     final action = await showModalBottomSheet<_HostAction>(
       context: context,
       builder: (context) => SafeArea(
@@ -92,7 +98,7 @@ class HostListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hosts = ref.watch(pairedHostsControllerProvider);
+    final hosts = ref.watch(availableHostsProvider);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
