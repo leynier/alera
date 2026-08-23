@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
+import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/accounts/infra/mobile_cloud_sign_in.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -11,6 +13,9 @@ part 'cloud_accounts_controller.g.dart';
 
 @Riverpod(keepAlive: true)
 class CloudAccountsController extends _$CloudAccountsController {
+  final Map<String, Future<CloudAccountSession?>> _sessionRefreshes =
+      <String, Future<CloudAccountSession?>>{};
+
   @override
   Future<List<CloudAccountSession>> build() {
     return ref.watch(cloudAccountRepositoryProvider).loadSessions();
@@ -118,37 +123,75 @@ class CloudAccountsController extends _$CloudAccountsController {
     state = AsyncData(_replace(current, updated));
   }
 
-  Future<void> replaceSession(CloudAccountSession session) async {
+  Future<CloudAccountSession?> sessionForRequest(
+    String accountId, {
+    Duration refreshWithin = const Duration(minutes: 5),
+  }) async {
+    final pending = _sessionRefreshes[accountId];
+    if (pending != null) {
+      return pending;
+    }
+    final operation = _refreshSessionForRequest(accountId, refreshWithin);
+    _sessionRefreshes[accountId] = operation;
+    try {
+      return await operation;
+    } finally {
+      if (identical(_sessionRefreshes[accountId], operation)) {
+        _sessionRefreshes.remove(accountId);
+      }
+    }
+  }
+
+  Future<CloudAccountSession?> _refreshSessionForRequest(
+    String accountId,
+    Duration refreshWithin,
+  ) async {
     final current = await future;
     final existing = current
-        .where((item) => item.account.id == session.account.id)
+        .where((item) => item.account.id == accountId)
         .firstOrNull;
-    if (existing == session) {
-      return;
+    if (existing == null ||
+        !existing.expiresWithin(refreshWithin, DateTime.now().toUtc())) {
+      return existing;
     }
-    await ref.read(cloudAccountRepositoryProvider).saveSession(session);
-    state = AsyncData(_replace(current, session));
+    final refreshed = await ref
+        .read(aleraCloudApiProvider)
+        .refreshSession(existing);
+    return _replaceIfCurrent(
+      refreshed,
+      expectedRefreshToken: existing.refreshToken,
+    );
+  }
+
+  Future<CloudAccountSession?> _replaceIfCurrent(
+    CloudAccountSession replacement, {
+    required String expectedRefreshToken,
+  }) async {
+    final current = await future;
+    final existing = current
+        .where((item) => item.account.id == replacement.account.id)
+        .firstOrNull;
+    if (existing == null || existing.refreshToken != expectedRefreshToken) {
+      return existing;
+    }
+    await ref.read(cloudAccountRepositoryProvider).saveSession(replacement);
+    state = AsyncData(_replace(current, replacement));
+    return replacement;
   }
 
   Future<void> refreshAccount(String accountId) async {
-    final current = await future;
-    var session = current
-        .where((item) => item.account.id == accountId)
-        .firstOrNull;
+    final session = await sessionForRequest(accountId);
     if (session == null) {
       return;
-    }
-    if (session.expiresWithin(
-      const Duration(minutes: 5),
-      DateTime.now().toUtc(),
-    )) {
-      session = await ref.read(aleraCloudApiProvider).refreshSession(session);
     }
     final profile = await ref
         .read(aleraCloudApiProvider)
         .accountStatus(session);
     final updated = session.copyWith(account: profile);
-    await replaceSession(updated);
+    await _replaceIfCurrent(
+      updated,
+      expectedRefreshToken: session.refreshToken,
+    );
   }
 
   Future<void> removeFromThisPhone(String accountId) async {
@@ -159,13 +202,18 @@ class CloudAccountsController extends _$CloudAccountsController {
     if (session == null) {
       return;
     }
-    for (final runtimeId in session.subscriptions.keys) {
-      await ref
-          .read(aleraCloudApiProvider)
-          .deleteSubscription(session: session, runtimeId: runtimeId);
+    final api = ref.read(aleraCloudApiProvider);
+    try {
+      for (final runtimeId in session.subscriptions.keys) {
+        await api.deleteSubscription(session: session, runtimeId: runtimeId);
+      }
+      await api.deletePushToken(session);
+      await api.revokeSession(session);
+    } on AleraCloudException catch (error) {
+      if (error.statusCode != 401) {
+        rethrow;
+      }
     }
-    await ref.read(aleraCloudApiProvider).deletePushToken(session);
-    await ref.read(aleraCloudApiProvider).revokeSession(session);
     await ref.read(cloudAccountRepositoryProvider).removeSession(accountId);
     state = AsyncData(<CloudAccountSession>[
       for (final item in current)

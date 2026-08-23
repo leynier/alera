@@ -116,11 +116,37 @@ class AccountsScreen extends ConsumerWidget {
     if (confirmed != true) {
       return;
     }
-    await ref
-        .read(cloudAccountsControllerProvider.notifier)
-        .removeFromThisPhone(session.account.id);
+    try {
+      await ref
+          .read(cloudAccountsControllerProvider.notifier)
+          .removeFromThisPhone(session.account.id);
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showMessage(context, error.toString());
+      }
+      return;
+    }
     for (final runtimeId in session.subscriptions.keys) {
       await _refreshPairedRuntime(ref, runtimeId);
+    }
+  }
+
+  Future<void> _refreshAccount(
+    BuildContext context,
+    WidgetRef ref,
+    String accountId,
+  ) async {
+    try {
+      await ref
+          .read(cloudAccountsControllerProvider.notifier)
+          .refreshAccount(accountId);
+      if (context.mounted) {
+        _showMessage(context, 'Account refreshed');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showMessage(context, error.toString());
+      }
     }
   }
 
@@ -188,9 +214,11 @@ class AccountsScreen extends ConsumerWidget {
                       switch (action) {
                         case CloudAccountAction.refresh:
                           unawaited(
-                            ref
-                                .read(cloudAccountsControllerProvider.notifier)
-                                .refreshAccount(sessions[index].account.id),
+                            _refreshAccount(
+                              context,
+                              ref,
+                              sessions[index].account.id,
+                            ),
                           );
                         case CloudAccountAction.remove:
                           unawaited(

@@ -73,7 +73,7 @@ final class TerminalClientProvider
   }
 }
 
-String _$terminalClientHash() => r'65a9f80d83eddbc9c662f98d16b9d5c76668e095';
+String _$terminalClientHash() => r'eaaa496030db951d841ec9e73bb1f8ece56e617d';
 
 /// The terminal surface of the host connection. Tests override this with a
 /// fake so tab and session controllers can run without a live gateway.

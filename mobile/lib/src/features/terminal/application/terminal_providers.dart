@@ -8,5 +8,5 @@ part 'terminal_providers.g.dart';
 /// fake so tab and session controllers can run without a live gateway.
 @riverpod
 Future<MobileTerminalClient> terminalClient(Ref ref, String hostId) {
-  return ref.watch(hostConnectionControllerProvider(hostId).future);
+  return watchHostConnection(ref, hostId);
 }

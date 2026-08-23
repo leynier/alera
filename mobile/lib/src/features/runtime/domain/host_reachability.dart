@@ -51,6 +51,9 @@ bool _isTransportReachabilityFailure(Object error) {
   if (error is TimeoutException || error is SocketException) {
     return true;
   }
+  if (error is HttpException) {
+    return _looksLikeReachabilityMessage(error.message.toLowerCase());
+  }
   if (error is HandshakeException ||
       error is TlsException ||
       error is CertificateException) {
@@ -75,6 +78,7 @@ bool _looksLikeReachabilityMessage(String text) {
     'connection timed out',
     'connection time out',
     'connection reset',
+    'connection closed before full header was received',
     'connection abort',
     'software caused connection abort',
     'broken pipe',

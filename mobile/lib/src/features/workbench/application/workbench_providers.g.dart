@@ -73,7 +73,7 @@ final class WorkspaceClientProvider
   }
 }
 
-String _$workspaceClientHash() => r'9090961936ae5bfb9c5391dde4f850b5fbcb396e';
+String _$workspaceClientHash() => r'b5341003821c53a53d92071b38dda218e89bab23';
 
 /// The workspace surface of the host connection. Tests override this with a
 /// fake so workbench controllers can run without a live gateway.

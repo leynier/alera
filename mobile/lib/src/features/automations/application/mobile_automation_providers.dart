@@ -7,9 +7,7 @@ part 'mobile_automation_providers.g.dart';
 
 @riverpod
 Future<List<MobileAutomation>> mobileAutomations(Ref ref, String hostId) async {
-  final client = await ref.watch(
-    hostConnectionControllerProvider(hostId).future,
-  );
+  final client = await watchHostConnection(ref, hostId);
   if (!client.supportsAutomations) {
     throw UnsupportedError('This host does not support automations');
   }
@@ -22,9 +20,7 @@ Future<List<MobileAutomation>> mobileAutomationCatalog(
   String hostId,
   bool includeTrashed,
 ) async {
-  final client = await ref.watch(
-    hostConnectionControllerProvider(hostId).future,
-  );
+  final client = await watchHostConnection(ref, hostId);
   if (!client.supportsAutomations) {
     throw UnsupportedError('This host does not support automations');
   }

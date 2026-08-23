@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 Future<({HttpServer server, List<Map<String, Object?>> requests})> _runtime({
   required bool grantBinaryFrames,
   required void Function(WebSocket socket) onAuthenticated,
+  bool binaryJsonResponses = false,
+  int binaryJsonPaddingBytes = 0,
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   final requests = <Map<String, Object?>>[];
@@ -25,17 +27,26 @@ Future<({HttpServer server, List<Map<String, Object?>> requests})> _runtime({
     socket.listen((raw) {
       final message = jsonDecode(raw as String) as Map<String, Object?>;
       requests.add(message);
+      final response = jsonEncode(<String, Object?>{
+        'id': message['id'],
+        'ok': true,
+        'payload': <String, Object?>{
+          'runtimeCapabilities': <String>[
+            if (grantBinaryFrames) mobileBinaryFramesCapability,
+          ],
+          if (grantBinaryFrames) 'binaryFrames': true,
+          if (binaryJsonPaddingBytes > 0)
+            'padding': List<String>.filled(
+              binaryJsonPaddingBytes,
+              'x',
+              growable: false,
+            ).join(),
+        },
+      });
       socket.add(
-        jsonEncode(<String, Object?>{
-          'id': message['id'],
-          'ok': true,
-          'payload': <String, Object?>{
-            'runtimeCapabilities': <String>[
-              if (grantBinaryFrames) mobileBinaryFramesCapability,
-            ],
-            if (grantBinaryFrames) 'binaryFrames': true,
-          },
-        }),
+        binaryJsonResponses && message['type'] != 'mobile.hello'
+            ? Uint8List.fromList(utf8.encode(response))
+            : response,
       );
       if (message['type'] == 'mobile.hello') {
         onAuthenticated(socket);
@@ -113,6 +124,44 @@ void main() {
     final event = await output;
     expect(event.data, <int>[1, 2, 3]);
   });
+
+  test('binary mode still accepts JSON responses carried as bytes', () async {
+    final runtime = await _runtime(
+      grantBinaryFrames: true,
+      binaryJsonResponses: true,
+      onAuthenticated: (_) {},
+    );
+    final client = await MobileRuntimeClient.connect(
+      'ws://${runtime.server.address.address}:${runtime.server.port}',
+    );
+    addTearDown(client.dispose);
+    await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+
+    final response = await client.requestMap('mobile.status.get');
+
+    expect(response['binaryFrames'], isTrue);
+  });
+
+  test(
+    'binary mode does not mistake large JSON bytes for terminal output',
+    () async {
+      final runtime = await _runtime(
+        grantBinaryFrames: true,
+        binaryJsonResponses: true,
+        binaryJsonPaddingBytes: 70 * 1024,
+        onAuthenticated: (_) {},
+      );
+      final client = await MobileRuntimeClient.connect(
+        'ws://${runtime.server.address.address}:${runtime.server.port}',
+      );
+      addTearDown(client.dispose);
+      await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+
+      final response = await client.requestMap('workspaceSidebar.snapshot');
+
+      expect((response['padding'] as String).length, 70 * 1024);
+    },
+  );
 
   test('a truncated binary message is ignored, not fatal', () async {
     late WebSocket runtimeSocket;
