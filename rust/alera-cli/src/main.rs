@@ -31,6 +31,8 @@ mod orchestration_commands;
 mod orchestration_terminal_commands;
 mod project_config_toml;
 mod project_management;
+#[cfg(windows)]
+mod pty_job_bootstrap;
 mod runtime_archive;
 mod runtime_commands;
 mod runtime_host_client;
@@ -86,6 +88,10 @@ use crate::tab_record_factory::tab_from_args;
 const USAGE_EXIT_CODE: i32 = 64;
 
 fn main() {
+    #[cfg(windows)]
+    if pty_job_bootstrap::is_invocation() {
+        std::process::exit(pty_job_bootstrap::run());
+    }
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
