@@ -7,7 +7,18 @@ use super::{
 async fn store() -> (tempfile::TempDir, RuntimeStore) {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
+    seed_profile(&store).await;
     (dir, store)
+}
+
+async fn seed_profile(store: &RuntimeStore) {
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('policy-profile', 'Codex Sol', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(store.pool())
+    .await
+    .unwrap();
 }
 
 const POLICY: &str = r#"{"version":1,"stages":[{"id":"impl","profile":"Codex Sol"}]}"#;
@@ -176,11 +187,16 @@ async fn a_task_can_be_bound_to_a_stage() {
 async fn policy_columns_are_backfilled_on_a_preexisting_database() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
+    seed_profile(&store).await;
     let run = store
         .create_orchestration_coordinator_run("audit", Some("coord"), 2000)
         .await
         .unwrap();
     let pool = store.pool().clone();
+    sqlx::query("DROP TRIGGER orchestrationPolicyProfileUpdateGuard")
+        .execute(&pool)
+        .await
+        .unwrap();
     for column in [
         "execution_policy",
         "execution_policy_status",

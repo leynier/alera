@@ -122,6 +122,13 @@ async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
 async fn default_agent_profile_setting_round_trips_and_clears() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('prof_codex', 'Codex', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(store.pool())
+    .await
+    .unwrap();
 
     store
         .set_default_agent_profile_id(Some("  prof_codex  "))

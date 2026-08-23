@@ -4,6 +4,7 @@ use sqlx::sqlite::SqliteConnectOptions;
 use std::collections::HashMap;
 
 use super::{AgentProfile, AgentProfileLaunchMode, RuntimeStore, RUNTIME_DATABASE_FILE_NAME};
+use crate::runtime::WorkspaceTabRecord;
 
 async fn store() -> (tempfile::TempDir, RuntimeStore) {
     let dir = tempfile::tempdir().unwrap();
@@ -363,4 +364,94 @@ async fn rejects_a_stale_remove() {
 
     assert!(error.to_string().contains("revision conflict"));
     assert!(store.find_agent_profile("prof_a").await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn default_profile_reference_is_reported_and_cleared_atomically() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    store
+        .set_default_agent_profile_id(Some("prof_a"))
+        .await
+        .unwrap();
+
+    let impact = store
+        .agent_profile_removal_impact("prof_a", 0)
+        .await
+        .unwrap();
+    assert!(impact.is_default);
+    assert_eq!(impact.revision, Some(0));
+    assert_eq!(impact.reference_count(), 1);
+    assert!(store.remove_agent_profile("prof_a", 0).await.unwrap());
+    assert_eq!(store.default_agent_profile_id().await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn automation_policy_reference_is_reported_and_cleared_atomically() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    store
+        .set_automation_agent_policy(crate::runtime::AutomationAgentPolicy {
+            profile_id: "prof_a".into(),
+            may_activate_or_edit_active: false,
+            may_execute: false,
+            updated_at: Utc::now(),
+        })
+        .await
+        .unwrap();
+
+    let impact = store
+        .agent_profile_removal_impact("prof_a", 0)
+        .await
+        .unwrap();
+    assert!(impact.has_automation_policy);
+    assert!(store.remove_agent_profile("prof_a", 0).await.unwrap());
+    let impact = store
+        .agent_profile_removal_impact("prof_a", 0)
+        .await
+        .unwrap();
+    assert!(!impact.has_automation_policy);
+}
+
+#[tokio::test]
+async fn tab_reference_exposes_safe_ids_and_blocks_removal() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-1".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Sensitive user title".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({
+                "agentProfileId": "prof_a",
+                "initialCommand": "secret command"
+            }),
+        })
+        .await
+        .unwrap();
+
+    let impact = store
+        .agent_profile_removal_impact("prof_a", 0)
+        .await
+        .unwrap();
+    assert_eq!(impact.tabs.len(), 1);
+    assert_eq!(impact.tabs[0].workspace_id, "workspace-1");
+    assert_eq!(impact.tabs[0].tab_id, "tab-1");
+    let encoded = serde_json::to_string(&impact).unwrap();
+    assert!(!encoded.contains("Sensitive user title"));
+    assert!(!encoded.contains("secret command"));
+    assert!(store.remove_agent_profile("prof_a", 0).await.is_err());
 }

@@ -15,6 +15,8 @@ use crate::managed_workspace::{
     ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
 };
 
+mod automation_tests;
+
 #[tokio::test]
 async fn rejects_main_workspace_during_removal_validation() {
     let root = tempfile::tempdir().unwrap();
@@ -201,37 +203,6 @@ async fn rejects_workspace_owned_by_another_host() {
     let error = fixture.remove_managed_workspace().await.unwrap_err();
 
     assert!(error.to_string().contains("not owned by the local host"));
-    assert!(fixture.worktree_path.exists());
-}
-
-#[tokio::test]
-async fn rejects_workspace_owned_by_an_active_automation_run() {
-    let fixture = RemovalFixture::new("automation-run").await;
-    let definition = automation_definition(&fixture.workspace_id);
-    let actor = definition.created_by.clone();
-    fixture
-        .store
-        .upsert_automation(definition.clone(), actor)
-        .await
-        .unwrap();
-    fixture
-        .store
-        .create_automation_run(
-            &definition,
-            &AutomationOccurrence {
-                automation_id: definition.id.clone(),
-                key: "manual|cleanup-owner".to_string(),
-                scheduled_at: Utc::now(),
-                local_time: "UTC".to_string(),
-            },
-            AutomationRunTrigger::Manual,
-        )
-        .await
-        .unwrap();
-
-    let error = fixture.remove_managed_workspace().await.unwrap_err();
-
-    assert!(error.to_string().contains("active automation"));
     assert!(fixture.worktree_path.exists());
 }
 

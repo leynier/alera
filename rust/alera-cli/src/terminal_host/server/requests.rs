@@ -905,6 +905,10 @@ impl ServerActor {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.agent_profile_reorder(payload).await
             }
+            "agentProfile.removalImpact" => {
+                self.require_auth(client_id)?;
+                self.agent_profile_removal_impact(payload).await
+            }
             "agentProfile.remove" => {
                 self.require_auth(client_id)?;
                 self.agent_profile_remove(payload).await

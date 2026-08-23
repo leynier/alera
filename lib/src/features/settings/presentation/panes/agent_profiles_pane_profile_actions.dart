@@ -161,15 +161,34 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       _error = null;
     });
     try {
+      final impact = await ref
+          .read(agentProfilesProvider.notifier)
+          .removalImpact(profile.id, expectedRevision: profile.revision);
+      if (!mounted) {
+        return;
+      }
+      _setPaneState(() => _saving = false);
+      final confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (_) => AleraConfirmDialog(
+              title: impact.hasBlockingReferences
+                  ? 'Agent Profile In Use'
+                  : 'Delete Agent Profile?',
+              message: impact.removalMessage(profile.name),
+              confirmLabel: 'Delete',
+              destructive: true,
+              confirmEnabled: !impact.hasBlockingReferences,
+            ),
+          ) ??
+          false;
+      if (!confirmed || !mounted) {
+        return;
+      }
+      _setPaneState(() => _saving = true);
       await ref
           .read(agentProfilesProvider.notifier)
           .remove(profile.id, expectedRevision: profile.revision);
-      if (ref.read(settingsControllerProvider).agents.defaultAgentProfileId ==
-          profile.id) {
-        await ref
-            .read(settingsControllerProvider.notifier)
-            .setDefaultAgentProfile(null);
-      }
       if (!mounted) {
         return;
       }
