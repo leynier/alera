@@ -24,18 +24,24 @@ mod io_threads;
 mod output_backpressure;
 mod output_batching;
 mod pty_spawn;
+#[cfg(unix)]
 mod shell_tree_termination;
 #[cfg(test)]
 mod tests;
 mod title_tracker;
+#[cfg(windows)]
+mod windows_process_job;
 
 #[cfg(test)]
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
 use io_threads::{spawn_reader, spawn_writer};
 use pty_spawn::{spawn_pty, SpawnedPty};
+#[cfg(unix)]
 use shell_tree_termination::kill_shell_tree;
 use title_tracker::TerminalTitleTracker;
+#[cfg(windows)]
+use windows_process_job::WindowsProcessJob;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
 static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
@@ -148,6 +154,8 @@ pub struct Session {
     master: Option<Box<dyn MasterPty + Send>>,
     input_tx: Option<SyncSender<PtyWrite>>,
     killer: Option<Box<dyn ChildKiller + Send + Sync>>,
+    #[cfg(windows)]
+    process_job: Option<WindowsProcessJob>,
     terminated: bool,
     checkpoint_gen: u64,
     checkpoint_armed: bool,
@@ -203,6 +211,8 @@ impl Session {
             reader,
             writer,
             killer,
+            #[cfg(windows)]
+            process_job,
             shell,
          } = spawned;
         let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
@@ -231,6 +241,8 @@ impl Session {
             master: Some(master),
             input_tx: Some(input_tx),
             killer: Some(killer),
+            #[cfg(windows)]
+            process_job: Some(process_job),
             terminated: false,
             checkpoint_gen: 0,
             checkpoint_armed: false,
@@ -351,11 +363,18 @@ impl Session {
         self.exit_code = Some(exit_code);
         self.ended_at = Some(Utc::now());
         self.shell = None;
+        #[cfg(windows)]
+        {
+            self.process_job = None;
+        }
         Some(json!({ "sessionId": self.id, "exitCode": exit_code }))
     }
 
     #[cfg(windows)]
     pub fn close_pty_after_child_exit(&mut self) {
+        // Closing the job here catches descendants that outlived the shell;
+        // waiting for the user to remove the exited tab would leak them.
+        self.process_job = None;
         self.input_tx = None;
         self.master = None;
         self.killer = None;
@@ -414,16 +433,34 @@ impl Session {
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
         self.terminated = true;
         self.running = false;
+        #[cfg(unix)]
         // Read before clearing. The sweep needs the sealed shell to prove which
         // tree it is allowed to signal, and it has to run before the root is
         // killed: a dead root's children reparent away and stop being findable.
         let shell = self.shell.take();
+        #[cfg(windows)]
+        {
+            self.shell = None;
+        }
+        #[cfg(windows)]
+        {
+            // KILL_ON_JOB_CLOSE terminates the shell and every associated
+            // descendant, including processes that detached from the console.
+            self.process_job = None;
+        }
+        #[cfg(unix)]
         if let Some(mut killer) = self.killer.take() {
             kill_shell_tree(shell, move || {
                 // The child may have already exited between checks.
                 let _ = killer.kill();
             })
             .await;
+        }
+        #[cfg(windows)]
+        if let Some(mut killer) = self.killer.take() {
+            // The job normally killed the root already. Keep the PTY's direct
+            // killer as a best-effort fallback if Windows raced job teardown.
+            let _ = killer.kill();
         }
         self.input_tx = None;
         self.master = None;
