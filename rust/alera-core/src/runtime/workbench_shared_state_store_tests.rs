@@ -177,6 +177,30 @@ async fn tab_rename_preserves_payload_and_marks_manual_title() {
 }
 
 #[tokio::test]
+async fn workspace_tab_removal_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-1".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "terminal".to_string(),
+            title: "Terminal".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({}),
+        })
+        .await
+        .unwrap();
+
+    store.remove_workspace_tab("tab-1").await.unwrap();
+    store.remove_workspace_tab("tab-1").await.unwrap();
+
+    assert!(store.find_workspace_tab("tab-1").await.unwrap().is_none());
+}
+
+#[tokio::test]
 async fn generic_browser_tab_upsert_sanitizes_or_removes_unsafe_urls() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
