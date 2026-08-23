@@ -15,6 +15,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_c
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_pulse_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -171,217 +172,240 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
         widget.session,
         widget.session.composerController,
       ]),
-      builder: (context, _) {
-        final error = switch (widget.session.errorMessage) {
-          final String message when message.trim().isNotEmpty => message,
-          _ => null,
-        };
-        final operation = error == null ? widget.session.operation : null;
-        final searchController = widget.session.searchController;
-        final searchOpen = searchController?.isOpen == true;
-        final toolbarButtonCount =
-            2 +
-            (widget.session.supportsTerminalPulse ? 1 : 0) +
-            (hasCanvas ? 1 : 0);
-        return DropTarget(
-          enable: error == null,
-          onDragDone: (details) {
-            handleTerminalFileDrop(
-              session: widget.session,
-              paths: details.files.map((file) => file.path),
-              globalPosition: details.globalPosition,
-            );
-          },
-          child: DragTarget<TerminalPathDragPayload>(
-            onWillAcceptWithDetails: (_) => error == null,
-            onAcceptWithDetails: (details) {
-              handleTerminalPathDrop(
-                session: widget.session,
-                paths: details.data.paths,
-              );
-            },
-            builder: (context, _, _) => Column(
-              children: <Widget>[
-                Expanded(
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(
-                        child: error == null
-                            ? DecoratedBox(
-                                decoration: const BoxDecoration(
-                                  color: AleraTokens.bg,
-                                ),
-                                child: widget.session.buildView(
-                                  autofocus: widget.autofocus,
-                                  onKeyEvent: _handleTerminalKey,
-                                ),
-                              )
-                            : _TerminalErrorState(
-                                message: error,
-                                onReconnect: widget.session.reconnect,
-                                onRestart: widget.session.canRestart
-                                    ? () => _confirmRestart(context)
-                                    : null,
-                              ),
-                      ),
-                      if (operation != null)
-                        Positioned.fill(
-                          child: _TerminalOperationState(operation: operation),
-                        ),
-                      // Restoring an evicted terminal replays its whole scrollback over
-                      // several frames. The corner spinner does not read as a wait that
-                      // long, so cover the area until the history is back.
-                      if (error == null)
-                        Positioned.fill(
-                          child:
-                              ValueListenableBuilder<TerminalRestoreProgress?>(
-                                valueListenable: widget.session.restoreProgress,
-                                builder: (context, progress, _) {
-                                  if (progress == null) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return _TerminalRestoreState(
-                                    progress: progress,
-                                  );
-                                },
-                              ),
-                        ),
-                      Positioned(
-                        top: AleraTokens.space4,
-                        right: AleraTokens.space4,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: AleraTokens.space2,
-                          children: <Widget>[
-                            if (widget.session.supportsTerminalPulse)
-                              ValueListenableBuilder<TerminalPulseState>(
-                                valueListenable:
-                                    widget.session.terminalPulseState,
-                                builder: (context, state, _) {
-                                  return AleraIconButton(
-                                    tooltip: !state.statusKnown
-                                        ? 'Configure Terminal Pulse - Status Unavailable'
-                                        : state.armed
-                                        ? 'Configure Terminal Pulse - Armed'
-                                        : 'Configure Terminal Pulse',
-                                    icon: AleraIcons.pulse,
-                                    iconColor: state.statusKnown && state.armed
-                                        ? AleraTokens.foreground
-                                        : AleraTokens.foregroundMuted,
-                                    backgroundColor:
-                                        state.statusKnown && state.armed
-                                        ? AleraTokens.accentSubtle
-                                        : AleraTokens.surfaceElevated,
-                                    borderColor: AleraTokens.borderSubtle,
-                                    onPressed: () => unawaited(
-                                      showTerminalPulseDialog(
-                                        context,
-                                        widget.session,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            AleraIconButton(
-                              tooltip: widget.session.composerController.visible
-                                  ? 'Hide Terminal Composer'
-                                  : 'Show Terminal Composer',
-                              icon: AleraIcons.composer,
-                              iconColor:
-                                  widget.session.composerController.visible
-                                  ? AleraTokens.foreground
-                                  : AleraTokens.foregroundMuted,
-                              backgroundColor:
-                                  widget.session.composerController.visible
-                                  ? AleraTokens.accentSubtle
-                                  : AleraTokens.surfaceElevated,
-                              borderColor: AleraTokens.borderSubtle,
-                              onPressed:
-                                  widget.session.composerController.toggle,
-                            ),
-                            AleraIconButton(
-                              tooltip: _refreshing
-                                  ? 'Refreshing Terminal'
-                                  : 'Refresh Terminal',
-                              icon: _refreshing
-                                  ? AleraIcons.loading
-                                  : AleraIcons.refresh,
-                              backgroundColor: AleraTokens.surfaceElevated,
-                              borderColor: AleraTokens.borderSubtle,
-                              onPressed: _refreshing
-                                  ? null
-                                  : () => unawaited(_refreshTerminal()),
-                            ),
-                            if (hasCanvas)
-                              AleraIconButton(
-                                tooltip: 'Agent Canvas',
-                                icon: AleraIcons.agent,
-                                backgroundColor: AleraTokens.surfaceElevated,
-                                borderColor: AleraTokens.borderSubtle,
-                                onPressed: () {
-                                  final terminalSessionId =
-                                      widget.session.terminalSessionId;
-                                  if (terminalSessionId != null) {
-                                    ref
-                                        .read(
-                                          agentCanvasSelectionProvider(
-                                            widget.session.workspaceId,
-                                          ).notifier,
-                                        )
-                                        .select(terminalSessionId);
-                                  }
-                                  final controller = ref.read(
-                                    workbenchControllerProvider.notifier,
-                                  );
-                                  controller.setContextPanelTab(
-                                    WorkbenchContextPanelTab.agentCanvas,
-                                  );
-                                  if (!ref
-                                      .read(workbenchControllerProvider)
-                                      .viewPrefs
-                                      .rightSidebarVisible) {
-                                    controller.toggleRightSidebarVisible();
-                                  }
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                      if (searchController != null && searchOpen)
-                        Positioned(
-                          top: AleraTokens.space4,
-                          left: AleraTokens.space16,
-                          // Keep search clear of every visible terminal toolbar action.
-                          right:
-                              AleraTokens.space48 * toolbarButtonCount +
-                              AleraTokens.space4,
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: AleraTokens.dialogWideWidth,
-                              ),
-                              child: TerminalSearchOverlay(
-                                controller: searchController,
-                                onClose: () {
-                                  widget.session.closeSearch();
-                                  widget.session.requestFocus();
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (widget.session.composerController.visible)
-                  buildTerminalComposerForWorkspace(ref, widget.session),
-              ],
-            ),
+      builder: (context, _) => _buildSurface(context, hasCanvas: hasCanvas),
+    );
+  }
+
+  Widget _buildSurface(BuildContext context, {required bool hasCanvas}) {
+    final error = switch (widget.session.errorMessage) {
+      final String message when message.trim().isNotEmpty => message,
+      _ => null,
+    };
+    final operation = error == null ? widget.session.operation : null;
+    final searchController = widget.session.searchController;
+    return DropTarget(
+      enable: error == null,
+      onDragDone: (details) {
+        handleTerminalFileDrop(
+          session: widget.session,
+          paths: details.files.map((file) => file.path),
+          globalPosition: details.globalPosition,
+        );
+      },
+      child: DragTarget<TerminalPathDragPayload>(
+        onWillAcceptWithDetails: (_) => error == null,
+        onAcceptWithDetails: (details) {
+          handleTerminalPathDrop(
+            session: widget.session,
+            paths: details.data.paths,
+          );
+        },
+        builder: (context, _, _) => _buildSurfaceContent(
+          context,
+          error: error,
+          operation: operation,
+          searchController: searchController,
+          hasCanvas: hasCanvas,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSurfaceContent(
+    BuildContext context, {
+    required String? error,
+    required TerminalSessionOperation? operation,
+    required TerminalSearchController? searchController,
+    required bool hasCanvas,
+  }) {
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: _buildTerminalViewport(
+            context,
+            error: error,
+            operation: operation,
+            searchController: searchController,
+            hasCanvas: hasCanvas,
           ),
+        ),
+        if (widget.session.composerController.visible)
+          buildTerminalComposerForWorkspace(ref, widget.session),
+      ],
+    );
+  }
+
+  Widget _buildTerminalViewport(
+    BuildContext context, {
+    required String? error,
+    required TerminalSessionOperation? operation,
+    required TerminalSearchController? searchController,
+    required bool hasCanvas,
+  }) {
+    final toolbarButtonCount =
+        2 +
+        (widget.session.supportsTerminalPulse ? 1 : 0) +
+        (hasCanvas ? 1 : 0);
+    return Stack(
+      children: <Widget>[
+        Positioned.fill(child: _buildTerminalContent(context, error)),
+        if (operation != null)
+          Positioned.fill(child: _TerminalOperationState(operation: operation)),
+        if (error == null) _buildRestoreOverlay(),
+        _buildToolbar(context, hasCanvas: hasCanvas),
+        if (searchController?.isOpen == true)
+          _buildSearchOverlay(searchController!, toolbarButtonCount),
+      ],
+    );
+  }
+
+  Widget _buildTerminalContent(BuildContext context, String? error) {
+    if (error != null) {
+      return _TerminalErrorState(
+        message: error,
+        onReconnect: widget.session.reconnect,
+        onRestart: widget.session.canRestart
+            ? () => _confirmRestart(context)
+            : null,
+      );
+    }
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AleraTokens.bg),
+      child: widget.session.buildView(
+        autofocus: widget.autofocus,
+        onKeyEvent: _handleTerminalKey,
+      ),
+    );
+  }
+
+  Widget _buildRestoreOverlay() {
+    // Restoring an evicted terminal replays its whole scrollback over several
+    // frames, so cover the area until the history is back.
+    return Positioned.fill(
+      child: ValueListenableBuilder<TerminalRestoreProgress?>(
+        valueListenable: widget.session.restoreProgress,
+        builder: (context, progress, _) {
+          if (progress == null) {
+            return const SizedBox.shrink();
+          }
+          return _TerminalRestoreState(progress: progress);
+        },
+      ),
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context, {required bool hasCanvas}) {
+    return Positioned(
+      top: AleraTokens.space4,
+      right: AleraTokens.space4,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: AleraTokens.space2,
+        children: <Widget>[
+          if (widget.session.supportsTerminalPulse)
+            _buildTerminalPulseControl(context),
+          AleraIconButton(
+            tooltip: widget.session.composerController.visible
+                ? 'Hide Terminal Composer'
+                : 'Show Terminal Composer',
+            icon: AleraIcons.composer,
+            iconColor: widget.session.composerController.visible
+                ? AleraTokens.foreground
+                : AleraTokens.foregroundMuted,
+            backgroundColor: widget.session.composerController.visible
+                ? AleraTokens.accentSubtle
+                : AleraTokens.surfaceElevated,
+            borderColor: AleraTokens.borderSubtle,
+            onPressed: widget.session.composerController.toggle,
+          ),
+          AleraIconButton(
+            tooltip: _refreshing ? 'Refreshing Terminal' : 'Refresh Terminal',
+            icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
+            backgroundColor: AleraTokens.surfaceElevated,
+            borderColor: AleraTokens.borderSubtle,
+            onPressed: _refreshing ? null : () => unawaited(_refreshTerminal()),
+          ),
+          if (hasCanvas)
+            AleraIconButton(
+              tooltip: 'Agent Canvas',
+              icon: AleraIcons.agent,
+              backgroundColor: AleraTokens.surfaceElevated,
+              borderColor: AleraTokens.borderSubtle,
+              onPressed: _showAgentCanvas,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTerminalPulseControl(BuildContext context) {
+    return ValueListenableBuilder<TerminalPulseState>(
+      valueListenable: widget.session.terminalPulseState,
+      builder: (context, state, _) {
+        return AleraIconButton(
+          tooltip: !state.statusKnown
+              ? 'Configure Terminal Pulse - Status Unavailable'
+              : state.armed
+              ? 'Configure Terminal Pulse - Armed'
+              : 'Configure Terminal Pulse',
+          icon: AleraIcons.pulse,
+          iconColor: state.statusKnown && state.armed
+              ? AleraTokens.foreground
+              : AleraTokens.foregroundMuted,
+          backgroundColor: state.statusKnown && state.armed
+              ? AleraTokens.accentSubtle
+              : AleraTokens.surfaceElevated,
+          borderColor: AleraTokens.borderSubtle,
+          onPressed: () =>
+              unawaited(showTerminalPulseDialog(context, widget.session)),
         );
       },
     );
+  }
+
+  Widget _buildSearchOverlay(
+    TerminalSearchController searchController,
+    int toolbarButtonCount,
+  ) {
+    return Positioned(
+      top: AleraTokens.space4,
+      left: AleraTokens.space16,
+      // Keep search clear of every visible terminal toolbar action.
+      right: AleraTokens.space48 * toolbarButtonCount + AleraTokens.space4,
+      child: Align(
+        alignment: Alignment.topRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AleraTokens.dialogWideWidth,
+          ),
+          child: TerminalSearchOverlay(
+            controller: searchController,
+            onClose: _closeSearch,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAgentCanvas() {
+    final terminalSessionId = widget.session.terminalSessionId;
+    if (terminalSessionId != null) {
+      ref
+          .read(
+            agentCanvasSelectionProvider(widget.session.workspaceId).notifier,
+          )
+          .select(terminalSessionId);
+    }
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    controller.setContextPanelTab(WorkbenchContextPanelTab.agentCanvas);
+    if (!ref.read(workbenchControllerProvider).viewPrefs.rightSidebarVisible) {
+      controller.toggleRightSidebarVisible();
+    }
+  }
+
+  void _closeSearch() {
+    widget.session.closeSearch();
+    widget.session.requestFocus();
   }
 
   bool _hasProviderScope(BuildContext context) {
