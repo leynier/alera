@@ -75,6 +75,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     this.goalGetFailureMessage = 'temporary goal read failure',
     this.goalSetFailures = 0,
     this.goalSetFailureMessage = 'temporary goal set failure',
+    this.sessionCommandFailures = const <String>{},
     this.historyNextCursor,
     this.historyTimelineCells = const <Object?>[],
     this.historyGate,
@@ -103,6 +104,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final String goalGetFailureMessage;
   int goalSetFailures;
   final String goalSetFailureMessage;
+  final Set<String> sessionCommandFailures;
   final String? historyNextCursor;
   final List<Object?> historyTimelineCells;
   final Completer<void>? historyGate;
@@ -116,6 +118,8 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   final Map<String, Object?> skills;
   final List<Map<String, Object?>> collaborationModes;
   final List<String> requestTypes = <String>[];
+  final List<({String type, Map<String, Object?> payload})> requests =
+      <({String type, Map<String, Object?> payload})>[];
   final List<Map<String, Object?>> startTurnPayloads = <Map<String, Object?>>[];
   final List<Map<String, Object?>> responsePayloads = <Map<String, Object?>>[];
   final List<Map<String, Object?>> reviewPayloads = <Map<String, Object?>>[];
@@ -134,6 +138,10 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     requestTypes.add(type);
+    requests.add((type: type, payload: Map.unmodifiable(payload)));
+    if (sessionCommandFailures.contains(type)) {
+      throw StateError('$type failed');
+    }
     if (type == 'status.get') {
       return <String, Object?>{
         'runtimeCapabilities': <String>[
