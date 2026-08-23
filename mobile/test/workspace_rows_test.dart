@@ -190,6 +190,28 @@ void main() {
       expect(rows.whereType<MobileAllHeaderRow>(), hasLength(1));
     });
 
+    test('Collapsed All section keeps only the pinned copies', () {
+      final rows = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('a', project: 'p1'),
+          _workspace('b', project: 'p1', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(
+          groupBy: MobileWorkspaceGroupBy.none,
+          allSectionCollapsed: true,
+        ),
+      );
+
+      final allHeader = rows.whereType<MobileAllHeaderRow>().single;
+      expect(allHeader.count, 2);
+      expect(allHeader.collapsed, isTrue);
+      final entries = rows.whereType<MobileWorkspaceEntryRow>().toList();
+      expect(entries, hasLength(1));
+      expect(entries.single.entry.workspace.id, 'b');
+      expect(entries.single.isPinnedCopy, isTrue);
+    });
+
     test('Can omit pinned workspaces from the list below', () {
       final rows = buildMobileWorkspaceRows(
         workspaces: <WorkspaceSummary>[
