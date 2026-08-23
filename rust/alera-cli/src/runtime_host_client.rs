@@ -123,8 +123,12 @@ impl RuntimeHostRpcClient {
         persistent: bool,
     ) -> Result<Self> {
         tokio::fs::create_dir_all(runtime_dir).await?;
+        if let Some(pid) = crate::terminal_host::runtime_owner::live_owner_pid(runtime_dir)? {
+            return Err(anyhow!(
+                "A live Alera runtime host process {pid} owns this runtime directory, but its control metadata is unavailable or incompatible. Refusing to start a duplicate host."
+            ));
+        }
         let control_file = runtime_dir.join(RUNTIME_CONTROL_FILE_NAME);
-        let _ = tokio::fs::remove_file(&control_file).await;
         let token = Uuid::new_v4().to_string();
         let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
         let mut command = detached_windowless_async_command(executable);

@@ -39,6 +39,7 @@ use crate::terminal_host::orchestration::message_delivery::{
 use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
+use crate::terminal_host::runtime_owner;
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 use crate::terminal_host::sleep_detector::SleepDetector;
 

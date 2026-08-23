@@ -12,6 +12,7 @@ pub(crate) fn spawn_replacement_runtime_host(
 ) -> anyhow::Result<()> {
     let executable = std::env::current_exe()?;
     let token = Uuid::new_v4().to_string();
+    let owner = super::runtime_owner::current_owner_identity()?;
     let mut command = detached_windowless_async_command(executable);
     command
         .arg("runtime-host")
@@ -33,6 +34,10 @@ pub(crate) fn spawn_replacement_runtime_host(
         .arg(config.login_shell.to_string())
         .arg("--log-level")
         .arg(&args.log_level)
+        .arg("--handoff-owner-pid")
+        .arg(owner.pid.to_string())
+        .arg("--handoff-owner-start-marker")
+        .arg(owner.start_marker.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());

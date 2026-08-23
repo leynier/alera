@@ -38,12 +38,23 @@ pub(crate) async fn run(args: TerminalHostArgs) -> i32 {
             .login_shell
             .unwrap_or_else(crate::terminal_host::protocol::default_login_shell),
     };
+    let handoff_owner = match (args.handoff_owner_pid, args.handoff_owner_start_marker) {
+        (Some(pid), Some(start_marker)) => {
+            Some(crate::terminal_host::runtime_owner::RuntimeOwnerIdentity { pid, start_marker })
+        }
+        (None, None) => None,
+        _ => {
+            eprintln!("Runtime owner handoff requires both PID and process start marker.");
+            return USAGE_EXIT_CODE;
+        }
+    };
 
     match run_terminal_host_server(
         PathBuf::from(runtime_dir),
         PathBuf::from(control_file),
         token,
         config,
+        handoff_owner,
     )
     .await
     {
@@ -107,6 +118,8 @@ pub(crate) async fn run_automation_host(args: AutomationHostArgs) -> i32 {
         persistent: true,
         log_level: "info".to_string(),
         crash_reporting: false,
+        handoff_owner_pid: None,
+        handoff_owner_start_marker: None,
     })
     .await
 }

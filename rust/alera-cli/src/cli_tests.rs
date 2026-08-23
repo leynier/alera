@@ -52,6 +52,10 @@ fn replacement_runtime_host_arguments_preserve_effective_configuration() {
         "false",
         "--persistent",
         "--crash-reporting",
+        "--handoff-owner-pid",
+        "1234",
+        "--handoff-owner-start-marker",
+        "5678",
     ])
     .unwrap();
 
@@ -65,9 +69,40 @@ fn replacement_runtime_host_arguments_preserve_effective_configuration() {
             login_shell: Some(false),
             persistent: true,
             crash_reporting: true,
+            handoff_owner_pid: Some(1234),
+            handoff_owner_start_marker: Some(5678),
             ..
         })
     ));
+}
+
+#[test]
+fn replacement_runtime_host_arguments_require_a_complete_owner_identity() {
+    for incomplete in [
+        ["--handoff-owner-pid", "1234"],
+        ["--handoff-owner-start-marker", "5678"],
+    ] {
+        let error = Cli::try_parse_from(
+            [
+                "alera",
+                "runtime-host",
+                "--runtime-dir",
+                "/tmp/alera",
+                "--control-file",
+                "/tmp/alera/runtime-host.json",
+                "--token",
+                "replacement-token",
+            ]
+            .into_iter()
+            .chain(incomplete),
+        )
+        .expect_err("a partial owner identity must be rejected");
+
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+    }
 }
 
 #[test]
