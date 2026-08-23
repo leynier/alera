@@ -50,7 +50,7 @@ class MobileAiDictationModelTransfers
     unawaited(Future<void>.microtask(refresh));
     return MobileAiModelTransfersState(<String, MobileAiModelTransfer>{
       for (final model in MobileAiDictationModelStore.models)
-        model.id: MobileAiModelTransfer(totalBytes: model.sizeBytes),
+        model.id: MobileAiModelTransfer(totalBytes: model.totalBytes),
     });
   }
 
@@ -60,12 +60,12 @@ class MobileAiDictationModelTransfers
     for (final model in MobileAiDictationModelStore.models) {
       final installed = await _store.isInstalled(model.id);
       final received = installed
-          ? model.sizeBytes
+          ? model.totalBytes
           : await _store.partialBytes(model.id);
       models[model.id] = MobileAiModelTransfer(
         installed: installed,
         receivedBytes: received,
-        totalBytes: model.sizeBytes,
+        totalBytes: model.totalBytes,
         status: resumable.contains(model.id)
             ? MobileAiModelTransferStatus.resumable
             : MobileAiModelTransferStatus.idle,
@@ -83,7 +83,7 @@ class MobileAiDictationModelTransfers
       id,
       MobileAiModelTransfer(
         status: MobileAiModelTransferStatus.downloading,
-        totalBytes: _store.modelFor(id).sizeBytes,
+        totalBytes: _store.modelFor(id).totalBytes,
         receivedBytes: await _store.partialBytes(id),
       ),
       activeModelId: id,
@@ -115,7 +115,7 @@ class MobileAiDictationModelTransfers
               ? MobileAiModelTransferStatus.resumable
               : MobileAiModelTransferStatus.failed,
           receivedBytes: received,
-          totalBytes: _store.modelFor(id).sizeBytes,
+          totalBytes: _store.modelFor(id).totalBytes,
           message: 'The model download could not finish: $error',
         ),
       );
