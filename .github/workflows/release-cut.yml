@@ -1,5 +1,10 @@
 name: Cut Release
 
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' &&
+    format('Cut Release {0} {1} dry_run={2}', inputs.channel, inputs.ref, inputs.dry_run) ||
+    format('Publish merged version PR #{0}', github.event.pull_request.number) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -21,9 +26,14 @@ on:
         required: false
         type: boolean
         default: false
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
@@ -39,12 +49,21 @@ env:
 
 jobs:
   plan:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login == 'github-actions[bot]' &&
+        startsWith(github.event.pull_request.head.ref, 'release/version-'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
       target_sha: ${{ steps.release_plan.outputs.target_sha }}
       channel: ${{ steps.release_plan.outputs.channel }}
       any_should_release: ${{ steps.release_plan.outputs.any_should_release }}
+      ready_to_publish: ${{ steps.release_plan.outputs.ready_to_publish }}
+      version_pr_needed: ${{ steps.release_plan.outputs.version_pr_needed }}
       desktop_has_changes: ${{ steps.release_plan.outputs.desktop_has_changes }}
       desktop_should_release: ${{ steps.release_plan.outputs.desktop_should_release }}
       desktop_bump: ${{ steps.release_plan.outputs.desktop_bump }}
@@ -65,7 +84,7 @@ jobs:
       - name: Checkout ref
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
           # release_plan.dart only reads git history and the pubspec files, so
           # this job resolves no dependencies and needs no submodule.
@@ -78,24 +97,235 @@ jobs:
         id: release_plan
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ inputs.ref }}
+          TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.pull_request.merge_commit_sha }}
           RELEASE_CHANNEL: ${{ inputs.channel }}
           DRY_RUN: ${{ inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
-          dart tool/release/release_plan.dart \
-            --target "$TARGET_REF" \
-            --channel "$RELEASE_CHANNEL" \
-            --repository "$GITHUB_REPOSITORY" \
-            --run-number "$GITHUB_RUN_NUMBER" \
-            --dry-run "$DRY_RUN" \
-            --github-output "$GITHUB_OUTPUT" \
-            --summary "$GITHUB_STEP_SUMMARY"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            dart tool/release/release_plan.dart \
+              --target "$TARGET_REF" \
+              --channel "$RELEASE_CHANNEL" \
+              --repository "$GITHUB_REPOSITORY" \
+              --run-number "$GITHUB_RUN_NUMBER" \
+              --dry-run "$DRY_RUN" \
+              --github-output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+          else
+            dart tool/release/prepared_release.dart inspect \
+              --file tool/release/prepared_release.json \
+              --target-sha "$TARGET_REF" \
+              --pr-title "$PR_TITLE" \
+              --repository "$GITHUB_REPOSITORY" \
+              --github-output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
+            prepared_channel="$(jq -r .channel tool/release/prepared_release.json)"
+            replan_output="$RUNNER_TEMP/replanned-release-output.txt"
+            replan_summary="$RUNNER_TEMP/replanned-release-summary.md"
+            while IFS= read -r prepared_tag; do
+              [[ -n "$prepared_tag" ]] || continue
+              git tag -d "$prepared_tag" >/dev/null 2>&1 || true
+            done < <(jq -r '.desktop.tag, .mobile.tag | select(length > 0)' tool/release/prepared_release.json)
+            dart tool/release/release_plan.dart \
+              --target "$TARGET_REF^" \
+              --channel "$prepared_channel" \
+              --repository "$GITHUB_REPOSITORY" \
+              --run-number "$GITHUB_RUN_NUMBER" \
+              --dry-run false \
+              --github-output "$replan_output" \
+              --summary "$replan_summary"
+            dart tool/release/prepared_release.dart compare-plan \
+              --file tool/release/prepared_release.json \
+              --plan-output "$replan_output"
+          fi
+
+  prepare_version_pr:
+    name: prepare version pull request
+    needs: plan
+    if: needs.plan.outputs.version_pr_needed == 'true'
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout planned commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          fetch-depth: 0
+          submodules: false
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
+
+      - name: Create or reuse version pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.plan.outputs.target_sha }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
+          DESKTOP_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          DESKTOP_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          DESKTOP_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
+          DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
+          DESKTOP_PREVIOUS_TAG: ${{ needs.plan.outputs.desktop_previous_tag }}
+          MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
+          MOBILE_ARTIFACT_VERSION: ${{ needs.plan.outputs.mobile_artifact_version }}
+          MOBILE_RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
+          MOBILE_BUILD_NUMBER: ${{ needs.plan.outputs.mobile_build_number }}
+          MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
+          MOBILE_PREVIOUS_TAG: ${{ needs.plan.outputs.mobile_previous_tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags --quiet
+          if [[ "$SOURCE_SHA" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::A non-dry release must start at the current origin/main commit."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          prepared_output="$RUNNER_TEMP/prepared-release-output.txt"
+          dart tool/release/prepared_release.dart write \
+            --source-sha "$SOURCE_SHA" \
+            --channel "$CHANNEL" \
+            --desktop-should-release "$DESKTOP_SHOULD_RELEASE" \
+            --desktop-artifact-version "$DESKTOP_ARTIFACT_VERSION" \
+            --desktop-release-version "$DESKTOP_RELEASE_VERSION" \
+            --desktop-build-number "$DESKTOP_BUILD_NUMBER" \
+            --desktop-tag "$DESKTOP_TAG" \
+            --desktop-previous-tag "$DESKTOP_PREVIOUS_TAG" \
+            --mobile-should-release "$MOBILE_SHOULD_RELEASE" \
+            --mobile-artifact-version "$MOBILE_ARTIFACT_VERSION" \
+            --mobile-release-version "$MOBILE_RELEASE_VERSION" \
+            --mobile-build-number "$MOBILE_BUILD_NUMBER" \
+            --mobile-tag "$MOBILE_TAG" \
+            --mobile-previous-tag "$MOBILE_PREVIOUS_TAG" \
+            --output tool/release/prepared_release.json \
+            --github-output "$prepared_output"
+          VERSION_BRANCH="$(sed -n 's/^version_branch=//p' "$prepared_output")"
+          VERSION_TITLE="$(sed -n 's/^version_title=//p' "$prepared_output")"
+
+          if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
+            dart tool/release/update_pubspec_version.dart "$DESKTOP_ARTIFACT_VERSION" "$DESKTOP_BUILD_NUMBER"
+          fi
+          if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
+            dart tool/release/update_mobile_pubspec_version.dart "$MOBILE_ARTIFACT_VERSION" "$MOBILE_BUILD_NUMBER"
+          fi
+          if [[ "$CHANNEL" == "stable" ]]; then
+            landing_args=()
+            if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
+              landing_args+=(--desktop-version "$DESKTOP_RELEASE_VERSION" --desktop-tag "$DESKTOP_TAG")
+            fi
+            if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
+              landing_args+=(--mobile-version "$MOBILE_RELEASE_VERSION" --mobile-tag "$MOBILE_TAG")
+            fi
+            dart tool/release/update_landing_release_links.dart "${landing_args[@]}"
+          fi
+          git add tool/release/prepared_release.json pubspec.yaml mobile/pubspec.yaml landing/src/data/releases.json
+          git diff --cached --check
+          git commit -m "$VERSION_TITLE"
+          version_head="$(git rev-parse HEAD)"
+
+          existing_head="$(git ls-remote --heads origin "refs/heads/$VERSION_BRANCH" | awk '{print $1}')"
+          if [[ -n "$existing_head" ]]; then
+            git fetch origin "refs/heads/$VERSION_BRANCH:refs/remotes/origin/$VERSION_BRANCH" --quiet
+            git show "origin/$VERSION_BRANCH:tool/release/prepared_release.json" >"$RUNNER_TEMP/existing-prepared-release.json"
+            dart tool/release/prepared_release.dart compare \
+              --file "$RUNNER_TEMP/existing-prepared-release.json" \
+              --source-sha "$SOURCE_SHA" \
+              --channel "$CHANNEL" \
+              --desktop-tag "$DESKTOP_TAG" \
+              --mobile-tag "$MOBILE_TAG" \
+              --treeish "origin/$VERSION_BRANCH" \
+              --github-output "$RUNNER_TEMP/existing-prepared-output.txt"
+            version_head="$existing_head"
+          else
+            git push origin "HEAD:refs/heads/$VERSION_BRANCH"
+          fi
+
+          mapfile -t pulls < <(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$VERSION_BRANCH" \
+            --state all \
+            --json number,state,mergedAt,headRefOid \
+            --jq '.[] | @base64')
+          if ((${#pulls[@]} > 1)); then
+            echo "::error::Multiple pull requests use $VERSION_BRANCH."
+            exit 1
+          fi
+          if ((${#pulls[@]} == 0)); then
+            body_file="$RUNNER_TEMP/version-pr-body.md"
+            {
+              echo "Automated version update for the Cut Release workflow."
+              echo
+              echo "- Source commit: \`$SOURCE_SHA\`"
+              echo "- Channel: \`$CHANNEL\`"
+              echo "- Tags: \`$DESKTOP_TAG $MOBILE_TAG\`"
+              echo
+              echo "Mergify must merge this pull request before any tag or release is created."
+              echo
+              echo "Refs #489"
+            } >"$body_file"
+            pr_url="$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$VERSION_BRANCH" \
+              --title "$VERSION_TITLE" \
+              --body-file "$body_file")"
+          else
+            pull_json="$(printf '%s' "${pulls[0]}" | base64 --decode)"
+            state="$(jq -r .state <<<"$pull_json")"
+            merged_at="$(jq -r '.mergedAt // empty' <<<"$pull_json")"
+            remote_head="$(jq -r .headRefOid <<<"$pull_json")"
+            if [[ "$state" != "OPEN" || -n "$merged_at" || "$remote_head" != "$version_head" ]]; then
+              echo "::error::The existing version pull request is closed, merged, or has an unexpected head."
+              exit 1
+            fi
+            number="$(jq -r .number <<<"$pull_json")"
+            pr_url="https://github.com/$GITHUB_REPOSITORY/pull/$number"
+          fi
+
+          check_dispatches="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow pr.yml \
+            --branch "$VERSION_BRANCH" \
+            --event workflow_dispatch \
+            --json headSha \
+            --jq "[.[] | select(.headSha == \"$version_head\")] | length")"
+          if [[ "$check_dispatches" == "0" ]]; then
+            gh workflow run pr.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref "$VERSION_BRANCH" \
+              -f base_sha="$SOURCE_SHA" \
+              -f head_sha="$version_head"
+          fi
+          if [[ "$CHANNEL" == "stable" ]]; then
+            landing_dispatches="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow landing.yml \
+              --branch "$VERSION_BRANCH" \
+              --event workflow_dispatch \
+              --json headSha \
+              --jq "[.[] | select(.headSha == \"$version_head\")] | length")"
+            if [[ "$landing_dispatches" == "0" ]]; then
+              gh workflow run landing.yml \
+                --repo "$GITHUB_REPOSITORY" \
+                --ref "$VERSION_BRANCH"
+            fi
+          fi
+          echo "Version pull request: $pr_url" | tee -a "$GITHUB_STEP_SUMMARY"
 
   build_desktop_app:
     needs: plan
-    if: needs.plan.outputs.desktop_should_release == 'true'
+    if: >-
+      needs.plan.outputs.ready_to_publish == 'true' &&
+      needs.plan.outputs.desktop_should_release == 'true'
     name: build app ${{ matrix.platform }}
     timeout-minutes: 75
     strategy:
@@ -410,7 +640,9 @@ jobs:
 
   build_runtime_cross:
     needs: plan
-    if: needs.plan.outputs.desktop_should_release == 'true'
+    if: >-
+      needs.plan.outputs.ready_to_publish == 'true' &&
+      needs.plan.outputs.desktop_should_release == 'true'
     name: build runtime ${{ matrix.platform }} ${{ matrix.arch }}
     timeout-minutes: 45
     strategy:
@@ -588,6 +820,7 @@ jobs:
       - build_runtime_cross
     if: >-
       !cancelled() &&
+      needs.plan.outputs.ready_to_publish == 'true' &&
       needs.plan.outputs.desktop_should_release == 'true' &&
       needs.build_desktop_app.result == 'success' &&
       needs.build_runtime_cross.result == 'success'
@@ -654,7 +887,9 @@ jobs:
   build_android:
     name: build android
     needs: plan
-    if: needs.plan.outputs.mobile_should_release == 'true'
+    if: >-
+      needs.plan.outputs.ready_to_publish == 'true' &&
+      needs.plan.outputs.mobile_should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -786,6 +1021,7 @@ jobs:
       - build_android
     if: >-
       !cancelled() &&
+      needs.plan.outputs.ready_to_publish == 'true' &&
       needs.plan.outputs.any_should_release == 'true' &&
       (needs.plan.outputs.desktop_should_release != 'true' ||
         (needs.build_desktop_app.result == 'success' && needs.package_runtime.result == 'success')) &&
@@ -947,63 +1183,48 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
           aws s3 ls "s3://${ALERA_R2_BUCKET}" --endpoint-url "$R2_ENDPOINT" >/dev/null
 
-      - name: Create release commit and tags
+      - name: Verify merged version commit and prepare tags
         id: release_commit
         env:
-          CHANNEL: ${{ needs.plan.outputs.channel }}
+          RELEASE_SHA: ${{ needs.plan.outputs.target_sha }}
           DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
           DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
-          DESKTOP_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
-          DESKTOP_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-          DESKTOP_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
           MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
           MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
-          MOBILE_ARTIFACT_VERSION: ${{ needs.plan.outputs.mobile_artifact_version }}
-          MOBILE_RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
-          MOBILE_BUILD_NUMBER: ${{ needs.plan.outputs.mobile_build_number }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
+          if [[ "$(git rev-parse HEAD)" != "$RELEASE_SHA" ]]; then
+            echo "::error::Publish checkout is not the merged version commit."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" origin/main; then
+            echo "::error::Merged version commit is not on origin/main."
+            exit 1
+          fi
           tags=()
-          landing_args=()
           if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$DESKTOP_TAG")
-            dart tool/release/update_pubspec_version.dart "$DESKTOP_ARTIFACT_VERSION" "$DESKTOP_BUILD_NUMBER"
-            git add pubspec.yaml
-            landing_args+=(--desktop-version "$DESKTOP_RELEASE_VERSION" --desktop-tag "$DESKTOP_TAG")
           fi
           if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
             tags+=("$MOBILE_TAG")
-            dart tool/release/update_mobile_pubspec_version.dart "$MOBILE_ARTIFACT_VERSION" "$MOBILE_BUILD_NUMBER"
-            git add mobile/pubspec.yaml
-            landing_args+=(--mobile-version "$MOBILE_RELEASE_VERSION" --mobile-tag "$MOBILE_TAG")
-          fi
-          # The landing links straight at the assets this cut publishes, so the
-          # pin has to travel in the same commit as the version bump. Only
-          # stable moves it: the download page is not where an rc belongs.
-          if [[ "$CHANNEL" == "stable" ]]; then
-            dart tool/release/update_landing_release_links.dart "${landing_args[@]}"
-            git add landing/src/data/releases.json
           fi
           for tag in "${tags[@]}"; do
-            if git rev-parse "$tag" >/dev/null 2>&1; then
-              echo "::error::Tag $tag already exists."
-              exit 1
+            if git rev-parse "refs/tags/$tag^{commit}" >/dev/null 2>&1; then
+              if [[ "$(git rev-parse "refs/tags/$tag^{commit}")" != "$RELEASE_SHA" ]]; then
+                echo "::error::Tag $tag already points at another commit."
+                exit 1
+              fi
+            else
+              git tag -a "$tag" "$RELEASE_SHA" -m "$tag"
             fi
           done
-          if git diff --cached --quiet; then
-            echo "::error::Release plan did not change a pubspec version."
-            exit 1
-          fi
-          git commit -m "release: ${tags[*]}"
-          for tag in "${tags[@]}"; do
-            git tag -a "$tag" -m "$tag"
-          done
-          echo "release_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          echo "release_sha=$RELEASE_SHA" >>"$GITHUB_OUTPUT"
 
-      - name: Push release refs
+      - name: Push release tags
         id: push_refs
         env:
+          RELEASE_SHA: ${{ needs.plan.outputs.target_sha }}
           DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
           DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
           MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
@@ -1011,23 +1232,29 @@ jobs:
         run: |
           set -euo pipefail
           tag_refspecs=()
-          if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
-            tag_refspecs+=("refs/tags/$DESKTOP_TAG")
-          fi
-          if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
-            tag_refspecs+=("refs/tags/$MOBILE_TAG")
-          fi
-          pushed_main=false
-          current_sha="$(git rev-parse HEAD~1)"
-          main_sha="$(git rev-parse origin/main)"
-          if [[ "$current_sha" == "$main_sha" ]]; then
-            git push --atomic origin "HEAD:refs/heads/main" "${tag_refspecs[@]}"
-            pushed_main=true
-          else
-            echo "::notice::Release ref is not current origin/main; only the tag will be pushed."
+          prepare_refspec() {
+            local should_release="$1"
+            local tag="$2"
+            [[ "$should_release" == "true" ]] || return 0
+            local remote_target
+            remote_target="$(git ls-remote --tags origin "refs/tags/$tag^{}" | awk '{print $1}')"
+            if [[ -z "$remote_target" ]]; then
+              remote_target="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
+            fi
+            if [[ -n "$remote_target" ]]; then
+              if [[ "$remote_target" != "$RELEASE_SHA" ]]; then
+                echo "::error::Remote tag $tag raced to another commit."
+                exit 1
+              fi
+              return 0
+            fi
+            tag_refspecs+=("refs/tags/$tag")
+          }
+          prepare_refspec "$DESKTOP_SHOULD_RELEASE" "$DESKTOP_TAG"
+          prepare_refspec "$MOBILE_SHOULD_RELEASE" "$MOBILE_TAG"
+          if ((${#tag_refspecs[@]} > 0)); then
             git push --atomic origin "${tag_refspecs[@]}"
           fi
-          echo "pushed_main=$pushed_main" >>"$GITHUB_OUTPUT"
 
       - name: Create draft desktop release
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1049,12 +1276,23 @@ jobs:
           fi
           dart tool/release/generate_release_notes.dart "${notes_args[@]}"
 
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft \
-            --target "${{ steps.release_commit.outputs.release_sha }}" \
-            --title "$TAG" \
-            --notes-file desktop-release-notes.md
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            if [[ "$is_draft" != "true" ]]; then
+              echo "::error::Release $TAG is already public."
+              exit 1
+            fi
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file desktop-release-notes.md
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --draft \
+              --verify-tag \
+              --title "$TAG" \
+              --notes-file desktop-release-notes.md
+          fi
 
       - name: Create draft mobile release
         if: needs.plan.outputs.mobile_should_release == 'true'
@@ -1076,12 +1314,23 @@ jobs:
           fi
           dart tool/release/generate_release_notes.dart "${notes_args[@]}"
 
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft \
-            --target "${{ steps.release_commit.outputs.release_sha }}" \
-            --title "$TAG" \
-            --notes-file mobile-release-notes.md
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            if [[ "$is_draft" != "true" ]]; then
+              echo "::error::Release $TAG is already public."
+              exit 1
+            fi
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file mobile-release-notes.md
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --draft \
+              --verify-tag \
+              --title "$TAG" \
+              --notes-file mobile-release-notes.md
+          fi
 
       - name: Upload desktop release assets
         if: needs.plan.outputs.desktop_should_release == 'true'
@@ -1260,7 +1509,6 @@ jobs:
           MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
           MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
           MOBILE_PUBLISHED: ${{ steps.publish_mobile_release.outcome == 'success' }}
-          PUSHED_MAIN: ${{ steps.push_refs.outputs.pushed_main }}
         run: |
           set +e
           delete_unpublished_release() {
@@ -1295,9 +1543,6 @@ jobs:
           fi
           if ((${#delete_refspecs[@]} > 0)); then
             git push --atomic origin "${delete_refspecs[@]}"
-          fi
-          if [[ "$PUSHED_MAIN" == "true" && "$DESKTOP_PUBLISHED" != "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
-            git push --force-with-lease origin HEAD~1:refs/heads/main
           fi
           if [[ "$cleanup_failed" == "true" ]]; then
             exit 1
