@@ -151,11 +151,20 @@ abstract final class CrashReporting {
     return false;
   }
 
+  @visibleForTesting
+  static void applyOptionsForTesting(
+    SentryFlutterOptions options,
+    String release,
+  ) => _applyOptions(options, release);
+
   static void _applyOptions(SentryFlutterOptions options, String release) {
     options.dsn = kAleraMobileSentryDsn;
     // The app handles repository paths, branch names and command lines; there
     // is no reason to attach IPs or request headers on top of that.
     options.sendDefaultPii = false;
+    // Android 12+ retains a native tombstone after SIGABRT/SIGSEGV. Without
+    // this, Sentry can receive only the signal and an unusable address list.
+    options.enableTombstone = true;
     options.environment = kDebugMode ? 'dev' : 'release';
     options.release = release;
     options.dist = _appBuild == 'unknown' ? null : _appBuild;
