@@ -52,7 +52,7 @@ final class ProjectsControllerProvider
 }
 
 String _$projectsControllerHash() =>
-    r'd44ea03574a4d8abf4438976062b4e3a92867781';
+    r'e402582e6feb60743d92271f327acd5876767562';
 
 final class ProjectsControllerFamily extends $Family
     with
@@ -157,7 +157,7 @@ final class HostDirectoryBrowserControllerProvider
 }
 
 String _$hostDirectoryBrowserControllerHash() =>
-    r'743f31806bc1ce50242458b82529593e7e7b1910';
+    r'c1c7ceb8af2f330462e01b696c906d30345def0d';
 
 final class HostDirectoryBrowserControllerFamily extends $Family
     with

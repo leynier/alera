@@ -66,7 +66,7 @@ final class MobileAutomationsProvider
   }
 }
 
-String _$mobileAutomationsHash() => r'b0001963675dce105086f22a802149d82c64f3fd';
+String _$mobileAutomationsHash() => r'4da715888dcde64ee813aebe6ae77346034ef55f';
 
 final class MobileAutomationsFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<List<MobileAutomation>>, String> {
@@ -145,7 +145,7 @@ final class MobileAutomationCatalogProvider
 }
 
 String _$mobileAutomationCatalogHash() =>
-    r'c2e65e105f06b359d2d8cd6e63b27b1a1c4dacb8';
+    r'8217fb71a0d98e77d4234025f80d7a53105cfa80';
 
 final class MobileAutomationCatalogFamily extends $Family
     with

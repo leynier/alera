@@ -51,7 +51,7 @@ final class AgentQuotaControllerProvider
 }
 
 String _$agentQuotaControllerHash() =>
-    r'db37dbcf6b6b470b184595e9fa5a23af99d49670';
+    r'67f0fee8a2d9173dfd4e29deb52118fe6d6c3a3d';
 
 final class AgentQuotaControllerFamily extends $Family
     with

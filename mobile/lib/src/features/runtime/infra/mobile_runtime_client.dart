@@ -29,6 +29,7 @@ import 'package:web_socket_channel/io.dart';
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 part 'mobile_runtime_client_host_tools.dart';
+part 'mobile_runtime_client_lifecycle.dart';
 part 'mobile_runtime_client_relay.dart';
 part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
@@ -37,6 +38,7 @@ part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
+const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
 
 class MobileRuntimeClient
     with
@@ -58,6 +60,7 @@ class MobileRuntimeClient
   MobileRuntimeClient._(
     this._channel, {
     this._requestTimeout = _defaultRequestTimeout,
+    this._transportCloseTimeout = _defaultTransportCloseTimeout,
   }) {
     _subscription = _channel.stream.listen(
       _handleMessage,
@@ -69,7 +72,12 @@ class MobileRuntimeClient
   MobileRuntimeClient.forTesting(
     WebSocketChannel channel, {
     Duration requestTimeout = _defaultRequestTimeout,
-  }) : this._(channel, requestTimeout: requestTimeout);
+    Duration transportCloseTimeout = _defaultTransportCloseTimeout,
+  }) : this._(
+         channel,
+         requestTimeout: requestTimeout,
+         transportCloseTimeout: transportCloseTimeout,
+       );
 
   static Future<MobileRuntimeClient> connect(String endpoint) async {
     final client = MobileRuntimeClient._(
@@ -135,11 +143,14 @@ class MobileRuntimeClient
   final WebSocketChannel _channel;
   @override
   final Duration _requestTimeout;
+  final Duration _transportCloseTimeout;
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();
   final StreamController<MobileTerminalOutputEvent> _terminalOutput =
       StreamController<MobileTerminalOutputEvent>.broadcast();
+  final StreamController<(Object, StackTrace?)> _connectionFailures =
+      StreamController<(Object, StackTrace?)>.broadcast(sync: true);
 
   late final StreamSubscription<Object?> _subscription;
   int _nextRequestId = 1;
@@ -154,6 +165,8 @@ class MobileRuntimeClient
   @override
   Stream<MobileTerminalOutputEvent> get terminalOutput =>
       _terminalOutput.stream;
+  Stream<(Object, StackTrace?)> get connectionFailures =>
+      _connectionFailures.stream;
   int get debugPendingRequestCount => _pending.length;
 
   @override
@@ -361,23 +374,6 @@ class MobileRuntimeClient
     return const <Object?>[];
   }
 
-  Future<void> dispose() async {
-    if (_disposed) {
-      return;
-    }
-    _disposed = true;
-    for (final completer in _pending.values) {
-      if (!completer.isCompleted) {
-        completer.completeError(StateError('Mobile runtime client closed.'));
-      }
-    }
-    _pending.clear();
-    await _subscription.cancel();
-    await _events.close();
-    await _terminalOutput.close();
-    await _channel.sink.close();
-  }
-
   void _handleMessage(Object? raw) {
     if (_relayHandshake != null) {
       unawaited(_handleRelayHandshakeMessage(raw));
@@ -397,7 +393,9 @@ class MobileRuntimeClient
       return;
     }
     final payload = await session.seal(utf8.encode(encoded));
-    _channel.sink.add(wrapRelayFrame(_relayClientId!, payload));
+    for (final fragment in fragmentRelayPayload(payload)) {
+      _channel.sink.add(wrapRelayFrame(_relayClientId!, fragment));
+    }
   }
 
   @override
@@ -408,17 +406,15 @@ class MobileRuntimeClient
 
   @override
   void _handleDecodedMessage(Object? raw) {
-    // Once negotiated, a binary message is terminal output and never JSON, so
-    // it skips jsonDecode and base64Decode entirely.
-    if (_binaryFrames && raw is List<int>) {
+    // Relay control responses are decrypted into bytes even though direct
+    // WebSockets normally carry them as text. Recognize JSON first because a
+    // large JSON object can otherwise look like a valid binary output frame.
+    if (_binaryFrames && raw is List<int> && !looksLikeJsonBytes(raw)) {
       final output = decodeMobileBinaryOutput(raw);
       if (output != null) {
         emitTerminalOutput(output);
-        return;
       }
-      if (!looksLikeJsonBytes(raw)) {
-        return;
-      }
+      return;
     }
     final decoded = switch (raw) {
       String text => jsonDecode(text),
@@ -467,6 +463,7 @@ class MobileRuntimeClient
     // The single funnel every transport failure passes through, and the most
     // common thing a user reports about this app.
     final normalized = normalizeHostConnectionError(error);
+    final firstFailure = _closedError == null;
     Logger('MobileRuntimeClient').warning(
       'runtime connection failed with ${_pending.length} pending requests',
       error,
@@ -474,6 +471,9 @@ class MobileRuntimeClient
     );
     _closedError ??= normalized;
     _closedStackTrace ??= stackTrace;
+    if (firstFailure && !_connectionFailures.isClosed) {
+      _connectionFailures.add((normalized, stackTrace));
+    }
     final handshake = _relayHandshake;
     if (handshake != null && !handshake.isCompleted) {
       handshake.completeError(error, stackTrace);
