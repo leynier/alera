@@ -14,8 +14,16 @@ pub async fn run_terminal_host_server(
     control_file_path: PathBuf,
     token: String,
     config: TerminalHostConfig,
+    handoff_owner: Option<runtime_owner::RuntimeOwnerIdentity>,
 ) -> Result<TerminalHostExit> {
     prepare_private_runtime_directory(&runtime_dir)?;
+    // Ownership must be established before opening stores or constructing any
+    // account service. A rejected duplicate host must not touch profile state.
+    let _runtime_owner = if let Some(expected_owner) = handoff_owner {
+        runtime_owner::RuntimeOwnerGuard::acquire_handoff(&runtime_dir, expected_owner)?
+    } else {
+        runtime_owner::RuntimeOwnerGuard::acquire(&runtime_dir)?
+    };
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     crate::hosted_review_retention::reconcile(&runtime_store).await;

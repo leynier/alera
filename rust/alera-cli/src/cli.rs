@@ -217,6 +217,24 @@ pub struct TerminalHostArgs {
     /// Send crashes to Sentry. Off unless the user opted in.
     #[arg(long = "crash-reporting")]
     pub crash_reporting: bool,
+
+    /// PID of the exact runtime owner this intentional handoff replaces.
+    #[arg(
+        long = "handoff-owner-pid",
+        value_name = "pid",
+        requires = "handoff_owner_start_marker",
+        hide = true
+    )]
+    pub handoff_owner_pid: Option<u32>,
+
+    /// Process start marker of the exact runtime owner this handoff replaces.
+    #[arg(
+        long = "handoff-owner-start-marker",
+        value_name = "marker",
+        requires = "handoff_owner_pid",
+        hide = true
+    )]
+    pub handoff_owner_start_marker: Option<u64>,
 }
 
 #[derive(Debug, Args)]
