@@ -25,7 +25,7 @@ bunx wrangler secret put ORIGIN_BASE_URL
 bunx wrangler secret put EDGE_ORIGIN_TOKEN
 ```
 
-The relay issuer and JWKS URL are non-secret Worker variables in `wrangler.jsonc`. They must match `ALERA_ISSUER` and the public cloud JWKS route. The relay WebSocket path is derived from `ALERA_RELAY_BASE_URL`; keep its host on the Worker route.
+The relay issuer and JWKS URL are non-secret Worker variables in `wrangler.jsonc`. They must match `ALERA_ISSUER` and the public cloud JWKS route. During grant verification, the Worker resolves that JWKS path through the authenticated Cloud Run origin instead of fetching its own public route recursively. The relay WebSocket path is derived from `ALERA_RELAY_BASE_URL`; keep its host on the Worker route and require clients to connect with `wss://` using the repository's Rustls TLS provider.
 
 `ORIGIN_BASE_URL` is the generated Cloud Run `run.app` URL. `EDGE_ORIGIN_TOKEN` must match the latest version of the `alera-edge-origin-token` Google Secret Manager secret. Deploy only after both values are set:
 
