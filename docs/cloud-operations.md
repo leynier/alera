@@ -160,6 +160,8 @@ tool/cloud/verify_production.sh \
 
 Use `disabled` while the bootstrap Worker proxies `/v1/relay/deploy-probe` to the backend for a 404, and `enabled` after relay activation makes the Worker return 426 without a WebSocket upgrade. The direct Cloud Run `/health` may answer, but a direct request to any account or JWKS route must fail without the private header.
 
+Treat any relay probe status other than the expected 404 or 426 as a failed deployment; do not infer relay state from Worker version metadata alone.
+
 ## Firebase Client Files
 
 Use the Firebase app ids from `tofu output` to download `google-services.json` for `dev.leynier.alera_mobile` and `GoogleService-Info.plist` for `dev.leynier.aleraMobile`. These identify the Firebase project and are not service-account credentials.
