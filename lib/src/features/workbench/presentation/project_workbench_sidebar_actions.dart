@@ -1,5 +1,23 @@
 part of 'project_workbench_sidebar.dart';
 
+enum _WorkbenchSidebarMutation {
+  renameProject('Project renamed'),
+  renameWorkspace('Workspace renamed'),
+  pinWorkspace('Workspace pinned'),
+  unpinWorkspace('Workspace unpinned'),
+  removeWorkspace('Workspace removed'),
+  updateWorkspaceTags('Workspace tags updated'),
+  updateWorkspaceParent('Workspace parent updated'),
+  clearWorkspaceParent('Workspace parent cleared'),
+  removeProject('Project removed');
+
+  const _WorkbenchSidebarMutation(this.successMessage);
+
+  final String successMessage;
+}
+
+enum _WorkbenchSidebarMutationResult { applied, notApplied }
+
 mixin _ProjectWorkbenchSidebarActions
     on ConsumerState<ProjectWorkbenchSidebar>, _WorkspaceSidebarActions {
   Future<void> _createWorkspaceForActiveProject() async {
@@ -49,28 +67,15 @@ mixin _ProjectWorkbenchSidebarActions
     if (name == null || !mounted) {
       return;
     }
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .renameProject(projectId: project.id, name: name);
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Project renamed',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    await _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.renameProject,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .renameProject(projectId: project.id, name: name);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
   Future<void> _renameWorkspace(Workspace workspace) async {
@@ -84,49 +89,29 @@ mixin _ProjectWorkbenchSidebarActions
     if (name == null || !mounted) {
       return;
     }
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .renameWorkspace(workspaceId: workspace.id, name: name);
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace renamed',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    await _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.renameWorkspace,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .renameWorkspace(workspaceId: workspace.id, name: name);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
   Future<void> _setWorkspacePinned(Workspace workspace, bool isPinned) async {
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .setWorkspacePinned(workspaceId: workspace.id, isPinned: isPinned);
-      if (!mounted) return;
-      AleraToast.show(
-        context,
-        message: isPinned ? 'Workspace pinned' : 'Workspace unpinned',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    await _runWorkbenchSidebarMutation(
+      mutation: isPinned
+          ? _WorkbenchSidebarMutation.pinWorkspace
+          : _WorkbenchSidebarMutation.unpinWorkspace,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .setWorkspacePinned(workspaceId: workspace.id, isPinned: isPinned);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
   Future<void> _deleteWorkspace(Project project, Workspace workspace) async {
@@ -202,41 +187,28 @@ mixin _ProjectWorkbenchSidebarActions
     if (confirmed != true || !mounted) {
       return;
     }
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .deleteWorkspace(
-            project: project,
-            workspace: workspace,
-            deleteBranch: deleteBranch,
-            activeWorkspaceId: ref
-                .read(workbenchControllerProvider)
-                .activeWorkspaceId,
-          );
-      await ref
-          .read(browserSessionRegistryProvider)
-          .closeWorkspace(workspace.id);
-      // Only dispose the live terminal sessions once the worktree was actually
-      // removed, so a failed git removal doesn't orphan a still-valid workspace.
-      ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace removed',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    await _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.removeWorkspace,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .deleteWorkspace(
+              project: project,
+              workspace: workspace,
+              deleteBranch: deleteBranch,
+              activeWorkspaceId: ref
+                  .read(workbenchControllerProvider)
+                  .activeWorkspaceId,
+            );
+        await ref
+            .read(browserSessionRegistryProvider)
+            .closeWorkspace(workspace.id);
+        // Only dispose the live terminal sessions once the worktree was actually
+        // removed, so a failed git removal doesn't orphan a still-valid workspace.
+        ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
   String _workspaceStorageTimestamp(DateTime value) {
@@ -246,110 +218,71 @@ mixin _ProjectWorkbenchSidebarActions
         '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
   }
 
-  Future<void> _manageWorkspaceTags(Workspace workspace) async {
+  Future<void> _manageWorkspaceTags(Workspace workspace) {
     final controller = ref.read(workbenchControllerProvider.notifier);
-    try {
-      final tags = await controller.listWorkspaceTags();
-      if (!mounted) {
-        return;
-      }
-      final selection = await showWorkspaceTagsDialog(
-        context: context,
-        workspace: workspace,
-        tags: tags,
-        onCreateTag: controller.createWorkspaceTag,
-        onDeleteTag: controller.deleteWorkspaceTag,
-      );
-      if (selection == null || !mounted) {
-        return;
-      }
-      await controller.updateWorkspaceTags(
-        workspace: workspace,
-        tagIds: selection.tagIds,
-      );
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace tags updated',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    return _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.updateWorkspaceTags,
+      execute: () async {
+        final tags = await controller.listWorkspaceTags();
+        if (!mounted) {
+          return _WorkbenchSidebarMutationResult.notApplied;
+        }
+        final selection = await showWorkspaceTagsDialog(
+          context: context,
+          workspace: workspace,
+          tags: tags,
+          onCreateTag: controller.createWorkspaceTag,
+          onDeleteTag: controller.deleteWorkspaceTag,
+        );
+        if (selection == null || !mounted) {
+          return _WorkbenchSidebarMutationResult.notApplied;
+        }
+        await controller.updateWorkspaceTags(
+          workspace: workspace,
+          tagIds: selection.tagIds,
+        );
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
-  Future<void> _setWorkspaceParent(Workspace workspace) async {
+  Future<void> _setWorkspaceParent(Workspace workspace) {
     final controller = ref.read(workbenchControllerProvider.notifier);
-    try {
-      final relations = await controller.listWorkspaceRelations();
-      if (!mounted) {
-        return;
-      }
-      final selection = await showWorkspaceParentDialog(
-        context: context,
-        workspace: workspace,
-        options: _workspaceParentOptions(),
-        relations: relations,
-      );
-      if (selection == null || !mounted) {
-        return;
-      }
-      await controller.setWorkspaceParent(
-        workspace: workspace,
-        parentWorkspaceId: selection.parentWorkspaceId,
-      );
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace parent updated',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+    return _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.updateWorkspaceParent,
+      execute: () async {
+        final relations = await controller.listWorkspaceRelations();
+        if (!mounted) {
+          return _WorkbenchSidebarMutationResult.notApplied;
+        }
+        final selection = await showWorkspaceParentDialog(
+          context: context,
+          workspace: workspace,
+          options: _workspaceParentOptions(),
+          relations: relations,
+        );
+        if (selection == null || !mounted) {
+          return _WorkbenchSidebarMutationResult.notApplied;
+        }
+        await controller.setWorkspaceParent(
+          workspace: workspace,
+          parentWorkspaceId: selection.parentWorkspaceId,
+        );
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
-  Future<void> _clearWorkspaceParent(Workspace workspace) async {
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .setWorkspaceParent(workspace: workspace);
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace parent cleared',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+  Future<void> _clearWorkspaceParent(Workspace workspace) {
+    return _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.clearWorkspaceParent,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .setWorkspaceParent(workspace: workspace);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
   }
 
   List<WorkspaceParentOption> _workspaceParentOptions() {
@@ -390,21 +323,34 @@ mixin _ProjectWorkbenchSidebarActions
     for (final workspace in workspaces) {
       runtime.closeWorkspace(workspace.id);
     }
-    try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .removeProject(project.id);
-      for (final workspace in workspaces) {
+    await _runWorkbenchSidebarMutation(
+      mutation: _WorkbenchSidebarMutation.removeProject,
+      execute: () async {
         await ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspace.id);
-      }
-      if (!mounted) {
+            .read(workbenchControllerProvider.notifier)
+            .removeProject(project.id);
+        for (final workspace in workspaces) {
+          await ref
+              .read(browserSessionRegistryProvider)
+              .closeWorkspace(workspace.id);
+        }
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
+  }
+
+  Future<void> _runWorkbenchSidebarMutation({
+    required _WorkbenchSidebarMutation mutation,
+    required Future<_WorkbenchSidebarMutationResult> Function() execute,
+  }) async {
+    try {
+      final result = await execute();
+      if (result != _WorkbenchSidebarMutationResult.applied || !mounted) {
         return;
       }
       AleraToast.show(
         context,
-        message: 'Project removed',
+        message: mutation.successMessage,
         tone: AleraToastTone.success,
       );
     } catch (error) {
