@@ -3,8 +3,25 @@ use chrono::{DateTime, Utc};
 use reqwest::{Client, Method, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+use thiserror::Error;
 
 pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://api.alera.build";
+
+#[derive(Debug, Error)]
+#[error("{path}: {message}")]
+pub(crate) struct CloudRequestError {
+    status: StatusCode,
+    code: Option<String>,
+    path: String,
+    message: String,
+}
+
+impl CloudRequestError {
+    pub(crate) fn is_relay_key_rotation_conflict(&self) -> bool {
+        self.status == StatusCode::CONFLICT
+            && self.code.as_deref() == Some("relay_key_rotation_conflict")
+    }
+}
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -384,16 +401,55 @@ impl CloudAccountClient {
 }
 
 fn cloud_error(status: StatusCode, body: &str, path: &str) -> anyhow::Error {
-    let message = serde_json::from_str::<Value>(body)
-        .ok()
-        .and_then(|value| {
-            value
-                .get("error")
-                .and_then(|error| error.get("message").or(Some(error)))
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
+    let parsed = serde_json::from_str::<Value>(body).ok();
+    let error = parsed.as_ref().and_then(|value| value.get("error"));
+    let code = error
+        .and_then(|value| value.get("code"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let message = error
+        .and_then(|value| value.get("message").or(Some(value)))
+        .and_then(Value::as_str)
+        .map(str::to_string)
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| format!("cloud request failed with HTTP {status}"));
-    anyhow!("{path}: {message}")
+    CloudRequestError {
+        status,
+        code,
+        path: path.to_owned(),
+        message,
+    }
+    .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use reqwest::StatusCode;
+
+    use super::{cloud_error, CloudRequestError};
+
+    #[test]
+    fn relay_key_conflicts_remain_machine_readable() {
+        let error = cloud_error(
+            StatusCode::CONFLICT,
+            r#"{"error":{"code":"relay_key_rotation_conflict","message":"conflict"}}"#,
+            "/v1/relay/identity",
+        );
+        let request = error.downcast_ref::<CloudRequestError>().unwrap();
+
+        assert!(request.is_relay_key_rotation_conflict());
+        assert_eq!(error.to_string(), "/v1/relay/identity: conflict");
+    }
+
+    #[test]
+    fn unrelated_conflicts_do_not_rotate_relay_keys() {
+        let error = cloud_error(
+            StatusCode::CONFLICT,
+            r#"{"error":{"code":"different_conflict","message":"conflict"}}"#,
+            "/v1/relay/identity",
+        );
+        let request = error.downcast_ref::<CloudRequestError>().unwrap();
+
+        assert!(!request.is_relay_key_rotation_conflict());
+    }
 }

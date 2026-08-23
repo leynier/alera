@@ -33,7 +33,9 @@ interface RelayClaims {
   runtimePublicKey: string;
 }
 
-interface RelayAttachment extends RelayClaims {}
+interface RelayAttachment extends RelayClaims {
+  suppressDisconnect?: boolean;
+}
 
 type OriginFetch = (request: Request) => Promise<Response>;
 type RelayFetch = (request: Request) => Promise<Response>;
@@ -375,6 +377,7 @@ export class RuntimeRelayDurableObject {
       const peerAttachment = peer.deserializeAttachment() as RelayAttachment;
       if (peerAttachment.role === attachment.role && peerAttachment.clientId === attachment.clientId) {
         if (peerAttachment.role === 'mobile') {
+          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
           this.notifyRuntimeOfMobileDisconnect(peerAttachment);
         }
         peer.close(
@@ -440,11 +443,17 @@ export class RuntimeRelayDurableObject {
   }
 
   webSocketClose(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnect(socket.deserializeAttachment() as RelayAttachment);
+    this.notifyRuntimeOfMobileDisconnectOnce(socket);
   }
 
   webSocketError(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnect(socket.deserializeAttachment() as RelayAttachment);
+    this.notifyRuntimeOfMobileDisconnectOnce(socket);
+  }
+
+  private notifyRuntimeOfMobileDisconnectOnce(socket: WebSocket): void {
+    const mobile = socket.deserializeAttachment() as RelayAttachment;
+    if (mobile.suppressDisconnect) return;
+    this.notifyRuntimeOfMobileDisconnect(mobile);
   }
 
   private notifyRuntimeOfMobileDisconnect(mobile: RelayAttachment): void {
