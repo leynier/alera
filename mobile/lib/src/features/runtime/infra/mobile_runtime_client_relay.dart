@@ -4,6 +4,7 @@ mixin MobileRuntimeClientRelay {
   RelayCryptoSession? _relaySession;
   String? _relayClientId;
   Completer<Map<String, Object?>>? _relayHandshake;
+  final RelayFragmentReassembler _relayFragments = RelayFragmentReassembler();
 
   WebSocketChannel get _channel;
   Duration get _requestTimeout;
@@ -61,7 +62,11 @@ mixin MobileRuntimeClientRelay {
       if (clientId != _relayClientId) {
         return;
       }
-      final clear = await _relaySession!.open(payload);
+      final envelope = _relayFragments.accept(payload);
+      if (envelope == null) {
+        return;
+      }
+      final clear = await _relaySession!.open(envelope);
       _handleDecodedMessage(clear);
     } on Object catch (error, stackTrace) {
       _handleSocketError(error, stackTrace);

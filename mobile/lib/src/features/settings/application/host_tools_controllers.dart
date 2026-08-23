@@ -21,9 +21,7 @@ class SkillRunnerSelection extends _$SkillRunnerSelection {
 class CliRegistrationController extends _$CliRegistrationController {
   @override
   Future<CliRegistrationStatus> build(String hostId) async {
-    final client = await ref.watch(
-      hostConnectionControllerProvider(hostId).future,
-    );
+    final client = await watchHostConnection(ref, hostId);
     if (!client.supportsHostTools) {
       throw UnsupportedError('Update the runtime to manage host tools.');
     }

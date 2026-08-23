@@ -27,9 +27,12 @@ class HostDashboardData {
 
 @riverpod
 Future<HostDashboardData> hostDashboardData(Ref ref, String hostId) async {
-  final client = await ref.watch(
-    hostConnectionControllerProvider(hostId).future,
-  );
+  final connectionProvider = hostConnectionControllerProvider(hostId);
+  var client = await ref.watch(connectionProvider.future);
+  if (!client.isConnectionUsable) {
+    await ref.read(connectionProvider.notifier).reconnectNow();
+    client = await ref.read(connectionProvider.future);
+  }
   final status = await client.mobileStatus();
   final projects = sortProjectsForSelection(await client.listProjects());
   final workspaces = await client.listWorkspaces();

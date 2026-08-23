@@ -45,6 +45,19 @@ void main() {
       expect(normalized, isA<HostUnreachableException>());
     });
 
+    test('classifies a socket closed before websocket headers', () {
+      final channelError = WebSocketChannelException.from(
+        const HttpException(
+          'Connection closed before full header was received',
+        ),
+      );
+
+      final normalized = normalizeHostConnectionError(channelError);
+
+      expect(normalized, isA<HostUnreachableException>());
+      expect(isRelayFallbackTransportFailure(channelError), isTrue);
+    });
+
     test('preserves TLS, protocol, and programming failures', () {
       final tlsError = WebSocketChannelException.from(
         const HandshakeException('Certificate verification failed.'),
