@@ -55,7 +55,9 @@
             <data android:mimeType="text/plain"/>
         </intent>
         <!-- Android 11 package visibility: without these entries url_launcher
-             cannot discover a browser before opening web links. -->
+             cannot discover a browser before opening web links. APP_BROWSER
+             is required so the update Download button can target the
+             standalone browser instead of a Custom Tab or the GitHub app. -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="http"/>
@@ -63,6 +65,15 @@
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.APP_BROWSER"/>
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW"/>

@@ -22,5 +22,9 @@ class MainActivity : FlutterActivity() {
                     SpeechRecognizer.isOnDeviceRecognitionAvailable(this),
             )
         }
+        ExternalBrowserLauncher.register(
+            flutterEngine.dartExecutor.binaryMessenger,
+            this,
+        )
     }
 }
