@@ -302,7 +302,11 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     if (identity == null || !_visibilityAcquisitions.add(identity)) {
       return;
     }
-    final lease = handle.acquireVisibility(BrowserVisibilityReason.user);
+    final lease = handle.tryAcquireVisibility(BrowserVisibilityReason.user);
+    if (lease == null) {
+      _visibilityAcquisitions.remove(identity);
+      return;
+    }
     unawaited(() async {
       try {
         await lease.ready;

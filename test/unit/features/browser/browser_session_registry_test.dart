@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/browser/domain/browser_automation.dart';
 import 'package:alera/src/features/browser/domain/browser_engine_event.dart';
+import 'package:alera/src/features/browser/domain/browser_error.dart';
 import 'package:alera/src/features/browser/domain/browser_page_state.dart';
 import 'package:alera/src/features/browser/domain/browser_navigation.dart';
 import 'package:alera/src/features/browser/domain/browser_page.dart';
@@ -167,6 +168,32 @@ void main() {
     expect(closed, isTrue);
     expect(engine.calls, contains('close:page-1'));
   });
+
+  test(
+    'presentation visibility skips a session that started closing',
+    () async {
+      final handle = await registry.sessionFor(_tab());
+      final lifecycle = handle.acquireLifecycle(BrowserLifecycleReason.popup);
+      final closing = handle.close();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.tryAcquireVisibility(BrowserVisibilityReason.user), isNull);
+      expect(
+        () => handle.acquireVisibility(BrowserVisibilityReason.user),
+        throwsA(
+          isA<BrowserFailure>().having(
+            (failure) => failure.code,
+            'code',
+            BrowserErrorCode.pageNotFound,
+          ),
+        ),
+      );
+
+      await lifecycle.dispose();
+      await closing;
+    },
+  );
 
   test(
     'registry disposal does not close under an active native command',
