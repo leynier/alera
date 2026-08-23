@@ -5,10 +5,9 @@
 //! host raises events from many threads and a hub binding only applies to the
 //! thread that performs it.
 
-use super::redaction::redact;
 use crate::terminal_host::protocol::PROTOCOL_VERSION;
 use crate::terminal_host::runtime_build_info::{self, RUNTIME_SURFACE};
-use sentry::protocol::{Context, Event, Value};
+use sentry::protocol::{Context, Event, Exception, Level, Mechanism, Stacktrace, Value};
 use sentry::ClientOptions;
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,6 +19,7 @@ pub const RUNTIME_DSN: &str =
 /// filtered out from Sentry itself.
 pub const FLAVOR_ENV: &str = "ALERA_FLAVOR";
 pub const DEFAULT_ENVIRONMENT: &str = "release";
+const VERIFICATION_ID_TAG: &str = "verification_id";
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
 
@@ -39,29 +39,118 @@ pub fn environment() -> String {
         .unwrap_or_else(|| DEFAULT_ENVIRONMENT.to_string())
 }
 
-/// Masks every text-bearing field of an event.
-///
-/// The file sink already redacts, but a Sentry event is built from the raw
-/// payload, so skipping this would send a secret to a third party that was
-/// deliberately kept out of the local log.
-pub fn redact_event(mut event: Event<'static>) -> Event<'static> {
-    if let Some(message) = event.message.take() {
-        event.message = Some(redact(&message));
+fn valid_verification_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+}
+
+fn sanitized_stacktrace(mut stacktrace: Stacktrace) -> Stacktrace {
+    stacktrace.registers.clear();
+    for frame in &mut stacktrace.frames {
+        frame.package = None;
+        frame.filename = None;
+        frame.abs_path = None;
+        frame.pre_context.clear();
+        frame.context_line = None;
+        frame.post_context.clear();
+        frame.vars.clear();
+        frame.image_addr = None;
+        frame.instruction_addr = None;
+        frame.symbol_addr = None;
+        frame.addr_mode = None;
     }
-    if let Some(logentry) = event.logentry.as_mut() {
-        logentry.message = redact(&logentry.message);
+    stacktrace
+}
+
+fn is_panic(event: &Event<'_>) -> bool {
+    event.exception.values.iter().any(|exception| {
+        exception.ty.eq_ignore_ascii_case("panic")
+            || exception
+                .mechanism
+                .as_ref()
+                .is_some_and(|mechanism| mechanism.ty == "panic")
+    })
+}
+
+/// Rebuilds an event from a strict allowlist after integrations and scope data
+/// have run. This is intentionally stronger than pattern redaction: arbitrary
+/// messages, paths, IDs, commands, tags, contexts, and extras never cross the
+/// network boundary.
+fn sanitize_event(event: Event<'static>) -> Event<'static> {
+    let verification_id = event
+        .tags
+        .get(VERIFICATION_ID_TAG)
+        .filter(|value| valid_verification_id(value))
+        .cloned();
+    let panic = is_panic(&event);
+    let logger = event
+        .logger
+        .as_deref()
+        .filter(|logger| {
+            *logger == "alera.runtime"
+                || *logger == "alera.host"
+                || *logger == "alera.synthetic"
+                || logger.starts_with("alera_cli::")
+        })
+        .unwrap_or("alera.runtime")
+        .to_string();
+
+    let mut sanitized = Event {
+        event_id: event.event_id,
+        timestamp: event.timestamp,
+        level: if panic { Level::Fatal } else { Level::Error },
+        platform: Cow::Borrowed("native"),
+        environment: Some(Cow::Owned(environment())),
+        message: Some(if verification_id.is_some() {
+            "synthetic runtime Sentry verification".to_string()
+        } else if panic {
+            "runtime host panicked".to_string()
+        } else {
+            "runtime error".to_string()
+        }),
+        logger: Some(if verification_id.is_some() {
+            "alera.synthetic".to_string()
+        } else {
+            logger.clone()
+        }),
+        fingerprint: Cow::Owned(if verification_id.is_some() {
+            vec![Cow::Borrowed("runtime-synthetic-verification")]
+        } else if panic {
+            vec![Cow::Borrowed("runtime-panic")]
+        } else {
+            vec![Cow::Borrowed("runtime-error"), Cow::Owned(logger)]
+        }),
+        ..Default::default()
+    };
+
+    if panic {
+        let stacktrace = event
+            .exception
+            .values
+            .into_iter()
+            .find_map(|exception| exception.stacktrace)
+            .map(sanitized_stacktrace);
+        sanitized.exception.values.push(Exception {
+            ty: "panic".to_string(),
+            value: Some("runtime host panicked".to_string()),
+            stacktrace,
+            mechanism: Some(Mechanism {
+                ty: "panic".to_string(),
+                handled: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
     }
-    for exception in event.exception.values.iter_mut() {
-        if let Some(value) = exception.value.as_ref() {
-            exception.value = Some(redact(value));
-        }
+    if let Some(verification_id) = verification_id {
+        sanitized
+            .tags
+            .insert(VERIFICATION_ID_TAG.to_string(), verification_id);
     }
-    for breadcrumb in event.breadcrumbs.values.iter_mut() {
-        if let Some(message) = breadcrumb.message.as_ref() {
-            breadcrumb.message = Some(redact(message));
-        }
-    }
-    event
+    sanitized
 }
 
 fn enrich_version_context(mut event: Event<'static>) -> Event<'static> {
@@ -94,6 +183,10 @@ pub fn client_options() -> ClientOptions {
     let mut options = ClientOptions::default();
     options.release = Some(runtime_build_info::release());
     options.environment = Some(Cow::Owned(environment()));
+    options.default_integrations = false;
+    options.integrations.push(std::sync::Arc::new(
+        sentry::integrations::panic::PanicIntegration::default(),
+    ));
     // The host handles repository paths, branch names and command lines;
     // there is no reason to attach IPs or request headers on top.
     options.send_default_pii = false;
@@ -101,7 +194,7 @@ pub fn client_options() -> ClientOptions {
         if !is_enabled() {
             return None;
         }
-        Some(redact_event(enrich_version_context(event)))
+        Some(enrich_version_context(sanitize_event(event)))
     }));
     options
 }
@@ -115,19 +208,40 @@ pub fn init(enabled: bool) -> sentry::ClientInitGuard {
 }
 
 #[cfg(test)]
+pub(crate) fn test_serial_guard() -> std::sync::MutexGuard<'static, ()> {
+    static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[cfg(test)]
+fn synthetic_verification_event(verification_id: &str) -> Event<'static> {
+    let mut event = Event {
+        level: Level::Error,
+        message: Some("synthetic runtime Sentry verification".to_string()),
+        logger: Some("alera.synthetic".to_string()),
+        ..Default::default()
+    };
+    event
+        .tags
+        .insert(VERIFICATION_ID_TAG.to_string(), verification_id.to_string());
+    event
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::terminal_host::diagnostics::redaction::REDACTED;
-    use sentry::protocol::Exception;
-
     #[test]
     fn disabled_is_the_default() {
+        let _guard = test_serial_guard();
         set_enabled(false);
         assert!(!is_enabled());
     }
 
     #[test]
     fn toggling_takes_effect_immediately() {
+        let _guard = test_serial_guard();
         set_enabled(true);
         assert!(is_enabled());
         set_enabled(false);
@@ -135,30 +249,46 @@ mod tests {
     }
 
     #[test]
-    fn event_message_is_redacted() {
+    fn arbitrary_event_content_is_removed() {
+        let _guard = test_serial_guard();
         let event = Event {
-            message: Some("attach failed with token=abcdef123456".into()),
+            message: Some("attach failed at /private/repo with token=abcdef123456".into()),
             ..Default::default()
         };
-        let redacted = redact_event(event);
-        assert!(!redacted.message.as_ref().unwrap().contains("abcdef123456"));
-        assert!(redacted.message.as_ref().unwrap().contains(REDACTED));
+        let sanitized = sanitize_event(event);
+        assert_eq!(sanitized.message.as_deref(), Some("runtime error"));
+        let serialized = serde_json::to_string(&sanitized).unwrap();
+        assert!(!serialized.contains("abcdef123456"));
+        assert!(!serialized.contains("/private/repo"));
     }
 
     #[test]
-    fn exception_values_are_redacted() {
+    fn panic_payload_and_stack_paths_are_removed() {
+        let _guard = test_serial_guard();
         let event = Event {
             exception: vec![Exception {
-                ty: "PanicException".into(),
+                ty: "panic".into(),
                 value: Some("secret=hunter2hunter leaked".into()),
+                stacktrace: Some(Stacktrace {
+                    frames: vec![sentry::protocol::Frame {
+                        filename: Some("private.rs".to_string()),
+                        abs_path: Some("/Users/private/customer/repo/private.rs".to_string()),
+                        context_line: Some("run(secret=hunter2hunter)".to_string()),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }),
                 ..Default::default()
             }]
             .into(),
             ..Default::default()
         };
-        let redacted = redact_event(event);
-        let value = redacted.exception.values[0].value.as_ref().unwrap();
-        assert!(!value.contains("hunter2hunter"));
+        let sanitized = sanitize_event(event);
+        let serialized = serde_json::to_string(&sanitized).unwrap();
+        assert!(!serialized.contains("hunter2hunter"));
+        assert!(!serialized.contains("/Users/private"));
+        assert!(!serialized.contains("private.rs"));
+        assert_eq!(sanitized.exception.values.len(), 1);
     }
 
     #[test]
@@ -186,5 +316,36 @@ mod tests {
             Some(PROTOCOL_VERSION.to_string()).as_deref()
         );
         assert!(event.contexts.contains_key("alera_versions"));
+    }
+
+    #[test]
+    fn client_uses_only_the_panic_integration_and_disables_default_pii() {
+        let options = client_options();
+        assert!(!options.default_integrations);
+        assert!(!options.send_default_pii);
+        assert_eq!(
+            options
+                .integrations
+                .iter()
+                .filter(|integration| integration.name() == "panic")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    #[ignore = "requires an explicit live Sentry verification ID"]
+    fn sends_live_synthetic_verification_event() {
+        let verification_id = std::env::var("ALERA_SENTRY_VERIFICATION_ID")
+            .expect("ALERA_SENTRY_VERIFICATION_ID is required");
+        assert!(valid_verification_id(&verification_id));
+        let _guard = init(true);
+        let event_id =
+            sentry::Hub::main().capture_event(synthetic_verification_event(&verification_id));
+        assert!(!event_id.is_nil());
+        assert!(sentry::Hub::main()
+            .client()
+            .is_some_and(|client| client.flush(Some(std::time::Duration::from_secs(10)))));
+        println!("sentry verification event id: {event_id}");
     }
 }
