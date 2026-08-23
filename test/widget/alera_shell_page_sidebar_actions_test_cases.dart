@@ -53,30 +53,6 @@ void _registerAleraShellSidebarActionTests() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('project context menu renames the project', (tester) async {
-    final harness = await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Alera').last),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Rename'));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Project Name'),
-      '  Renamed Alera  ',
-    );
-    await tester.tap(find.text('Rename'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(harness.controller.state.projects.single.name, 'Renamed Alera');
-  });
-
   testWidgets('workspace context menu renames the workspace', (tester) async {
     final harness = await _pumpShell(
       tester,
@@ -137,32 +113,6 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(copiedText, '/repo/alera');
-  });
-
-  testWidgets('workspace context menu creates and assigns tags', (
-    tester,
-  ) async {
-    final state = _linkedWorkbenchState(linkedExpanded: true);
-    final controller = _ShellTestWorkbenchController(state);
-    await _pumpShell(tester, state: state, controller: controller);
-
-    await tester.tapAt(
-      tester.getCenter(find.text('Feature login').first),
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Manage Tags'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'New Tag'), 'Review');
-    await tester.tap(find.text('Create Tag'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(controller.workspaceTags.single.name, 'Review');
-    expect(controller.tagUpdates.single.workspaceId, 'workspace-2');
-    expect(controller.tagUpdates.single.tagIds, <String>{'tag-1'});
   });
 
   testWidgets('workspace tags dialog deletes a tag after confirmation', (
