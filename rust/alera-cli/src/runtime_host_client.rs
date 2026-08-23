@@ -123,8 +123,8 @@ impl RuntimeHostRpcClient {
         persistent: bool,
     ) -> Result<Self> {
         tokio::fs::create_dir_all(runtime_dir).await?;
+        crate::terminal_host::runtime_owner::ensure_no_live_owner(runtime_dir)?;
         let control_file = runtime_dir.join(RUNTIME_CONTROL_FILE_NAME);
-        let _ = tokio::fs::remove_file(&control_file).await;
         let token = Uuid::new_v4().to_string();
         let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
         let mut command = detached_windowless_async_command(executable);
