@@ -250,6 +250,7 @@ TerminalHostClient terminalHostClient(Ref ref) {
 @Riverpod(keepAlive: true)
 void terminalHostWarmupCoordinator(Ref ref) {
   final client = ref.watch(terminalHostClientProvider);
+  final runtimeClient = ref.watch(runtimeHostClientProvider);
   unawaited(
     client
         .ensureStarted(
@@ -261,6 +262,9 @@ void terminalHostWarmupCoordinator(Ref ref) {
                 .crashReportingEnabled,
           ),
         )
+        .then<void>((_) async {
+          await runtimeClient.probeRuntimeStatus();
+        })
         .catchError(_ignoreProviderAsyncError),
   );
 }

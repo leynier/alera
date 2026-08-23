@@ -31,6 +31,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
     RUNTIME_HOST_TERMINAL_PULSE_CAPABILITY, RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
 };
+use crate::terminal_host::runtime_build_info;
 
 use super::ServerActor;
 
@@ -43,8 +44,8 @@ impl ServerActor {
     /// limit on its own.
     pub(super) fn host_status_payload(&self) -> Value {
         json!({
-            "runtimeHostVersion": option_env!("ALERA_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
-            "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown"),
+            "runtimeHostVersion": runtime_build_info::version(),
+            "runtimeHostCommit": runtime_build_info::build().unwrap_or("unknown"),
             "protocolVersion": PROTOCOL_VERSION,
             "orchestrationProtocolVersion": crate::terminal_host::protocol::ORCHESTRATION_PROTOCOL_VERSION,
             "dispatchPreambleVersion": crate::terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,

@@ -459,6 +459,14 @@ async fn status_advertises_additive_capabilities_without_a_protocol_version_chan
     let status = request(&mut actor, 1, 1, "status.get", json!({}), &mut receiver).await;
 
     assert_eq!(status["protocolVersion"], PROTOCOL_VERSION);
+    assert_eq!(
+        status["runtimeHostVersion"],
+        crate::terminal_host::runtime_build_info::version()
+    );
+    assert_eq!(
+        status["runtimeHostCommit"],
+        crate::terminal_host::runtime_build_info::build().unwrap_or("unknown")
+    );
     let capabilities = status["runtimeCapabilities"].as_array().unwrap();
     for capability in [
         RUNTIME_HOST_ACCOUNT_CAPABILITY,

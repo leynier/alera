@@ -31,6 +31,10 @@ Future<void> _bootstrap() async {
   installGlobalErrorHandlers();
 
   final packageInfo = await PackageInfo.fromPlatform();
+  CrashReporting.configureAppVersion(
+    version: packageInfo.version,
+    build: packageInfo.buildNumber,
+  );
 
   // Starts disabled and is switched on only if the stored setting says so, so
   // nothing leaves the machine in the window before settings load.

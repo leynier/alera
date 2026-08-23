@@ -187,9 +187,6 @@ void main() {
           final message = jsonDecode(raw as String) as Map<String, Object?>;
           if (message['type'] == 'mobile.hello') {
             helloCount += 1;
-            if (helloCount == 2 && !reconnected.isCompleted) {
-              reconnected.complete();
-            }
           }
           socket.add(
             jsonEncode(<String, Object?>{
@@ -198,6 +195,11 @@ void main() {
               'payload': <String, Object?>{},
             }),
           );
+          if (message['type'] == 'status.get' &&
+              helloCount == 2 &&
+              !reconnected.isCompleted) {
+            reconnected.complete();
+          }
         });
       });
       addTearDown(subscription.cancel);
@@ -278,9 +280,6 @@ void main() {
         final message = jsonDecode(raw as String) as Map<String, Object?>;
         if (message['type'] == 'mobile.hello') {
           helloCount += 1;
-          if (helloCount == 2 && !reconnected.isCompleted) {
-            reconnected.complete();
-          }
         }
         if (message['type'] == 'mobile.status.get') {
           await socket.close();
@@ -293,6 +292,11 @@ void main() {
             'payload': <String, Object?>{},
           }),
         );
+        if (message['type'] == 'status.get' &&
+            helloCount == 2 &&
+            !reconnected.isCompleted) {
+          reconnected.complete();
+        }
       });
     });
     addTearDown(subscription.cancel);

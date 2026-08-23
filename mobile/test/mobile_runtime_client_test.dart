@@ -3,13 +3,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
+  tearDown(CrashReporting.resetForTesting);
+
   test('Creates Account Enrollment Through A Capable Paired Host', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final sockets = <WebSocket>[];
@@ -32,6 +36,11 @@ void main() {
             'id': message['id'],
             'ok': true,
             'payload': switch (type) {
+              'status.get' => <String, Object?>{
+                'runtimeHostVersion': '1.7.0',
+                'runtimeHostCommit': 'abc1234',
+                'protocolVersion': 4,
+              },
               'mobile.hello' => <String, Object?>{
                 'runtimeCapabilities': <String>[
                   mobileCloudEnrollmentCapability,
@@ -60,6 +69,12 @@ void main() {
       deviceToken: 'token-1',
       cloudDeviceId: 'cloud-installation-1',
     );
+
+    CrashReporting.setEnabled(true);
+    final crash = CrashReporting.filterEvent(SentryEvent());
+    expect(crash!.tags, containsPair('runtime_version', '1.7.0'));
+    expect(crash.tags, containsPair('runtime_build', 'abc1234'));
+    expect(crash.tags, containsPair('runtime_protocol', '4'));
 
     expect(client.supportsCloudEnrollment, isTrue);
     expect(await client.createCloudEnrollment(), 'enrollment-code');

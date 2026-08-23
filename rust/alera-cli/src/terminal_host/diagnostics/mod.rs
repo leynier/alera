@@ -8,10 +8,12 @@ pub mod jsonl_layer;
 pub mod panic_hook;
 pub mod redaction;
 pub mod rotating_writer;
+pub mod sentry_error_layer;
 pub mod sentry_reporting;
 
 use jsonl_layer::JsonlLayer;
 use rotating_writer::{RotatingFileWriter, DEFAULT_MAX_BYTES, DEFAULT_MAX_FILES};
+use sentry_error_layer::SentryErrorLayer;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -93,6 +95,7 @@ pub fn init(config: DiagnosticsConfig) -> PathBuf {
     let initialized = tracing_subscriber::registry()
         .with(env_filter(&config.level))
         .with(JsonlLayer::new(writer, "runtime"))
+        .with(SentryErrorLayer::new())
         .with(stderr_layer)
         .try_init()
         .is_ok();

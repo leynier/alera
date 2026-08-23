@@ -192,6 +192,18 @@ final class _TerminalHostTestServer {
       });
       return;
     }
+    if (type == 'status.get') {
+      _respond(socket, <String, Object?>{
+        'id': id,
+        'ok': true,
+        'payload': const <String, Object?>{
+          'runtimeHostVersion': '1.7.0',
+          'runtimeHostCommit': 'abc1234',
+          'protocolVersion': aleraTerminalHostProtocolVersion,
+        },
+      });
+      return;
+    }
     _respond(socket, <String, Object?>{
       'id': id,
       'ok': true,

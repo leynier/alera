@@ -15,9 +15,12 @@ extension SocketTerminalHostClientLifecycle on SocketTerminalHostClient {
         'status.get',
         const <String, Object?>{},
       );
-      return asTerminalHostMap(payload, 'runtime status');
+      final status = asTerminalHostMap(payload, 'runtime status');
+      CrashReporting.updateRuntimeContext(status);
+      return status;
     } on StateError catch (error) {
       if (error.message.contains('No live Alera runtime host')) {
+        CrashReporting.clearRuntimeContext();
         return null;
       }
       rethrow;
