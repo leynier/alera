@@ -2,10 +2,10 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/updater/application/mobile_update_providers.dart';
 import 'package:alera_mobile/src/features/updater/domain/mobile_release.dart';
+import 'package:alera_mobile/src/features/updater/infra/mobile_external_browser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 enum _MobileUpdateAction { copyLink, download }
 
@@ -20,7 +20,7 @@ class MobileUpdatePrompt extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.copyLink = _copyToClipboard,
-    this.openUrl = _launchExternalBrowser,
+    this.openUrl = openMobileExternalBrowser,
   });
 
   final Widget child;
@@ -125,7 +125,7 @@ class _MobileUpdateDialog extends StatelessWidget {
             const SizedBox(height: AleraTokens.space12),
             Text(
               'Alera $version is available. Downloading opens the APK in your '
-              'browser, and Android asks to install it.',
+              'device\'s browser, and Android asks to install it.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),
@@ -167,8 +167,4 @@ class _MobileUpdateDialog extends StatelessWidget {
 
 Future<void> _copyToClipboard(String link) {
   return Clipboard.setData(ClipboardData(text: link));
-}
-
-Future<bool> _launchExternalBrowser(Uri url) {
-  return launchUrl(url, mode: LaunchMode.externalApplication);
 }
