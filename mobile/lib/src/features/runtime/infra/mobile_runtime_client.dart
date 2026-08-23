@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
 import 'package:alera_mobile/src/features/diagnostics/infra/crash_reporting.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
+import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
+import 'package:alera_mobile/src/features/runtime/infra/relay_wire.dart';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
@@ -21,10 +25,13 @@ import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_c
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 part 'mobile_runtime_client_host_tools.dart';
+part 'mobile_runtime_client_relay.dart';
+part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
@@ -38,6 +45,8 @@ class MobileRuntimeClient
         MobileRuntimeWorkspaceClient,
         MobileRuntimeProjectClient,
         MobileRuntimeClientHostTools,
+        MobileRuntimeClientRelay,
+        MobileRuntimeDictationRequests,
         MobileRuntimeTerminalRequests,
         MobileRuntimeTerminalOutputResync,
         MobileRuntimeCodexRequests,
@@ -81,6 +90,25 @@ class MobileRuntimeClient
     }
   }
 
+  static Future<MobileRuntimeClient> connectRelay({
+    required CloudRelayGrant grant,
+    required RelayIdentityKeyPair identity,
+  }) async {
+    final channel = IOWebSocketChannel.connect(
+      grant.relayUrl,
+      headers: <String, dynamic>{'authorization': 'Bearer ${grant.grant}'},
+    );
+    final client = MobileRuntimeClient._(channel);
+    try {
+      await channel.ready.timeout(client._requestTimeout);
+      await client._performRelayHandshake(grant, identity);
+      return client;
+    } on Object {
+      await client.dispose();
+      rethrow;
+    }
+  }
+
   static Future<PairedDeviceCredentials> pairDevice(
     PairingOffer offer, {
     String? deviceName,
@@ -104,7 +132,9 @@ class MobileRuntimeClient
     }
   }
 
+  @override
   final WebSocketChannel _channel;
+  @override
   final Duration _requestTimeout;
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
   final StreamController<MobileRuntimeEvent> _events =
@@ -118,7 +148,6 @@ class MobileRuntimeClient
   StackTrace? _closedStackTrace;
   Set<String> _runtimeCapabilities = const <String>{};
   bool _binaryFrames = false;
-
   @override
   Stream<MobileRuntimeEvent> get events => _events.stream;
   @override
@@ -188,59 +217,12 @@ class MobileRuntimeClient
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
+  @override
   bool get supportsAiDictation =>
       _runtimeCapabilities.contains(aiDictationCapability);
+  @override
   bool get supportsAiDictationModels =>
       _runtimeCapabilities.contains(aiDictationModelsCapability);
-
-  Future<Map<String, Object?>> transcribeMobileAudio({
-    required String requestId,
-    required List<int> audio,
-    required String engine,
-    required String modelId,
-    String? language,
-    String? initialPrompt,
-  }) async {
-    if (!supportsAiDictationModels) {
-      throw UnsupportedError(
-        'Update the paired runtime to select remote Dictation models.',
-      );
-    }
-    final timeout = _mobileDictationTimeout(
-      audioBytes: audio.length,
-      modelId: modelId,
-    );
-    try {
-      return await requestMap(
-        'mobile.aiDictation.transcribe',
-        <String, Object?>{
-          'requestId': requestId,
-          'audioBase64': base64Encode(audio),
-          'engine': engine,
-          'modelId': modelId,
-          'language': language,
-          'initialPrompt': initialPrompt,
-        },
-        timeout,
-      );
-    } on TimeoutException {
-      try {
-        await requestMap('mobile.aiDictation.cancel', <String, Object?>{
-          'requestId': requestId,
-        }, const Duration(seconds: 5));
-      } on Object {
-        // The original timeout remains the useful error for the caller.
-      }
-      rethrow;
-    }
-  }
-
-  Future<void> cancelMobileAudioTranscription(String requestId) async {
-    if (!supportsAiDictation) return;
-    await requestMap('mobile.aiDictation.cancel', <String, Object?>{
-      'requestId': requestId,
-    });
-  }
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
@@ -330,19 +312,17 @@ class MobileRuntimeClient
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
     _pending[id] = completer;
-    try {
-      _channel.sink.add(
-        jsonEncode(<String, Object?>{
-          'id': id,
-          'type': type,
-          'payload': payload,
-        }),
-      );
-    } on Object catch (error, stackTrace) {
-      _pending.remove(id);
-      _handleSocketError(error, stackTrace);
-      return Future<Object?>.error(error, stackTrace);
-    }
+    final encoded = jsonEncode(<String, Object?>{
+      'id': id,
+      'type': type,
+      'payload': payload,
+    });
+    unawaited(
+      _sendTransport(encoded).catchError((error, stackTrace) {
+        _pending.remove(id);
+        _handleSocketError(error, stackTrace);
+      }),
+    );
     final effectiveTimeout = timeout ?? _requestTimeout;
     return completer.future.timeout(
       effectiveTimeout,
@@ -400,6 +380,35 @@ class MobileRuntimeClient
   }
 
   void _handleMessage(Object? raw) {
+    if (_relayHandshake != null) {
+      unawaited(_handleRelayHandshakeMessage(raw));
+      return;
+    }
+    if (_relaySession != null) {
+      unawaited(_handleRelayMessage(raw));
+      return;
+    }
+    _handleDecodedMessage(raw);
+  }
+
+  Future<void> _sendTransport(String encoded) async {
+    final session = _relaySession;
+    if (session == null) {
+      _channel.sink.add(encoded);
+      return;
+    }
+    final payload = await session.seal(utf8.encode(encoded));
+    _channel.sink.add(wrapRelayFrame(_relayClientId!, payload));
+  }
+
+  @override
+  void _applyRelayCapabilities(Map<String, Object?> payload) {
+    _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
+    _binaryFrames = payload['binaryFrames'] == true;
+  }
+
+  @override
+  void _handleDecodedMessage(Object? raw) {
     // Once negotiated, a binary message is terminal output and never JSON, so
     // it skips jsonDecode and base64Decode entirely.
     if (_binaryFrames && raw is List<int>) {
@@ -451,6 +460,7 @@ class MobileRuntimeClient
     }
   }
 
+  @override
   void _handleSocketError(Object error, [StackTrace? stackTrace]) {
     // The single funnel every transport failure passes through, and the most
     // common thing a user reports about this app.
@@ -463,6 +473,10 @@ class MobileRuntimeClient
     );
     _closedError ??= normalized;
     _closedStackTrace ??= stackTrace;
+    final handshake = _relayHandshake;
+    if (handshake != null && !handshake.isCompleted) {
+      handshake.completeError(error, stackTrace);
+    }
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
         completer.completeError(normalized, stackTrace);
@@ -482,19 +496,4 @@ class MobileRuntimeClient
     // rather than a StateError that would look like a programming fault.
     _handleSocketError(const RuntimeConnectionLost());
   }
-}
-
-Duration _mobileDictationTimeout({
-  required int audioBytes,
-  required String modelId,
-}) {
-  final audioSeconds = (audioBytes / 32000).ceil();
-  final modelAllowance = switch (modelId) {
-    'whisper-large-v3-turbo-q5-0' => 180,
-    'whisper-small' => 120,
-    _ => 60,
-  };
-  return Duration(
-    seconds: (60 + audioSeconds * 4 + modelAllowance).clamp(120, 900),
-  );
 }

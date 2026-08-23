@@ -47,6 +47,8 @@ abstract interface class AleraCloudApi {
 
   Future<CloudAccountSession> refreshSession(CloudAccountSession session);
 
+  Future<void> revokeSession(CloudAccountSession session);
+
   Future<void> registerPushToken({
     required CloudAccountSession session,
     required String token,
@@ -67,7 +69,42 @@ abstract interface class AleraCloudApi {
   });
 }
 
-class HttpAleraCloudApi implements AleraCloudApi {
+abstract interface class AleraRelayCloudApi {
+  Future<List<CloudRuntimeProfile>> discoverRuntimes(
+    CloudAccountSession session,
+  );
+
+  Future<CloudRelayIdentityRegistration> registerRelayIdentity({
+    required CloudAccountSession session,
+    required String publicKey,
+    required int keyVersion,
+  });
+
+  Future<CloudRelayGrant> requestRelayGrant({
+    required CloudAccountSession session,
+    required String runtimeId,
+  });
+}
+
+abstract interface class AleraMobileAuthApi {
+  Future<CloudAuthTransaction> createMobileAuthTransaction({
+    required String provider,
+    required String redirectUri,
+    required String codeChallenge,
+    required String clientId,
+    required String deviceName,
+  });
+
+  Future<CloudAccountSession> exchangeMobileAuth({
+    required String transactionId,
+    required String state,
+    required String code,
+    required String codeVerifier,
+  });
+}
+
+class HttpAleraCloudApi
+    implements AleraCloudApi, AleraRelayCloudApi, AleraMobileAuthApi {
   HttpAleraCloudApi({required this.configuration, http.Client? client})
     : _client = client ?? http.Client();
 
@@ -127,6 +164,15 @@ class HttpAleraCloudApi implements AleraCloudApi {
   }
 
   @override
+  Future<void> revokeSession(CloudAccountSession session) async {
+    await _sendJson(
+      'POST',
+      'v1/auth/revoke',
+      body: <String, Object?>{'refreshToken': session.refreshToken},
+    );
+  }
+
+  @override
   Future<void> registerPushToken({
     required CloudAccountSession session,
     required String token,
@@ -179,6 +225,94 @@ class HttpAleraCloudApi implements AleraCloudApi {
       'v1/mobile/subscriptions/${Uri.encodeComponent(runtimeId)}',
       accessToken: session.accessToken,
     );
+  }
+
+  @override
+  Future<List<CloudRuntimeProfile>> discoverRuntimes(
+    CloudAccountSession session,
+  ) async {
+    final payload = await _sendJson(
+      'GET',
+      'v1/mobile/runtimes',
+      accessToken: session.accessToken,
+    );
+    final runtimes = payload['runtimes'];
+    if (runtimes is! List) return const <CloudRuntimeProfile>[];
+    return <CloudRuntimeProfile>[
+      for (final item in runtimes) CloudRuntimeProfile.fromJson(_map(item)),
+    ];
+  }
+
+  @override
+  Future<CloudRelayIdentityRegistration> registerRelayIdentity({
+    required CloudAccountSession session,
+    required String publicKey,
+    required int keyVersion,
+  }) async {
+    final payload = await _sendJson(
+      'POST',
+      'v1/relay/identity',
+      accessToken: session.accessToken,
+      body: <String, Object?>{'publicKey': publicKey, 'keyVersion': keyVersion},
+    );
+    return CloudRelayIdentityRegistration.fromJson(payload);
+  }
+
+  @override
+  Future<CloudRelayGrant> requestRelayGrant({
+    required CloudAccountSession session,
+    required String runtimeId,
+  }) async {
+    final payload = await _sendJson(
+      'POST',
+      'v1/relay/grants',
+      accessToken: session.accessToken,
+      body: <String, Object?>{'runtimeId': runtimeId},
+    );
+    return CloudRelayGrant.fromJson(payload);
+  }
+
+  @override
+  Future<CloudAuthTransaction> createMobileAuthTransaction({
+    required String provider,
+    required String redirectUri,
+    required String codeChallenge,
+    required String clientId,
+    required String deviceName,
+  }) async {
+    final payload = await _sendJson(
+      'POST',
+      'v1/auth/transactions',
+      body: <String, Object?>{
+        'provider': provider,
+        'redirectUri': redirectUri,
+        'codeChallenge': codeChallenge,
+        'clientId': clientId,
+        'clientKind': 'mobile',
+        'deviceName': deviceName,
+      },
+    );
+    return CloudAuthTransaction.fromJson(payload);
+  }
+
+  @override
+  Future<CloudAccountSession> exchangeMobileAuth({
+    required String transactionId,
+    required String state,
+    required String code,
+    required String codeVerifier,
+  }) async {
+    final payload = await _sendJson(
+      'POST',
+      'v1/auth/exchange',
+      body: <String, Object?>{
+        'transactionId': transactionId,
+        'state': state,
+        'code': code,
+        'codeVerifier': codeVerifier,
+      },
+    );
+    return CloudAccountSession.fromJson(payload);
   }
 
   Future<Map<String, Object?>> _sendJson(

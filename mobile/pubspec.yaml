@@ -32,6 +32,7 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.9
+  cryptography: ^2.9.0
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
   file_selector: ^1.1.0

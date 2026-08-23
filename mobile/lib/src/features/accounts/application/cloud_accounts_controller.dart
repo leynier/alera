@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
+import 'package:alera_mobile/src/features/accounts/infra/mobile_cloud_sign_in.dart';
+import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'cloud_accounts_controller.g.dart';
@@ -43,6 +47,53 @@ class CloudAccountsController extends _$CloudAccountsController {
           );
     await repository.saveSession(merged);
     state = AsyncData(_replace(current, merged));
+  }
+
+  Future<void> signIn(String provider) async {
+    final repository = ref.read(cloudAccountRepositoryProvider);
+    final installationId = await repository.getOrCreateInstallationId();
+    final session = await MobileCloudSignIn(
+      api: ref.read(aleraMobileAuthApiProvider),
+      installationId: installationId,
+    ).signIn(provider);
+    await repository.saveSession(session);
+    final current = await future;
+    state = AsyncData(_replace(current, session));
+    await _registerRelayIdentity(session, expectedClientId: installationId);
+  }
+
+  Future<List<CloudRuntimeProfile>> discoverRuntimes(String accountId) async {
+    final sessions = await future;
+    final session = sessions
+        .where((item) => item.account.id == accountId)
+        .firstOrNull;
+    if (session == null) throw StateError('Account session is missing.');
+    return ref.read(aleraRelayCloudApiProvider).discoverRuntimes(session);
+  }
+
+  Future<void> _registerRelayIdentity(
+    CloudAccountSession session, {
+    required String expectedClientId,
+  }) async {
+    final privateKey = await ref
+        .read(cloudRelayIdentityRepositoryProvider)
+        .getOrCreatePrivateKey(session.account.id);
+    final identity = await RelayIdentityKeyPair.fromPrivate(
+      base64Url.decode(base64Url.normalize(privateKey)),
+    );
+    final registration = await ref
+        .read(aleraRelayCloudApiProvider)
+        .registerRelayIdentity(
+          session: session,
+          publicKey: base64UrlNoPadding(identity.publicBytes),
+          keyVersion: 1,
+        );
+    if (registration.clientId != expectedClientId ||
+        registration.clientKind != 'mobile' ||
+        registration.publicKey != base64UrlNoPadding(identity.publicBytes) ||
+        registration.keyVersion != 1) {
+      throw const FormatException('Cloud returned an invalid mobile identity');
+    }
   }
 
   Future<void> updateRuntimePreferences({
@@ -114,6 +165,7 @@ class CloudAccountsController extends _$CloudAccountsController {
           .deleteSubscription(session: session, runtimeId: runtimeId);
     }
     await ref.read(aleraCloudApiProvider).deletePushToken(session);
+    await ref.read(aleraCloudApiProvider).revokeSession(session);
     await ref.read(cloudAccountRepositoryProvider).removeSession(accountId);
     state = AsyncData(<CloudAccountSession>[
       for (final item in current)

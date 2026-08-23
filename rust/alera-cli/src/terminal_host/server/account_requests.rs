@@ -57,7 +57,7 @@ impl ServerActor {
                 result,
             } => self.handle_account_sign_in_prepared(client_id, request_id, result),
             AccountCommand::SignInCompleted { result } => {
-                self.handle_account_sign_in_completed(result)
+                self.handle_account_sign_in_completed(result).await
             }
             AccountCommand::OperationFinished {
                 client_id,
@@ -292,11 +292,12 @@ impl ServerActor {
         }
     }
 
-    pub(super) fn handle_account_sign_in_completed(&mut self, result: HostResult<Value>) {
+    pub(super) async fn handle_account_sign_in_completed(&mut self, result: HostResult<Value>) {
         self.account_push.sign_in_cancel = None;
         self.account_push.cloud_jobs = self.account_push.cloud_jobs.saturating_sub(1);
         match result {
             Ok(account) => {
+                self.restart_remote_relay().await;
                 self.broadcast_authenticated(event(
                     "aleraAccountChanged",
                     json!({ "connected": true, "account": account }),
@@ -394,6 +395,7 @@ impl ServerActor {
                         | AccountOperation::Delete
                         | AccountOperation::Transfer
                 ) {
+                    self.stop_remote_relay().await;
                     self.account_push.active_subscriptions = 0;
                     self.broadcast_authenticated(event(
                         "aleraAccountChanged",
