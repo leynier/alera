@@ -1,9 +1,100 @@
+import 'dart:convert';
+
+import 'package:alera/src/features/settings/presentation/ai_dictation_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_quota.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_terminal.dart';
+import 'package:alera/src/features/settings/presentation/settings_sections.dart';
+import 'package:alera/src/features/settings/presentation/text_actions_search_entries.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+typedef _SearchCase = ({
+  List<SettingsSearchEntry> entries,
+  String query,
+  List<(String, String?)> expected,
+});
+
 void main() {
+  test('search catalogs preserve exact metadata and order', () {
+    final catalogs = <String, List<SettingsSearchEntry>>{
+      'application': applicationSearchEntries,
+      'agents': agentsSearchEntries,
+      'keyboard': keyboardSearchEntries,
+      'browser': browserSearchEntries,
+      'editor': editorSearchEntries,
+      'aiText': aiTextSearchEntries,
+      'aiDictation': aiDictationSearchEntries,
+      'textActions': textActionsSearchEntries,
+      'quota': quotaSearchEntries,
+    };
+
+    expect(
+      _catalogFingerprint(catalogs),
+      '89a3a912bfe315f784b7da051f870063716d25d72c6d78f03412d30dc525923a',
+    );
+  });
+
+  test('built search catalogs remain immutable', () {
+    expect(
+      () => textActionsSearchEntries.add(
+        const SettingsSearchEntry(title: 'Unexpected Entry'),
+      ),
+      throwsUnsupportedError,
+    );
+  });
+
+  test('search results retain their section order and navigation groups', () {
+    final cases = <_SearchCase>[
+      (
+        entries: applicationSearchEntries,
+        query: 'sidecar',
+        expected: <(String, String?)>[
+          ('Keep Runtime Open When App Quits', 'runtime'),
+          ('Empty Host Shutdown', 'runtime'),
+          ('Detached Session Shutdown', 'runtime'),
+        ],
+      ),
+      (
+        entries: agentsSearchEntries,
+        query: 'xai',
+        expected: <(String, String?)>[('Grok Build Hooks', 'hooks')],
+      ),
+      (
+        entries: browserSearchEntries,
+        query: 'self signed',
+        expected: <(String, String?)>[
+          ('Trusted Local Certificates', 'certificates'),
+        ],
+      ),
+      (
+        entries: aiDictationSearchEntries,
+        query: 'privacy',
+        expected: <(String, String?)>[('Whisper Model', 'models')],
+      ),
+      (
+        entries: textActionsSearchEntries,
+        query: 'destructive',
+        expected: <(String, String?)>[('Delete', 'actions')],
+      ),
+      (
+        entries: quotaSearchEntries,
+        query: 'visible',
+        expected: <(String, String?)>[('Claude Default in Usage', 'claude')],
+      ),
+    ];
+
+    for (final testCase in cases) {
+      expect(
+        testCase.entries
+            .where((entry) => entry.matches(testCase.query))
+            .map((entry) => (entry.title, entry.groupId)),
+        testCase.expected,
+        reason: testCase.query,
+      );
+    }
+  });
+
   test('orchestration skill is searchable in the agents skill group', () {
     final entry = agentsSearchEntries.singleWhere(
       (candidate) => candidate.title == 'Alera Orchestration Skill',
@@ -63,4 +154,21 @@ void main() {
     expect(entry.matches('mouse wheel'), isTrue);
     expect(entry.groupId, 'interaction');
   });
+}
+
+String _catalogFingerprint(Map<String, List<SettingsSearchEntry>> catalogs) {
+  final data = <String, Object?>{
+    for (final catalog in catalogs.entries)
+      catalog.key: <Map<String, Object?>>[
+        for (final entry in catalog.value)
+          <String, Object?>{
+            'title': entry.title,
+            'description': entry.description,
+            'keywords': entry.keywords,
+            'groupId': entry.groupId,
+          },
+      ],
+  };
+  final snapshot = '${const JsonEncoder.withIndent('  ').convert(data)}\n';
+  return sha256.convert(utf8.encode(snapshot)).toString();
 }

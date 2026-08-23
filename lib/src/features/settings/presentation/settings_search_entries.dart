@@ -1,278 +1,238 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entry_catalog.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_reading_diff.dart';
 
-const List<SettingsSearchEntry>
-applicationSearchEntries = <SettingsSearchEntry>[
-  SettingsSearchEntry(
-    title: 'Workspace Directory',
-    description: 'Where new linked workspaces are created on disk.',
-    keywords: <String>['worktree', 'folder', 'location', 'path'],
-    groupId: 'storage',
-  ),
-  SettingsSearchEntry(
-    title: 'Confirm Project Removal',
-    description: 'Ask before unregistering a project.',
-    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
-    groupId: 'safety',
-  ),
-  SettingsSearchEntry(
-    title: 'Confirm Workspace Removal',
-    description: 'Ask before removing a workspace worktree.',
-    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
-    groupId: 'safety',
-  ),
-  SettingsSearchEntry(
-    title: 'Keep Runtime Open When App Quits',
-    description: 'Leave the app-launched sidecar running after a clean quit.',
-    keywords: <String>[
-      'host',
-      'sidecar',
-      'lifecycle',
-      'quit',
-      'shutdown',
-      'leave',
-    ],
-    groupId: 'runtime',
-  ),
-  SettingsSearchEntry(
-    title: 'Empty Host Shutdown',
-    description:
-        'Stop the terminal host after the app closes with no sessions.',
-    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
-    groupId: 'runtime',
-  ),
-  SettingsSearchEntry(
-    title: 'Detached Session Shutdown',
-    description:
-        'Stop detached running terminal sessions after the app stays closed.',
-    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
-    groupId: 'runtime',
-  ),
-  SettingsSearchEntry(
-    title: 'Open Logs Folder',
-    description: 'Show the folder holding the app log files.',
-    keywords: <String>['log', 'logs', 'diagnostics', 'debug', 'folder'],
-    groupId: 'diagnostics',
-  ),
-  SettingsSearchEntry(
-    title: 'Export Diagnostics',
-    description: 'Save app and runtime logs with version details as a zip.',
-    keywords: <String>[
-      'log',
-      'logs',
-      'diagnostics',
-      'export',
-      'bundle',
-      'report',
-      'zip',
-    ],
-    groupId: 'diagnostics',
-  ),
-  SettingsSearchEntry(
-    title: 'Log Level',
-    description: 'How much detail is written to the log files.',
-    keywords: <String>['log', 'verbose', 'debug', 'diagnostics'],
-    groupId: 'diagnostics',
-  ),
-  SettingsSearchEntry(
-    title: 'Send Crash Reports',
-    description: 'Send crashes to Sentry, an external service.',
-    keywords: <String>['crash', 'sentry', 'telemetry', 'report', 'error'],
-    groupId: 'diagnostics',
-  ),
-  SettingsSearchEntry(
-    title: 'Updates',
-    description: 'Check desktop releases for this platform.',
-    keywords: <String>['release', 'download', 'version'],
-    groupId: 'updates',
-  ),
-  SettingsSearchEntry(
-    title: 'Star Alera on GitHub',
-    description: 'Show your support for the project.',
-    keywords: <String>['support', 'github', 'star'],
-    groupId: 'support',
-  ),
-];
+final List<SettingsSearchEntry>
+applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
+  'storage': {
+    'Workspace Directory': SettingsSearchEntryDetails(
+      description: 'Where new linked workspaces are created on disk.',
+      keywords: <String>['worktree', 'folder', 'location', 'path'],
+    ),
+  },
+  'safety': {
+    'Confirm Project Removal': SettingsSearchEntryDetails(
+      description: 'Ask before unregistering a project.',
+      keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+    ),
+    'Confirm Workspace Removal': SettingsSearchEntryDetails(
+      description: 'Ask before removing a workspace worktree.',
+      keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+    ),
+  },
+  'runtime': {
+    'Keep Runtime Open When App Quits': SettingsSearchEntryDetails(
+      description: 'Leave the app-launched sidecar running after a clean quit.',
+      keywords: <String>[
+        'host',
+        'sidecar',
+        'lifecycle',
+        'quit',
+        'shutdown',
+        'leave',
+      ],
+    ),
+    'Empty Host Shutdown': SettingsSearchEntryDetails(
+      description:
+          'Stop the terminal host after the app closes with no sessions.',
+      keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
+    ),
+    'Detached Session Shutdown': SettingsSearchEntryDetails(
+      description:
+          'Stop detached running terminal sessions after the app stays closed.',
+      keywords: <String>['host', 'sidecar', 'session', 'timeout'],
+    ),
+  },
+  'diagnostics': {
+    'Open Logs Folder': SettingsSearchEntryDetails(
+      description: 'Show the folder holding the app log files.',
+      keywords: <String>['log', 'logs', 'diagnostics', 'debug', 'folder'],
+    ),
+    'Export Diagnostics': SettingsSearchEntryDetails(
+      description: 'Save app and runtime logs with version details as a zip.',
+      keywords: <String>[
+        'log',
+        'logs',
+        'diagnostics',
+        'export',
+        'bundle',
+        'report',
+        'zip',
+      ],
+    ),
+    'Log Level': SettingsSearchEntryDetails(
+      description: 'How much detail is written to the log files.',
+      keywords: <String>['log', 'verbose', 'debug', 'diagnostics'],
+    ),
+    'Send Crash Reports': SettingsSearchEntryDetails(
+      description: 'Send crashes to Sentry, an external service.',
+      keywords: <String>['crash', 'sentry', 'telemetry', 'report', 'error'],
+    ),
+  },
+  'updates': {
+    'Updates': SettingsSearchEntryDetails(
+      description: 'Check desktop releases for this platform.',
+      keywords: <String>['release', 'download', 'version'],
+    ),
+  },
+  'support': {
+    'Star Alera on GitHub': SettingsSearchEntryDetails(
+      description: 'Show your support for the project.',
+      keywords: <String>['support', 'github', 'star'],
+    ),
+  },
+});
 
-const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
-  SettingsSearchEntry(
-    title: 'All Alera Skills',
-    description: 'Install or update every Alera agent skill.',
-    keywords: <String>[
-      'all',
-      'install',
-      'update',
-      'skills',
-      'computer use',
-      'emulator',
-      'orchestration',
-    ],
-    groupId: 'cliSkill',
-  ),
-  SettingsSearchEntry(
-    title: 'Alera CLI Skill',
-    description: 'Install agent instructions for the Alera CLI.',
-    keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
-    groupId: 'cliSkill',
-  ),
-  SettingsSearchEntry(
-    title: 'Agent Canvas Skill',
-    description:
-        'Install agent instructions for publishing structured updates in Agent Canvas.',
-    keywords: <String>[
-      'agent canvas',
-      'canvas',
-      'skill',
-      'agent',
-      'publish',
-      'decision',
-    ],
-    groupId: 'cliSkill',
-  ),
-  SettingsSearchEntry(
-    title: 'Alera Orchestration Skill',
-    description: 'Install agent instructions for Alera orchestration.',
-    keywords: <String>[
-      'orchestration',
-      'skill',
-      'agent',
-      'handoff',
-      'task',
-      'dispatch',
-    ],
-    groupId: 'cliSkill',
-  ),
-  SettingsSearchEntry(
-    title: 'Alera Computer Use Skill',
-    description: 'Install agent instructions for desktop computer use.',
-    keywords: <String>[
-      'computer use',
-      'desktop',
-      'accessibility',
-      'skill',
-      'agent',
-      'click',
-      'window',
-    ],
-    groupId: 'cliSkill',
-  ),
-  SettingsSearchEntry(
-    title: 'Codex Hooks',
-    description: 'Use Alera-managed Codex runtime hooks.',
-    keywords: <String>['codex', 'agent', 'status', 'hooks'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Claude Code Hooks',
-    description: 'Use an Alera-managed Claude Code config with status hooks.',
-    keywords: <String>['claude', 'agent', 'status', 'hooks'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'GitHub Copilot Hooks',
-    description: 'Use an Alera-managed GitHub Copilot home overlay.',
-    keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Cursor Hooks',
-    description: 'Use an Alera-managed Cursor agent plugin wrapper.',
-    keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Antigravity Hooks',
-    description: 'Install managed Antigravity hooks for the agy CLI.',
-    keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'OpenCode Hooks',
-    description: 'Install managed OpenCode status plugin.',
-    keywords: <String>['opencode', 'agent', 'status', 'hooks', 'plugin'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'OpenCode 2 Hooks',
-    description: 'Install managed OpenCode 2 status plugin.',
-    keywords: <String>[
-      'opencode',
-      'opencode2',
-      'agent',
-      'status',
-      'hooks',
-      'plugin',
-      'v2',
-    ],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Pi Hooks',
-    description: 'Install managed Pi status extension.',
-    keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Amp Hooks',
-    description: 'Use an Alera-managed Amp config overlay.',
-    keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Grok Build Hooks',
-    description: 'Install managed Grok Build status hooks.',
-    keywords: <String>['grok', 'xai', 'agent', 'status', 'hooks'],
-    groupId: 'hooks',
-  ),
-  SettingsSearchEntry(
-    title: 'Agent Status Notifications',
-    description: 'Show native notifications when agents need attention.',
-    keywords: <String>[
-      'codex',
-      'claude',
-      'copilot',
-      'cursor',
-      'antigravity',
-      'agy',
-      'opencode',
-      'opencode2',
-      'pi',
-      'amp',
-      'grok',
-      'agent',
-      'status',
-      'notification',
-    ],
-    groupId: 'behavior',
-  ),
-  SettingsSearchEntry(
-    title: 'Agent Finished Notifications',
-    description: 'Also notify when an agent finishes a turn.',
-    keywords: <String>[
-      'agent',
-      'status',
-      'notification',
-      'finished',
-      'done',
-      'turn',
-    ],
-    groupId: 'behavior',
-  ),
-  SettingsSearchEntry(
-    title: 'Keep Computer Awake While Agents Are Working',
-    description: 'Keep this computer and display awake during agent work.',
-    keywords: <String>[
-      'awake',
-      'sleep',
-      'power',
-      'agent',
-      'working',
-      'lid',
-      'display',
-    ],
-    groupId: 'behavior',
-  ),
-];
+final List<SettingsSearchEntry>
+agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
+  'cliSkill': {
+    'All Alera Skills': SettingsSearchEntryDetails(
+      description: 'Install or update every Alera agent skill.',
+      keywords: <String>[
+        'all',
+        'install',
+        'update',
+        'skills',
+        'computer use',
+        'emulator',
+        'orchestration',
+      ],
+    ),
+    'Alera CLI Skill': SettingsSearchEntryDetails(
+      description: 'Install agent instructions for the Alera CLI.',
+      keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
+    ),
+    'Agent Canvas Skill': SettingsSearchEntryDetails(
+      description:
+          'Install agent instructions for publishing structured updates in Agent Canvas.',
+      keywords: <String>[
+        'agent canvas',
+        'canvas',
+        'skill',
+        'agent',
+        'publish',
+        'decision',
+      ],
+    ),
+    'Alera Orchestration Skill': SettingsSearchEntryDetails(
+      description: 'Install agent instructions for Alera orchestration.',
+      keywords: <String>[
+        'orchestration',
+        'skill',
+        'agent',
+        'handoff',
+        'task',
+        'dispatch',
+      ],
+    ),
+    'Alera Computer Use Skill': SettingsSearchEntryDetails(
+      description: 'Install agent instructions for desktop computer use.',
+      keywords: <String>[
+        'computer use',
+        'desktop',
+        'accessibility',
+        'skill',
+        'agent',
+        'click',
+        'window',
+      ],
+    ),
+  },
+  'hooks': {
+    'Codex Hooks': SettingsSearchEntryDetails(
+      description: 'Use Alera-managed Codex runtime hooks.',
+      keywords: <String>['codex', 'agent', 'status', 'hooks'],
+    ),
+    'Claude Code Hooks': SettingsSearchEntryDetails(
+      description: 'Use an Alera-managed Claude Code config with status hooks.',
+      keywords: <String>['claude', 'agent', 'status', 'hooks'],
+    ),
+    'GitHub Copilot Hooks': SettingsSearchEntryDetails(
+      description: 'Use an Alera-managed GitHub Copilot home overlay.',
+      keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
+    ),
+    'Cursor Hooks': SettingsSearchEntryDetails(
+      description: 'Use an Alera-managed Cursor agent plugin wrapper.',
+      keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
+    ),
+    'Antigravity Hooks': SettingsSearchEntryDetails(
+      description: 'Install managed Antigravity hooks for the agy CLI.',
+      keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
+    ),
+    'OpenCode Hooks': SettingsSearchEntryDetails(
+      description: 'Install managed OpenCode status plugin.',
+      keywords: <String>['opencode', 'agent', 'status', 'hooks', 'plugin'],
+    ),
+    'OpenCode 2 Hooks': SettingsSearchEntryDetails(
+      description: 'Install managed OpenCode 2 status plugin.',
+      keywords: <String>[
+        'opencode',
+        'opencode2',
+        'agent',
+        'status',
+        'hooks',
+        'plugin',
+        'v2',
+      ],
+    ),
+    'Pi Hooks': SettingsSearchEntryDetails(
+      description: 'Install managed Pi status extension.',
+      keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
+    ),
+    'Amp Hooks': SettingsSearchEntryDetails(
+      description: 'Use an Alera-managed Amp config overlay.',
+      keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
+    ),
+    'Grok Build Hooks': SettingsSearchEntryDetails(
+      description: 'Install managed Grok Build status hooks.',
+      keywords: <String>['grok', 'xai', 'agent', 'status', 'hooks'],
+    ),
+  },
+  'behavior': {
+    'Agent Status Notifications': SettingsSearchEntryDetails(
+      description: 'Show native notifications when agents need attention.',
+      keywords: <String>[
+        'codex',
+        'claude',
+        'copilot',
+        'cursor',
+        'antigravity',
+        'agy',
+        'opencode',
+        'opencode2',
+        'pi',
+        'amp',
+        'grok',
+        'agent',
+        'status',
+        'notification',
+      ],
+    ),
+    'Agent Finished Notifications': SettingsSearchEntryDetails(
+      description: 'Also notify when an agent finishes a turn.',
+      keywords: <String>[
+        'agent',
+        'status',
+        'notification',
+        'finished',
+        'done',
+        'turn',
+      ],
+    ),
+    'Keep Computer Awake While Agents Are Working': SettingsSearchEntryDetails(
+      description: 'Keep this computer and display awake during agent work.',
+      keywords: <String>[
+        'awake',
+        'sleep',
+        'power',
+        'agent',
+        'working',
+        'lid',
+        'display',
+      ],
+    ),
+  },
+});
 
 const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
@@ -289,45 +249,44 @@ const List<SettingsSearchEntry> keyboardSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
-const List<SettingsSearchEntry> browserSearchEntries = <SettingsSearchEntry>[
-  SettingsSearchEntry(
-    title: 'System Browser Engine',
-    description: 'Check the stable browser capability gate.',
-    keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
-    groupId: 'general',
-  ),
-  SettingsSearchEntry(
-    title: 'Browser Search Engine',
-    description: 'Choose the default address bar search provider.',
-    keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
-    groupId: 'general',
-  ),
-  SettingsSearchEntry(
-    title: 'Browser Profiles',
-    description: 'Manage isolated cookies, storage and permissions.',
-    keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
-    groupId: 'profiles',
-  ),
-  SettingsSearchEntry(
-    title: 'Trusted Local Certificates',
-    description: 'Review or remove certificate trust for browser profiles.',
-    keywords: <String>[
-      'browser',
-      'certificate',
-      'tls',
-      'https',
-      'localhost',
-      'self signed',
-    ],
-    groupId: 'certificates',
-  ),
-  SettingsSearchEntry(
-    title: 'Browser History',
-    description: 'Clear history and reopen recently closed tabs.',
-    keywords: <String>['browser', 'history', 'closed', 'tabs'],
-    groupId: 'data',
-  ),
-];
+final List<SettingsSearchEntry>
+browserSearchEntries = buildSettingsSearchEntryCatalog(const {
+  'general': {
+    'System Browser Engine': SettingsSearchEntryDetails(
+      description: 'Check the stable browser capability gate.',
+      keywords: <String>['browser', 'webview', 'webkit', 'webview2', 'engine'],
+    ),
+    'Browser Search Engine': SettingsSearchEntryDetails(
+      description: 'Choose the default address bar search provider.',
+      keywords: <String>['google', 'duckduckgo', 'bing', 'kagi', 'search'],
+    ),
+  },
+  'profiles': {
+    'Browser Profiles': SettingsSearchEntryDetails(
+      description: 'Manage isolated cookies, storage and permissions.',
+      keywords: <String>['browser', 'profile', 'cookies', 'storage', 'import'],
+    ),
+  },
+  'certificates': {
+    'Trusted Local Certificates': SettingsSearchEntryDetails(
+      description: 'Review or remove certificate trust for browser profiles.',
+      keywords: <String>[
+        'browser',
+        'certificate',
+        'tls',
+        'https',
+        'localhost',
+        'self signed',
+      ],
+    ),
+  },
+  'data': {
+    'Browser History': SettingsSearchEntryDetails(
+      description: 'Clear history and reopen recently closed tabs.',
+      keywords: <String>['browser', 'history', 'closed', 'tabs'],
+    ),
+  },
+});
 
 const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
