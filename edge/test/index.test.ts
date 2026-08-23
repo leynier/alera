@@ -258,6 +258,32 @@ describe('Alera API edge', () => {
     expect(response.status).toBe(426);
   });
 
+  for (const controlPath of ['/v1/relay/identity', '/v1/relay/grants']) {
+    test(`proxies ${controlPath} to the control plane when the relay is enabled`, async () => {
+      let originCalled = false;
+      const response = await handleRequest(
+        new Request(`https://api.alera.build${controlPath}`, {
+          body: '{}',
+          headers: { authorization: 'Bearer account-token' },
+          method: 'POST',
+        }),
+        {
+          ...environment(),
+          RELAY_ENABLED: 'true',
+        },
+        async (originRequest) => {
+          originCalled = true;
+          expect(originRequest.url).toBe(`https://alera-cloud.example.run.app${controlPath}`);
+          expect(originRequest.headers.get('x-alera-origin-auth')).toBe('edge-secret');
+          return new Response(null, { status: 204 });
+        },
+      );
+
+      expect(response.status).toBe(204);
+      expect(originCalled).toBeTrue();
+    });
+  }
+
   for (const [missingValue, relayConfiguration] of [
     [
       'Durable Object binding',
