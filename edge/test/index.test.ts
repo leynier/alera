@@ -185,6 +185,36 @@ describe('Alera API edge', () => {
     expect(runtime.sent).toBeEmpty();
   });
 
+  test('disconnects matching mobiles when the runtime disconnects', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+    const otherRuntimeMobile = new TestSocket({
+      ...relayAttachment('mobile', 'mobile-2'),
+      runtimeId: 'runtime-2',
+    });
+
+    relayObject([runtime, mobile, otherRuntimeMobile]).webSocketClose(runtime as unknown as WebSocket);
+
+    expect(mobile.attachment.suppressDisconnect).toBeTrue();
+    expect(mobile.closed).toEqual({
+      code: 4002,
+      reason: 'runtime disconnected',
+    });
+    expect(otherRuntimeMobile.closed).toBeNull();
+  });
+
+  test('does not disconnect a new mobile when a replaced runtime closes later', () => {
+    const oldRuntime = new TestSocket({
+      ...relayAttachment('runtime', 'runtime-1'),
+      suppressDisconnect: true,
+    });
+    const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+
+    relayObject([oldRuntime, mobile]).webSocketClose(oldRuntime as unknown as WebSocket);
+
+    expect(mobile.closed).toBeNull();
+  });
+
   test('rejects paths outside the public API', async () => {
     const response = await handleRequest(new Request('https://api.alera.build/admin'), environment());
     expect(response.status).toBe(404);
