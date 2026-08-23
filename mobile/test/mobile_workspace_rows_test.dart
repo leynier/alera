@@ -142,6 +142,43 @@ void main() {
     expect(_workspaceIds(rows), <String>['codex', 'terminal']);
   });
 
+  test('Composes project, tag, kind, and normalized search filters', () {
+    final now = DateTime.utc(2026, 7, 18, 12);
+    final rows = buildMobileWorkspaceRows(
+      workspaces: <WorkspaceSummary>[
+        _workspace('kept', now, projectId: 'p1', tagIds: const ['selected']),
+        _workspace(
+          'wrong-project',
+          now,
+          projectId: 'p2',
+          tagIds: const ['selected'],
+        ),
+        _workspace('wrong-tag', now, projectId: 'p1'),
+        _workspace(
+          'wrong-kind',
+          now,
+          projectId: 'p1',
+          kind: 'main',
+          tagIds: const ['selected'],
+        ),
+      ],
+      projects: <ProjectSummary>[
+        _project('p1', 'Project Alpha', now),
+        _project('p2', 'Project Beta', now),
+      ],
+      prefs: const MobileViewPrefs(
+        groupBy: MobileWorkspaceGroupBy.none,
+        selectedProjectIds: <String>{'p1'},
+        selectedTagIds: <String>{'selected'},
+        workspaceKindFilter: MobileWorkspaceKindFilter.nonDefaultOnly,
+      ),
+      searchQuery: '  PROJECT ALPHA  ',
+      now: now,
+    );
+
+    expect(_workspaceIds(rows), <String>['kept']);
+  });
+
   test('Inactive projects sort alphabetically after active projects', () {
     final now = DateTime.utc(2026, 7, 18, 12);
     final rows = buildMobileWorkspaceRows(
@@ -205,6 +242,8 @@ WorkspaceSummary _workspace(
   String? name,
   String projectId = 'project',
   String? parentWorkspaceId,
+  String kind = 'linked',
+  List<String> tagIds = const <String>[],
 }) {
   return WorkspaceSummary(
     id: id,
@@ -212,6 +251,8 @@ WorkspaceSummary _workspace(
     name: name ?? id,
     path: '/tmp/$id',
     parentWorkspaceId: parentWorkspaceId,
+    kind: kind,
+    tagIds: tagIds,
     updatedAt: updatedAt,
   );
 }
