@@ -342,6 +342,7 @@ describe('Alera API edge', () => {
   test('verifies a grant and forwards only claims to the runtime object', async () => {
     const { grant, publicJwk } = await signedRelayGrant();
     const forwarded: Request[] = [];
+    const originRequests: Request[] = [];
     const stub = {
       fetch(request: Request) {
         forwarded.push(request);
@@ -357,11 +358,17 @@ describe('Alera API edge', () => {
         },
       }),
       environmentWithRelay,
-      undefined,
-      relayJwks(publicJwk),
+      async (originRequest) => {
+        originRequests.push(originRequest);
+        return relayJwks(publicJwk)();
+      },
     );
 
     expect(response.status).toBe(200);
+    expect(originRequests).toHaveLength(1);
+    expect(originRequests[0].url).toBe('https://alera-cloud.example.run.app/.well-known/jwks.json');
+    expect(originRequests[0].headers.get('x-alera-origin-auth')).toBe('edge-secret');
+    expect(originRequests[0].headers.get('x-forwarded-host')).toBe('api.alera.build');
     expect(forwarded).toHaveLength(1);
     expect(forwarded[0].headers.get('authorization')).toBeNull();
     expect(forwarded[0].headers.get('x-alera-relay-claims')).toBeTruthy();

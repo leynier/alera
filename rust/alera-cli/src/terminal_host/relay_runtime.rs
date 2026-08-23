@@ -9,8 +9,13 @@ use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{
-    connect_async, tungstenite::http::Request, tungstenite::Message, MaybeTlsStream,
-    WebSocketStream,
+    connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        http::{header, HeaderValue, Request},
+        Message,
+    },
+    MaybeTlsStream, WebSocketStream,
 };
 
 use crate::terminal_host::alera_account::{AleraAccountService, RelayGrant};
@@ -95,12 +100,10 @@ async fn run(
             &mut stop,
         )
         .await;
-        if result.is_ok() {
-            return;
-        }
+        let Err(error) = result else { return };
         let delay = RETRY_DELAYS[retry_index];
         retry_index = (retry_index + 1).min(RETRY_DELAYS.len() - 1);
-        tracing::warn!("remote mobile relay disconnected; retrying in {:?}", delay);
+        tracing::warn!(%error, "remote mobile relay disconnected; retrying in {:?}", delay);
         tokio::select! {
             _ = tokio::time::sleep(delay) => {}
             _ = &mut stop => return,
@@ -127,11 +130,7 @@ async fn connect_and_serve(
     {
         anyhow::bail!("cloud returned an invalid runtime relay grant");
     }
-    let request = Request::builder()
-        .uri(&grant.relay_url)
-        .header("authorization", format!("Bearer {}", grant.grant))
-        .header("origin", "https://app.alera.build")
-        .body(())?;
+    let request = relay_request(&grant.relay_url, &grant.grant)?;
     let (socket, _) = connect_async(request).await?;
     let (mut write, mut read) = socket.split();
     let (outbound_tx, mut outbound_rx) = mpsc::unbounded_channel::<RelayOutbound>();
@@ -187,6 +186,19 @@ async fn connect_and_serve(
             }
         }
     }
+}
+
+fn relay_request(relay_url: &str, grant: &str) -> anyhow::Result<Request<()>> {
+    let mut request = relay_url.into_client_request()?;
+    request.headers_mut().insert(
+        header::AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {grant}"))?,
+    );
+    request.headers_mut().insert(
+        header::ORIGIN,
+        HeaderValue::from_static("https://app.alera.build"),
+    );
+    Ok(request)
 }
 
 async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Result<()> {
@@ -468,4 +480,46 @@ async fn dispose_peers(
 
 fn encoded(bytes: impl AsRef<[u8]>) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::tungstenite::{error::UrlError, http::header, Error};
+
+    use super::{connect_async, relay_request};
+
+    #[test]
+    fn relay_request_preserves_websocket_handshake_headers() {
+        let request = relay_request("wss://relay.example/v1/relay/runtime", "relay-grant")
+            .expect("relay request");
+
+        assert_eq!(request.headers()[header::CONNECTION], "Upgrade");
+        assert_eq!(request.headers()[header::UPGRADE], "websocket");
+        assert_eq!(request.headers()[header::SEC_WEBSOCKET_VERSION], "13");
+        assert!(request.headers().contains_key(header::SEC_WEBSOCKET_KEY));
+        assert_eq!(
+            request.headers()[header::AUTHORIZATION],
+            "Bearer relay-grant"
+        );
+        assert_eq!(request.headers()[header::ORIGIN], "https://app.alera.build");
+    }
+
+    #[tokio::test]
+    async fn websocket_client_supports_wss() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            drop(stream);
+        });
+
+        let request = relay_request(&format!("wss://{address}"), "relay-grant").unwrap();
+        let error = connect_async(request)
+            .await
+            .expect_err("the local test server does not complete a TLS handshake");
+        server.abort();
+
+        assert!(!matches!(error, Error::Url(UrlError::TlsFeatureNotEnabled)));
+    }
 }

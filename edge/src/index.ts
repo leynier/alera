@@ -300,7 +300,7 @@ export async function handleRequest(
   request: Request,
   env: EdgeEnvironment,
   fetchOrigin: OriginFetch = fetch,
-  fetchRelay: RelayFetch = (relayRequest) => fetch(relayRequest),
+  fetchRelay?: RelayFetch,
 ): Promise<Response> {
   const url = new URL(request.url);
   if (
@@ -308,7 +308,13 @@ export async function handleRequest(
     url.pathname.startsWith(RELAY_PREFIX) &&
     !RELAY_CONTROL_PATHS.has(url.pathname)
   ) {
-    return handleRelayRequest(request, env, fetchRelay);
+    const fetchJwks =
+      fetchRelay ??
+      ((jwksRequest: Request) => {
+        const jwksUrl = new URL(jwksRequest.url);
+        return fetchOrigin(originRequest(jwksRequest, env, jwksUrl));
+      });
+    return handleRelayRequest(request, env, fetchJwks);
   }
   const configurationError = validateEnvironment(env);
   if (configurationError) return configurationError;
