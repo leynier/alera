@@ -26,9 +26,7 @@ class ProjectsController extends _$ProjectsController {
 
   @override
   Future<ProjectManagementSnapshot> build(String hostId) async {
-    final client = await ref.watch(
-      hostConnectionControllerProvider(hostId).future,
-    );
+    final client = await watchHostConnection(ref, hostId);
     _eventsSubscription ??= client.events.listen((event) {
       if (event.name == 'projectsChanged' ||
           event.name == 'workspacesChanged' ||
@@ -124,9 +122,7 @@ class HostDirectoryBrowserData {
 class HostDirectoryBrowserController extends _$HostDirectoryBrowserController {
   @override
   Future<HostDirectoryBrowserData> build(String hostId) async {
-    final client = await ref.watch(
-      hostConnectionControllerProvider(hostId).future,
-    );
+    final client = await watchHostConnection(ref, hostId);
     return HostDirectoryBrowserData(roots: await client.hostDirectoryRoots());
   }
 

@@ -28,3 +28,13 @@ MobileTerminalOutputEvent? decodeMobileBinaryOutput(List<int> raw) {
     Uint8List.fromList(raw.sublist(idEnd)),
   );
 }
+
+bool looksLikeJsonBytes(List<int> bytes) {
+  for (final byte in bytes) {
+    if (byte == 0x20 || byte == 0x09 || byte == 0x0a || byte == 0x0d) {
+      continue;
+    }
+    return byte == 0x7b || byte == 0x5b;
+  }
+  return false;
+}

@@ -67,4 +67,52 @@ void main() {
       throwsA(isA<RelayCryptoException>()),
     );
   });
+
+  test('serializes concurrent envelopes in each direction', () async {
+    final clientStatic = await RelayIdentityKeyPair.fromPrivate(
+      List<int>.filled(32, 1),
+    );
+    final runtimeStatic = await RelayIdentityKeyPair.fromPrivate(
+      List<int>.filled(32, 2),
+    );
+    final clientEphemeral = await RelayIdentityKeyPair.fromPrivate(
+      List<int>.filled(32, 3),
+    );
+    final runtimeEphemeral = await RelayIdentityKeyPair.fromPrivate(
+      List<int>.filled(32, 4),
+    );
+    final client = await RelayCryptoSession.derive(
+      localStatic: clientStatic,
+      localEphemeral: clientEphemeral,
+      peerStatic: runtimeStatic.publicBytes,
+      peerEphemeral: runtimeEphemeral.publicBytes,
+      runtimeId: 'runtime',
+      clientId: 'mobile',
+      nonce: List<int>.filled(16, 5),
+      initiator: true,
+    );
+    final runtime = await RelayCryptoSession.derive(
+      localStatic: runtimeStatic,
+      localEphemeral: runtimeEphemeral,
+      peerStatic: clientStatic.publicBytes,
+      peerEphemeral: clientEphemeral.publicBytes,
+      runtimeId: 'runtime',
+      clientId: 'mobile',
+      nonce: List<int>.filled(16, 5),
+      initiator: false,
+    );
+
+    final envelopes = await Future.wait(<Future<List<int>>>[
+      client.seal('first'.codeUnits),
+      client.seal('second'.codeUnits),
+      client.seal('third'.codeUnits),
+    ]);
+    final clear = await Future.wait(envelopes.map(runtime.open));
+
+    expect(clear.map(String.fromCharCodes), <String>[
+      'first',
+      'second',
+      'third',
+    ]);
+  });
 }

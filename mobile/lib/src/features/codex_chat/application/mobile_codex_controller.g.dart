@@ -66,7 +66,7 @@ final class MobileCodexClientProvider
   }
 }
 
-String _$mobileCodexClientHash() => r'1e9047dedce0d695bf53888effad4575e2eaccd4';
+String _$mobileCodexClientHash() => r'b02565c8529d80510f07fdc9ae34349aab804c71';
 
 final class MobileCodexClientFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<MobileCodexClient>, String> {

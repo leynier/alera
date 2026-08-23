@@ -12,9 +12,7 @@ const Duration mobileQuotaRefreshInterval = Duration(minutes: 5);
 class AgentQuotaController extends _$AgentQuotaController {
   @override
   Future<QuotaSnapshotState> build(String hostId) async {
-    final client = await ref.watch(
-      hostConnectionControllerProvider(hostId).future,
-    );
+    final client = await watchHostConnection(ref, hostId);
     if (!client.supportsAgentQuotas) {
       throw UnsupportedError('Update the runtime to view quotas.');
     }

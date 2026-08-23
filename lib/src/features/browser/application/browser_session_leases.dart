@@ -1,6 +1,17 @@
 part of 'browser_session_registry.dart';
 
 extension _BrowserSessionRegistryLeases on BrowserSessionRegistry {
+  BrowserVisibilityLease? _tryAcquireVisibility(
+    _BrowserSessionEntry entry,
+    BrowserVisibilityReason reason,
+  ) {
+    _checkNotDisposed();
+    if (entry.closing || entry.closed) {
+      return null;
+    }
+    return _acquireVisibility(entry, reason);
+  }
+
   BrowserVisibilityLease _acquireVisibility(
     _BrowserSessionEntry entry,
     BrowserVisibilityReason reason,

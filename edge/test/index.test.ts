@@ -87,13 +87,17 @@ function relayEnvironment(stub: DurableObjectStub): EdgeEnvironment {
 }
 
 class TestSocket {
-  constructor(readonly attachment: ReturnType<typeof relayAttachment>) {}
+  constructor(public attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {}
 
   readonly sent: Uint8Array[] = [];
   closed: { code: number; reason: string } | null = null;
 
   deserializeAttachment() {
     return this.attachment;
+  }
+
+  serializeAttachment(attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {
+    this.attachment = attachment;
   }
 
   send(value: Uint8Array) {
@@ -167,6 +171,48 @@ describe('Alera API edge', () => {
     relayObject([runtime, mobile]).webSocketClose(mobile as unknown as WebSocket);
 
     expect(runtime.sent).toEqual([relayFrame('mobile-1', [])]);
+  });
+
+  test('does not notify the runtime again when a replaced mobile closes', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const mobile = new TestSocket({
+      ...relayAttachment('mobile', 'mobile-1'),
+      suppressDisconnect: true,
+    });
+
+    relayObject([runtime, mobile]).webSocketClose(mobile as unknown as WebSocket);
+
+    expect(runtime.sent).toBeEmpty();
+  });
+
+  test('disconnects matching mobiles when the runtime disconnects', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+    const otherRuntimeMobile = new TestSocket({
+      ...relayAttachment('mobile', 'mobile-2'),
+      runtimeId: 'runtime-2',
+    });
+
+    relayObject([runtime, mobile, otherRuntimeMobile]).webSocketClose(runtime as unknown as WebSocket);
+
+    expect(mobile.attachment.suppressDisconnect).toBeTrue();
+    expect(mobile.closed).toEqual({
+      code: 4002,
+      reason: 'runtime disconnected',
+    });
+    expect(otherRuntimeMobile.closed).toBeNull();
+  });
+
+  test('does not disconnect a new mobile when a replaced runtime closes later', () => {
+    const oldRuntime = new TestSocket({
+      ...relayAttachment('runtime', 'runtime-1'),
+      suppressDisconnect: true,
+    });
+    const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+
+    relayObject([oldRuntime, mobile]).webSocketClose(oldRuntime as unknown as WebSocket);
+
+    expect(mobile.closed).toBeNull();
   });
 
   test('rejects paths outside the public API', async () => {
@@ -258,6 +304,32 @@ describe('Alera API edge', () => {
     expect(response.status).toBe(426);
   });
 
+  for (const controlPath of ['/v1/relay/identity', '/v1/relay/grants']) {
+    test(`proxies ${controlPath} to the control plane when the relay is enabled`, async () => {
+      let originCalled = false;
+      const response = await handleRequest(
+        new Request(`https://api.alera.build${controlPath}`, {
+          body: '{}',
+          headers: { authorization: 'Bearer account-token' },
+          method: 'POST',
+        }),
+        {
+          ...environment(),
+          RELAY_ENABLED: 'true',
+        },
+        async (originRequest) => {
+          originCalled = true;
+          expect(originRequest.url).toBe(`https://alera-cloud.example.run.app${controlPath}`);
+          expect(originRequest.headers.get('x-alera-origin-auth')).toBe('edge-secret');
+          return new Response(null, { status: 204 });
+        },
+      );
+
+      expect(response.status).toBe(204);
+      expect(originCalled).toBeTrue();
+    });
+  }
+
   for (const [missingValue, relayConfiguration] of [
     [
       'Durable Object binding',
@@ -316,6 +388,7 @@ describe('Alera API edge', () => {
   test('verifies a grant and forwards only claims to the runtime object', async () => {
     const { grant, publicJwk } = await signedRelayGrant();
     const forwarded: Request[] = [];
+    const originRequests: Request[] = [];
     const stub = {
       fetch(request: Request) {
         forwarded.push(request);
@@ -331,11 +404,17 @@ describe('Alera API edge', () => {
         },
       }),
       environmentWithRelay,
-      undefined,
-      relayJwks(publicJwk),
+      async (originRequest) => {
+        originRequests.push(originRequest);
+        return relayJwks(publicJwk)();
+      },
     );
 
     expect(response.status).toBe(200);
+    expect(originRequests).toHaveLength(1);
+    expect(originRequests[0].url).toBe('https://alera-cloud.example.run.app/.well-known/jwks.json');
+    expect(originRequests[0].headers.get('x-alera-origin-auth')).toBe('edge-secret');
+    expect(originRequests[0].headers.get('x-forwarded-host')).toBe('api.alera.build');
     expect(forwarded).toHaveLength(1);
     expect(forwarded[0].headers.get('authorization')).toBeNull();
     expect(forwarded[0].headers.get('x-alera-relay-claims')).toBeTruthy();

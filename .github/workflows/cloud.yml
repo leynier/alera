@@ -145,7 +145,10 @@ jobs:
         run: python3 -m unittest -v test_validate_tofu_plan.py
 
       - name: Validate Deployment Scripts
-        run: bash -n tool/cloud/deploy_worker_relay_disabled.sh tool/cloud/verify_production.sh tool/cloud/verify_worker_namespace.sh
+        run: bash -n tool/cloud/deploy_worker_relay_disabled.sh tool/cloud/test_verify_production.sh tool/cloud/verify_production.sh tool/cloud/verify_worker_namespace.sh
+
+      - name: Test Production Verifier
+        run: bash tool/cloud/test_verify_production.sh
 
   cloud-ready:
     name: cloud-ready

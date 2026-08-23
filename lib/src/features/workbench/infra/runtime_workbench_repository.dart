@@ -4,6 +4,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
@@ -146,6 +147,24 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
   @override
   Future<void> removeWorkspaceTab(String tabId) async {
     await _ensureReady();
+    try {
+      await _removeWorkspaceTab(tabId);
+    } on TerminalHostRequestTimeoutException catch (error) {
+      if (error.requestType != 'tab.remove') {
+        rethrow;
+      }
+      // The host may commit after the client stops waiting. Replaying this
+      // idempotent removal obtains an authoritative response instead of
+      // treating an ambiguous timeout as success.
+      await _removeWorkspaceTab(tabId);
+    } on TerminalHostConnectionClosedException {
+      // The request may have reached the host before the disconnect. The
+      // sidecar's remove contract is idempotent, so one replay is safe.
+      await _removeWorkspaceTab(tabId);
+    }
+  }
+
+  Future<void> _removeWorkspaceTab(String tabId) async {
     await _client.runtimeRequest('tab.remove', <String, Object?>{'id': tabId});
   }
 

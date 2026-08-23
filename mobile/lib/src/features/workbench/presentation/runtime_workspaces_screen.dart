@@ -65,7 +65,9 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
               child: AleraStatusDot(
                 // Riverpod keeps the previous value on an error state, so
                 // hasValue alone would keep the dot green on a dead socket.
-                active: connection.hasValue && !connection.hasError,
+                active:
+                    connection is AsyncData &&
+                    connection.value?.isConnectionUsable == true,
                 size: AleraTokens.spaceSm,
               ),
             ),
@@ -132,13 +134,7 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                 child: _ConnectionError(
                   error: error,
                   onRetry: () {
-                    unawaited(
-                      ref
-                          .read(
-                            hostConnectionControllerProvider(host.id).notifier,
-                          )
-                          .reconnectNow(),
-                    );
+                    unawaited(_retryConnection(ref, host.id));
                   },
                 ),
               ),
@@ -179,6 +175,19 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
             )
           : null,
     );
+  }
+
+  Future<void> _retryConnection(WidgetRef ref, String hostId) async {
+    try {
+      await ref
+          .read(hostConnectionControllerProvider(hostId).notifier)
+          .requireUsableClient();
+    } on Object {
+      // The invalidated surface providers below render the connection error.
+    } finally {
+      ref.invalidate(workspaceListControllerProvider(hostId));
+      ref.invalidate(mobileViewPrefsControllerProvider(hostId));
+    }
   }
 
   Future<void> _handleMenu(

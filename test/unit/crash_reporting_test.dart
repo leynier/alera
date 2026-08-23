@@ -101,8 +101,7 @@ void main() {
     expect(CrashReporting.filterEvent(event), same(event));
     expect(
       timeout.toString(),
-      'Terminal host request "tab.remove" timed out after 10000 ms. '
-      'The connection was closed.',
+      'Terminal host request "tab.remove" timed out after 10000 ms.',
     );
   });
 

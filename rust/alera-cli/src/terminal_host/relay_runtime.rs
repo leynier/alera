@@ -3,15 +3,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tokio_tungstenite::{
-    connect_async, tungstenite::http::Request, tungstenite::Message, MaybeTlsStream,
-    WebSocketStream,
-};
+use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 use crate::terminal_host::alera_account::{AleraAccountService, RelayGrant};
 use crate::terminal_host::client::{
@@ -19,19 +15,13 @@ use crate::terminal_host::client::{
 };
 use crate::terminal_host::frame_codec::encode_output_payload;
 
-use super::relay_runtime_auth::{decode_fixed, decode_nonce, verify_grant};
+use super::relay_connection::{relay_request, RelayRetryBackoff};
+use super::relay_runtime_auth::{decode_fixed, decode_nonce, encode, verify_grant};
 use super::server::ServerCommand;
 use super::{relay_crypto::IdentityKeyPair, relay_wire};
 
 const MAX_MOBILE_CLIENTS: usize = 8;
-const RETRY_DELAYS: [Duration; 6] = [
-    Duration::from_secs(1),
-    Duration::from_secs(2),
-    Duration::from_secs(4),
-    Duration::from_secs(8),
-    Duration::from_secs(16),
-    Duration::from_secs(30),
-];
+const RELAY_PRESENCE_INTERVAL: Duration = Duration::from_secs(60);
 
 struct PendingPeer {
     client_id: String,
@@ -65,6 +55,7 @@ struct RelayInbound<'a> {
     write: &'a mut RelayWrite,
     pending: &'a mut HashMap<String, PendingPeer>,
     active: &'a mut HashMap<String, ActivePeer>,
+    fragments: &'a mut HashMap<String, relay_wire::FragmentReassembler>,
 }
 
 pub fn spawn(
@@ -85,7 +76,7 @@ async fn run(
     next_client_id: Arc<AtomicU64>,
     mut stop: oneshot::Receiver<()>,
 ) {
-    let mut retry_index = 0_usize;
+    let mut retry_backoff = RelayRetryBackoff::default();
     loop {
         let result = connect_and_serve(
             &service,
@@ -93,14 +84,12 @@ async fn run(
             inbox.clone(),
             next_client_id.clone(),
             &mut stop,
+            &mut retry_backoff,
         )
         .await;
-        if result.is_ok() {
-            return;
-        }
-        let delay = RETRY_DELAYS[retry_index];
-        retry_index = (retry_index + 1).min(RETRY_DELAYS.len() - 1);
-        tracing::warn!("remote mobile relay disconnected; retrying in {:?}", delay);
+        let Err(error) = result else { return };
+        let delay = retry_backoff.next_delay();
+        tracing::warn!(%error, "remote mobile relay disconnected; retrying in {:?}", delay);
         tokio::select! {
             _ = tokio::time::sleep(delay) => {}
             _ = &mut stop => return,
@@ -114,6 +103,7 @@ async fn connect_and_serve(
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     stop: &mut oneshot::Receiver<()>,
+    retry_backoff: &mut RelayRetryBackoff,
 ) -> anyhow::Result<()> {
     let identity = service.relay_identity().await?;
     let grant = service.relay_grant().await?;
@@ -123,20 +113,21 @@ async fn connect_and_serve(
         || grant.expires_in <= 0
         || grant.client_key_version <= 0
         || grant.runtime_public_key.is_some()
-        || grant.client_public_key != encoded(identity.public_bytes())
+        || grant.client_public_key != encode(identity.public_bytes())
     {
         anyhow::bail!("cloud returned an invalid runtime relay grant");
     }
-    let request = Request::builder()
-        .uri(&grant.relay_url)
-        .header("authorization", format!("Bearer {}", grant.grant))
-        .header("origin", "https://app.alera.build")
-        .body(())?;
+    let request = relay_request(&grant.relay_url, &grant.grant)?;
     let (socket, _) = connect_async(request).await?;
+    retry_backoff.reset();
     let (mut write, mut read) = socket.split();
     let (outbound_tx, mut outbound_rx) = mpsc::unbounded_channel::<RelayOutbound>();
     let mut pending = HashMap::<String, PendingPeer>::new();
     let mut active = HashMap::<String, ActivePeer>::new();
+    let mut fragments = HashMap::<String, relay_wire::FragmentReassembler>::new();
+    let mut presence = tokio::time::interval(RELAY_PRESENCE_INTERVAL);
+    presence.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    presence.tick().await;
     loop {
         tokio::select! {
             _ = &mut *stop => {
@@ -145,7 +136,21 @@ async fn connect_and_serve(
             }
             outbound = outbound_rx.recv() => {
                 let Some(outbound) = outbound else { return Ok(()); };
-                write.send(Message::Binary(relay_wire::wrap(&outbound.client_id, &outbound.payload)?.into())).await?;
+                for payload in relay_wire::fragment(&outbound.payload)? {
+                    write.send(Message::Binary(relay_wire::wrap(&outbound.client_id, &payload)?.into())).await?;
+                }
+            }
+            _ = presence.tick() => {
+                // Discovery expires runtimes independently of the relay socket lifetime.
+                match service.relay_identity().await {
+                    Ok(refreshed) if refreshed.public_bytes() != identity.public_bytes() => {
+                        anyhow::bail!("relay identity rotated; reconnecting");
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::warn!(%error, "could not refresh remote mobile relay presence");
+                    }
+                }
             }
             inbound = read.next() => {
                 match inbound {
@@ -160,6 +165,7 @@ async fn connect_and_serve(
                             write: &mut write,
                             pending: &mut pending,
                             active: &mut active,
+                            fragments: &mut fragments,
                         }).await {
                             tracing::warn!(%error, "rejected a remote mobile relay frame");
                         }
@@ -175,6 +181,7 @@ async fn connect_and_serve(
                             write: &mut write,
                             pending: &mut pending,
                             active: &mut active,
+                            fragments: &mut fragments,
                         }).await {
                             tracing::warn!(%error, "rejected a remote mobile relay frame");
                         }
@@ -200,9 +207,11 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         write,
         pending,
         active,
+        fragments,
     } = context;
     let (client_id, payload) = relay_wire::unwrap(frame)?;
     if payload.is_empty() {
+        fragments.remove(&client_id);
         pending.remove(&client_id);
         if let Some(peer) = active.remove(&client_id) {
             peer.writer.abort();
@@ -212,6 +221,14 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         }
         return Ok(());
     }
+    let Some(payload) = fragments
+        .entry(client_id.clone())
+        .or_default()
+        .accept(payload)?
+    else {
+        return Ok(());
+    };
+    let payload = payload.as_slice();
     if active.contains_key(&client_id) {
         let (numeric_id, opened) = {
             let peer = active
@@ -292,7 +309,7 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         || claims.account_id != runtime_grant.account_id
         || hello.key_version != claims.key_version
         || hello.identity_public_key != claims.client_public_key
-        || claims.runtime_public_key != encoded(identity.public_bytes())
+        || claims.runtime_public_key != encode(identity.public_bytes())
     {
         anyhow::bail!("relay mobile grant is out of scope");
     }
@@ -315,10 +332,10 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         version: relay_wire::RELAY_HELLO_VERSION,
         runtime_id: runtime_id.to_owned(),
         client_id: client_id.clone(),
-        identity_public_key: encoded(identity.public_bytes()),
-        ephemeral_public_key: encoded(runtime_ephemeral.public_bytes()),
-        nonce: encoded(nonce),
-        confirmation: encoded(confirmation),
+        identity_public_key: encode(identity.public_bytes()),
+        ephemeral_public_key: encode(runtime_ephemeral.public_bytes()),
+        nonce: encode(nonce),
+        confirmation: encode(confirmation),
     };
     write
         .send(Message::Binary(
@@ -466,6 +483,6 @@ async fn dispose_peers(
     }
 }
 
-fn encoded(bytes: impl AsRef<[u8]>) -> String {
-    URL_SAFE_NO_PAD.encode(bytes)
-}
+#[cfg(test)]
+#[path = "relay_runtime_tests.rs"]
+mod tests;
