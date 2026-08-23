@@ -10,7 +10,7 @@ final class _TerminalHostTestServer {
     this.closeForType,
     this.closeAfterResponseForType,
     this.beforeResponse,
-    this.statusPayload = const <String, Object?>{},
+    this.statusPayload,
     this.negotiateBinaryFrames = false,
     this._runtimeMutationBusyForType,
     int runtimeMutationBusyResponses = 0,
@@ -21,7 +21,7 @@ final class _TerminalHostTestServer {
     String? closeForType,
     String? closeAfterResponseForType,
     Future<void> Function(String type)? beforeResponse,
-    Map<String, Object?> statusPayload = const <String, Object?>{},
+    Map<String, Object?>? statusPayload,
     bool negotiateBinaryFrames = false,
     String? runtimeMutationBusyForType,
     int runtimeMutationBusyResponses = 0,
@@ -47,7 +47,7 @@ final class _TerminalHostTestServer {
   final String? closeForType;
   final String? closeAfterResponseForType;
   final Future<void> Function(String type)? beforeResponse;
-  final Map<String, Object?> statusPayload;
+  final Map<String, Object?>? statusPayload;
   final bool negotiateBinaryFrames;
   final String? _runtimeMutationBusyForType;
   int _remainingRuntimeMutationBusyResponses;
@@ -157,7 +157,7 @@ final class _TerminalHostTestServer {
       });
       return;
     }
-    if (type == 'status.get') {
+    if (type == 'status.get' && statusPayload != null) {
       _respond(socket, <String, Object?>{
         'id': id,
         'ok': true,
