@@ -38,9 +38,6 @@ part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
 
-const Duration _defaultRequestTimeout = Duration(seconds: 20);
-const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
-
 class MobileRuntimeClient
     with
         MobileRuntimeWorkspaceSidebarClient,
