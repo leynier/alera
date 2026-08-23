@@ -416,7 +416,7 @@ class MobileRuntimeClient
         emitTerminalOutput(output);
         return;
       }
-      if (!_looksLikeJsonBytes(raw)) {
+      if (!looksLikeJsonBytes(raw)) {
         return;
       }
     }
@@ -497,14 +497,4 @@ class MobileRuntimeClient
     // rather than a StateError that would look like a programming fault.
     _handleSocketError(const RuntimeConnectionLost());
   }
-}
-
-bool _looksLikeJsonBytes(List<int> bytes) {
-  for (final byte in bytes) {
-    if (byte == 0x20 || byte == 0x09 || byte == 0x0a || byte == 0x0d) {
-      continue;
-    }
-    return byte == 0x7b || byte == 0x5b;
-  }
-  return false;
 }

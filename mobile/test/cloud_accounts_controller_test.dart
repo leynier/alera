@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_repository.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
@@ -86,6 +88,62 @@ void main() {
     expect(container.read(cloudAccountsControllerProvider).value, isEmpty);
     expect(api.pushTokenDeleteCalls, 0);
   });
+
+  test(
+    'Session Refresh Is Serialized And Cannot Replace Reenrollment',
+    () async {
+      final expired = CloudAccountSession(
+        account: const CloudAccountProfile(
+          id: 'account-1',
+          email: 'owner@example.com',
+        ),
+        accessToken: 'expired-access',
+        refreshToken: 'expired-refresh',
+        accessTokenExpiresAt: DateTime.now().toUtc(),
+      );
+      final reenrolled = expired.copyWith(
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+        accessTokenExpiresAt: DateTime.now().toUtc().add(
+          const Duration(minutes: 15),
+        ),
+      );
+      final repository = _MemoryRepository(expired);
+      final api = _RefreshApi(reenrolled);
+      final container = ProviderContainer(
+        overrides: [
+          cloudAccountRepositoryProvider.overrideWithValue(repository),
+          aleraCloudApiProvider.overrideWithValue(api),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(cloudAccountsControllerProvider.future);
+      final controller = container.read(
+        cloudAccountsControllerProvider.notifier,
+      );
+
+      final firstRefresh = controller.sessionForRequest('account-1');
+      await api.refreshStarted.future;
+      final secondRefresh = controller.sessionForRequest('account-1');
+      await controller.redeemEnrollment('enrollment-code');
+      api.refreshRelease.complete();
+      await Future.wait(<Future<CloudAccountSession?>>[
+        firstRefresh,
+        secondRefresh,
+      ]);
+
+      expect(api.refreshCalls, 1);
+      expect(repository.sessions.single.refreshToken, 'new-refresh');
+      expect(
+        container
+            .read(cloudAccountsControllerProvider)
+            .value
+            ?.single
+            .refreshToken,
+        'new-refresh',
+      );
+    },
+  );
 }
 
 class _MemoryRepository implements CloudAccountRepository {
@@ -107,7 +165,76 @@ class _MemoryRepository implements CloudAccountRepository {
   }
 
   @override
-  Future<void> saveSession(CloudAccountSession session) async {}
+  Future<void> saveSession(CloudAccountSession session) async {
+    sessions.removeWhere((item) => item.account.id == session.account.id);
+    sessions.add(session);
+  }
+}
+
+class _RefreshApi implements AleraCloudApi {
+  _RefreshApi(this.reenrolled);
+
+  final CloudAccountSession reenrolled;
+  final Completer<void> refreshStarted = Completer<void>();
+  final Completer<void> refreshRelease = Completer<void>();
+  int refreshCalls = 0;
+
+  @override
+  Future<CloudAccountSession> refreshSession(
+    CloudAccountSession session,
+  ) async {
+    refreshCalls += 1;
+    if (!refreshStarted.isCompleted) {
+      refreshStarted.complete();
+    }
+    await refreshRelease.future;
+    return session.copyWith(
+      accessToken: 'rotated-access',
+      refreshToken: 'rotated-refresh',
+      accessTokenExpiresAt: DateTime.now().toUtc().add(
+        const Duration(minutes: 15),
+      ),
+    );
+  }
+
+  @override
+  Future<CloudEnrollmentResult> redeemEnrollment({
+    required String code,
+    required String deviceId,
+    required String deviceName,
+  }) async =>
+      CloudEnrollmentResult(session: reenrolled, runtimeId: 'runtime-1');
+
+  @override
+  Future<CloudAccountProfile> accountStatus(
+    CloudAccountSession session,
+  ) async => session.account;
+
+  @override
+  Future<void> deletePushToken(CloudAccountSession session) async {}
+
+  @override
+  Future<void> deleteSubscription({
+    required CloudAccountSession session,
+    required String runtimeId,
+  }) async {}
+
+  @override
+  Future<void> putSubscription({
+    required CloudAccountSession session,
+    required String runtimeId,
+    required RuntimePushPreferences preferences,
+  }) async {}
+
+  @override
+  Future<void> registerPushToken({
+    required CloudAccountSession session,
+    required String token,
+    required String platform,
+  }) async {}
+
+  @override
+  Future<void> revokeSession(CloudAccountSession session) async {}
 }
 
 class _RemovalApi implements AleraCloudApi {
