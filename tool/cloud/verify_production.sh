@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 3 ]]; then
-  echo "usage: verify_production.sh <public-url> <origin-url> <relay-state>" >&2
+if [[ $# -lt 3 || $# -gt 4 ]]; then
+  echo "usage: verify_production.sh <public-url> <origin-url> <relay-state> [relay-control-state]" >&2
   exit 2
 fi
 
 public_url="${1%/}"
 origin_url="${2%/}"
 relay_state="$3"
+relay_control_state="${4:-backend}"
 attempts=12
 
 case "$relay_state" in
@@ -20,6 +21,19 @@ case "$relay_state" in
     ;;
   *)
     echo "relay-state must be disabled or enabled" >&2
+    exit 2
+    ;;
+esac
+
+case "$relay_control_state" in
+  backend)
+    expected_relay_control_status=401
+    ;;
+  worker)
+    expected_relay_control_status=426
+    ;;
+  *)
+    echo "relay-control-state must be backend or worker" >&2
     exit 2
     ;;
 esac
@@ -59,7 +73,11 @@ if [[ "$relay_status" != "$expected_relay_status" ]]; then
   exit 1
 fi
 
-for relay_control_path in /v1/relay/identity /v1/relay/grants; do
+for relay_control_probe in \
+  '/v1/relay/identity|{"publicKey":"deploy-probe","keyVersion":1}' \
+  '/v1/relay/grants|{"runtimeId":"deploy-probe"}'; do
+  relay_control_path="${relay_control_probe%%|*}"
+  relay_control_body="${relay_control_probe#*|}"
   relay_control_status=""
   for ((attempt = 1; attempt <= attempts; attempt++)); do
     if relay_control_status="$(
@@ -70,15 +88,15 @@ for relay_control_path in /v1/relay/identity /v1/relay/grants; do
         --write-out '%{http_code}' \
         --max-time 20 \
         --header 'content-type: application/json' \
-        --data '{}' \
+        --data "$relay_control_body" \
         "$public_url$relay_control_path"
-    )" && [[ "$relay_control_status" == "401" ]]; then
+    )" && [[ "$relay_control_status" == "$expected_relay_control_status" ]]; then
       break
     fi
     sleep 5
   done
-  if [[ "$relay_control_status" != "401" ]]; then
-    echo "public relay control path $relay_control_path returned $relay_control_status; expected 401" >&2
+  if [[ "$relay_control_status" != "$expected_relay_control_status" ]]; then
+    echo "public relay control path $relay_control_path returned $relay_control_status; expected $expected_relay_control_status for $relay_control_state" >&2
     exit 1
   fi
 done
@@ -97,4 +115,4 @@ if [[ "$origin_status" != "401" ]]; then
   exit 1
 fi
 
-echo "public health and JWKS succeeded; relay was $relay_state; relay control paths reached the backend; direct origin JWKS remained closed"
+echo "public health and JWKS succeeded; relay was $relay_state; relay control state was $relay_control_state; direct origin JWKS remained closed"

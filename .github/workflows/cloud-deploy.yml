@@ -38,6 +38,14 @@ on:
         options:
           - disabled
           - enabled
+      rollback_relay_control_state:
+        description: Expected relay control routing in the rollback Worker version
+        required: true
+        default: backend
+        type: choice
+        options:
+          - backend
+          - worker
 
 permissions:
   contents: read
@@ -303,8 +311,38 @@ jobs:
               exit 1
               ;;
           esac
+          previous_relay_control_status=""
+          for _ in 1 2 3; do
+            if previous_relay_control_status="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                --max-time 20 \
+                --header 'content-type: application/json' \
+                --data '{"publicKey":"deploy-probe","keyVersion":1}' \
+                "$PUBLIC_API_URL/v1/relay/identity"
+            )" && [[ "$previous_relay_control_status" == "401" || "$previous_relay_control_status" == "426" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          case "$previous_relay_control_status" in
+            401)
+              previous_relay_control_state=backend
+              ;;
+            426)
+              previous_relay_control_state=worker
+              ;;
+            *)
+              echo "Cannot determine the current relay control state from HTTP $previous_relay_control_status." >&2
+              exit 1
+              ;;
+          esac
           {
             echo "previous_image=$previous_image"
+            echo "previous_relay_control_state=$previous_relay_control_state"
             echo "previous_relay_state=$previous_relay_state"
             echo "previous_worker_version=$previous_worker_version"
           } >>"$GITHUB_OUTPUT"
@@ -445,7 +483,7 @@ jobs:
           EXPECTED_RELAY_STATE: ${{ steps.relay.outputs.state }}
         run: |
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$EXPECTED_RELAY_STATE"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$EXPECTED_RELAY_STATE" backend
 
       - name: Roll Back Worker Automatically
         id: automatic_worker_rollback
@@ -507,6 +545,7 @@ jobs:
         continue-on-error: true
         env:
           FORWARD_RECOVERY: ${{ steps.automatic_worker_forward_recovery.outcome }}
+          PREVIOUS_RELAY_CONTROL_STATE: ${{ steps.current.outputs.previous_relay_control_state }}
           PREVIOUS_RELAY_STATE: ${{ steps.current.outputs.previous_relay_state }}
           RECOVERY_NAMESPACE: ${{ steps.automatic_recovery_namespace.outcome }}
           WORKER_ROLLBACK: ${{ steps.automatic_worker_rollback.outcome }}
@@ -517,15 +556,17 @@ jobs:
             exit 1
           fi
           if [[ "$WORKER_ROLLBACK" == "success" ]]; then
+            expected_relay_control_state="$PREVIOUS_RELAY_CONTROL_STATE"
             expected_relay_state="$PREVIOUS_RELAY_STATE"
           elif [[ "$FORWARD_RECOVERY" == "success" ]]; then
+            expected_relay_control_state=backend
             expected_relay_state=disabled
           else
             echo "Neither Worker rollback nor forward recovery succeeded." >&2
             exit 1
           fi
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state" "$expected_relay_control_state"
 
       - name: Report Failed Deployment
         if: ${{ always() && env.DEPLOY_MODE == 'deploy' && (steps.worker.outcome == 'failure' || steps.namespace.outcome == 'failure' || steps.verify.outcome == 'failure') }}
@@ -603,6 +644,7 @@ jobs:
         env:
           FORWARD_RECOVERY: ${{ steps.manual_worker_forward_recovery.outcome }}
           NAMESPACE_RECOVERY: ${{ steps.manual_namespace.outcome }}
+          REQUESTED_RELAY_CONTROL_STATE: ${{ inputs.rollback_relay_control_state }}
           REQUESTED_RELAY_STATE: ${{ inputs.rollback_relay_state }}
           WORKER_ROLLBACK: ${{ steps.manual_worker.outcome }}
         run: |
@@ -612,26 +654,30 @@ jobs:
             exit 1
           fi
           if [[ "$WORKER_ROLLBACK" == "success" ]]; then
+            expected_relay_control_state="$REQUESTED_RELAY_CONTROL_STATE"
             expected_relay_state="$REQUESTED_RELAY_STATE"
           elif [[ "$FORWARD_RECOVERY" == "success" ]]; then
+            expected_relay_control_state=backend
             expected_relay_state=disabled
           else
             echo "Neither Worker rollback nor forward recovery succeeded." >&2
             exit 1
           fi
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state" "$expected_relay_control_state"
 
       - name: Require Successful Manual Rollback
         if: ${{ env.DEPLOY_MODE == 'rollback' && ((steps.manual_worker.outcome != 'success' && steps.manual_worker_forward_recovery.outcome != 'success') || steps.manual_namespace.outcome != 'success' || steps.manual_cloud_run.outcome != 'success' || steps.manual_verify.outcome != 'success') }}
         env:
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          ROLLBACK_RELAY_CONTROL_STATE: ${{ inputs.rollback_relay_control_state }}
           ROLLBACK_RELAY_STATE: ${{ inputs.rollback_relay_state }}
           ROLLBACK_WORKER_VERSION: ${{ inputs.rollback_worker_version }}
         run: |
           {
             echo "### Manual Rollback Failed"
             echo "- Requested relay state: $ROLLBACK_RELAY_STATE"
+            echo "- Requested relay control state: $ROLLBACK_RELAY_CONTROL_STATE"
             echo
             echo "- Requested image: \`$ROLLBACK_IMAGE\`"
             echo "- Requested Worker version: \`$ROLLBACK_WORKER_VERSION\`"
