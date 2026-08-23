@@ -379,6 +379,9 @@ export class RuntimeRelayDurableObject {
         if (peerAttachment.role === 'mobile') {
           peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
           this.notifyRuntimeOfMobileDisconnect(peerAttachment);
+        } else {
+          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
+          this.disconnectMobilesForRuntime(peerAttachment);
         }
         peer.close(
           4001,
@@ -443,17 +446,21 @@ export class RuntimeRelayDurableObject {
   }
 
   webSocketClose(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnectOnce(socket);
+    this.handlePeerDisconnectOnce(socket);
   }
 
   webSocketError(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnectOnce(socket);
+    this.handlePeerDisconnectOnce(socket);
   }
 
-  private notifyRuntimeOfMobileDisconnectOnce(socket: WebSocket): void {
-    const mobile = socket.deserializeAttachment() as RelayAttachment;
-    if (mobile.suppressDisconnect) return;
-    this.notifyRuntimeOfMobileDisconnect(mobile);
+  private handlePeerDisconnectOnce(socket: WebSocket): void {
+    const peer = socket.deserializeAttachment() as RelayAttachment;
+    if (peer.suppressDisconnect) return;
+    if (peer.role === 'mobile') {
+      this.notifyRuntimeOfMobileDisconnect(peer);
+    } else {
+      this.disconnectMobilesForRuntime(peer);
+    }
   }
 
   private notifyRuntimeOfMobileDisconnect(mobile: RelayAttachment): void {
@@ -467,6 +474,22 @@ export class RuntimeRelayDurableObject {
       } catch {
         peer.close(1011, 'relay forwarding failed');
       }
+    }
+  }
+
+  private disconnectMobilesForRuntime(runtime: RelayAttachment): void {
+    if (runtime.role !== 'runtime') return;
+    for (const peer of this.ctx.getWebSockets('mobile')) {
+      const mobile = peer.deserializeAttachment() as RelayAttachment;
+      if (
+        mobile.role !== 'mobile' ||
+        mobile.accountId !== runtime.accountId ||
+        mobile.runtimeId !== runtime.runtimeId
+      ) {
+        continue;
+      }
+      peer.serializeAttachment({ ...mobile, suppressDisconnect: true });
+      peer.close(4002, 'runtime disconnected');
     }
   }
 }
