@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
@@ -20,6 +20,7 @@ mod checkpoint_restore;
 #[cfg(test)]
 mod driver_test_stub;
 mod input_queue;
+mod instance_state;
 mod io_threads;
 mod output_backpressure;
 mod output_batching;
@@ -35,6 +36,7 @@ mod windows_process_job;
 #[cfg(test)]
 use input_queue::PtyDeferredWrite;
 use input_queue::PtyWrite;
+use instance_state::next_session_instance_id;
 use io_threads::{spawn_reader, spawn_writer};
 use pty_spawn::{spawn_pty, SpawnedPty};
 #[cfg(unix)]
@@ -44,11 +46,6 @@ use title_tracker::TerminalTitleTracker;
 use windows_process_job::WindowsProcessJob;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
-static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
-
-fn next_session_instance_id() -> u64 {
-    NEXT_SESSION_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)
-}
 
 fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
     previous.max(scrollback_len as u64)
@@ -120,6 +117,8 @@ pub struct DurableOutputBatch {
 /// state transitions run in its owning server actor, so no locks are required.
 pub struct Session {
     instance_id: u64,
+    /// Guards against re-delivery after this PTY accepts its after-ready prompt.
+    pub(super) initial_agent_prompt_delivered: bool,
     pub id: String,
     pub workspace_id: String,
     pub tab_id: String,
@@ -219,6 +218,7 @@ impl Session {
         title_tracker.feed(initial_scrollback);
         let mut session = Session {
             instance_id: next_session_instance_id(),
+            initial_agent_prompt_delivered: false,
             id,
             workspace_id,
             tab_id,

@@ -441,11 +441,15 @@ async fn agent_profile_removal_impact_in(
     for row in tab_rows {
         let payload: serde_json::Value =
             serde_json::from_str(&row.try_get::<String, _>("payloadJson")?)?;
-        if payload
+        let references_snapshot = payload
+            .pointer("/agentProfileLaunchV1/profile/id")
+            .and_then(serde_json::Value::as_str)
+            == Some(profile_id);
+        let references_legacy = payload
             .get("agentProfileId")
             .and_then(serde_json::Value::as_str)
-            == Some(profile_id)
-        {
+            == Some(profile_id);
+        if references_snapshot || references_legacy {
             tabs.push(AgentProfileTabReference {
                 workspace_id: row.try_get("workspaceId")?,
                 tab_id: row.try_get("id")?,

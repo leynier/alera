@@ -23,6 +23,7 @@ impl Session {
         title_tracker.feed(&checkpoint.buffer);
         Some(Session {
             instance_id: next_session_instance_id(),
+            initial_agent_prompt_delivered: false,
             id: session_id,
             workspace_id,
             tab_id,

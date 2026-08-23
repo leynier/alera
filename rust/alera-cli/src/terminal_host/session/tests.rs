@@ -59,6 +59,7 @@ impl Write for RecordingWriter {
 fn test_session() -> Session {
     Session {
         instance_id: next_session_instance_id(),
+        initial_agent_prompt_delivered: false,
         id: "session-1".to_string(),
         workspace_id: "workspace-1".to_string(),
         tab_id: "tab-1".to_string(),

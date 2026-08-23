@@ -6,6 +6,7 @@ impl Session {
     pub fn driver_test_stub(id: &str, cols: u16, rows: u16) -> Session {
         Session {
             instance_id: next_session_instance_id(),
+            initial_agent_prompt_delivered: false,
             id: id.to_string(),
             workspace_id: "workspace".to_string(),
             tab_id: format!("tab-{id}"),

@@ -125,6 +125,49 @@ async fn automation_reference_exposes_only_its_id_and_blocks_removal() {
 }
 
 #[tokio::test]
+async fn snapshot_tab_reference_exposes_only_tab_identity_and_blocks_removal() {
+    let (_dir, store) = store().await;
+    store
+        .upsert_agent_profile(profile("prof_a", "Codex Sol"), None)
+        .await
+        .unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "snapshot-tab".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Sensitive title".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({
+                "agentProfileLaunchV1": {
+                    "version": 1,
+                    "profile": {"id": "prof_a", "name": "Codex Sol", "revision": 0},
+                    "launch": {"kind": "command", "command": "secret command"}
+                },
+                "initialPrompt": "secret prompt"
+            }),
+        })
+        .await
+        .unwrap();
+
+    let impact = store
+        .agent_profile_removal_impact("prof_a", 0)
+        .await
+        .unwrap();
+
+    assert_eq!(impact.tabs.len(), 1);
+    assert_eq!(impact.tabs[0].workspace_id, "workspace-1");
+    assert_eq!(impact.tabs[0].tab_id, "snapshot-tab");
+    let encoded = serde_json::to_string(&impact).unwrap();
+    assert!(!encoded.contains("Sensitive title"));
+    assert!(!encoded.contains("secret command"));
+    assert!(!encoded.contains("secret prompt"));
+    assert!(store.remove_agent_profile("prof_a", 0).await.is_err());
+}
+
+#[tokio::test]
 async fn active_execution_policy_reference_exposes_only_run_id_and_blocks_removal() {
     let (_dir, store) = store().await;
     store
@@ -192,6 +235,27 @@ async fn database_guards_reject_references_committed_after_profile_removal() {
         .await
         .unwrap_err();
     assert!(tab_error.to_string().contains("reference does not exist"));
+
+    let snapshot_tab_error = store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "late-snapshot-tab".into(),
+            workspace_id: "workspace-1".into(),
+            kind: "terminal".into(),
+            title: "Late snapshot tab".into(),
+            created_at: now,
+            updated_at: now,
+            payload: json!({
+                "agentProfileLaunchV1": {
+                    "version": 1,
+                    "profile": {"id": "prof_a", "name": "Deleted", "revision": 0}
+                }
+            }),
+        })
+        .await
+        .unwrap_err();
+    assert!(snapshot_tab_error
+        .to_string()
+        .contains("reference does not exist"));
 
     let definition = automation("prof_a");
     assert_eq!(

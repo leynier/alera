@@ -8,6 +8,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::automation_dispatch::render_workspace_name;
 use super::requests::terminal_session_id_from_tab;
+use super::terminal_startup_commands::agent_profile_id;
 use super::ServerActor;
 
 impl ServerActor {
@@ -357,14 +358,17 @@ impl ServerActor {
                     "automation target workspace does not match the live tab",
                 ));
             }
-            if identity.profile_id.as_deref().is_some_and(|profile| {
-                tab.payload.get("agentProfileId").and_then(Value::as_str) != Some(profile)
-            }) || identity
-                .conversation_id
+            if identity
+                .profile_id
                 .as_deref()
-                .is_some_and(|conversation| {
-                    tab.payload.get("conversationId").and_then(Value::as_str) != Some(conversation)
-                })
+                .is_some_and(|profile| agent_profile_id(&tab) != Some(profile))
+                || identity
+                    .conversation_id
+                    .as_deref()
+                    .is_some_and(|conversation| {
+                        tab.payload.get("conversationId").and_then(Value::as_str)
+                            != Some(conversation)
+                    })
             {
                 return Err(HostError::state(
                     "automation target profile or conversation does not match the live tab",

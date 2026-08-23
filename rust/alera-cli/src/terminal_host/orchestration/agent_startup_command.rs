@@ -4,7 +4,9 @@
 //! that declaration into argv tokens, and into the one line a Command-mode
 //! profile becomes in the user's interactive shell.
 
-use super::agent_registry::{AgentAdapter, AgentStartupPrompt};
+use super::agent_profile_launch_snapshot::AgentInitialDeliveryMechanismV1;
+#[cfg(test)]
+use super::agent_registry::AgentAdapter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ShellFamily {
@@ -20,17 +22,32 @@ const OPTION_TERMINATOR: &str = "--";
 /// The argv tokens the initial prompt contributes, in order.
 ///
 /// Empty when the prompt never reaches the command line at launch.
+#[cfg(test)]
 pub fn initial_prompt_arguments(adapter: &AgentAdapter, prompt: &str) -> Vec<String> {
-    match adapter.startup_prompt {
-        AgentStartupPrompt::PositionalAfterTerminator => {
+    initial_prompt_arguments_for(
+        &AgentInitialDeliveryMechanismV1::from(adapter.startup_prompt),
+        prompt,
+    )
+}
+
+pub fn initial_prompt_arguments_for(
+    mechanism: &AgentInitialDeliveryMechanismV1,
+    prompt: &str,
+) -> Vec<String> {
+    match mechanism {
+        AgentInitialDeliveryMechanismV1::PositionalAfterTerminator => {
             vec![OPTION_TERMINATOR.to_string(), prompt.to_string()]
         }
-        AgentStartupPrompt::Positional => vec![defuse_leading_dash(prompt)],
-        AgentStartupPrompt::LongOption(flag) => vec![format!("{flag}={prompt}")],
-        AgentStartupPrompt::StdinScript | AgentStartupPrompt::TerminalAfterReady => Vec::new(),
+        AgentInitialDeliveryMechanismV1::Positional => vec![defuse_leading_dash(prompt)],
+        AgentInitialDeliveryMechanismV1::LongOption { flag } => {
+            vec![format!("{flag}={prompt}")]
+        }
+        AgentInitialDeliveryMechanismV1::StdinScript
+        | AgentInitialDeliveryMechanismV1::TerminalAfterReady => Vec::new(),
     }
 }
 
+#[cfg(test)]
 pub fn append_initial_prompt_argument(
     adapter: &AgentAdapter,
     arguments: &mut Vec<String>,
@@ -39,8 +56,31 @@ pub fn append_initial_prompt_argument(
     arguments.extend(initial_prompt_arguments(adapter, prompt));
 }
 
+pub fn append_initial_prompt_argument_for(
+    mechanism: &AgentInitialDeliveryMechanismV1,
+    arguments: &mut Vec<String>,
+    prompt: &str,
+) {
+    arguments.extend(initial_prompt_arguments_for(mechanism, prompt));
+}
+
+#[cfg(test)]
 pub fn command_with_initial_prompt(
     adapter: &AgentAdapter,
+    command: &str,
+    prompt: &str,
+    shell: &str,
+) -> String {
+    command_with_initial_prompt_for(
+        &AgentInitialDeliveryMechanismV1::from(adapter.startup_prompt),
+        command,
+        prompt,
+        shell,
+    )
+}
+
+pub fn command_with_initial_prompt_for(
+    mechanism: &AgentInitialDeliveryMechanismV1,
     command: &str,
     prompt: &str,
     shell: &str,
@@ -48,7 +88,7 @@ pub fn command_with_initial_prompt(
     let family = shell_family(shell);
     std::iter::once(command.trim().to_string())
         .chain(
-            initial_prompt_arguments(adapter, prompt)
+            initial_prompt_arguments_for(mechanism, prompt)
                 .into_iter()
                 .map(|token| {
                     if token == OPTION_TERMINATOR {
