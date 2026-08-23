@@ -237,6 +237,7 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
   }) async {}
 }
 
@@ -280,5 +281,6 @@ class _ManagedWorkspaceRuntimeWithDeferredSetup
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
   }) async {}
 }

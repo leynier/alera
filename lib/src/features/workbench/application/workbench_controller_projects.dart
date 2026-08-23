@@ -137,6 +137,7 @@ mixin _WorkbenchControllerProjects
     required Project project,
     required Workspace workspace,
     bool deleteBranch = true,
+    String? activeWorkspaceId,
   }) async {
     try {
       final workspaceTabs = state.tabsFor(workspace.id);
@@ -150,6 +151,7 @@ mixin _WorkbenchControllerProjects
         project: project,
         workspace: workspace,
         deleteBranch: deleteBranch,
+        activeWorkspaceId: activeWorkspaceId,
       );
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(

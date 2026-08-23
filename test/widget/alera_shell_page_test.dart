@@ -16,10 +16,13 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_spinner_scope.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
@@ -78,6 +81,9 @@ Future<_ShellPumpHarness> _pumpShell(
         agentQuotaStateProvider.overrideWith(
           (ref) async =>
               AgentQuotaState.empty(state.activeWorkspace?.hostId ?? 'local'),
+        ),
+        managedWorkspaceRuntimeProvider.overrideWithValue(
+          const _FakeManagedWorkspaceRuntime(),
         ),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
         if (editorSessionRegistry != null)

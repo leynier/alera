@@ -505,6 +505,11 @@ impl ServerActor {
                 self.handle_managed_workspace_created(client_id, request_id, result)
                     .await
             }
+            ServerCommand::WorkspaceStorageMeasured {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_workspace_storage_measured(client_id, request_id, result),
             ServerCommand::WorkspaceSetupFinished {
                 client_id,
                 request_id,

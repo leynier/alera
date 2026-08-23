@@ -135,20 +135,66 @@ mixin _ProjectWorkbenchSidebarActions
     }
     final branch = workspace.branch;
     final deleteBranch = !workspace.reusesExistingBranch;
-    final shouldConfirm = ref
-        .read(settingsControllerProvider)
-        .general
-        .confirmWorkspaceRemoval;
+    final managedRuntime = ref.read(managedWorkspaceRuntimeProvider);
+    WorkspaceStorageImpact? impact;
+    if (managedRuntime is WorkspaceStorageRuntime) {
+      try {
+        final measuredImpact = await (managedRuntime as WorkspaceStorageRuntime)
+            .storageImpact(
+              workspaceId: workspace.id,
+              activeWorkspaceId: ref
+                  .read(workbenchControllerProvider)
+                  .activeWorkspaceId,
+            );
+        impact = measuredImpact;
+        if (!mounted) return;
+        if (!measuredImpact.safeToClean) {
+          await showDialog<bool>(
+            context: context,
+            builder: (_) => AleraConfirmDialog(
+              title: 'Cleanup Unavailable',
+              message:
+                  'Alera measured ${formatResourceMemory(measuredImpact.sizeBytes)} across '
+                  '${measuredImpact.entryCount} entries. Cleanup is blocked:\n\n'
+                  '${measuredImpact.blockers.map((blocker) => '• $blocker').join('\n')}',
+              confirmLabel: 'Close',
+              cancelLabel: 'Cancel',
+            ),
+          );
+          return;
+        }
+      } catch (error) {
+        if (!mounted) return;
+        AleraToast.show(
+          context,
+          message: 'Could not inspect workspace storage: $error',
+          tone: AleraToastTone.error,
+        );
+        return;
+      }
+    }
+    final shouldConfirm =
+        impact != null ||
+        ref.read(settingsControllerProvider).general.confirmWorkspaceRemoval;
+    final lastActivity =
+        ref.read(workspaceActivityControllerProvider)[workspace.id] ??
+        impact?.lastActivityAt ??
+        workspace.updatedAt;
+    final impactSummary = impact == null
+        ? ''
+        : 'Measured size: ${formatResourceMemory(impact.sizeBytes)} '
+              'across ${impact.entryCount} entries.\n'
+              'Last activity: ${_workspaceStorageTimestamp(lastActivity)}.\n\n';
     final confirmed = shouldConfirm
         ? await showDialog<bool>(
             context: context,
             builder: (_) => AleraConfirmDialog(
-              title: 'Remove Workspace?',
-              message: !deleteBranch || branch == null || branch.isEmpty
-                  ? 'This removes the worktree for "${workspace.name}".'
-                  : 'This removes the worktree for "${workspace.name}" and deletes '
-                        'branch "$branch".',
-              confirmLabel: 'Remove',
+              title: impact == null
+                  ? 'Remove Workspace?'
+                  : 'Clean Up Workspace?',
+              message:
+                  '$impactSummary${!deleteBranch || branch == null || branch.isEmpty ? 'This removes the worktree for "${workspace.name}".' : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".'}',
+              confirmLabel: impact == null ? 'Remove' : 'Clean Up',
               destructive: true,
             ),
           )
@@ -163,6 +209,9 @@ mixin _ProjectWorkbenchSidebarActions
             project: project,
             workspace: workspace,
             deleteBranch: deleteBranch,
+            activeWorkspaceId: ref
+                .read(workbenchControllerProvider)
+                .activeWorkspaceId,
           );
       await ref
           .read(browserSessionRegistryProvider)
@@ -188,6 +237,13 @@ mixin _ProjectWorkbenchSidebarActions
         tone: AleraToastTone.error,
       );
     }
+  }
+
+  String _workspaceStorageTimestamp(DateTime value) {
+    final local = value.toLocal();
+    String twoDigits(int part) => part.toString().padLeft(2, '0');
+    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
+        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
   }
 
   Future<void> _manageWorkspaceTags(Workspace workspace) async {

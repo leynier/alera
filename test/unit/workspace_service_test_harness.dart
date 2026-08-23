@@ -155,6 +155,7 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
   }) async {
     removedWorkspace = workspace;
     this.deleteBranch = deleteBranch;

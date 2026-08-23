@@ -461,7 +461,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

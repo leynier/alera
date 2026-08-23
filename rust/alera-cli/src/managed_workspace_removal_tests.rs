@@ -2,12 +2,16 @@ use std::path::Path;
 use std::process::Command as StdCommand;
 
 use alera_core::runtime::{
-    Project, ProjectKind, RuntimeStore, Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
+    AutomationActor, AutomationActorKind, AutomationDefinition, AutomationMisfirePolicy,
+    AutomationOccurrence, AutomationOverlapPolicy, AutomationRunTrigger, AutomationSchedule,
+    AutomationSetupPolicy, AutomationState, AutomationTarget, Project, ProjectKind, RuntimeStore,
+    Workspace, WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
 };
 use chrono::Utc;
 
 use crate::managed_workspace::{
-    create_managed_workspace, remove_managed_workspace, validate_managed_workspace_removal,
+    create_managed_workspace, measure_workspace_storage, remove_managed_workspace,
+    validate_managed_workspace_removal, validate_workspace_storage_path,
     ManagedWorkspaceCreateRequest, ManagedWorkspaceRemoveRequest,
 };
 
@@ -48,6 +52,7 @@ async fn rejects_main_workspace_during_removal_validation() {
         &ManagedWorkspaceRemoveRequest {
             id: "main-workspace".to_string(),
             delete_branch: None,
+            active_workspace_id: None,
         },
     )
     .await
@@ -105,10 +110,193 @@ async fn preserves_unregistered_filesystem_entry() {
 
     let error = fixture.remove_managed_workspace().await.unwrap_err();
 
-    assert!(error.to_string().contains("git worktree remove failed"));
+    assert!(error.to_string().contains("not a registered Git worktree"));
     assert!(sentinel.exists());
     assert!(fixture.workspace_record().await.is_some());
     assert!(fixture.branch_exists());
+}
+
+#[tokio::test]
+async fn rejects_workspace_path_outside_host_owned_root() {
+    let fixture = RemovalFixture::new("contained").await;
+    let outside = fixture._root.path().join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    let mut workspace = fixture.workspace_record().await.unwrap();
+    workspace.path = outside.to_string_lossy().into_owned();
+    fixture.store.upsert_workspace(workspace).await.unwrap();
+
+    let error = validate_workspace_storage_path(&fixture.store, &fixture.workspace_id)
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("outside Alera-managed storage"));
+    assert!(outside.exists());
+}
+
+#[tokio::test]
+async fn removal_rechecks_path_containment_at_destructive_boundary() {
+    let fixture = RemovalFixture::new("moved-outside").await;
+    let outside = fixture._root.path().join("outside-removal");
+    std::fs::create_dir_all(&outside).unwrap();
+    let sentinel = outside.join("keep.txt");
+    std::fs::write(&sentinel, "keep").unwrap();
+    let mut workspace = fixture.workspace_record().await.unwrap();
+    workspace.path = outside.to_string_lossy().into_owned();
+    fixture.store.upsert_workspace(workspace).await.unwrap();
+
+    let error = fixture.remove_managed_workspace().await.unwrap_err();
+
+    assert!(error.to_string().contains("outside Alera-managed storage"));
+    assert!(sentinel.exists());
+    assert!(fixture.workspace_record().await.is_some());
+}
+
+#[tokio::test]
+async fn rejects_path_registered_as_another_project_source() {
+    let fixture = RemovalFixture::new("second-source").await;
+    let now = Utc::now();
+    fixture
+        .store
+        .upsert_project(Project {
+            id: "project-2".to_string(),
+            name: "Second".to_string(),
+            repo_path: fixture.worktree_path.to_string_lossy().into_owned(),
+            created_at: now,
+            updated_at: now,
+            kind: ProjectKind::GitRepository,
+        })
+        .await
+        .unwrap();
+
+    let error = fixture.remove_managed_workspace().await.unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("registered as a project source repository"));
+    assert!(fixture.worktree_path.exists());
+    assert!(fixture.workspace_record().await.is_some());
+}
+
+#[tokio::test]
+async fn rejects_stale_branch_identity_before_cleanup() {
+    let fixture = RemovalFixture::new("stale-branch").await;
+    let mut workspace = fixture.workspace_record().await.unwrap();
+    workspace.branch = Some("main".to_string());
+    fixture.store.upsert_workspace(workspace).await.unwrap();
+
+    let error = fixture.remove_managed_workspace().await.unwrap_err();
+
+    assert!(error.to_string().contains("branch does not match"));
+    assert!(fixture.worktree_path.exists());
+    assert!(fixture.branch_exists());
+}
+
+#[tokio::test]
+async fn rejects_workspace_owned_by_another_host() {
+    let fixture = RemovalFixture::new("remote-host").await;
+    let mut workspace = fixture.workspace_record().await.unwrap();
+    workspace.host_id = "remote".to_string();
+    fixture.store.upsert_workspace(workspace).await.unwrap();
+
+    let error = fixture.remove_managed_workspace().await.unwrap_err();
+
+    assert!(error.to_string().contains("not owned by the local host"));
+    assert!(fixture.worktree_path.exists());
+}
+
+#[tokio::test]
+async fn rejects_workspace_owned_by_an_active_automation_run() {
+    let fixture = RemovalFixture::new("automation-run").await;
+    let definition = automation_definition(&fixture.workspace_id);
+    let actor = definition.created_by.clone();
+    fixture
+        .store
+        .upsert_automation(definition.clone(), actor)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .create_automation_run(
+            &definition,
+            &AutomationOccurrence {
+                automation_id: definition.id.clone(),
+                key: "manual|cleanup-owner".to_string(),
+                scheduled_at: Utc::now(),
+                local_time: "UTC".to_string(),
+            },
+            AutomationRunTrigger::Manual,
+        )
+        .await
+        .unwrap();
+
+    let error = fixture.remove_managed_workspace().await.unwrap_err();
+
+    assert!(error.to_string().contains("active automation"));
+    assert!(fixture.worktree_path.exists());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn measurement_does_not_follow_workspace_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = RemovalFixture::new("linked-entry").await;
+    let outside = fixture._root.path().join("outside-large");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("large.bin"), vec![0_u8; 256 * 1024]).unwrap();
+    symlink(&outside, fixture.worktree_path.join("external")).unwrap();
+
+    let impact = measure_workspace_storage(&fixture.store, &fixture.workspace_id, Vec::new())
+        .await
+        .unwrap();
+
+    assert!(impact.safe_to_clean);
+    assert!(impact.size_bytes < 256 * 1024);
+}
+
+#[tokio::test]
+async fn active_workspace_blocker_disables_cleanup() {
+    let fixture = RemovalFixture::new("active").await;
+
+    let impact = measure_workspace_storage(
+        &fixture.store,
+        &fixture.workspace_id,
+        vec!["Workspace is active in the workbench".to_string()],
+    )
+    .await
+    .unwrap();
+
+    assert!(!impact.safe_to_clean);
+    assert_eq!(impact.blockers, ["Workspace is active in the workbench"]);
+}
+
+#[tokio::test]
+async fn missing_orphaned_worktree_is_measured_as_zero_and_remains_cleanable() {
+    let fixture = RemovalFixture::new("orphaned").await;
+    fixture.remove_worktree();
+
+    let impact = measure_workspace_storage(&fixture.store, &fixture.workspace_id, Vec::new())
+        .await
+        .unwrap();
+
+    assert!(impact.safe_to_clean);
+    assert_eq!(impact.size_bytes, 0);
+    assert_eq!(impact.entry_count, 0);
+}
+
+#[tokio::test]
+async fn successful_cleanup_after_safe_impact_removes_worktree_and_record() {
+    let fixture = RemovalFixture::new("cleanup").await;
+    let impact = measure_workspace_storage(&fixture.store, &fixture.workspace_id, Vec::new())
+        .await
+        .unwrap();
+    assert!(impact.safe_to_clean);
+
+    fixture.remove_managed_workspace().await.unwrap();
+
+    assert!(!fixture.worktree_path.exists());
+    assert!(fixture.workspace_record().await.is_none());
+    assert!(!fixture.branch_exists());
 }
 
 struct RemovalFixture {
@@ -193,6 +381,7 @@ impl RemovalFixture {
             ManagedWorkspaceRemoveRequest {
                 id: self.workspace_id.clone(),
                 delete_branch,
+                active_workspace_id: None,
             },
         )
         .await
@@ -201,6 +390,12 @@ impl RemovalFixture {
 
 async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
     let store = RuntimeStore::open(&root.join("runtime")).await.unwrap();
+    let workspace_root = root.join("workspaces");
+    std::fs::create_dir_all(&workspace_root).unwrap();
+    store
+        .set_workspace_directory(Some(&workspace_root.to_string_lossy()))
+        .await
+        .unwrap();
     let now = Utc::now();
     store
         .upsert_project(Project {
@@ -214,6 +409,54 @@ async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
         .await
         .unwrap();
     store
+}
+
+fn automation_definition(workspace_id: &str) -> AutomationDefinition {
+    let now = Utc::now();
+    let actor = AutomationActor {
+        kind: AutomationActorKind::LocalCli,
+        id: None,
+        label: None,
+    };
+    AutomationDefinition {
+        id: "cleanup-owner".to_string(),
+        slug: "cleanup-owner".to_string(),
+        name: "Cleanup Owner".to_string(),
+        description: String::new(),
+        project_id: None,
+        tag_ids: Vec::new(),
+        prompt_template: "Run".to_string(),
+        schedule: AutomationSchedule::OneTime {
+            at: now + chrono::Duration::hours(1),
+            timezone: "UTC".to_string(),
+        },
+        target: AutomationTarget::FreshTab {
+            workspace_id: workspace_id.to_string(),
+            agent_profile_id: "profile".to_string(),
+        },
+        setup_policy: AutomationSetupPolicy::Wait,
+        cleanup_policy: None,
+        overlap_policy: AutomationOverlapPolicy::Skip,
+        queue_cap: 10,
+        inactivity_timeout_seconds: 7200,
+        heartbeat_interval_seconds: 60,
+        misfire_grace_seconds: 900,
+        misfire_policy: AutomationMisfirePolicy::Skip,
+        retry_max_attempts: 3,
+        retry_backoff_seconds: 60,
+        circuit_failure_threshold: 3,
+        circuit_open_seconds: 900,
+        precheck: None,
+        notify_on_success: false,
+        circuit_opened: false,
+        state: AutomationState::Draft,
+        revision: 1,
+        approved_revision: None,
+        created_by: actor.clone(),
+        modified_by: actor,
+        created_at: now,
+        updated_at: now,
+    }
 }
 
 fn init_git_repo(repo: &Path) {

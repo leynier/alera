@@ -6,7 +6,10 @@
 
 use serde_json::Value;
 
-use crate::managed_workspace::{create_managed_workspace, ManagedWorkspaceCreateRequest};
+use crate::managed_workspace::{
+    create_managed_workspace, measure_workspace_storage, workspace_has_active_automation_owner,
+    ManagedWorkspaceCreateRequest,
+};
 use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::protocol::{error_response, ok_response};
 use crate::worktree_setup::run_workspace_setup;
@@ -16,6 +19,61 @@ use super::runtime_change_broadcasts::string_scope;
 use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
+    pub(super) fn start_workspace_storage_measurement(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        workspace_id: String,
+        active_workspace_id: Option<String>,
+    ) {
+        let mut blockers = Vec::new();
+        if active_workspace_id.as_deref() == Some(workspace_id.as_str()) {
+            blockers.push("Workspace is active in the workbench".to_string());
+        }
+        if self
+            .sessions
+            .values()
+            .any(|session| session.workspace_id == workspace_id && session.running())
+        {
+            blockers.push("Workspace has a live terminal session or process".to_string());
+        }
+        if self.browser.has_pages_for_workspace(&workspace_id) {
+            blockers.push("Workspace has a live browser session".to_string());
+        }
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            match workspace_has_active_automation_owner(&store, &workspace_id).await {
+                Ok(true) => blockers.push("Workspace is owned by an active automation".to_string()),
+                Err(error) => blockers.push(format!("Could not verify automations: {error}")),
+                _ => {}
+            }
+            let result =
+                json_result(measure_workspace_storage(&store, &workspace_id, blockers).await);
+            let _ = inbox.send(ServerCommand::WorkspaceStorageMeasured {
+                client_id,
+                request_id,
+                result,
+            });
+        });
+    }
+
+    pub(super) fn handle_workspace_storage_measured(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    ) {
+        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        match result {
+            Ok(payload) => self.client_write(client_id, ok_response(request_id, payload)),
+            Err(error) => self.client_write(client_id, error_response(request_id, &error)),
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
     /// Where deferred setup scripts are written: next to the control file, the
     /// host's own on-disk state, so a sweep at startup can clear leftovers.
     pub(super) fn setup_script_directory(&self) -> Option<std::path::PathBuf> {
