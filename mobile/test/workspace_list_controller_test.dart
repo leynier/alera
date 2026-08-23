@@ -137,6 +137,9 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   bool get supportsPromptWorkspaceCreation => true;
 
   @override
+  bool get supportsIdempotentAgentProfileLaunch => true;
+
+  @override
   bool get supportsPromptImageUpload => true;
 
   @override
@@ -218,6 +221,7 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
   }) async {
     return const AgentProfileLaunchResult(
       tabId: 'agent-tab',

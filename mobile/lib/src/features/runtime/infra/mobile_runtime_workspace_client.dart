@@ -43,6 +43,9 @@ mixin MobileRuntimeWorkspaceClient {
       runtimeCapabilities.contains(aiTextWorkspaceIdentityCapability) &&
       runtimeCapabilities.contains(agentProfilePromptLaunchCapability);
 
+  bool get supportsIdempotentAgentProfileLaunch =>
+      runtimeCapabilities.contains(agentProfileLaunchIdempotencyCapability);
+
   bool get supportsPromptImageUpload =>
       runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
@@ -287,11 +290,18 @@ mixin MobileRuntimeWorkspaceClient {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
   }) async {
-    final payload = await requestMap('agentProfile.launch', <String, Object?>{
+    final requestType = supportsIdempotentAgentProfileLaunch
+        ? 'agentProfile.launchIdempotent'
+        : 'agentProfile.launch';
+    final payload = await requestMap(requestType, <String, Object?>{
       'workspaceId': workspaceId,
       'profileId': profileId,
       'prompt': prompt,
+      // An older host ignores this additive field. It receives the legacy
+      // verb only when the current connection did not negotiate idempotency.
+      'clientMutationId': clientMutationId,
     });
     final tab = payload.mapValue('tab');
     return AgentProfileLaunchResult(

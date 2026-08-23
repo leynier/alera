@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 part 'prompt_workspace_dialog_form.dart';
+part 'prompt_workspace_dialog_agent_launch.dart';
 part 'prompt_workspace_dialog_clipboard.dart';
 part 'prompt_workspace_dialog_selection_order.dart';
 
@@ -51,6 +52,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required this.cancelGeneration,
     required this.createWorkspace,
     required this.launchAgent,
+    required this.supportsIdempotentAgentLaunch,
     this.clipboard = const NativePromptWorkspaceClipboard(),
     this.initialProject,
     this.defaultAgentProfileId,
@@ -84,8 +86,11 @@ class PromptWorkspaceDialog extends StatefulWidget {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
+    required bool requireIdempotency,
   })
   launchAgent;
+  final Future<bool> Function() supportsIdempotentAgentLaunch;
   final PromptWorkspaceClipboard clipboard;
   final String? defaultAgentProfileId;
   final Future<void> Function({
@@ -113,6 +118,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   String? _error;
   WorkspaceCreationResult? _created;
   String? _activeOperationId;
+  String? _agentLaunchMutationId;
+  bool? _originalAgentLaunchWasIdempotent;
   bool _createAnother = false;
 
   @override
@@ -245,6 +252,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       _error = null;
       _phase = 'Generating workspace identity';
     });
+    _agentLaunchMutationId = null;
+    _originalAgentLaunchWasIdempotent = null;
     try {
       WorkspaceCreationResult? creation;
       Object? collisionError;
@@ -308,15 +317,26 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         return;
       }
       setState(() => _phase = 'Starting agent');
+      final clientMutationId = _agentLaunchMutationId ??= const Uuid().v4();
+      // The first request uses the capability-specific verb. If the runtime
+      // explicitly falls back to an old host, the result (or wrapped failure)
+      // changes this to false before a retry can be offered.
+      _originalAgentLaunchWasIdempotent ??= true;
       final launch = await widget.launchAgent(
         workspaceId: creation.workspace.id,
         profileId: profile.id,
         prompt: prompt,
+        clientMutationId: clientMutationId,
+        requireIdempotency: false,
       );
+      _originalAgentLaunchWasIdempotent = launch.idempotent;
       if (mounted) {
         await _finishCreation(creation, launch.tabId);
       }
     } catch (error) {
+      if (error is NonIdempotentAgentLaunchFailure) {
+        _originalAgentLaunchWasIdempotent = false;
+      }
       if (mounted) {
         setState(() {
           _working = false;
@@ -340,38 +360,6 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
     }
   }
 
-  Future<void> _retryAgent() async {
-    final creation = _created;
-    final profile = _profile;
-    final prompt = _promptController.text.trim();
-    if (creation == null || profile == null || prompt.isEmpty) {
-      return;
-    }
-    setState(() {
-      _working = true;
-      _phase = 'Starting agent';
-      _error = null;
-    });
-    try {
-      final launch = await widget.launchAgent(
-        workspaceId: creation.workspace.id,
-        profileId: profile.id,
-        prompt: prompt,
-      );
-      if (mounted) {
-        await _finishCreation(creation, launch.tabId);
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _working = false;
-          _phase = null;
-          _error = error.toString();
-        });
-      }
-    }
-  }
-
   Future<void> _finishCreation(
     WorkspaceCreationResult creation,
     String agentTabId,
@@ -390,6 +378,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       return;
     }
     _promptController.clear();
+    _agentLaunchMutationId = null;
+    _originalAgentLaunchWasIdempotent = null;
     setState(() {
       _working = false;
       _phase = null;

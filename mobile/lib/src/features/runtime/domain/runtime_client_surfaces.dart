@@ -42,6 +42,8 @@ const String mobileHostToolsCapability = 'mobileHostToolsV1';
 const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
 const String aiTextSpeechMessageCapability = 'aiTextSpeechMessageV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
+const String agentProfileLaunchIdempotencyCapability =
+    'agentProfileLaunchIdempotencyV1';
 const String codexChatTabCapability = 'codexChatTabV1';
 const String codexGoalsCapability = 'codexGoalsV1';
 const String mobileCodexSessionsCapability = 'mobileCodexSessionsV1';
@@ -203,6 +205,7 @@ abstract interface class MobileWorkspaceClient {
   bool get supportsWorkspaceSidebarParity;
   bool get supportsTabRename;
   bool get supportsPromptWorkspaceCreation;
+  bool get supportsIdempotentAgentProfileLaunch;
   bool get supportsPromptImageUpload;
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot();
   Future<MobileViewPrefs> loadWorkbenchViewPrefs();
@@ -226,6 +229,7 @@ abstract interface class MobileWorkspaceClient {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
   });
   Future<List<WorkspaceSummary>> listWorkspaces();
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned);

@@ -415,13 +415,16 @@ impl ServerActor {
         owned_workspace: bool,
     ) -> HostResult<()> {
         let response = self
-            .launch_agent_profile(&json!({
-                "workspaceId": workspace_id,
-                "profileId": profile_id,
-                "prompt": prompt,
-                "automationRunId": run.id,
-                "automationOwned": true,
-            }))
+            .launch_agent_profile(
+                None,
+                &json!({
+                    "workspaceId": workspace_id,
+                    "profileId": profile_id,
+                    "prompt": prompt,
+                    "automationRunId": run.id,
+                    "automationOwned": true,
+                }),
+            )
             .await?;
         let tab = response
             .get("tab")
