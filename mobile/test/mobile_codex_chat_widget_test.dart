@@ -25,6 +25,7 @@ import 'support/fake_mobile_codex_client.dart';
 part 'mobile_codex_chat_widget_foundation_test_cases.dart';
 part 'mobile_codex_chat_widget_catalog_test_cases.dart';
 part 'mobile_codex_chat_widget_model_menu_test_cases.dart';
+part 'mobile_codex_chat_widget_viewer_test_cases.dart';
 part 'mobile_codex_chat_widget_timeline_test_cases.dart';
 part 'mobile_codex_chat_widget_turn_activity_test_cases.dart';
 part 'mobile_codex_chat_widget_file_change_test_cases.dart';
@@ -47,6 +48,7 @@ void main() {
   _registerMobileCodexFoundationTests();
   _registerMobileCodexCatalogTests();
   _registerMobileCodexModelMenuTests();
+  _registerMobileCodexViewerTests();
   _registerMobileCodexTimelineTests();
   _registerMobileCodexTurnActivityTests();
   _registerMobileCodexFileChangeTests();

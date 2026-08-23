@@ -173,3 +173,197 @@ class _MobileRemoteLoadMore extends StatelessWidget {
     ),
   );
 }
+
+class _MobileWorkspaceFileViewerView extends StatelessWidget {
+  const _MobileWorkspaceFileViewerView({
+    required this.displayName,
+    required this.range,
+    required this.loading,
+    required this.sharing,
+    required this.onShare,
+    required this.body,
+  });
+
+  final String displayName;
+  final MobileWorkspaceFileRange? range;
+  final bool loading;
+  final bool sharing;
+  final Future<void> Function(BuildContext context) onShare;
+  final Widget body;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(displayName),
+      actions: <Widget>[
+        if (range != null && mobileWorkspaceFileCanShare(range!.totalBytes))
+          Builder(
+            builder: (shareContext) => IconButton(
+              tooltip: 'Share File',
+              onPressed: loading || sharing
+                  ? null
+                  : () => unawaited(onShare(shareContext)),
+              icon: sharing
+                  ? const SizedBox.square(
+                      dimension: AleraTokens.iconSm,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.ios_share_outlined),
+            ),
+          ),
+      ],
+    ),
+    body: body,
+  );
+}
+
+class _MobileWorkspaceFileViewerBody extends StatelessWidget {
+  const _MobileWorkspaceFileViewerBody({
+    required this.range,
+    required this.error,
+    required this.rasterFile,
+    required this.lines,
+    required this.targetLine,
+    required this.loadedPreviewBytes,
+    required this.loading,
+    required this.sharing,
+    required this.scrollController,
+    required this.targetLineKey,
+    required this.onLoadMore,
+  });
+
+  final MobileWorkspaceFileRange? range;
+  final Object? error;
+  final File? rasterFile;
+  final List<String> lines;
+  final int? targetLine;
+  final int loadedPreviewBytes;
+  final bool loading;
+  final bool sharing;
+  final ScrollController scrollController;
+  final GlobalKey targetLineKey;
+  final Future<void> Function() onLoadMore;
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null) {
+      return _MobileError(message: error.toString(), onRetry: onLoadMore);
+    }
+    final range = this.range;
+    if (range == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final canLoadMore =
+        range.totalBytes <= maxMobileWorkspacePreviewBytes &&
+        loadedPreviewBytes < maxMobileWorkspacePreviewBytes;
+    final busy = loading || sharing;
+    if (mobileCodexCanRasterPreviewMime(range.mimeType)) {
+      return _MobileRemoteImagePreview(
+        file: rasterFile,
+        complete: range.nextOffset >= range.totalBytes,
+        canLoadMore: canLoadMore,
+        loading: busy,
+        onLoadMore: onLoadMore,
+      );
+    }
+    if (range.isText) {
+      return _MobileWorkspaceTextPreview(
+        lines: lines,
+        targetLine: targetLine,
+        hasMore: range.nextOffset < range.totalBytes,
+        previewLimitReached:
+            loadedPreviewBytes >= maxMobileWorkspacePreviewBytes,
+        loading: loading,
+        sharing: sharing,
+        scrollController: scrollController,
+        targetLineKey: targetLineKey,
+        onLoadMore: onLoadMore,
+      );
+    }
+    return _MobileUnsupportedFilePreview(
+      complete: range.nextOffset >= range.totalBytes,
+      shareable: mobileWorkspaceFileCanShare(range.totalBytes),
+      canLoadMore: canLoadMore,
+      loading: busy,
+      onLoadMore: onLoadMore,
+    );
+  }
+}
+
+class _MobileWorkspaceTextPreview extends StatelessWidget {
+  const _MobileWorkspaceTextPreview({
+    required this.lines,
+    required this.targetLine,
+    required this.hasMore,
+    required this.previewLimitReached,
+    required this.loading,
+    required this.sharing,
+    required this.scrollController,
+    required this.targetLineKey,
+    required this.onLoadMore,
+  });
+
+  final List<String> lines;
+  final int? targetLine;
+  final bool hasMore;
+  final bool previewLimitReached;
+  final bool loading;
+  final bool sharing;
+  final ScrollController scrollController;
+  final GlobalKey targetLineKey;
+  final Future<void> Function() onLoadMore;
+
+  @override
+  Widget build(BuildContext context) => ListView.builder(
+    controller: scrollController,
+    itemCount: lines.length + (hasMore ? 1 : 0),
+    itemBuilder: (context, index) {
+      if (index == lines.length) {
+        return Padding(
+          padding: AleraTokens.contentPadding,
+          child: FilledButton(
+            onPressed: loading || sharing || previewLimitReached
+                ? null
+                : () => unawaited(onLoadMore()),
+            child: Text(
+              loading
+                  ? 'Loading...'
+                  : previewLimitReached
+                  ? 'Preview Limit Reached'
+                  : 'Load More',
+            ),
+          ),
+        );
+      }
+      final number = index + 1;
+      final highlighted = number == targetLine;
+      return Container(
+        key: highlighted ? targetLineKey : null,
+        color: highlighted ? AleraTokens.accentSubtle : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space12,
+          vertical: AleraTokens.space2,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SizedBox(
+              width: AleraTokens.space48,
+              child: Text('$number', style: AleraTokens.monoStyle),
+            ),
+            Expanded(
+              child: SelectableText(
+                lines[index],
+                style: AleraTokens.monoStyle.copyWith(
+                  color: highlighted
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}

@@ -339,111 +339,24 @@ class _MobileWorkspaceFileViewerState
   }
 
   @override
-  Widget build(BuildContext context) {
-    final range = _range;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_displayName),
-        actions: <Widget>[
-          if (range != null && mobileWorkspaceFileCanShare(range.totalBytes))
-            Builder(
-              builder: (shareContext) => IconButton(
-                tooltip: 'Share File',
-                onPressed: _sharing || _loading
-                    ? null
-                    : () => unawaited(_shareFile(shareContext)),
-                icon: _sharing
-                    ? const SizedBox.square(
-                        dimension: AleraTokens.iconSm,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.ios_share_outlined),
-              ),
-            ),
-        ],
-      ),
-      body: _error != null
-          ? _MobileError(message: _error.toString(), onRetry: _load)
-          : range == null
-          ? const Center(child: CircularProgressIndicator())
-          : mobileCodexCanRasterPreviewMime(range.mimeType)
-          ? _MobileRemoteImagePreview(
-              file: _rasterFile,
-              complete: range.nextOffset >= range.totalBytes,
-              canLoadMore:
-                  range.totalBytes <= maxMobileWorkspacePreviewBytes &&
-                  _loadedPreviewBytes < maxMobileWorkspacePreviewBytes,
-              loading: _loading || _sharing,
-              onLoadMore: _load,
-            )
-          : range.isText
-          ? ListView.builder(
-              controller: _fileScroll,
-              itemCount:
-                  _lines.length + (range.nextOffset < range.totalBytes ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _lines.length) {
-                  return Padding(
-                    padding: AleraTokens.contentPadding,
-                    child: FilledButton(
-                      onPressed:
-                          _loading ||
-                              _sharing ||
-                              _loadedPreviewBytes >=
-                                  maxMobileWorkspacePreviewBytes
-                          ? null
-                          : () => unawaited(_load()),
-                      child: Text(
-                        _loading
-                            ? 'Loading...'
-                            : _loadedPreviewBytes >=
-                                  maxMobileWorkspacePreviewBytes
-                            ? 'Preview Limit Reached'
-                            : 'Load More',
-                      ),
-                    ),
-                  );
-                }
-                final number = index + 1;
-                final highlighted = number == widget.target.line;
-                return Container(
-                  key: highlighted ? _targetLineKey : null,
-                  color: highlighted ? AleraTokens.accentSubtle : null,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space12,
-                    vertical: AleraTokens.space2,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      SizedBox(
-                        width: AleraTokens.space48,
-                        child: Text('$number', style: AleraTokens.monoStyle),
-                      ),
-                      Expanded(
-                        child: SelectableText(
-                          _lines[index],
-                          style: AleraTokens.monoStyle.copyWith(
-                            color: highlighted
-                                ? AleraTokens.foreground
-                                : AleraTokens.foregroundMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          : _MobileUnsupportedFilePreview(
-              complete: range.nextOffset >= range.totalBytes,
-              shareable: mobileWorkspaceFileCanShare(range.totalBytes),
-              canLoadMore:
-                  range.totalBytes <= maxMobileWorkspacePreviewBytes &&
-                  _loadedPreviewBytes < maxMobileWorkspacePreviewBytes,
-              loading: _loading || _sharing,
-              onLoadMore: _load,
-            ),
-    );
-  }
+  Widget build(BuildContext context) => _MobileWorkspaceFileViewerView(
+    displayName: _displayName,
+    range: _range,
+    loading: _loading,
+    sharing: _sharing,
+    onShare: _shareFile,
+    body: _MobileWorkspaceFileViewerBody(
+      range: _range,
+      error: _error,
+      rasterFile: _rasterFile,
+      lines: _lines,
+      targetLine: widget.target.line,
+      loadedPreviewBytes: _loadedPreviewBytes,
+      loading: _loading,
+      sharing: _sharing,
+      scrollController: _fileScroll,
+      targetLineKey: _targetLineKey,
+      onLoadMore: _load,
+    ),
+  );
 }
