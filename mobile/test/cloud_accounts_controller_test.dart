@@ -45,6 +45,47 @@ void main() {
     expect(container.read(cloudAccountsControllerProvider).value, hasLength(1));
     expect(api.pushTokenDeleteCalls, 0);
   });
+
+  test('Revoked Session Can Still Be Removed From The Phone', () async {
+    final session = CloudAccountSession(
+      account: const CloudAccountProfile(
+        id: 'account-1',
+        email: 'owner@example.com',
+      ),
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      accessTokenExpiresAt: DateTime.now().toUtc().add(
+        const Duration(hours: 1),
+      ),
+      subscriptions: const <String, RuntimePushPreferences>{
+        'runtime-1': RuntimePushPreferences(),
+      },
+    );
+    final repository = _MemoryRepository(session);
+    final api = _RemovalApi(
+      removalError: const AleraCloudException(
+        'The account session has been revoked.',
+        statusCode: 401,
+        code: 'session_revoked',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        cloudAccountRepositoryProvider.overrideWithValue(repository),
+        aleraCloudApiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(cloudAccountsControllerProvider.future);
+
+    await container
+        .read(cloudAccountsControllerProvider.notifier)
+        .removeFromThisPhone('account-1');
+
+    expect(repository.sessions, isEmpty);
+    expect(container.read(cloudAccountsControllerProvider).value, isEmpty);
+    expect(api.pushTokenDeleteCalls, 0);
+  });
 }
 
 class _MemoryRepository implements CloudAccountRepository {
@@ -70,6 +111,9 @@ class _MemoryRepository implements CloudAccountRepository {
 }
 
 class _RemovalApi implements AleraCloudApi {
+  _RemovalApi({this.removalError});
+
+  final Object? removalError;
   int pushTokenDeleteCalls = 0;
 
   @override
@@ -77,7 +121,7 @@ class _RemovalApi implements AleraCloudApi {
     required CloudAccountSession session,
     required String runtimeId,
   }) {
-    throw StateError('cloud unavailable');
+    throw removalError ?? StateError('cloud unavailable');
   }
 
   @override

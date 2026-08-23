@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
+import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/accounts/infra/mobile_cloud_sign_in.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -159,13 +160,18 @@ class CloudAccountsController extends _$CloudAccountsController {
     if (session == null) {
       return;
     }
-    for (final runtimeId in session.subscriptions.keys) {
-      await ref
-          .read(aleraCloudApiProvider)
-          .deleteSubscription(session: session, runtimeId: runtimeId);
+    final api = ref.read(aleraCloudApiProvider);
+    try {
+      for (final runtimeId in session.subscriptions.keys) {
+        await api.deleteSubscription(session: session, runtimeId: runtimeId);
+      }
+      await api.deletePushToken(session);
+      await api.revokeSession(session);
+    } on AleraCloudException catch (error) {
+      if (error.statusCode != 401) {
+        rethrow;
+      }
     }
-    await ref.read(aleraCloudApiProvider).deletePushToken(session);
-    await ref.read(aleraCloudApiProvider).revokeSession(session);
     await ref.read(cloudAccountRepositoryProvider).removeSession(accountId);
     state = AsyncData(<CloudAccountSession>[
       for (final item in current)
