@@ -9,6 +9,89 @@ pub const RELAY_HELLO_VERSION: u8 = 1;
 const CLIENT_ID_BYTES: usize = 2;
 const MAX_CLIENT_ID_BYTES: usize = 128;
 const MAX_HANDSHAKE_BYTES: usize = 16 * 1024;
+const FRAGMENT_MAGIC: &[u8; 5] = b"ALRF\x01";
+const FRAGMENT_HEADER_BYTES: usize = FRAGMENT_MAGIC.len() + 4 + 4;
+const RELAY_FRAGMENT_PAYLOAD_BYTES: usize = 48 * 1024;
+const MAX_RELAY_ENVELOPE_BYTES: usize = 1024 * 1024;
+
+#[derive(Default)]
+pub struct FragmentReassembler {
+    total: Option<usize>,
+    bytes: Vec<u8>,
+}
+
+impl FragmentReassembler {
+    pub fn accept(&mut self, payload: &[u8]) -> Result<Option<Vec<u8>>> {
+        if !payload.starts_with(FRAGMENT_MAGIC) {
+            if self.total.is_some() {
+                self.reset();
+                bail!("relay fragment sequence was interrupted");
+            }
+            return Ok(Some(payload.to_vec()));
+        }
+        if payload.len() <= FRAGMENT_HEADER_BYTES {
+            self.reset();
+            bail!("relay fragment is truncated");
+        }
+        let total = u32::from_be_bytes(payload[5..9].try_into()?) as usize;
+        let offset = u32::from_be_bytes(payload[9..13].try_into()?) as usize;
+        let chunk = &payload[FRAGMENT_HEADER_BYTES..];
+        if total <= RELAY_FRAGMENT_PAYLOAD_BYTES
+            || total > MAX_RELAY_ENVELOPE_BYTES
+            || chunk.len() > RELAY_FRAGMENT_PAYLOAD_BYTES
+            || offset
+                .checked_add(chunk.len())
+                .is_none_or(|end| end > total)
+        {
+            self.reset();
+            bail!("relay fragment is outside the supported range");
+        }
+        if offset == 0 {
+            self.total = Some(total);
+            self.bytes.clear();
+            self.bytes.reserve(total);
+        } else if self.total != Some(total) || offset != self.bytes.len() {
+            self.reset();
+            bail!("relay fragment sequence is invalid");
+        }
+        self.bytes.extend_from_slice(chunk);
+        if self.bytes.len() != total {
+            return Ok(None);
+        }
+        self.total = None;
+        Ok(Some(std::mem::take(&mut self.bytes)))
+    }
+
+    fn reset(&mut self) {
+        self.total = None;
+        self.bytes.clear();
+    }
+}
+
+pub fn fragment(payload: &[u8]) -> Result<Vec<Vec<u8>>> {
+    if payload.len() > MAX_RELAY_ENVELOPE_BYTES {
+        bail!("relay envelope is too large");
+    }
+    if payload.len() <= RELAY_FRAGMENT_PAYLOAD_BYTES {
+        return Ok(vec![payload.to_vec()]);
+    }
+    let total = u32::try_from(payload.len())?.to_be_bytes();
+    Ok(payload
+        .chunks(RELAY_FRAGMENT_PAYLOAD_BYTES)
+        .enumerate()
+        .map(|(index, chunk)| {
+            let offset = u32::try_from(index * RELAY_FRAGMENT_PAYLOAD_BYTES)
+                .expect("bounded relay fragment offset")
+                .to_be_bytes();
+            let mut frame = Vec::with_capacity(FRAGMENT_HEADER_BYTES + chunk.len());
+            frame.extend_from_slice(FRAGMENT_MAGIC);
+            frame.extend_from_slice(&total);
+            frame.extend_from_slice(&offset);
+            frame.extend_from_slice(chunk);
+            frame
+        })
+        .collect())
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,7 +195,7 @@ pub fn derive_sessions(
 
 #[cfg(test)]
 mod tests {
-    use super::{unwrap, wrap};
+    use super::{fragment, unwrap, wrap, FragmentReassembler, MAX_RELAY_ENVELOPE_BYTES};
 
     #[test]
     fn outer_frame_keeps_client_identity_and_payload_boundaries() {
@@ -126,5 +209,32 @@ mod tests {
     fn outer_frame_rejects_invalid_identity_lengths() {
         assert!(unwrap(&[0, 0]).is_err());
         assert!(wrap("", b"payload").is_err());
+    }
+
+    #[test]
+    fn large_envelopes_round_trip_through_fragments() {
+        let payload = vec![7_u8; 70 * 1024];
+        let fragments = fragment(&payload).unwrap();
+        let mut reassembler = FragmentReassembler::default();
+        let mut complete = None;
+        for fragment in &fragments {
+            complete = reassembler.accept(fragment).unwrap();
+        }
+
+        assert_eq!(fragments.len(), 2);
+        assert_eq!(
+            &fragments[0][..13],
+            &[0x41, 0x4c, 0x52, 0x46, 0x01, 0, 1, 0x18, 0, 0, 0, 0, 0]
+        );
+        assert_eq!(complete.unwrap(), payload);
+    }
+
+    #[test]
+    fn fragment_reassembly_rejects_oversized_and_out_of_order_input() {
+        assert!(fragment(&vec![0_u8; MAX_RELAY_ENVELOPE_BYTES + 1]).is_err());
+        let fragments = fragment(&vec![7_u8; 70 * 1024]).unwrap();
+        let mut reassembler = FragmentReassembler::default();
+
+        assert!(reassembler.accept(&fragments[1]).is_err());
     }
 }
