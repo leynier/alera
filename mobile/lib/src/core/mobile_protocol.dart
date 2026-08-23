@@ -8,3 +8,4 @@ const String mobilePromptImageUploadCapability = 'mobilePromptImageUploadV1';
 const String automationsCapability = 'automationsV1';
 const String aiDictationCapability = 'aiDictationV1';
 const String aiDictationModelsCapability = 'aiDictationModelsV2';
+const String aiDictationBackendsCapability = 'aiDictationBackendsV3';

@@ -112,6 +112,45 @@ pub(super) async fn transcribe(
     }))
 }
 
+pub(super) fn capabilities(runtime_dir: &std::path::Path) -> HostResult<Value> {
+    let models = [
+        ("whisper-tiny", "Whisper Tiny"),
+        ("whisper-base", "Whisper Base"),
+        ("whisper-small", "Whisper Small"),
+        ("whisper-large-v3-turbo-q5-0", "Whisper Large v3 Turbo"),
+    ]
+    .into_iter()
+    .map(|(id, label)| {
+        json!({
+            "id": id,
+            "label": label,
+            "installed": resolve_model_path(&json!({"modelId": id}), false, runtime_dir).is_ok(),
+        })
+    })
+    .collect::<Vec<_>>();
+    let platform = if cfg!(target_os = "macos") {
+        "macos"
+    } else if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    };
+    Ok(json!({
+        "platform": platform,
+        "backends": [{
+            "location": "pairedDevice",
+            "backend": "whisper",
+            "streaming": false,
+            "batchFile": true,
+            "requiresNetwork": false,
+            "guaranteedOnDevice": true,
+            "models": models,
+        }],
+    }))
+}
+
 fn resolve_model_path(
     payload: &Value,
     allow_explicit_model_path: bool,
@@ -338,5 +377,14 @@ mod tests {
                 any(target_os = "linux", target_os = "windows")
             ));
         assert_eq!(desktop_whisper_context_parameters().use_gpu, expected);
+    }
+
+    #[test]
+    fn capabilities_never_include_provider_secrets() {
+        let payload = capabilities(std::path::Path::new("/tmp/terminal-host")).unwrap();
+        let serialized = payload.to_string();
+        assert!(!serialized.contains("apiKey"));
+        assert!(!serialized.contains("Authorization"));
+        assert!(serialized.contains("whisper"));
     }
 }

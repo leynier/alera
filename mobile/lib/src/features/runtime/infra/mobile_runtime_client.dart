@@ -19,6 +19,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
@@ -228,13 +229,6 @@ class MobileRuntimeClient
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
-  @override
-  bool get supportsAiDictation =>
-      _runtimeCapabilities.contains(aiDictationCapability);
-  @override
-  bool get supportsAiDictationModels =>
-      _runtimeCapabilities.contains(aiDictationModelsCapability);
-
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
     required String deviceToken,

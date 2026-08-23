@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
+import 'package:alera_mobile/src/features/ai_dictation/domain/speech_model_descriptor.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -81,6 +82,129 @@ void main() {
     expect(await store.isInstalled('test-model'), isFalse);
     expect(await File(await store.partialPath('test-model')).exists(), isFalse);
   });
+
+  test('installs every artifact before publishing a multi-file model', () async {
+    const encoder = <int>[1, 2];
+    const decoder = <int>[3, 4, 5];
+    final store = MobileAiDictationModelStore(
+      clientFactory: () => _QueuedClient(<http.StreamedResponse>[
+        http.StreamedResponse(
+          Stream<List<int>>.value(encoder),
+          HttpStatus.ok,
+          contentLength: encoder.length,
+        ),
+        http.StreamedResponse(
+          Stream<List<int>>.value(decoder),
+          HttpStatus.ok,
+          contentLength: decoder.length,
+        ),
+      ], <http.BaseRequest>[]),
+      supportDirectory: () async => supportDirectory,
+      catalog: <MobileAiDictationModel>[
+        MobileAiDictationModel(
+          id: 'streaming-model',
+          label: 'Streaming Model',
+          description: 'A synthetic multi-artifact model.',
+          runtime: SpeechModelRuntime.sherpaOnnx,
+          mode: SpeechRecognitionMode.streaming,
+          artifacts: <SpeechModelArtifact>[
+            SpeechModelArtifact(
+              id: 'encoder',
+              relativePath: 'encoder.onnx',
+              uri: 'https://example.test/encoder.onnx',
+              sha256: sha256.convert(encoder).toString(),
+              sizeBytes: encoder.length,
+            ),
+            SpeechModelArtifact(
+              id: 'decoder',
+              relativePath: 'decoder.onnx',
+              uri: 'https://example.test/decoder.onnx',
+              sha256: sha256.convert(decoder).toString(),
+              sizeBytes: decoder.length,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final path = await store.download('streaming-model');
+
+    expect(await File(path).readAsBytes(), encoder);
+    expect(
+      await File(
+        await store.artifactPath(
+          'streaming-model',
+          store.modelFor('streaming-model').artifacts[1],
+        ),
+      ).readAsBytes(),
+      decoder,
+    );
+    expect(await store.isInstalled('streaming-model'), isTrue);
+    expect(
+      await File(
+        '${(await store.artifactPath('streaming-model', store.modelFor('streaming-model').artifacts[1]))}.part',
+      ).exists(),
+      isFalse,
+    );
+  });
+
+  test(
+    'does not publish a multi-file model when an artifact fails verification',
+    () async {
+      const first = <int>[1, 2];
+      const second = <int>[9, 9];
+      final store = MobileAiDictationModelStore(
+        clientFactory: () => _QueuedClient(<http.StreamedResponse>[
+          http.StreamedResponse(
+            Stream<List<int>>.value(first),
+            HttpStatus.ok,
+            contentLength: first.length,
+          ),
+          http.StreamedResponse(
+            Stream<List<int>>.value(second),
+            HttpStatus.ok,
+            contentLength: second.length,
+          ),
+        ], <http.BaseRequest>[]),
+        supportDirectory: () async => supportDirectory,
+        catalog: <MobileAiDictationModel>[
+          MobileAiDictationModel(
+            id: 'broken-model',
+            label: 'Broken Model',
+            description: 'A synthetic model with a bad checksum.',
+            runtime: SpeechModelRuntime.sherpaOnnx,
+            mode: SpeechRecognitionMode.streaming,
+            artifacts: <SpeechModelArtifact>[
+              SpeechModelArtifact(
+                id: 'encoder',
+                relativePath: 'encoder.onnx',
+                uri: 'https://example.test/encoder.onnx',
+                sha256: sha256.convert(first).toString(),
+                sizeBytes: first.length,
+              ),
+              SpeechModelArtifact(
+                id: 'decoder',
+                relativePath: 'decoder.onnx',
+                uri: 'https://example.test/decoder.onnx',
+                sha256: sha256.convert(<int>[3, 4]).toString(),
+                sizeBytes: second.length,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await expectLater(
+        store.download('broken-model'),
+        throwsA(isA<StateError>()),
+      );
+      expect(await store.isInstalled('broken-model'), isFalse);
+      expect(
+        await File(await store.intentPath('broken-model')).exists(),
+        isTrue,
+      );
+    },
+  );
 }
 
 MobileAiDictationModelStore _store(
