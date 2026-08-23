@@ -232,26 +232,6 @@ class MobileRuntimeClient
 
   bool get supportsAutomations =>
       _runtimeCapabilities.contains(automationsCapability);
-  @override
-  bool get supportsAiDictation =>
-      _runtimeCapabilities.contains(aiDictationCapability);
-  @override
-  bool get supportsAiDictationModels =>
-      _runtimeCapabilities.contains(aiDictationModelsCapability);
-  bool get supportsAiDictationBackends =>
-      _runtimeCapabilities.contains(aiDictationBackendsCapability);
-
-  Future<SpeechCapabilities> fetchAiDictationCapabilities() async {
-    if (!supportsAiDictationBackends) {
-      return const SpeechCapabilities(
-        platform: 'unknown',
-        backends: <SpeechBackendCapability>[],
-      );
-    }
-    final payload = await requestMap('mobile.aiDictation.capabilities');
-    return SpeechCapabilities.fromJson(payload);
-  }
-
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
     required String deviceToken,

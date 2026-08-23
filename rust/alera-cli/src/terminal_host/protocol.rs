@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::terminal_host::host_error::{HostError, HostResult};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Map, Value};
-
-use crate::terminal_host::host_error::{HostError, HostResult};
 
 /// Wire protocol version. Must stay in lockstep with the Flutter client
 /// (`aleraTerminalHostProtocolVersion`).

@@ -1,8 +1,25 @@
 part of 'mobile_runtime_client.dart';
 
 mixin MobileRuntimeDictationRequests {
-  bool get supportsAiDictation;
-  bool get supportsAiDictationModels;
+  Set<String> get runtimeCapabilities;
+
+  bool get supportsAiDictation =>
+      runtimeCapabilities.contains(aiDictationCapability);
+  bool get supportsAiDictationModels =>
+      runtimeCapabilities.contains(aiDictationModelsCapability);
+  bool get supportsAiDictationBackends =>
+      runtimeCapabilities.contains(aiDictationBackendsCapability);
+
+  Future<SpeechCapabilities> fetchAiDictationCapabilities() async {
+    if (!supportsAiDictationBackends) {
+      return const SpeechCapabilities(
+        platform: 'unknown',
+        backends: <SpeechBackendCapability>[],
+      );
+    }
+    final payload = await requestMap('mobile.aiDictation.capabilities');
+    return SpeechCapabilities.fromJson(payload);
+  }
 
   Future<Map<String, Object?>> requestMap(
     String type, [
