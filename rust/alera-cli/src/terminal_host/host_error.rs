@@ -1,5 +1,7 @@
 use std::fmt;
 
+use serde_json::{json, Value};
+
 /// Errors surfaced to clients over the wire. [`HostError::State`] renders its
 /// message as-is because some client recovery paths pattern-match exact text,
 /// and [`HostError::Format`] renders like Dart's `FormatException`.
@@ -10,6 +12,13 @@ pub enum HostError {
     State(String),
     /// Equivalent to Dart's `FormatException`; rendered as `FormatException: <msg>`.
     Format(String),
+    /// A typed, recoverable conflict. The message remains available for older
+    /// clients while newer clients inspect the additive code and details.
+    Conflict {
+        code: String,
+        message: String,
+        details: Value,
+    },
 }
 
 impl HostError {
@@ -21,12 +30,30 @@ impl HostError {
         HostError::Format(message.into())
     }
 
+    pub fn conflict(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
+        HostError::Conflict {
+            code: code.into(),
+            message: message.into(),
+            details,
+        }
+    }
+
     /// The string placed in the `error` field of an error response.
     pub fn wire_message(&self) -> String {
         match self {
             HostError::State(message) => message.clone(),
             HostError::Format(message) => format!("FormatException: {message}"),
+            HostError::Conflict { message, .. } => message.clone(),
         }
+    }
+
+    pub fn wire_response(&self, id: i64) -> Value {
+        let mut response = json!({ "id": id, "ok": false, "error": self.wire_message() });
+        if let HostError::Conflict { code, details, .. } = self {
+            response["errorCode"] = json!(code);
+            response["errorDetails"] = details.clone();
+        }
+        response
     }
 }
 

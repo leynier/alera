@@ -369,7 +369,7 @@ pub fn ok_response(id: i64, payload: Value) -> Value {
 
 /// Build an error response frame `{id, ok: false, error}`.
 pub fn error_response(id: i64, error: &HostError) -> Value {
-    json!({ "id": id, "ok": false, "error": error.wire_message() })
+    error.wire_response(id)
 }
 
 /// Build an event frame `{event, payload}`.

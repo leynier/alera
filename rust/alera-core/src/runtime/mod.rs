@@ -56,6 +56,7 @@ mod settings_store;
 #[cfg(test)]
 mod settings_store_tests;
 mod store;
+mod store_error;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
@@ -94,5 +95,6 @@ pub use project_clone_models::*;
 pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use store::*;
+pub use store_error::*;
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;

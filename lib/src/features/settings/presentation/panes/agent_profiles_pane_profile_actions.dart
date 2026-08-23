@@ -97,6 +97,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
           .read(agentProfilesProvider.notifier)
           .upsert(
             id: _selectedProfileId,
+            expectedRevision: _selectedProfileRevision,
             name: name,
             agentType: _adapter.key,
             launchMode: _launchMode,
@@ -113,6 +114,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _saving = false;
         _creatingNew = false;
         _selectedProfileId = saved.id;
+        _selectedProfileRevision = saved.revision;
         _seededSignature = null;
       });
       AleraToast.show(
@@ -159,7 +161,9 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       _error = null;
     });
     try {
-      await ref.read(agentProfilesProvider.notifier).remove(profile.id);
+      await ref
+          .read(agentProfilesProvider.notifier)
+          .remove(profile.id, expectedRevision: profile.revision);
       if (ref.read(settingsControllerProvider).agents.defaultAgentProfileId ==
           profile.id) {
         await ref

@@ -9,6 +9,8 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'runtime_agent_profile_repository_revision_cases.dart';
+
 void main() {
   group('AgentProfile', () {
     test('parses a host payload and round-trips it', () {
@@ -22,6 +24,7 @@ void main() {
         'quotaGroup': 'codex-personal',
         'createdAt': '2026-07-01T00:00:00.000Z',
         'updatedAt': '2026-07-02T00:00:00.000Z',
+        'revision': 7,
       });
 
       expect(profile.name, 'Codex Sol');
@@ -31,11 +34,13 @@ void main() {
       expect(profile.launchMode, AgentProfileLaunchMode.command);
       expect(profile.quotaGroup, 'codex-personal');
       expect(profile.createdAt, DateTime.utc(2026, 7));
+      expect(profile.revision, 7);
       expect(profile.toJson()['quotaGroup'], 'codex-personal');
       expect(
         profile.toJson()['customPrompt'],
         'Prefer Small, Reviewable Changes',
       );
+      expect(profile.toJson()['revision'], 7);
     });
 
     test('parses managed configuration from a host payload', () {
@@ -185,86 +190,14 @@ void main() {
 
       final payload = client.payloads['agentProfile.upsert']!.single;
       expect(payload.containsKey('id'), isFalse);
+      expect(payload.containsKey('expectedRevision'), isFalse);
       expect(payload['name'], 'Codex Sol');
       expect(payload['launchMode'], 'command');
       expect(payload['quotaGroup'], isNull);
       expect(payload['customPrompt'], 'Prefer Small, Reviewable Changes');
     });
 
-    test('upsert sends the id when updating a profile', () async {
-      final client = _FakeRuntimeHostClient();
-      client.responses['agentProfile.upsert'] = _profilePayload(
-        'prof_1',
-        'Renamed',
-      );
-      final repository = RuntimeAgentProfileRepository(client);
-
-      await repository.upsert(
-        id: 'prof_1',
-        name: 'Renamed',
-        agentType: 'codex',
-        launchMode: AgentProfileLaunchMode.command,
-        command: 'codex',
-        customPrompt: 'Use The Team Conventions',
-        quotaGroup: 'codex-personal',
-      );
-
-      final payload = client.payloads['agentProfile.upsert']!.single;
-      expect(payload['id'], 'prof_1');
-      expect(payload['quotaGroup'], 'codex-personal');
-      expect(payload['customPrompt'], 'Use The Team Conventions');
-    });
-
-    test(
-      'reorder sends profile ids and unwraps the ordered response',
-      () async {
-        final client = _FakeRuntimeHostClient();
-        client.responses['status.get'] = <String, Object?>{
-          'runtimeCapabilities': <String>[
-            aleraRuntimeHostAgentProfileOrderingCapability,
-          ],
-        };
-        client.responses['agentProfile.reorder'] = <String, Object?>{
-          'kind': 'agentProfiles',
-          'items': <Object?>[
-            _profilePayload('prof_2', 'Beta'),
-            _profilePayload('prof_1', 'Alpha'),
-          ],
-        };
-        final repository = RuntimeAgentProfileRepository(client);
-
-        final profiles = await repository.reorder(<String>['prof_2', 'prof_1']);
-
-        expect(profiles.map((profile) => profile.id), <String>[
-          'prof_2',
-          'prof_1',
-        ]);
-        expect(client.payloads['agentProfile.reorder']!.single['ids'], <String>[
-          'prof_2',
-          'prof_1',
-        ]);
-      },
-    );
-
-    test('reorder refuses an older live host', () async {
-      final client = _FakeRuntimeHostClient();
-      client.responses['status.get'] = <String, Object?>{
-        'runtimeCapabilities': const <String>[],
-      };
-      final repository = RuntimeAgentProfileRepository(client);
-
-      await expectLater(
-        repository.reorder(<String>['prof_1']),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('newer runtime host'),
-          ),
-        ),
-      );
-      expect(client.payloads['agentProfile.reorder'], isNull);
-    });
+    _registerAgentProfileRevisionRepositoryTests();
 
     test('controller clone reuses all profile fields without its id', () async {
       final client = _FakeRuntimeHostClient();
@@ -417,6 +350,12 @@ void main() {
       };
       client.responses['agentProfile.upsert'] = <String, Object?>{
         ..._profilePayload('prof_1', 'New Name'),
+        'revision': 1,
+      };
+      client.responses['status.get'] = <String, Object?>{
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostAgentProfileRevisionsCapability,
+        ],
       };
       final repository = RuntimeAgentProfileRepository(client);
       final container = ProviderContainer(
@@ -434,6 +373,7 @@ void main() {
           .read(agentProfilesProvider.notifier)
           .upsert(
             id: 'prof_1',
+            expectedRevision: 0,
             name: 'New Name',
             agentType: 'codex',
             launchMode: AgentProfileLaunchMode.command,
@@ -467,12 +407,14 @@ Map<String, Object?> _profilePayload(String id, String name) {
     'customPrompt': '',
     'description': '',
     'quotaGroup': null,
+    'revision': 0,
     'createdAt': '2026-07-01T00:00:00.000Z',
     'updatedAt': '2026-07-01T00:00:00.000Z',
   };
 }
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
+final class _FakeRuntimeHostClient
+    implements RuntimeHostClient, GuardedRuntimeHostClient {
   final responses = <String, Object?>{};
   final payloads = <String, List<Map<String, Object?>>>{};
   final _events = StreamController<RuntimeHostEvent>.broadcast();
@@ -488,6 +430,18 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
     return responses[type];
+  }
+
+  @override
+  Future<Object?> guardedRuntimeRequest(
+    String type,
+    Map<String, Object?> payload, {
+    required void Function(Map<String, Object?> status) validateStatus,
+    Duration? timeout,
+  }) async {
+    final status = await runtimeRequest('status.get');
+    validateStatus(Map<String, Object?>.from(status! as Map));
+    return runtimeRequest(type, payload, timeout);
   }
 
   void emit(RuntimeHostEvent event) {

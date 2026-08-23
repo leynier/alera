@@ -41,6 +41,7 @@ fn agent_profiles_round_trip_through_the_host() {
         "unexpected id: {profile_id}"
     );
     assert_eq!(payload(&created)["quotaGroup"], json!("codex-personal"));
+    assert_eq!(payload(&created)["revision"], json!(0));
 
     let listed = request(
         &mut writer,
@@ -58,7 +59,7 @@ fn agent_profiles_round_trip_through_the_host() {
         &mut reader,
         203,
         "agentProfile.remove",
-        json!({ "id": profile_id }),
+        json!({ "id": profile_id, "expectedRevision": 0 }),
     );
     assert_eq!(removed["ok"], json!(true));
     assert_eq!(payload(&removed)["removed"], json!(true));
@@ -101,7 +102,10 @@ fn agent_profile_order_can_be_reordered_through_the_host() {
         &mut reader,
         252,
         "agentProfile.reorder",
-        json!({"ids": [second_id, first_id]}),
+        json!({
+            "ids": [second_id.clone(), first_id.clone()],
+            "expectedRevisions": {(first_id): 0, (second_id): 0}
+        }),
     );
     assert_eq!(
         reordered["ok"],
@@ -110,6 +114,8 @@ fn agent_profile_order_can_be_reordered_through_the_host() {
     );
     assert_eq!(payload(&reordered)["items"][0]["name"], json!("Beta"));
     assert_eq!(payload(&reordered)["items"][1]["name"], json!("Alpha"));
+    assert_eq!(payload(&reordered)["items"][0]["revision"], json!(1));
+    assert_eq!(payload(&reordered)["items"][1]["revision"], json!(1));
 }
 
 #[test]
@@ -299,7 +305,7 @@ fn default_agent_profile_is_stored_and_cleared_with_the_profile() {
         &mut reader,
         224,
         "agentProfile.remove",
-        json!({"id": profile_id}),
+        json!({"id": profile_id, "expectedRevision": 0}),
     );
     assert_eq!(removed["ok"], json!(true));
 
@@ -358,4 +364,67 @@ fn the_host_advertises_the_agent_profiles_capability() {
         capabilities.contains(&json!("orchestrationManagedAgentProfilesV1")),
         "managed capability missing: {capabilities:?}"
     );
+    assert!(
+        capabilities.contains(&json!("orchestrationAgentProfileRevisionsV1")),
+        "revision capability missing: {capabilities:?}"
+    );
+}
+
+#[test]
+fn stale_agent_profile_mutations_return_typed_conflicts() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let created = request(
+        &mut writer,
+        &mut reader,
+        260,
+        "agentProfile.upsert",
+        json!({"name": "Original", "agentType": "codex", "command": "codex"}),
+    );
+    let id = payload(&created)["id"].as_str().unwrap().to_string();
+    let updated = request(
+        &mut writer,
+        &mut reader,
+        261,
+        "agentProfile.upsert",
+        json!({
+            "id": id.clone(),
+            "expectedRevision": 0,
+            "name": "Current",
+            "agentType": "codex",
+            "command": "codex"
+        }),
+    );
+    assert_eq!(payload(&updated)["revision"], json!(1));
+
+    for (request_id, verb, mutation) in [
+        (
+            262,
+            "agentProfile.upsert",
+            json!({
+                "id": id.clone(),
+                "expectedRevision": 0,
+                "name": "Stale",
+                "agentType": "codex",
+                "command": "codex"
+            }),
+        ),
+        (
+            263,
+            "agentProfile.remove",
+            json!({"id": id.clone(), "expectedRevision": 0}),
+        ),
+    ] {
+        let conflict = request(&mut writer, &mut reader, request_id, verb, mutation);
+        assert_eq!(conflict["ok"], json!(false));
+        assert_eq!(
+            conflict["errorCode"],
+            json!("agent_profile_revision_conflict")
+        );
+        assert_eq!(conflict["errorDetails"]["profileId"], json!(id));
+        assert_eq!(conflict["errorDetails"]["expectedRevision"], json!(0));
+        assert_eq!(conflict["errorDetails"]["currentRevision"], json!(1));
+    }
 }

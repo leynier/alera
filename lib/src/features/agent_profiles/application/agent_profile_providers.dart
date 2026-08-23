@@ -68,6 +68,7 @@ class AgentProfiles extends _$AgentProfiles {
 
   Future<AgentProfile> upsert({
     String? id,
+    int? expectedRevision,
     required String name,
     required String agentType,
     required AgentProfileLaunchMode launchMode,
@@ -79,6 +80,7 @@ class AgentProfiles extends _$AgentProfiles {
   }) async {
     final saved = await _repository.upsert(
       id: id,
+      expectedRevision: expectedRevision,
       name: name,
       agentType: agentType,
       launchMode: launchMode,
@@ -112,7 +114,12 @@ class AgentProfiles extends _$AgentProfiles {
     }
     state = AsyncData<List<AgentProfile>>(optimistic);
     try {
-      final reordered = await _repository.reorder(profileIds);
+      final reordered = await _repository.reorder(
+        profileIds,
+        expectedRevisions: <String, int>{
+          for (final profile in current) profile.id: profile.revision,
+        },
+      );
       _latestSnapshot = reordered;
       _pendingUpserts.clear();
       _pendingRemovals.clear();
@@ -137,8 +144,8 @@ class AgentProfiles extends _$AgentProfiles {
     );
   }
 
-  Future<void> remove(String profileId) async {
-    await _repository.remove(profileId);
+  Future<void> remove(String profileId, {required int expectedRevision}) async {
+    await _repository.remove(profileId, expectedRevision: expectedRevision);
     _pendingUpserts.remove(profileId);
     _pendingRemovals.add(profileId);
     state = AsyncData<List<AgentProfile>>(_mergeSnapshot(_latestSnapshot));
@@ -172,6 +179,7 @@ class AgentProfiles extends _$AgentProfiles {
 
   bool _sameProfile(AgentProfile left, AgentProfile right) {
     return left.id == right.id &&
+        left.revision == right.revision &&
         left.name == right.name &&
         left.agentType == right.agentType &&
         left.command == right.command &&

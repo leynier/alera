@@ -23,6 +23,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
+part 'terminal_host_client_guarded_requests.dart';
 part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
@@ -35,7 +36,8 @@ final class SocketTerminalHostClient
     with
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
-        _TerminalPulseHostClientSupport
+        _TerminalPulseHostClientSupport,
+        _GuardedRuntimeHostClientSupport
     implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
@@ -686,9 +688,7 @@ final class SocketTerminalHostClient
     if (message['ok'] == true) {
       completer.complete(message['payload']);
     } else {
-      completer.completeError(
-        _terminalHostRequestError(message['error'] as String?),
-      );
+      completer.completeError(_terminalHostRequestError(message));
     }
   }
 
