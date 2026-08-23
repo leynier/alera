@@ -138,13 +138,7 @@ class CodexChatSnapshot {
 
   factory CodexChatSnapshot.fromJson(Object? value) {
     final json = _map(value);
-    final events = <CodexTimelineEvent>[
-      for (final item
-          in json['events'] is List
-              ? json['events'] as List
-              : const <Object?>[])
-        CodexTimelineEvent.fromJson(item),
-    ];
+    final events = _codexTimelineEvents(json['events']);
     var cells = <CodexTimelineCell>[
       for (final item
           in json['timelineCells'] is List
@@ -162,13 +156,7 @@ class CodexChatSnapshot {
       timelineCells: cells,
       promptHistory: _codexPromptHistory(cells),
       mcpInitializing: _codexHasInitializingMcp(cells),
-      pendingRequests: <CodexPendingRequest>[
-        for (final item
-            in json['pendingRequests'] is List
-                ? json['pendingRequests'] as List
-                : const <Object?>[])
-          CodexPendingRequest.fromJson(item),
-      ],
+      pendingRequests: _codexPendingRequests(json['pendingRequests']),
       activeTurnId: _string(json['activeTurnId']),
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
@@ -180,161 +168,32 @@ class CodexChatSnapshot {
   CodexChatSnapshot applyDelta(Object? value) {
     final json = _map(value);
     if (json.isEmpty) return this;
-    final removedIds = <String>{
-      for (final id
-          in json['timelineRemovedIds'] is List
-              ? json['timelineRemovedIds'] as List
-              : const <Object?>[])
-        if (id?.toString() case final String value when value.isNotEmpty) value,
-    };
-    final upserts = <String, CodexTimelineCell>{};
-    for (final item
-        in json['timelineUpserts'] is List
-            ? json['timelineUpserts'] as List
-            : const <Object?>[]) {
-      if (item is! Map) continue;
-      final cell = CodexTimelineCell.fromJson(_map(item));
-      upserts[cell.id] = cell;
-    }
-    final segmented = timelineCells is CodexTimelineCells
-        ? timelineCells as CodexTimelineCells
-        : null;
-    var historyCells = segmented?.history ?? const <CodexTimelineCell>[];
-    var liveCells = List<CodexTimelineCell>.of(
-      segmented?.live ?? timelineCells,
-      growable: true,
-    );
-    var liveIndexes = <String, int>{
-      for (var index = 0; index < liveCells.length; index++)
-        liveCells[index].id: index,
-    };
-    var historyIndexes = segmented?.historyIndexes ?? const <String, int>{};
-    CodexTimelineCell? currentCell(String id) {
-      final liveIndex = liveIndexes[id];
-      if (liveIndex != null) return liveCells[liveIndex];
-      final historyIndex = historyIndexes[id];
-      return historyIndex == null ? null : historyCells[historyIndex];
-    }
-
-    final historyChanged =
-        removedIds.any(
-          (id) => currentCell(id)?.kind == CodexTimelineKind.userMessage,
-        ) ||
-        upserts.entries.any(
-          (entry) =>
-              currentCell(entry.key)?.kind == CodexTimelineKind.userMessage ||
-              entry.value.kind == CodexTimelineKind.userMessage,
-        );
-    final mcpChanged =
-        removedIds.any((id) => _codexIsMcpStartup(currentCell(id))) ||
-        upserts.entries.any(
-          (entry) =>
-              _codexIsMcpStartup(currentCell(entry.key)) ||
-              _codexIsMcpStartup(entry.value),
-        );
-    final cellsChanged = removedIds.isNotEmpty || upserts.isNotEmpty;
-    var historySegmentChanged = false;
-    if (removedIds.isNotEmpty) {
-      final removesHistory =
-          segmented != null &&
-          removedIds.any((id) => segmented.historyIndexFor(id) != null);
-      if (removesHistory) {
-        historyCells = <CodexTimelineCell>[
-          for (final cell in historyCells)
-            if (!removedIds.contains(cell.id)) cell,
-        ];
-        historyIndexes = <String, int>{
-          for (var index = 0; index < historyCells.length; index++)
-            historyCells[index].id: index,
-        };
-        historySegmentChanged = true;
-      }
-      liveCells.removeWhere((cell) => removedIds.contains(cell.id));
-      liveIndexes = <String, int>{
-        for (var index = 0; index < liveCells.length; index++)
-          liveCells[index].id: index,
-      };
-    }
-    for (final entry in upserts.entries) {
-      final liveIndex = liveIndexes[entry.key];
-      if (liveIndex != null) {
-        liveCells[liveIndex] = entry.value;
-        continue;
-      }
-      final historyIndex = historyIndexes[entry.key];
-      if (historyIndex != null && !removedIds.contains(entry.key)) {
-        if (!historySegmentChanged) {
-          historyCells = List<CodexTimelineCell>.of(historyCells);
-          historySegmentChanged = true;
-        }
-        historyCells[historyIndex] = entry.value;
-        continue;
-      }
-      liveIndexes[entry.key] = liveCells.length;
-      liveCells.add(entry.value);
-    }
-    final nextCells = !cellsChanged
-        ? timelineCells
-        : historyCells.isEmpty
-        ? List<CodexTimelineCell>.unmodifiable(liveCells)
-        : historySegmentChanged || segmented == null
-        ? CodexTimelineCells.segmented(history: historyCells, live: liveCells)
-        : segmented.withLive(liveCells);
-    final replacementEvents = json['eventsReplace'] is List
-        ? <CodexTimelineEvent>[
-            for (final item in json['eventsReplace'] as List)
-              CodexTimelineEvent.fromJson(item),
-          ]
-        : null;
-    final appendedEvents = <CodexTimelineEvent>[
-      for (final item
-          in json['eventsAppend'] is List
-              ? json['eventsAppend'] as List
-              : const <Object?>[])
-        CodexTimelineEvent.fromJson(item),
-    ];
-    final eventLimit = _int(json['eventLimit']) ?? 160;
-    final combinedEvents =
-        replacementEvents ??
-        (appendedEvents.isEmpty
-            ? events
-            : <CodexTimelineEvent>[...events, ...appendedEvents]);
-    final nextEvents = combinedEvents.length <= eventLimit
-        ? combinedEvents
-        : combinedEvents.sublist(combinedEvents.length - eventLimit);
+    final timeline = _CodexTimelineDelta.fromJson(json).apply(timelineCells);
     return CodexChatSnapshot(
-      events: nextEvents,
-      timelineCells: nextCells,
-      promptHistory: historyChanged
-          ? _codexPromptHistory(nextCells)
+      events: _applyCodexEventDelta(events, json),
+      timelineCells: timeline.cells,
+      promptHistory: timeline.updatesPromptHistory
+          ? _codexPromptHistory(timeline.cells)
           : promptHistory,
-      mcpInitializing: mcpChanged
-          ? _codexHasInitializingMcp(nextCells)
+      mcpInitializing: timeline.updatesMcpState
+          ? _codexHasInitializingMcp(timeline.cells)
           : mcpInitializing,
-      pendingRequests: json.containsKey('pendingRequests')
-          ? <CodexPendingRequest>[
-              for (final item
-                  in json['pendingRequests'] is List
-                      ? json['pendingRequests'] as List
-                      : const <Object?>[])
-                CodexPendingRequest.fromJson(item),
-            ]
-          : pendingRequests,
-      activeTurnId: json.containsKey('activeTurnId')
-          ? _string(json['activeTurnId'])
-          : activeTurnId,
-      contextUsed: json.containsKey('contextUsed')
-          ? _int(json['contextUsed'])
-          : contextUsed,
-      contextLimit: json.containsKey('contextLimit')
-          ? _int(json['contextLimit'])
-          : contextLimit,
-      title: json.containsKey('title') ? _string(json['title']) : title,
-      goal: json.containsKey('goal')
-          ? json['goal'] is Map
-                ? CodexThreadGoal.fromJson(json['goal'])
-                : null
-          : goal,
+      pendingRequests: _codexDeltaValue(
+        json,
+        'pendingRequests',
+        pendingRequests,
+        _codexPendingRequests,
+      ),
+      activeTurnId: _codexDeltaValue(
+        json,
+        'activeTurnId',
+        activeTurnId,
+        _string,
+      ),
+      contextUsed: _codexDeltaValue(json, 'contextUsed', contextUsed, _int),
+      contextLimit: _codexDeltaValue(json, 'contextLimit', contextLimit, _int),
+      title: _codexDeltaValue(json, 'title', title, _string),
+      goal: _codexDeltaValue(json, 'goal', goal, _codexThreadGoal),
     );
   }
 
@@ -424,6 +283,18 @@ class CodexChatSnapshot {
     if (goal != null) 'goal': goal!.toJson(),
   };
 }
+
+List<CodexTimelineEvent> _codexTimelineEvents(Object? value) =>
+    <CodexTimelineEvent>[
+      for (final item in value is List ? value : const <Object?>[])
+        CodexTimelineEvent.fromJson(item),
+    ];
+
+List<CodexPendingRequest> _codexPendingRequests(Object? value) =>
+    <CodexPendingRequest>[
+      for (final item in value is List ? value : const <Object?>[])
+        CodexPendingRequest.fromJson(item),
+    ];
 
 List<String> _codexPromptHistory(List<CodexTimelineCell> cells) =>
     List<String>.unmodifiable(<String>[

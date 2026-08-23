@@ -69,6 +69,93 @@ void registerCodexSnapshotCoverageTests(DateTime now) {
     ]);
   });
 
+  test(
+    'snapshot deltas preserve absent fields and normalize explicit ones',
+    () {
+      final snapshot = CodexChatSnapshot.fromJson(<String, Object?>{
+        'events': <Object?>[
+          <String, Object?>{'method': 'existing'},
+        ],
+        'timelineCells': <Object?>[
+          <String, Object?>{
+            'id': 'user',
+            'kind': 'userMessage',
+            'markdownText': 'Keep this prompt',
+          },
+        ],
+        'pendingRequests': <Object?>[
+          <String, Object?>{'id': 1, 'method': 'request'},
+        ],
+        'activeTurnId': 'turn-1',
+        'contextUsed': 10,
+        'contextLimit': 20,
+        'title': 'Existing title',
+        'goal': <String, Object?>{
+          'threadId': 'thread-1',
+          'objective': 'Existing goal',
+          'status': 'active',
+          'tokensUsed': 3,
+          'timeUsedSeconds': 4,
+        },
+      });
+
+      expect(identical(snapshot.applyDelta(null), snapshot), isTrue);
+      expect(
+        identical(snapshot.applyDelta(const <String, Object?>{}), snapshot),
+        isTrue,
+      );
+
+      final partial = snapshot.applyDelta(<String, Object?>{
+        'timelineRemovedIds': <Object?>[null, ''],
+        'timelineUpserts': <Object?>['ignored'],
+        'eventsAppend': 'ignored',
+        'contextUsed': '42',
+      });
+      expect(identical(partial.timelineCells, snapshot.timelineCells), isTrue);
+      expect(identical(partial.events, snapshot.events), isTrue);
+      expect(identical(partial.promptHistory, snapshot.promptHistory), isTrue);
+      expect(
+        identical(partial.pendingRequests, snapshot.pendingRequests),
+        isTrue,
+      );
+      expect(identical(partial.goal, snapshot.goal), isTrue);
+      expect(partial.activeTurnId, 'turn-1');
+      expect(partial.contextUsed, 42);
+      expect(partial.contextLimit, 20);
+      expect(partial.title, 'Existing title');
+
+      final cleared = partial.applyDelta(<String, Object?>{
+        'pendingRequests': null,
+        'activeTurnId': null,
+        'contextUsed': 'invalid',
+        'contextLimit': null,
+        'title': 7,
+        'goal': 'invalid',
+      });
+      expect(cleared.pendingRequests, isEmpty);
+      expect(cleared.activeTurnId, isNull);
+      expect(cleared.contextUsed, isNull);
+      expect(cleared.contextLimit, isNull);
+      expect(cleared.title, isNull);
+      expect(cleared.goal, isNull);
+
+      final withPartialGoal = cleared.applyDelta(<String, Object?>{
+        'goal': <String, Object?>{'objective': 'Replacement goal'},
+      });
+      expect(withPartialGoal.goal?.objective, 'Replacement goal');
+      expect(withPartialGoal.goal?.threadId, isEmpty);
+
+      expect(
+        () => snapshot.applyDelta(<String, Object?>{
+          'timelineUpserts': <Object?>[
+            <String, Object?>{'kind': 'assistantMessage'},
+          ],
+        }),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('snapshot deltas share expanded history while updating live cells', () {
     CodexTimelineCell cell(String id, String text) =>
         CodexTimelineCell.fromJson(<String, Object?>{
@@ -153,6 +240,12 @@ void registerCodexSnapshotCoverageTests(DateTime now) {
       ],
     });
     expect(ready.mcpInitializing, isFalse);
+
+    final removed = snapshot.applyDelta(<String, Object?>{
+      'timelineRemovedIds': <Object?>['mcp-startup-filesystem'],
+    });
+    expect(removed.timelineCells, isEmpty);
+    expect(removed.mcpInitializing, isFalse);
   });
 
   test('recognizes plan questions and separates recommended option labels', () {
