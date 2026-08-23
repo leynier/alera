@@ -175,3 +175,25 @@ Mergify validates pull requests in batches of two to four. When only one pull re
 ## Release Process
 
 Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.
+
+A non-dry cut must start at the current `main` commit. Its first run creates or reuses an immutable `release/version-*` pull request containing the version files and `tool/release/prepared_release.json`, then explicitly dispatches the required pull request checks. Mergify queues that bot-owned pull request after its checks pass. The merge event starts a separate Cut Release run, revalidates the plan against the merge parent, and builds, tags, and publishes only from the exact merged commit. A dry run only writes the plan summary and never creates a branch, pull request, tag, or release.
+
+### Main Ruleset Rollout
+
+Do not activate the `main` ruleset until the release-writer pull request has merged and its writer path is present on `main`.
+
+1. Run **Cut Release** on `main` with `dry_run=true`, preserve its successful run ID, and confirm the run title contains `dry_run=true`.
+2. Run `dart tool/github/main_ruleset.dart --repository leynier/alera --dry-run-run-id <run-id>` and review the exact payload. This preflight verifies the merged writer, successful dry run, live GitHub App IDs, and current ruleset state without changing the repository.
+3. Run the same command with `--apply`. The script creates the ruleset only when no repository ruleset exists, refuses to overwrite drift, and verifies the effective rules on `main`.
+4. Prove an ordinary direct push is rejected with a controlled empty-tree commit. The command below does not change the checkout or files. If GitHub unexpectedly accepts it, leave the harmless empty commit in history, fix the ruleset through the API or settings, and do not force-push it away.
+
+```bash
+git fetch origin main
+probe_sha="$(printf '%s\n' 'test: verify main ruleset rejects direct push' | git commit-tree "$(git rev-parse 'origin/main^{tree}')" -p origin/main)"
+if git push origin "$probe_sha:refs/heads/main"; then
+  echo 'ERROR: main accepted an ordinary direct push' >&2
+  exit 1
+fi
+```
+
+5. Queue an existing eligible pull request that does not touch backend or native surfaces. Verify `pr-ready` passes on its head, Mergify creates the queue candidate, `queue-ready` passes, and Mergify merges it. Keep issue #489 open until both this queued-merge proof and the rejected direct-push proof are recorded.

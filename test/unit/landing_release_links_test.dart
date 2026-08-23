@@ -89,13 +89,14 @@ void main() {
       );
     });
 
-    test('the release commit rewrites the pin for stable cuts', () {
-      // A cut that bumps the version without moving this file leaves the
-      // download page serving the previous release's assets.
+    test('the version pull request rewrites the pin for stable cuts', () {
+      // A prepared version PR that bumps the version without moving this file
+      // leaves the download page serving the previous release's assets.
       final workflow = File(_workflow).readAsStringSync();
 
       expect(workflow, contains('dart $_updateScript'));
-      expect(workflow, contains('git add $_dataPath'));
+      expect(workflow, contains('git add tool/release/prepared_release.json'));
+      expect(workflow, contains(_dataPath));
       expect(
         workflow,
         contains(r'if [[ "$CHANNEL" == "stable" ]]; then'),
