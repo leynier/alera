@@ -689,9 +689,17 @@ impl ServerActor {
             }
             "tab.upsert" => {
                 self.require_auth(client_id)?;
-                let tab: WorkspaceTabRecord = parse_payload(payload)?;
+                let mut tab: WorkspaceTabRecord = parse_payload(payload)?;
+                if let Some(stored) = self
+                    .runtime_store
+                    .find_workspace_tab(&tab.id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                {
+                    super::tab_compatibility::preserve_host_owned_tab_payload(&stored, &mut tab);
+                }
                 let value = self.upsert_workspace_tab_and_spawn(tab).await?;
-                Ok(json!(value))
+                Ok(json!(self.workspace_tab_for_client(client_id, value)))
             }
             "tab.rename" => {
                 self.require_auth(client_id)?;

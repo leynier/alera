@@ -355,6 +355,22 @@ pub(super) const AGENT_PROFILE_REFERENCE_TRIGGERS: &[&str] = &[
          WHERE id = json_extract(NEW.payloadJson, '$.agentProfileId')
        )
      BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+    "CREATE TRIGGER IF NOT EXISTS workspaceTabsAgentProfileSnapshotInsertGuard
+     BEFORE INSERT ON workspaceTabs
+     WHEN json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id') IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM agentProfiles
+         WHERE id = json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id')
+       )
+     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
+    "CREATE TRIGGER IF NOT EXISTS workspaceTabsAgentProfileSnapshotUpdateGuard
+     BEFORE UPDATE OF payloadJson ON workspaceTabs
+     WHEN json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id') IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM agentProfiles
+         WHERE id = json_extract(NEW.payloadJson, '$.agentProfileLaunchV1.profile.id')
+       )
+     BEGIN SELECT RAISE(ABORT, 'agent profile reference does not exist'); END;",
     "CREATE TRIGGER IF NOT EXISTS automationsAgentProfileInsertGuard
      BEFORE INSERT ON automations
      WHEN COALESCE(

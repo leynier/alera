@@ -16,7 +16,7 @@ use crate::terminal_host::protocol::{
 use super::actor_test_harness::{local_client, mobile_client, test_actor};
 use super::ServerActor;
 
-async fn request(
+pub(super) async fn request(
     actor: &mut ServerActor,
     client_id: u64,
     request_id: i64,

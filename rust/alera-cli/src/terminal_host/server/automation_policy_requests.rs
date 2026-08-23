@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+use super::terminal_startup_commands::agent_profile_id;
 use super::ServerActor;
 
 impl ServerActor {
@@ -270,11 +271,7 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?
                     .ok_or_else(|| HostError::state("automation existing tab is missing"))?;
-                Ok(tab
-                    .payload
-                    .get("agentProfileId")
-                    .and_then(Value::as_str)
-                    .map(str::to_string))
+                Ok(agent_profile_id(&tab).map(str::to_string))
             }
             AutomationTarget::FreshTab {
                 agent_profile_id, ..

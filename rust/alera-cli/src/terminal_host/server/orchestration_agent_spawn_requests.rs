@@ -2,6 +2,7 @@ use alera_core::runtime::{OrchestrationDispatchStatus, WorkspaceStatus, Workspac
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::orchestration::agent_profile_launch_snapshot::AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY;
 use crate::terminal_host::orchestration::agent_registry::{adapter_for, AgentStartupPrompt};
 use crate::terminal_host::orchestration::coordinator_loop::CoordinatorConfig;
 use crate::terminal_host::orchestration::dispatch_preamble::{build_dispatch_bootstrap, BaseDrift};
@@ -244,6 +245,37 @@ impl ServerActor {
                 }))
             })
         });
+        let mut tab_payload = json!({
+            "terminalSessionId": id,
+            // OnRestart keeps the durable prompt even when delivery waits for
+            // a ready event. Each new PTY gets a fresh pending copy.
+            "initialPrompt": bootstrap.clone(),
+            "pendingAgentPrompt": prompt_after_ready.then(|| json!({
+                "agent": adapter.agent_type,
+                "prompt": bootstrap.clone(),
+            })),
+            "spawnOnCreate": true,
+            "orchestrationPreflight": orchestration_preflight,
+            "orchestrationSpawn": {
+                "task": task_id,
+                "from": from,
+                "agent": agent_type,
+                "owned": true,
+                "keepOnFailure": keep_on_failure,
+            }
+        });
+        if let Some(snapshot) = resolved.launch_snapshot {
+            tab_payload[AGENT_PROFILE_LAUNCH_SNAPSHOT_KEY] = serde_json::to_value(snapshot)
+                .map_err(|error| {
+                    HostError::state(format!(
+                        "could not encode agent profile launch snapshot: {error}"
+                    ))
+                })?;
+        } else {
+            tab_payload["initialCommand"] = json!(command);
+            tab_payload["initialManagedAgentLaunch"] = json!(resolved.managed_launch);
+            tab_payload["agentType"] = json!(agent_type);
+        }
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -252,28 +284,7 @@ impl ServerActor {
                 .unwrap_or_else(|| format!("{} Worker", agent_type)),
             created_at: now,
             updated_at: now,
-            payload: json!({
-                "terminalSessionId": id,
-                "initialCommand": command,
-                "initialManagedAgentLaunch": resolved.managed_launch,
-                "initialPrompt": (!prompt_after_ready).then(|| bootstrap.clone()),
-                "pendingAgentPrompt": prompt_after_ready.then(|| json!({
-                    "agent": adapter.agent_type,
-                    "prompt": bootstrap.clone(),
-                })),
-                // The adapter decides the prompt's shape at spawn, so the tab
-                // has to name its agent rather than only the spawn metadata.
-                "agentType": agent_type,
-                "spawnOnCreate": true,
-                "orchestrationPreflight": orchestration_preflight,
-                "orchestrationSpawn": {
-                    "task": task_id,
-                    "from": from,
-                    "agent": agent_type,
-                    "owned": true,
-                    "keepOnFailure": keep_on_failure,
-                }
-            }),
+            payload: tab_payload,
         };
         if let Err(error) = self.upsert_workspace_tab_and_spawn(tab).await {
             if let Some(dispatch_id) = dispatch_response
