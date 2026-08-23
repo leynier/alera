@@ -52,6 +52,16 @@ class MobileWorkspaceEntryRow extends MobileWorkspaceRow {
   final bool isPinnedCopy;
 }
 
+class _PreparedWorkspaceListing {
+  const _PreparedWorkspaceListing({
+    required this.orderedWorkspaces,
+    required this.directActivityByWorkspaceId,
+  });
+
+  final List<WorkspaceSummary> orderedWorkspaces;
+  final Map<String, MobileAgentActivityRank?> directActivityByWorkspaceId;
+}
+
 List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   required List<WorkspaceSummary> workspaces,
   required List<ProjectSummary> projects,
@@ -62,27 +72,73 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   String searchQuery = '',
   DateTime? now,
 }) {
-  final rows = <MobileWorkspaceRow>[];
-  final normalizedQuery = searchQuery.trim().toLowerCase();
   final projectById = <String, ProjectSummary>{
     for (final project in projects) project.id: project,
   };
-  final clock = (now ?? DateTime.now()).toUtc();
-  final attention = <String, MobileWorkspaceAttention>{};
-  MobileWorkspaceAttention attentionOf(WorkspaceSummary workspace) {
-    return attention.putIfAbsent(
-      workspace.id,
-      () => mobileWorkspaceAttention(
-        workspaceId: workspace.id,
-        statuses: agentPresence,
-        now: clock,
-      ),
-    );
+  final listing = _prepareWorkspaceListing(
+    workspaces: workspaces,
+    projectById: projectById,
+    prefs: prefs,
+    activity: activity,
+    agentPresence: agentPresence,
+    terminalTabCountByWorkspaceId: terminalTabCountByWorkspaceId,
+    searchQuery: searchQuery,
+    now: now,
+  );
+  final visibleWorkspaces = listing.orderedWorkspaces;
+  final pinned = <WorkspaceSummary>[
+    for (final workspace in visibleWorkspaces)
+      if (workspace.isPinned) workspace,
+  ];
+  final rows = <MobileWorkspaceRow>[];
+  _appendPinnedSection(rows, pinned, prefs);
+
+  final workspacesBelow = prefs.showPinnedWorkspacesBelow
+      ? visibleWorkspaces
+      : visibleWorkspaces
+            .where((workspace) => !workspace.isPinned)
+            .toList(growable: false);
+  switch (prefs.groupBy) {
+    case MobileWorkspaceGroupBy.project:
+      _appendProjectSections(
+        rows: rows,
+        workspaces: workspacesBelow,
+        projects: projects,
+        projectById: projectById,
+        prefs: prefs,
+        directActivityByWorkspaceId: listing.directActivityByWorkspaceId,
+      );
+    case MobileWorkspaceGroupBy.none:
+      _appendFlatSection(
+        rows: rows,
+        workspaces: workspacesBelow,
+        hasPinnedSection: pinned.isNotEmpty,
+        prefs: prefs,
+      );
   }
 
+  return rows;
+}
+
+_PreparedWorkspaceListing _prepareWorkspaceListing({
+  required List<WorkspaceSummary> workspaces,
+  required Map<String, ProjectSummary> projectById,
+  required MobileViewPrefs prefs,
+  required Map<String, DateTime> activity,
+  required List<AgentPresenceSummary> agentPresence,
+  required Map<String, int> terminalTabCountByWorkspaceId,
+  required String searchQuery,
+  required DateTime? now,
+}) {
+  final normalizedQuery = searchQuery.trim().toLowerCase();
+  final clock = (now ?? DateTime.now()).toUtc();
   final workspacesWithAgentPresence = <String>{
     for (final status in agentPresence) status.workspaceId,
   };
+  bool hasActivity(WorkspaceSummary workspace) {
+    return (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
+        workspacesWithAgentPresence.contains(workspace.id);
+  }
 
   final visibleWorkspaces = <WorkspaceSummary>[
     for (final workspace in workspaces)
@@ -90,9 +146,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
             workspace,
             projectById[workspace.projectId],
             prefs,
-            hasActivity:
-                (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
-                workspacesWithAgentPresence.contains(workspace.id),
+            hasActivity: hasActivity(workspace),
           ) &&
           _matchesSearch(
             workspace,
@@ -103,11 +157,13 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   ];
   final directActivityByWorkspaceId = <String, MobileAgentActivityRank?>{
     for (final workspace in visibleWorkspaces)
-      workspace.id:
-          (terminalTabCountByWorkspaceId[workspace.id] ?? 0) > 0 ||
-              workspacesWithAgentPresence.contains(workspace.id)
+      workspace.id: hasActivity(workspace)
           ? mobileAgentActivityRank(
-              attention: attentionOf(workspace),
+              attention: mobileWorkspaceAttention(
+                workspaceId: workspace.id,
+                statuses: agentPresence,
+                now: clock,
+              ),
               fallback:
                   activity[workspace.id] ?? workspace.updatedAt ?? DateTime(0),
             )
@@ -124,111 +180,125 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
         _compareWorkspaces(left, right, prefs, subtreeActivityByWorkspaceId),
   );
 
-  final pinned = <WorkspaceSummary>[
-    for (final workspace in visibleWorkspaces)
-      if (workspace.isPinned) workspace,
-  ];
-  if (pinned.isNotEmpty) {
+  return _PreparedWorkspaceListing(
+    orderedWorkspaces: visibleWorkspaces,
+    directActivityByWorkspaceId: directActivityByWorkspaceId,
+  );
+}
+
+void _appendPinnedSection(
+  List<MobileWorkspaceRow> rows,
+  List<WorkspaceSummary> pinned,
+  MobileViewPrefs prefs,
+) {
+  if (pinned.isEmpty) {
+    return;
+  }
+  rows.add(
+    MobilePinnedHeaderRow(
+      count: pinned.length,
+      collapsed: prefs.pinnedSectionCollapsed,
+    ),
+  );
+  if (prefs.pinnedSectionCollapsed) {
+    return;
+  }
+  for (final workspace in pinned) {
     rows.add(
-      MobilePinnedHeaderRow(
-        count: pinned.length,
-        collapsed: prefs.pinnedSectionCollapsed,
+      MobileWorkspaceEntryRow(
+        entry: WorkspaceTreeEntry(
+          workspace: workspace,
+          depth: 0,
+          visibleChildCount: 0,
+          childrenCollapsed: false,
+        ),
+        isPinnedCopy: true,
       ),
     );
-    if (!prefs.pinnedSectionCollapsed) {
-      for (final workspace in pinned) {
-        rows.add(
-          MobileWorkspaceEntryRow(
-            entry: WorkspaceTreeEntry(
-              workspace: workspace,
-              depth: 0,
-              visibleChildCount: 0,
-              childrenCollapsed: false,
-            ),
-            isPinnedCopy: true,
-          ),
-        );
-      }
-    }
   }
+}
 
-  final workspacesBelow = prefs.showPinnedWorkspacesBelow
-      ? visibleWorkspaces
-      : visibleWorkspaces
-            .where((workspace) => !workspace.isPinned)
-            .toList(growable: false);
-
-  if (prefs.groupBy == MobileWorkspaceGroupBy.project) {
-    final projectNames = <String, String>{
-      for (final project in projects) project.id: project.name,
-    };
-    final byProject = <String, List<WorkspaceSummary>>{};
-    for (final workspace in workspacesBelow) {
-      byProject
-          .putIfAbsent(workspace.projectId, () => <WorkspaceSummary>[])
-          .add(workspace);
-    }
-    final orderedProjectIds =
-        <String>[
-          for (final project in projects)
-            if (byProject.containsKey(project.id)) project.id,
-          for (final projectId in byProject.keys)
-            if (!projectNames.containsKey(projectId)) projectId,
-        ]..sort(
-          (left, right) => _compareProjects(
-            projectById[left],
-            projectById[right],
-            byProject[left] ?? const <WorkspaceSummary>[],
-            byProject[right] ?? const <WorkspaceSummary>[],
-            prefs,
-            directActivityByWorkspaceId,
-          ),
-        );
-    for (final projectId in orderedProjectIds) {
-      final group = byProject[projectId]!;
-      final collapsed = prefs.collapsedProjectIds.contains(projectId);
-      rows.add(
-        MobileProjectHeaderRow(
-          projectId: projectId,
-          projectName: projectNames[projectId] ?? projectId,
-          count: group.length,
-          collapsed: collapsed,
+void _appendProjectSections({
+  required List<MobileWorkspaceRow> rows,
+  required List<WorkspaceSummary> workspaces,
+  required List<ProjectSummary> projects,
+  required Map<String, ProjectSummary> projectById,
+  required MobileViewPrefs prefs,
+  required Map<String, MobileAgentActivityRank?> directActivityByWorkspaceId,
+}) {
+  final byProject = <String, List<WorkspaceSummary>>{};
+  for (final workspace in workspaces) {
+    byProject
+        .putIfAbsent(workspace.projectId, () => <WorkspaceSummary>[])
+        .add(workspace);
+  }
+  final orderedProjectIds =
+      <String>[
+        for (final project in projects)
+          if (byProject.containsKey(project.id)) project.id,
+        for (final projectId in byProject.keys)
+          if (!projectById.containsKey(projectId)) projectId,
+      ]..sort(
+        (left, right) => _compareProjects(
+          projectById[left],
+          projectById[right],
+          byProject[left] ?? const <WorkspaceSummary>[],
+          byProject[right] ?? const <WorkspaceSummary>[],
+          prefs,
+          directActivityByWorkspaceId,
         ),
       );
-      if (collapsed) {
-        continue;
-      }
-      for (final entry in buildWorkspaceTree(
-        entries: group,
-        collapsedParentIds: prefs.collapsedParentWorkspaceIds,
-      )) {
-        rows.add(MobileWorkspaceEntryRow(entry: entry));
-      }
-    }
-  } else {
-    // Without project grouping, "All" is only useful as a sibling of Pinned.
-    // A lone All header just adds an extra collapse step.
-    final showAllHeader = pinned.isNotEmpty && workspacesBelow.isNotEmpty;
-    if (showAllHeader) {
-      rows.add(
-        MobileAllHeaderRow(
-          count: workspacesBelow.length,
-          collapsed: prefs.allSectionCollapsed,
-        ),
-      );
-      if (prefs.allSectionCollapsed) {
-        return rows;
-      }
-    }
-    for (final entry in buildWorkspaceTree(
-      entries: workspacesBelow,
-      collapsedParentIds: prefs.collapsedParentWorkspaceIds,
-    )) {
-      rows.add(MobileWorkspaceEntryRow(entry: entry));
+  for (final projectId in orderedProjectIds) {
+    final group = byProject[projectId]!;
+    final collapsed = prefs.collapsedProjectIds.contains(projectId);
+    rows.add(
+      MobileProjectHeaderRow(
+        projectId: projectId,
+        projectName: projectById[projectId]?.name ?? projectId,
+        count: group.length,
+        collapsed: collapsed,
+      ),
+    );
+    if (!collapsed) {
+      _appendWorkspaceTreeRows(rows, group, prefs.collapsedParentWorkspaceIds);
     }
   }
+}
 
-  return rows;
+void _appendFlatSection({
+  required List<MobileWorkspaceRow> rows,
+  required List<WorkspaceSummary> workspaces,
+  required bool hasPinnedSection,
+  required MobileViewPrefs prefs,
+}) {
+  // Without project grouping, "All" is only useful as a sibling of Pinned.
+  // A lone All header just adds an extra collapse step.
+  final showAllHeader = hasPinnedSection && workspaces.isNotEmpty;
+  if (showAllHeader) {
+    rows.add(
+      MobileAllHeaderRow(
+        count: workspaces.length,
+        collapsed: prefs.allSectionCollapsed,
+      ),
+    );
+    if (prefs.allSectionCollapsed) {
+      return;
+    }
+  }
+  _appendWorkspaceTreeRows(rows, workspaces, prefs.collapsedParentWorkspaceIds);
+}
+
+void _appendWorkspaceTreeRows(
+  List<MobileWorkspaceRow> rows,
+  List<WorkspaceSummary> workspaces,
+  Set<String> collapsedParentWorkspaceIds,
+) {
+  for (final entry in buildWorkspaceTree(
+    entries: workspaces,
+    collapsedParentIds: collapsedParentWorkspaceIds,
+  )) {
+    rows.add(MobileWorkspaceEntryRow(entry: entry));
+  }
 }
 
 bool _matchesFilters(
