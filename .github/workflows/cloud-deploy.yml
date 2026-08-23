@@ -30,6 +30,22 @@ on:
         description: Known Cloudflare Worker version id for rollback mode
         required: false
         type: string
+      rollback_relay_state:
+        description: Expected relay state in the rollback Worker version
+        required: true
+        default: disabled
+        type: choice
+        options:
+          - disabled
+          - enabled
+      rollback_relay_control_state:
+        description: Expected relay control routing in the rollback Worker version
+        required: true
+        default: backend
+        type: choice
+        options:
+          - backend
+          - worker
 
 permissions:
   contents: read
@@ -167,6 +183,56 @@ jobs:
       - name: Setup Google Cloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
 
+      - name: Bootstrap State Metadata Access
+        run: |
+          gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+            --member="serviceAccount:$GCP_SERVICE_ACCOUNT" \
+            --role=roles/storage.bucketViewer \
+            --condition=None \
+            --quiet >/dev/null
+
+      - name: Production Preflight
+        run: |
+          set -euo pipefail
+          gcloud run services describe alera-cloud \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --format='value(metadata.name)' >/dev/null
+          gcloud artifacts repositories describe alera-cloud \
+            --project="$GCP_PROJECT_ID" \
+            --location="$GCP_REGION" \
+            --format='value(name)' >/dev/null
+
+          bucket_versioning="$(
+            gcloud storage buckets describe "gs://$STATE_BUCKET" \
+              --format='value(versioning_enabled)'
+          )"
+          if [[ "${bucket_versioning,,}" != "true" ]]; then
+            echo "OpenTofu state bucket $STATE_BUCKET must have object versioning enabled." >&2
+            exit 1
+          fi
+
+          required_secrets=(
+            alera-database-url
+            alera-edge-origin-token
+            alera-github-oauth-client-secret
+            alera-google-oauth-client-secret
+            alera-tombstone-pepper
+          )
+          for secret in "${required_secrets[@]}"; do
+            enabled_version="$(
+              gcloud secrets versions list "$secret" \
+                --project="$GCP_PROJECT_ID" \
+                --filter='state=ENABLED' \
+                --limit=1 \
+                --format='value(name)'
+            )"
+            if [[ -z "$enabled_version" ]]; then
+              echo "Secret $secret has no enabled version." >&2
+              exit 1
+            fi
+          done
+
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
@@ -218,8 +284,79 @@ jobs:
               | .version_id
             ' <<<"$deployments"
           )"
-          echo "previous_image=$previous_image" >>"$GITHUB_OUTPUT"
-          echo "previous_worker_version=$previous_worker_version" >>"$GITHUB_OUTPUT"
+          previous_relay_status=""
+          for _ in 1 2 3; do
+            if previous_relay_status="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                --max-time 20 \
+                "$PUBLIC_API_URL/v1/relay/deploy-probe"
+            )" && [[ "$previous_relay_status" == "404" || "$previous_relay_status" == "426" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          case "$previous_relay_status" in
+            404)
+              previous_relay_state=disabled
+              ;;
+            426)
+              previous_relay_state=enabled
+              ;;
+            *)
+              echo "Cannot determine the current relay state from HTTP $previous_relay_status." >&2
+              exit 1
+              ;;
+          esac
+          previous_relay_control_status=""
+          for _ in 1 2 3; do
+            if previous_relay_control_status="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                --max-time 20 \
+                --header 'content-type: application/json' \
+                --data '{"publicKey":"deploy-probe","keyVersion":1}' \
+                "$PUBLIC_API_URL/v1/relay/identity"
+            )" && [[ "$previous_relay_control_status" == "401" || "$previous_relay_control_status" == "426" ]]; then
+              break
+            fi
+            sleep 5
+          done
+          case "$previous_relay_control_status" in
+            401)
+              previous_relay_control_state=backend
+              ;;
+            426)
+              previous_relay_control_state=worker
+              ;;
+            *)
+              echo "Cannot determine the current relay control state from HTTP $previous_relay_control_status." >&2
+              exit 1
+              ;;
+          esac
+          {
+            echo "previous_image=$previous_image"
+            echo "previous_relay_control_state=$previous_relay_control_state"
+            echo "previous_relay_state=$previous_relay_state"
+            echo "previous_worker_version=$previous_worker_version"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Select Relay State
+        id: relay
+        run: |
+          set -euo pipefail
+          if [[ "$(jq -r '.vars.RELAY_ENABLED // ""' edge/wrangler.jsonc)" == "true" ]]; then
+            relay_state=enabled
+          else
+            relay_state=disabled
+          fi
+          echo "state=$relay_state" >>"$GITHUB_OUTPUT"
 
       - name: Configure Artifact Registry
         if: ${{ env.DEPLOY_MODE != 'rollback' }}
@@ -326,17 +463,31 @@ jobs:
           )"
           echo "worker_version=$worker_version" >>"$GITHUB_OUTPUT"
 
-      - name: Verify Deployment
-        id: verify
+      - name: Verify Worker Namespace
+        id: namespace
         if: ${{ env.DEPLOY_MODE == 'deploy' && steps.worker.outcome == 'success' }}
         continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: |
+          tool/cloud/verify_worker_namespace.sh \
+            "$CLOUDFLARE_ACCOUNT_ID" \
+            "$WORKER_NAME" \
+            RuntimeRelayDurableObject
+
+      - name: Verify Deployment
+        id: verify
+        if: ${{ env.DEPLOY_MODE == 'deploy' && steps.worker.outcome == 'success' && steps.namespace.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          EXPECTED_RELAY_STATE: ${{ steps.relay.outputs.state }}
         run: |
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$EXPECTED_RELAY_STATE" backend
 
       - name: Roll Back Worker Automatically
         id: automatic_worker_rollback
-        if: ${{ env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        if: ${{ env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.namespace.outcome == 'failure' || steps.verify.outcome == 'failure') }}
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
@@ -347,9 +498,29 @@ jobs:
             --message "automatic rollback for GitHub run $GITHUB_RUN_ID" \
             --yes
 
+      - name: Recover Worker Forward With Relay Disabled
+        id: automatic_worker_forward_recovery
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.namespace.outcome == 'failure' || steps.verify.outcome == 'failure') && steps.automatic_worker_rollback.outcome != 'success' }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: tool/cloud/deploy_worker_relay_disabled.sh edge
+
+      - name: Verify Recovered Worker Namespace
+        id: automatic_recovery_namespace
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && (steps.automatic_worker_rollback.outcome == 'success' || steps.automatic_worker_forward_recovery.outcome == 'success') }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: |
+          tool/cloud/verify_worker_namespace.sh \
+            "$CLOUDFLARE_ACCOUNT_ID" \
+            "$WORKER_NAME" \
+            RuntimeRelayDurableObject
+
       - name: Roll Back Cloud Run Automatically
         id: automatic_cloud_run_rollback
-        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.apply.outputs.applied == 'true' && (steps.worker.outcome == 'failure' || steps.namespace.outcome == 'failure' || steps.verify.outcome == 'failure') }}
         continue-on-error: true
         working-directory: infra/production
         env:
@@ -372,14 +543,37 @@ jobs:
         id: automatic_rollback_verify
         if: ${{ always() && env.DEPLOY_MODE == 'deploy' && steps.automatic_cloud_run_rollback.outcome == 'success' }}
         continue-on-error: true
+        env:
+          FORWARD_RECOVERY: ${{ steps.automatic_worker_forward_recovery.outcome }}
+          PREVIOUS_RELAY_CONTROL_STATE: ${{ steps.current.outputs.previous_relay_control_state }}
+          PREVIOUS_RELAY_STATE: ${{ steps.current.outputs.previous_relay_state }}
+          RECOVERY_NAMESPACE: ${{ steps.automatic_recovery_namespace.outcome }}
+          WORKER_ROLLBACK: ${{ steps.automatic_worker_rollback.outcome }}
         run: |
+          set -euo pipefail
+          if [[ "$RECOVERY_NAMESPACE" != "success" ]]; then
+            echo "Recovered Worker namespace verification did not succeed." >&2
+            exit 1
+          fi
+          if [[ "$WORKER_ROLLBACK" == "success" ]]; then
+            expected_relay_control_state="$PREVIOUS_RELAY_CONTROL_STATE"
+            expected_relay_state="$PREVIOUS_RELAY_STATE"
+          elif [[ "$FORWARD_RECOVERY" == "success" ]]; then
+            expected_relay_control_state=backend
+            expected_relay_state=disabled
+          else
+            echo "Neither Worker rollback nor forward recovery succeeded." >&2
+            exit 1
+          fi
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state" "$expected_relay_control_state"
 
       - name: Report Failed Deployment
-        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && (steps.worker.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        if: ${{ always() && env.DEPLOY_MODE == 'deploy' && (steps.worker.outcome == 'failure' || steps.namespace.outcome == 'failure' || steps.verify.outcome == 'failure') }}
         env:
           CLOUD_RUN_ROLLBACK: ${{ steps.automatic_cloud_run_rollback.outcome }}
+          FORWARD_RECOVERY: ${{ steps.automatic_worker_forward_recovery.outcome }}
+          NAMESPACE_RECOVERY: ${{ steps.automatic_recovery_namespace.outcome }}
           PREVIOUS_IMAGE: ${{ steps.current.outputs.previous_image }}
           PREVIOUS_WORKER_VERSION: ${{ steps.current.outputs.previous_worker_version }}
           ROLLBACK_VERIFICATION: ${{ steps.automatic_rollback_verify.outcome }}
@@ -389,6 +583,8 @@ jobs:
             echo "### Deployment Failed"
             echo
             echo "Automatic rollback was attempted."
+            echo "- Worker forward recovery: $FORWARD_RECOVERY"
+            echo "- Recovered namespace: $NAMESPACE_RECOVERY"
             echo
             echo "- Worker rollback: \`$WORKER_ROLLBACK\`"
             echo "- Cloud Run rollback: \`$CLOUD_RUN_ROLLBACK\`"
@@ -412,6 +608,26 @@ jobs:
             --message "manual rollback from GitHub run $GITHUB_RUN_ID" \
             --yes
 
+      - name: Recover Worker Forward Manually With Relay Disabled
+        id: manual_worker_forward_recovery
+        if: ${{ always() && env.DEPLOY_MODE == 'rollback' && steps.manual_worker.outcome != 'success' }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: tool/cloud/deploy_worker_relay_disabled.sh edge
+
+      - name: Verify Manually Recovered Worker Namespace
+        id: manual_namespace
+        if: ${{ always() && env.DEPLOY_MODE == 'rollback' && (steps.manual_worker.outcome == 'success' || steps.manual_worker_forward_recovery.outcome == 'success') }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WRANGLER_API_TOKEN }}
+        run: |
+          tool/cloud/verify_worker_namespace.sh \
+            "$CLOUDFLARE_ACCOUNT_ID" \
+            "$WORKER_NAME" \
+            RuntimeRelayDurableObject
+
       - name: Roll Back Cloud Run Manually
         id: manual_cloud_run
         if: ${{ env.DEPLOY_MODE == 'rollback' && always() }}
@@ -425,18 +641,43 @@ jobs:
         id: manual_verify
         if: ${{ env.DEPLOY_MODE == 'rollback' && steps.manual_cloud_run.outcome == 'success' }}
         continue-on-error: true
+        env:
+          FORWARD_RECOVERY: ${{ steps.manual_worker_forward_recovery.outcome }}
+          NAMESPACE_RECOVERY: ${{ steps.manual_namespace.outcome }}
+          REQUESTED_RELAY_CONTROL_STATE: ${{ inputs.rollback_relay_control_state }}
+          REQUESTED_RELAY_STATE: ${{ inputs.rollback_relay_state }}
+          WORKER_ROLLBACK: ${{ steps.manual_worker.outcome }}
         run: |
+          set -euo pipefail
+          if [[ "$NAMESPACE_RECOVERY" != "success" ]]; then
+            echo "Recovered Worker namespace verification did not succeed." >&2
+            exit 1
+          fi
+          if [[ "$WORKER_ROLLBACK" == "success" ]]; then
+            expected_relay_control_state="$REQUESTED_RELAY_CONTROL_STATE"
+            expected_relay_state="$REQUESTED_RELAY_STATE"
+          elif [[ "$FORWARD_RECOVERY" == "success" ]]; then
+            expected_relay_control_state=backend
+            expected_relay_state=disabled
+          else
+            echo "Neither Worker rollback nor forward recovery succeeded." >&2
+            exit 1
+          fi
           origin_url="$(tofu -chdir=infra/production output -raw cloud_run_origin_url)"
-          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url"
+          tool/cloud/verify_production.sh "$PUBLIC_API_URL" "$origin_url" "$expected_relay_state" "$expected_relay_control_state"
 
       - name: Require Successful Manual Rollback
-        if: ${{ env.DEPLOY_MODE == 'rollback' && (steps.manual_worker.outcome != 'success' || steps.manual_cloud_run.outcome != 'success' || steps.manual_verify.outcome != 'success') }}
+        if: ${{ env.DEPLOY_MODE == 'rollback' && ((steps.manual_worker.outcome != 'success' && steps.manual_worker_forward_recovery.outcome != 'success') || steps.manual_namespace.outcome != 'success' || steps.manual_cloud_run.outcome != 'success' || steps.manual_verify.outcome != 'success') }}
         env:
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          ROLLBACK_RELAY_CONTROL_STATE: ${{ inputs.rollback_relay_control_state }}
+          ROLLBACK_RELAY_STATE: ${{ inputs.rollback_relay_state }}
           ROLLBACK_WORKER_VERSION: ${{ inputs.rollback_worker_version }}
         run: |
           {
             echo "### Manual Rollback Failed"
+            echo "- Requested relay state: $ROLLBACK_RELAY_STATE"
+            echo "- Requested relay control state: $ROLLBACK_RELAY_CONTROL_STATE"
             echo
             echo "- Requested image: \`$ROLLBACK_IMAGE\`"
             echo "- Requested Worker version: \`$ROLLBACK_WORKER_VERSION\`"

@@ -32,7 +32,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           submodules: false
+
+      - name: Whitespace
+        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
@@ -165,41 +169,45 @@ jobs:
       - name: Test
         run: flutter test
 
+  # Clippy-driver and rustc do not share rustc artifacts, so a sequential
+  # clippy-then-test job compiled the workspace twice (~6 min + ~7 min) while
+  # the tests themselves finished in a few seconds. Two legs is the same
+  # tradeoff as TEST_SHARDS: a third runner would spend more on setup than it
+  # would return. The composite owns the cargo flags so warm-cache.yml can
+  # populate matching sccache keys.
   rust:
+    name: rust ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: clippy
+          - name: test
+    env:
+      # Same R2 compiler cache as warm-cache and release. Fork pull requests
+      # omit secrets and the setup action falls back to runner-local disk.
+      ALERA_SCCACHE_R2_ACCOUNT_ID: ${{ vars.SCCACHE_R2_ACCOUNT_ID }}
+      ALERA_SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+      ALERA_SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+      ALERA_SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          submodules: false
 
-      - name: Install Linux dependencies
-        run: sudo apt-get update && sudo apt-get install --yes libdbus-1-dev pkg-config libvulkan-dev glslc
-
-      - name: Configure Vulkan SDK
-        run: echo "VULKAN_SDK=/usr" >> "$GITHUB_ENV"
-
-      - name: Setup Rust and sccache
-        uses: ./.github/actions/setup-rust-sccache
-
-      - name: Format
-        run: cargo fmt --check
-        working-directory: rust
-
-      # --workspace is required because rust/ has a root package (alera_native),
-      # so a bare clippy/test would skip the alera-cli member.
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-        working-directory: rust
-
-      - name: Test
-        run: cargo test --workspace
-        working-directory: rust
+      - name: Setup Rust checks
+        uses: ./.github/actions/setup-rust-checks
+        with:
+          check: ${{ matrix.name }}
 
       - name: Report sccache statistics
         if: always()
         run: |
           {
-            echo "### sccache Rust checks"
+            echo "### sccache Rust ${{ matrix.name }}"
             echo '```text'
             sccache --show-stats || true
             echo '```'

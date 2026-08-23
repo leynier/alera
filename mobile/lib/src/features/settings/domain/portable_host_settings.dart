@@ -12,6 +12,7 @@ const List<String> supportedAgentHooks = <String>[
   'pi',
   'amp',
   'grok',
+  'fx',
 ];
 
 const Map<String, String> agentHookLabels = <String, String>{
@@ -25,6 +26,7 @@ const Map<String, String> agentHookLabels = <String, String>{
   'pi': 'Pi',
   'amp': 'Amp',
   'grok': 'Grok Build',
+  'fx': 'fx',
 };
 
 class PortableHostSettings {

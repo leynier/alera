@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -32,6 +33,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
       <AiTextGenerationOperation>[
         AiTextGenerationOperation.commitMessage,
         AiTextGenerationOperation.pullRequestDetails,
+        AiTextGenerationOperation.readingDiff,
         AiTextGenerationOperation.workspaceIdentity,
         AiTextGenerationOperation.speechMessage,
       ];
@@ -192,13 +194,17 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     AiTextGenerationSettings settings,
     AiTextGenerationOperation operation,
   ) {
-    final agent = settings.agentFor(operation);
+    final agent = operation == AiTextGenerationOperation.readingDiff
+        ? readingDiffAgentForSettings(settings)
+        : settings.agentFor(operation);
     if (agent == AiTextGenerationAgent.custom) {
       return const <Widget>[];
     }
     final model = modelForAgent(
       agent,
-      settings.modelForOperation(operation) ??
+      (operation == AiTextGenerationOperation.readingDiff
+              ? readingDiffModelForSettings(settings, agent)
+              : settings.modelForOperation(operation)) ??
           defaultModelIdForAgent(agent, settings),
       extraModels: discoveredModelsForAgent(settings, agent),
     );
@@ -253,7 +259,20 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     AiTextGenerationOperation operation,
   ) {
     final promptSettings = settings.promptSettingsFor(operation);
-    final agent = settings.agentFor(operation);
+    final isReadingDiff = operation == AiTextGenerationOperation.readingDiff;
+    final globalSupported = supportsDiffOnlyAiTextAgent(settings.agent);
+    final agent = isReadingDiff
+        ? readingDiffAgentForSettings(settings)
+        : settings.agentFor(operation);
+    final configuredAgent = promptSettings.agent ?? settings.agent;
+    final usesReadingDiffFallback =
+        isReadingDiff && !supportsDiffOnlyAiTextAgent(configuredAgent);
+    final effectivePromptAgent = usesReadingDiffFallback
+        ? agent
+        : promptSettings.agent;
+    final effectivePromptModel = usesReadingDiffFallback
+        ? null
+        : promptSettings.model;
     final inheritedModel = modelForAgent(
       agent,
       settings.modelFor(agent) ?? defaultModelIdForAgent(agent, settings),
@@ -265,17 +284,25 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
       AiTextPromptAgentRow(
         operation: operation,
         globalAgent: settings.agent,
-        value: promptSettings.agent,
+        value: effectivePromptAgent,
+        allowedAgents: isReadingDiff
+            ? diffOnlyAiTextAgents
+            : AiTextGenerationAgent.values,
+        allowGlobal: !isReadingDiff || globalSupported,
         allowCustom: operation != AiTextGenerationOperation.speechMessage,
         onChanged: (agent) {
-          final previousAgent = settings.agentFor(operation);
+          final previousAgent = isReadingDiff
+              ? readingDiffAgentForSettings(settings)
+              : settings.agentFor(operation);
           final nextAgent = agent ?? settings.agent;
           _updatePromptSettings(
             settings,
             operation,
             AiTextGenerationPromptSettings(
               agent: agent,
-              model: previousAgent == nextAgent ? promptSettings.model : null,
+              model: !usesReadingDiffFallback && previousAgent == nextAgent
+                  ? promptSettings.model
+                  : null,
             ),
           );
         },
@@ -286,7 +313,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
           agent: agent,
           models: modelsForAgent(agent, settings),
           inheritedModel: inheritedModel,
-          value: promptSettings.model,
+          value: effectivePromptModel,
           discovering: discovery.loading,
           discoveryError: discovery.error,
           onRefreshModels: spec?.modelsCommand == null
@@ -297,7 +324,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
               settings,
               operation,
               AiTextGenerationPromptSettings(
-                agent: promptSettings.agent,
+                agent: effectivePromptAgent,
                 model: model,
               ),
             );
@@ -337,11 +364,10 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     if (!mounted || !widget.settings.enabled) {
       return;
     }
-    final agents = <AiTextGenerationAgent>{
-      widget.settings.agent,
-      for (final operation in _configuredOperations)
-        widget.settings.agentFor(operation),
-    };
+    final agents = aiTextAgentsForModelDiscovery(
+      widget.settings,
+      _configuredOperations,
+    );
     for (final agent in agents) {
       _autoDiscoverAgent(agent);
     }

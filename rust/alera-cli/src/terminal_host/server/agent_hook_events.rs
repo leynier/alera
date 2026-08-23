@@ -9,13 +9,17 @@ use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
 use super::ServerActor;
 
 impl ServerActor {
-    pub(super) async fn handle_agent_hook_event(&mut self, event: AgentHookEvent) {
+    pub(super) async fn handle_agent_hook_event(&mut self, mut event: AgentHookEvent) {
         let Ok(settings) = self.runtime_store.agent_status_hook_settings().await else {
             return;
         };
         let Some(session) = self.sessions.get(&event.terminal_session_id) else {
             return;
         };
+        if event.agent_type == "fx" && event.workspace_id.is_empty() && event.tab_id.is_empty() {
+            event.workspace_id = session.workspace_id.clone();
+            event.tab_id = session.tab_id.clone();
+        }
         if session.workspace_id != event.workspace_id || session.tab_id != event.tab_id {
             return;
         }

@@ -23,6 +23,13 @@ class E2eGitBackend implements GitBackend {
   Future<bool> branchExists(String repoPath, String branch) async => false;
 
   @override
+  Future<bool> isAncestor({
+    required String path,
+    required String ancestorRef,
+    required String descendantRef,
+  }) async => false;
+
+  @override
   Future<bool> isValidBranchName(String name) async => true;
 
   @override
@@ -102,6 +109,17 @@ class E2eGitBackend implements GitBackend {
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
 
   @override
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  }) async => Uint8List(0);
+
+  @override
   Future<Uint8List?> diffBlobBytes({
     required String path,
     required String filePath,
@@ -156,6 +174,7 @@ class E2eGitBackend implements GitBackend {
     String path, {
     required String baseRef,
     int commitLimit = 40,
+    String? headRef,
   }) async => GitRangeContext(
     baseRef: baseRef,
     commits: const <GitRangeCommit>[],
@@ -166,6 +185,34 @@ class E2eGitBackend implements GitBackend {
   @override
   Future<GitRepositoryState> repositoryState(String path) async =>
       const GitRepositoryState(branch: 'HEAD');
+
+  @override
+  Future<GitHostedReviewRange> fetchHostedReviewRange({
+    required String path,
+    required String remote,
+    required String baseBranch,
+    required String headSha,
+    String? headRemote,
+    String? comparisonBaseSha,
+    String? mergeCommitSha,
+    String? reviewRef,
+  }) async => GitHostedReviewRange(
+    baseOid: baseBranch,
+    headOid: headSha,
+    retentionId: '00000000000000000000000000000001',
+  );
+
+  @override
+  Future<void> releaseHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) async {}
+
+  @override
+  Future<void> persistHostedReviewRange({
+    required String path,
+    required String retentionId,
+  }) async {}
 
   @override
   Future<void> stage({required String path, String? filePath}) async {}

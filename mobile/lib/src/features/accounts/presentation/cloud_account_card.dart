@@ -140,59 +140,61 @@ class _RuntimeRail extends StatelessWidget {
         AleraTokens.space12,
         AleraTokens.space12,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          SizedBox(
-            width: AleraTokens.space16,
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: <Widget>[
-                Positioned.fill(
-                  left: AleraTokens.space6,
-                  right: AleraTokens.space8,
-                  child: ColoredBox(color: AleraTokens.border),
-                ),
-                for (var index = 0; index < entries.length; index++)
-                  Positioned(
-                    top:
-                        index *
-                            (AleraTokens.minTapTarget + AleraTokens.space32) +
-                        AleraTokens.space16,
-                    child: AleraStatusDot(
-                      active: entries[index].value.hasEnabledCategory,
-                      size: AleraTokens.space8,
-                    ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            SizedBox(
+              width: AleraTokens.space16,
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: <Widget>[
+                  Positioned.fill(
+                    left: AleraTokens.space6,
+                    right: AleraTokens.space8,
+                    child: ColoredBox(color: AleraTokens.border),
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Column(
-              children: <Widget>[
-                for (
-                  var index = 0;
-                  index < entries.length;
-                  index++
-                ) ...<Widget>[
-                  _RuntimeNotificationRow(
-                    runtimeId: entries[index].key,
-                    host: hosts
-                        .where((host) => host.runtimeId == entries[index].key)
-                        .firstOrNull,
-                    preferences: entries[index].value,
-                    onChanged: (preferences) => unawaited(
-                      onPreferencesChanged(entries[index].key, preferences),
+                  for (var index = 0; index < entries.length; index++)
+                    Positioned(
+                      top:
+                          index *
+                              (AleraTokens.minTapTarget + AleraTokens.space32) +
+                          AleraTokens.space16,
+                      child: AleraStatusDot(
+                        active: entries[index].value.hasEnabledCategory,
+                        size: AleraTokens.space8,
+                      ),
                     ),
-                  ),
-                  if (index < entries.length - 1)
-                    const SizedBox(height: AleraTokens.space8),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: AleraTokens.space8),
+            Expanded(
+              child: Column(
+                children: <Widget>[
+                  for (
+                    var index = 0;
+                    index < entries.length;
+                    index++
+                  ) ...<Widget>[
+                    _RuntimeNotificationRow(
+                      runtimeId: entries[index].key,
+                      host: hosts
+                          .where((host) => host.runtimeId == entries[index].key)
+                          .firstOrNull,
+                      preferences: entries[index].value,
+                      onChanged: (preferences) => unawaited(
+                        onPreferencesChanged(entries[index].key, preferences),
+                      ),
+                    ),
+                    if (index < entries.length - 1)
+                      const SizedBox(height: AleraTokens.space8),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

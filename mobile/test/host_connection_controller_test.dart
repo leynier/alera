@@ -4,15 +4,15 @@ import 'dart:io';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
-import 'package:alera_mobile/src/features/accounts/application/cloud_account_repository.dart';
-import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/memory_cloud_account_repository.dart';
 import 'support/memory_host_repository.dart';
 
 void main() {
@@ -66,7 +66,7 @@ void main() {
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
         cloudAccountRepositoryProvider.overrideWithValue(
-          _InstallationRepository(),
+          MemoryCloudAccountRepository(),
         ),
       ],
     );
@@ -132,22 +132,18 @@ void main() {
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
         cloudAccountRepositoryProvider.overrideWithValue(
-          _InstallationRepository(),
+          MemoryCloudAccountRepository(),
         ),
       ],
     );
     addTearDown(container.dispose);
-    var sawLostConnection = false;
-    final connection = container.listen(
-      hostConnectionControllerProvider('runtime-1'),
-      (_, next) {
-        if (next.error is RuntimeConnectionLost) {
-          sawLostConnection = true;
-        }
-      },
-    );
-    addTearDown(connection.close);
-    await container.read(hostConnectionControllerProvider('runtime-1').future);
+    final dependentProvider = terminalClientProvider('runtime-1');
+    final dependent = container.listen(dependentProvider, (_, _) {});
+    addTearDown(dependent.close);
+    final firstClient = await container.read(dependentProvider.future);
+    final pausedEvents = firstClient.events.listen((_) {});
+    pausedEvents.pause();
+    addTearDown(pausedEvents.cancel);
 
     await sockets.single.close();
     await reconnected.future.timeout(const Duration(seconds: 5));
@@ -158,11 +154,17 @@ void main() {
       return state.hasValue && !state.hasError;
     });
 
-    expect(sawLostConnection, isTrue);
+    expect(helloCount, 2);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     expect(helloCount, 2);
     final state = container.read(hostConnectionControllerProvider('runtime-1'));
     expect(state.hasValue, isTrue);
     expect(state.hasError, isFalse);
+    await _waitUntil(() {
+      final nextClient = container.read(dependentProvider).value;
+      return nextClient != null && !identical(nextClient, firstClient);
+    });
+    expect(container.read(dependentProvider).value, same(state.requireValue));
   });
 
   test(
@@ -217,20 +219,16 @@ void main() {
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
           cloudAccountRepositoryProvider.overrideWithValue(
-            _InstallationRepository(),
+            MemoryCloudAccountRepository(),
           ),
           appLifecycleControllerProvider.overrideWith(() => lifecycle),
         ],
       );
       addTearDown(container.dispose);
-      final connection = container.listen(
-        hostConnectionControllerProvider('runtime-1'),
-        (_, _) {},
-      );
-      addTearDown(connection.close);
-      await container.read(
-        hostConnectionControllerProvider('runtime-1').future,
-      );
+      final dependentProvider = terminalClientProvider('runtime-1');
+      final dependent = container.listen(dependentProvider, (_, _) {});
+      addTearDown(dependent.close);
+      final firstClient = await container.read(dependentProvider.future);
 
       await sockets.single.close();
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -248,6 +246,17 @@ void main() {
             .hasValue,
       );
       expect(helloCount, 2);
+      await _waitUntil(() {
+        final nextClient = container.read(dependentProvider).value;
+        return nextClient != null && !identical(nextClient, firstClient);
+      });
+      expect(
+        container
+            .read(hostConnectionControllerProvider('runtime-1'))
+            .requireValue
+            .isConnectionUsable,
+        isTrue,
+      );
     },
   );
 
@@ -305,7 +314,7 @@ void main() {
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
         cloudAccountRepositoryProvider.overrideWithValue(
-          _InstallationRepository(),
+          MemoryCloudAccountRepository(),
         ),
         appLifecycleControllerProvider.overrideWith(() => lifecycle),
       ],
@@ -362,7 +371,7 @@ void main() {
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
         cloudAccountRepositoryProvider.overrideWithValue(
-          _InstallationRepository(),
+          MemoryCloudAccountRepository(),
         ),
       ],
     );
@@ -422,7 +431,7 @@ void main() {
       overrides: [
         hostRepositoryProvider.overrideWithValue(MemoryHostRepository()),
         cloudAccountRepositoryProvider.overrideWithValue(
-          _InstallationRepository(),
+          MemoryCloudAccountRepository(),
         ),
       ],
     );
@@ -433,21 +442,6 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
-}
-
-class _InstallationRepository implements CloudAccountRepository {
-  @override
-  Future<String> getOrCreateInstallationId() async => 'cloud-installation-1';
-
-  @override
-  Future<List<CloudAccountSession>> loadSessions() async =>
-      const <CloudAccountSession>[];
-
-  @override
-  Future<void> removeSession(String accountId) async {}
-
-  @override
-  Future<void> saveSession(CloudAccountSession session) async {}
 }
 
 class _TestAppLifecycleController extends AppLifecycleController {

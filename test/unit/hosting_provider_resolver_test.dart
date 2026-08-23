@@ -22,17 +22,14 @@ void main() {
     });
 
     test('prefers origin over other remotes', () {
-      final result = resolveHostingProvider(
-        remotes: const <GitRemote>[
-          GitRemote(name: 'fork', url: 'https://github.com/other/alera.git'),
-          GitRemote(
-            name: 'origin',
-            url: 'https://github.com/leynier/alera.git',
-          ),
-        ],
-      );
+      const remotes = <GitRemote>[
+        GitRemote(name: 'fork', url: 'https://github.com/other/alera.git'),
+        GitRemote(name: 'origin', url: 'https://github.com/leynier/alera.git'),
+      ];
+      final result = resolveHostingProvider(remotes: remotes);
       final resolved = result as HostingProviderResolved;
       expect(resolved.identity.owner, 'leynier');
+      expect(preferredHostingRemoteName(remotes), 'origin');
     });
 
     test('falls back to upstream when there is no origin', () {
@@ -44,6 +41,13 @@ void main() {
       );
       final resolved = result as HostingProviderResolved;
       expect(resolved.identity.owner, 'up');
+      expect(
+        preferredHostingRemoteName(const <GitRemote>[
+          GitRemote(name: 'upstream', url: 'https://github.com/up/alera.git'),
+          GitRemote(name: 'other', url: 'https://github.com/x/alera.git'),
+        ]),
+        'upstream',
+      );
     });
 
     test('override forces the provider and marks fromOverride', () {

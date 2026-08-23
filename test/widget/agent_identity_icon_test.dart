@@ -21,13 +21,14 @@ void main() {
             AgentIdentityIcon(agentType: AgentType.pi),
             AgentIdentityIcon(agentType: AgentType.amp),
             AgentIdentityIcon(agentType: AgentType.grok),
+            AgentIdentityIcon(agentType: AgentType.fx),
           ],
         ),
       ),
     );
     await tester.pump();
 
-    expect(find.byType(SvgPicture), findsNWidgets(5));
+    expect(find.byType(SvgPicture), findsNWidgets(6));
     expect(find.byType(Image), findsNWidgets(4));
     expect(find.byTooltip('Codex'), findsOneWidget);
     expect(find.byTooltip('Claude Code'), findsOneWidget);
@@ -38,6 +39,7 @@ void main() {
     expect(find.byTooltip('Pi'), findsOneWidget);
     expect(find.byTooltip('Amp'), findsOneWidget);
     expect(find.byTooltip('Grok Build'), findsOneWidget);
+    expect(find.byTooltip('fx'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

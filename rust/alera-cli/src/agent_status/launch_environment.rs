@@ -3,6 +3,7 @@ use std::path::Path;
 
 use alera_core::runtime::RuntimeAgentStatusHookSettings;
 
+use super::fx_herdr_receiver::fx_herdr_socket_path;
 use super::integration_config::prepare_enabled_integrations;
 
 pub fn prepare_launch_environment(
@@ -18,6 +19,18 @@ pub fn prepare_launch_environment(
         "OPENCODE_CONFIG_DIR",
         "ALERA_OPENCODE_CONFIG_DIR",
         "ALERA_OPENCODE_SOURCE_CONFIG_DIR",
+    );
+    restore_or_strip_managed_overlay(
+        environment,
+        "HERDR_SOCKET_PATH",
+        "ALERA_FX_HERDR_SOCKET_PATH",
+        "ALERA_FX_SOURCE_HERDR_SOCKET_PATH",
+    );
+    restore_or_strip_managed_overlay(
+        environment,
+        "HERDR_PANE_ID",
+        "ALERA_FX_HERDR_PANE_ID",
+        "ALERA_FX_SOURCE_HERDR_PANE_ID",
     );
     restore_or_strip_managed_overlay(
         environment,
@@ -51,6 +64,10 @@ pub fn prepare_launch_environment(
     environment.insert("GROK_CLAUDE_HOOKS_ENABLED".to_string(), "false".to_string());
     environment.insert("GROK_CURSOR_HOOKS_ENABLED".to_string(), "false".to_string());
     prepend_sidecar_directory(environment);
+    #[cfg(unix)]
+    if settings.fx {
+        install_fx_herdr_environment(runtime_dir, session_id, environment);
+    }
     if settings.enabled_agents().is_empty() {
         return Ok(());
     }
@@ -70,6 +87,42 @@ pub fn prepare_launch_environment(
     // Alera terminal.
     prepend_managed_wrapper_path(environment);
     Ok(())
+}
+
+#[cfg(unix)]
+fn install_fx_herdr_environment(
+    runtime_dir: &Path,
+    session_id: &str,
+    environment: &mut BTreeMap<String, String>,
+) {
+    preserve_source_value(
+        environment,
+        "HERDR_SOCKET_PATH",
+        "ALERA_FX_SOURCE_HERDR_SOCKET_PATH",
+    );
+    preserve_source_value(
+        environment,
+        "HERDR_PANE_ID",
+        "ALERA_FX_SOURCE_HERDR_PANE_ID",
+    );
+    let socket_path = fx_herdr_socket_path(runtime_dir)
+        .to_string_lossy()
+        .into_owned();
+    environment.insert("HERDR_SOCKET_PATH".to_string(), socket_path.clone());
+    environment.insert("ALERA_FX_HERDR_SOCKET_PATH".to_string(), socket_path);
+    environment.insert("HERDR_PANE_ID".to_string(), session_id.to_string());
+    environment.insert("ALERA_FX_HERDR_PANE_ID".to_string(), session_id.to_string());
+}
+
+#[cfg(unix)]
+fn preserve_source_value(environment: &mut BTreeMap<String, String>, primary: &str, source: &str) {
+    if let Some(value) = environment
+        .get(primary)
+        .filter(|value| !value.is_empty())
+        .cloned()
+    {
+        environment.insert(source.to_string(), value);
+    }
 }
 
 fn restore_or_strip_managed_overlay(
@@ -182,6 +235,10 @@ fn is_managed_hook_key(key: &str) -> bool {
         || key == "ALERA_AMP_CONFIG_DIR"
         || key == "ALERA_AMP_SOURCE_CONFIG_DIR"
         || key == "ALERA_AGENT_WRAPPER_PATH"
+        || key == "ALERA_FX_HERDR_SOCKET_PATH"
+        || key == "ALERA_FX_SOURCE_HERDR_SOCKET_PATH"
+        || key == "ALERA_FX_HERDR_PANE_ID"
+        || key == "ALERA_FX_SOURCE_HERDR_PANE_ID"
 }
 
 #[cfg(test)]
@@ -361,5 +418,59 @@ mod tests {
         let path_entries = std::env::split_paths(&environment["PATH"]).collect::<Vec<_>>();
         assert!(!path_entries.contains(&wrapper));
         assert!(path_entries.contains(&retained));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fx_herdr_overlay_uses_the_session_and_restores_inherited_values() {
+        let runtime_dir = Path::new("/runtime/custom");
+        let mut environment = BTreeMap::from([
+            (
+                "HERDR_SOCKET_PATH".to_string(),
+                "/user/herdr.sock".to_string(),
+            ),
+            ("HERDR_PANE_ID".to_string(), "user-pane".to_string()),
+        ]);
+
+        prepare_launch_environment(
+            runtime_dir,
+            "session-1",
+            "workspace-1",
+            "tab-1",
+            &RuntimeAgentStatusHookSettings {
+                fx: true,
+                ..RuntimeAgentStatusHookSettings::default()
+            },
+            &mut environment,
+        )
+        .unwrap();
+
+        assert_eq!(
+            environment["HERDR_SOCKET_PATH"],
+            fx_herdr_socket_path(runtime_dir).to_string_lossy()
+        );
+        assert_eq!(environment["HERDR_PANE_ID"], "session-1");
+        assert_eq!(
+            environment["ALERA_FX_SOURCE_HERDR_SOCKET_PATH"],
+            "/user/herdr.sock"
+        );
+        assert_eq!(environment["ALERA_FX_SOURCE_HERDR_PANE_ID"], "user-pane");
+
+        prepare_launch_environment(
+            runtime_dir,
+            "session-2",
+            "workspace-1",
+            "tab-2",
+            &RuntimeAgentStatusHookSettings::default(),
+            &mut environment,
+        )
+        .unwrap();
+
+        assert_eq!(environment["HERDR_SOCKET_PATH"], "/user/herdr.sock");
+        assert_eq!(environment["HERDR_PANE_ID"], "user-pane");
+        assert!(!environment.contains_key("ALERA_FX_HERDR_SOCKET_PATH"));
+        assert!(!environment.contains_key("ALERA_FX_SOURCE_HERDR_SOCKET_PATH"));
+        assert!(!environment.contains_key("ALERA_FX_HERDR_PANE_ID"));
+        assert!(!environment.contains_key("ALERA_FX_SOURCE_HERDR_PANE_ID"));
     }
 }

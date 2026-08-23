@@ -1,3 +1,4 @@
+use super::worktree_setup_models::{WorktreeSetupConfig, WorktreeSetupReport};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -206,6 +207,8 @@ pub struct SshTarget {
 #[serde(rename_all = "camelCase")]
 pub struct MobileAccessSettings {
     pub enabled: bool,
+    #[serde(default)]
+    pub remote_access_enabled: bool,
     pub bind_host: String,
     pub port: i64,
     #[serde(default)]
@@ -221,6 +224,7 @@ impl Default for MobileAccessSettings {
     fn default() -> Self {
         Self {
             enabled: false,
+            remote_access_enabled: false,
             bind_host: "127.0.0.1".to_string(),
             port: 6768,
             endpoint_mode: MobileEndpointMode::default(),
@@ -443,68 +447,6 @@ impl ProjectConfig {
 pub struct NewWorkspaceConfig {
     #[serde(default)]
     pub prompt_append: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupConfig {
-    #[serde(default)]
-    pub copy: Vec<WorktreeCopyRule>,
-    #[serde(default)]
-    pub setup: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeCopyRule {
-    pub from: String,
-    #[serde(default)]
-    pub to: Option<String>,
-    #[serde(default)]
-    pub overwrite: bool,
-}
-
-impl WorktreeCopyRule {
-    pub fn destination(&self) -> &str {
-        self.to.as_deref().unwrap_or(&self.from)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupReport {
-    #[serde(default)]
-    pub steps: Vec<WorktreeSetupStepReport>,
-}
-
-impl WorktreeSetupReport {
-    pub fn empty() -> Self {
-        Self { steps: Vec::new() }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeSetupStepReport {
-    pub kind: WorktreeSetupStepKind,
-    pub label: String,
-    pub succeeded: bool,
-    #[serde(default)]
-    pub message: Option<String>,
-    #[serde(default)]
-    pub exit_code: Option<i64>,
-    #[serde(default)]
-    pub stdout_tail: Option<String>,
-    #[serde(default)]
-    pub stderr_tail: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum WorktreeSetupStepKind {
-    Copy,
-    Command,
-    Config,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -5,6 +5,8 @@ mixin _FakeGitBackendDiffs {
 
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
+  Uint8List readingDiffPatchResult = Uint8List(0);
+  GitException? readingDiffPatchError;
 
   /// Bytes served by [diffBlobBytes], keyed by file path and requested side.
   final Map<({String filePath, bool oldSide}), Uint8List> diffBlobBytesBySide =
@@ -36,6 +38,33 @@ mixin _FakeGitBackendDiffs {
       }),
     );
     return gitDiffAllResult;
+  }
+
+  Future<Uint8List> readingDiffPatch({
+    required String path,
+    String? filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    String? baseRef,
+  }) async {
+    calls.add(
+      GitBackendCall('readingDiffPatch', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+        'oldPath': oldPath,
+        'area': area,
+        'commitOid': commitOid,
+        'parentOid': parentOid,
+        'baseRef': baseRef,
+      }),
+    );
+    final error = readingDiffPatchError;
+    if (error != null) {
+      throw error;
+    }
+    return readingDiffPatchResult;
   }
 
   Future<Uint8List?> diffBlobBytes({

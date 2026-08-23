@@ -9,6 +9,7 @@ const agents = [
   { name: 'Copilot', src: '/agents/copilot.svg' },
   { name: 'Pi', src: '/agents/pi.svg' },
   { name: 'Grok Build', src: '/agents/grok.svg' },
+  { name: 'fx', src: '/agents/fx.svg' },
 ];
 ---
 
@@ -18,13 +19,13 @@ const agents = [
       Works with every CLI agent
     </p>
     <p class="text-center text-body-md text-foreground-muted max-w-xl mx-auto mb-12">
-      First-class integration today: icons, lifecycle hooks, and live activity tracking. Anything else that runs in a terminal works out of the box.
+      First-class integration today: icons, lifecycle integrations, and live activity tracking. Anything else that runs in a terminal works out of the box.
     </p>
 
-    <div class="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-8 md:gap-x-12">
       {agents.map((agent, i) => (
         <div
-          class="flex flex-col items-center gap-3 group opacity-0-initial animate-fade-in-up"
+          class="flex flex-col items-center gap-3 group opacity-0-initial animate-fade-in-up min-w-0"
           style={`animation-delay: ${200 + i * 60}ms`}
         >
           <div class="w-14 h-14 rounded-xl bg-surface border border-border flex items-center justify-center transition-all duration-mid group-hover:border-foreground-faint group-hover:bg-surface-variant group-hover:scale-105">

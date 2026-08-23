@@ -65,7 +65,7 @@ final class HostConnectionControllerProvider
 }
 
 String _$hostConnectionControllerHash() =>
-    r'c63391e6d8c2336782417199a30f33b5dc2f4957';
+    r'57f255ec68b7b6c54f4009cd99878196f98412f9';
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
 /// connected and authenticated before it is exposed. Transport failures recover

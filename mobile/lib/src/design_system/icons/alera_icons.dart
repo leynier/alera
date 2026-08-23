@@ -40,6 +40,8 @@ abstract final class AleraIcons {
   static const IconData listView = LucideIcons.list;
   static const IconData viewImage = LucideIcons.image;
   static const IconData audio = LucideIcons.audioLines;
+  static const IconData mic = LucideIcons.mic;
+  static const IconData stop = LucideIcons.circleStop;
   static const IconData folder = LucideIcons.folder;
   static const IconData folderOpen = LucideIcons.folderOpen;
   static const IconData cloudOff = LucideIcons.cloudOff;

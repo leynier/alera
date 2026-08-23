@@ -294,7 +294,7 @@ impl ServerActor {
     }
 }
 
-const AI_TEXT_AGENTS: [&str; 11] = [
+const AI_TEXT_AGENTS: [&str; 12] = [
     "codex",
     "claude",
     "copilot",
@@ -305,6 +305,7 @@ const AI_TEXT_AGENTS: [&str; 11] = [
     "pi",
     "amp",
     "grok",
+    "fx",
     "custom",
 ];
 

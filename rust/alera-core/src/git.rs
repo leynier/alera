@@ -4,6 +4,7 @@ use std::path::Path;
 use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
 use crate::git_cli::git_in_dir;
+pub mod hosted_review;
 mod repository_metadata;
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
 

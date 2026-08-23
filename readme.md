@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>The native, performance-first agentic development environment.</strong><br/>
-  Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor or any other CLI agent side-by-side, each in its own Git worktree, all tracked in one place.<br/>
+  Run Claude Code, Codex, Grok Build, Amp, Antigravity, OpenCode, Copilot, Cursor, fx or any other CLI agent side-by-side, each in its own Git worktree, all tracked in one place.<br/>
   Built with <strong>Flutter + Rust + Ghostty</strong>. No Electron. No bundled Chromium. Available for <strong>macOS, Windows, and Linux</strong>.
 </p>
 
@@ -52,8 +52,9 @@ Alera works with **any CLI agent**. The agents below ship with first-class integ
   <a href="https://opencode.ai/docs/cli/"><kbd><img src="assets/agents/opencode.png" width="16" valign="middle" /> OpenCode</kbd></a> &nbsp;
   <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" /> Cursor</kbd></a> &nbsp;
   <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" /> GitHub Copilot</kbd></a> &nbsp;
-  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a>
-  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a>
+  <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a> &nbsp;
+  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a> &nbsp;
+  <a href="https://fx.sh"><kbd><img src="assets/agents/fx.svg" width="16" valign="middle" /> fx</kbd></a>
 </p>
 
 Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Continue, Aider, your own scripts) works out of the box. Activity tracking is incrementally rolling out per agent.
@@ -78,7 +79,7 @@ Open multiple terminals per workspace, organised in tabs. Run Claude Code in one
 
 ### 📡 Live agent activity tracking
 
-Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot and Pi stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
+Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot, Pi and fx stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
 
 ### 📊 Agent quota tracking
 
@@ -100,6 +101,10 @@ Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, an
 
 Per-terminal configuration: font, size, theme, behaviour. Built on top of the same engine that powers Ghostty for predictable, high-fidelity rendering.
 
+### 🎙️ AI dictation
+
+Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, while mobile can use on-device Whisper, offline system recognition, or an explicitly approved paired-device or online system provider. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Text subscription.
+
 ### 🗃️ File explorer, search & previews
 
 Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals.
@@ -110,7 +115,7 @@ Review structured diffs side-by-side or unified, with per-file and aggregated vi
 
 ### ✅ Pull requests & checks
 
-Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
+Work with pull requests and merge requests per worktree on GitHub, GitHub Enterprise Server, GitLab, and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. GitHub repositories can also discover native pull request stacks, build a stack directly from ordered workspaces while reusing or creating their pull requests, extend a stack from existing pull requests, and merge atomically through the current layer. CI checks are grouped by status with drill-down into check details. Review titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click. Self-hosted GitHub and GitLab instances are selected explicitly in project settings; Alera uses the hostname from the repository remote with the official `gh` or `glab` CLI.
 
 ### 🖥️ Truly native, truly cross-platform
 
@@ -140,7 +145,7 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive
 - **More forge & tracker integrations**: Additional git forges, Linear, and issue-tracker linking per worktree
-- **Voice, automations, MCP management, skills, and more**
+- **Automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
 

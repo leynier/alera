@@ -29,11 +29,13 @@ Stream<ProcessEvent> processStart({
   required List<String> arguments,
   String? workingDirectory,
   Map<String, String>? environment,
+  required bool includeParentEnvironment,
 }) => RustLib.instance.api.crateApiProcessProcessStart(
   executable: executable,
   arguments: arguments,
   workingDirectory: workingDirectory,
   environment: environment,
+  includeParentEnvironment: includeParentEnvironment,
 );
 
 /// Queues `data` for the process's stdin. False once the process is gone or its

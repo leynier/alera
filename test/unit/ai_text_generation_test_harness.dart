@@ -7,6 +7,7 @@ class _FakeProcessRunner implements ProcessRunner {
     this.exitCode = 0,
     this.exitCodeCompleter,
     this.completeExitOnKill = true,
+    this.startReturnGate,
   });
 
   final String stdout;
@@ -14,6 +15,7 @@ class _FakeProcessRunner implements ProcessRunner {
   final int exitCode;
   final Completer<int>? exitCodeCompleter;
   final bool completeExitOnKill;
+  final Completer<void>? startReturnGate;
   bool started = false;
   int startCount = 0;
   bool stdinClosed = false;
@@ -21,11 +23,14 @@ class _FakeProcessRunner implements ProcessRunner {
   String? executable;
   List<String> arguments = const <String>[];
   Map<String, String>? environment;
+  bool? includeParentEnvironment;
+  String? workingDirectory;
   String? promptFilePath;
   String? promptFileText;
   String? grokHomePath;
   String? grokAuthText;
   String? grokConfigText;
+  String? outputSchemaText;
   final StringBuffer _stdin = StringBuffer();
 
   String get stdinText => _stdin.toString();
@@ -46,11 +51,13 @@ class _FakeProcessRunner implements ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   }) async {
     started = true;
     startCount += 1;
     this.executable = executable;
     this.arguments = List<String>.from(arguments);
+    this.workingDirectory = workingDirectory;
     final promptFileIndex = arguments.indexOf('--prompt-file');
     if (promptFileIndex >= 0 && promptFileIndex + 1 < arguments.length) {
       promptFilePath = arguments[promptFileIndex + 1];
@@ -70,10 +77,21 @@ class _FakeProcessRunner implements ProcessRunner {
         }
       }
     }
+    final outputSchemaIndex = arguments.indexOf('--output-schema');
+    if (outputSchemaIndex >= 0 && outputSchemaIndex + 1 < arguments.length) {
+      outputSchemaText = File(
+        arguments[outputSchemaIndex + 1],
+      ).readAsStringSync();
+    }
+    final outputFileIndex = arguments.indexOf('--output-last-message');
+    if (outputFileIndex >= 0 && outputFileIndex + 1 < arguments.length) {
+      File(arguments[outputFileIndex + 1]).writeAsStringSync(stdout);
+    }
     this.environment = environment == null
         ? null
         : Map<String, String>.from(environment);
-    return StartedProcess(
+    this.includeParentEnvironment = includeParentEnvironment;
+    final process = StartedProcess(
       stdinWrite: (data) => _stdin.write(utf8.decode(data)),
       stdinClose: () => stdinClosed = true,
       stdout: Stream<List<int>>.value(utf8.encode(stdout)),
@@ -92,15 +110,19 @@ class _FakeProcessRunner implements ProcessRunner {
         return true;
       },
     );
+    await startReturnGate?.future;
+    return process;
   }
 }
 
 class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
   const _FakeCommandEnvironmentResolver({
     this.value = const <String, String>{'PATH': '/usr/bin'},
+    this.variableValues = const <String, String>{},
   });
 
   final Map<String, String> value;
+  final Map<String, String> variableValues;
 
   @override
   Future<Map<String, String>> environment() async {
@@ -109,7 +131,10 @@ class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
 
   @override
   Future<Map<String, String>> environmentVariables(List<String> names) async =>
-      const <String, String>{};
+      <String, String>{
+        for (final name in names)
+          if (variableValues.containsKey(name)) name: variableValues[name]!,
+      };
 }
 
 class _DelayedDiffGitBackend extends FakeGitBackend {

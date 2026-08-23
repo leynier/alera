@@ -5,11 +5,19 @@ Future<void> _pumpDiffSurface(
   required FakeGitBackend backend,
   WorkbenchController? controller,
   WorkspaceTabRecord? tab,
+  ReadingDiffService? readingDiffService,
+  SettingsController? settingsController,
 }) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
+        if (settingsController == null)
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults)
+        else
+          settingsControllerProvider.overrideWith(() => settingsController),
+        if (readingDiffService != null)
+          readingDiffServiceProvider.overrideWithValue(readingDiffService),
         if (controller != null)
           workbenchControllerProvider.overrideWith(() => controller),
       ],
@@ -27,6 +35,21 @@ Future<void> _pumpDiffSurface(
       ),
     ),
   );
+}
+
+class _MutableSettingsController extends SettingsController {
+  _MutableSettingsController(this._settings);
+
+  final AleraSettings _settings;
+
+  @override
+  AleraSettings build() => _settings;
+
+  void setAiTextEnabled(bool enabled) {
+    state = state.copyWith(
+      aiTextGeneration: state.aiTextGeneration.copyWith(enabled: enabled),
+    );
+  }
 }
 
 IconButton _openFileButton(WidgetTester tester) {
@@ -54,7 +77,7 @@ Workspace _workspace() {
 WorkspaceTabRecord _diffTab({
   WorkspaceGitDiffSource source = WorkspaceGitDiffSource.workingTree,
   WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
-  String filePath = 'lib/large.dart',
+  String? filePath = 'lib/large.dart',
   String title = 'large.dart unstaged',
   GitChangeArea? area = GitChangeArea.unstaged,
   String? gitDiffRoot,
@@ -67,7 +90,7 @@ WorkspaceTabRecord _diffTab({
   final payload = <String, Object?>{
     workspaceTabGitDiffSourcePayloadKey: source.key,
     workspaceTabGitDiffScopePayloadKey: scope.key,
-    workspaceTabFilePathPayloadKey: filePath,
+    workspaceTabFilePathPayloadKey: ?filePath,
   };
   if (area != null) {
     payload[workspaceTabGitDiffAreaPayloadKey] = area.key;

@@ -13,6 +13,17 @@ use crate::{
 };
 
 const ACCESS_TOKEN_SECONDS: i64 = 15 * 60;
+const RELAY_GRANT_SECONDS: i64 = 120;
+
+pub struct RelayGrantInput<'a> {
+    pub account_id: Uuid,
+    pub runtime_id: &'a str,
+    pub client_id: &'a str,
+    pub role: &'a str,
+    pub key_version: i32,
+    pub client_public_key: &'a str,
+    pub runtime_public_key: &'a str,
+}
 
 #[derive(Clone)]
 pub struct TokenService {
@@ -114,6 +125,49 @@ impl TokenService {
         ))
     }
 
+    pub async fn issue_relay_grant(&self, input: RelayGrantInput<'_>) -> Result<String, ApiError> {
+        let now = Utc::now();
+        let claims = RelayGrantClaims {
+            iss: self.issuer.clone(),
+            sub: input.account_id.to_string(),
+            aud: "alera-relay".to_owned(),
+            exp: (now + TimeDelta::seconds(RELAY_GRANT_SECONDS)).timestamp(),
+            iat: now.timestamp(),
+            nbf: (now - TimeDelta::seconds(5)).timestamp(),
+            jti: Uuid::now_v7().to_string(),
+            account_id: input.account_id,
+            runtime_id: input.runtime_id.to_owned(),
+            client_id: input.client_id.to_owned(),
+            role: input.role.to_owned(),
+            key_version: input.key_version,
+            client_public_key: input.client_public_key.to_owned(),
+            runtime_public_key: input.runtime_public_key.to_owned(),
+        };
+        let header = TokenHeader {
+            alg: "EdDSA",
+            kid: self.signer.key_id(),
+            typ: "relay+jwt",
+        };
+        let encoded_header = URL_SAFE_NO_PAD.encode(
+            serde_json::to_vec(&header)
+                .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
+        );
+        let encoded_claims = URL_SAFE_NO_PAD.encode(
+            serde_json::to_vec(&claims)
+                .map_err(|error| ApiError::internal(anyhow::Error::from(error)))?,
+        );
+        let signing_input = format!("{encoded_header}.{encoded_claims}");
+        let signature = self
+            .signer
+            .sign(signing_input.as_bytes())
+            .await
+            .map_err(ApiError::internal)?;
+        Ok(format!(
+            "{signing_input}.{}",
+            URL_SAFE_NO_PAD.encode(signature)
+        ))
+    }
+
     pub fn verify(&self, token: &str) -> Result<AccessClaims, ApiError> {
         let mut segments = token.split('.');
         let header_segment = segments.next();
@@ -174,6 +228,25 @@ impl TokenService {
     pub fn expires_in_seconds(&self) -> i64 {
         ACCESS_TOKEN_SECONDS
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayGrantClaims {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub exp: i64,
+    pub iat: i64,
+    pub nbf: i64,
+    pub jti: String,
+    pub account_id: Uuid,
+    pub runtime_id: String,
+    pub client_id: String,
+    pub role: String,
+    pub key_version: i32,
+    pub client_public_key: String,
+    pub runtime_public_key: String,
 }
 
 fn decode_json<T: for<'de> Deserialize<'de>>(value: &str) -> Result<T, ApiError> {

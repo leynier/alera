@@ -55,6 +55,24 @@ class AccountsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _signInDirect(
+    BuildContext context,
+    WidgetRef ref,
+    String provider,
+  ) async {
+    try {
+      await ref.read(cloudAccountsControllerProvider.notifier).signIn(provider);
+      await ref.read(pushCoordinatorProvider.notifier).reconcile();
+      if (context.mounted) {
+        _showMessage(context, 'Account added');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showMessage(context, error.toString());
+      }
+    }
+  }
+
   Future<PairedHostProfile?> _selectHost(
     BuildContext context,
     List<PairedHostProfile> hosts,
@@ -98,11 +116,37 @@ class AccountsScreen extends ConsumerWidget {
     if (confirmed != true) {
       return;
     }
-    await ref
-        .read(cloudAccountsControllerProvider.notifier)
-        .removeFromThisPhone(session.account.id);
+    try {
+      await ref
+          .read(cloudAccountsControllerProvider.notifier)
+          .removeFromThisPhone(session.account.id);
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showMessage(context, error.toString());
+      }
+      return;
+    }
     for (final runtimeId in session.subscriptions.keys) {
       await _refreshPairedRuntime(ref, runtimeId);
+    }
+  }
+
+  Future<void> _refreshAccount(
+    BuildContext context,
+    WidgetRef ref,
+    String accountId,
+  ) async {
+    try {
+      await ref
+          .read(cloudAccountsControllerProvider.notifier)
+          .refreshAccount(accountId);
+      if (context.mounted) {
+        _showMessage(context, 'Account refreshed');
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showMessage(context, error.toString());
+      }
     }
   }
 
@@ -125,12 +169,29 @@ class AccountsScreen extends ConsumerWidget {
                 AleraEmptyState(
                   title: 'No accounts',
                   message:
-                      'Add the account from a paired runtime to enable cloud notifications.',
+                      'Sign in directly or add an account from a paired runtime.',
                   icon: Icons.person_add_alt_1_outlined,
-                  action: FilledButton.icon(
-                    onPressed: () => _addAccount(context, ref),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Account'),
+                  action: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      FilledButton.icon(
+                        onPressed: () => _signInDirect(context, ref, 'google'),
+                        icon: const Icon(Icons.login),
+                        label: const Text('Sign In With Google'),
+                      ),
+                      const SizedBox(height: AleraTokens.space8),
+                      OutlinedButton.icon(
+                        onPressed: () => _signInDirect(context, ref, 'github'),
+                        icon: const Icon(Icons.code),
+                        label: const Text('Sign In With GitHub'),
+                      ),
+                      const SizedBox(height: AleraTokens.space8),
+                      TextButton.icon(
+                        onPressed: () => _addAccount(context, ref),
+                        icon: const Icon(Icons.add_link),
+                        label: const Text('Add From Paired Runtime'),
+                      ),
+                    ],
                   ),
                 )
               else
@@ -153,9 +214,11 @@ class AccountsScreen extends ConsumerWidget {
                       switch (action) {
                         case CloudAccountAction.refresh:
                           unawaited(
-                            ref
-                                .read(cloudAccountsControllerProvider.notifier)
-                                .refreshAccount(sessions[index].account.id),
+                            _refreshAccount(
+                              context,
+                              ref,
+                              sessions[index].account.id,
+                            ),
                           );
                         case CloudAccountAction.remove:
                           unawaited(
@@ -169,6 +232,24 @@ class AccountsScreen extends ConsumerWidget {
                 ],
               if (sessions.isNotEmpty) ...<Widget>[
                 const SizedBox(height: AleraTokens.space16),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _signInDirect(context, ref, 'google'),
+                        child: const Text('Sign In With Google'),
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _signInDirect(context, ref, 'github'),
+                        child: const Text('Sign In With GitHub'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AleraTokens.space8),
                 OutlinedButton.icon(
                   onPressed: () => _addAccount(context, ref),
                   icon: const Icon(Icons.add),

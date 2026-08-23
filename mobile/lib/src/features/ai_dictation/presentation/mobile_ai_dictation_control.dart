@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_state.dart';
@@ -55,12 +56,12 @@ class MobileAiDictationControl extends ConsumerWidget {
           ? null
           : () => unawaited(_toggle(context, notifier, state.stage)),
       icon: Icon(switch (state.stage) {
-        MobileAiDictationStage.idle => Icons.mic_none,
-        MobileAiDictationStage.recording => Icons.stop,
+        MobileAiDictationStage.idle => AleraIcons.mic,
+        MobileAiDictationStage.recording => AleraIcons.stop,
         MobileAiDictationStage.recorded ||
-        MobileAiDictationStage.playing => Icons.graphic_eq,
+        MobileAiDictationStage.playing => AleraIcons.audio,
         MobileAiDictationStage.transcribing ||
-        MobileAiDictationStage.improving => Icons.autorenew,
+        MobileAiDictationStage.improving => AleraIcons.loading,
       }),
     );
   }

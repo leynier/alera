@@ -130,8 +130,8 @@ class PushCoordinator extends _$PushCoordinator {
     List<CloudAccountSession> sessions,
   ) async {
     final messaging = ref.read(pushMessagingServiceProvider);
-    final api = ref.read(aleraCloudApiProvider);
     final accounts = ref.read(cloudAccountsControllerProvider.notifier);
+    final api = ref.read(aleraCloudApiProvider);
     if (!messaging.isAvailable) {
       return const PushCoordinationState(
         PushCoordinationStatus.unavailable,
@@ -140,16 +140,14 @@ class PushCoordinator extends _$PushCoordinator {
     }
     final currentSessions = <CloudAccountSession>[];
     for (var session in sessions) {
-      if (session.expiresWithin(
-        const Duration(minutes: 5),
-        DateTime.now().toUtc(),
-      )) {
-        session = await api.refreshSession(session);
-        if (_disposed) {
-          return const PushCoordinationState(PushCoordinationStatus.idle);
-        }
-        await accounts.replaceSession(session);
+      final current = await accounts.sessionForRequest(session.account.id);
+      if (_disposed) {
+        return const PushCoordinationState(PushCoordinationStatus.idle);
       }
+      if (current == null) {
+        continue;
+      }
+      session = current;
       currentSessions.add(session);
       for (final entry in session.subscriptions.entries) {
         if (!entry.value.hasEnabledCategory) {

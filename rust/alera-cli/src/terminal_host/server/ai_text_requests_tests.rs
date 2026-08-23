@@ -134,3 +134,70 @@ fn grok_forwards_an_explicit_reasoning_effort() {
         let _ = std::fs::remove_dir_all(directory);
     }
 }
+
+#[test]
+fn fx_uses_ask_stdin_without_forcing_a_model() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "fx".to_string(),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "commitMessage", "hello").unwrap();
+
+    assert_eq!(plan.binary, "fx");
+    assert_eq!(plan.arguments, ["ask", "--no-save"]);
+    assert_eq!(plan.stdin_payload.as_deref(), Some("hello"));
+    assert_eq!(
+        plan.environment
+            .get("FX_PERMISSION_MODE")
+            .map(String::as_str),
+        Some("ask")
+    );
+    assert_eq!(
+        plan.environment.get("FX_AUTO_UPGRADE").map(String::as_str),
+        Some("0")
+    );
+    assert_eq!(
+        plan.environment.get("FX_HERDR").map(String::as_str),
+        Some("0")
+    );
+    assert!(!plan.environment.contains_key("FX_MODEL"));
+}
+
+#[test]
+fn fx_passes_an_explicit_model_through_the_environment() {
+    let settings = RuntimeAiTextGenerationSettings {
+        agent: "fx".to_string(),
+        selected_model_by_agent: HashMap::from([(
+            "fx".to_string(),
+            "xai/grok-4.1-fast".to_string(),
+        )]),
+        ..RuntimeAiTextGenerationSettings::default()
+    };
+
+    let plan = plan_command(&settings, "commitMessage", "hello").unwrap();
+
+    assert_eq!(
+        plan.environment.get("FX_MODEL").map(String::as_str),
+        Some("xai/grok-4.1-fast")
+    );
+}
+
+#[test]
+fn failure_detail_extracts_a_multiline_json_message() {
+    let stderr = r#"
+ERROR: {
+  "type": "error",
+  "error": {
+    "code": "invalid_json_schema",
+    "message": "The version property must declare an integer type."
+  },
+  "status": 400
+}
+"#;
+
+    assert_eq!(
+        ai_text_failure_detail("", stderr).as_deref(),
+        Some("The version property must declare an integer type.")
+    );
+}

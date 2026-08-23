@@ -26,8 +26,18 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(OUTPUT_LIB "${CMAKE_CURRENT_BINARY_DIR}/${CARGOKIT_LIB_FULL_NAME}")
     endif()
     if(WIN32)
-        # Native dependency scratch paths can exceed MSBuild's 260-character FileTracker limit.
-        set(CARGOKIT_TEMP_DIR "${CMAKE_BINARY_DIR}/ck/${CARGOKIT_LIB_NAME}")
+        # Native cargo --target-dir must stay a few characters. ggml-vulkan's
+        # nested vulkan-shaders-gen TryCompile writes
+        # .../CMakeScratch/TryCompile-XXXX/CMakeFiles/cmTC_XXXXXXXX.dir/testCCompiler.c.obj
+        # (~245 characters under the cargo triple). R:\c\alera_native is 17
+        # characters and that object is 263, so cl.exe fails with C1083 and an
+        # empty generated-file name. Use a one-letter suffix; do not append
+        # the crate name. The sidecar keeps a sibling /cli directory.
+        if(DEFINED ENV{ALERA_CARGOKIT_TEMP_DIR} AND NOT "$ENV{ALERA_CARGOKIT_TEMP_DIR}" STREQUAL "")
+            set(CARGOKIT_TEMP_DIR "$ENV{ALERA_CARGOKIT_TEMP_DIR}/n")
+        else()
+            set(CARGOKIT_TEMP_DIR "$ENV{SystemDrive}/c/n")
+        endif()
     else()
         set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
     endif()
@@ -58,8 +68,24 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
             message(FATAL_ERROR "Ninja is required for Windows native Rust builds")
         endif()
         list(APPEND CARGOKIT_ENV
+            # cmake-rs reads the target-specific generator. Nested
+            # vulkan-shaders-gen ExternalProject invokes cmake without -G and
+            # only sees CMAKE_GENERATOR, so both must be Ninja.
+            "CMAKE_GENERATOR=Ninja"
             "CMAKE_GENERATOR_x86_64_pc_windows_msvc=Ninja"
+            "CMAKE_MAKE_PROGRAM=${CARGOKIT_NINJA_EXECUTABLE}"
             "CMAKE_MAKE_PROGRAM_x86_64_pc_windows_msvc=${CARGOKIT_NINJA_EXECUTABLE}"
+            # CFLAGS/CXXFLAGS reach cc-rs. Nested TryCompile calls cl.exe,
+            # which reads CL (prepend) and _CL_ (append). /FS serializes PDB
+            # writes; /Z7 prefers C7 debug info when CMake still passes /Zi.
+            "CFLAGS=/FS"
+            "CXXFLAGS=/FS"
+            "CL=/FS"
+            "_CL_=/Z7 /FS"
+            # ggml enables ccache/sccache by default. CI puts sccache on PATH
+            # for rustc, and RULE_LAUNCH_COMPILE sccache + Ninja + cl.exe
+            # drops .obj files (LNK1181 ggml.c.obj). Keep sccache on rustc only.
+            "GGML_CCACHE=OFF"
         )
     endif()
 

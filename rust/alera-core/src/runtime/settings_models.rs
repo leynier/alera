@@ -287,6 +287,8 @@ pub struct RuntimeAgentStatusHookSettings {
     pub amp: bool,
     #[serde(default)]
     pub grok: bool,
+    #[serde(default)]
+    pub fx: bool,
 }
 
 impl RuntimeAgentStatusHookSettings {
@@ -302,6 +304,7 @@ impl RuntimeAgentStatusHookSettings {
             "pi" => self.pi,
             "amp" => self.amp,
             "grok" => self.grok,
+            "fx" => self.fx,
             _ => false,
         }
     }
@@ -318,6 +321,7 @@ impl RuntimeAgentStatusHookSettings {
             "pi" => &mut self.pi,
             "amp" => &mut self.amp,
             "grok" => &mut self.grok,
+            "fx" => &mut self.fx,
             _ => return false,
         };
         *target = enabled;
@@ -325,7 +329,7 @@ impl RuntimeAgentStatusHookSettings {
     }
 
     pub fn enabled_agents(&self) -> Vec<&'static str> {
-        const AGENTS: [&str; 10] = [
+        const AGENTS: [&str; 11] = [
             "codex",
             "claude",
             "copilot",
@@ -336,6 +340,7 @@ impl RuntimeAgentStatusHookSettings {
             "pi",
             "amp",
             "grok",
+            "fx",
         ];
         AGENTS
             .into_iter()

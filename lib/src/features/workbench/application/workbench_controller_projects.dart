@@ -68,11 +68,15 @@ mixin _WorkbenchControllerProjects
 
   Future<void> sleepWorkspace(Workspace workspace) async {
     try {
+      final workspaceTabs = state.tabsFor(workspace.id);
       _closingTabWorkspaceIds.add(workspace.id);
       _workspaceIdsWithClearedLayout.add(workspace.id);
       _tabFocusHistory.forget(workspace.id);
       await _repository.removeWorkspaceTabsForWorkspace(workspace.id);
-      _removeCodexDrafts(state.tabsFor(workspace.id));
+      _removeCodexDrafts(workspaceTabs);
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(workspace, tab);
+      }
 
       final tabsByWorkspace = Map<String, List<WorkspaceTabRecord>>.from(
         state.tabsByWorkspace,
@@ -113,10 +117,14 @@ mixin _WorkbenchControllerProjects
         for (final workspace in state.workspacesFor(projectId))
           ...state.tabsFor(workspace.id),
       ];
-      for (final workspace in state.workspacesFor(projectId)) {
-        _tabFocusHistory.forget(workspace.id);
-      }
+      final removedWorkspaces = state.workspacesFor(projectId);
       await _projectsService.removeProject(projectId);
+      for (final workspace in removedWorkspaces) {
+        _tabFocusHistory.forget(workspace.id);
+        for (final tab in state.tabsFor(workspace.id)) {
+          await _releaseHostedReviewTab(workspace, tab);
+        }
+      }
       _removeCodexDrafts(removedTabs);
       state = state.copyWith(error: null);
     } catch (error) {
@@ -143,6 +151,13 @@ mixin _WorkbenchControllerProjects
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      for (final tab in workspaceTabs) {
+        await _releaseHostedReviewTab(
+          workspace,
+          tab,
+          fallbackWorkspacePath: project.repoPath,
+        );
+      }
       _removeCodexDrafts(workspaceTabs);
       _tabFocusHistory.forget(workspace.id);
       ref

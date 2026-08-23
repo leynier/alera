@@ -8,14 +8,18 @@ use git2::{
     RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
 };
 
+#[path = "git_ancestry_impl.rs"]
+mod git_ancestry_impl;
 #[path = "git_commit_state_impl.rs"]
 mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
-mod git_diff_impl;
+pub(in crate::api) mod git_diff_impl;
 #[path = "git_diff_paths.rs"]
 pub(in crate::api) mod git_diff_paths;
 #[path = "git_history_impl.rs"]
 mod git_history_impl;
+#[path = "git_hosted_review.rs"]
+pub mod git_hosted_review;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
 
@@ -238,6 +242,7 @@ pub struct GitRangeFile {
 /// Tree-to-tree range summary used for AI pull-request prompts.
 pub struct GitRangeContext {
     pub base_ref: String,
+    pub head_oid: String,
     pub head_branch: Option<String>,
     pub merge_base: Option<String>,
     pub commits: Vec<GitRangeCommit>,
@@ -396,6 +401,14 @@ pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError
     core_git::branch_exists(&repo_path, &branch).map_err(Into::into)
 }
 
+pub fn is_ancestor(
+    path: String,
+    ancestor_ref: String,
+    descendant_ref: String,
+) -> Result<bool, GitError> {
+    git_ancestry_impl::is_ancestor(path, ancestor_ref, descendant_ref)
+}
+
 pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
     core_git::is_valid_branch_name(&name).map_err(Into::into)
 }
@@ -453,14 +466,15 @@ pub fn git_commit_diff(
     git_diff_impl::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
 }
 
-/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref], HEAD)
-/// to HEAD for AI pull-request generation.
+/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref],
+/// [head_ref]) to [head_ref]. HEAD is used when no explicit head is provided.
 pub fn git_range_context(
     path: String,
     base_ref: String,
     commit_limit: Option<u32>,
+    head_ref: Option<String>,
 ) -> Result<GitRangeContext, GitError> {
-    git_range_impl::git_range_context(path, base_ref, commit_limit)
+    git_range_impl::git_range_context(path, base_ref, commit_limit, head_ref)
 }
 
 pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {

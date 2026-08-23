@@ -29,7 +29,7 @@ ProcessRunOutput _ok(String stdout) =>
     ProcessRunOutput(exitCode: 0, stdout: stdout, stderr: '');
 
 const _reviewJson = '''
-{"iid":42,"title":"feat: gitlab","state":"opened","draft":false,"web_url":"https://gitlab.acme.test:8443/platform/mobile/alera/-/merge_requests/42","created_at":"2026-07-20T12:00:00Z","author":{"username":"alice"},"target_branch":"main","source_branch":"feature","sha":"abc","detailed_merge_status":"mergeable","has_conflicts":false}
+{"iid":42,"title":"feat: gitlab","state":"opened","draft":false,"web_url":"https://gitlab.acme.test:8443/platform/mobile/alera/-/merge_requests/42","created_at":"2026-07-20T12:00:00Z","author":{"username":"alice"},"target_branch":"main","source_branch":"feature","sha":"abc","diff_refs":{"base_sha":"base-abc"},"detailed_merge_status":"mergeable","has_conflicts":false}
 ''';
 
 void main() {
@@ -49,6 +49,7 @@ void main() {
       expect(review.author, 'alice');
       expect(review.state, HostedReviewState.open);
       expect(review.mergeable, HostedReviewMergeable.mergeable);
+      expect(review.comparisonBaseSha, 'base-abc');
       final call = runner.calls.single;
       expect(call.executable, 'glab');
       expect(call.arguments.first, 'api');

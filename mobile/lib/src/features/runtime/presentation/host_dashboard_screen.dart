@@ -85,7 +85,10 @@ class HostDashboardScreen extends ConsumerWidget {
               unawaited(
                 ref
                     .read(hostConnectionControllerProvider(host.id).notifier)
-                    .reconnectNow(),
+                    .reconnectNow()
+                    .whenComplete(() {
+                      ref.invalidate(hostDashboardDataProvider(host.id));
+                    }),
               );
             },
           ),

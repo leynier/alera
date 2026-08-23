@@ -6,7 +6,7 @@ pubDate: 2026-07-28T19:00:00.000Z
 
 Here is an opinion we hold strongly enough to build a product on: the CLI is the real interface for coding agents, and it will stay that way for a while.
 
-Every agent team that matters ships a terminal client first. Claude Code, Codex, Amp, Cursor Agent, Copilot CLI, OpenCode, Pi. The terminal is where new capabilities show up earliest, where power users already live, and where the agents compose with the rest of your tools. So when we see an AI IDE embed one provider's chat in a web view and call it the future, our reaction is: that is a wrapper, not a workbench.
+Every agent team that matters ships a terminal client first. Claude Code, Codex, Amp, Cursor Agent, Copilot CLI, OpenCode, Pi, fx. The terminal is where new capabilities show up earliest, where power users already live, and where the agents compose with the rest of your tools. So when we see an AI IDE embed one provider's chat in a web view and call it the future, our reaction is: that is a wrapper, not a workbench.
 
 ## What A Single Chat Shell Costs You
 

@@ -95,7 +95,7 @@ void main() {
       ),
     );
 
-    await _pumpUntilFound(tester, find.text('No Projects Yet'));
+    await _pumpUntilFound(tester, find.text('No projects yet'));
 
     await tester.tap(find.text('Add Project').last);
     await _pumpUntilFound(tester, find.byType(AddProjectDialog));

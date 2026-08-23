@@ -83,6 +83,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.cursor) {
       return _cursorRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.fx) {
+      return _fxRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _managedArtifactStatus(artifact);
@@ -173,6 +176,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.cursor) {
       return _cursorRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.fx) {
+      return _fxRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       final current = _managedArtifactStatus(artifact);
@@ -256,6 +262,9 @@ class ManagedAgentHookInstallService {
     }
     if (agentType == AgentType.cursor) {
       return _cursorRuntimeOnlyStatus();
+    }
+    if (agentType == AgentType.fx) {
+      return _fxRuntimeOnlyStatus();
     }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {

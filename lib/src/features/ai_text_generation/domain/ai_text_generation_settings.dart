@@ -8,6 +8,7 @@ enum AiTextGenerationOperation {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
   branchName('branchName'),
+  readingDiff('readingDiff'),
   workspaceIdentity('workspaceIdentity'),
   speechMessage('speechMessage');
 
@@ -19,6 +20,7 @@ enum AiTextGenerationOperation {
     AiTextGenerationOperation.commitMessage => 'Commit Messages',
     AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
     AiTextGenerationOperation.branchName => 'Branch Names',
+    AiTextGenerationOperation.readingDiff => 'Reading Diffs',
     AiTextGenerationOperation.workspaceIdentity => 'Workspace Identity',
     AiTextGenerationOperation.speechMessage => 'Speech Messages',
   };
@@ -36,6 +38,7 @@ enum AiTextGenerationAgent {
   pi('pi'),
   amp('amp'),
   grok('grok'),
+  fx('fx'),
   custom('custom');
 
   const AiTextGenerationAgent(this.key);
@@ -53,6 +56,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.pi => 'Pi',
     AiTextGenerationAgent.amp => 'Amp',
     AiTextGenerationAgent.grok => 'Grok Build',
+    AiTextGenerationAgent.fx => 'fx',
     AiTextGenerationAgent.custom => 'Custom Command',
   };
 
@@ -67,6 +71,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.pi => AgentType.pi,
     AiTextGenerationAgent.amp => AgentType.amp,
     AiTextGenerationAgent.grok => AgentType.grok,
+    AiTextGenerationAgent.fx => AgentType.fx,
     AiTextGenerationAgent.custom => null,
   };
 }

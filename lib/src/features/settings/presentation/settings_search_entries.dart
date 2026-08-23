@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_reading_diff.dart';
 
 const List<SettingsSearchEntry>
 applicationSearchEntries = <SettingsSearchEntry>[
@@ -409,6 +410,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
     ],
     groupId: 'pullRequestDetails',
   ),
+  ...readingDiffSearchEntries,
   SettingsSearchEntry(
     title: 'AI Text Workspace Identity',
     description:

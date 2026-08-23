@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
+import 'package:alera/src/features/pull_requests/application/forge_stack_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -16,9 +18,11 @@ import 'package:alera/src/features/pull_requests/domain/update_review_input.dart
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_cli_failures.dart';
 import 'package:alera/src/features/pull_requests/infra/github_review_mappers.dart';
+import 'package:alera/src/features/pull_requests/infra/github_stack_mappers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 part 'github_review_actions.dart';
+part 'github_stack_actions.dart';
 part 'github_review_comments.dart';
 
 /// [ForgeProvider] for GitHub, wrapping the official `gh` CLI. Authentication
@@ -26,8 +30,8 @@ part 'github_review_comments.dart';
 /// `GitHubStarService` pattern: constructor-injected [ProcessRunner], typed
 /// errors instead of leaked stderr.
 class GitHubForgeProvider
-    with _GitHubReviewActions, _GitHubReviewComments
-    implements ForgeProvider {
+    with _GitHubReviewActions, _GitHubReviewComments, _GitHubStackActions
+    implements ForgeProvider, ForgeStackProvider {
   const GitHubForgeProvider(this._processRunner);
 
   final ProcessRunner _processRunner;
@@ -42,7 +46,9 @@ class GitHubForgeProvider
     'mergeable',
     'headRefName',
     'baseRefName',
+    'baseRefOid',
     'headRefOid',
+    'mergeCommit',
     'author',
   ];
 
@@ -82,6 +88,16 @@ class GitHubForgeProvider
       return '${identity.owner}/${identity.repo}';
     }
     return '${identity.host}/${identity.owner}/${identity.repo}';
+  }
+
+  String _apiRepoPath(GitRemoteIdentity identity) {
+    _ensureSupportedHost(identity);
+    return 'repos/${identity.owner}/${identity.repo}';
+  }
+
+  String _repositoryUrl(GitRemoteIdentity identity) {
+    _ensureSupportedHost(identity);
+    return 'https://${identity.host}/${identity.owner}/${identity.repo}';
   }
 
   void _ensureSupportedHost(GitRemoteIdentity identity) {

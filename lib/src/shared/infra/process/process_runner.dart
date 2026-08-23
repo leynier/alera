@@ -47,5 +47,6 @@ abstract interface class ProcessRunner {
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
+    bool includeParentEnvironment = true,
   });
 }

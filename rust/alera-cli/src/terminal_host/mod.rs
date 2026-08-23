@@ -14,6 +14,11 @@ pub mod orchestration;
 pub mod protocol;
 #[path = "../push_notifications/mod.rs"]
 pub(crate) mod push_notifications;
+mod relay_connection;
+pub mod relay_crypto;
+mod relay_runtime;
+mod relay_runtime_auth;
+pub mod relay_wire;
 pub mod resources;
 pub(crate) mod restart;
 pub mod server;

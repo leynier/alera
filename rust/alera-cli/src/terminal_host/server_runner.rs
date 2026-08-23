@@ -18,6 +18,7 @@ pub async fn run_terminal_host_server(
     prepare_private_runtime_directory(&runtime_dir)?;
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
+    crate::hosted_review_retention::reconcile(&runtime_store).await;
     runtime_store.cleanup_agent_canvases().await?;
     runtime_store.expire_agent_canvas_decisions().await?;
     runtime_store.ensure_default_browser_profile().await?;
@@ -38,6 +39,9 @@ pub async fn run_terminal_host_server(
     );
     if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
         tracing::warn!("alera agent hook receiver unavailable: {error}");
+    }
+    if let Err(error) = start_fx_herdr_receiver(&runtime_dir, inbox.clone()).await {
+        tracing::warn!("alera fx lifecycle receiver unavailable: {error}");
     }
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
@@ -109,6 +113,7 @@ pub async fn run_terminal_host_server(
     if let Err(error) = actor.restart_mobile_gateway().await {
         tracing::warn!("alera mobile gateway unavailable: {}", error.wire_message());
     }
+    actor.restart_remote_relay().await;
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
     if actor.account_push.push_enabled

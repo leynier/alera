@@ -8,6 +8,7 @@ HostedReview mapGitLabReview(Map<String, Object?> json) {
   final draft =
       json['draft'] as bool? ?? json['work_in_progress'] as bool? ?? false;
   final author = json['author'];
+  final diffRefs = json['diff_refs'];
   return HostedReview(
     provider: GitHostingProvider.gitlab,
     number: (json['iid'] as num?)?.toInt() ?? 0,
@@ -25,6 +26,9 @@ HostedReview mapGitLabReview(Map<String, Object?> json) {
     baseBranch: json['target_branch'] as String?,
     headBranch: json['source_branch'] as String?,
     headSha: json['sha'] as String?,
+    comparisonBaseSha: diffRefs is Map<String, Object?>
+        ? diffRefs['base_sha'] as String?
+        : null,
     mergeable: _mapMergeable(json),
   );
 }

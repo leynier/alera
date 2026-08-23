@@ -10,6 +10,25 @@
       "zone_name": "alera.build"
     }
   ],
+  "vars": {
+    "RELAY_ENABLED": "true",
+    "RELAY_ISSUER": "https://api.alera.build",
+    "RELAY_JWKS_URL": "https://api.alera.build/.well-known/jwks.json"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RELAY_OBJECTS",
+        "class_name": "RuntimeRelayDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RuntimeRelayDurableObject"]
+    }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 0.1

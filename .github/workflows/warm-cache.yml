@@ -107,3 +107,39 @@ jobs:
             sccache --show-stats || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Flutter release builds above populate a different rustc command line than
+  # PR clippy/test (release vs clippy-driver/dev). This job runs the same
+  # invocations as pr.yml so the shared R2 cache has matching keys.
+  warm-rust:
+    name: warm rust ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: clippy
+          - name: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Rust checks
+        uses: ./.github/actions/setup-rust-checks
+        with:
+          check: ${{ matrix.name }}
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### sccache rust ${{ matrix.name }}"
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
