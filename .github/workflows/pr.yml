@@ -223,6 +223,13 @@ jobs:
         with:
           check: ${{ matrix.name }}
 
+      # One pinned historical host on the existing test leg, not a version
+      # matrix. The script verifies the release tag's commit and builds its
+      # locked source before exercising the current compatibility client.
+      - name: Previous host conformance
+        if: matrix.name == 'test'
+        run: bash tool/ci/host_compatibility.sh
+
       - name: Report sccache statistics
         if: always()
         run: |
