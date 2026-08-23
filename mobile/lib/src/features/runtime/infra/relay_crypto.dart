@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -71,6 +72,8 @@ class RelayCryptoSession {
   final int _receiveDirection;
   int _nextSendCounter = 0;
   int _nextReceiveCounter = 0;
+  Future<void> _sendTail = Future<void>.value();
+  Future<void> _receiveTail = Future<void>.value();
 
   static Future<RelayCryptoSession> derive({
     required RelayIdentityKeyPair localStatic,
@@ -200,7 +203,13 @@ class RelayCryptoSession {
     ], secretKey: SecretKey(_confirmationKey))).bytes;
   }
 
-  Future<Uint8List> seal(List<int> plaintext) async {
+  Future<Uint8List> seal(List<int> plaintext) {
+    final result = _sendTail.then((_) => _seal(plaintext));
+    _sendTail = result.then<void>((_) {}, onError: (_, _) {});
+    return result;
+  }
+
+  Future<Uint8List> _seal(List<int> plaintext) async {
     final counter = _nextSendCounter;
     final nonce = _nonce(_sendDirection, counter);
     final aad = _associatedData(_sendDirection, counter);
@@ -221,7 +230,13 @@ class RelayCryptoSession {
     ]);
   }
 
-  Future<Uint8List> open(List<int> envelope) async {
+  Future<Uint8List> open(List<int> envelope) {
+    final result = _receiveTail.then((_) => _open(envelope));
+    _receiveTail = result.then<void>((_) {}, onError: (_, _) {});
+    return result;
+  }
+
+  Future<Uint8List> _open(List<int> envelope) async {
     if (envelope.length < _headerBytes + 16 ||
         envelope[0] != relayProtocolVersion ||
         envelope[1] != _receiveDirection) {

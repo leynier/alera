@@ -414,8 +414,11 @@ class MobileRuntimeClient
       final output = decodeMobileBinaryOutput(raw);
       if (output != null) {
         emitTerminalOutput(output);
+        return;
       }
-      return;
+      if (!_looksLikeJsonBytes(raw)) {
+        return;
+      }
     }
     final decoded = switch (raw) {
       String text => jsonDecode(text),
@@ -494,4 +497,14 @@ class MobileRuntimeClient
     // rather than a StateError that would look like a programming fault.
     _handleSocketError(const RuntimeConnectionLost());
   }
+}
+
+bool _looksLikeJsonBytes(List<int> bytes) {
+  for (final byte in bytes) {
+    if (byte == 0x20 || byte == 0x09 || byte == 0x0a || byte == 0x0d) {
+      continue;
+    }
+    return byte == 0x7b || byte == 0x5b;
+  }
+  return false;
 }

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 Future<({HttpServer server, List<Map<String, Object?>> requests})> _runtime({
   required bool grantBinaryFrames,
   required void Function(WebSocket socket) onAuthenticated,
+  bool binaryJsonResponses = false,
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   final requests = <Map<String, Object?>>[];
@@ -25,17 +26,20 @@ Future<({HttpServer server, List<Map<String, Object?>> requests})> _runtime({
     socket.listen((raw) {
       final message = jsonDecode(raw as String) as Map<String, Object?>;
       requests.add(message);
+      final response = jsonEncode(<String, Object?>{
+        'id': message['id'],
+        'ok': true,
+        'payload': <String, Object?>{
+          'runtimeCapabilities': <String>[
+            if (grantBinaryFrames) mobileBinaryFramesCapability,
+          ],
+          if (grantBinaryFrames) 'binaryFrames': true,
+        },
+      });
       socket.add(
-        jsonEncode(<String, Object?>{
-          'id': message['id'],
-          'ok': true,
-          'payload': <String, Object?>{
-            'runtimeCapabilities': <String>[
-              if (grantBinaryFrames) mobileBinaryFramesCapability,
-            ],
-            if (grantBinaryFrames) 'binaryFrames': true,
-          },
-        }),
+        binaryJsonResponses && message['type'] != 'mobile.hello'
+            ? Uint8List.fromList(utf8.encode(response))
+            : response,
       );
       if (message['type'] == 'mobile.hello') {
         onAuthenticated(socket);
@@ -112,6 +116,23 @@ void main() {
 
     final event = await output;
     expect(event.data, <int>[1, 2, 3]);
+  });
+
+  test('binary mode still accepts JSON responses carried as bytes', () async {
+    final runtime = await _runtime(
+      grantBinaryFrames: true,
+      binaryJsonResponses: true,
+      onAuthenticated: (_) {},
+    );
+    final client = await MobileRuntimeClient.connect(
+      'ws://${runtime.server.address.address}:${runtime.server.port}',
+    );
+    addTearDown(client.dispose);
+    await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+
+    final response = await client.requestMap('mobile.status.get');
+
+    expect(response['binaryFrames'], isTrue);
   });
 
   test('a truncated binary message is ignored, not fatal', () async {
