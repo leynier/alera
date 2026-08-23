@@ -19,6 +19,8 @@ The relay is treated as hostile transport infrastructure. It can observe connect
 
 The handshake binds the account, runtime id, mobile id, both static identity keys, both ephemeral keys, and a fresh nonce. Its role-specific confirmations prevent either side's confirmation from being reflected back as proof of the other role. HKDF-SHA256 derives independent client-to-runtime and runtime-to-client keys. ChaCha20-Poly1305 uses a direction-specific nonce derived from a strictly monotonic counter; counter gaps, replay, altered ciphertext, wrong peers, and transcript mismatches are rejected.
 
+Encrypted relay envelopes larger than 48 KiB are split into ordered application-layer fragments and reassembled by the receiving peer before authenticated decryption. A complete envelope remains capped at 1 MiB. The edge forwards those fragments without interpreting them, while interrupted, out-of-order, or oversized sequences fail the connection and use the normal recovery path with a fresh grant and handshake.
+
 The first release does not provide key transparency. The account authority can maliciously substitute a registered public key, and a compromised account can authorize its own devices. Users should revoke the account or installation after suspected credential compromise. This limitation is deliberate and must not be described as protection against a malicious identity authority.
 
 ## Privacy Boundary
