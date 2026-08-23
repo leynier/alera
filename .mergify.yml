@@ -1,3 +1,16 @@
+pull_request_rules:
+  - name: queue prepared release versions
+    conditions:
+      - base = main
+      - author = github-actions[bot]
+      - head ~= ^release/version-
+      - check-success = @github-actions/pr-ready
+      - or:
+          - -files ~= ^landing/
+          - check-success = @github-actions/landing-ready
+    actions:
+      queue: {}
+
 merge_queue:
   mode: serial
   max_parallel_checks: 1

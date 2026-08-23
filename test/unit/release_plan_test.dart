@@ -35,6 +35,10 @@ void main() {
         isReleaseBookkeepingSubject('release: v1.2.3 v0.4.0-mobile'),
         isTrue,
       );
+      expect(
+        isReleaseBookkeepingSubject('release: v1.2.3 v0.4.0-mobile (#123)'),
+        isTrue,
+      );
     });
 
     test('uses maximum conventional bump including breaking body', () {

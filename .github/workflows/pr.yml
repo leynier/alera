@@ -6,6 +6,16 @@ on:
       - opened
       - synchronize
       - reopened
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Exact base SHA for an automation-created pull request
+        required: true
+        type: string
+      head_sha:
+        description: Exact head SHA for an automation-created pull request
+        required: true
+        type: string
 
 # A newer commit makes the checks for the previous one irrelevant, and superseded
 # runs otherwise keep saturating the runner pool for the whole repository.
@@ -36,7 +46,17 @@ jobs:
           submodules: false
 
       - name: Whitespace
-        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+        env:
+          BASE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.base_sha || github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.head_sha || github.event.pull_request.head.sha }}
+          DISPATCHED: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          if [[ "$DISPATCHED" == "true" && "$(git rev-parse HEAD)" != "$HEAD_SHA" ]]; then
+            echo "Dispatched PR Checks ref does not match head_sha." >&2
+            exit 1
+          fi
+          git diff --check "$BASE_SHA...$HEAD_SHA"
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace

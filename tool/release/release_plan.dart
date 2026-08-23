@@ -87,7 +87,10 @@ ReleaseTag? parseReleaseTag(String name) {
 
 bool isReleaseBookkeepingSubject(String subject) {
   if (!subject.startsWith('release: ')) return false;
-  final remainder = subject.substring('release: '.length).trim();
+  final remainder = subject
+      .substring('release: '.length)
+      .replaceFirst(RegExp(r'\s+\(#\d+\)$'), '')
+      .trim();
   if (remainder.isEmpty) return false;
   return remainder
       .split(RegExp(r'\s+'))
@@ -422,6 +425,8 @@ void _writeOutputs(
     'target_sha=$targetSha',
     'channel=${channel.name}',
     'any_should_release=${plans.any((plan) => plan.shouldRelease)}',
+    'ready_to_publish=false',
+    'version_pr_needed=${plans.any((plan) => plan.shouldRelease)}',
   ];
   for (final plan in plans) {
     final prefix = plan.product.name;
