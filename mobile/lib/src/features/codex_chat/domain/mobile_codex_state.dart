@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 part 'mobile_codex_timeline.dart';
+part 'mobile_codex_timeline_event.dart';
 part 'mobile_codex_timeline_classification.dart';
 part 'mobile_codex_timeline_compaction.dart';
 part 'mobile_codex_timeline_content.dart';
