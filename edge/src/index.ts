@@ -44,6 +44,7 @@ const ORIGIN_HEADER = 'x-alera-origin-auth';
 const PUBLIC_EXACT_PATHS = new Set(['/health', '/.well-known/jwks.json']);
 const PUBLIC_PREFIXES = ['/v1/'];
 const RELAY_PREFIX = '/v1/relay/';
+const RELAY_CONTROL_PATHS = new Set(['/v1/relay/identity', '/v1/relay/grants']);
 const RELAY_AUDIENCE = 'alera-relay';
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
 const MAX_RELAY_MOBILE_CONNECTIONS = 8;
@@ -302,7 +303,11 @@ export async function handleRequest(
   fetchRelay: RelayFetch = (relayRequest) => fetch(relayRequest),
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (env.RELAY_ENABLED === 'true' && url.pathname.startsWith(RELAY_PREFIX)) {
+  if (
+    env.RELAY_ENABLED === 'true' &&
+    url.pathname.startsWith(RELAY_PREFIX) &&
+    !RELAY_CONTROL_PATHS.has(url.pathname)
+  ) {
     return handleRelayRequest(request, env, fetchRelay);
   }
   const configurationError = validateEnvironment(env);
