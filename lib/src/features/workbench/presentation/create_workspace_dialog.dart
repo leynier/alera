@@ -19,7 +19,11 @@ import 'package:alera/src/features/workbench/domain/workspace_parent_selection_o
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
+part 'create_workspace_dialog_frame.dart';
+part 'create_workspace_dialog_interactions.dart';
 part 'create_workspace_dialog_selection_order.dart';
+part 'create_workspace_dialog_selection_step.dart';
+part 'create_workspace_dialog_settings_step.dart';
 part 'create_workspace_dialog_submission.dart';
 
 class CreateWorkspaceDialog extends StatefulWidget {
@@ -186,25 +190,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   List<String> _branchesForMode(bool reuseExistingBranch) {
     return reuseExistingBranch ? _localBranches : _branches;
-  }
-
-  String _parentLabel(WorkspaceParentCandidate candidate) {
-    final branch = candidate.workspace.branch;
-    final suffix = branch == null || branch.isEmpty ? '' : ' - $branch';
-    return '${candidate.project.name} / ${candidate.workspace.name}$suffix';
-  }
-
-  String? _selectedParentLabel() {
-    final selectedId = _selectedParentWorkspaceId;
-    if (selectedId == null) {
-      return null;
-    }
-    for (final candidate in _parentCandidates) {
-      if (candidate.workspace.id == selectedId) {
-        return _parentLabel(candidate);
-      }
-    }
-    return null;
   }
 
   String? _pickBranchForMode(bool reuseExistingBranch) {
@@ -425,728 +410,79 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         : 'New branch name is required';
   }
 
-  String _branchPickerLabel() {
-    return _reuseExistingBranch ? 'Existing Branch' : 'Source Branch';
-  }
-
-  String _branchSearchHint() {
-    return _reuseExistingBranch
-        ? 'Search existing branches'
-        : 'Search source branches';
-  }
-
-  String _emptyBranchesMessage() {
-    return _reuseExistingBranch
-        ? 'No existing branches match "$_branchQuery"'
-        : 'No source branches match "$_branchQuery"';
-  }
-
-  String _slugify(String input) {
-    return input
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[\s_/]+'), '-')
-        .replaceAll(RegExp(r'[^a-z0-9-]'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
-  }
-
-  String _getPreviewWorkspacePath() {
-    final project = _selectedProject;
-    if (project == null) return '';
-    final projectSlug = _slugify(project.name);
-    final displayName = _nameController.text.trim().isNotEmpty
-        ? _nameController.text.trim()
-        : _newBranchController.text.trim();
-    final workspaceSlug = displayName.isNotEmpty
-        ? _slugify(displayName)
-        : 'workspace';
-    return '~/.alera/workspaces/$projectSlug-${project.id}/$workspaceSlug';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final selectedProject = _selectedProject;
-    final visibleBranches = _branchesForMode(_reuseExistingBranch);
-    final loadingBranchChoices =
-        _loadingBranches || (_reuseExistingBranch && _loadingLocalBranches);
-
     if (widget.projects.isEmpty) {
-      return AleraDialog(
-        maxWidth: 440,
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AleraEmptyState(
-                icon: AleraIcons.folderOff,
-                title: 'No Git projects yet',
-                message:
-                    'Linked workspaces require a Git project. Add one to get started.',
-                action: widget.onAddProject != null
-                    ? FilledButton.icon(
-                        onPressed: widget.onAddProject,
-                        icon: const Icon(AleraIcons.add, size: 16),
-                        label: const Text('Add Git Project'),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-            ],
-          ),
-        ),
+      return _EmptyProjectsDialog(
+        onAddProject: widget.onAddProject,
+        onCancel: () => Navigator.of(context).pop(),
       );
     }
 
-    final isStep1 = _currentStep == 1;
+    final isSelectionStep = _currentStep == 1;
+    final sourceBranch = _selectedSourceBranch ?? _sourceBranchController.text;
+    final step = isSelectionStep
+        ? _CreateWorkspaceSelectionStep(
+            projects: _orderedProjects,
+            selectedProject: selectedProject,
+            projectQuery: _projectQuery,
+            projectSearchController: _projectSearchController,
+            onProjectQueryChanged: _setProjectQuery,
+            onSelectProject: _selectProject,
+            getProjectActiveBranch: widget.getProjectActiveBranch,
+            reuseExistingBranch: _reuseExistingBranch,
+            onReuseExistingBranchChanged: _setReuseExistingBranch,
+            loadingBranches:
+                _loadingBranches ||
+                (_reuseExistingBranch && _loadingLocalBranches),
+            branches: _branchesForMode(_reuseExistingBranch),
+            selectedBranch: _selectedSourceBranch,
+            branchQuery: _branchQuery,
+            branchSearchController: _branchSearchController,
+            onBranchQueryChanged: _setBranchQuery,
+            onSelectBranch: _selectSourceBranch,
+            branchesError: _branchesError,
+            onRetryBranches: _retryBranches,
+            sourceBranchController: _sourceBranchController,
+            sourceBranchError: _sourceBranchError,
+            onManualSourceBranchChanged: _onManualSourceBranchChanged,
+          )
+        : _CreateWorkspaceSettingsStep(
+            project: selectedProject,
+            sourceBranch: sourceBranch,
+            reuseExistingBranch: _reuseExistingBranch,
+            newBranchController: _newBranchController,
+            newBranchError: _newBranchError,
+            branchValidationError: _branchValidationError,
+            isValidatingBranch: _isValidatingBranch,
+            onNewBranchChanged: _onNewBranchChanged,
+            nameController: _nameController,
+            nameTouched: _nameTouched,
+            onNameChanged: _onNameChanged,
+            parentCandidates: _parentCandidates,
+            selectedParentWorkspaceId: _selectedParentWorkspaceId,
+            onParentWorkspaceChanged: _setParentWorkspace,
+            creating: _creating,
+            onSubmit: _submit,
+          );
 
-    return AleraDialog(
-      maxWidth: isStep1 ? 680 : 560,
-      maxHeight: 740,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                if (!isStep1 && !_creating) ...[
-                  IconButton(
-                    icon: const Icon(AleraIcons.back, size: 20),
-                    color: AleraTokens.foregroundMuted,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      setState(() {
-                        _currentStep = 1;
-                        _creationError = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: AleraTokens.space12),
-                ],
-                const Icon(AleraIcons.gitFork, color: AleraTokens.accent),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: Text(
-                    isStep1
-                        ? 'New Workspace - Selection'
-                        : 'New Workspace - Settings',
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AleraTokens.space12),
-                if (_creating)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Text(
-                    isStep1 ? 'Step 1 of 2' : 'Step 2 of 2',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundFaint,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            if (_creationError != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                decoration: BoxDecoration(
-                  color: AleraTokens.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-                  border: Border.all(
-                    color: AleraTokens.error.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      AleraIcons.error,
-                      color: AleraTokens.error,
-                      size: 16,
-                    ),
-                    const SizedBox(width: AleraTokens.space8),
-                    Expanded(
-                      child: Text(
-                        _creationError!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space12),
-            ],
-            Flexible(
-              child: AnimatedSwitcher(
-                duration: AleraTokens.durationMid,
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.05, 0.0),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: isStep1
-                    ? KeyedSubtree(
-                        key: const ValueKey('step1'),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              _ProjectPicker(
-                                projects: _orderedProjects,
-                                selectedProject: selectedProject,
-                                query: _projectQuery,
-                                controller: _projectSearchController,
-                                onQueryChanged: (value) {
-                                  setState(() => _projectQuery = value);
-                                },
-                                onSelectProject: _selectProject,
-                                getProjectActiveBranch:
-                                    widget.getProjectActiveBranch,
-                              ),
-                              const SizedBox(height: AleraTokens.space16),
-                              AleraSegmentedButton<bool>(
-                                segments: const <ButtonSegment<bool>>[
-                                  ButtonSegment<bool>(
-                                    value: false,
-                                    label: Text('New Branch'),
-                                  ),
-                                  ButtonSegment<bool>(
-                                    value: true,
-                                    label: Text('Existing Branch'),
-                                  ),
-                                ],
-                                selected: _reuseExistingBranch,
-                                onSelectionChanged: _setReuseExistingBranch,
-                              ),
-                              const SizedBox(height: AleraTokens.space16),
-                              if (loadingBranchChoices)
-                                const _LoadingBranches()
-                              else if (visibleBranches.isNotEmpty)
-                                _SourceBranchPicker(
-                                  label: _branchPickerLabel(),
-                                  searchHint: _branchSearchHint(),
-                                  emptyMessage: _emptyBranchesMessage(),
-                                  branches: visibleBranches,
-                                  selectedBranch: _selectedSourceBranch,
-                                  query: _branchQuery,
-                                  controller: _branchSearchController,
-                                  onQueryChanged: (value) {
-                                    setState(() => _branchQuery = value);
-                                  },
-                                  onSelectBranch: _selectSourceBranch,
-                                )
-                              else ...<Widget>[
-                                if (_branchesError != null) ...[
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _branchesError!,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: AleraTokens.error,
-                                              ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: AleraTokens.space8),
-                                      IconButton(
-                                        icon: const Icon(
-                                          AleraIcons.refresh,
-                                          size: 16,
-                                        ),
-                                        onPressed: () {
-                                          if (selectedProject != null) {
-                                            _loadBranches(selectedProject);
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: AleraTokens.space8),
-                                ],
-                                AleraTextField(
-                                  controller: _sourceBranchController,
-                                  autofocus: true,
-                                  labelText: _branchPickerLabel(),
-                                  hintText: 'e.g. main',
-                                  errorText: _sourceBranchError,
-                                  onChanged: (_) {
-                                    setState(() {
-                                      _sourceBranchError = null;
-                                      if (_reuseExistingBranch) {
-                                        final branch = _sourceBranchController
-                                            .text
-                                            .trim();
-                                        _newBranchController.text = branch;
-                                        if (!_nameTouched) {
-                                          _nameController.text = branch;
-                                        }
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('step2'),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AleraTokens.space12,
-                                  vertical: AleraTokens.space8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AleraTokens.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(
-                                    AleraTokens.radiusMd,
-                                  ),
-                                  border: Border.all(
-                                    color: AleraTokens.borderSubtle,
-                                  ),
-                                ),
-                                child: Table(
-                                  columnWidths: const {
-                                    0: IntrinsicColumnWidth(),
-                                    1: FlexColumnWidth(),
-                                  },
-                                  children: [
-                                    TableRow(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: AleraTokens.space12,
-                                            bottom: AleraTokens.space4,
-                                          ),
-                                          child: Text(
-                                            'Project:',
-                                            style: theme.textTheme.labelMedium
-                                                ?.copyWith(
-                                                  color: AleraTokens
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                        Text(
-                                          selectedProject?.name ?? '',
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: AleraTokens.foreground,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    TableRow(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: AleraTokens.space12,
-                                          ),
-                                          child: Text(
-                                            _reuseExistingBranch
-                                                ? 'Existing Branch:'
-                                                : 'Source Branch:',
-                                            style: theme.textTheme.labelMedium
-                                                ?.copyWith(
-                                                  color: AleraTokens
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                        Text(
-                                          _selectedSourceBranch ??
-                                              _sourceBranchController.text,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: AleraTokens.foreground,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: AleraTokens.space16),
-                              if (_reuseExistingBranch)
-                                AleraTextField(
-                                  controller: _newBranchController,
-                                  enabled: false,
-                                  labelText: 'Existing Branch *',
-                                  errorText: _newBranchError,
-                                )
-                              else
-                                AleraTextField(
-                                  controller: _newBranchController,
-                                  autofocus: true,
-                                  enabled: !_creating,
-                                  labelText: 'New Branch Name *',
-                                  hintText: 'e.g. feature/terminal-tabs',
-                                  errorText:
-                                      _newBranchError ?? _branchValidationError,
-                                  suffix: _isValidatingBranch
-                                      ? const SizedBox(
-                                          width: 12,
-                                          height: 12,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 1.5,
-                                          ),
-                                        )
-                                      : null,
-                                  onChanged: _onNewBranchChanged,
-                                  onSubmitted: (_) => _submit(),
-                                ),
-                              const SizedBox(height: AleraTokens.space12),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: AleraTextField(
-                                      controller: _nameController,
-                                      enabled: !_creating,
-                                      labelText: 'Workspace Name (Optional)',
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _nameTouched = value.isNotEmpty;
-                                        });
-                                      },
-                                      onSubmitted: (_) => _submit(),
-                                    ),
-                                  ),
-                                  if (!_nameTouched &&
-                                      _newBranchController.text.isNotEmpty) ...[
-                                    const SizedBox(width: AleraTokens.space8),
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        top: AleraTokens.space16,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: AleraTokens.space6,
-                                          vertical: AleraTokens.space2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AleraTokens.accentSubtle,
-                                          borderRadius: BorderRadius.circular(
-                                            AleraTokens.radiusSm,
-                                          ),
-                                          border: Border.all(
-                                            color: AleraTokens.accent
-                                                .withValues(alpha: 0.2),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              AleraIcons.link,
-                                              size: 10,
-                                              color: AleraTokens.accent
-                                                  .withValues(alpha: 0.7),
-                                            ),
-                                            const SizedBox(
-                                              width: AleraTokens.space4,
-                                            ),
-                                            Text(
-                                              'Sync',
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                    color: AleraTokens.accent,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: AleraTokens.space16),
-                              AleraDropdownField<String?>(
-                                value: _selectedParentWorkspaceId,
-                                labelText: 'Parent Workspace',
-                                enabled: !_creating,
-                                filterable: true,
-                                filterHintText: 'Search Workspaces',
-                                entries: <AleraDropdownFieldEntry<String?>>[
-                                  const AleraDropdownFieldEntry<String?>(
-                                    value: null,
-                                    label: 'No Parent',
-                                  ),
-                                  for (final candidate in _parentCandidates)
-                                    AleraDropdownFieldEntry<String?>(
-                                      value: candidate.workspace.id,
-                                      label: _parentLabel(candidate),
-                                    ),
-                                ],
-                                onChanged: (value) => setState(
-                                  () => _selectedParentWorkspaceId = value,
-                                ),
-                              ),
-                              const SizedBox(height: AleraTokens.space16),
-                              Text(
-                                'Preview',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: AleraTokens.foregroundMuted,
-                                ),
-                              ),
-                              const SizedBox(height: AleraTokens.space6),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(
-                                  AleraTokens.space12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AleraTokens.surface,
-                                  borderRadius: BorderRadius.circular(
-                                    AleraTokens.radiusMd,
-                                  ),
-                                  border: Border.all(
-                                    color: AleraTokens.borderSubtle,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          AleraIcons.folder,
-                                          size: 14,
-                                          color: AleraTokens.foregroundMuted
-                                              .withValues(alpha: 0.7),
-                                        ),
-                                        const SizedBox(
-                                          width: AleraTokens.space6,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            _getPreviewWorkspacePath(),
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AleraTokens.monoStyle
-                                                .copyWith(
-                                                  color: AleraTokens
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: AleraTokens.space6),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          AleraIcons.gitFork,
-                                          size: 14,
-                                          color: AleraTokens.foregroundMuted
-                                              .withValues(alpha: 0.7),
-                                        ),
-                                        const SizedBox(
-                                          width: AleraTokens.space6,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            _reuseExistingBranch
-                                                ? 'Branch: ${(_selectedSourceBranch ?? _sourceBranchController.text).isEmpty ? "<existing-branch>" : (_selectedSourceBranch ?? _sourceBranchController.text)}'
-                                                : 'Branch: ${_newBranchController.text.isEmpty ? "<new-branch>" : _newBranchController.text} ← from ${(_selectedSourceBranch ?? _sourceBranchController.text).isEmpty ? "<source>" : (_selectedSourceBranch ?? _sourceBranchController.text)}',
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AleraTokens.monoStyle
-                                                .copyWith(
-                                                  color: AleraTokens
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (_selectedParentLabel()
-                                        case final parentLabel?) ...[
-                                      const SizedBox(
-                                        height: AleraTokens.space6,
-                                      ),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            AleraIcons.link,
-                                            size: 14,
-                                            color: AleraTokens.foregroundMuted
-                                                .withValues(alpha: 0.7),
-                                          ),
-                                          const SizedBox(
-                                            width: AleraTokens.space6,
-                                          ),
-                                          Expanded(
-                                            child: Text(
-                                              'Parent: $parentLabel',
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                    color: AleraTokens
-                                                        .foregroundMuted,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                    const SizedBox(height: AleraTokens.space6),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          AleraIcons.terminal,
-                                          size: 14,
-                                          color: AleraTokens.foregroundMuted
-                                              .withValues(alpha: 0.7),
-                                        ),
-                                        const SizedBox(
-                                          width: AleraTokens.space6,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Initial terminal tab will be opened',
-                                            style: theme.textTheme.labelSmall
-                                                ?.copyWith(
-                                                  color: AleraTokens
-                                                      .foregroundMuted,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            if (!isStep1) ...<Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AleraCheckbox(
-                  value: _createAnother,
-                  enabled: !_creating,
-                  onChanged: (value) {
-                    setState(() => _createAnother = value);
-                  },
-                  label: 'Create Another',
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space8),
-            ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                if (isStep1)
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  )
-                else
-                  TextButton(
-                    onPressed: _creating
-                        ? null
-                        : () {
-                            setState(() {
-                              _currentStep = 1;
-                              _creationError = null;
-                            });
-                          },
-                    child: const Text('Back'),
-                  ),
-                const SizedBox(width: AleraTokens.space8),
-                if (isStep1)
-                  FilledButton(
-                    onPressed: selectedProject == null || _loadingBranches
-                        ? null
-                        : () {
-                            final sourceBranch =
-                                (_selectedSourceBranch ??
-                                        _sourceBranchController.text)
-                                    .trim();
-                            if (sourceBranch.isEmpty) {
-                              setState(() {
-                                _sourceBranchError =
-                                    _sourceBranchRequiredError();
-                              });
-                              return;
-                            }
-                            setState(() {
-                              _currentStep = 2;
-                            });
-                          },
-                    child: const Text('Continue'),
-                  )
-                else
-                  FilledButton(
-                    onPressed:
-                        selectedProject == null ||
-                            _creating ||
-                            _branchValidationError != null
-                        ? null
-                        : () {
-                            final sourceBranch =
-                                (_selectedSourceBranch ??
-                                        _sourceBranchController.text)
-                                    .trim();
-                            final targetBranch = _targetBranchName(
-                              sourceBranch,
-                            );
-                            if (targetBranch.isEmpty) {
-                              setState(() {
-                                _newBranchError = _targetBranchRequiredError();
-                              });
-                              return;
-                            }
-                            _submit();
-                          },
-                    child: Text(_creating ? 'Creating…' : 'Create Workspace'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return _CreateWorkspaceDialogFrame(
+      isSelectionStep: isSelectionStep,
+      creating: _creating,
+      creationError: _creationError,
+      step: step,
+      createAnother: _createAnother,
+      onCreateAnotherChanged: _setCreateAnother,
+      onCancel: () => Navigator.of(context).pop(),
+      onBack: _showSelectionStep,
+      onContinue: selectedProject == null || _loadingBranches
+          ? null
+          : _continueToSettings,
+      onCreate:
+          selectedProject == null || _creating || _branchValidationError != null
+          ? null
+          : _submitFromButton,
     );
   }
 }
