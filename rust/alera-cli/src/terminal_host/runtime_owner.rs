@@ -217,7 +217,16 @@ fn wait_for_owner_exit(owner: ProcessIdentity, probe: &impl ProcessIdentityProbe
     }
 }
 
-pub(crate) fn live_owner_pid(runtime_dir: &Path) -> Result<Option<u32>> {
+pub(crate) fn ensure_no_live_owner(runtime_dir: &Path) -> Result<()> {
+    if let Some(pid) = live_owner_pid(runtime_dir)? {
+        bail!(
+            "A live Alera runtime host process {pid} owns this runtime directory, but its control metadata is unavailable or incompatible. Refusing to start a duplicate host."
+        );
+    }
+    Ok(())
+}
+
+fn live_owner_pid(runtime_dir: &Path) -> Result<Option<u32>> {
     let Some(record) = read_owner_record(runtime_dir)? else {
         return Ok(None);
     };
