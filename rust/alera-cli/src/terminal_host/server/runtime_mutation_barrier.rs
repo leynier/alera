@@ -67,6 +67,12 @@ pub(super) fn conflicts_with_runtime_mutation(request_type: &str) -> bool {
                 | "browser.closedTabs.reopen"
                 | "browser.driver.sync"
                 | "browser.driver.pageChanged"
+                | "automation.upsert"
+                | "automation.approve"
+                | "automation.resume"
+                | "automation.restore"
+                | "automation.runNow"
+                | "automation.import"
         )
         || matches!(
             request_type,
@@ -128,6 +134,12 @@ mod tests {
             "browser.closedTabs.reopen",
             "browser.driver.sync",
             "browser.driver.pageChanged",
+            "automation.upsert",
+            "automation.approve",
+            "automation.resume",
+            "automation.restore",
+            "automation.runNow",
+            "automation.import",
         ] {
             assert!(
                 conflicts_with_runtime_mutation(writer),

@@ -21,6 +21,42 @@ class _ShellPumpHarness {
   final _ShellTestAgentStatusController agentStatus;
 }
 
+class _FakeManagedWorkspaceRuntime
+    implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
+  const _FakeManagedWorkspaceRuntime();
+
+  @override
+  Future<WorkspaceCreationResult> createLinkedWorkspace({
+    required Project project,
+    required String sourceBranch,
+    required String newBranchName,
+    required bool reuseExistingBranch,
+    String? name,
+  }) => throw UnsupportedError('Workspace creation is not used by shell tests');
+
+  @override
+  Future<void> removeWorkspace({
+    required Workspace workspace,
+    bool? deleteBranch,
+    String? activeWorkspaceId,
+  }) async {}
+
+  @override
+  Future<WorkspaceStorageImpact> storageImpact({
+    required String workspaceId,
+    String? activeWorkspaceId,
+  }) async => WorkspaceStorageImpact(
+    workspaceId: workspaceId,
+    path: '/host-owned/workspaces/$workspaceId',
+    sizeBytes: 4096,
+    entryCount: 3,
+    measuredAt: DateTime.utc(2026, 8, 22, 12),
+    lastActivityAt: DateTime.utc(2026, 8, 22, 11),
+    safeToClean: true,
+    blockers: const <String>[],
+  );
+}
+
 class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> _sessions =
       <String, _FakeTerminalSessionHandle>{};

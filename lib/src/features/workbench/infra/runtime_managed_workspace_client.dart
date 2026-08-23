@@ -2,16 +2,47 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
+import 'package:alera/src/features/workbench/domain/workspace_storage_impact.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
-class RuntimeManagedWorkspaceClient implements ManagedWorkspaceRuntime {
+class RuntimeManagedWorkspaceClient
+    implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
   RuntimeManagedWorkspaceClient(this._client, {this.beforeAccess});
 
   final RuntimeHostClient _client;
   final Future<void> Function()? beforeAccess;
+
+  @override
+  Future<WorkspaceStorageImpact> storageImpact({
+    required String workspaceId,
+    String? activeWorkspaceId,
+  }) async {
+    await _ensureReady();
+    final request = <String, Object?>{'id': workspaceId};
+    if (activeWorkspaceId != null) {
+      request['activeWorkspaceId'] = activeWorkspaceId;
+    }
+    final json = _asMap(
+      await _client.runtimeRequest(
+        'workspace.storageImpact',
+        request,
+        _managedWorkspaceRemoveTimeout,
+      ),
+    );
+    return WorkspaceStorageImpact(
+      workspaceId: json['workspaceId'] as String,
+      path: json['path'] as String,
+      sizeBytes: (json['sizeBytes'] as num).toInt(),
+      entryCount: (json['entryCount'] as num).toInt(),
+      measuredAt: DateTime.parse(json['measuredAt'] as String).toUtc(),
+      lastActivityAt: DateTime.parse(json['lastActivityAt'] as String).toUtc(),
+      safeToClean: json['safeToClean'] == true,
+      blockers: _stringList(json['blockers']),
+    );
+  }
 
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
@@ -49,9 +80,13 @@ class RuntimeManagedWorkspaceClient implements ManagedWorkspaceRuntime {
   Future<void> removeWorkspace({
     required Workspace workspace,
     bool? deleteBranch,
+    String? activeWorkspaceId,
   }) async {
     await _ensureReady();
     final request = <String, Object?>{'id': workspace.id};
+    if (activeWorkspaceId != null) {
+      request['activeWorkspaceId'] = activeWorkspaceId;
+    }
     if (deleteBranch != null) {
       request['deleteBranch'] = deleteBranch;
     }

@@ -5,6 +5,7 @@ extension WorkspaceServiceRemoval on WorkspaceService {
     required Project project,
     required Workspace workspace,
     required bool deleteBranch,
+    String? activeWorkspaceId,
   }) async {
     if (workspace.isMain) {
       throw WorkspaceException('The main workspace cannot be removed');
@@ -15,6 +16,7 @@ extension WorkspaceServiceRemoval on WorkspaceService {
       await managedRuntime.removeWorkspace(
         workspace: workspace,
         deleteBranch: shouldDeleteBranch,
+        activeWorkspaceId: activeWorkspaceId,
       );
       return;
     }

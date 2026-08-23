@@ -6,6 +6,38 @@ part of 'runtime_repositories_test.dart';
 /// Split out of `runtime_repositories_test.dart`, which covers the rest of the
 /// runtime-host backed repositories.
 void _registerRuntimeManagedWorkspaceClientTests() {
+  test('RuntimeManagedWorkspaceClient parses storage impact', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeManagedWorkspaceClient(client);
+    client.responses['workspace.storageImpact'] = <String, Object?>{
+      'workspaceId': 'workspace-1',
+      'path': '/managed/workspace-1',
+      'sizeBytes': 4096,
+      'entryCount': 12,
+      'measuredAt': '2026-08-22T10:00:00Z',
+      'lastActivityAt': '2026-08-21T09:00:00Z',
+      'safeToClean': false,
+      'blockers': <String>['Workspace is active in the workbench'],
+    };
+
+    final impact = await repository.storageImpact(
+      workspaceId: 'workspace-1',
+      activeWorkspaceId: 'workspace-1',
+    );
+
+    expect(impact.sizeBytes, 4096);
+    expect(impact.entryCount, 12);
+    expect(impact.safeToClean, isFalse);
+    expect(impact.blockers, <String>['Workspace is active in the workbench']);
+    expect(
+      client.payloads['workspace.storageImpact']!.single,
+      <String, Object?>{
+        'id': 'workspace-1',
+        'activeWorkspaceId': 'workspace-1',
+      },
+    );
+  });
+
   test(
     'RuntimeManagedWorkspaceClient uses long-running RPC timeouts',
     () async {
@@ -25,6 +57,7 @@ void _registerRuntimeManagedWorkspaceClientTests() {
       await repository.removeWorkspace(
         workspace: _workspace(id: 'workspace-1', projectId: 'project-1'),
         deleteBranch: true,
+        activeWorkspaceId: 'workspace-2',
       );
 
       expect(client.timeouts['workspace.createManaged'], <Duration?>[
@@ -33,6 +66,14 @@ void _registerRuntimeManagedWorkspaceClientTests() {
       expect(client.timeouts['workspace.removeManaged'], <Duration?>[
         const Duration(minutes: 10),
       ]);
+      expect(
+        client.payloads['workspace.removeManaged']!.single,
+        <String, Object?>{
+          'id': 'workspace-1',
+          'activeWorkspaceId': 'workspace-2',
+          'deleteBranch': true,
+        },
+      );
     },
   );
 
