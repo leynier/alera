@@ -335,7 +335,9 @@ fn repository_declares_automation(workspace_path: &str, project_repo_path: &str)
         let Ok(contents) = std::fs::read_to_string(path) else {
             return false;
         };
-        let Ok(value) = contents.parse::<toml::Value>() else {
+        // toml 1.x FromStr for Value parses a single value, not a document.
+        // A file like `automation_declared = true` must go through from_str.
+        let Ok(value) = toml::from_str::<toml::Value>(&contents) else {
             return false;
         };
         let Some(root) = value.as_table() else {
@@ -390,4 +392,49 @@ fn policy_object(value: &Value, kind: &str) -> HostResult<Map<String, Value>> {
         .as_object()
         .cloned()
         .ok_or_else(|| HostError::format(format!("{kind} policy must be a JSON object")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::repository_declares_automation;
+    use std::fs;
+    use std::path::Path;
+
+    fn declare(dir: &Path, contents: &str) {
+        fs::write(dir.join("alera.toml"), contents).unwrap();
+    }
+
+    #[test]
+    fn root_automation_declared_flag_is_recognized() {
+        let dir = tempfile::tempdir().unwrap();
+        declare(dir.path(), "automation_declared = true\n");
+        assert!(repository_declares_automation(
+            dir.path().to_str().unwrap(),
+            "/missing"
+        ));
+    }
+
+    #[test]
+    fn nested_automation_declared_flag_is_recognized() {
+        let dir = tempfile::tempdir().unwrap();
+        declare(dir.path(), "[automation]\ndeclared = true\n");
+        assert!(repository_declares_automation(
+            "",
+            dir.path().to_str().unwrap()
+        ));
+    }
+
+    #[test]
+    fn missing_or_false_declaration_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!repository_declares_automation(
+            dir.path().to_str().unwrap(),
+            dir.path().to_str().unwrap()
+        ));
+        declare(dir.path(), "automation_declared = false\n");
+        assert!(!repository_declares_automation(
+            dir.path().to_str().unwrap(),
+            dir.path().to_str().unwrap()
+        ));
+    }
 }
