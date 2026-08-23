@@ -11,9 +11,7 @@ part 'host_settings_controller.g.dart';
 class HostSettingsController extends _$HostSettingsController {
   @override
   Future<PortableHostSettings> build(String hostId) async {
-    final client = await ref.watch(
-      hostConnectionControllerProvider(hostId).future,
-    );
+    final client = await watchHostConnection(ref, hostId);
     if (!client.supportsPortableSettings) {
       throw UnsupportedError('Update the runtime to manage settings.');
     }

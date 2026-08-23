@@ -28,7 +28,7 @@ part 'mobile_codex_controller_capabilities.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
-    ref.watch(hostConnectionControllerProvider(hostId).future);
+    watchHostConnection(ref, hostId);
 
 @riverpod
 class MobileCodexController extends _$MobileCodexController
