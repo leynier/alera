@@ -771,6 +771,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
         MobileAction::Enable(args) => {
             let request = MobileSettingsUpdateRequest {
                 enabled: Some(true),
+                remote_access_enabled: None,
                 bind_host: args.bind_host,
                 port: args.port,
                 endpoint_mode: if args.netbird {
@@ -794,6 +795,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
         MobileAction::Disable => {
             let request = MobileSettingsUpdateRequest {
                 enabled: Some(false),
+                remote_access_enabled: None,
                 bind_host: None,
                 port: None,
                 endpoint_mode: None,

@@ -2,6 +2,8 @@
 
 This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, and `/health`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads. The `/v1/relay/{runtimeId}` route is the exception in transport only: it verifies a short-lived cloud grant and forwards opaque WebSocket frames to one per-runtime Durable Object.
 
+The relay control-plane endpoints, `POST /v1/relay/identity` and `POST /v1/relay/grants`, remain ordinary HTTP requests proxied to Cloud Run. Only the runtime-id route enters the Durable Object WebSocket path.
+
 Production deployment is owned by `.github/workflows/cloud-deploy.yml`. Wrangler receives a dedicated `cloud-production` Environment token limited to `Workers Scripts: Edit` on the Leynier account and `Workers Routes: Edit` on `alera.build`. Local `wrangler deploy` is a break-glass operation.
 
 ## Local Validation
@@ -23,7 +25,7 @@ bunx wrangler secret put ORIGIN_BASE_URL
 bunx wrangler secret put EDGE_ORIGIN_TOKEN
 ```
 
-The relay issuer and JWKS URL are non-secret Worker variables in `wrangler.jsonc`. They must match `ALERA_ISSUER` and the public cloud JWKS route. The relay WebSocket path is derived from `ALERA_RELAY_BASE_URL`; keep its host on the Worker route.
+The relay issuer and JWKS URL are non-secret Worker variables in `wrangler.jsonc`. They must match `ALERA_ISSUER` and the public cloud JWKS route. During grant verification, the Worker resolves that JWKS path through the authenticated Cloud Run origin instead of fetching its own public route recursively. The relay WebSocket path is derived from `ALERA_RELAY_BASE_URL`; keep its host on the Worker route and require clients to connect with `wss://` using the repository's Rustls TLS provider.
 
 `ORIGIN_BASE_URL` is the generated Cloud Run `run.app` URL. `EDGE_ORIGIN_TOKEN` must match the latest version of the `alera-edge-origin-token` Google Secret Manager secret. Deploy only after both values are set:
 

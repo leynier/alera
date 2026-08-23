@@ -33,7 +33,9 @@ interface RelayClaims {
   runtimePublicKey: string;
 }
 
-interface RelayAttachment extends RelayClaims {}
+interface RelayAttachment extends RelayClaims {
+  suppressDisconnect?: boolean;
+}
 
 type OriginFetch = (request: Request) => Promise<Response>;
 type RelayFetch = (request: Request) => Promise<Response>;
@@ -44,6 +46,7 @@ const ORIGIN_HEADER = 'x-alera-origin-auth';
 const PUBLIC_EXACT_PATHS = new Set(['/health', '/.well-known/jwks.json']);
 const PUBLIC_PREFIXES = ['/v1/'];
 const RELAY_PREFIX = '/v1/relay/';
+const RELAY_CONTROL_PATHS = new Set(['/v1/relay/identity', '/v1/relay/grants']);
 const RELAY_AUDIENCE = 'alera-relay';
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
 const MAX_RELAY_MOBILE_CONNECTIONS = 8;
@@ -276,7 +279,7 @@ async function handleRelayRequest(
   if (request.method !== 'GET' || !isWebSocketUpgrade(request)) {
     return jsonError(426, 'websocket_required', 'The relay requires a WebSocket connection.');
   }
-  if (!env.RELAY_OBJECTS) {
+  if (!env.RELAY_OBJECTS || !env.RELAY_ISSUER || !env.RELAY_JWKS_URL) {
     return jsonError(503, 'relay_not_configured', 'The relay is not configured.');
   }
   const token = bearerToken(request);
@@ -299,11 +302,21 @@ export async function handleRequest(
   request: Request,
   env: EdgeEnvironment,
   fetchOrigin: OriginFetch = fetch,
-  fetchRelay: RelayFetch = (relayRequest) => fetch(relayRequest),
+  fetchRelay?: RelayFetch,
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (env.RELAY_ENABLED === 'true' && url.pathname.startsWith(RELAY_PREFIX)) {
-    return handleRelayRequest(request, env, fetchRelay);
+  if (
+    env.RELAY_ENABLED === 'true' &&
+    url.pathname.startsWith(RELAY_PREFIX) &&
+    !RELAY_CONTROL_PATHS.has(url.pathname)
+  ) {
+    const fetchJwks =
+      fetchRelay ??
+      ((jwksRequest: Request) => {
+        const jwksUrl = new URL(jwksRequest.url);
+        return fetchOrigin(originRequest(jwksRequest, env, jwksUrl));
+      });
+    return handleRelayRequest(request, env, fetchJwks);
   }
   const configurationError = validateEnvironment(env);
   if (configurationError) return configurationError;
@@ -364,7 +377,11 @@ export class RuntimeRelayDurableObject {
       const peerAttachment = peer.deserializeAttachment() as RelayAttachment;
       if (peerAttachment.role === attachment.role && peerAttachment.clientId === attachment.clientId) {
         if (peerAttachment.role === 'mobile') {
+          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
           this.notifyRuntimeOfMobileDisconnect(peerAttachment);
+        } else {
+          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
+          this.disconnectMobilesForRuntime(peerAttachment);
         }
         peer.close(
           4001,
@@ -429,11 +446,21 @@ export class RuntimeRelayDurableObject {
   }
 
   webSocketClose(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnect(socket.deserializeAttachment() as RelayAttachment);
+    this.handlePeerDisconnectOnce(socket);
   }
 
   webSocketError(socket: WebSocket): void {
-    this.notifyRuntimeOfMobileDisconnect(socket.deserializeAttachment() as RelayAttachment);
+    this.handlePeerDisconnectOnce(socket);
+  }
+
+  private handlePeerDisconnectOnce(socket: WebSocket): void {
+    const peer = socket.deserializeAttachment() as RelayAttachment;
+    if (peer.suppressDisconnect) return;
+    if (peer.role === 'mobile') {
+      this.notifyRuntimeOfMobileDisconnect(peer);
+    } else {
+      this.disconnectMobilesForRuntime(peer);
+    }
   }
 
   private notifyRuntimeOfMobileDisconnect(mobile: RelayAttachment): void {
@@ -447,6 +474,22 @@ export class RuntimeRelayDurableObject {
       } catch {
         peer.close(1011, 'relay forwarding failed');
       }
+    }
+  }
+
+  private disconnectMobilesForRuntime(runtime: RelayAttachment): void {
+    if (runtime.role !== 'runtime') return;
+    for (const peer of this.ctx.getWebSockets('mobile')) {
+      const mobile = peer.deserializeAttachment() as RelayAttachment;
+      if (
+        mobile.role !== 'mobile' ||
+        mobile.accountId !== runtime.accountId ||
+        mobile.runtimeId !== runtime.runtimeId
+      ) {
+        continue;
+      }
+      peer.serializeAttachment({ ...mobile, suppressDisconnect: true });
+      peer.close(4002, 'runtime disconnected');
     }
   }
 }

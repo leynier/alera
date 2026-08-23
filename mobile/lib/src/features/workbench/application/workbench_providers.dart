@@ -8,5 +8,5 @@ part 'workbench_providers.g.dart';
 /// fake so workbench controllers can run without a live gateway.
 @riverpod
 Future<MobileWorkspaceClient> workspaceClient(Ref ref, String hostId) {
-  return ref.watch(hostConnectionControllerProvider(hostId).future);
+  return watchHostConnection(ref, hostId);
 }

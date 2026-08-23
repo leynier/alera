@@ -12,33 +12,13 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'terminal_host_test_fakes.dart';
 
 part 'terminal_host_pty_output_resync_cases.dart';
+part 'terminal_host_pty_session_lease_cases.dart';
 part 'terminal_host_pty_pulse_cases.dart';
 part 'terminal_host_pty_refresh_cases.dart';
 part 'terminal_host_pty_resume_cases.dart';
 
 void main() {
   _registerTerminalHostPtyPulseTests();
-
-  test('factory creates sessions with the provided ids', () {
-    final client = FakeTerminalHostClient(
-      attachment: TerminalHostAttachment(
-        sessionId: 'session-1',
-        created: true,
-        running: true,
-        snapshot: Uint8List(0),
-      ),
-    );
-    final factory = TerminalHostPtySessionFactory(client: client);
-
-    final session = factory.create(
-      sessionId: 'session-1',
-      workspaceId: 'workspace-1',
-      tabId: 'tab-1',
-    );
-    addTearDown(session.dispose);
-
-    expect(session, isA<TerminalHostPtySession>());
-  });
 
   test(
     'host PTY session replays snapshots and suppresses restored exits',
@@ -139,6 +119,8 @@ void main() {
       expect(client.terminated, <String>['session-2']);
     },
   );
+
+  _registerTerminalHostPtySessionLeaseTests();
 
   _registerTerminalHostPtyRefreshTests();
 

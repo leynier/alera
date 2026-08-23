@@ -128,6 +128,10 @@ final class BrowserSessionHandle {
   BrowserVisibilityLease acquireVisibility(BrowserVisibilityReason reason) =>
       _registry._acquireVisibility(_entry, reason);
 
+  BrowserVisibilityLease? tryAcquireVisibility(
+    BrowserVisibilityReason reason,
+  ) => _registry._tryAcquireVisibility(_entry, reason);
+
   BrowserObscurationLease acquireObscuration(BrowserObscurationReason reason) =>
       _registry._acquireObscuration(_entry, reason);
 

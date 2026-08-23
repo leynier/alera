@@ -155,7 +155,7 @@ final class CliRegistrationControllerProvider
 }
 
 String _$cliRegistrationControllerHash() =>
-    r'31459b40048992589ee7318e646de05a37f3f019';
+    r'11f22898588558c326c21dad2618b73fdaaf9504';
 
 final class CliRegistrationControllerFamily extends $Family
     with

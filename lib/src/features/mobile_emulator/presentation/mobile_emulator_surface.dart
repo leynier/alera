@@ -39,6 +39,8 @@ class MobileEmulatorSurface extends ConsumerStatefulWidget {
 class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
     with WidgetsBindingObserver {
   final FocusNode _focusNode = FocusNode(debugLabel: 'Mobile Emulator');
+  late final MobileEmulatorLeaseCoordinator _leases;
+  late final MobileEmulatorService _service;
   Player? _player;
   VideoController? _videoController;
   StreamSubscription<VideoParams>? _videoParamsSubscription;
@@ -64,13 +66,11 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
     tabId: widget.tab.id,
     workspaceId: widget.workspace.id,
   );
-  MobileEmulatorLeaseCoordinator get _leases =>
-      ref.read(mobileEmulatorLeaseCoordinatorProvider);
-  MobileEmulatorService get _service => ref.read(mobileEmulatorServiceProvider);
-
   @override
   void initState() {
     super.initState();
+    _leases = ref.read(mobileEmulatorLeaseCoordinatorProvider);
+    _service = ref.read(mobileEmulatorServiceProvider);
     WidgetsBinding.instance.addObserver(this);
     _changeSubscription = _service.changes.listen(_handleRuntimeChange);
     unawaited(_acquire());

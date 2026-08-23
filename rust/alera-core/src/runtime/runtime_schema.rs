@@ -185,6 +185,7 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
     "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         enabled INTEGER NOT NULL DEFAULT 0,
+        remoteAccessEnabled INTEGER NOT NULL DEFAULT 0,
         bindHost TEXT NOT NULL,
         port INTEGER NOT NULL,
         endpointMode TEXT NOT NULL DEFAULT 'loopback',

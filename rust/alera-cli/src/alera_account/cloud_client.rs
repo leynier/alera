@@ -3,8 +3,25 @@ use chrono::{DateTime, Utc};
 use reqwest::{Client, Method, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+use thiserror::Error;
 
 pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://api.alera.build";
+
+#[derive(Debug, Error)]
+#[error("{path}: {message}")]
+pub(crate) struct CloudRequestError {
+    status: StatusCode,
+    code: Option<String>,
+    path: String,
+    message: String,
+}
+
+impl CloudRequestError {
+    pub(crate) fn is_relay_key_rotation_conflict(&self) -> bool {
+        self.status == StatusCode::CONFLICT
+            && self.code.as_deref() == Some("relay_key_rotation_conflict")
+    }
+}
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -88,6 +105,30 @@ pub(crate) struct PushEventResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RuntimeSubscriptionStatus {
     pub(crate) active_subscriptions: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RelayIdentityResponse {
+    pub(crate) client_id: String,
+    pub(crate) client_kind: String,
+    pub(crate) public_key: String,
+    pub(crate) key_version: i32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RelayGrant {
+    pub(crate) grant: String,
+    pub(crate) relay_url: String,
+    pub(crate) expires_in: i64,
+    pub(crate) account_id: String,
+    pub(crate) runtime_id: String,
+    pub(crate) client_id: String,
+    pub(crate) client_kind: String,
+    pub(crate) client_key_version: i32,
+    pub(crate) client_public_key: String,
+    pub(crate) runtime_public_key: Option<String>,
 }
 
 #[derive(Clone)]
@@ -276,6 +317,38 @@ impl CloudAccountClient {
         .await
     }
 
+    pub(crate) async fn register_relay_identity(
+        &self,
+        access_token: &str,
+        public_key: &str,
+        key_version: i32,
+    ) -> Result<RelayIdentityResponse> {
+        self.json(
+            Method::POST,
+            "/v1/relay/identity",
+            Some(access_token),
+            Some(serde_json::json!({
+                "publicKey": public_key,
+                "keyVersion": key_version,
+            })),
+        )
+        .await
+    }
+
+    pub(crate) async fn relay_grant(
+        &self,
+        access_token: &str,
+        runtime_id: &str,
+    ) -> Result<RelayGrant> {
+        self.json(
+            Method::POST,
+            "/v1/relay/grants",
+            Some(access_token),
+            Some(serde_json::json!({ "runtimeId": runtime_id })),
+        )
+        .await
+    }
+
     async fn json<T: DeserializeOwned>(
         &self,
         method: Method,
@@ -328,16 +401,55 @@ impl CloudAccountClient {
 }
 
 fn cloud_error(status: StatusCode, body: &str, path: &str) -> anyhow::Error {
-    let message = serde_json::from_str::<Value>(body)
-        .ok()
-        .and_then(|value| {
-            value
-                .get("error")
-                .and_then(|error| error.get("message").or(Some(error)))
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
+    let parsed = serde_json::from_str::<Value>(body).ok();
+    let error = parsed.as_ref().and_then(|value| value.get("error"));
+    let code = error
+        .and_then(|value| value.get("code"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let message = error
+        .and_then(|value| value.get("message").or(Some(value)))
+        .and_then(Value::as_str)
+        .map(str::to_string)
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| format!("cloud request failed with HTTP {status}"));
-    anyhow!("{path}: {message}")
+    CloudRequestError {
+        status,
+        code,
+        path: path.to_owned(),
+        message,
+    }
+    .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use reqwest::StatusCode;
+
+    use super::{cloud_error, CloudRequestError};
+
+    #[test]
+    fn relay_key_conflicts_remain_machine_readable() {
+        let error = cloud_error(
+            StatusCode::CONFLICT,
+            r#"{"error":{"code":"relay_key_rotation_conflict","message":"conflict"}}"#,
+            "/v1/relay/identity",
+        );
+        let request = error.downcast_ref::<CloudRequestError>().unwrap();
+
+        assert!(request.is_relay_key_rotation_conflict());
+        assert_eq!(error.to_string(), "/v1/relay/identity: conflict");
+    }
+
+    #[test]
+    fn unrelated_conflicts_do_not_rotate_relay_keys() {
+        let error = cloud_error(
+            StatusCode::CONFLICT,
+            r#"{"error":{"code":"different_conflict","message":"conflict"}}"#,
+            "/v1/relay/identity",
+        );
+        let request = error.downcast_ref::<CloudRequestError>().unwrap();
+
+        assert!(!request.is_relay_key_rotation_conflict());
+    }
 }

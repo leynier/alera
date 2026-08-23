@@ -150,6 +150,89 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     let mobile_token = mobile["accessToken"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing mobile access token"))?;
+    let runtime_identity = call(
+        &app,
+        TestRequest {
+            method: Method::POST,
+            uri: "/v1/relay/identity",
+            bearer: Some(runtime_token),
+            body: json!({
+                "publicKey": URL_SAFE_NO_PAD.encode([2_u8; 32]),
+                "keyVersion": 1
+            }),
+        },
+    )
+    .await?;
+    assert_eq!(
+        runtime_identity["clientId"].as_str(),
+        Some(runtime_one.as_str())
+    );
+    let mobile_identity = call(
+        &app,
+        TestRequest {
+            method: Method::POST,
+            uri: "/v1/relay/identity",
+            bearer: Some(mobile_token),
+            body: json!({
+                "publicKey": URL_SAFE_NO_PAD.encode([1_u8; 32]),
+                "keyVersion": 1
+            }),
+        },
+    )
+    .await?;
+    assert_eq!(
+        mobile_identity["clientId"].as_str(),
+        Some(device_id.as_str())
+    );
+    let runtimes = call(
+        &app,
+        TestRequest {
+            method: Method::GET,
+            uri: "/v1/mobile/runtimes",
+            bearer: Some(mobile_token),
+            body: Value::Null,
+        },
+    )
+    .await?;
+    assert_eq!(
+        runtimes["runtimes"][0]["relayPublicKey"].as_str(),
+        Some(URL_SAFE_NO_PAD.encode([2_u8; 32]).as_str())
+    );
+    let runtime_grant = call(
+        &app,
+        TestRequest {
+            method: Method::POST,
+            uri: "/v1/relay/grants",
+            bearer: Some(runtime_token),
+            body: json!({"runtimeId": runtime_one}),
+        },
+    )
+    .await?;
+    assert_eq!(runtime_grant["clientKind"].as_str(), Some("runtime"));
+    let mobile_grant = call(
+        &app,
+        TestRequest {
+            method: Method::POST,
+            uri: "/v1/relay/grants",
+            bearer: Some(mobile_token),
+            body: json!({"runtimeId": runtime_one}),
+        },
+    )
+    .await?;
+    assert_eq!(mobile_grant["clientKind"].as_str(), Some("mobile"));
+    let grant_parts = mobile_grant["grant"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("missing relay grant"))?
+        .split('.')
+        .map(|part| URL_SAFE_NO_PAD.decode(part))
+        .collect::<Result<Vec<_>, _>>()?;
+    let grant_claims: Value = serde_json::from_slice(&grant_parts[1])?;
+    assert_eq!(grant_claims["aud"].as_str(), Some("alera-relay"));
+    assert_eq!(grant_claims["role"].as_str(), Some("mobile"));
+    assert_eq!(
+        grant_claims["runtimeId"].as_str(),
+        Some(runtime_one.as_str())
+    );
     call(
         &app,
         TestRequest {
@@ -340,6 +423,7 @@ fn test_config(database_url: String) -> anyhow::Result<AppConfig> {
         bind: "127.0.0.1:0".parse()?,
         database_url,
         public_base_url: Url::parse("https://api.example.test")?,
+        relay_base_url: Url::parse("wss://api.example.test/v1/relay")?,
         issuer: "https://api.example.test".to_owned(),
         audience: "alera-cloud".to_owned(),
         edge_origin_token: None,
