@@ -157,6 +157,32 @@ void main() {
     expect(cells.any((cell) => cell.kind == CodexTimelineKind.plan), isTrue);
   });
 
+  test('reducer accepts compatibility delta method variants', () {
+    var cells = CodexTimelineReducer.reduce(
+      const <CodexTimelineCell>[],
+      _event('legacy/agentMessage/contentDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'delta': 'answer',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _event('legacy/reasoning/contentDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'delta': 'thought',
+      }),
+      now: now,
+    );
+
+    expect(cells.map((cell) => cell.kind), <CodexTimelineKind>[
+      CodexTimelineKind.assistantMessage,
+      CodexTimelineKind.reasoning,
+    ]);
+    expect(cells.first.markdownText, 'answer');
+    expect(cells.last.markdownText, 'thought');
+  });
+
   test('reducer coalesces subagent progress and completion', () {
     var cells = CodexTimelineReducer.reduce(
       <CodexTimelineCell>[],
