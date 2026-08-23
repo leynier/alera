@@ -1,0 +1,68 @@
+name: Windows PTY Job Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - rust/alera-cli/Cargo.toml
+      - rust/alera-cli/src/pty_job_bootstrap.rs
+      - rust/alera-cli/src/terminal_host/session/**
+      - rust/Cargo.lock
+      - .github/workflows/windows-pty-job.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows_pty_job:
+    name: windows pty job
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: R:\c
+      CMAKE_GENERATOR: Ninja
+      _CL_: /Z7 /FS
+      GGML_CCACHE: 'OFF'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          linux-toolchain: 'false'
+          native-assets: 'false'
+          preflight: 'false'
+          rust: 'true'
+
+      - name: Tune Windows build environment
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Test Windows PTY Job lifecycle
+        run: >-
+          cargo test
+          --manifest-path rust/Cargo.toml
+          --locked
+          -p alera-cli
+          terminal_host::session::windows_process_job::tests
+          --
+          --nocapture
+
+      - name: Report sccache statistics
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### sccache Windows PTY Job tests'
+            echo '```text'
+            sccache --show-stats || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
