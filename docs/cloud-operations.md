@@ -170,7 +170,7 @@ Android can be verified after FCM is enabled. iOS remains prepared but unverifie
 
 ## Database Migrations
 
-The backend runs embedded SQLx migrations before serving traffic. Deploy schema-compatible code first, use additive migrations for rolling revisions, and never remove a column while an older Cloud Run revision can still receive requests.
+The backend runs embedded SQLx migrations before serving traffic. Deploy schema-compatible code first, use additive migrations for rolling revisions, and never remove a column while an older Cloud Run revision can still receive requests. The relay identity migration is additive and must be present before enabling Remote Access on production runtimes.
 
 Before a destructive migration, create and test a Neon branch from production. The initial free-tier topology has one production database and no automated point-in-time recovery owned by Alera, so Neon retention and restore settings must be checked before the rollout.
 

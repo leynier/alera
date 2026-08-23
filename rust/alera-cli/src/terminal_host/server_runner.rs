@@ -113,6 +113,7 @@ pub async fn run_terminal_host_server(
     if let Err(error) = actor.restart_mobile_gateway().await {
         tracing::warn!("alera mobile gateway unavailable: {}", error.wire_message());
     }
+    actor.restart_remote_relay().await;
     actor.reconcile_interrupted_project_clones().await;
     actor.reconcile_spawn_on_create_tabs().await;
     if actor.account_push.push_enabled

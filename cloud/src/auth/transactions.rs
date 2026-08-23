@@ -47,10 +47,13 @@ pub async fn create_sign_in_transaction(
     state: &AppState,
     request: CreateAuthTransactionRequest,
 ) -> Result<AuthTransactionResponse, ApiError> {
-    if request.client_kind != ClientKind::Runtime {
+    if !matches!(
+        request.client_kind,
+        ClientKind::Runtime | ClientKind::Mobile
+    ) {
         return Err(ApiError::bad_request(
             "invalid_client_kind",
-            "Interactive sign-in is available only to runtimes.",
+            "Interactive sign-in is not available to this client.",
         ));
     }
     create_transaction(
@@ -333,7 +336,7 @@ async fn resolve_identity_and_runtime(
             .execute(&mut *transaction)
             .await?;
     }
-    ensure_runtime(
+    ensure_client(
         state,
         &mut transaction,
         account_id,
@@ -390,7 +393,7 @@ async fn ensure_account(
     Ok(())
 }
 
-async fn ensure_runtime(
+async fn ensure_client(
     state: &AppState,
     transaction: &mut Transaction<'_, Postgres>,
     account_id: Uuid,
@@ -398,11 +401,24 @@ async fn ensure_runtime(
     name: &str,
     client_kind: ClientKind,
 ) -> Result<(), ApiError> {
-    if client_kind != ClientKind::Runtime {
-        return Err(ApiError::bad_request(
-            "invalid_client_kind",
-            "OAuth sessions must belong to a runtime.",
-        ));
+    if client_kind == ClientKind::Mobile {
+        sqlx::query(
+            r#"
+            INSERT INTO mobile_devices (
+                account_id, id, name, created_at, last_seen_at
+            ) VALUES ($1, $2, $3, $4, $4)
+            ON CONFLICT (account_id, id) DO UPDATE
+            SET name = EXCLUDED.name, last_seen_at = EXCLUDED.last_seen_at,
+                revoked_at = NULL
+            "#,
+        )
+        .bind(account_id)
+        .bind(runtime_id)
+        .bind(name)
+        .bind(Utc::now())
+        .execute(&mut **transaction)
+        .await?;
+        return Ok(());
     }
     let existing =
         sqlx::query_scalar::<_, Uuid>("SELECT account_id FROM runtimes WHERE id = $1 FOR UPDATE")

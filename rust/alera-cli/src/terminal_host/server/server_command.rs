@@ -20,6 +20,11 @@ pub enum ServerCommand {
         handle: ClientHandle,
         kind: ClientKind,
     },
+    RelayClientConnected {
+        id: u64,
+        handle: ClientHandle,
+        client_id: String,
+    },
     ClientLine {
         id: u64,
         line: String,

@@ -13,6 +13,14 @@ const FALLBACK_FILE_NAME: &str = "alera-account.credentials.json";
 #[serde(rename_all = "camelCase")]
 pub(crate) struct StoredAccountCredential {
     pub(crate) refresh_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) relay_private_key_b64: Option<String>,
+    #[serde(default = "default_relay_key_version")]
+    pub(crate) relay_key_version: i32,
+}
+
+fn default_relay_key_version() -> i32 {
+    1
 }
 
 #[derive(Clone)]
@@ -146,6 +154,8 @@ mod tests {
         let path = dir.path().join("runtime").join("credentials.json");
         let value = serde_json::to_vec(&StoredAccountCredential {
             refresh_token: "secret".to_string(),
+            relay_private_key_b64: None,
+            relay_key_version: 1,
         })
         .unwrap();
         write_fallback(&path, &value).unwrap();

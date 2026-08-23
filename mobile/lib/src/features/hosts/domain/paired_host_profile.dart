@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_endpoint_rules.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 
 class PairedHostProfile {
   const PairedHostProfile({
@@ -14,6 +15,8 @@ class PairedHostProfile {
     this.serverPublicKeyB64,
     this.endpointNetwork,
     this.alias,
+    this.isRemote = false,
+    this.accountId,
   });
 
   final String id;
@@ -28,6 +31,8 @@ class PairedHostProfile {
   /// Local, user-chosen name for this host. Never sent to the runtime; the
   /// desktop keeps advertising its own host name.
   final String? alias;
+  final bool isRemote;
+  final String? accountId;
 
   String get effectiveName => alias ?? displayName;
 
@@ -42,6 +47,41 @@ class PairedHostProfile {
       serverPublicKeyB64: serverPublicKeyB64,
       endpointNetwork: endpointNetwork,
       alias: alias,
+      isRemote: isRemote,
+      accountId: accountId,
+    );
+  }
+
+  PairedHostProfile withCloudAccount(String cloudAccountId) {
+    return PairedHostProfile(
+      id: id,
+      displayName: displayName,
+      endpoint: endpoint,
+      runtimeId: runtimeId,
+      deviceId: deviceId,
+      pairedAt: pairedAt,
+      serverPublicKeyB64: serverPublicKeyB64,
+      endpointNetwork: endpointNetwork,
+      alias: alias,
+      isRemote: isRemote,
+      accountId: cloudAccountId,
+    );
+  }
+
+  factory PairedHostProfile.fromCloudRuntime(
+    String accountId,
+    CloudRuntimeProfile runtime,
+  ) {
+    return PairedHostProfile(
+      id: runtime.id,
+      displayName: runtime.name,
+      endpoint: 'relay://${runtime.id}',
+      runtimeId: runtime.id,
+      deviceId: '',
+      serverPublicKeyB64: runtime.relayPublicKey,
+      pairedAt: runtime.lastSeenAt,
+      isRemote: true,
+      accountId: accountId,
     );
   }
 
@@ -70,9 +110,12 @@ class PairedHostProfile {
   }
 
   factory PairedHostProfile.fromJson(Map<String, Object?> json) {
+    final isRemote = json['isRemote'] == true;
     final endpoint = json.requiredString('endpoint');
     final endpointNetwork = json.optionalString('endpointNetwork');
-    validatePairingEndpoint(endpoint, endpointNetwork: endpointNetwork);
+    if (!isRemote) {
+      validatePairingEndpoint(endpoint, endpointNetwork: endpointNetwork);
+    }
     return PairedHostProfile(
       id: json.requiredString('id'),
       displayName: json.requiredString('displayName'),
@@ -83,6 +126,8 @@ class PairedHostProfile {
       endpointNetwork: endpointNetwork,
       pairedAt: DateTime.parse(json.requiredString('pairedAt')),
       alias: json.optionalString('alias'),
+      isRemote: isRemote,
+      accountId: json.optionalString('accountId'),
     );
   }
 
@@ -97,6 +142,8 @@ class PairedHostProfile {
       if (endpointNetwork != null) 'endpointNetwork': endpointNetwork,
       'pairedAt': pairedAt.toUtc().toIso8601String(),
       if (alias != null) 'alias': alias,
+      'isRemote': isRemote,
+      if (accountId != null) 'accountId': accountId,
     };
   }
 }
