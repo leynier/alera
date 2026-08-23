@@ -38,11 +38,7 @@ final class SocketTerminalHostClient
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport,
         _GuardedRuntimeHostClientSupport
-    implements
-        TerminalHostClient,
-        TerminalPulseHostClient,
-        RuntimeHostClient,
-        GuardedRuntimeHostClient {
+    implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
