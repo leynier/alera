@@ -1,11 +1,22 @@
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::{error::UrlError, http::header, Error};
 
-use super::{connect_async, relay_request, RELAY_PRESENCE_INTERVAL};
+use super::{connect_async, relay_request, RelayRetryBackoff, RELAY_PRESENCE_INTERVAL};
 
 #[test]
 fn relay_presence_refreshes_before_cloud_expiry() {
     assert!(RELAY_PRESENCE_INTERVAL < std::time::Duration::from_secs(180));
+}
+
+#[test]
+fn relay_retry_backoff_resets_after_a_successful_connection() {
+    let mut backoff = RelayRetryBackoff::default();
+
+    assert_eq!(backoff.next_delay(), std::time::Duration::from_secs(1));
+    assert_eq!(backoff.next_delay(), std::time::Duration::from_secs(2));
+    backoff.reset();
+
+    assert_eq!(backoff.next_delay(), std::time::Duration::from_secs(1));
 }
 
 #[test]
