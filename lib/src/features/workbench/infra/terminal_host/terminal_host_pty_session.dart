@@ -6,6 +6,8 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
 part 'terminal_host_pty_session_pulse.dart';
+part 'terminal_host_pty_session_lease.dart';
+part 'terminal_host_pty_session_errors.dart';
 
 final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   factory TerminalHostPtySessionFactory({required TerminalHostClient client}) {
@@ -15,6 +17,7 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   TerminalHostPtySessionFactory._(this._client);
 
   final TerminalHostClient _client;
+  final _TerminalHostPtySessionLeases _leases = _TerminalHostPtySessionLeases();
 
   @override
   TerminalPtySession create({
@@ -22,11 +25,12 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
     required String workspaceId,
     required String tabId,
   }) {
-    return TerminalHostPtySession(
-      client: _client,
-      sessionId: sessionId,
-      workspaceId: workspaceId,
-      tabId: tabId,
+    return TerminalHostPtySession._(
+      _client,
+      sessionId,
+      workspaceId,
+      tabId,
+      _leases.acquire(sessionId),
     );
   }
 }
@@ -43,7 +47,13 @@ final class TerminalHostPtySession
     required String workspaceId,
     required String tabId,
   }) {
-    return TerminalHostPtySession._(client, sessionId, workspaceId, tabId);
+    return TerminalHostPtySession._(
+      client,
+      sessionId,
+      workspaceId,
+      tabId,
+      null,
+    );
   }
 
   TerminalHostPtySession._(
@@ -51,6 +61,7 @@ final class TerminalHostPtySession
     this._sessionId,
     this._workspaceId,
     this._tabId,
+    this._lease,
   );
 
   @override
@@ -59,6 +70,7 @@ final class TerminalHostPtySession
   final String _sessionId;
   final String _workspaceId;
   final String _tabId;
+  final _TerminalHostPtySessionLease? _lease;
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
 
@@ -391,25 +403,6 @@ final class TerminalHostPtySession
     return next;
   }
 
-  bool _shouldRecoverFromHostError(Object error) {
-    final message = _hostErrorMessage(error);
-    return message.contains('Terminal session is not attached') ||
-        message.contains('Terminal host connection closed');
-  }
-
-  bool _isDefinitivelyNotAttached(Object error) {
-    return _hostErrorMessage(
-      error,
-    ).contains('Terminal session is not attached');
-  }
-
-  String _hostErrorMessage(Object error) {
-    if (error is StateError) {
-      return error.message;
-    }
-    return error.toString();
-  }
-
   @override
   void dispose() {
     if (_disposed) {
@@ -419,7 +412,9 @@ final class TerminalHostPtySession
     _started = false;
     unawaited(_hostSub?.cancel());
     _hostSub = null;
-    unawaited(_client.detach(_sessionId).catchError((_) {}));
+    if (_lease?.release() ?? true) {
+      unawaited(_client.detach(_sessionId).catchError((_) {}));
+    }
     unawaited(_events.close());
   }
 
@@ -432,6 +427,7 @@ final class TerminalHostPtySession
     _started = false;
     unawaited(_hostSub?.cancel());
     _hostSub = null;
+    _lease?.terminate();
     _client.releaseSession(_sessionId);
     unawaited(_client.terminate(_sessionId).catchError((_) {}));
     unawaited(_events.close());
@@ -474,15 +470,5 @@ final class TerminalHostPtySession
       }
     });
     _outputResyncFuture = resync;
-  }
-
-  void _emitHostError(Object error) {
-    if (!_disposed && !_events.isClosed && !_isInputBackpressure(error)) {
-      _events.add(TerminalPtyErrorEvent(error));
-    }
-  }
-
-  bool _isInputBackpressure(Object error) {
-    return _hostErrorMessage(error).contains('terminal_input_backpressure');
   }
 }
