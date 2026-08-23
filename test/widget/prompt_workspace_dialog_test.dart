@@ -109,6 +109,8 @@ void main() {
                             required workspaceId,
                             required profileId,
                             required prompt,
+                            required clientMutationId,
+                            required requireIdempotency,
                           }) async {
                             launchedPrompt = prompt;
                             launchedProfileId = profileId;
@@ -116,8 +118,10 @@ void main() {
                               tabId: 'tab-1',
                               agentType: preferredProfile.agentType,
                               profileId: profileId,
+                              idempotent: true,
                             );
                           },
+                      supportsIdempotentAgentLaunch: () async => true,
                     ),
                   );
                 },
@@ -237,11 +241,15 @@ void main() {
                           required workspaceId,
                           required profileId,
                           required prompt,
+                          required clientMutationId,
+                          required requireIdempotency,
                         }) async => const AgentProfileLaunchResult(
                           tabId: 'tab-1',
                           agentType: 'codex',
                           profileId: 'profile-1',
+                          idempotent: true,
                         ),
+                    supportsIdempotentAgentLaunch: () async => true,
                     onCreateAnother:
                         ({required creation, required agentTabId}) async {
                           createAnotherCallbacks += 1;
@@ -396,11 +404,15 @@ void main() {
                             required workspaceId,
                             required profileId,
                             required prompt,
+                            required clientMutationId,
+                            required requireIdempotency,
                           }) async => const AgentProfileLaunchResult(
                             tabId: 'tab-1',
                             agentType: 'codex',
                             profileId: 'profile-1',
+                            idempotent: true,
                           ),
+                      supportsIdempotentAgentLaunch: () async => true,
                     ),
                   );
                 },

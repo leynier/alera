@@ -127,6 +127,18 @@ pub(super) const RUNTIME_SCHEMA: &[&str] = &[
         updatedAt TEXT NOT NULL
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS agentProfilesNameIdx ON agentProfiles(name COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS agentProfileLaunchReceipts (
+        callerScope TEXT NOT NULL,
+        workspaceId TEXT NOT NULL,
+        clientMutationId TEXT NOT NULL,
+        payloadDigest TEXT NOT NULL,
+        tabId TEXT NOT NULL,
+        resultJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY(callerScope, workspaceId, clientMutationId)
+    );",
+    "CREATE INDEX IF NOT EXISTS agentProfileLaunchReceiptsRetentionIdx ON agentProfileLaunchReceipts(createdAt);",
+    "CREATE INDEX IF NOT EXISTS agentProfileLaunchReceiptsScopeIdx ON agentProfileLaunchReceipts(callerScope, workspaceId, createdAt DESC);",
     "CREATE TABLE IF NOT EXISTS browserProfiles (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,

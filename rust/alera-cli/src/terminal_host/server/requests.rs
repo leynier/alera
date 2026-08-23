@@ -22,6 +22,7 @@ use crate::terminal_host::protocol::{
 };
 use crate::terminal_host::session::SessionDriver;
 
+use super::host_service_requests::required_non_blank;
 pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
@@ -855,7 +856,13 @@ impl ServerActor {
             "agentProfile.launch" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.launch_agent_profile(payload).await
+                self.launch_agent_profile(Some(client_id), payload).await
+            }
+            "agentProfile.launchIdempotent" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                required_non_blank(payload, "clientMutationId")?;
+                self.launch_agent_profile(Some(client_id), payload).await
             }
             "mobile.promptImage.start" => {
                 self.require_auth(client_id)?;

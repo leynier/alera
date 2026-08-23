@@ -115,4 +115,114 @@ void main() {
       expect(client.calls, contains('link parent-1 created'));
     },
   );
+
+  test('Retries agent launch with the original mutation id', () async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main']
+      ..launchFailuresRemaining = 1;
+    final container = ProviderContainer(
+      overrides: [
+        workspaceClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      promptWorkspaceControllerProvider('host-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final controller = container.read(
+      promptWorkspaceControllerProvider('host-1').notifier,
+    );
+
+    await controller.selectProject('project-1');
+    await controller.create(
+      prompt: 'Add offline support',
+      workspaceBranches: const <String>{},
+    );
+    expect(
+      container.read(promptWorkspaceControllerProvider('host-1')).error,
+      contains('launch response was lost'),
+    );
+
+    await controller.retryAgent('Add offline support');
+
+    expect(
+      container.read(promptWorkspaceControllerProvider('host-1')).agentTabId,
+      'agent-tab',
+    );
+    expect(client.agentLaunchMutationIds, hasLength(2));
+    expect(client.agentLaunchMutationIds[1], client.agentLaunchMutationIds[0]);
+  });
+
+  test(
+    'Refuses a retry after a new host is replaced by an older host',
+    () async {
+      final client = FakeTerminalClient()
+        ..projectBranches = const <String>['main']
+        ..launchFailuresRemaining = 1;
+      final container = ProviderContainer(
+        overrides: [
+          workspaceClientProvider('host-1').overrideWith((ref) async => client),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      final subscription = container.listen(
+        promptWorkspaceControllerProvider('host-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      final controller = container.read(
+        promptWorkspaceControllerProvider('host-1').notifier,
+      );
+
+      await controller.selectProject('project-1');
+      await controller.create(
+        prompt: 'Add offline support',
+        workspaceBranches: const <String>{},
+      );
+      client.supportsIdempotentAgentProfileLaunch = false;
+      await controller.retryAgent('Add offline support');
+
+      final state = container.read(promptWorkspaceControllerProvider('host-1'));
+      expect(state.error, contains('before retrying agent launch safely'));
+      expect(client.agentLaunchMutationIds, hasLength(1));
+    },
+  );
+
+  test('Refuses a retry when the original host lacked idempotency', () async {
+    final client = FakeTerminalClient()
+      ..projectBranches = const <String>['main']
+      ..launchFailuresRemaining = 1
+      ..supportsIdempotentAgentProfileLaunch = false;
+    final container = ProviderContainer(
+      overrides: [
+        workspaceClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(client.dispose);
+    final subscription = container.listen(
+      promptWorkspaceControllerProvider('host-1'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final controller = container.read(
+      promptWorkspaceControllerProvider('host-1').notifier,
+    );
+
+    await controller.selectProject('project-1');
+    await controller.create(
+      prompt: 'Add offline support',
+      workspaceBranches: const <String>{},
+    );
+    client.supportsIdempotentAgentProfileLaunch = true;
+    await controller.retryAgent('Add offline support');
+
+    final state = container.read(promptWorkspaceControllerProvider('host-1'));
+    expect(state.error, contains('before retrying agent launch safely'));
+    expect(client.agentLaunchMutationIds, hasLength(1));
+  });
 }
