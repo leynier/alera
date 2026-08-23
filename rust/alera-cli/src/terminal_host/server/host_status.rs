@@ -35,6 +35,9 @@ use crate::terminal_host::runtime_build_info;
 
 use super::ServerActor;
 
+const RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
+    "orchestrationAgentProfileRevisionsV1";
+
 impl ServerActor {
     /// Payload of `status.get`: versions, advertised capabilities and live
     /// counts.
@@ -78,6 +81,7 @@ impl ServerActor {
                 RUNTIME_HOST_AGENT_CANVAS_CAPABILITY,
                 RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
                 RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY,
+                RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY,
                 RUNTIME_HOST_MANAGED_AGENT_PROFILES_CAPABILITY,
                 RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
                 RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,

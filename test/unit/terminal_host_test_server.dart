@@ -8,7 +8,9 @@ final class _TerminalHostTestServer {
     this._server, {
     this.errorForType,
     this.closeForType,
+    this.closeAfterResponseForType,
     this.beforeResponse,
+    this.statusPayload,
     this.negotiateBinaryFrames = false,
     this._runtimeMutationBusyForType,
     int runtimeMutationBusyResponses = 0,
@@ -17,7 +19,9 @@ final class _TerminalHostTestServer {
   static Future<_TerminalHostTestServer> start({
     String? errorForType,
     String? closeForType,
+    String? closeAfterResponseForType,
     Future<void> Function(String type)? beforeResponse,
+    Map<String, Object?>? statusPayload,
     bool negotiateBinaryFrames = false,
     String? runtimeMutationBusyForType,
     int runtimeMutationBusyResponses = 0,
@@ -27,7 +31,9 @@ final class _TerminalHostTestServer {
       socket,
       errorForType: errorForType,
       closeForType: closeForType,
+      closeAfterResponseForType: closeAfterResponseForType,
       beforeResponse: beforeResponse,
+      statusPayload: statusPayload,
       negotiateBinaryFrames: negotiateBinaryFrames,
       runtimeMutationBusyForType: runtimeMutationBusyForType,
       runtimeMutationBusyResponses: runtimeMutationBusyResponses,
@@ -39,7 +45,9 @@ final class _TerminalHostTestServer {
   final ServerSocket _server;
   final String? errorForType;
   final String? closeForType;
+  final String? closeAfterResponseForType;
   final Future<void> Function(String type)? beforeResponse;
+  final Map<String, Object?>? statusPayload;
   final bool negotiateBinaryFrames;
   final String? _runtimeMutationBusyForType;
   int _remainingRuntimeMutationBusyResponses;
@@ -147,6 +155,18 @@ final class _TerminalHostTestServer {
         'ok': false,
         'error': '$type failed',
       });
+      return;
+    }
+    if (type == 'status.get' && statusPayload != null) {
+      _respond(socket, <String, Object?>{
+        'id': id,
+        'ok': true,
+        'payload': statusPayload,
+      });
+      if (type == closeAfterResponseForType) {
+        await socket.flush();
+        socket.destroy();
+      }
       return;
     }
     if (type == 'createOrAttach' || type == 'terminal.restart') {

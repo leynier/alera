@@ -44,6 +44,7 @@ class _AgentProfilesSettingsPaneState
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _quotaGroupController = TextEditingController();
   String? _selectedProfileId;
+  int? _selectedProfileRevision;
   bool _creatingNew = false;
   AgentType _adapter = AgentType.codex;
   AgentProfileLaunchMode _launchMode = AgentProfileLaunchMode.managed;
@@ -231,6 +232,7 @@ class _AgentProfilesSettingsPaneState
   /// rebuild triggered by an unrelated runtime event does not discard edits in
   /// progress.
   void _seedFromProfile(AgentProfile profile) {
+    _selectedProfileRevision = profile.revision;
     final signature = <String>[
       profile.id,
       profile.name,
@@ -265,6 +267,7 @@ class _AgentProfilesSettingsPaneState
   void _clearEditor() {
     _seededSignature = null;
     _selectedProfileId = null;
+    _selectedProfileRevision = null;
     _nameController.clear();
     _customPromptController.clear();
     _descriptionController.clear();

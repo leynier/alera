@@ -68,6 +68,10 @@ pub struct AgentProfile {
     /// fallback selection can prefer a candidate from a different bucket.
     #[serde(default)]
     pub quota_group: Option<String>,
+    /// Monotonic concurrency token covering every persisted profile field,
+    /// including its position in the catalog.
+    #[serde(default)]
+    pub revision: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

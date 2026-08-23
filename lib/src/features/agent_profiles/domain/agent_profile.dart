@@ -22,6 +22,7 @@ class AgentProfile {
     required this.command,
     required this.createdAt,
     required this.updatedAt,
+    this.revision = 0,
     this.description = '',
     this.quotaGroup,
     this.launchMode = AgentProfileLaunchMode.command,
@@ -40,6 +41,7 @@ class AgentProfile {
       customPrompt: _optionalString(json['customPrompt']) ?? '',
       description: _optionalString(json['description']) ?? '',
       quotaGroup: _optionalString(json['quotaGroup']),
+      revision: _nonNegativeInt(json['revision']),
       createdAt: _dateTime(json['createdAt']),
       updatedAt: _dateTime(json['updatedAt']),
     );
@@ -73,6 +75,10 @@ class AgentProfile {
   /// a candidate from a different bucket.
   final String? quotaGroup;
 
+  /// Monotonic concurrency token for all persisted profile fields, including
+  /// catalog order.
+  final int revision;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -89,6 +95,7 @@ class AgentProfile {
       'customPrompt': customPrompt,
       'description': description,
       'quotaGroup': quotaGroup,
+      'revision': revision,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'updatedAt': updatedAt.toUtc().toIso8601String(),
     };
@@ -115,10 +122,15 @@ class AgentProfile {
       customPrompt: customPrompt ?? this.customPrompt,
       description: description ?? this.description,
       quotaGroup: clearQuotaGroup ? null : (quotaGroup ?? this.quotaGroup),
+      revision: revision,
       createdAt: createdAt,
       updatedAt: DateTime.now().toUtc(),
     );
   }
+}
+
+int _nonNegativeInt(Object? value) {
+  return value is int && value >= 0 ? value : 0;
 }
 
 Map<String, Object?> _jsonObject(Object? value) {

@@ -35,6 +35,70 @@ void _registerTerminalHostClientRuntimeMutationTests() {
     },
   );
 
+  test(
+    'does not reconnect a guarded mutation after capability validation',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-guarded-mutation-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final oldServer = await _TerminalHostTestServer.start();
+      addTearDown(oldServer.dispose);
+      final capableServer = await _TerminalHostTestServer.start(
+        statusPayload: const <String, Object?>{
+          'runtimeCapabilities': <String>[
+            aleraRuntimeHostAgentProfileRevisionsCapability,
+          ],
+        },
+        closeAfterResponseForType: 'status.get',
+        beforeResponse: (type) async {
+          if (type == 'status.get') {
+            await _writeControlFile(
+              tempDir: tempDir,
+              port: oldServer.port,
+              token: 'existing-token',
+            );
+          }
+        },
+      );
+      addTearDown(capableServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: capableServer.port,
+        token: 'existing-token',
+      );
+      final client = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await expectLater(
+        client.guardedRuntimeRequest(
+          'agentProfile.remove',
+          const <String, Object?>{'id': 'prof_1', 'expectedRevision': 0},
+          validateStatus: (status) {
+            expect(
+              status['runtimeCapabilities'],
+              contains(aleraRuntimeHostAgentProfileRevisionsCapability),
+            );
+          },
+        ),
+        throwsA(isA<Object>()),
+      );
+
+      expect(
+        capableServer.requestTypes,
+        containsAllInOrder(<String>['hello', 'status.get']),
+      );
+      expect(oldServer.requests, isEmpty);
+    },
+  );
+
   test('retries a request blocked by a concurrent runtime mutation', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-host-client-runtime-mutation-',

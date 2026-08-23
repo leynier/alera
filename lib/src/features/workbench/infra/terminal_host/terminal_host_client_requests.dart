@@ -101,10 +101,21 @@ Future<Object?> _sendTerminalHostRequest(
   return response;
 }
 
-Object _terminalHostRequestError(String? responseMessage) {
+Object _terminalHostRequestError(Map<String, Object?> response) {
+  final responseMessage = response['error'] as String?;
   final message = responseMessage ?? 'Terminal host error.';
   if (message == _runtimeMutationInProgressMessage) {
     return _RuntimeMutationInProgressError();
+  }
+  if (response['errorCode'] case final String code) {
+    final rawDetails = response['errorDetails'];
+    return TerminalHostConflictException(
+      code: code,
+      message: message,
+      details: rawDetails is Map
+          ? Map<String, Object?>.from(rawDetails)
+          : const <String, Object?>{},
+    );
   }
   return StateError(message);
 }

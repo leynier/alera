@@ -5,13 +5,13 @@ use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::{Row, SqlitePool};
-use thiserror::Error;
 use uuid::Uuid;
 
 use super::browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, sanitize_browser_tab_payload,
 };
 use super::runtime_schema::RUNTIME_SCHEMA;
+use super::store_error::RuntimeStoreError;
 use super::{harden_sqlite_files, open_private_runtime_file, prepare_private_runtime_directory};
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
@@ -23,12 +23,6 @@ use super::{
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
 pub const LOCAL_HOST_ID: &str = "local";
 const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
-
-#[derive(Debug, Error)]
-pub enum RuntimeStoreError {
-    #[error("{0}")]
-    Message(String),
-}
 
 #[derive(Clone)]
 pub struct RuntimeStore {
@@ -150,6 +144,8 @@ impl RuntimeStore {
         self.ensure_column("agentProfiles", "sortOrder", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         self.ensure_column("agentProfiles", "customPrompt", "TEXT NOT NULL DEFAULT ''")
+            .await?;
+        self.ensure_column("agentProfiles", "revision", "INTEGER NOT NULL DEFAULT 0")
             .await?;
         // Orchestration tables are created idempotently above, but CREATE TABLE
         // IF NOT EXISTS is a no-op on an existing database, so every column
