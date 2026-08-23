@@ -123,6 +123,14 @@ make cli-help
 
 The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` accepts `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to the runtime host. `alera terminal-host` remains a compatibility alias, but new product behavior should be validated through `alera runtime-host` and the `project`, `workspace`, `tag`, `tab`, and `ssh-target` CLI groups.
 
+Cross-version host conformance is intentionally one pinned Linux combination rather than a release matrix. `tool/ci/host_compatibility.sh` shallow-fetches tag `v0.49.0` into a disposable repository, verifies that it resolves to commit `e60c96ec7522052e9af81ab15ae5d6da2443dac4`, and builds that source in an isolated target directory with its committed `rust/Cargo.lock` and pinned toolchain. The current protocol client then covers `status.get`, capability negotiation, agent profile upsert/list, and terminal launch/output. It also proves that the older host does not advertise `agentProfileOrderingV1` and returns a named error if that newer verb is sent accidentally; `runtime_agent_profile_repository_test.dart` separately holds the Flutter client contract that capability absence produces a user-facing newer-host message without sending the unsupported verb. The normal Rust suite drives the current host with the same field set accepted by `v0.49.0`, covering the reverse direction without another build.
+
+Run the historical combination locally from a checkout with access to `origin`:
+
+```bash
+bash tool/ci/host_compatibility.sh
+```
+
 Runtime-owned Projects, Workspaces, Tabs, Layouts, tags, relations, and SSH targets should include Rust store tests plus Dart repository/provider tests. Relation tests must cover self-link rejection, cycle prevention, cross-project links, tag assignment, and cascade previews for descendants and tags. SSH target tests should use fakes or local fixtures unless the test is explicitly marked as a manual remote-host smoke.
 
 ## Mocking
