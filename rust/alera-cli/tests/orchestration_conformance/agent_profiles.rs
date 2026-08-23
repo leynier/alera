@@ -54,12 +54,41 @@ fn agent_profiles_round_trip_through_the_host() {
     assert_eq!(items.len(), 1);
     assert_eq!(items[0]["name"], json!("Codex Sol"));
 
-    let removed = request(
+    let impact = request(
         &mut writer,
         &mut reader,
         203,
+        "agentProfile.removalImpact",
+        json!({ "id": profile_id, "expectedRevision": 0 }),
+    );
+    assert_eq!(impact["ok"], json!(true));
+    assert_eq!(payload(&impact)["revision"], json!(0));
+    assert_eq!(payload(&impact)["referenceCount"], json!(0));
+    assert_eq!(payload(&impact)["automationIds"], json!([]));
+    assert_eq!(payload(&impact)["executionPolicyRunIds"], json!([]));
+    assert_eq!(payload(&impact)["tabs"], json!([]));
+    assert!(payload(&impact).get("command").is_none());
+    assert!(payload(&impact).get("customPrompt").is_none());
+
+    let unconfirmed = request(
+        &mut writer,
+        &mut reader,
+        204,
         "agentProfile.remove",
         json!({ "id": profile_id, "expectedRevision": 0 }),
+    );
+    assert_eq!(unconfirmed["ok"], json!(false));
+
+    let removed = request(
+        &mut writer,
+        &mut reader,
+        205,
+        "agentProfile.remove",
+        json!({
+            "id": profile_id,
+            "expectedRevision": 0,
+            "confirmed": true
+        }),
     );
     assert_eq!(removed["ok"], json!(true));
     assert_eq!(payload(&removed)["removed"], json!(true));
@@ -67,7 +96,7 @@ fn agent_profiles_round_trip_through_the_host() {
     let after = request(
         &mut writer,
         &mut reader,
-        204,
+        206,
         "agentProfile.list",
         json!({}),
     );
@@ -305,7 +334,7 @@ fn default_agent_profile_is_stored_and_cleared_with_the_profile() {
         &mut reader,
         224,
         "agentProfile.remove",
-        json!({"id": profile_id, "expectedRevision": 0}),
+        json!({"id": profile_id, "expectedRevision": 0, "confirmed": true}),
     );
     assert_eq!(removed["ok"], json!(true));
 
@@ -368,6 +397,10 @@ fn the_host_advertises_the_agent_profiles_capability() {
         capabilities.contains(&json!("orchestrationAgentProfileRevisionsV1")),
         "revision capability missing: {capabilities:?}"
     );
+    assert!(
+        capabilities.contains(&json!("orchestrationAgentProfileRemovalV1")),
+        "removal capability missing: {capabilities:?}"
+    );
 }
 
 #[test]
@@ -414,6 +447,11 @@ fn stale_agent_profile_mutations_return_typed_conflicts() {
         (
             263,
             "agentProfile.remove",
+            json!({"id": id.clone(), "expectedRevision": 0, "confirmed": true}),
+        ),
+        (
+            264,
+            "agentProfile.removalImpact",
             json!({"id": id.clone(), "expectedRevision": 0}),
         ),
     ] {

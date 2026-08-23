@@ -16,6 +16,7 @@ class AleraConfirmDialog extends StatelessWidget {
     required this.confirmLabel,
     this.cancelLabel = 'Cancel',
     this.destructive = false,
+    this.confirmEnabled = true,
   });
 
   final String title;
@@ -23,6 +24,7 @@ class AleraConfirmDialog extends StatelessWidget {
   final String confirmLabel;
   final String cancelLabel;
   final bool destructive;
+  final bool confirmEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +67,9 @@ class AleraConfirmDialog extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(true),
+                    onPressed: confirmEnabled
+                        ? () => Navigator.of(context).pop(true)
+                        : null,
                     style: confirmStyle,
                     child: Text(
                       confirmLabel,

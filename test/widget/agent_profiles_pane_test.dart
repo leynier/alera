@@ -2,6 +2,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile_removal_impact.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
@@ -100,6 +101,75 @@ void main() {
 
     expect(controller.reorderedIds, <String>['profile-2', 'profile-1']);
   });
+
+  testWidgets('safe profile removal can be cancelled', (tester) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+    final controller = await _pumpPane(
+      tester,
+      runtime,
+      _profile(launchMode: AgentProfileLaunchMode.command),
+    );
+
+    await tester.ensureVisible(find.text('Remove'));
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Agent Profile?'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(controller.removedId, isNull);
+  });
+
+  testWidgets('safe profile removal confirms through the pane', (tester) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+    final controller = await _pumpPane(
+      tester,
+      runtime,
+      _profile(launchMode: AgentProfileLaunchMode.command),
+    );
+
+    await tester.ensureVisible(find.text('Remove'));
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(controller.removedId, 'profile-1');
+  });
+
+  testWidgets('blocking profile impact disables deletion', (tester) async {
+    final runtime = FakeCommandTerminalRuntime(running: false);
+    addTearDown(runtime.dispose);
+    final controller = await _pumpPane(
+      tester,
+      runtime,
+      _profile(launchMode: AgentProfileLaunchMode.command),
+      removalImpact: const AgentProfileRemovalImpact(
+        profileId: 'profile-1',
+        exists: true,
+        isDefault: false,
+        automationIds: <String>['automation-1'],
+        hasAutomationPolicy: false,
+        executionPolicyRunIds: <String>[],
+        tabs: <AgentProfileTabReference>[],
+      ),
+    );
+
+    await tester.ensureVisible(find.text('Remove'));
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Agent Profile In Use'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Delete'))
+          .onPressed,
+      isNull,
+    );
+    expect(controller.removedId, isNull);
+  });
 }
 
 AgentProfile _profile({
@@ -129,8 +199,12 @@ Future<_TestAgentProfiles> _pumpPane(
   FakeCommandTerminalRuntime runtime,
   AgentProfile profile, {
   List<AgentProfile>? profiles,
+  AgentProfileRemovalImpact? removalImpact,
 }) async {
-  final controller = _TestAgentProfiles(profiles ?? <AgentProfile>[profile]);
+  final controller = _TestAgentProfiles(
+    profiles ?? <AgentProfile>[profile],
+    removalImpact: removalImpact,
+  );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -158,10 +232,23 @@ Future<_TestAgentProfiles> _pumpPane(
 }
 
 class _TestAgentProfiles extends AgentProfiles {
-  _TestAgentProfiles(this.profiles);
+  _TestAgentProfiles(this.profiles, {AgentProfileRemovalImpact? removalImpact})
+    : configuredRemovalImpact =
+          removalImpact ??
+          const AgentProfileRemovalImpact(
+            profileId: 'profile-1',
+            exists: true,
+            isDefault: false,
+            automationIds: <String>[],
+            hasAutomationPolicy: false,
+            executionPolicyRunIds: <String>[],
+            tabs: <AgentProfileTabReference>[],
+          );
 
   final List<AgentProfile> profiles;
+  final AgentProfileRemovalImpact configuredRemovalImpact;
   List<String>? reorderedIds;
+  String? removedId;
 
   @override
   Future<List<AgentProfile>> build() async {
@@ -179,6 +266,22 @@ class _TestAgentProfiles extends AgentProfiles {
     ];
     state = AsyncData<List<AgentProfile>>(reordered);
     return reordered;
+  }
+
+  @override
+  Future<AgentProfileRemovalImpact> removalImpact(
+    String profileId, {
+    required int expectedRevision,
+  }) async {
+    return configuredRemovalImpact;
+  }
+
+  @override
+  Future<void> remove(String profileId, {required int expectedRevision}) async {
+    removedId = profileId;
+    state = AsyncData<List<AgentProfile>>(
+      profiles.where((profile) => profile.id != profileId).toList(),
+    );
   }
 }
 

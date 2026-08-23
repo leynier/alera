@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile_removal_impact.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
@@ -135,14 +136,45 @@ class RuntimeAgentProfileRepository {
     );
   }
 
-  Future<void> remove(String profileId, {required int expectedRevision}) async {
+  Future<AgentProfileRemovalImpact> removalImpact(
+    String profileId, {
+    required int expectedRevision,
+  }) async {
     await beforeAccess?.call();
-    await _mutationRequest(
-      'agentProfile.remove',
+    final payload = await _mutationRequest(
+      'agentProfile.removalImpact',
       <String, Object?>{'id': profileId, 'expectedRevision': expectedRevision},
       const <String, String>{
         aleraRuntimeHostAgentProfileRevisionsCapability:
             'Safe agent profile editing requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+        aleraRuntimeHostAgentProfileRemovalCapability:
+            'Deleting agent profiles requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+      },
+    );
+    return AgentProfileRemovalImpact.fromJson(_mapFromPayload(payload));
+  }
+
+  Future<void> remove(
+    String profileId, {
+    required int expectedRevision,
+    required bool confirmed,
+  }) async {
+    await beforeAccess?.call();
+    await _mutationRequest(
+      'agentProfile.remove',
+      <String, Object?>{
+        'id': profileId,
+        'expectedRevision': expectedRevision,
+        'confirmed': confirmed,
+      },
+      const <String, String>{
+        aleraRuntimeHostAgentProfileRevisionsCapability:
+            'Safe agent profile editing requires a newer runtime host. Restart '
+            'Alera to replace the running host.',
+        aleraRuntimeHostAgentProfileRemovalCapability:
+            'Deleting agent profiles requires a newer runtime host. Restart '
             'Alera to replace the running host.',
       },
     );

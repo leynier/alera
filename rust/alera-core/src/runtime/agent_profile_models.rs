@@ -75,3 +75,49 @@ pub struct AgentProfile {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+/// A safe identity for a persisted tab that still depends on an agent profile.
+/// Tab titles and payloads are deliberately excluded because either may contain
+/// user or agent-provided text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentProfileTabReference {
+    pub workspace_id: String,
+    pub tab_id: String,
+}
+
+/// Host-owned dependency snapshot used to gate profile removal. Only stable
+/// identifiers are exposed; profile commands, prompts, automation prompts and
+/// tab payloads never cross this boundary.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentProfileRemovalImpact {
+    pub profile_id: String,
+    pub exists: bool,
+    pub revision: Option<i64>,
+    pub is_default: bool,
+    pub automation_ids: Vec<String>,
+    pub has_automation_policy: bool,
+    pub execution_policy_run_ids: Vec<String>,
+    pub tabs: Vec<AgentProfileTabReference>,
+}
+
+impl AgentProfileRemovalImpact {
+    pub fn reference_count(&self) -> usize {
+        usize::from(self.is_default)
+            + self.automation_ids.len()
+            + usize::from(self.has_automation_policy)
+            + self.execution_policy_run_ids.len()
+            + self.tabs.len()
+    }
+
+    pub fn has_references(&self) -> bool {
+        self.reference_count() > 0
+    }
+
+    pub fn has_blocking_references(&self) -> bool {
+        !self.automation_ids.is_empty()
+            || !self.execution_policy_run_ids.is_empty()
+            || !self.tabs.is_empty()
+    }
+}
