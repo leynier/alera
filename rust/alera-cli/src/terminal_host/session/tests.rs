@@ -78,6 +78,8 @@ fn test_session() -> Session {
         master: None,
         input_tx: None,
         killer: None,
+        #[cfg(windows)]
+        process_job: None,
         terminated: false,
         checkpoint_gen: 0,
         checkpoint_armed: false,

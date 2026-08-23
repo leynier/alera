@@ -9,13 +9,10 @@ const SWEEP_DEADLINE: Duration = Duration::from_secs(1);
 /// Kill a session's shell together with everything it spawned.
 ///
 /// `kill_root` is the PTY's own killer, and it reaches the shell and nothing
-/// else: on unix `portable-pty` sends `SIGHUP` to the direct child, on Windows
-/// it calls `TerminateProcess` on the direct process. The kernel hangup that
-/// normally sweeps up the rest only reaches the controlling terminal's
+/// else: `portable-pty` sends `SIGHUP` to the direct child. The kernel hangup
+/// that normally sweeps up the rest only reaches the controlling terminal's
 /// foreground group, so whatever left it survives: an agent CLI that
-/// daemonizes, an MCP server, a language server. Those keep holding the
-/// worktree's working directory, which on Windows is enough to block deleting
-/// it.
+/// daemonizes, an MCP server, or a language server.
 ///
 /// The subtree is captured BEFORE anything is signalled. Once the root dies its
 /// children reparent away and can no longer be found by walking parent links,
@@ -68,26 +65,6 @@ async fn kill_descendants(shell: ShellProcess) {
             libc::kill(pid as libc::pid_t, libc::SIGTERM);
         }
     }
-}
-
-#[cfg(windows)]
-async fn kill_descendants(shell: ShellProcess) {
-    // Windows has no controlling-terminal hangup, so the tree only dies if
-    // something walks it. `taskkill /T` does, but only once the sweep proves
-    // the pid still holds this shell: `/F` against a recycled pid force-kills
-    // a stranger's entire tree.
-    //
-    // Orca bounds this with an ancestry walk and documents that it cannot close
-    // the class, because a recycle landing on another of its own descendants
-    // still reads as owned. The sealed start time closes it instead.
-    if live_descendants(shell).await.is_none() {
-        return;
-    }
-    // Racing an already-exited tree is expected, so the result is ignored.
-    let _ = alera_core::child_process::windowless_async_command("taskkill")
-        .args(["/PID", &shell.pid.to_string(), "/T", "/F"])
-        .output()
-        .await;
 }
 
 #[cfg(test)]

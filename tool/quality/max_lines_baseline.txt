@@ -22,7 +22,7 @@
 918	rust/alera-core/src/runtime/orchestration_dispatch_store.rs
 509	test/unit/agent_status_controller_test.dart
 510	rust/alera-cli/src/runtime_archive.rs
-518	rust/alera-cli/src/terminal_host/session.rs
+540	rust/alera-cli/src/terminal_host/session.rs
 512	lib/src/features/settings/presentation/panes/projects_pane.dart
 520	test/widget/workbench_dialog_launchers_test.dart
 521	lib/src/features/workbench/presentation/workspace_git_diff_surface.dart
