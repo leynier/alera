@@ -67,6 +67,7 @@ part 'codex_chat_surface_dialogs.dart';
 part 'codex_chat_surface_goal.dart';
 part 'codex_chat_review_dialog.dart';
 part 'codex_chat_surface_draft_actions.dart';
+part 'codex_chat_surface_typed_session_commands.dart';
 part 'codex_chat_surface_link_handling.dart';
 part 'codex_chat_surface_plan_actions.dart';
 part 'codex_chat_surface_session_actions.dart';

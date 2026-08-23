@@ -260,88 +260,14 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
     CodexChatState state,
   ) async {
     if (_attachments.isNotEmpty || _draftItems.isNotEmpty) return false;
-    final match = RegExp(
-      r'^/(goal|rename|new|clear|resume)(?:\s+(.+))?$',
-      caseSensitive: false,
-    ).firstMatch(_composer.text.trim());
-    if (match == null) return false;
-    final command = match.group(1)!.toLowerCase();
-    final argument = match.group(2)?.trim();
-    if (_savedPrompts.any((prompt) => prompt.name.toLowerCase() == command)) {
+    final command = _TypedSessionCommand.parse(_composer.text);
+    if (command == null) return false;
+    if (_savedPrompts.any(
+      (prompt) => prompt.name.toLowerCase() == command.kind.token,
+    )) {
       return false;
     }
-    if (command == 'goal') {
-      if (!state.supportsGoals) return true;
-      final normalizedArgument = argument?.toLowerCase();
-      _composer.clear();
-      switch (normalizedArgument) {
-        case 'pause':
-          await controller.updateGoalStatus(CodexThreadGoalStatus.paused);
-        case 'resume':
-          await controller.updateGoalStatus(CodexThreadGoalStatus.active);
-        case 'clear':
-          await controller.clearGoal();
-        case 'edit':
-          final goal = state.snapshot.goal;
-          if (goal != null) {
-            final edited = await _showCodexGoalEditor(
-              context,
-              initialObjective: goal.objective,
-            );
-            if (edited != null) await controller.editGoal(edited);
-          }
-        default:
-          if (argument == null || argument.isEmpty) {
-            final edited = await _showCodexGoalEditor(
-              context,
-              initialObjective: state.snapshot.goal?.objective ?? '',
-            );
-            if (edited != null) {
-              if (state.snapshot.goal == null) {
-                await controller.setGoal(edited, recordUserMessage: true);
-              } else {
-                await controller.editGoal(edited);
-              }
-            }
-          } else {
-            await controller.replaceGoal(argument, recordUserMessage: true);
-          }
-      }
-      return true;
-    }
-    if (!state.supportsSessions) {
-      if (command == 'resume') return false;
-      if (command == 'new' || command == 'clear') {
-        _composer.clear();
-        await _openLegacyCodexTab();
-        return true;
-      }
-    }
-    if (command == 'resume' && argument != null && argument.isNotEmpty) {
-      return false;
-    }
-    _composer.clear();
-    switch (command) {
-      case 'rename':
-        if (argument == null || argument.isEmpty) {
-          await _rename(context, controller);
-        } else {
-          await controller.rename(argument);
-        }
-      case 'new':
-        final succeeded = await controller.newThread();
-        if (succeeded && argument != null && argument.isNotEmpty) {
-          await controller.rename(argument);
-        }
-      case 'clear':
-        final succeeded = await controller.clearThread();
-        if (succeeded && argument != null && argument.isNotEmpty) {
-          await controller.rename(argument);
-        }
-      case 'resume':
-        await _resumeThread(context, controller, state);
-    }
-    return true;
+    return _dispatchTypedSessionCommand(controller, state, command);
   }
 
   void _editQueued(
