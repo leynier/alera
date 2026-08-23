@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
@@ -24,7 +23,7 @@ use crate::terminal_host::client::{
 };
 use crate::terminal_host::frame_codec::encode_output_payload;
 
-use super::relay_runtime_auth::{decode_fixed, decode_nonce, verify_grant};
+use super::relay_runtime_auth::{decode_fixed, decode_nonce, encode, verify_grant};
 use super::server::ServerCommand;
 use super::{relay_crypto::IdentityKeyPair, relay_wire};
 
@@ -127,7 +126,7 @@ async fn connect_and_serve(
         || grant.expires_in <= 0
         || grant.client_key_version <= 0
         || grant.runtime_public_key.is_some()
-        || grant.client_public_key != encoded(identity.public_bytes())
+        || grant.client_public_key != encode(identity.public_bytes())
     {
         anyhow::bail!("cloud returned an invalid runtime relay grant");
     }
@@ -320,7 +319,7 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         || claims.account_id != runtime_grant.account_id
         || hello.key_version != claims.key_version
         || hello.identity_public_key != claims.client_public_key
-        || claims.runtime_public_key != encoded(identity.public_bytes())
+        || claims.runtime_public_key != encode(identity.public_bytes())
     {
         anyhow::bail!("relay mobile grant is out of scope");
     }
@@ -343,10 +342,10 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         version: relay_wire::RELAY_HELLO_VERSION,
         runtime_id: runtime_id.to_owned(),
         client_id: client_id.clone(),
-        identity_public_key: encoded(identity.public_bytes()),
-        ephemeral_public_key: encoded(runtime_ephemeral.public_bytes()),
-        nonce: encoded(nonce),
-        confirmation: encoded(confirmation),
+        identity_public_key: encode(identity.public_bytes()),
+        ephemeral_public_key: encode(runtime_ephemeral.public_bytes()),
+        nonce: encode(nonce),
+        confirmation: encode(confirmation),
     };
     write
         .send(Message::Binary(
@@ -492,10 +491,6 @@ async fn dispose_peers(
             id: peer.numeric_id,
         });
     }
-}
-
-fn encoded(bytes: impl AsRef<[u8]>) -> String {
-    URL_SAFE_NO_PAD.encode(bytes)
 }
 
 #[cfg(test)]

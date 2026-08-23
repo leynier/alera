@@ -119,3 +119,7 @@ pub(super) fn decode_nonce(value: &str) -> anyhow::Result<[u8; 16]> {
         .try_into()
         .map_err(|_| anyhow::anyhow!("relay nonce length is invalid"))
 }
+
+pub(super) fn encode(bytes: impl AsRef<[u8]>) -> String {
+    URL_SAFE_NO_PAD.encode(bytes)
+}

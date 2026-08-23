@@ -87,13 +87,17 @@ function relayEnvironment(stub: DurableObjectStub): EdgeEnvironment {
 }
 
 class TestSocket {
-  constructor(readonly attachment: ReturnType<typeof relayAttachment>) {}
+  constructor(public attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {}
 
   readonly sent: Uint8Array[] = [];
   closed: { code: number; reason: string } | null = null;
 
   deserializeAttachment() {
     return this.attachment;
+  }
+
+  serializeAttachment(attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {
+    this.attachment = attachment;
   }
 
   send(value: Uint8Array) {
@@ -167,6 +171,18 @@ describe('Alera API edge', () => {
     relayObject([runtime, mobile]).webSocketClose(mobile as unknown as WebSocket);
 
     expect(runtime.sent).toEqual([relayFrame('mobile-1', [])]);
+  });
+
+  test('does not notify the runtime again when a replaced mobile closes', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const mobile = new TestSocket({
+      ...relayAttachment('mobile', 'mobile-1'),
+      suppressDisconnect: true,
+    });
+
+    relayObject([runtime, mobile]).webSocketClose(mobile as unknown as WebSocket);
+
+    expect(runtime.sent).toBeEmpty();
   });
 
   test('rejects paths outside the public API', async () => {
