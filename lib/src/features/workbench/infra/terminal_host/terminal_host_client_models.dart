@@ -120,7 +120,7 @@ final class TerminalHostRequestTimeoutException implements Exception {
   @override
   String toString() {
     return 'Terminal host request "$requestType" timed out after '
-        '${duration.inMilliseconds} ms. The connection was closed.';
+        '${duration.inMilliseconds} ms.';
   }
 }
 
