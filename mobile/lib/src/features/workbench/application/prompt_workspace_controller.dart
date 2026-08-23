@@ -70,6 +70,8 @@ class PromptWorkspaceState {
 @riverpod
 class PromptWorkspaceController extends _$PromptWorkspaceController {
   String? _activeOperationId;
+  String? _agentLaunchMutationId;
+  bool? _originalAgentLaunchWasIdempotent;
   String? _defaultAgentProfileId;
 
   @override
@@ -152,6 +154,8 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       phase: 'Generating workspace identity',
       clearError: true,
     );
+    _agentLaunchMutationId = null;
+    _originalAgentLaunchWasIdempotent = null;
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
       WorkspaceCreationResult? creation;
@@ -220,10 +224,15 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
             );
       }
       state = state.copyWith(creation: creation, phase: 'Starting agent');
+      final clientMutationId = _agentLaunchMutationId ??=
+          'mobile-agent-launch-${DateTime.now().microsecondsSinceEpoch}';
+      _originalAgentLaunchWasIdempotent ??=
+          client.supportsIdempotentAgentProfileLaunch;
       final launch = await client.launchAgentProfile(
         workspaceId: creation.workspace.id,
         profileId: profileId,
         prompt: prompt.trim(),
+        clientMutationId: clientMutationId,
       );
       var completedCreation = creation;
       if (creation.hasDeferredSetup) {
@@ -264,10 +273,21 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
     );
     try {
       final client = await ref.read(workspaceClientProvider(hostId).future);
+      if (_originalAgentLaunchWasIdempotent != true ||
+          !client.supportsIdempotentAgentProfileLaunch) {
+        throw UnsupportedError(
+          'Update Alera on this host before retrying agent launch safely.',
+        );
+      }
+      final clientMutationId = _agentLaunchMutationId;
+      if (clientMutationId == null) {
+        throw StateError('The original agent launch identity is unavailable.');
+      }
       final launch = await client.launchAgentProfile(
         workspaceId: creation.workspace.id,
         profileId: profileId,
         prompt: prompt.trim(),
+        clientMutationId: clientMutationId,
       );
       var completedCreation = creation;
       if (creation.hasDeferredSetup) {
@@ -296,6 +316,8 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
   }
 
   void resetForAnother() {
+    _agentLaunchMutationId = null;
+    _originalAgentLaunchWasIdempotent = null;
     state = state.copyWith(
       loading: false,
       clearPhase: true,

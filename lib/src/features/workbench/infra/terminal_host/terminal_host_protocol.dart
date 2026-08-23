@@ -24,6 +24,8 @@ const String aleraRuntimeHostAgentProfileRevisionsCapability =
     'orchestrationAgentProfileRevisionsV1';
 const String aleraRuntimeHostAgentProfileRemovalCapability =
     'orchestrationAgentProfileRemovalV1';
+const String aleraRuntimeHostAgentProfileLaunchIdempotencyCapability =
+    'agentProfileLaunchIdempotencyV1';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
 const String aleraRuntimeHostCodexResetCreditsCapability =

@@ -75,6 +75,8 @@ class FakeTerminalClient
       );
   String? deferredSetupCommand;
   Object? linkError;
+  int launchFailuresRemaining = 0;
+  final List<String> agentLaunchMutationIds = <String>[];
   int _createdTabs = 0;
 
   void emitEvent(String name) {
@@ -154,6 +156,9 @@ class FakeTerminalClient
 
   @override
   bool get supportsPromptWorkspaceCreation => true;
+
+  @override
+  bool supportsIdempotentAgentProfileLaunch = true;
 
   @override
   bool supportsPromptImageUpload = true;
@@ -349,8 +354,14 @@ class FakeTerminalClient
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
   }) async {
+    agentLaunchMutationIds.add(clientMutationId);
     calls.add('launchAgentProfile $workspaceId $profileId $prompt');
+    if (launchFailuresRemaining > 0) {
+      launchFailuresRemaining -= 1;
+      throw StateError('launch response was lost');
+    }
     return const AgentProfileLaunchResult(
       tabId: 'agent-tab',
       agentType: 'codex',

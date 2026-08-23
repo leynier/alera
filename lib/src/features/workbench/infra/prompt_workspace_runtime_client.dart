@@ -15,11 +15,22 @@ class AgentProfileLaunchResult {
     required this.tabId,
     required this.agentType,
     required this.profileId,
+    required this.idempotent,
   });
 
   final String tabId;
   final String agentType;
   final String profileId;
+  final bool idempotent;
+}
+
+class NonIdempotentAgentLaunchFailure implements Exception {
+  const NonIdempotentAgentLaunchFailure(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => cause.toString();
 }
 
 class PromptWorkspaceRuntimeClient {
@@ -62,21 +73,60 @@ class PromptWorkspaceRuntimeClient {
     required String workspaceId,
     required String profileId,
     required String prompt,
+    required String clientMutationId,
+    required bool requireIdempotency,
   }) async {
     await beforeAccess?.call();
-    final payload = _asMap(
-      await _client.runtimeRequest('agentProfile.launch', <String, Object?>{
-        'workspaceId': workspaceId,
-        'profileId': profileId,
-        'prompt': prompt,
-      }),
-    );
+    final requestPayload = <String, Object?>{
+      'workspaceId': workspaceId,
+      'profileId': profileId,
+      'prompt': prompt,
+      'clientMutationId': clientMutationId,
+    };
+    Object? response;
+    var idempotent = true;
+    try {
+      response = await _client.runtimeRequest(
+        'agentProfile.launchIdempotent',
+        requestPayload,
+      );
+    } on StateError catch (error) {
+      if (requireIdempotency ||
+          error.message !=
+              'Unknown terminal host request: agentProfile.launchIdempotent') {
+        rethrow;
+      }
+      idempotent = false;
+      try {
+        response = await _client.runtimeRequest(
+          'agentProfile.launch',
+          requestPayload,
+        );
+      } on Object catch (legacyError, stackTrace) {
+        Error.throwWithStackTrace(
+          NonIdempotentAgentLaunchFailure(legacyError),
+          stackTrace,
+        );
+      }
+    }
+    final payload = _asMap(response);
     final tab = _asMap(payload['tab']);
     return AgentProfileLaunchResult(
       tabId: _requiredString(tab, 'id'),
       agentType: _requiredString(payload, 'agentType'),
       profileId: _requiredString(payload, 'profileId'),
+      idempotent: idempotent,
     );
+  }
+
+  Future<bool> supportsIdempotentAgentLaunch() async {
+    await beforeAccess?.call();
+    final status = _asMap(await _client.runtimeRequest('status.get'));
+    final capabilities = status['runtimeCapabilities'];
+    return capabilities is List &&
+        capabilities.contains(
+          aleraRuntimeHostAgentProfileLaunchIdempotencyCapability,
+        );
   }
 }
 

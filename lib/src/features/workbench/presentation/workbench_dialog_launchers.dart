@@ -308,6 +308,8 @@ Future<void> showCreateWorkspaceFlow(
             );
           },
       launchAgent: runtime.launchAgent,
+      supportsIdempotentAgentLaunch: () =>
+          runtime.supportsIdempotentAgentLaunch().catchError((_) => false),
       onCreateAnother: ({required creation, required agentTabId}) async {
         await controller.completePromptWorkspaceCreation(
           creation: creation,

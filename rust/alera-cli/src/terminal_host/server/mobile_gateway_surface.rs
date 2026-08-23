@@ -4,6 +4,7 @@
 //! is allowed to see, and it grows with every mobile feature, while the
 //! terminal verbs below it do not.
 
+use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
 use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY, RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
@@ -61,6 +62,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_TEXT_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AI_TEXT_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROMPT_FILE_UPLOAD_CAPABILITY,
@@ -110,6 +112,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.removeManaged"
             | "agentProfile.list"
             | "agentProfile.launch"
+            | "agentProfile.launchIdempotent"
             | "aiText.workspaceIdentity.generate"
             | "aiText.speechMessage.generate"
             | "aiText.cancel"

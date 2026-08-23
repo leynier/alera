@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
 use crate::terminal_host::server::mobile_gateway_surface::mobile_request_allowed;
 
 use crate::mobile_access::MOBILE_PROTOCOL_VERSION;
@@ -243,6 +244,7 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("mobile.cloudSubscriptions.refresh"));
     assert!(mobile_request_allowed("agentProfile.list"));
     assert!(mobile_request_allowed("agentProfile.launch"));
+    assert!(mobile_request_allowed("agentProfile.launchIdempotent"));
     assert!(mobile_request_allowed("aiText.workspaceIdentity.generate"));
     assert!(mobile_request_allowed("aiText.cancel"));
     assert!(mobile_request_allowed("mobile.promptImage.start"));
@@ -437,6 +439,8 @@ fn account_and_push_capabilities_are_additive_and_not_mobile_admin_verbs() {
     assert!(
         MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY)
     );
+    assert!(MOBILE_HELLO_CAPABILITIES
+        .contains(&RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY));
 }
 
 #[test]
