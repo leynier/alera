@@ -15,6 +15,14 @@ void main() {
     expect(CrashReporting.filterEvent(event), isNull);
   });
 
+  test('enables Android tombstone collection for native crashes', () {
+    final options = SentryFlutterOptions();
+
+    CrashReporting.applyOptionsForTesting(options, 'alera-mobile@0.30.2+119');
+
+    expect(options.enableTombstone, isTrue);
+  });
+
   test('redacts text-bearing event fields before sending', () {
     CrashReporting.setEnabled(true);
     final event = SentryEvent(
