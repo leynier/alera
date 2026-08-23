@@ -492,5 +492,3 @@ class TerminalSessionController extends _$TerminalSessionController {
     }
   }
 }
-
-String terminalSessionIdOf(WorkspaceTabSummary tab) => tab.terminalSessionId;
