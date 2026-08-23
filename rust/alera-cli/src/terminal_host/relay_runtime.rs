@@ -29,6 +29,7 @@ use super::server::ServerCommand;
 use super::{relay_crypto::IdentityKeyPair, relay_wire};
 
 const MAX_MOBILE_CLIENTS: usize = 8;
+const RELAY_PRESENCE_INTERVAL: Duration = Duration::from_secs(60);
 const RETRY_DELAYS: [Duration; 6] = [
     Duration::from_secs(1),
     Duration::from_secs(2),
@@ -136,6 +137,9 @@ async fn connect_and_serve(
     let (outbound_tx, mut outbound_rx) = mpsc::unbounded_channel::<RelayOutbound>();
     let mut pending = HashMap::<String, PendingPeer>::new();
     let mut active = HashMap::<String, ActivePeer>::new();
+    let mut presence = tokio::time::interval(RELAY_PRESENCE_INTERVAL);
+    presence.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    presence.tick().await;
     loop {
         tokio::select! {
             _ = &mut *stop => {
@@ -145,6 +149,18 @@ async fn connect_and_serve(
             outbound = outbound_rx.recv() => {
                 let Some(outbound) = outbound else { return Ok(()); };
                 write.send(Message::Binary(relay_wire::wrap(&outbound.client_id, &outbound.payload)?.into())).await?;
+            }
+            _ = presence.tick() => {
+                // Discovery expires runtimes independently of the relay socket lifetime.
+                match service.relay_identity().await {
+                    Ok(refreshed) if refreshed.public_bytes() != identity.public_bytes() => {
+                        anyhow::bail!("relay identity rotated; reconnecting");
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::warn!(%error, "could not refresh remote mobile relay presence");
+                    }
+                }
             }
             inbound = read.next() => {
                 match inbound {
