@@ -55,54 +55,90 @@ String? terminalThemeNameFromLegacyPreset(Object? value) {
   };
 }
 
+class _AnsiColor {
+  const _AnsiColor(this.normal, [int? bright]) : bright = bright ?? normal;
+
+  final int normal;
+  final int bright;
+}
+
+class _AnsiPalette {
+  const _AnsiPalette({
+    required this.black,
+    required this.red,
+    required this.green,
+    required this.yellow,
+    required this.blue,
+    required this.magenta,
+    required this.cyan,
+    required this.white,
+  });
+
+  final _AnsiColor black;
+  final _AnsiColor red;
+  final _AnsiColor green;
+  final _AnsiColor yellow;
+  final _AnsiColor blue;
+  final _AnsiColor magenta;
+  final _AnsiColor cyan;
+  final _AnsiColor white;
+}
+
+const _AnsiPalette _solarizedAnsiPalette = _AnsiPalette(
+  black: _AnsiColor(0x073642, 0x002B36),
+  red: _AnsiColor(0xDC322F, 0xCB4B16),
+  green: _AnsiColor(0x859900, 0x586E75),
+  yellow: _AnsiColor(0xB58900, 0x657B83),
+  blue: _AnsiColor(0x268BD2, 0x839496),
+  magenta: _AnsiColor(0xD33682, 0x6C71C4),
+  cyan: _AnsiColor(0x2AA198, 0x93A1A1),
+  white: _AnsiColor(0xEEE8D5, 0xFDF6E3),
+);
+
+const _AnsiPalette _tangoAnsiPalette = _AnsiPalette(
+  black: _AnsiColor(0x2E3436, 0x555753),
+  red: _AnsiColor(0xCC0000, 0xEF2929),
+  green: _AnsiColor(0x4E9A06, 0x8AE234),
+  yellow: _AnsiColor(0xC4A000, 0xFCE94F),
+  blue: _AnsiColor(0x3465A4, 0x729FCF),
+  magenta: _AnsiColor(0x75507B, 0xAD7FA8),
+  cyan: _AnsiColor(0x06989A, 0x34E2E2),
+  white: _AnsiColor(0xD3D7CF, 0xEEEEEC),
+);
+
 TerminalThemeEntry _hexTheme(
   String name, {
   required int background,
   required int foreground,
-  required int cursor,
+  int? cursor,
   required int selection,
-  required int black,
-  required int red,
-  required int green,
-  required int yellow,
-  required int blue,
-  required int magenta,
-  required int cyan,
-  required int white,
-  required int brightBlack,
-  required int brightRed,
-  required int brightGreen,
-  required int brightYellow,
-  required int brightBlue,
-  required int brightMagenta,
-  required int brightCyan,
-  required int brightWhite,
+  required _AnsiPalette ansi,
 }) {
   return TerminalThemeEntry(
     name: name,
     theme: xterm.TerminalTheme(
       background: _hex(background),
       foreground: _hex(foreground),
-      cursor: _hex(cursor),
+      cursor: _hex(cursor ?? foreground),
       selection: _hex(selection),
-      black: _hex(black),
-      red: _hex(red),
-      green: _hex(green),
-      yellow: _hex(yellow),
-      blue: _hex(blue),
-      magenta: _hex(magenta),
-      cyan: _hex(cyan),
-      white: _hex(white),
-      brightBlack: _hex(brightBlack),
-      brightRed: _hex(brightRed),
-      brightGreen: _hex(brightGreen),
-      brightYellow: _hex(brightYellow),
-      brightBlue: _hex(brightBlue),
-      brightMagenta: _hex(brightMagenta),
-      brightCyan: _hex(brightCyan),
-      brightWhite: _hex(brightWhite),
+      black: _hex(ansi.black.normal),
+      red: _hex(ansi.red.normal),
+      green: _hex(ansi.green.normal),
+      yellow: _hex(ansi.yellow.normal),
+      blue: _hex(ansi.blue.normal),
+      magenta: _hex(ansi.magenta.normal),
+      cyan: _hex(ansi.cyan.normal),
+      white: _hex(ansi.white.normal),
+      brightBlack: _hex(ansi.black.bright),
+      brightRed: _hex(ansi.red.bright),
+      brightGreen: _hex(ansi.green.bright),
+      brightYellow: _hex(ansi.yellow.bright),
+      brightBlue: _hex(ansi.blue.bright),
+      brightMagenta: _hex(ansi.magenta.bright),
+      brightCyan: _hex(ansi.cyan.bright),
+      brightWhite: _hex(ansi.white.bright),
       searchHitBackground: _hex(selection),
-      searchHitBackgroundCurrent: _hex(brightBlack),
+      searchHitBackgroundCurrent: _hex(ansi.black.bright),
       searchHitForeground: _hex(foreground),
     ),
   );
