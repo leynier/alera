@@ -2,6 +2,8 @@
 
 This Cloudflare Worker is the only supported public route to the Alera Cloud Run service. It admits `/v1/*`, `/.well-known/jwks.json`, and `/health`; applies a short mutation burst limit; removes cookies; overwrites the origin-authentication header; and proxies the request without interpreting Alera protocol payloads. The `/v1/relay/{runtimeId}` route is the exception in transport only: it verifies a short-lived cloud grant and forwards opaque WebSocket frames to one per-runtime Durable Object.
 
+The relay control-plane endpoints, `POST /v1/relay/identity` and `POST /v1/relay/grants`, remain ordinary HTTP requests proxied to Cloud Run. Only the runtime-id route enters the Durable Object WebSocket path.
+
 Production deployment is owned by `.github/workflows/cloud-deploy.yml`. Wrangler receives a dedicated `cloud-production` Environment token limited to `Workers Scripts: Edit` on the Leynier account and `Workers Routes: Edit` on `alera.build`. Local `wrangler deploy` is a break-glass operation.
 
 ## Local Validation
