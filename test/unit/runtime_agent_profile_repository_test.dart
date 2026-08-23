@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile_removal_impact.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_profiles/infra/runtime_agent_profile_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'runtime_agent_profile_repository_revision_cases.dart';
+part 'runtime_agent_profile_repository_removal_cases.dart';
 
 void main() {
   group('AgentProfile', () {
@@ -198,6 +200,7 @@ void main() {
     });
 
     _registerAgentProfileRevisionRepositoryTests();
+    _registerAgentProfileRemovalRepositoryTests();
 
     test('controller clone reuses all profile fields without its id', () async {
       final client = _FakeRuntimeHostClient();

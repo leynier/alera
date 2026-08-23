@@ -1,7 +1,10 @@
 mod agent_canvas_models;
 mod agent_canvas_store;
 mod agent_profile_models;
+#[cfg(test)]
+mod agent_profile_removal_store_tests;
 mod agent_profile_store;
+mod agent_profile_store_helpers;
 #[cfg(test)]
 mod agent_profile_store_tests;
 mod agent_quota_settings_models;

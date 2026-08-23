@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::Row;
+use sqlx::{Row, SqliteConnection};
 
+use super::agent_profile_store_helpers::{agent_profile_from_row, normalize_agent_profile};
 use super::{
-    format_timestamp, parse_timestamp, AgentProfile, AgentProfileLaunchMode, RuntimeStore,
-    RuntimeStoreError,
+    format_timestamp, AgentProfile, AgentProfileRemovalImpact, AgentProfileTabReference,
+    AutomationDefinition, RuntimeStore, RuntimeStoreError,
 };
 
 const PROFILE_COLUMNS: &str =
@@ -263,32 +264,210 @@ impl RuntimeStore {
         }
     }
 
+    pub async fn agent_profile_removal_impact(
+        &self,
+        profile_id: &str,
+        expected_revision: i64,
+    ) -> Result<AgentProfileRemovalImpact> {
+        let mut connection = self.pool().acquire().await?;
+        agent_profile_removal_impact_in(&mut connection, profile_id, expected_revision).await
+    }
+
+    /// Removes a profile only when no automation or recoverable tab depends on
+    /// it. The OCC check, subordinate cleanup and delete share one immediate
+    /// transaction.
     pub async fn remove_agent_profile(
         &self,
         profile_id: &str,
         expected_revision: i64,
     ) -> Result<bool> {
-        let result = sqlx::query("DELETE FROM agentProfiles WHERE id = ? AND revision = ?")
-            .bind(profile_id)
-            .bind(expected_revision)
-            .execute(self.pool())
+        let mut connection = self.pool().acquire().await?;
+        sqlx::query("BEGIN IMMEDIATE")
+            .execute(&mut *connection)
             .await?;
-        let removed = result.rows_affected() > 0;
-        if !removed {
-            let current = self.find_agent_profile(profile_id).await?;
-            if let Some(current) = current {
+        let operation: Result<bool> = async {
+            let impact = agent_profile_removal_impact_in(
+                &mut connection,
+                profile_id,
+                expected_revision,
+            )
+            .await?;
+            if !impact.exists {
+                return Ok(false);
+            }
+            if impact.has_blocking_references() {
+                anyhow::bail!(RuntimeStoreError::Message(format!(
+                    "agent profile removal is blocked by {} reference(s)",
+                    impact.automation_ids.len()
+                        + impact.execution_policy_run_ids.len()
+                        + impact.tabs.len()
+                )));
+            }
+            sqlx::query(
+                "DELETE FROM runtimeMetadata WHERE key = 'settings.agents.defaultAgentProfileId' AND trim(value) = ?",
+            )
+            .bind(profile_id)
+            .execute(&mut *connection)
+            .await?;
+            sqlx::query("DELETE FROM automationAgentPolicies WHERE profileId = ?")
+                .bind(profile_id)
+                .execute(&mut *connection)
+                .await?;
+            let result = sqlx::query("DELETE FROM agentProfiles WHERE id = ? AND revision = ?")
+                .bind(profile_id)
+                .bind(expected_revision)
+                .execute(&mut *connection)
+                .await?;
+            if result.rows_affected() == 0 {
+                let current = sqlx::query_scalar::<_, i64>(
+                    "SELECT revision FROM agentProfiles WHERE id = ?",
+                )
+                .bind(profile_id)
+                .fetch_optional(&mut *connection)
+                .await?;
                 return Err(agent_profile_revision_conflict(
                     profile_id,
                     Some(expected_revision),
-                    Some(current.revision),
+                    current,
                 ));
             }
+            Ok(true)
         }
-        if removed && self.default_agent_profile_id().await?.as_deref() == Some(profile_id) {
-            self.set_default_agent_profile_id(None).await?;
+        .await;
+        match operation {
+            Ok(removed) => {
+                sqlx::query("COMMIT").execute(&mut *connection).await?;
+                Ok(removed)
+            }
+            Err(error) => {
+                let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+                Err(error)
+            }
         }
-        Ok(removed)
     }
+}
+
+async fn agent_profile_removal_impact_in(
+    connection: &mut SqliteConnection,
+    profile_id: &str,
+    expected_revision: i64,
+) -> Result<AgentProfileRemovalImpact> {
+    let profile =
+        sqlx::query_as::<_, (i64, String)>("SELECT revision, name FROM agentProfiles WHERE id = ?")
+            .bind(profile_id)
+            .fetch_optional(&mut *connection)
+            .await?;
+    let revision = profile.as_ref().map(|(revision, _)| *revision);
+    if revision.is_some_and(|current| current != expected_revision) {
+        return Err(agent_profile_revision_conflict(
+            profile_id,
+            Some(expected_revision),
+            revision,
+        ));
+    }
+    let is_default = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT value FROM runtimeMetadata WHERE key = 'settings.agents.defaultAgentProfileId'",
+    )
+    .fetch_optional(&mut *connection)
+    .await?
+    .flatten()
+    .is_some_and(|value| value.trim() == profile_id);
+    let has_automation_policy = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM automationAgentPolicies WHERE profileId = ?",
+    )
+    .bind(profile_id)
+    .fetch_one(&mut *connection)
+    .await?
+        > 0;
+
+    let automation_rows = sqlx::query("SELECT dataJson FROM automations")
+        .fetch_all(&mut *connection)
+        .await?;
+    let mut automation_ids = Vec::new();
+    for row in automation_rows {
+        let encoded: String = row.try_get("dataJson")?;
+        let definition: AutomationDefinition = serde_json::from_str(&encoded)?;
+        if definition.target.agent_profile_id() == Some(profile_id) {
+            automation_ids.push(definition.id);
+        }
+    }
+    automation_ids.sort();
+
+    let mut execution_policy_run_ids = Vec::new();
+    if let Some((_, profile_name)) = profile.as_ref() {
+        let policy_rows = sqlx::query(
+            "SELECT id, execution_policy FROM orchestrationCoordinatorRuns \
+             WHERE status NOT IN ('completed', 'failed', 'stopped') \
+               AND execution_policy_status IN ('draft', 'approved') \
+               AND execution_policy IS NOT NULL",
+        )
+        .fetch_all(&mut *connection)
+        .await?;
+        for row in policy_rows {
+            let policy: serde_json::Value =
+                serde_json::from_str(&row.try_get::<String, _>("execution_policy")?)?;
+            let references_profile = policy
+                .get("stages")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|stages| {
+                    stages.iter().any(|stage| {
+                        stage
+                            .get("profile")
+                            .and_then(serde_json::Value::as_str)
+                            .is_some_and(|name| name.eq_ignore_ascii_case(profile_name))
+                            || stage
+                                .get("fallbacks")
+                                .and_then(serde_json::Value::as_array)
+                                .is_some_and(|fallbacks| {
+                                    fallbacks.iter().any(|fallback| {
+                                        fallback.as_str().is_some_and(|name| {
+                                            name.eq_ignore_ascii_case(profile_name)
+                                        })
+                                    })
+                                })
+                    })
+                });
+            if references_profile {
+                execution_policy_run_ids.push(row.try_get("id")?);
+            }
+        }
+        execution_policy_run_ids.sort();
+    }
+
+    let tab_rows = sqlx::query("SELECT id, workspaceId, payloadJson FROM workspaceTabs")
+        .fetch_all(&mut *connection)
+        .await?;
+    let mut tabs = Vec::new();
+    for row in tab_rows {
+        let payload: serde_json::Value =
+            serde_json::from_str(&row.try_get::<String, _>("payloadJson")?)?;
+        if payload
+            .get("agentProfileId")
+            .and_then(serde_json::Value::as_str)
+            == Some(profile_id)
+        {
+            tabs.push(AgentProfileTabReference {
+                workspace_id: row.try_get("workspaceId")?,
+                tab_id: row.try_get("id")?,
+            });
+        }
+    }
+    tabs.sort_by(|left, right| {
+        left.workspace_id
+            .cmp(&right.workspace_id)
+            .then_with(|| left.tab_id.cmp(&right.tab_id))
+    });
+
+    Ok(AgentProfileRemovalImpact {
+        profile_id: profile_id.to_string(),
+        exists: revision.is_some(),
+        revision,
+        is_default,
+        automation_ids,
+        has_automation_policy,
+        execution_policy_run_ids,
+        tabs,
+    })
 }
 
 fn agent_profile_revision_conflict(
@@ -302,78 +481,4 @@ fn agent_profile_revision_conflict(
         current,
     }
     .into()
-}
-
-fn normalize_agent_profile(mut profile: AgentProfile) -> Result<AgentProfile> {
-    profile.id = profile.id.trim().to_string();
-    profile.name = profile.name.trim().to_string();
-    profile.agent_type = profile.agent_type.trim().to_string();
-    profile.command = profile.command.trim().to_string();
-    profile.custom_prompt = profile.custom_prompt.trim().to_string();
-    profile.description = profile.description.trim().to_string();
-    profile.quota_group = profile
-        .quota_group
-        .map(|group| group.trim().to_string())
-        .filter(|group| !group.is_empty());
-    if profile.id.is_empty() {
-        anyhow::bail!(RuntimeStoreError::Message(
-            "agent profile id is required".to_string()
-        ));
-    }
-    if profile.name.is_empty() {
-        anyhow::bail!(RuntimeStoreError::Message(
-            "agent profile name is required".to_string()
-        ));
-    }
-    if profile.agent_type.is_empty() {
-        anyhow::bail!(RuntimeStoreError::Message(
-            "agent profile agent type is required".to_string()
-        ));
-    }
-    if profile.command.is_empty() {
-        anyhow::bail!(RuntimeStoreError::Message(
-            "agent profile command is required".to_string()
-        ));
-    }
-    match profile.launch_mode {
-        AgentProfileLaunchMode::Command => {
-            profile.managed_config = None;
-        }
-        AgentProfileLaunchMode::Managed => {
-            if !profile
-                .managed_config
-                .as_ref()
-                .is_some_and(serde_json::Value::is_object)
-            {
-                anyhow::bail!(RuntimeStoreError::Message(
-                    "managed agent profile config must be an object".to_string()
-                ));
-            }
-        }
-    }
-    Ok(profile)
-}
-
-fn agent_profile_from_row(row: sqlx::sqlite::SqliteRow) -> Result<AgentProfile> {
-    Ok(AgentProfile {
-        id: row.try_get("id")?,
-        name: row.try_get("name")?,
-        sort_order: row.try_get("sortOrder")?,
-        agent_type: row.try_get("agentType")?,
-        command: row.try_get("command")?,
-        launch_mode: row
-            .try_get::<String, _>("launchMode")?
-            .parse()
-            .map_err(|error: String| anyhow::anyhow!(error))?,
-        managed_config: row
-            .try_get::<Option<String>, _>("managedConfig")?
-            .map(|value| serde_json::from_str(&value))
-            .transpose()?,
-        custom_prompt: row.try_get("customPrompt")?,
-        description: row.try_get("description")?,
-        quota_group: row.try_get("quotaGroup")?,
-        revision: row.try_get("revision")?,
-        created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
-        updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
-    })
 }

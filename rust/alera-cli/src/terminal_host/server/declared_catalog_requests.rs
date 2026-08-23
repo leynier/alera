@@ -141,9 +141,41 @@ impl ServerActor {
         }))
     }
 
+    pub(super) async fn agent_profile_removal_impact(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        let id = require_profile_string(payload, "id")?;
+        let expected_revision = required_revision(payload, "expectedRevision")?;
+        let impact = self
+            .runtime_store
+            .agent_profile_removal_impact(&id, expected_revision)
+            .await
+            .map_err(agent_profile_store_error)?;
+        let reference_count = impact.reference_count();
+        let blocking_reference_count =
+            impact.automation_ids.len() + impact.execution_policy_run_ids.len() + impact.tabs.len();
+        let mut value =
+            serde_json::to_value(impact).map_err(|error| HostError::format(error.to_string()))?;
+        let object = value
+            .as_object_mut()
+            .ok_or_else(|| HostError::format("Agent profile removal impact must be an object."))?;
+        object.insert("referenceCount".into(), json!(reference_count));
+        object.insert(
+            "blockingReferenceCount".into(),
+            json!(blocking_reference_count),
+        );
+        Ok(value)
+    }
+
     pub(super) async fn agent_profile_remove(&mut self, payload: &Value) -> HostResult<Value> {
         let id = require_profile_string(payload, "id")?;
         let expected_revision = required_revision(payload, "expectedRevision")?;
+        if payload.get("confirmed").and_then(Value::as_bool) != Some(true) {
+            return Err(HostError::format(
+                "Agent profile removal requires explicit confirmation.",
+            ));
+        }
         let removed = self
             .runtime_store
             .remove_agent_profile(&id, expected_revision)
@@ -152,6 +184,7 @@ impl ServerActor {
         if removed {
             self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
             self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
+            self.broadcast_authenticated(event("automationsChanged", json!({})));
         }
         Ok(json!({ "removed": removed }))
     }

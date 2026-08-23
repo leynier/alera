@@ -6,6 +6,7 @@ Widget _wrapDialog({
   required ValueChanged<bool?> onResult,
   String confirmLabel = 'Delete',
   String cancelLabel = 'Cancel',
+  bool confirmEnabled = true,
 }) {
   return MaterialApp(
     home: Builder(
@@ -21,6 +22,7 @@ Widget _wrapDialog({
                     message: 'This Action Cannot Be Undone.',
                     confirmLabel: confirmLabel,
                     cancelLabel: cancelLabel,
+                    confirmEnabled: confirmEnabled,
                   ),
                 ),
               );
@@ -58,6 +60,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(result, isTrue);
+  });
+
+  testWidgets('disabled confirm leaves only cancellation available', (
+    tester,
+  ) async {
+    bool? result;
+    await tester.pumpWidget(
+      _wrapDialog(onResult: (value) => result = value, confirmEnabled: false),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Delete'))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(result, isFalse);
   });
 
   testWidgets('footer actions have equal widths', (tester) async {

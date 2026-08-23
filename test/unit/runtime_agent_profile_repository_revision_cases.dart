@@ -76,7 +76,7 @@ void _registerAgentProfileRevisionRepositoryTests() {
     final repository = RuntimeAgentProfileRepository(client);
 
     await expectLater(
-      repository.remove('prof_1', expectedRevision: 4),
+      repository.remove('prof_1', expectedRevision: 4, confirmed: true),
       throwsA(isA<StateError>()),
     );
     expect(client.payloads['agentProfile.remove'], isNull);

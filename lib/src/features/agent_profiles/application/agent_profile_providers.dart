@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/agent_profiles/application/agent_profile_persona_discovery.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
+import 'package:alera/src/features/agent_profiles/domain/agent_profile_removal_impact.dart';
 import 'package:alera/src/features/agent_profiles/infra/runtime_agent_profile_repository.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -144,8 +145,22 @@ class AgentProfiles extends _$AgentProfiles {
     );
   }
 
+  Future<AgentProfileRemovalImpact> removalImpact(
+    String profileId, {
+    required int expectedRevision,
+  }) {
+    return _repository.removalImpact(
+      profileId,
+      expectedRevision: expectedRevision,
+    );
+  }
+
   Future<void> remove(String profileId, {required int expectedRevision}) async {
-    await _repository.remove(profileId, expectedRevision: expectedRevision);
+    await _repository.remove(
+      profileId,
+      expectedRevision: expectedRevision,
+      confirmed: true,
+    );
     _pendingUpserts.remove(profileId);
     _pendingRemovals.add(profileId);
     state = AsyncData<List<AgentProfile>>(_mergeSnapshot(_latestSnapshot));

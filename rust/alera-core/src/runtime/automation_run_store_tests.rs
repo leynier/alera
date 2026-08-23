@@ -7,6 +7,16 @@ use crate::runtime::{
     AutomationState, AutomationTarget, AutomationTargetIdentity,
 };
 
+async fn seed_profile(store: &RuntimeStore) {
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('profile', 'Profile', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(store.pool())
+    .await
+    .unwrap();
+}
+
 fn definition() -> AutomationDefinition {
     let now = Utc::now();
     AutomationDefinition {
@@ -62,6 +72,7 @@ fn definition() -> AutomationDefinition {
 async fn completion_is_idempotent_and_heartbeat_updates_activity() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let definition = definition();
     let actor = definition.created_by.clone();
     let occurrence = AutomationOccurrence {
@@ -121,6 +132,7 @@ async fn completion_is_idempotent_and_heartbeat_updates_activity() {
 async fn lifecycle_identity_binds_actor_and_all_target_fields() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let definition = definition();
     let creator = definition.created_by.clone();
     let occurrence = AutomationOccurrence {
@@ -179,6 +191,7 @@ async fn lifecycle_identity_binds_actor_and_all_target_fields() {
 async fn completion_rejects_blank_summary_and_non_final_status() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let definition = definition();
     let actor = definition.created_by.clone();
     let occurrence = AutomationOccurrence {
@@ -221,6 +234,7 @@ async fn completion_rejects_blank_summary_and_non_final_status() {
 async fn retention_keeps_newest_hundred_final_runs_and_all_nonfinal_runs() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let mut definition = definition();
     definition.schedule = AutomationSchedule::Recurring {
         cron: "* * * * *".into(),

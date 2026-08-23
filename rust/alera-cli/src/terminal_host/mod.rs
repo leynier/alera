@@ -1,3 +1,4 @@
+pub(crate) mod agent_profile_capabilities;
 #[path = "../alera_account/mod.rs"]
 pub(crate) mod alera_account;
 pub mod buffer;

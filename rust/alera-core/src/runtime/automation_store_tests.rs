@@ -6,6 +6,16 @@ use crate::runtime::{
     AutomationActorKind, AutomationSchedule, AutomationSetupPolicy, AutomationTarget,
 };
 
+async fn seed_profile(store: &RuntimeStore) {
+    sqlx::query(
+        "INSERT INTO agentProfiles (id, name, agentType, command, createdAt, updatedAt) \
+         VALUES ('profile-1', 'Profile 1', 'codex', 'codex', datetime('now'), datetime('now'))",
+    )
+    .execute(store.pool())
+    .await
+    .unwrap();
+}
+
 fn definition() -> AutomationDefinition {
     let now = Utc::now();
     AutomationDefinition {
@@ -64,6 +74,7 @@ fn definition() -> AutomationDefinition {
 async fn list_automations_sorts_names_stored_in_definition_json() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let actor = definition().created_by.clone();
     let mut later = definition();
     later.id = "automation-zebra".into();
@@ -91,6 +102,7 @@ async fn list_automations_sorts_names_stored_in_definition_json() {
 async fn revisioned_upsert_invalidates_material_approval() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let actor = definition().created_by.clone();
     let saved = store
         .upsert_automation(definition(), actor.clone())
@@ -113,6 +125,7 @@ async fn revisioned_upsert_invalidates_material_approval() {
 async fn name_description_and_tags_preserve_exact_revision_approval() {
     let directory = TempDir::new().unwrap();
     let store = RuntimeStore::open(directory.path()).await.unwrap();
+    seed_profile(&store).await;
     let actor = definition().created_by.clone();
     let saved = store
         .upsert_automation(definition(), actor.clone())
