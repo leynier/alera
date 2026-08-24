@@ -385,6 +385,8 @@ void main() {
         expect(mergify, contains('author = github-actions[bot]'));
         expect(mergify, contains('head ~= ^release/version-'));
         expect(mergify, contains('check-success = @github-actions/pr-ready'));
+        expect(mergify, contains('min: 1'));
+        expect(mergify, contains('batch_max_wait_time: 10 min'));
       },
     );
 
