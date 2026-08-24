@@ -197,6 +197,8 @@ void main() {
       expect(packageJob, contains('- build_desktop_app'));
       expect(packageJob, contains('- build_runtime_cross'));
       expect(packageJob, contains('uses: dart-lang/setup-dart@'));
+      expect(packageJob, contains('working-directory: tool/release'));
+      expect(packageJob, contains('dart pub get'));
       expect(packageJob, isNot(contains('setup-flutter-workspace')));
       expect(packageJob, contains('Expected 6 runtime input archives'));
       expect(packageJob, contains('package_runtime_sidecars.dart'));
