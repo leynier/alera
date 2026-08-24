@@ -95,17 +95,42 @@ runs:
         choco install llvm --no-progress --yes
         "LIBCLANG_PATH=C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+    # GitHub-hosted Windows runners fail WinGet's Vulkan package lookup
+    # with APPINSTALLER_CLI_ERROR_SOURCE_DATA_MISSING (-1978335217). Install
+    # the pinned LunarG SDK from the official installer and pin its SHA-256.
     - name: Install Vulkan SDK on Windows
       if: runner.os == 'Windows' && inputs.rust == 'true'
       shell: pwsh
       run: |
+        $ErrorActionPreference = 'Stop'
         $version = '1.4.350.0'
-        winget install --exact --id KhronosGroup.VulkanSDK --version $version --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-        if ($LASTEXITCODE -ne 0) {
-          throw "Vulkan SDK installation failed with code $LASTEXITCODE."
-        }
+        $expectedHash = '855b27ba05d2d8119c5114c5d4ff870ca38f2c632b11e1bb9923b9b7e6ecfe7b'
         $sdk = "C:\VulkanSDK\$version"
-        if (-not (Test-Path -LiteralPath "$sdk\Lib\vulkan-1.lib") -or -not (Test-Path -LiteralPath "$sdk\Bin\glslc.exe")) {
+        $lib = Join-Path $sdk 'Lib\vulkan-1.lib'
+        $glslc = Join-Path $sdk 'Bin\glslc.exe'
+        if (-not ((Test-Path -LiteralPath $lib) -and (Test-Path -LiteralPath $glslc))) {
+          $installer = Join-Path $env:RUNNER_TEMP "vulkansdk-windows-X64-$version.exe"
+          $url = "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe"
+          & curl.exe --fail --location --retry 5 --retry-all-errors --output $installer $url
+          if ($LASTEXITCODE -ne 0) {
+            throw "Vulkan SDK download failed with code $LASTEXITCODE."
+          }
+          $actualHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "Vulkan SDK installer hash mismatch: expected $expectedHash, got $actualHash."
+          }
+          $process = Start-Process -FilePath $installer -ArgumentList @(
+            '--root', $sdk,
+            '--accept-licenses',
+            '--default-answer',
+            '--confirm-command',
+            'install'
+          ) -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) {
+            throw "Vulkan SDK installation failed with code $($process.ExitCode)."
+          }
+        }
+        if (-not ((Test-Path -LiteralPath $lib) -and (Test-Path -LiteralPath $glslc))) {
           throw "Vulkan SDK $version is incomplete at $sdk."
         }
         "VULKAN_SDK=$sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
