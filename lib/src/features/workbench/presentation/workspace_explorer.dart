@@ -38,6 +38,7 @@ class WorkspaceExplorer extends ConsumerStatefulWidget {
     required this.mode,
     required this.onModeChanged,
     required this.onOpenFile,
+    this.onOpenFilePermanently,
     required this.onPathMoved,
     this.focusedSourceControlRoot,
     this.onFocusSourceControlFolder,
@@ -48,6 +49,7 @@ class WorkspaceExplorer extends ConsumerStatefulWidget {
   final WorkspaceExplorerMode mode;
   final ValueChanged<WorkspaceExplorerMode> onModeChanged;
   final ValueChanged<String> onOpenFile;
+  final ValueChanged<String>? onOpenFilePermanently;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
   final String? focusedSourceControlRoot;
@@ -82,6 +84,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   _ExplorerClipboard? _clipboard;
   bool _loading = true;
   bool _suppressNextBackgroundMenu = false;
+  String? _lastOpenedFilePath;
+  DateTime? _lastOpenedFileAt;
 
   @override
   void initState() {
@@ -397,7 +401,21 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       return;
     }
     if (entry != null) {
-      widget.onOpenFile(entry.relativePath);
+      final path = entry.relativePath;
+      widget.onOpenFile(path);
+      final onOpenPermanently = widget.onOpenFilePermanently;
+      final now = DateTime.now();
+      if (onOpenPermanently != null &&
+          _lastOpenedFilePath == path &&
+          _lastOpenedFileAt != null &&
+          now.difference(_lastOpenedFileAt!) <= kDoubleTapTimeout) {
+        onOpenPermanently(path);
+        _lastOpenedFilePath = null;
+        _lastOpenedFileAt = null;
+      } else {
+        _lastOpenedFilePath = path;
+        _lastOpenedFileAt = now;
+      }
     }
   }
 

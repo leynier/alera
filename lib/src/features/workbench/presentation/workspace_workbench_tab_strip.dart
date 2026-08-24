@@ -49,6 +49,8 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   final ScrollController _scrollController = ScrollController();
   bool _hasOverflow = false;
   int? _insertionGapIndex;
+  String? _lastSelectedPreviewTabId;
+  DateTime? _lastSelectedPreviewAt;
 
   @override
   void initState() {
@@ -119,6 +121,26 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
     if (_insertionGapIndex != null) {
       setState(() => _insertionGapIndex = null);
     }
+  }
+
+  void _maybeKeepPreviewTab(WorkspaceTabRecord tab) {
+    final onKeep = _KeepPreviewTabScope.maybeOf(context);
+    if (onKeep == null || !tab.isPreview) {
+      _lastSelectedPreviewTabId = null;
+      _lastSelectedPreviewAt = null;
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastSelectedPreviewTabId == tab.id &&
+        _lastSelectedPreviewAt != null &&
+        now.difference(_lastSelectedPreviewAt!) <= kDoubleTapTimeout) {
+      onKeep(tab.id);
+      _lastSelectedPreviewTabId = null;
+      _lastSelectedPreviewAt = null;
+      return;
+    }
+    _lastSelectedPreviewTabId = tab.id;
+    _lastSelectedPreviewAt = now;
   }
 
   void _handleGapDrop(_WorkspaceTabDragData data, int gapIndex) {
@@ -200,6 +222,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                                 );
                               });
                               widget.onSelectTab(tab.id);
+                              _maybeKeepPreviewTab(tab);
                             },
                             onClose: () => widget.onCloseTab(tab.id),
                             onCloseTabs: widget.onCloseTabs,

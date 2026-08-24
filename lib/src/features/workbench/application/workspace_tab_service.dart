@@ -6,6 +6,7 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
 
 part 'workspace_tab_path_moves.dart';
+part 'workspace_tab_file_opening.dart';
 
 class WorkspaceTabService {
   factory WorkspaceTabService({
@@ -106,43 +107,6 @@ class WorkspaceTabService {
     }
     await _repository.upsertWorkspaceTab(tab);
     return tab;
-  }
-
-  Future<WorkspaceTabRecord> openOrCreateEditorTab({
-    required String workspaceId,
-    required String relativePath,
-  }) async {
-    return _openOrCreateFileTab(
-      workspaceId: workspaceId,
-      relativePath: relativePath,
-      kind: WorkspaceTabKind.editor,
-    );
-  }
-
-  Future<WorkspaceTabRecord> openOrCreatePdfTab({
-    required String workspaceId,
-    required String relativePath,
-  }) async {
-    return _openOrCreateFileTab(
-      workspaceId: workspaceId,
-      relativePath: relativePath,
-      kind: WorkspaceTabKind.pdf,
-    );
-  }
-
-  Future<WorkspaceTabRecord> openOrCreateMarkdownViewerTab({
-    required String workspaceId,
-    required String relativePath,
-  }) async {
-    final normalizedPath = _normalizeRelativePath(relativePath);
-    if (!isWorkspaceMarkdownFilePath(normalizedPath)) {
-      throw StateError('Markdown viewer tabs require a .md file');
-    }
-    return _openOrCreateFileTab(
-      workspaceId: workspaceId,
-      relativePath: normalizedPath,
-      kind: WorkspaceTabKind.markdownViewer,
-    );
   }
 
   Future<WorkspaceTabRecord> openOrCreateMermanPreviewTab({
@@ -391,54 +355,6 @@ class WorkspaceTabService {
     );
     await _repository.upsertWorkspaceTab(next);
     return next;
-  }
-
-  Future<WorkspaceTabRecord> _openOrCreateFileTab({
-    required String workspaceId,
-    required String relativePath,
-    required WorkspaceTabKind kind,
-  }) async {
-    final normalizedPath = _normalizeRelativePath(relativePath);
-    final existing = await _repository.listWorkspaceTabs(workspaceId);
-    for (final tab in existing) {
-      if (tab.isMermanPreview ||
-          tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
-        continue;
-      }
-      if (tab.kind == kind) {
-        return tab;
-      }
-      if (!_canRetargetFileBackedTab(from: tab.kind, to: kind)) {
-        continue;
-      }
-      final next = tab.copyWith(kind: kind, updatedAt: _now());
-      await _repository.upsertWorkspaceTab(next);
-      return next;
-    }
-    final tab = WorkspaceTabRecord(
-      id: _uuid.v4(),
-      workspaceId: workspaceId,
-      kind: kind,
-      title: _titleForPath(normalizedPath),
-      createdAt: _now(),
-      updatedAt: _now(),
-      payload: <String, Object?>{
-        workspaceTabFilePathPayloadKey: normalizedPath,
-      },
-    );
-    await _repository.upsertWorkspaceTab(tab);
-    return tab;
-  }
-
-  bool _canRetargetFileBackedTab({
-    required WorkspaceTabKind from,
-    required WorkspaceTabKind to,
-  }) {
-    return switch ((from, to)) {
-      (WorkspaceTabKind.editor, WorkspaceTabKind.pdf) ||
-      (WorkspaceTabKind.pdf, WorkspaceTabKind.editor) => true,
-      _ => false,
-    };
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {

@@ -44,6 +44,7 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
     required this.autofocus,
     this.onOpenMermanPreview,
     required this.onOpenMarkdownViewerTab,
+    this.onKeepPreview,
   });
 
   final Workspace workspace;
@@ -52,6 +53,7 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   final bool autofocus;
   final ValueChanged<String>? onOpenMermanPreview;
   final ValueChanged<String> onOpenMarkdownViewerTab;
+  final VoidCallback? onKeepPreview;
 
   @override
   ConsumerState<WorkspaceEditorSurface> createState() =>
@@ -129,6 +131,10 @@ class _WorkspaceEditorSurfaceState
       _replaceFocusNode();
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
       _document = _editorSessions.documentFor(widget.tab.id);
+      if (oldWidget.tab.id == widget.tab.id &&
+          oldWidget.tab.filePath != widget.tab.filePath) {
+        _document.clearSnapshot();
+      }
       _registerSession(widget.tab.id);
       _restoreDocumentOrLoad();
     }

@@ -19,6 +19,7 @@ Future<void> _pumpWorkbenchView(
   required List<String> mergedGroups,
   required List<_UpdatedSplitRatioAction> updatedRatios,
   List<String>? activatedGroups,
+  List<String>? keptPreviewTabs,
   Size size = const Size(420, 280),
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
@@ -119,6 +120,7 @@ Future<void> _pumpWorkbenchView(
                 onMergeGroup: ({required String groupId}) async {
                   mergedGroups.add(groupId);
                 },
+                onKeepPreviewTab: keptPreviewTabs?.add,
                 onActivateGroup: ({required String groupId}) {
                   activatedGroups?.add(groupId);
                 },
@@ -172,11 +174,13 @@ WorkspaceTabRecord _tab(
   WorkspaceTabKind kind = WorkspaceTabKind.terminal,
   String? filePath,
   bool mermanPreview = false,
+  bool preview = false,
 }) {
   final payload = <String, Object?>{
     workspaceTabFilePathPayloadKey: ?filePath,
     if (mermanPreview)
       workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
+    if (preview) workspaceTabPreviewPayloadKey: true,
   };
   return WorkspaceTabRecord(
     id: id,
