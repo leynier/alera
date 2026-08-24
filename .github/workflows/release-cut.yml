@@ -862,13 +862,16 @@ jobs:
           done
 
       - name: Package standalone runtimes
+        working-directory: tool/release
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
-        run: >-
-          dart tool/release/package_runtime_sidecars.dart
-          --version "$RELEASE_VERSION"
-          --input runtime-inputs
-          --output release-assets
+        run: |
+          set -euo pipefail
+          dart pub get
+          dart package_runtime_sidecars.dart \
+            --version "$RELEASE_VERSION" \
+            --input "$GITHUB_WORKSPACE/runtime-inputs" \
+            --output "$GITHUB_WORKSPACE/release-assets"
 
       - name: Verify runtime checksums
         working-directory: release-assets
