@@ -1,7 +1,10 @@
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Duration;
 
 use crate::runtime_bridge::RuntimeBridge;
+
+const SNAPSHOT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Debug, Default)]
 pub struct WorkbenchSnapshot {
@@ -10,6 +13,9 @@ pub struct WorkbenchSnapshot {
     pub layout: Option<WorkbenchLayout>,
     pub tags: Vec<WorkspaceTag>,
     pub relations: Vec<WorkspaceRelation>,
+    /// Workspace scope used for the tab/layout request. `None` identifies the
+    /// sidebar-only snapshot and must never be applied to a mounted workbench.
+    pub selected_workspace_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -18,6 +24,7 @@ pub struct Project {
     pub name: String,
     pub repo_path: String,
     pub kind: String,
+    pub updated_at: String,
     pub workspaces: Vec<Workspace>,
 }
 
@@ -346,9 +353,13 @@ impl WorkbenchSnapshot {
         selected_workspace_id: Option<&str>,
     ) -> Result<Self, String> {
         let (projects_value, tags_value, relations_value) = tokio::join!(
-            bridge.request("project.list", json!({})),
-            bridge.request("workspaceTag.list", json!({})),
-            bridge.request("workspaceRelation.list", json!({})),
+            bridge.request_with_timeout("project.list", json!({}), SNAPSHOT_REQUEST_TIMEOUT,),
+            bridge.request_with_timeout("workspaceTag.list", json!({}), SNAPSHOT_REQUEST_TIMEOUT,),
+            bridge.request_with_timeout(
+                "workspaceRelation.list",
+                json!({}),
+                SNAPSHOT_REQUEST_TIMEOUT,
+            ),
         );
         let project_values = as_array(projects_value?);
         let tags = as_array(tags_value?)
@@ -364,7 +375,11 @@ impl WorkbenchSnapshot {
             let id = required_string(&value, "id")?;
             let workspaces = as_array(
                 bridge
-                    .request("workspace.list", json!({ "projectId": id }))
+                    .request_with_timeout(
+                        "workspace.list",
+                        json!({ "projectId": id }),
+                        SNAPSHOT_REQUEST_TIMEOUT,
+                    )
                     .await?,
             )
             .into_iter()
@@ -375,6 +390,7 @@ impl WorkbenchSnapshot {
                 name: required_string(&value, "name")?,
                 repo_path: required_string(&value, "repoPath")?,
                 kind: string_or(&value, "kind", "gitRepository"),
+                updated_at: string_or(&value, "updatedAt", ""),
                 workspaces,
             });
         }
@@ -384,14 +400,22 @@ impl WorkbenchSnapshot {
         if let Some(workspace_id) = selected_workspace_id {
             tabs = as_array(
                 bridge
-                    .request("tab.list", json!({ "workspaceId": workspace_id }))
+                    .request_with_timeout(
+                        "tab.list",
+                        json!({ "workspaceId": workspace_id }),
+                        SNAPSHOT_REQUEST_TIMEOUT,
+                    )
                     .await?,
             )
             .into_iter()
             .map(parse_tab)
             .collect::<Result<Vec<_>, _>>()?;
             layout = bridge
-                .request("layout.find", json!({ "workspaceId": workspace_id }))
+                .request_with_timeout(
+                    "layout.find",
+                    json!({ "workspaceId": workspace_id }),
+                    SNAPSHOT_REQUEST_TIMEOUT,
+                )
                 .await?
                 .as_object()
                 .and_then(|record| record.get("data"))
@@ -399,6 +423,7 @@ impl WorkbenchSnapshot {
                 .map(parse_layout)
                 .transpose()?;
             if let Some(layout) = layout.as_mut() {
+                normalize_layout_tab_ids(layout, &tabs);
                 let tab_ids = tabs.iter().map(|tab| tab.id.clone()).collect::<Vec<_>>();
                 layout.reconcile_tabs(&tab_ids);
             }
@@ -410,6 +435,7 @@ impl WorkbenchSnapshot {
             layout,
             tags,
             relations,
+            selected_workspace_id: selected_workspace_id.map(str::to_string),
         })
     }
 
@@ -427,6 +453,36 @@ impl WorkbenchSnapshot {
             .iter()
             .flat_map(|project| &project.workspaces)
             .find(|workspace| workspace.id == workspace_id)
+    }
+}
+
+/// Older GPUI builds persisted temporary numeric tab ids while the runtime
+/// stores UUIDs.  Translate those positional ids before reconciliation so a
+/// stale layout keeps its split topology and ratios instead of collapsing all
+/// tabs into the active group.
+fn normalize_layout_tab_ids(layout: &mut WorkbenchLayout, tabs: &[WorkspaceTab]) {
+    let valid = tabs
+        .iter()
+        .map(|tab| tab.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let resolve = |tab_id: &str| {
+        if valid.contains(tab_id) {
+            return Some(tab_id.to_string());
+        }
+        tab_id
+            .parse::<usize>()
+            .ok()
+            .and_then(|index| index.checked_sub(1))
+            .and_then(|index| tabs.get(index))
+            .map(|tab| tab.id.clone())
+    };
+    for group in layout.groups.values_mut() {
+        group.tab_ids = group
+            .tab_ids
+            .iter()
+            .filter_map(|tab_id| resolve(tab_id))
+            .collect();
+        group.active_tab_id = group.active_tab_id.as_deref().and_then(resolve);
     }
 }
 
@@ -634,5 +690,53 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn numeric_legacy_tab_ids_are_mapped_before_reconciliation() {
+        let mut layout = parse_layout(json!({
+            "workspaceId": "w1",
+            "activeGroupId": "right",
+            "groups": {
+                "left": {"id": "left", "tabIds": ["1"], "activeTabId": "1"},
+                "right": {"id": "right", "tabIds": ["2", "3"], "activeTabId": "3"}
+            },
+            "root": {
+                "type": "split",
+                "axis": "horizontal",
+                "ratio": 0.5,
+                "first": {"type": "leaf", "groupId": "left"},
+                "second": {"type": "leaf", "groupId": "right"}
+            }
+        }))
+        .unwrap();
+        let tabs = [
+            WorkspaceTab {
+                id: "uuid-1".to_string(),
+                workspace_id: "w1".to_string(),
+                title: "One".to_string(),
+                kind: "terminal".to_string(),
+                payload: json!({}),
+            },
+            WorkspaceTab {
+                id: "uuid-2".to_string(),
+                workspace_id: "w1".to_string(),
+                title: "Two".to_string(),
+                kind: "terminal".to_string(),
+                payload: json!({}),
+            },
+            WorkspaceTab {
+                id: "uuid-3".to_string(),
+                workspace_id: "w1".to_string(),
+                title: "Three".to_string(),
+                kind: "terminal".to_string(),
+                payload: json!({}),
+            },
+        ];
+        normalize_layout_tab_ids(&mut layout, &tabs);
+        layout.reconcile_tabs(&tabs.iter().map(|tab| tab.id.clone()).collect::<Vec<_>>());
+        assert_eq!(layout.groups["left"].tab_ids, ["uuid-1"]);
+        assert_eq!(layout.groups["right"].tab_ids, ["uuid-2", "uuid-3"]);
+        assert!(matches!(layout.root, WorkbenchLayoutNode::Split { .. }));
     }
 }

@@ -139,6 +139,176 @@ final class _DebugContext {
     return _launchMacosGpuiBundle(executable, environment);
   }
 
+  Future<int> freyaDebug() => _freyaRun(release: false);
+
+  Future<int> freyaRelease() => _freyaRun(release: true);
+
+  Future<int> freyaTest() async {
+    final manifest = _join(
+      _repoRoot,
+      'experiments',
+      'alera-freya',
+      'Cargo.toml',
+    );
+    return _run(_options.cargoExecutable, <String>[
+      'test',
+      '--manifest-path',
+      manifest,
+    ]);
+  }
+
+  Future<int> _freyaRun({required bool release}) async {
+    final manifest = _join(
+      _repoRoot,
+      'experiments',
+      'alera-freya',
+      'Cargo.toml',
+    );
+    final environment = Map<String, String>.of(Platform.environment);
+    environment['ALERA_APP_ID'] = _freyaAppId(_options.appId);
+    if (Platform.isMacOS) {
+      final toolchain = await _metalToolchainIdentifier();
+      if (toolchain == null) {
+        stderr.writeln(
+          'The optional Xcode Metal Toolchain is required. Run '
+          '`xcodebuild -downloadComponent MetalToolchain`.',
+        );
+        return 1;
+      }
+      environment['TOOLCHAINS'] = toolchain;
+    }
+    final arguments = <String>[
+      'build',
+      '--manifest-path',
+      manifest,
+      '--bin',
+      'alera-freya',
+      if (release) '--release',
+    ];
+    final buildExit = await _run(
+      _options.cargoExecutable,
+      arguments,
+      environment: environment,
+    );
+    if (buildExit != 0) {
+      return buildExit;
+    }
+    final executable = _join(
+      _join(_repoRoot, 'experiments', 'alera-freya', 'target'),
+      release ? 'release' : 'debug',
+      Platform.isWindows ? 'alera-freya.exe' : 'alera-freya',
+    );
+    if (!Platform.isMacOS) {
+      return _run(
+        executable,
+        const <String>[],
+        environment: environment,
+        forwardStdin: true,
+      );
+    }
+    return _launchMacosFreyaBundle(executable, environment, release: release);
+  }
+
+  Future<int> _launchMacosFreyaBundle(
+    String executable,
+    Map<String, String> environment, {
+    required bool release,
+  }) async {
+    final bundle = Directory(
+      _join(_repoRoot, '.dart_tool', 'alera_freya', 'Alera Freya.app'),
+    );
+    final bundledExecutable = _join(
+      bundle.path,
+      'Contents',
+      'MacOS',
+      'Alera Freya',
+    );
+    final targetExecutable = File(executable).absolute.path;
+    await _stopRunningMacosFreya(targetExecutable);
+    if (await bundle.exists()) {
+      await bundle.delete(recursive: true);
+    }
+    final contents = Directory(_join(bundle.path, 'Contents'));
+    final macos = Directory(_join(contents.path, 'MacOS'));
+    await macos.create(recursive: true);
+    final runtimeDir =
+        environment['ALERA_RUNTIME_DIR'] ??
+        _join(_defaultAppSupportDir(_options.appId), 'terminal_host');
+    await File(_join(contents.path, 'Info.plist')).writeAsString(
+      _freyaMacosInfoPlist(_options.appId, runtimeDir, release: release),
+      flush: true,
+    );
+    await File(targetExecutable).copy(bundledExecutable);
+    await _run('chmod', <String>['755', bundledExecutable]);
+    final signExit = await _run('codesign', <String>[
+      '--force',
+      '--deep',
+      '--sign',
+      '-',
+      bundle.path,
+    ]);
+    if (signExit != 0) {
+      return signExit;
+    }
+    final launch = await Process.run('open', <String>['-n', bundle.path]);
+    if (launch.exitCode != 0) {
+      stderr.write(launch.stderr);
+      return launch.exitCode;
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    var pids = <int>[];
+    while (pids.isEmpty && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      pids = await _macosFreyaPids(targetExecutable);
+    }
+    if (pids.length != 1) {
+      stderr.writeln(
+        'Expected one Alera Freya process after launch, found ${pids.length}.',
+      );
+      return 1;
+    }
+    stdout.writeln(
+      'Started Alera Freya pid ${pids.single} from ${bundle.path}.',
+    );
+    return 0;
+  }
+
+  Future<void> _stopRunningMacosFreya(String executable) async {
+    final pids = await _macosFreyaPids(executable);
+    for (final pid in pids) {
+      Process.killPid(pid);
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 3));
+    while (DateTime.now().isBefore(deadline)) {
+      if ((await _macosFreyaPids(executable)).isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    throw StateError('The previous Alera Freya process did not exit.');
+  }
+
+  Future<List<int>> _macosFreyaPids(String executable) async {
+    final bundledExecutable = _join(
+      _join(_repoRoot, '.dart_tool', 'alera_freya', 'Alera Freya.app'),
+      'Contents',
+      'MacOS',
+      'Alera Freya',
+    );
+    final pids = <int>{};
+    for (final candidate in <String>[executable, bundledExecutable]) {
+      final result = await Process.run('pgrep', <String>['-f', candidate]);
+      if (result.exitCode != 0) {
+        continue;
+      }
+      pids.addAll(
+        result.stdout.toString().split('\n').map(int.tryParse).whereType<int>(),
+      );
+    }
+    return pids.toList(growable: false);
+  }
+
   Future<String?> _metalToolchainIdentifier() async {
     final result = await Process.run('xcodebuild', const <String>[
       '-showComponent',
@@ -314,6 +484,56 @@ final class _DebugContext {
     }
     return '$appId.gpui';
   }
+
+  static String _freyaAppId(String appId) {
+    for (final suffix in const <String>['.dev', '.test']) {
+      if (appId.endsWith(suffix)) {
+        return '${appId.substring(0, appId.length - suffix.length)}.freya$suffix';
+      }
+    }
+    return '$appId.freya';
+  }
+
+  static String _freyaMacosInfoPlist(
+    String appId,
+    String runtimeDir, {
+    required bool release,
+  }) =>
+      '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>Alera Freya</string>
+  <key>CFBundleExecutable</key>
+  <string>Alera Freya</string>
+  <key>CFBundleIdentifier</key>
+  <string>${_freyaAppId(appId)}</string>
+  <key>CFBundleName</key>
+  <string>Alera Freya</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>${release ? '1' : '0'}</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>LSEnvironment</key>
+  <dict>
+    <key>ALERA_APP_ID</key>
+    <string>${_xmlEscape(_freyaAppId(appId))}</string>
+    <key>ALERA_RUNTIME_DIR</key>
+    <string>${_xmlEscape(runtimeDir)}</string>
+  </dict>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+</dict>
+</plist>
+''';
 
   Future<int> appProfile() async {
     await _prepareFlavor();

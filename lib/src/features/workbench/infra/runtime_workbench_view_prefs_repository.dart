@@ -85,6 +85,7 @@ Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
     'allSectionCollapsed': prefs.allSectionCollapsed,
     'showPinnedWorkspacesBelow': prefs.showPinnedWorkspacesBelow,
     'workspaceKindFilter': prefs.workspaceKindFilter.name,
+    'sourceControlRootByWorkspaceId': prefs.sourceControlRootByWorkspaceId,
   };
 }
 

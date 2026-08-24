@@ -1,0 +1,16 @@
+[package]
+name = "alera-desktop-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Framework-neutral desktop state and runtime services shared by Alera clients."
+
+[dependencies]
+alera-core = { path = "../alera-core", features = ["async-process"] }
+alera-runtime-client = { path = "../alera-runtime-client" }
+alacritty_terminal = "0.26"
+async-channel = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
+uuid = { version = "1", features = ["v4"] }

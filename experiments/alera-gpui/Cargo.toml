@@ -13,6 +13,7 @@ x11 = ["gpui/x11"]
 
 [dependencies]
 alera-native = { package = "alera_native", path = "../../rust" }
+alera-desktop-core = { path = "../../rust/alera-desktop-core" }
 alera-core = { path = "../../rust/alera-core", features = ["async-process"] }
 alera-runtime-client = { path = "../../rust/alera-runtime-client" }
 alacritty_terminal = "0.26"

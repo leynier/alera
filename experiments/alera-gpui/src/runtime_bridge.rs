@@ -298,24 +298,68 @@ fn dispatch_request(
 }
 
 async fn wait_for_reconnect(runtime_dir: &Path, commands: &Receiver<BridgeCommand>) -> bool {
-    tokio::select! {
-        _ = tokio::time::sleep(RECONNECT_DELAY) => true,
-        command = commands.recv() => {
-            match command {
-                Ok(BridgeCommand::Request { reply, .. }) => {
-                    let _ = reply.send(Err("Alera Runtime Is Unavailable.".to_string())).await;
-                    true
+    let reconnect_at = tokio::time::Instant::now() + RECONNECT_DELAY;
+    loop {
+        tokio::select! {
+            _ = tokio::time::sleep_until(reconnect_at) => return true,
+            command = commands.recv() => {
+                match command {
+                    Ok(BridgeCommand::Request { reply, .. }) => {
+                        let _ = reply.send(Err("Alera Runtime Is Unavailable.".to_string())).await;
+                    }
+                    Ok(BridgeCommand::OrderedRequest { .. }) => {}
+                    Ok(BridgeCommand::StartHost { config, reply }) => {
+                        let result = spawn_runtime_host(runtime_dir, &config).await;
+                        let started = result.is_ok();
+                        let _ = reply.send(result).await;
+                        if started {
+                            tokio::time::sleep(Duration::from_millis(150)).await;
+                            return true;
+                        }
+                    }
+                    Ok(BridgeCommand::Close) | Err(_) => return false,
                 }
-                Ok(BridgeCommand::OrderedRequest { .. }) => true,
-                Ok(BridgeCommand::StartHost { config, reply }) => {
-                    let result = spawn_runtime_host(runtime_dir, &config).await;
-                    let _ = reply.send(result).await;
-                    tokio::time::sleep(Duration::from_millis(150)).await;
-                    true
-                }
-                Ok(BridgeCommand::Close) | Err(_) => false,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn unavailable_requests_do_not_short_circuit_the_reconnect_delay() {
+        let runtime_dir = std::env::temp_dir().join(format!(
+            "alera-runtime-bridge-reconnect-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let (commands, command_rx) = async_channel::unbounded();
+        let (reply, reply_rx) = async_channel::bounded(1);
+        commands
+            .send(BridgeCommand::Request {
+                request_type: "status.get".to_string(),
+                payload: Value::Null,
+                deadline: Duration::from_secs(1),
+                reply,
+            })
+            .await
+            .expect("queue request");
+
+        let result = tokio::time::timeout(
+            Duration::from_millis(100),
+            wait_for_reconnect(&runtime_dir, &command_rx),
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "request must not trigger an immediate reconnect"
+        );
+        assert_eq!(
+            reply_rx.recv().await.expect("unavailable reply"),
+            Err("Alera Runtime Is Unavailable.".to_string())
+        );
     }
 }
 

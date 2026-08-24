@@ -119,6 +119,7 @@ fn snapshot_sync(workspace_path: String) -> HostResult<Value> {
         "headMessage": state.head_message,
         "changes": status.entries.into_iter().map(|entry| json!({
             "path": entry.path,
+            "oldPath": entry.old_path,
             "area": format!("{:?}", entry.area),
             "status": format!("{:?}", entry.status),
             "added": entry.added,

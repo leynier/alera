@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -47,6 +49,8 @@ pub struct SharedWorkbenchViewPrefs {
     #[serde(default = "default_true")]
     pub show_pinned_workspaces_below: bool,
     pub workspace_kind_filter: SharedWorkspaceKindFilter,
+    #[serde(default)]
+    pub source_control_root_by_workspace_id: BTreeMap<String, String>,
 }
 
 fn default_true() -> bool {
@@ -67,6 +71,7 @@ impl Default for SharedWorkbenchViewPrefs {
             all_section_collapsed: false,
             show_pinned_workspaces_below: true,
             workspace_kind_filter: SharedWorkspaceKindFilter::All,
+            source_control_root_by_workspace_id: BTreeMap::new(),
         }
     }
 }

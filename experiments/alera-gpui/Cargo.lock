@@ -94,11 +94,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "alera-desktop-core"
+version = "0.1.0"
+dependencies = [
+ "alacritty_terminal",
+ "alera-core",
+ "alera-runtime-client",
+ "async-channel 2.5.0",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "alera-gpui"
 version = "0.1.0"
 dependencies = [
  "alacritty_terminal",
  "alera-core",
+ "alera-desktop-core",
  "alera-runtime-client",
  "alera_native",
  "anyhow",

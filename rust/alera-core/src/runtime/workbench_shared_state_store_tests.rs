@@ -45,6 +45,26 @@ fn legacy_shared_view_prefs_show_pinned_workspaces_below() {
     let restored: SharedWorkbenchViewPrefs = serde_json::from_value(encoded).unwrap();
 
     assert!(restored.show_pinned_workspaces_below);
+    assert!(restored.source_control_root_by_workspace_id.is_empty());
+}
+
+#[test]
+fn shared_view_prefs_preserve_source_control_roots() {
+    let mut prefs = SharedWorkbenchViewPrefs::default();
+    prefs
+        .source_control_root_by_workspace_id
+        .insert("workspace-1".to_string(), "apps/web".to_string());
+
+    let restored: SharedWorkbenchViewPrefs =
+        serde_json::from_value(serde_json::to_value(&prefs).unwrap()).unwrap();
+
+    assert_eq!(
+        restored
+            .source_control_root_by_workspace_id
+            .get("workspace-1")
+            .map(String::as_str),
+        Some("apps/web")
+    );
 }
 
 #[tokio::test]
@@ -93,6 +113,8 @@ async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
     store
         .set_agent_quota_settings(RuntimeAgentQuotaSettings {
             enabled_providers: Vec::new(),
+            selected_claude_profile: "work".to_string(),
+            unpinned_quota_keys: vec!["claude:default".to_string(), "codex".to_string()],
             ..RuntimeAgentQuotaSettings::default()
         })
         .await
@@ -101,6 +123,11 @@ async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
     let settings = store.runtime_settings().await.unwrap();
     assert!(!settings.confirm_project_removal);
     assert!(settings.agent_quotas.enabled_providers.is_empty());
+    assert_eq!(settings.agent_quotas.selected_claude_profile, "work");
+    assert_eq!(
+        settings.agent_quotas.unpinned_quota_keys,
+        ["claude:default", "codex"]
+    );
 }
 
 #[tokio::test]

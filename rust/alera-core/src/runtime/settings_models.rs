@@ -162,8 +162,12 @@ pub struct RuntimeAgentQuotaSettings {
     pub claude_default_enabled: bool,
     #[serde(default)]
     pub claude_profiles: Vec<RuntimeClaudeQuotaProfile>,
+    #[serde(default = "default_claude_profile")]
+    pub selected_claude_profile: String,
     #[serde(default)]
     pub environment: RuntimeAgentQuotaEnvironment,
+    #[serde(default)]
+    pub unpinned_quota_keys: Vec<String>,
 }
 
 impl Default for RuntimeAgentQuotaSettings {
@@ -172,7 +176,9 @@ impl Default for RuntimeAgentQuotaSettings {
             enabled_providers: default_quota_providers(),
             claude_default_enabled: true,
             claude_profiles: Vec::new(),
+            selected_claude_profile: default_claude_profile(),
             environment: RuntimeAgentQuotaEnvironment::default(),
+            unpinned_quota_keys: Vec::new(),
         }
     }
 }
@@ -199,9 +205,24 @@ impl RuntimeAgentQuotaSettings {
         }
         self.claude_profiles
             .retain(|profile| !profile.alias.is_empty() && !profile.profile.is_empty());
+        self.selected_claude_profile = self.selected_claude_profile.trim().to_string();
+        if self.selected_claude_profile.is_empty() {
+            self.selected_claude_profile = default_claude_profile();
+        }
+        let mut seen_pins = std::collections::HashSet::new();
+        self.unpinned_quota_keys = self
+            .unpinned_quota_keys
+            .into_iter()
+            .map(|key| key.trim().to_string())
+            .filter(|key| !key.is_empty() && seen_pins.insert(key.clone()))
+            .collect();
         self.environment.normalize();
         self
     }
+}
+
+fn default_claude_profile() -> String {
+    "default".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

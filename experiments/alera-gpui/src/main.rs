@@ -9,13 +9,12 @@ mod forge_api;
 mod forge_service;
 mod icons;
 mod material_icon_layers;
-mod model;
-mod runtime_bridge;
+pub use alera_desktop_core::model;
+pub use alera_desktop_core::runtime_bridge;
 mod terminal;
 mod terminal_palette;
 mod terminal_theme_catalog;
 mod theme;
-mod workbench_layout_model;
 mod workspace_git;
 mod workspace_service;
 

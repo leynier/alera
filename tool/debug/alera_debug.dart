@@ -35,6 +35,9 @@ Future<void> main(List<String> arguments) async {
     'host-debug' => await context.hostDebugForeground(),
     'app-debug' => await context.appDebug(),
     'gpui-debug' => await context.gpuiDebug(),
+    'freya-debug' => await context.freyaDebug(),
+    'freya-release' => await context.freyaRelease(),
+    'freya-test' => await context.freyaTest(),
     'app-profile' => await context.appProfile(),
     'app-debug-bundled-cli' => await context.appDebugBundledCli(),
     'debug-processes' => await context.debugProcesses(),
@@ -61,6 +64,9 @@ Commands:
   host-debug                Run the Rust alera runtime-host in the foreground.
   app-debug                 Run the Flutter desktop app.
   gpui-debug                Build and run the experimental GPUI desktop app.
+  freya-debug               Build and run the experimental Freya desktop app.
+  freya-release             Build and run the Freya desktop app in release mode.
+  freya-test                Run the Freya desktop crate tests.
   app-profile               Run the Flutter desktop app in profile mode.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
   debug-processes           List likely Alera UI and host processes.

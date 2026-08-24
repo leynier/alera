@@ -144,7 +144,7 @@ impl ForgeService {
     pub fn start() -> Self {
         let (commands, receiver) = async_channel::bounded(COMMAND_CAPACITY);
         thread::Builder::new()
-            .name("alera-gpui-forge".to_string())
+            .name("alera-desktop-forge".to_string())
             .spawn(move || run(receiver))
             .expect("failed to start the GPUI forge service");
         Self { commands }

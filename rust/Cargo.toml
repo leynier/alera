@@ -15,6 +15,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 members = [
     "alera-cli",
     "alera-core",
+    "alera-desktop-core",
     "alera-runtime-client",
     "alera-runtime-protocol",
 ]

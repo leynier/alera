@@ -1,6 +1,7 @@
-use alera_native::api::process;
+use alera_core::child_process::windowless_command;
 use serde_json::Value;
 
+#[allow(unused_imports)]
 pub use crate::forge_api::{
     ForgeAction, ForgeAuthStatus, ForgeCheck, ForgeComment, ForgeIdentity, ForgeReview,
     ForgeService, ForgeSnapshot, ForgeUnavailableReason, MergeMethod,
@@ -102,7 +103,7 @@ pub(crate) fn load_snapshot(
     })
 }
 
-pub(crate) fn unavailable_snapshot(reason: ForgeUnavailableReason) -> ForgeSnapshot {
+pub fn unavailable_snapshot(reason: ForgeUnavailableReason) -> ForgeSnapshot {
     ForgeSnapshot {
         unavailable_reason: Some(reason),
         ..ForgeSnapshot::default()
@@ -366,7 +367,7 @@ pub(crate) fn run_action(
     Ok(success.to_string())
 }
 
-pub(crate) fn github_identity(
+pub fn github_identity(
     remote: &str,
     branch: String,
     mut base_branches: Vec<String>,
@@ -424,31 +425,29 @@ fn run_gh_json(arguments: Vec<String>, allow_nonzero: bool) -> Result<Value, Str
 }
 
 fn run_gh(arguments: Vec<String>, allow_nonzero: bool) -> Result<String, String> {
-    let result = process::process_run("gh".to_string(), arguments, None, None)
+    let result = windowless_command("gh")
+        .args(arguments)
+        .output()
         .map_err(|error| format!("Failed to run gh: {error}"))?;
-    if result.exit_code != 0 && !allow_nonzero {
-        return Err(if result.stderr.trim().is_empty() {
-            format!("gh exited with code {}.", result.exit_code)
+    let exit_code = result.status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&result.stderr).into_owned();
+    if exit_code != 0 && !allow_nonzero {
+        return Err(if stderr.trim().is_empty() {
+            format!("gh exited with code {exit_code}.")
         } else {
-            result.stderr.trim().to_string()
+            stderr.trim().to_string()
         });
     }
-    Ok(result.stdout)
+    Ok(stdout)
 }
 
 fn gh_auth_status(host: &str) -> ForgeAuthStatus {
-    match process::process_run(
-        "gh".to_string(),
-        vec![
-            "auth".into(),
-            "status".into(),
-            "--hostname".into(),
-            host.to_string(),
-        ],
-        None,
-        None,
-    ) {
-        Ok(result) if result.exit_code == 0 => ForgeAuthStatus::Authenticated,
+    match windowless_command("gh")
+        .args(["auth", "status", "--hostname", host])
+        .output()
+    {
+        Ok(result) if result.status.success() => ForgeAuthStatus::Authenticated,
         Ok(_) => ForgeAuthStatus::NotAuthenticated,
         Err(_) => ForgeAuthStatus::CliMissing,
     }
