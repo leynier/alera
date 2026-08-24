@@ -33,9 +33,9 @@ queue_rules:
   - name: default
     queue_branch_prefix: mergify/merge-queue/
     batch_size:
-      min: 2
+      min: 1
       max: 4
-    batch_max_wait_time: 60 min
+    batch_max_wait_time: 10 min
     max_checks_retries: 0
     merge_method: squash
     queue_conditions:
