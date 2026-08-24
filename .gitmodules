@@ -30,3 +30,9 @@
 [submodule "reference_projects/directory_tree"]
 	path = reference_projects/directory_tree
 	url = https://github.com/omar-hanafy/directory_tree.git
+[submodule "reference_projects/comet"]
+	path = reference_projects/comet
+	url = https://github.com/zeronsh/comet.git
+[submodule "reference_projects/waku"]
+	path = reference_projects/waku
+	url = https://github.com/egoist/waku.git

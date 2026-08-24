@@ -28,6 +28,8 @@ init-submodules:
 	git submodule update --init --recursive -- reference_projects/CodexMonitor
 	git submodule update --init --recursive -- reference_projects/1Code
 	git submodule update --init --recursive -- reference_projects/orca
+	git submodule update --init --recursive -- reference_projects/comet
+	git submodule update --init --recursive -- reference_projects/waku
 	git submodule update --init --recursive -- third_party/xterm
 	git submodule update --init --recursive -- third_party/dart_terminal
 	git submodule update --init --recursive -- reference_projects/code_forge
@@ -41,6 +43,8 @@ update-submodules:
 	git submodule update --init --recursive --remote --merge -- reference_projects/CodexMonitor
 	git submodule update --init --recursive --remote --merge -- reference_projects/1Code
 	git submodule update --init --recursive --remote --merge -- reference_projects/orca
+	git submodule update --init --recursive --remote --merge -- reference_projects/comet
+	git submodule update --init --recursive --remote --merge -- reference_projects/waku
 	git submodule update --init --recursive --remote --merge -- third_party/xterm
 	git submodule update --init --recursive --remote --merge -- third_party/dart_terminal
 	git submodule update --init --recursive --remote --merge -- reference_projects/code_forge
