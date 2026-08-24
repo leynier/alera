@@ -87,10 +87,18 @@ final class PreparedRelease {
 
   String get branchName => 'release/version-${tags.join('-and-')}';
 
-  Set<String> get expectedChangedPaths => {
+  Set<String> get requiredChangedPaths => {
     preparedReleasePath,
     if (desktop.shouldRelease) 'pubspec.yaml',
     if (mobile.shouldRelease) 'mobile/pubspec.yaml',
+  };
+
+  Set<String> get expectedChangedPaths => {
+    ...requiredChangedPaths,
+    if (channel == ReleaseChannel.stable) 'landing/src/data/releases.json',
+  };
+
+  Set<String> get optionalUnchangedPaths => {
     if (channel == ReleaseChannel.stable) 'landing/src/data/releases.json',
   };
 
@@ -324,8 +332,14 @@ Future<void> _inspectMergedRelease(Map<String, String> values) async {
         await _run('git', ['diff', '--name-only', '$targetSha^', targetSha]),
       )
       .toSet();
-  if (!_setEquals(changedPaths, release.expectedChangedPaths)) {
-    throw StateError('Merged version commit changed unexpected paths.');
+  final unexpected = changedPaths.difference(release.expectedChangedPaths);
+  final missing = release.requiredChangedPaths.difference(changedPaths);
+  if (unexpected.isNotEmpty || missing.isNotEmpty) {
+    throw StateError(
+      'Merged version commit changed unexpected paths: '
+      'missing=${missing.toList()..sort()} '
+      'unexpected=${unexpected.toList()..sort()}.',
+    );
   }
   release.validateVersionFiles();
 
