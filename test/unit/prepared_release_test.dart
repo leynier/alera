@@ -35,10 +35,18 @@ void main() {
       expect(decoded.title, 'release: v1.2.0 v0.8.1-mobile');
       expect(decoded.branchName, 'release/version-v1.2.0-and-v0.8.1-mobile');
       expect(decoded.tags, ['v1.2.0', 'v0.8.1-mobile']);
+      expect(decoded.requiredChangedPaths, {
+        preparedReleasePath,
+        'pubspec.yaml',
+        'mobile/pubspec.yaml',
+      });
       expect(decoded.expectedChangedPaths, {
         preparedReleasePath,
         'pubspec.yaml',
         'mobile/pubspec.yaml',
+        'landing/src/data/releases.json',
+      });
+      expect(decoded.optionalUnchangedPaths, {
         'landing/src/data/releases.json',
       });
     });
