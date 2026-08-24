@@ -36,6 +36,7 @@ part 'workspace_workbench_layout_view.dart';
 part 'workspace_workbench_pane.dart';
 part 'workspace_workbench_tab_content.dart';
 part 'workspace_workbench_tab_strip.dart';
+part 'workspace_workbench_new_tab_button.dart';
 part 'workspace_workbench_tab_strip_drop.dart';
 part 'workspace_workbench_tab_chips.dart';
 part 'workspace_workbench_resize_handle.dart';
