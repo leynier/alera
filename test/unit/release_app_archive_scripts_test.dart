@@ -12,6 +12,7 @@ import 'dart_script_test_support.dart';
 import '../../tool/release/latest_stable_release.dart' as latest_stable;
 import '../../tool/release/update_mobile_pubspec_version.dart'
     as mobile_version;
+import '../../tool/release/update_pubspec_version.dart' as desktop_version;
 
 void main() {
   group('latest stable release script', () {
@@ -65,6 +66,47 @@ void main() {
 
       expect(pubspec.readAsStringSync(), contains('version: 1.2.3+45'));
       expect(pubspec.readAsStringSync(), contains('name: alera_mobile'));
+    });
+  });
+
+  group('desktop release version script', () {
+    test('updates only the root pubspec version', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-desktop-version-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final pubspec = File(p.join(temp.path, 'pubspec.yaml'))
+        ..writeAsStringSync(
+          'name: alera\nversion: 0.65.1+118\nenvironment:\n  sdk: ^3.12.0\n',
+        );
+
+      desktop_version.updatePubspecVersion(
+        '0.66.0',
+        138,
+        pubspecPath: pubspec.path,
+      );
+
+      expect(pubspec.readAsStringSync(), contains('version: 0.66.0+138'));
+      expect(pubspec.readAsStringSync(), contains('name: alera'));
+    });
+
+    test('keeps an already applied version instead of failing', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-desktop-version-idempotent-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final pubspec = File(p.join(temp.path, 'pubspec.yaml'))
+        ..writeAsStringSync(
+          'name: alera\nversion: 0.66.0+138\nenvironment:\n  sdk: ^3.12.0\n',
+        );
+
+      desktop_version.updatePubspecVersion(
+        '0.66.0',
+        138,
+        pubspecPath: pubspec.path,
+      );
+
+      expect(pubspec.readAsStringSync(), contains('version: 0.66.0+138'));
     });
   });
 

@@ -27,6 +27,18 @@ void main() {
       ).readAsStringSync();
 
       expect(setup, contains('libwebkit2gtk-4.1-dev'));
+      expect(setup, contains('sdk.lunarg.com/sdk/download/'));
+      expect(
+        setup,
+        contains(
+          '855b27ba05d2d8119c5114c5d4ff870ca38f2c632b11e1bb9923b9b7e6ecfe7b',
+        ),
+      );
+      expect(
+        setup,
+        isNot(contains('KhronosGroup.VulkanSDK')),
+        reason: 'Windows CI must not install Vulkan through WinGet',
+      );
       expect(linuxPackage, contains('libwebkit2gtk-4.1-0'));
       expect(linuxPackage, contains('libjson-glib-1.0-0'));
       expect(linuxPackage, contains('libsecret-1-0'));

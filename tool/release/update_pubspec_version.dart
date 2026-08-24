@@ -20,18 +20,26 @@ void main(List<String> args) {
     exit(64);
   }
 
-  final file = File('pubspec.yaml');
+  updatePubspecVersion(version, int.parse(buildNumber));
+}
+
+void updatePubspecVersion(
+  String version,
+  int buildNumber, {
+  String pubspecPath = 'pubspec.yaml',
+}) {
+  final file = File(pubspecPath);
   final source = file.readAsStringSync();
+  final nextLine = 'version: $version+$buildNumber';
   final next = source.replaceFirst(
     RegExp(r'^version:\s*.+$', multiLine: true),
-    'version: $version+$buildNumber',
+    nextLine,
   );
 
-  if (next == source) {
-    stderr.writeln('Could not find a version line in pubspec.yaml.');
-    exit(1);
+  if (next == source && !source.contains(nextLine)) {
+    throw StateError('Could not find a version line in $pubspecPath.');
   }
 
   file.writeAsStringSync(next);
-  stdout.writeln('Updated pubspec.yaml to $version+$buildNumber');
+  stdout.writeln('Updated $pubspecPath to $version+$buildNumber');
 }
