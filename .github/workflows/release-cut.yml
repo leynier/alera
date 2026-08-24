@@ -235,31 +235,44 @@ jobs:
           existing_head="$(git ls-remote --heads origin "refs/heads/$VERSION_BRANCH" | awk '{print $1}')"
           if [[ -n "$existing_head" ]]; then
             git fetch origin "refs/heads/$VERSION_BRANCH:refs/remotes/origin/$VERSION_BRANCH" --quiet
-            git show "origin/$VERSION_BRANCH:tool/release/prepared_release.json" >"$RUNNER_TEMP/existing-prepared-release.json"
-            dart tool/release/prepared_release.dart compare \
-              --file "$RUNNER_TEMP/existing-prepared-release.json" \
-              --source-sha "$SOURCE_SHA" \
-              --channel "$CHANNEL" \
-              --desktop-tag "$DESKTOP_TAG" \
-              --mobile-tag "$MOBILE_TAG" \
-              --treeish "origin/$VERSION_BRANCH" \
-              --github-output "$RUNNER_TEMP/existing-prepared-output.txt"
-            version_head="$existing_head"
+            if git show "origin/$VERSION_BRANCH:tool/release/prepared_release.json" >"$RUNNER_TEMP/existing-prepared-release.json" &&
+              dart tool/release/prepared_release.dart compare \
+                --file "$RUNNER_TEMP/existing-prepared-release.json" \
+                --source-sha "$SOURCE_SHA" \
+                --channel "$CHANNEL" \
+                --desktop-tag "$DESKTOP_TAG" \
+                --mobile-tag "$MOBILE_TAG" \
+                --treeish "origin/$VERSION_BRANCH" \
+                --github-output "$RUNNER_TEMP/existing-prepared-output.txt"; then
+              version_head="$existing_head"
+            else
+              git push --force-with-lease="refs/heads/$VERSION_BRANCH:$existing_head" \
+                origin "HEAD:refs/heads/$VERSION_BRANCH"
+            fi
           else
             git push origin "HEAD:refs/heads/$VERSION_BRANCH"
           fi
 
-          mapfile -t pulls < <(gh pr list \
+          mapfile -t open_pulls < <(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
             --head "$VERSION_BRANCH" \
-            --state all \
+            --state open \
             --json number,state,mergedAt,headRefOid \
             --jq '.[] | @base64')
-          if ((${#pulls[@]} > 1)); then
-            echo "::error::Multiple pull requests use $VERSION_BRANCH."
+          if ((${#open_pulls[@]} > 1)); then
+            echo "::error::Multiple open pull requests use $VERSION_BRANCH."
             exit 1
           fi
-          if ((${#pulls[@]} == 0)); then
+          if ((${#open_pulls[@]} == 1)); then
+            pull_json="$(printf '%s' "${open_pulls[0]}" | base64 --decode)"
+            remote_head="$(jq -r .headRefOid <<<"$pull_json")"
+            if [[ "$remote_head" != "$version_head" ]]; then
+              echo "::error::The existing version pull request has an unexpected head."
+              exit 1
+            fi
+            number="$(jq -r .number <<<"$pull_json")"
+            pr_url="https://github.com/$GITHUB_REPOSITORY/pull/$number"
+          else
             body_file="$RUNNER_TEMP/version-pr-body.md"
             {
               echo "Automated version update for the Cut Release workflow."
@@ -278,17 +291,6 @@ jobs:
               --head "$VERSION_BRANCH" \
               --title "$VERSION_TITLE" \
               --body-file "$body_file")"
-          else
-            pull_json="$(printf '%s' "${pulls[0]}" | base64 --decode)"
-            state="$(jq -r .state <<<"$pull_json")"
-            merged_at="$(jq -r '.mergedAt // empty' <<<"$pull_json")"
-            remote_head="$(jq -r .headRefOid <<<"$pull_json")"
-            if [[ "$state" != "OPEN" || -n "$merged_at" || "$remote_head" != "$version_head" ]]; then
-              echo "::error::The existing version pull request is closed, merged, or has an unexpected head."
-              exit 1
-            fi
-            number="$(jq -r .number <<<"$pull_json")"
-            pr_url="https://github.com/$GITHUB_REPOSITORY/pull/$number"
           fi
 
           check_dispatches="$(gh run list \

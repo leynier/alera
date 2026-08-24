@@ -353,6 +353,12 @@ void main() {
       expect(workflow, contains('prepare_version_pr:'));
       expect(workflow, contains('prepared_release.dart write'));
       expect(workflow, contains('prepared_release.dart inspect'));
+      expect(workflow, contains('--state open'));
+      expect(workflow, contains('--force-with-lease='));
+      expect(
+        workflow,
+        isNot(contains('closed, merged, or has an unexpected head')),
+      );
       expect(workflow, contains("ready_to_publish == 'true'"));
       expect(workflow, contains('gh workflow run pr.yml'));
       expect(workflow, contains('gh workflow run landing.yml'));
