@@ -170,7 +170,7 @@ If there is no visual change, say that explicitly in the PR description.
 
 ### Merge Queue
 
-Mergify validates pull requests in batches of two to four. When only one pull request is eligible, the queue waits up to 60 minutes for a second entry before starting the speculative checks. A maintainer can queue another ready pull request to start the batch sooner, but unrelated or unready changes must not be used to bypass the required checks.
+Mergify validates pull requests in batches of one to four. A single ready pull request starts speculative checks immediately. When more than one pull request is eligible, the queue may wait up to 10 minutes to fill a larger batch. Unrelated or unready changes must not be used to bypass the required checks.
 
 ## Release Process
 
