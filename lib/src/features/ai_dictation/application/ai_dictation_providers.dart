@@ -54,7 +54,7 @@ AiDictationService aiDictationService(Ref ref) {
       ref.read(runtimeHostClientProvider),
     ),
     directProvider: OpenAiCompatibleAiDictationProvider(
-      credentials: ref.read(directAiDictationCredentialStoreProvider),
+      ref.read(directAiDictationCredentialStoreProvider),
     ),
     modelStore: ref.read(aiDictationModelStoreProvider),
     speechProcessor: RuntimeAiDictationSpeechProcessor(

@@ -12,11 +12,10 @@ import 'package:http/http.dart' as http;
 typedef AiDictationHttpClientFactory = http.Client Function();
 
 class OpenAiCompatibleAiDictationProvider implements AiDictationProvider {
-  OpenAiCompatibleAiDictationProvider({
-    required DirectAiDictationCredentialStore credentials,
+  OpenAiCompatibleAiDictationProvider(
+    this._credentials, {
     AiDictationHttpClientFactory? clientFactory,
-  }) : _credentials = credentials,
-       _clientFactory = clientFactory ?? http.Client.new;
+  }) : _clientFactory = clientFactory ?? http.Client.new;
 
   final DirectAiDictationCredentialStore _credentials;
   final AiDictationHttpClientFactory _clientFactory;
@@ -134,6 +133,8 @@ String _errorSuffix(String body) {
     } when message.trim().isNotEmpty) {
       return ': ${message.trim()}';
     }
-  } on FormatException {}
+  } on FormatException {
+    return '';
+  }
   return '';
 }

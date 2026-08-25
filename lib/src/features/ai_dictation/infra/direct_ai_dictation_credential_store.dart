@@ -17,9 +17,7 @@ abstract interface class AiDictationSecureStorage {
 }
 
 class FlutterAiDictationSecureStorage implements AiDictationSecureStorage {
-  FlutterAiDictationSecureStorage({
-    FlutterSecureStorage storage = const FlutterSecureStorage(),
-  }) : _storage = storage;
+  FlutterAiDictationSecureStorage() : _storage = const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

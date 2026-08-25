@@ -70,7 +70,7 @@ void main() {
     );
     late http.Request captured;
     final provider = OpenAiCompatibleAiDictationProvider(
-      credentials: credentials,
+      credentials,
       clientFactory: () => MockClient((request) async {
         captured = request;
         return http.Response(
