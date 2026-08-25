@@ -37,13 +37,14 @@ Future<void> _pumpTerminalOutput(WidgetTester tester) async {
 
 Future<void> _pumpTerminalSurface(
   WidgetTester tester,
-  TerminalSessionHandle session,
-) async {
+  TerminalSessionHandle session, {
+  AleraSettings? settings,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         settingsControllerProvider.overrideWith(
-          () => _FakeSettingsController(AleraSettings.defaults),
+          () => _FakeSettingsController(settings ?? AleraSettings.defaults),
         ),
       ],
       child: MaterialApp(
@@ -352,6 +353,12 @@ class _FakeSettingsController extends SettingsController {
 
   @override
   AleraSettings build() => settings;
+
+  @override
+  Future<void> updateTerminal(TerminalSettings next) async {
+    settings = settings.copyWith(terminal: next);
+    state = settings;
+  }
 }
 
 class _ErrorSessionHandle extends TerminalSessionHandle {

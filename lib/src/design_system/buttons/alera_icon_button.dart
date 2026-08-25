@@ -10,14 +10,17 @@ class AleraIconButton extends StatelessWidget {
     this.tooltip,
     required this.onPressed,
     required this.icon,
-    this.iconSize = 16,
-    this.minSize = 30,
+    this.iconSize = defaultIconSize,
+    this.minSize = defaultMinSize,
     this.iconColor = AleraTokens.foregroundMuted,
     this.backgroundColor,
     this.hoverColor,
     this.borderColor,
     this.borderRadius = AleraTokens.radiusMd,
   });
+
+  static const double defaultIconSize = 16;
+  static const double defaultMinSize = 30;
 
   final String? tooltip;
   final VoidCallback? onPressed;

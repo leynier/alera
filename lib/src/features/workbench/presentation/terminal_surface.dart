@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
-import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
@@ -11,13 +9,14 @@ import 'package:alera/src/features/keyboard/domain/key_chord.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_drop_target.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_workspace_file_opener.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
-import 'package:alera/src/features/workbench/presentation/terminal_pulse_dialog.dart';
+import 'package:alera/src/features/workbench/domain/terminal_toolbar_placement.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -156,8 +155,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   Widget build(BuildContext context) {
     // Keep the surface usable in isolated previews and test harnesses that do
-    // not mount the application ProviderScope. The toolbar is unavailable
-    // there, while the normal app still watches the runtime-owned catalog.
+    // not mount the application ProviderScope. The canvas catalog is
+    // unavailable there, while the normal app still watches it.
     final hasProviderScope = _hasProviderScope(context);
     final hasCanvas =
         hasProviderScope &&
@@ -167,16 +166,33 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
                 ?.value
                 .isNotEmpty ==
             true;
+    final toolbarCorner = hasProviderScope
+        ? ref.watch(
+            settingsControllerProvider.select(
+              (settings) => settings.terminal.toolbarCorner,
+            ),
+          )
+        : TerminalToolbarCorner.topRight;
     return AnimatedBuilder(
       animation: Listenable.merge(<Listenable>[
         widget.session,
         widget.session.composerController,
       ]),
-      builder: (context, _) => _buildSurface(context, hasCanvas: hasCanvas),
+      builder: (context, _) => _buildSurface(
+        context,
+        hasCanvas: hasCanvas,
+        toolbarCorner: toolbarCorner,
+        canPersistToolbarCorner: hasProviderScope,
+      ),
     );
   }
 
-  Widget _buildSurface(BuildContext context, {required bool hasCanvas}) {
+  Widget _buildSurface(
+    BuildContext context, {
+    required bool hasCanvas,
+    required TerminalToolbarCorner toolbarCorner,
+    required bool canPersistToolbarCorner,
+  }) {
     final error = switch (widget.session.errorMessage) {
       final String message when message.trim().isNotEmpty => message,
       _ => null,
@@ -206,6 +222,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           operation: operation,
           searchController: searchController,
           hasCanvas: hasCanvas,
+          toolbarCorner: toolbarCorner,
+          canPersistToolbarCorner: canPersistToolbarCorner,
         ),
       ),
     );
@@ -217,6 +235,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     required TerminalSessionOperation? operation,
     required TerminalSearchController? searchController,
     required bool hasCanvas,
+    required TerminalToolbarCorner toolbarCorner,
+    required bool canPersistToolbarCorner,
   }) {
     return Column(
       children: <Widget>[
@@ -227,6 +247,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
             operation: operation,
             searchController: searchController,
             hasCanvas: hasCanvas,
+            toolbarCorner: toolbarCorner,
+            canPersistToolbarCorner: canPersistToolbarCorner,
           ),
         ),
         if (widget.session.composerController.visible)
@@ -241,21 +263,44 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     required TerminalSessionOperation? operation,
     required TerminalSearchController? searchController,
     required bool hasCanvas,
+    required TerminalToolbarCorner toolbarCorner,
+    required bool canPersistToolbarCorner,
   }) {
-    final toolbarButtonCount =
-        2 +
-        (widget.session.supportsTerminalPulse ? 1 : 0) +
-        (hasCanvas ? 1 : 0);
-    return Stack(
-      children: <Widget>[
-        Positioned.fill(child: _buildTerminalContent(context, error)),
-        if (operation != null)
-          Positioned.fill(child: _TerminalOperationState(operation: operation)),
-        if (error == null) _buildRestoreOverlay(),
-        _buildToolbar(context, hasCanvas: hasCanvas),
-        if (searchController?.isOpen == true)
-          _buildSearchOverlay(searchController!, toolbarButtonCount),
-      ],
+    final toolbarButtonCount = terminalToolbarButtonCount(
+      supportsPulse: widget.session.supportsTerminalPulse,
+      hasCanvas: hasCanvas,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: <Widget>[
+            Positioned.fill(child: _buildTerminalContent(context, error)),
+            if (operation != null)
+              Positioned.fill(
+                child: _TerminalOperationState(operation: operation),
+              ),
+            if (error == null) _buildRestoreOverlay(),
+            TerminalSurfaceToolbar(
+              session: widget.session,
+              viewportSize: constraints.biggest,
+              corner: toolbarCorner,
+              hasCanvas: hasCanvas,
+              refreshing: _refreshing,
+              onRefresh: () => unawaited(_refreshTerminal()),
+              onShowAgentCanvas: _showAgentCanvas,
+              onCornerChanged: canPersistToolbarCorner
+                  ? _persistToolbarCorner
+                  : null,
+            ),
+            if (searchController?.isOpen == true)
+              _buildSearchOverlay(
+                searchController!,
+                toolbarCorner,
+                toolbarButtonCount,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -294,86 +339,21 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     );
   }
 
-  Widget _buildToolbar(BuildContext context, {required bool hasCanvas}) {
-    return Positioned(
-      top: AleraTokens.space4,
-      right: AleraTokens.space4,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: AleraTokens.space2,
-        children: <Widget>[
-          if (widget.session.supportsTerminalPulse)
-            _buildTerminalPulseControl(context),
-          AleraIconButton(
-            tooltip: widget.session.composerController.visible
-                ? 'Hide Terminal Composer'
-                : 'Show Terminal Composer',
-            icon: AleraIcons.composer,
-            iconColor: widget.session.composerController.visible
-                ? AleraTokens.foreground
-                : AleraTokens.foregroundMuted,
-            backgroundColor: widget.session.composerController.visible
-                ? AleraTokens.accentSubtle
-                : AleraTokens.surfaceElevated,
-            borderColor: AleraTokens.borderSubtle,
-            onPressed: widget.session.composerController.toggle,
-          ),
-          AleraIconButton(
-            tooltip: _refreshing ? 'Refreshing Terminal' : 'Refresh Terminal',
-            icon: _refreshing ? AleraIcons.loading : AleraIcons.refresh,
-            backgroundColor: AleraTokens.surfaceElevated,
-            borderColor: AleraTokens.borderSubtle,
-            onPressed: _refreshing ? null : () => unawaited(_refreshTerminal()),
-          ),
-          if (hasCanvas)
-            AleraIconButton(
-              tooltip: 'Agent Canvas',
-              icon: AleraIcons.agent,
-              backgroundColor: AleraTokens.surfaceElevated,
-              borderColor: AleraTokens.borderSubtle,
-              onPressed: _showAgentCanvas,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTerminalPulseControl(BuildContext context) {
-    return ValueListenableBuilder<TerminalPulseState>(
-      valueListenable: widget.session.terminalPulseState,
-      builder: (context, state, _) {
-        return AleraIconButton(
-          tooltip: !state.statusKnown
-              ? 'Configure Terminal Pulse - Status Unavailable'
-              : state.armed
-              ? 'Configure Terminal Pulse - Armed'
-              : 'Configure Terminal Pulse',
-          icon: AleraIcons.pulse,
-          iconColor: state.statusKnown && state.armed
-              ? AleraTokens.foreground
-              : AleraTokens.foregroundMuted,
-          backgroundColor: state.statusKnown && state.armed
-              ? AleraTokens.accentSubtle
-              : AleraTokens.surfaceElevated,
-          borderColor: AleraTokens.borderSubtle,
-          onPressed: () =>
-              unawaited(showTerminalPulseDialog(context, widget.session)),
-        );
-      },
-    );
-  }
-
   Widget _buildSearchOverlay(
     TerminalSearchController searchController,
+    TerminalToolbarCorner toolbarCorner,
     int toolbarButtonCount,
   ) {
+    final layout = terminalSearchOverlayLayout(
+      toolbarCorner: toolbarCorner,
+      toolbarButtonCount: toolbarButtonCount,
+    );
     return Positioned(
       top: AleraTokens.space4,
-      left: AleraTokens.space16,
-      // Keep search clear of every visible terminal toolbar action.
-      right: AleraTokens.space48 * toolbarButtonCount + AleraTokens.space4,
+      left: layout.left,
+      right: layout.right,
       child: Align(
-        alignment: Alignment.topRight,
+        alignment: layout.alignLeft ? Alignment.topLeft : Alignment.topRight,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             maxWidth: AleraTokens.dialogWideWidth,
@@ -384,6 +364,18 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           ),
         ),
       ),
+    );
+  }
+
+  void _persistToolbarCorner(TerminalToolbarCorner corner) {
+    final terminal = ref.read(settingsControllerProvider).terminal;
+    if (terminal.toolbarCorner == corner) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(settingsControllerProvider.notifier)
+          .updateTerminal(terminal.copyWith(toolbarCorner: corner)),
     );
   }
 

@@ -76,6 +76,7 @@ void main() {
           hostEmptyShutdownDelaySeconds: 5,
           hostDetachedSessionShutdownDelaySeconds: 120,
           hostScrollbackBytes: 24 * 1000 * 1000,
+          toolbarCorner: TerminalToolbarCorner.bottomRight,
         ),
         keyboard: KeyboardShortcutSettings(
           overrides: <KeyboardActionId, List<String>>{
@@ -144,6 +145,10 @@ void main() {
       expect(restored.terminal.hostEmptyShutdownDelaySeconds, 5);
       expect(restored.terminal.hostDetachedSessionShutdownDelaySeconds, 120);
       expect(restored.terminal.hostScrollbackBytes, 24 * 1000 * 1000);
+      expect(
+        restored.terminal.toolbarCorner,
+        TerminalToolbarCorner.bottomRight,
+      );
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+Shift+W',
       ]);

@@ -159,6 +159,16 @@ void main() {
     expect(entry.matches('mouse wheel'), isTrue);
     expect(entry.groupId, 'interaction');
   });
+
+  test('terminal toolbar corner is searchable in appearance', () {
+    final entry = terminalSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Toolbar Corner',
+    );
+
+    expect(entry.matches('overlay'), isTrue);
+    expect(entry.matches('move'), isTrue);
+    expect(entry.groupId, 'appearance');
+  });
 }
 
 String _catalogFingerprint(Map<String, List<SettingsSearchEntry>> catalogs) {
