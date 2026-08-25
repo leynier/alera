@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '5fc8943def91f434123ca47ec60687752b17d7eed86ce39bdd5a7597f21b79bf',
+      '73eaaa65a0c06ae2112d3e123f086779cc8194a24a225774516410a1f44dfb4e',
     );
   });
 
