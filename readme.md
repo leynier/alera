@@ -103,7 +103,7 @@ Per-terminal configuration: font, size, theme, behaviour. Built on top of the sa
 
 ### 🎙️ AI dictation
 
-Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, while mobile can use on-device Whisper, offline system recognition, or an explicitly approved paired-device or online system provider. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Text subscription.
+Dictate into terminals, Codex Chat, workspace prompts, Source Control, and pull request fields. Desktop can transcribe locally with checksum-verified Whisper models, through the experimental realtime API included with a Codex subscription, or through an OpenAI-compatible audio transcription API with a custom model and base URL. API tokens stay in the system credential store, and Settings includes an integrated recording test. Mobile can use on-device Whisper, offline system recognition, or an explicitly approved paired-device or online system provider. Recordings can be reviewed before transcription, and completed transcripts can optionally be cleaned up or summarized through the selected AI Text subscription.
 
 ### 🗃️ File explorer, search & previews
 

@@ -39,7 +39,7 @@ uuid = { version = "1", features = ["v4"] }
 ed25519-dalek = "3"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = "0.4"
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "multipart", "stream"] }
 sha2 = "0.10"
 hmac = "0.12"
 hkdf = "0.12"

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use base64::Engine as _;
 use hound::{SampleFormat, WavReader};
@@ -13,6 +14,10 @@ use whisper_rs::{
 };
 
 use crate::terminal_host::host_error::{HostError, HostResult};
+
+use super::ai_dictation_credentials::AiDictationCredentialStore;
+use super::ai_dictation_openai::OpenAiDictationRequest;
+use super::ServerActor;
 
 static ACTIVE_REQUESTS: OnceLock<Mutex<HashMap<String, Arc<AtomicBool>>>> = OnceLock::new();
 
@@ -36,21 +41,118 @@ impl Drop for DictationRequestGuard {
     }
 }
 
-pub(super) async fn transcribe(
+impl ServerActor {
+    pub(super) async fn transcribe_ai_dictation(&mut self, payload: &Value) -> HostResult<Value> {
+        match payload
+            .get("engine")
+            .and_then(Value::as_str)
+            .unwrap_or("whisper")
+        {
+            "whisper" => transcribe_whisper(payload, true, &self.runtime_dir).await,
+            "openAiCompatible" => self.transcribe_openai_compatible(payload).await,
+            "codexSubscription" => self.transcribe_codex_subscription(payload).await,
+            _ => Err(HostError::format("unknown AI Dictation engine")),
+        }
+    }
+
+    pub(super) async fn ai_dictation_credential_status(&self) -> HostResult<Value> {
+        Ok(json!({
+            "configured": self.ai_dictation_credentials().load().await?.is_some(),
+        }))
+    }
+
+    pub(super) async fn save_ai_dictation_credential(&self, payload: &Value) -> HostResult<Value> {
+        let token = string(payload, "token")?;
+        self.ai_dictation_credentials().save(token).await?;
+        Ok(json!({"configured": true}))
+    }
+
+    pub(super) async fn clear_ai_dictation_credential(&self) -> HostResult<Value> {
+        self.ai_dictation_credentials().delete().await?;
+        Ok(json!({"configured": false}))
+    }
+
+    async fn transcribe_openai_compatible(&self, payload: &Value) -> HostResult<Value> {
+        let request_id = string(payload, "requestId")?;
+        let audio_path = PathBuf::from(string(payload, "audioPath")?);
+        let base_url = string(payload, "baseUrl")?;
+        let model = string(payload, "modelId")?;
+        let token = self.ai_dictation_credentials().load().await?;
+        let started = std::time::Instant::now();
+        let mut response = super::ai_dictation_openai::transcribe(OpenAiDictationRequest {
+            audio_path: &audio_path,
+            base_url: &base_url,
+            model: &model,
+            token: token.as_deref(),
+            language: payload.get("language").and_then(Value::as_str),
+            prompt: payload.get("initialPrompt").and_then(Value::as_str),
+            timeout: request_timeout(payload),
+        })
+        .await?;
+        let duration_millis = wav_duration_millis(&audio_path)?;
+        if let Some(response) = response.as_object_mut() {
+            response.insert("requestId".to_string(), json!(request_id));
+            response.insert("durationMillis".to_string(), json!(duration_millis));
+            response.insert(
+                "elapsedMillis".to_string(),
+                json!(started.elapsed().as_millis().min(i64::MAX as u128) as i64),
+            );
+        }
+        Ok(response)
+    }
+
+    async fn transcribe_codex_subscription(&mut self, payload: &Value) -> HostResult<Value> {
+        let request_id = string(payload, "requestId")?;
+        let audio_path = PathBuf::from(string(payload, "audioPath")?);
+        let runtime_dir = self.runtime_dir.clone();
+        let cwd = runtime_dir.to_string_lossy().to_string();
+        let server = self.ensure_codex_server(Some(&cwd)).await?;
+        let started = std::time::Instant::now();
+        let result = super::codex_dictation::transcribe(
+            &server,
+            &audio_path,
+            &runtime_dir,
+            payload.get("modelId").and_then(Value::as_str),
+            request_timeout(payload),
+        )
+        .await?;
+        Ok(json!({
+            "requestId": request_id,
+            "text": result.text,
+            "providerId": "codex-subscription",
+            "durationMillis": result.duration_millis,
+            "elapsedMillis": started.elapsed().as_millis().min(i64::MAX as u128) as i64,
+        }))
+    }
+
+    fn ai_dictation_credentials(&self) -> AiDictationCredentialStore {
+        AiDictationCredentialStore::new(&self.runtime_dir, self.account_push.service.runtime_id())
+    }
+}
+
+pub(super) async fn transcribe_mobile(
+    payload: &Value,
+    runtime_dir: &std::path::Path,
+) -> HostResult<Value> {
+    if payload
+        .get("engine")
+        .and_then(Value::as_str)
+        .unwrap_or("whisper")
+        != "whisper"
+    {
+        return Err(HostError::format(
+            "the paired runtime does not provide this system speech engine",
+        ));
+    }
+    transcribe_whisper(payload, false, runtime_dir).await
+}
+
+async fn transcribe_whisper(
     payload: &Value,
     allow_explicit_model_path: bool,
     runtime_dir: &std::path::Path,
 ) -> HostResult<Value> {
     let request_id = string(payload, "requestId")?;
-    let engine = payload
-        .get("engine")
-        .and_then(Value::as_str)
-        .unwrap_or("whisper");
-    if engine != "whisper" {
-        return Err(HostError::format(
-            "the paired runtime does not provide this system speech engine",
-        ));
-    }
     let model_path = resolve_model_path(payload, allow_explicit_model_path, runtime_dir)?;
     let cancelled = Arc::new(AtomicBool::new(false));
     {
@@ -312,6 +414,26 @@ pub(super) fn cancel(payload: &Value) -> HostResult<Value> {
         }
     }
     Ok(json!({}))
+}
+
+fn request_timeout(payload: &Value) -> Duration {
+    let seconds = payload
+        .get("timeoutSeconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(60)
+        .clamp(5, 300);
+    Duration::from_secs(seconds)
+}
+
+fn wav_duration_millis(path: &std::path::Path) -> HostResult<i64> {
+    let reader = WavReader::open(path)
+        .map_err(|error| HostError::format(format!("invalid WAV audio: {error}")))?;
+    let spec = reader.spec();
+    if spec.sample_rate == 0 || spec.channels == 0 {
+        return Err(HostError::format("invalid WAV audio format"));
+    }
+    let samples_per_channel = u128::from(reader.duration()) / u128::from(spec.channels);
+    Ok(((samples_per_channel * 1000) / u128::from(spec.sample_rate)).min(i64::MAX as u128) as i64)
 }
 
 fn string(payload: &Value, key: &str) -> HostResult<String> {

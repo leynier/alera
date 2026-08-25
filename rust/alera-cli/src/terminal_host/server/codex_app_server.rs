@@ -88,6 +88,7 @@ impl CodexAppServer {
         tokio::spawn(read_codex_messages(
             BufReader::new(stdout),
             server.pending.clone(),
+            server.session_state.clone(),
             inbox,
         ));
         tokio::spawn(read_codex_stderr(BufReader::new(stderr)));
@@ -205,6 +206,7 @@ fn initialize_params() -> Value {
 async fn read_codex_messages<R>(
     reader: R,
     pending: PendingRequests,
+    session_state: Arc<CodexAppServerSessionState>,
     inbox: UnboundedSender<ServerCommand>,
 ) where
     R: AsyncBufRead + Unpin,
@@ -223,6 +225,9 @@ async fn read_codex_messages<R>(
                     }
                 };
                 if message.get("method").and_then(Value::as_str).is_some() {
+                    if session_state.consume_realtime_message(&message).await {
+                        continue;
+                    }
                     let _ = inbox.send(ServerCommand::CodexMessage { message });
                     continue;
                 }
@@ -292,7 +297,8 @@ mod tests {
 
     use super::{
         codex_error_message, codex_overload_delay, initialize_params, is_codex_overloaded,
-        read_codex_messages, same_codex_app_server_instance, PendingRequests,
+        read_codex_messages, same_codex_app_server_instance, CodexAppServerSessionState,
+        PendingRequests,
     };
     use crate::terminal_host::host_error::HostError;
     use serde_json::json;
@@ -364,6 +370,7 @@ mod tests {
         let read_task = tokio::spawn(read_codex_messages(
             BufReader::new(reader),
             pending.clone(),
+            Arc::new(CodexAppServerSessionState::default()),
             inbox,
         ));
         writer
@@ -408,6 +415,7 @@ mod tests {
         let read_task = tokio::spawn(read_codex_messages(
             BufReader::new(reader),
             pending.clone(),
+            Arc::new(CodexAppServerSessionState::default()),
             inbox,
         ));
         writer
