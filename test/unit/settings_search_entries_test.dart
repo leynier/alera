@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '89a3a912bfe315f784b7da051f870063716d25d72c6d78f03412d30dc525923a',
+      '25ae5af8d297440255fd08e941374e615211529cfb5ed3cd12d67dfef44b35cc',
     );
   });
 
@@ -54,6 +54,11 @@ void main() {
           ('Empty Host Shutdown', 'runtime'),
           ('Detached Session Shutdown', 'runtime'),
         ],
+      ),
+      (
+        entries: applicationSearchEntries,
+        query: 'keep-alive',
+        expected: <(String, String?)>[('Keep Computer Awake', 'runtime')],
       ),
       (
         entries: agentsSearchEntries,

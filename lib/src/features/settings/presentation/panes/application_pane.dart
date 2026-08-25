@@ -82,6 +82,13 @@ class ApplicationSettingsPane extends ConsumerWidget {
                 'Lifecycle of the local runtime host that owns terminal sessions.',
             children: <Widget>[
               SettingsSwitchRow(
+                title: 'Keep Computer Awake',
+                description:
+                    'Prevents idle sleep and display sleep while Alera is running. Closing the lid still follows this device\'s power settings.',
+                value: general.keepAliveEnabled,
+                onChanged: (value) => controller.setKeepAliveEnabled(value),
+              ),
+              SettingsSwitchRow(
                 title: 'Keep Runtime Open When App Quits',
                 description:
                     'Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.',

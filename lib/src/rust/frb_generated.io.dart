@@ -10,6 +10,7 @@ import 'api/git.dart';
 import 'api/git/git_hosted_review.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
+import 'api/keep_alive.dart';
 import 'api/merman_viewer.dart';
 import 'api/process.dart';
 import 'api/reading_diff.dart';
@@ -257,6 +258,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  KeepAliveStatusDto dco_decode_keep_alive_status_dto(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -870,6 +874,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  KeepAliveStatusDto sse_decode_keep_alive_status_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -1657,6 +1666,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_keep_alive_status_dto(
+    KeepAliveStatusDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
