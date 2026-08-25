@@ -63,7 +63,10 @@ void _registerSettingsDialogCoreTests() {
   }
 
   Future<void> selectAiAssistSectionLocal(WidgetTester tester) async {
-    await tester.tap(find.text('AI Assist').first);
+    final nav = find.byKey(const ValueKey<String>('settings-nav-aiAssist'));
+    await tester.ensureVisible(nav);
+    await tester.pump();
+    await tester.tap(nav);
     await tester.pump();
   }
 

@@ -4,14 +4,20 @@ void _registerSettingsDialogAiAssistTests() {
   testWidgets('keeps AI Assist reasoning selections isolated per operation', (
     tester,
   ) async {
-    final container = await _pumpSettingsDialog(tester);
-    await tester.tap(find.text('AI Assist').first);
-    await tester.pump();
+    final container = await _pumpSettingsDialog(
+      tester,
+      initialSectionId: 'aiAssist',
+    );
+    // Jump via the subsection chip so the commit-message reasoning control is
+    // in the content viewport before the dropdown opens.
+    await tester.tap(find.text('Commit Messages').first);
+    await tester.pumpAndSettle();
 
     final commitReasoning = find.byKey(
       const ValueKey<String>('ai-assist-commitMessage-reasoning-low'),
     );
     await tester.ensureVisible(commitReasoning);
+    await tester.pump();
     await tester.tap(commitReasoning);
     await tester.pumpAndSettle();
     await tester.tap(find.text('High').last);
