@@ -135,6 +135,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
                     relativePath: entry.path,
                     area: entry.area,
                     scope: WorkspaceGitDiffScope.file,
+                    preview: true,
                   ),
                 ),
         ),

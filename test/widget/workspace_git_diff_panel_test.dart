@@ -26,7 +26,10 @@ import 'package:flutter_test/flutter_test.dart';
 import '../unit/fake_git_backend.dart';
 import '../unit/fake_source_control_watcher.dart';
 
+part 'workspace_git_diff_panel_preview_test_cases.dart';
+
 void main() {
+  _registerWorkspaceGitDiffPanelPreviewTests();
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
     final backend = FakeGitBackend()
       ..gitStatusResult = const GitStatusResult(
@@ -70,6 +73,7 @@ void main() {
                       relativePath,
                       gitDiffRoot,
                       required scope,
+                      bool preview = false,
                     }) async {},
                 onOpenGitCommitDiff:
                     ({
@@ -82,6 +86,7 @@ void main() {
                       required compareRef,
                       subject,
                       message,
+                      bool preview = false,
                     }) async {},
               ),
             ),
@@ -147,6 +152,7 @@ void main() {
                       relativePath,
                       gitDiffRoot,
                       required scope,
+                      bool preview = false,
                     }) async {},
                 onOpenGitCommitDiff:
                     ({
@@ -159,6 +165,7 @@ void main() {
                       required compareRef,
                       subject,
                       message,
+                      bool preview = false,
                     }) async {},
               ),
             ),
@@ -241,13 +248,20 @@ void main() {
       workspace: workspace,
       sourceControlScope: sourceControlScope,
       onClearSourceControlRoot: () => cleared = true,
-      onOpenGitDiff: ({area, relativePath, gitDiffRoot, required scope}) async {
-        opened.add((
-          relativePath: relativePath,
-          gitDiffRoot: gitDiffRoot,
-          scope: scope,
-        ));
-      },
+      onOpenGitDiff:
+          ({
+            area,
+            relativePath,
+            gitDiffRoot,
+            required scope,
+            bool preview = false,
+          }) async {
+            opened.add((
+              relativePath: relativePath,
+              gitDiffRoot: gitDiffRoot,
+              scope: scope,
+            ));
+          },
     );
     await tester.pumpAndSettle();
 
@@ -272,155 +286,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cleared, isTrue);
-  });
-
-  testWidgets('commits panel loads history and opens commit file diffs', (
-    tester,
-  ) async {
-    final backend = FakeGitBackend()
-      ..gitRepositoryStateResult = const GitRepositoryState(
-        branch: 'main',
-        upstream: 'origin/main',
-      )
-      ..gitHistoryResult = GitHistoryResult(
-        currentRef: const GitHistoryItemRef(
-          id: 'refs/heads/main',
-          name: 'main',
-          revision: 'abc123456789',
-        ),
-        hasIncomingChanges: false,
-        hasOutgoingChanges: false,
-        hasMore: false,
-        limit: 50,
-        items: <GitHistoryItem>[
-          GitHistoryItem(
-            id: 'abc123456789',
-            parentIds: const <String>['def987654321'],
-            subject: 'Add Feature',
-            message: 'Add Feature\n\nBody',
-            displayId: 'abc1234',
-            author: 'Leynier',
-            timestamp: DateTime.utc(2026, 7, 4, 12),
-          ),
-        ],
-      )
-      ..gitCommitCompareResult = const GitCommitCompareResult(
-        summary: GitCommitCompareSummary(
-          commitOid: 'abc123456789',
-          parentOid: 'def987654321',
-          compareRef: 'abc1234',
-          baseRef: 'def9876',
-          changedFiles: 1,
-          status: GitCommitCompareStatus.ready,
-        ),
-        entries: <GitCommitChangeEntry>[
-          GitCommitChangeEntry(
-            path: 'lib/new.dart',
-            oldPath: 'lib/old.dart',
-            status: GitChangeStatus.renamed,
-            added: 3,
-            removed: 1,
-          ),
-        ],
-      );
-    final opened =
-        <
-          ({
-            String? relativePath,
-            String? oldPath,
-            WorkspaceGitDiffScope scope,
-            String? gitDiffRoot,
-            String commitOid,
-            String? parentOid,
-            String compareRef,
-            String? subject,
-            String? message,
-          })
-        >[];
-
-    await _pumpPanel(
-      tester,
-      backend: backend,
-      onOpenGitCommitDiff:
-          ({
-            relativePath,
-            oldPath,
-            required scope,
-            gitDiffRoot,
-            required commitOid,
-            parentOid,
-            required compareRef,
-            subject,
-            message,
-          }) async {
-            opened.add((
-              relativePath: relativePath,
-              oldPath: oldPath,
-              scope: scope,
-              gitDiffRoot: gitDiffRoot,
-              commitOid: commitOid,
-              parentOid: parentOid,
-              compareRef: compareRef,
-              subject: subject,
-              message: message,
-            ));
-          },
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('COMMITS'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Add Feature'), findsOneWidget);
-    expect(
-      backend.calls.where((call) => call.method == 'history').single.args,
-      <String, Object?>{'path': '/tmp/project', 'limit': 50, 'baseRef': null},
-    );
-
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 1,
-    );
-    addTearDown(mouse.removePointer);
-    await mouse.addPointer(
-      location: tester.getCenter(find.text('Add Feature')),
-    );
-    await tester.pump();
-    expect(
-      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
-      SystemMouseCursors.click,
-    );
-
-    await tester.tap(find.text('Add Feature'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('lib/old.dart -> lib/new.dart'), findsOneWidget);
-    expect(
-      backend.calls.where((call) => call.method == 'commitCompare').single.args,
-      <String, Object?>{'path': '/tmp/project', 'commitId': 'abc123456789'},
-    );
-
-    await mouse.moveTo(
-      tester.getCenter(find.textContaining('lib/old.dart -> lib/new.dart')),
-    );
-    await tester.pump();
-    expect(
-      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
-      SystemMouseCursors.click,
-    );
-
-    await tester.tap(find.textContaining('lib/old.dart -> lib/new.dart'));
-    await tester.pumpAndSettle();
-
-    expect(opened.single.relativePath, 'lib/new.dart');
-    expect(opened.single.oldPath, 'lib/old.dart');
-    expect(opened.single.scope, WorkspaceGitDiffScope.file);
-    expect(opened.single.gitDiffRoot, isNull);
-    expect(opened.single.commitOid, 'abc123456789');
-    expect(opened.single.parentOid, 'def987654321');
-    expect(opened.single.compareRef, 'abc1234');
-    expect(opened.single.subject, 'Add Feature');
-    expect(opened.single.message, 'Add Feature\n\nBody');
   });
 
   testWidgets(
@@ -1608,7 +1473,13 @@ Future<void> _pumpPanel(
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   onOpenGitDiff ??
-                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+                  ({
+                    area,
+                    relativePath,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   onOpenGitCommitDiff ??
                   ({
@@ -1621,6 +1492,7 @@ Future<void> _pumpPanel(
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
               onClearSourceControlRoot: onClearSourceControlRoot,
             ),

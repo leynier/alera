@@ -31,6 +31,7 @@ typedef OpenGitDiffTabCallback =
       GitChangeArea? area,
       String? gitDiffRoot,
       required WorkspaceGitDiffScope scope,
+      bool preview,
     });
 
 typedef OpenGitCommitDiffTabCallback =
@@ -44,4 +45,5 @@ typedef OpenGitCommitDiffTabCallback =
       required String compareRef,
       String? subject,
       String? message,
+      bool preview,
     });

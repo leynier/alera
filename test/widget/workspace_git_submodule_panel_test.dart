@@ -59,7 +59,13 @@ void main() {
           backend: backend,
           viewMode: viewMode,
           onOpenGitDiff:
-              ({area, relativePath, gitDiffRoot, required scope}) async {
+              ({
+                area,
+                relativePath,
+                gitDiffRoot,
+                required scope,
+                bool preview = false,
+              }) async {
                 openedPath = relativePath;
               },
         );
@@ -199,7 +205,13 @@ Future<void> _pumpPanel(
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   onOpenGitDiff ??
-                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+                  ({
+                    area,
+                    relativePath,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -211,6 +223,7 @@ Future<void> _pumpPanel(
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
             ),
           ),

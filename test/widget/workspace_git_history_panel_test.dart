@@ -158,7 +158,13 @@ Future<void> _pumpPanel(
               groupMode: GitDiffGroupMode.byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
-                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+                  ({
+                    area,
+                    relativePath,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -170,6 +176,7 @@ Future<void> _pumpPanel(
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
             ),
           ),

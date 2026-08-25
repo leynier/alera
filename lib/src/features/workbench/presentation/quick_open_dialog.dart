@@ -266,7 +266,11 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     unawaited(
       ref
           .read(workbenchControllerProvider.notifier)
-          .openFileTab(workspace: workspace, relativePath: relativePath),
+          .openFileTab(
+            workspace: workspace,
+            relativePath: relativePath,
+            preview: true,
+          ),
     );
   }
 
