@@ -70,18 +70,44 @@ void main() {
     });
     final store = RuntimeAiDictationCredentialStore(client);
 
-    expect(await store.hasToken(), isTrue);
-    await store.saveToken(' secret-token ');
+    final status = await store.status('https://api.example.test/v1');
+    expect(status.configured, isTrue);
+    expect(status.matchesBaseUrl, isFalse);
+    await store.saveToken(
+      ' secret-token ',
+      baseUrl: 'https://api.example.test/v1',
+    );
 
     expect(client.lastType, 'aiDictation.credentials.save');
-    expect(client.lastPayload, <String, Object?>{'token': 'secret-token'});
+    expect(client.lastPayload, <String, Object?>{
+      'token': 'secret-token',
+      'baseUrl': 'https://api.example.test/v1',
+    });
+  });
+
+  test('credential store avoids new verbs on an older sidecar', () async {
+    final client = _FakeRuntimeHostClient(
+      const <String, Object?>{},
+      supportsRemoteAiDictation: false,
+    );
+    final store = RuntimeAiDictationCredentialStore(client);
+
+    final status = await store.status('https://api.example.test/v1');
+
+    expect(status.supported, isFalse);
+    expect(client.lastType, isNull);
   });
 }
 
-class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient(this.response);
+class _FakeRuntimeHostClient
+    implements RuntimeHostClient, RuntimeHostCapabilityClient {
+  _FakeRuntimeHostClient(
+    this.response, {
+    this.supportsRemoteAiDictation = true,
+  });
 
   final Object? response;
+  final bool supportsRemoteAiDictation;
   String? lastType;
   Map<String, Object?>? lastPayload;
 
@@ -98,4 +124,9 @@ class _FakeRuntimeHostClient implements RuntimeHostClient {
     lastPayload = payload;
     return response;
   }
+
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async =>
+      capability == aleraRuntimeHostRemoteAiDictationCapability &&
+      supportsRemoteAiDictation;
 }

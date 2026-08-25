@@ -10,6 +10,7 @@ final class _TerminalHostConnection {
     required this.supportsTerminalRestart,
     required this.supportsDeferredInput,
     required this.supportsTerminalPulse,
+    required this.supportsRemoteAiDictation,
   }) : _reader = null {
     _socketSub = _socket!.cast<List<int>>().listen(
       _consume,
@@ -32,6 +33,7 @@ final class _TerminalHostConnection {
     required this.supportsTerminalRestart,
     required this.supportsDeferredInput,
     required this.supportsTerminalPulse,
+    required this.supportsRemoteAiDictation,
   }) : _reader = reader,
        _socket = null {
     lines = reader.lines;
@@ -52,6 +54,7 @@ final class _TerminalHostConnection {
   final bool supportsTerminalRestart;
   final bool supportsDeferredInput;
   final bool supportsTerminalPulse;
+  final bool supportsRemoteAiDictation;
 
   /// One reader for the whole connection. It starts newline-delimited so the
   /// handshake works against a host without the capability, and switches to
@@ -154,6 +157,7 @@ final class _TerminalHostControl {
     this.supportsTerminalRestart = false,
     this.supportsDeferredInput = false,
     this.supportsTerminalPulse = false,
+    this.supportsRemoteAiDictation = false,
   });
 
   final int port;
@@ -164,6 +168,7 @@ final class _TerminalHostControl {
   final bool supportsTerminalRestart;
   final bool supportsDeferredInput;
   final bool supportsTerminalPulse;
+  final bool supportsRemoteAiDictation;
 }
 
 final class _PendingHostRequest {

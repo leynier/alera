@@ -133,6 +133,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsTerminalRestart: control.supportsTerminalRestart,
       supportsDeferredInput: control.supportsDeferredInput,
       supportsTerminalPulse: control.supportsTerminalPulse,
+      supportsRemoteAiDictation: control.supportsRemoteAiDictation,
     );
   }
   final socket = await Socket.connect(
@@ -147,5 +148,6 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsTerminalRestart: control.supportsTerminalRestart,
     supportsDeferredInput: control.supportsDeferredInput,
     supportsTerminalPulse: control.supportsTerminalPulse,
+    supportsRemoteAiDictation: control.supportsRemoteAiDictation,
   );
 }

@@ -124,6 +124,9 @@ Future<_TerminalHostControl?> _readControl(File file) async {
       supportsTerminalPulse: capabilities.contains(
         aleraRuntimeHostTerminalPulseCapability,
       ),
+      supportsRemoteAiDictation: capabilities.contains(
+        aleraRuntimeHostRemoteAiDictationCapability,
+      ),
     );
   } catch (_) {
     return null;

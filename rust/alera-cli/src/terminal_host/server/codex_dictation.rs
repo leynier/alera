@@ -22,8 +22,16 @@ pub(super) async fn transcribe(
     cwd: &Path,
     model: Option<&str>,
     timeout: Duration,
+    mut cancel: tokio::sync::oneshot::Receiver<()>,
 ) -> HostResult<CodexDictationResult> {
-    let chunks = read_audio_chunks(audio_path).await?;
+    let deadline = tokio::time::Instant::now() + timeout;
+    let chunks = tokio::select! {
+        _ = &mut cancel => return Err(HostError::state("dictation was cancelled")),
+        _ = tokio::time::sleep_until(deadline) => {
+            return Err(HostError::state("Codex subscription dictation timed out"));
+        }
+        result = read_audio_chunks(audio_path) => result?,
+    };
     let duration_millis =
         ((chunks.sample_count as u128 * 1000) / 16_000).min(i64::MAX as u128) as i64;
     let thread_params = json!({
@@ -32,7 +40,13 @@ pub(super) async fn transcribe(
         "sandbox": "readOnly",
         "ephemeral": true,
     });
-    let thread = server.request("thread/start", thread_params).await?;
+    let thread = tokio::select! {
+        _ = &mut cancel => return Err(HostError::state("dictation was cancelled")),
+        _ = tokio::time::sleep_until(deadline) => {
+            return Err(HostError::state("Codex subscription dictation timed out"));
+        }
+        result = server.request("thread/start", thread_params) => result?,
+    };
     let thread_id = thread
         .pointer("/thread/id")
         .or_else(|| thread.get("threadId"))
@@ -44,22 +58,30 @@ pub(super) async fn transcribe(
         .session_state
         .begin_realtime_transcript(&thread_id)
         .await;
-    let result = transcribe_on_thread(
-        server,
-        &thread_id,
-        chunks.frames,
-        transcript,
-        model,
-        timeout,
-    )
-    .await;
+    let operation = transcribe_on_thread(server, &thread_id, chunks.frames, transcript, model);
+    let result = tokio::select! {
+        _ = &mut cancel => Err(HostError::state("dictation was cancelled")),
+        _ = tokio::time::sleep_until(deadline) => {
+            Err(HostError::state("Codex subscription dictation timed out"))
+        }
+        result = operation => result,
+    };
     server
         .session_state
         .remove_realtime_transcript(&thread_id)
         .await;
-    let _ = server
-        .request("thread/delete", json!({"threadId": thread_id}))
+    if result.is_err() {
+        let _ = tokio::time::timeout(
+            Duration::from_secs(3),
+            server.request("thread/realtime/stop", json!({"threadId": &thread_id})),
+        )
         .await;
+    }
+    let _ = tokio::time::timeout(
+        Duration::from_secs(3),
+        server.request("thread/delete", json!({"threadId": &thread_id})),
+    )
+    .await;
     result.map(|text| CodexDictationResult {
         text,
         duration_millis,
@@ -72,7 +94,6 @@ async fn transcribe_on_thread(
     frames: Vec<String>,
     transcript: tokio::sync::oneshot::Receiver<HostResult<String>>,
     model: Option<&str>,
-    timeout: Duration,
 ) -> HostResult<String> {
     let start_params = realtime_start_params(thread_id, model);
     server
@@ -101,9 +122,8 @@ async fn transcribe_on_thread(
     server
         .request("thread/realtime/stop", json!({"threadId": thread_id}))
         .await?;
-    tokio::time::timeout(timeout, transcript)
+    transcript
         .await
-        .map_err(|_| HostError::state("Codex subscription dictation timed out"))?
         .map_err(|_| HostError::state("Codex subscription dictation ended unexpectedly"))?
 }
 

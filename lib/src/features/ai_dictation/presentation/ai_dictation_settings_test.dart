@@ -11,10 +11,12 @@ class AiDictationSettingsTest extends StatefulWidget {
   const AiDictationSettingsTest({
     super.key,
     required this.settings,
+    required this.remoteSupported,
     this.groupKey,
   });
 
   final AiDictationSettings settings;
+  final bool remoteSupported;
   final GlobalKey? groupKey;
 
   @override
@@ -35,7 +37,7 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = _canTest(widget.settings);
+    final enabled = _canTest(widget.settings, widget.remoteSupported);
     return KeyedSubtree(
       key: widget.groupKey,
       child: AleraSettingsGroup(
@@ -45,7 +47,11 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
         children: <Widget>[
           AleraSettingRow(
             title: 'Test Transcript',
-            description: _testDescription(widget.settings, enabled),
+            description: _testDescription(
+              widget.settings,
+              enabled,
+              widget.remoteSupported,
+            ),
             child: AiDictationTarget(
               controller: _controller,
               focusNode: _focusNode,
@@ -69,22 +75,35 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
   }
 }
 
-bool _canTest(AiDictationSettings settings) {
+bool _canTest(AiDictationSettings settings, bool remoteSupported) {
   if (!settings.enabled) return false;
   final remote =
       settings.transcriptionEngine ==
           AiDictationTranscriptionEngine.codexSubscription ||
       settings.transcriptionEngine ==
           AiDictationTranscriptionEngine.openAiCompatible;
+  if (remote && !remoteSupported) return false;
   return !remote ||
       settings.remoteConsentVersion == aiDictationRemoteConsentVersion;
 }
 
-String _testDescription(AiDictationSettings settings, bool enabled) {
+String _testDescription(
+  AiDictationSettings settings,
+  bool enabled,
+  bool remoteSupported,
+) {
   if (!settings.enabled) {
     return 'Enable AI Dictation before testing.';
   }
   if (!enabled) {
+    final remote =
+        settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.codexSubscription ||
+        settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.openAiCompatible;
+    if (remote && !remoteSupported) {
+      return 'Restart Alera to update the runtime before testing remote transcription.';
+    }
     return 'Allow remote audio processing before testing this engine.';
   }
   return 'Select the microphone, speak, then select Stop Dictation.';

@@ -897,10 +897,6 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.cancel_ai_text_generation(payload)
             }
-            "aiDictation.transcribe" => {
-                self.require_authenticated_local_request(client_id, request_type)?;
-                self.transcribe_ai_dictation(payload).await
-            }
             "mobile.aiDictation.transcribe" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
@@ -918,7 +914,7 @@ impl ServerActor {
             }
             "aiDictation.credentials.status" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
-                self.ai_dictation_credential_status().await
+                self.ai_dictation_credential_status(payload).await
             }
             "aiDictation.credentials.save" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
