@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -196,6 +197,38 @@ class _CursorGlyph extends StatelessWidget {
               : EdgeInsets.zero,
           child: glyph,
         ),
+      ),
+    );
+  }
+}
+
+class ToolbarCornerRow extends StatelessWidget {
+  const ToolbarCornerRow({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final TerminalToolbarCorner value;
+  final ValueChanged<TerminalToolbarCorner> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraSettingRow(
+      title: 'Toolbar Corner',
+      description:
+          'Where the pulse, composer, and refresh buttons sit on the terminal tab.',
+      child: AleraDropdownField<TerminalToolbarCorner>(
+        key: ValueKey<String>('terminal-toolbar-corner-${value.name}'),
+        value: value,
+        entries: <AleraDropdownFieldEntry<TerminalToolbarCorner>>[
+          for (final corner in TerminalToolbarCorner.values)
+            AleraDropdownFieldEntry<TerminalToolbarCorner>(
+              value: corner,
+              label: corner.label,
+            ),
+        ],
+        onChanged: onChanged,
       ),
     );
   }

@@ -11,9 +11,9 @@ const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
 const String _aleraCliSkillAgentName = 'codex';
 const String aleraCliSkillName = 'alera-cli';
 const String aleraOrchestrationSkillName = 'alera-orchestration';
-const String aleraComputerUseSkillName = 'computer-use';
+const String aleraComputerUseSkillName = 'alera-computer-use';
 const String aleraEmulatorSkillName = 'alera-emulator';
-const String aleraAgentCanvasSkillName = 'agent-canvas';
+const String aleraAgentCanvasSkillName = 'alera-agent-canvas';
 
 enum AleraAgentSkill {
   cli(aleraCliSkillName),

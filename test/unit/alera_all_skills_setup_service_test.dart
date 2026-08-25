@@ -43,7 +43,7 @@ void main() {
     expect(result.needsAttention, isTrue);
     expect(result.succeededCount, 4);
     expect(result.summary, '4 of 5 Alera skills installed / updated');
-    expect(result.detail, contains('computer-use'));
+    expect(result.detail, contains('alera-computer-use'));
     expect(result.detail, contains('installer unavailable'));
     expect(result.detail, contains('alera-emulator'));
   });

@@ -1,5 +1,5 @@
 ---
-name: computer-use
+name: alera-computer-use
 description: >-
   Use when reading or operating local desktop application windows through
   Alera: listing apps and windows, reading a window's accessibility tree,

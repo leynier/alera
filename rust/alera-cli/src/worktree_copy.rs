@@ -1,4 +1,5 @@
-//! Applies a project's `worktree.copy` rules into a new linked workspace.
+//! Applies copy actions into a new linked workspace: explicit `worktree.copy`
+//! rules and gitignored matches from `.worktreeinclude`.
 //!
 //! Every path is validated rather than trusted: symlinks are refused, and both
 //! the source and the destination must stay inside their own root. Split out of

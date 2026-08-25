@@ -46,6 +46,7 @@ mod workspace_pinning;
 mod workspace_registration;
 mod workspace_setup_command;
 mod worktree_copy;
+mod worktree_include;
 mod worktree_setup;
 mod worktree_setup_script;
 use std::future::Future;

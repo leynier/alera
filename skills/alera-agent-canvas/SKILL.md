@@ -1,5 +1,5 @@
 ---
-name: agent-canvas
+name: alera-agent-canvas
 description: Publish structured Agent Canvas updates for the current Alera terminal and wait for durable decisions.
 metadata:
   version: 1
