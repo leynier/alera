@@ -45,8 +45,12 @@ fn the_guide_and_the_binary_offer_the_same_verbs() {
         .output()
         .expect("the alera binary runs");
     let help = String::from_utf8_lossy(&help.stdout);
-    let guide = std::fs::read_to_string(repository_path(&["skills", "alera-computer-use", "SKILL.md"]))
-        .expect("guide is readable");
+    let guide = std::fs::read_to_string(repository_path(&[
+        "skills",
+        "alera-computer-use",
+        "SKILL.md",
+    ]))
+    .expect("guide is readable");
 
     for verb in [
         "capabilities",

@@ -192,7 +192,10 @@ void main() {
     await tester.tap(find.text('Install / Update'));
     await tester.pumpAndSettle();
 
-    expect(runtime.lastTab?.initialCommand, contains('--skill alera-computer-use'));
+    expect(
+      runtime.lastTab?.initialCommand,
+      contains('--skill alera-computer-use'),
+    );
   });
 
   testWidgets('Agent Canvas control installs the Agent Canvas skill', (
