@@ -8,9 +8,10 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{oneshot, Mutex};
 
 use super::codex_app_server::CodexAppServer;
+use crate::terminal_host::host_error::{HostError, HostResult};
 
 const MAX_CACHED_CATALOGUES: usize = 64;
 
@@ -34,6 +35,7 @@ impl CodexThreadHydration {
 pub(super) struct CodexAppServerSessionState {
     hydrated_tabs: Mutex<HashMap<String, CodexThreadHydration>>,
     catalogue_responses: Mutex<HashMap<String, Value>>,
+    realtime_transcripts: Mutex<HashMap<String, oneshot::Sender<HostResult<String>>>>,
 }
 
 impl CodexAppServerSessionState {
@@ -87,6 +89,67 @@ impl CodexAppServerSessionState {
             .lock()
             .await
             .retain(|key, _| !key.starts_with(prefix));
+    }
+
+    pub(super) async fn begin_realtime_transcript(
+        &self,
+        thread_id: &str,
+    ) -> oneshot::Receiver<HostResult<String>> {
+        let (sender, receiver) = oneshot::channel();
+        self.realtime_transcripts
+            .lock()
+            .await
+            .insert(thread_id.to_string(), sender);
+        receiver
+    }
+
+    pub(super) async fn remove_realtime_transcript(&self, thread_id: &str) {
+        self.realtime_transcripts.lock().await.remove(thread_id);
+    }
+
+    pub(super) async fn consume_realtime_message(&self, message: &Value) -> bool {
+        let thread_id = message
+            .pointer("/params/threadId")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty());
+        let Some(thread_id) = thread_id else {
+            return false;
+        };
+        let method = message.get("method").and_then(Value::as_str);
+        let mut transcripts = self.realtime_transcripts.lock().await;
+        if !transcripts.contains_key(thread_id) {
+            return false;
+        }
+        let result = match method {
+            Some("thread/realtime/transcript/done")
+                if message.pointer("/params/role").and_then(Value::as_str) == Some("user") =>
+            {
+                let text = message
+                    .pointer("/params/text")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+                    .ok_or_else(|| HostError::state("Codex returned no transcription"));
+                Some(text)
+            }
+            Some("thread/realtime/error") => Some(Err(HostError::state(
+                message
+                    .pointer("/params/message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Codex realtime dictation failed"),
+            ))),
+            Some("thread/realtime/closed") => Some(Err(HostError::state(
+                "Codex realtime dictation closed before returning a transcript",
+            ))),
+            _ => None,
+        };
+        if let Some(result) = result {
+            if let Some(sender) = transcripts.remove(thread_id) {
+                let _ = sender.send(result);
+            }
+        }
+        true
     }
 }
 
@@ -301,5 +364,45 @@ mod tests {
 
         let responses = state.catalogue_responses.lock().await;
         assert_eq!(responses.len(), MAX_CACHED_CATALOGUES);
+    }
+
+    #[tokio::test]
+    async fn realtime_user_transcript_completes_the_matching_waiter() {
+        let state = CodexAppServerSessionState::default();
+        let transcript = state.begin_realtime_transcript("thread-dictation").await;
+
+        assert!(
+            state
+                .consume_realtime_message(&json!({
+                    "method": "thread/realtime/transcript/done",
+                    "params": {
+                        "threadId": "thread-dictation",
+                        "role": "user",
+                        "text": "hello from Codex",
+                    }
+                }))
+                .await
+        );
+        assert_eq!(
+            transcript.await.unwrap().unwrap(),
+            "hello from Codex".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn unrelated_realtime_messages_are_not_consumed() {
+        let state = CodexAppServerSessionState::default();
+        assert!(
+            !state
+                .consume_realtime_message(&json!({
+                    "method": "thread/realtime/transcript/done",
+                    "params": {
+                        "threadId": "ordinary-thread",
+                        "role": "user",
+                        "text": "hello",
+                    }
+                }))
+                .await
+        );
     }
 }

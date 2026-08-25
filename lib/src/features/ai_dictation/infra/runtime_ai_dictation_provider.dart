@@ -14,15 +14,27 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
 
   @override
   Future<AiDictationResult> transcribe(AiDictationRequest request) async {
+    final engine = request.remoteEngine;
+    if (engine == null) {
+      throw const AiDictationException(
+        AiDictationErrorKind.invalidRequest,
+        'A remote dictation engine is required.',
+      );
+    }
     try {
       final value = await _client
           .runtimeRequest('aiDictation.transcribe', <String, Object?>{
             'requestId': request.requestId,
             'audioPath': request.audioPath,
+            'engine': switch (engine) {
+              AiDictationRemoteEngine.codexSubscription => 'codexSubscription',
+              AiDictationRemoteEngine.openAiCompatible => 'openAiCompatible',
+            },
+            'baseUrl': request.providerBaseUrl,
             'modelId': request.providerModel,
-            'modelPath': request.modelPath,
             'language': request.language,
             'initialPrompt': request.initialPrompt,
+            'timeoutSeconds': request.timeout?.inSeconds,
           }, request.timeout);
       if (value is! Map) {
         throw const FormatException('Invalid runtime dictation response.');
@@ -33,7 +45,7 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
       }
       return AiDictationResult(
         text: text.trim(),
-        providerId: id,
+        providerId: value['providerId'] as String? ?? id,
         elapsed: Duration(milliseconds: (value['elapsedMillis'] as int?) ?? 0),
         duration: Duration(
           milliseconds: (value['durationMillis'] as int?) ?? 0,

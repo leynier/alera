@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_credential_store.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
 import 'package:flutter/material.dart';
@@ -71,12 +72,64 @@ void main() {
     expect(find.text('Use Model'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('configures and securely saves an OpenAI-compatible token', (
+    tester,
+  ) async {
+    final credentials = _FakeAiDictationCredentialStore();
+    await _pumpPane(
+      tester,
+      _FakeAiDictationModelStore(),
+      credentials: credentials,
+      settings: AiDictationSettings.defaults.copyWith(
+        enabled: true,
+        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        remoteConsentVersion: 1,
+      ),
+    );
+
+    expect(find.text('Base URL'), findsOneWidget);
+    expect(find.text('Model'), findsWidgets);
+    expect(find.text('API Token'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ai-dictation-api-token')),
+      'test-token',
+    );
+    await tester.tap(find.text('Save Token'));
+    await tester.pumpAndSettle();
+
+    expect(credentials.savedTokens, <String>['test-token']);
+    expect(find.text('Replace Token'), findsOneWidget);
+  });
+
+  testWidgets('shows an in-settings transcript test using current settings', (
+    tester,
+  ) async {
+    await _pumpPane(tester, _FakeAiDictationModelStore());
+
+    expect(find.text('Test AI Dictation'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ai-dictation-test-transcript')),
+      findsOneWidget,
+    );
+    expect(find.text('Enable AI Dictation before testing.'), findsOneWidget);
+  });
 }
 
-Future<void> _pumpPane(WidgetTester tester, AiDictationModelStore store) async {
+Future<void> _pumpPane(
+  WidgetTester tester,
+  AiDictationModelStore store, {
+  AiDictationCredentialStore? credentials,
+  AiDictationSettings settings = AiDictationSettings.defaults,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [aiDictationModelStoreProvider.overrideWithValue(store)],
+      overrides: [
+        aiDictationModelStoreProvider.overrideWithValue(store),
+        aiDictationCredentialStoreProvider.overrideWithValue(
+          credentials ?? _FakeAiDictationCredentialStore(),
+        ),
+      ],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
         home: Scaffold(
@@ -84,7 +137,7 @@ Future<void> _pumpPane(WidgetTester tester, AiDictationModelStore store) async {
             width: 1200,
             height: 1200,
             child: AiDictationSettingsPane(
-              settings: AiDictationSettings.defaults,
+              settings: settings,
               onChanged: (_) {},
             ),
           ),
@@ -109,6 +162,25 @@ Future<void> _closePane(
     ),
   );
   await tester.pump();
+}
+
+class _FakeAiDictationCredentialStore implements AiDictationCredentialStore {
+  bool configured = false;
+  final List<String> savedTokens = <String>[];
+
+  @override
+  Future<bool> hasToken() async => configured;
+
+  @override
+  Future<void> saveToken(String token) async {
+    savedTokens.add(token);
+    configured = true;
+  }
+
+  @override
+  Future<void> clearToken() async {
+    configured = false;
+  }
 }
 
 class _FakeAiDictationModelStore implements AiDictationModelStore {

@@ -36,6 +36,9 @@ class AleraTextField extends StatelessWidget {
     this.fillColor,
     this.readOnly = false,
     this.enabled,
+    this.obscureText = false,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
     this.textActionsEnabled = true,
     this.minLines,
     this.maxLines = 1,
@@ -69,6 +72,9 @@ class AleraTextField extends StatelessWidget {
   final Color? fillColor;
   final bool readOnly;
   final bool? enabled;
+  final bool obscureText;
+  final bool enableSuggestions;
+  final bool autocorrect;
 
   /// Keeps this field's native editing menu without the Text Actions entry.
   final bool textActionsEnabled;
@@ -104,6 +110,9 @@ class AleraTextField extends StatelessWidget {
         contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
+        obscureText: obscureText,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         minLines: minLines,
         maxLines: maxLines,
         decoration: InputDecoration(
@@ -132,6 +141,9 @@ class AleraTextField extends StatelessWidget {
         contextMenuBuilder: contextMenuBuilder,
         readOnly: readOnly,
         enabled: enabled,
+        obscureText: obscureText,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         minLines: minLines,
         maxLines: maxLines,
         textAlignVertical: textAlignVertical ?? TextAlignVertical.center,

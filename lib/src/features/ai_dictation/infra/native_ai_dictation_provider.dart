@@ -10,13 +10,20 @@ class NativeAiDictationProvider implements AiDictationProvider {
 
   @override
   Future<AiDictationResult> transcribe(AiDictationRequest request) async {
+    final modelPath = request.modelPath;
+    if (modelPath == null || modelPath.trim().isEmpty) {
+      throw const AiDictationException(
+        AiDictationErrorKind.invalidRequest,
+        'A local Whisper model is required for local transcription.',
+      );
+    }
     final stopwatch = Stopwatch()..start();
     try {
       final result = await native.transcribeWhisper(
         request: native.AiDictationRequest(
           requestId: request.requestId,
           audioPath: request.audioPath,
-          modelPath: request.modelPath,
+          modelPath: modelPath,
           language: request.language,
           initialPrompt: request.initialPrompt,
         ),

@@ -11,6 +11,8 @@ enum AiDictationFallbackProvider { openAiCompatible }
 @MappableEnum()
 enum AiDictationTranscriptionEngine {
   localWhisper,
+  codexSubscription,
+  openAiCompatible,
   systemOnDevice,
   systemRecognition,
 }
@@ -29,8 +31,9 @@ class AiDictationSettings with AiDictationSettingsMappable {
     this.localModelId = 'whisper-cpp-base',
     this.hostFallbackEnabled = true,
     this.providerFallbackEnabled = false,
-    this.remoteBaseUrl,
-    this.remoteModel,
+    this.remoteBaseUrl = 'https://api.openai.com/v1',
+    this.remoteModel = 'gpt-4o-mini-transcribe',
+    this.codexRealtimeModel,
     this.remoteProvider = AiDictationFallbackProvider.openAiCompatible,
     this.timeoutSeconds = 60,
     this.remoteConsentVersion,
@@ -47,6 +50,7 @@ class AiDictationSettings with AiDictationSettingsMappable {
   final bool providerFallbackEnabled;
   final String? remoteBaseUrl;
   final String? remoteModel;
+  final String? codexRealtimeModel;
   final AiDictationFallbackProvider remoteProvider;
   final int timeoutSeconds;
   final int? remoteConsentVersion;

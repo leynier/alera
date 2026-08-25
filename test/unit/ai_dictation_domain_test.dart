@@ -25,6 +25,28 @@ void main() {
       AiDictationTranscriptionEngine.localWhisper,
     );
     expect(settings.rewriteMode, AiDictationRewriteMode.off);
+    expect(
+      AiDictationSettings.defaults.remoteBaseUrl,
+      'https://api.openai.com/v1',
+    );
+    expect(AiDictationSettings.defaults.remoteModel, 'gpt-4o-mini-transcribe');
+  });
+
+  test('decodes remote transcription engine configuration', () {
+    final settings = AiDictationSettings.fromJson(<String, Object?>{
+      'enabled': true,
+      'transcriptionEngine': 'codexSubscription',
+      'codexRealtimeModel': 'realtime-model',
+      'remoteConsentVersion': 1,
+    });
+
+    expect(
+      settings.transcriptionEngine,
+      AiDictationTranscriptionEngine.codexSubscription,
+    );
+    expect(settings.codexRealtimeModel, 'realtime-model');
+    expect(settings.remoteConsentVersion, 1);
+    expect(settings.toJson(), isNot(contains('providerApiKey')));
   });
 
   test('exposes selectable verified local Whisper models', () {

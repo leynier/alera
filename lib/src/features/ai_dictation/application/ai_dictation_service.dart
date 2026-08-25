@@ -24,6 +24,7 @@ class AiDictationService extends ChangeNotifier {
     required AiDictationSettings Function() settings,
     required AiDictationTargetRegistry targets,
     required AiDictationProvider provider,
+    required AiDictationProvider remoteProvider,
     required AiDictationModelStore modelStore,
     required AiDictationSpeechProcessor speechProcessor,
     SystemAiDictationRecognizer? systemRecognizer,
@@ -31,6 +32,7 @@ class AiDictationService extends ChangeNotifier {
   }) : _settings = settings,
        _targets = targets,
        _provider = provider,
+       _remoteProvider = remoteProvider,
        _modelStore = modelStore,
        _speechProcessor = speechProcessor,
        _systemRecognizer = systemRecognizer ?? SystemAiDictationRecognizer(),
@@ -39,6 +41,7 @@ class AiDictationService extends ChangeNotifier {
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;
   final AiDictationProvider _provider;
+  final AiDictationProvider _remoteProvider;
   final AiDictationModelStore _modelStore;
   final AiDictationSpeechProcessor _speechProcessor;
   final SystemAiDictationRecognizer _systemRecognizer;
@@ -48,6 +51,7 @@ class AiDictationService extends ChangeNotifier {
   String? _audioPath;
   String? _requestId;
   String? _processingOperationId;
+  AiDictationProvider? _activeProvider;
   String? _lastWarning;
   AiDictationStage _stage = AiDictationStage.idle;
   Future<AiDictationResult?>? _systemFinalization;
@@ -84,16 +88,27 @@ class AiDictationService extends ChangeNotifier {
     }
     _lastWarning = null;
     _activeTargetId = targetId;
-    if (settings.transcriptionEngine !=
-        AiDictationTranscriptionEngine.localWhisper) {
+    if (settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.systemOnDevice ||
+        settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.systemRecognition) {
       await _startSystemRecognition(settings, targetId);
       return;
     }
-    if (!await _modelStore.isInstalled(settings.localModelId)) {
+    if (settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.localWhisper &&
+        !await _modelStore.isInstalled(settings.localModelId)) {
       _activeTargetId = null;
       throw const AiDictationException(
         AiDictationErrorKind.modelUnavailable,
         'Download the selected Whisper model in Settings before recording.',
+      );
+    }
+    if (_usesRemoteAudio(settings) && settings.remoteConsentVersion != 1) {
+      _activeTargetId = null;
+      throw const AiDictationException(
+        AiDictationErrorKind.permissionDenied,
+        'Allow remote audio processing in AI Dictation settings first.',
       );
     }
     final recorder = _recorder ??= AudioRecorder();
@@ -184,10 +199,10 @@ class AiDictationService extends ChangeNotifier {
       }
       return _finalizeSystem(targetId, text);
     }
-    return _stopWhisper(targetId);
+    return _stopRecordedAudio(targetId);
   }
 
-  Future<AiDictationResult?> _stopWhisper(String? targetId) async {
+  Future<AiDictationResult?> _stopRecordedAudio(String? targetId) async {
     final recorder = _recorder;
     final path = await recorder?.stop() ?? _audioPath;
     _stage = AiDictationStage.transcribing;
@@ -203,13 +218,36 @@ class AiDictationService extends ChangeNotifier {
     _requestId = requestId;
     try {
       final settings = _settings();
-      final result = await _provider.transcribe(
+      final provider =
+          settings.transcriptionEngine ==
+              AiDictationTranscriptionEngine.localWhisper
+          ? _provider
+          : _remoteProvider;
+      _activeProvider = provider;
+      final result = await provider.transcribe(
         AiDictationRequest(
           requestId: requestId,
           audioPath: path,
-          modelPath: await _modelStore.modelPath(settings.localModelId),
+          modelPath:
+              settings.transcriptionEngine ==
+                  AiDictationTranscriptionEngine.localWhisper
+              ? await _modelStore.modelPath(settings.localModelId)
+              : null,
           language: settings.language,
           initialPrompt: _targets.targetFor(targetId)?.initialPrompt,
+          remoteEngine: switch (settings.transcriptionEngine) {
+            AiDictationTranscriptionEngine.codexSubscription =>
+              AiDictationRemoteEngine.codexSubscription,
+            AiDictationTranscriptionEngine.openAiCompatible =>
+              AiDictationRemoteEngine.openAiCompatible,
+            _ => null,
+          },
+          providerBaseUrl: settings.remoteBaseUrl,
+          providerModel:
+              settings.transcriptionEngine ==
+                  AiDictationTranscriptionEngine.codexSubscription
+              ? settings.codexRealtimeModel
+              : settings.remoteModel,
           timeout: Duration(seconds: settings.timeoutSeconds),
         ),
       );
@@ -295,7 +333,9 @@ class AiDictationService extends ChangeNotifier {
     if (_processingOperationId case final operationId?) {
       await _speechProcessor.cancel(operationId);
     }
-    if (_requestId case final requestId?) await _provider.cancel(requestId);
+    if (_requestId case final requestId?) {
+      await (_activeProvider ?? _provider).cancel(requestId);
+    }
     if (_audioPath == null) {
       await _systemRecognizer.cancel();
     } else if (_stage == AiDictationStage.recording) {
@@ -313,10 +353,17 @@ class AiDictationService extends ChangeNotifier {
     _audioPath = null;
     _requestId = null;
     _processingOperationId = null;
+    _activeProvider = null;
     _systemFinalization = null;
     _stage = AiDictationStage.idle;
     notifyListeners();
   }
+
+  bool _usesRemoteAudio(AiDictationSettings settings) =>
+      settings.transcriptionEngine ==
+          AiDictationTranscriptionEngine.codexSubscription ||
+      settings.transcriptionEngine ==
+          AiDictationTranscriptionEngine.openAiCompatible;
 
   @override
   void dispose() {
