@@ -12,6 +12,8 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/starlight": "^0.41.8",
+    "@astrojs/starlight-tailwind": "^5.0.0",
     "@vercel/analytics": "^2.0.1",
     "astro": "^7.1.6"
   },

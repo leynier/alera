@@ -1,0 +1,74 @@
+---
+title: Install
+description: Install Alera on Linux, macOS, and Windows, or run it from source.
+---
+
+Pick the path for your OS, then come back to [Get Started](/docs). The [download page](/download) has the same commands plus direct artifacts for the current release.
+
+## Linux
+
+Alera installs from a signed package repository so `libmpv` and the rest of the dependency closure resolve through your package manager. The same command installs and updates:
+
+```bash
+curl -fsSL https://alera.build/install.sh | sh
+```
+
+The script detects apt or dnf, verifies the repository signing key against a fingerprint pinned inside the script, configures the repository, and installs the package. Pass `--dry-run` to see what it would do, or `--repo-only` to configure the repository without installing.
+
+Requires x86_64 and Ubuntu 24.04 or newer, Debian 13 or newer, or Fedora. On RHEL, Rocky, and AlmaLinux enable [RPM Fusion](https://rpmfusion.org/) first, which is where `mpv-libs` comes from. openSUSE is not supported yet.
+
+On a distribution with no package of ours, download the Linux tarball from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it somewhere you own, such as `~/.local/share/alera`. Install `libmpv`, `webkit2gtk-4.1`, `gtk3`, and the Vulkan loader through your own package manager first. Alera updates a tarball installation in place; a repository installation keeps updating through apt or dnf.
+
+Manual repository setup, the signing-key fingerprint, and current artifact names live on the [download page](/download).
+
+## macOS
+
+```bash
+brew tap leynier/tap
+brew install --cask alera
+```
+
+Requires Apple Silicon and macOS 14 or newer. The cask clears the quarantine attribute after installing, because the macOS build is not notarized yet.
+
+You can also download the macOS tarball from [GitHub Releases](https://github.com/leynier/alera/releases) and move `Alera.app` to `/Applications`.
+
+## Windows
+
+```powershell
+scoop bucket add leynier https://github.com/leynier/scoop-bucket
+scoop install leynier/alera
+```
+
+```powershell
+choco install alera
+```
+
+Requires 64-bit Windows. Or download the Windows archive from [GitHub Releases](https://github.com/leynier/alera/releases) and extract it anywhere.
+
+## Updating
+
+Alera updates itself only when no package manager owns the installation. Under Homebrew or Scoop, **Settings → Updates** runs that manager's own upgrade and reopens Alera. Under Chocolatey and on Linux it shows the command to run, because those upgrades need elevation or a dependency resolution Alera must not do itself.
+
+## Mobile
+
+The Android companion is a separate app. Download the universal APK from the [mobile releases](https://github.com/leynier/alera/releases?q=mobile&expanded=true), then [pair it with your runtime](/docs/mobile). It is a window into the host, not a phone IDE.
+
+## From source
+
+Alera is a Flutter desktop app. You need Flutter 3.44.8 or newer (Dart 3.12.1 or newer; CI is pinned to Flutter 3.44.8), a Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler for your platform.
+
+```bash
+git clone https://github.com/leynier/alera.git
+cd alera
+make init-submodules
+flutter pub get
+flutter run -d linux   # or macos / windows
+```
+
+Linux source builds also need the system development packages listed in [Contributing](https://github.com/leynier/alera/blob/main/.github/CONTRIBUTING.md). On Windows, run `pwsh -File tool/development/setup_windows.ps1 -InstallMissingTools` first.
+
+A local build runs as **Alera Dev** by default so it can coexist with an installed release without sharing user data.
+
+:::note
+Free code signing provided by SignPath.io, certificate by SignPath Foundation. Linux packages are distributed through a signed repository. Windows and macOS builds are not signed yet, so SmartScreen and Gatekeeper may warn on first launch.
+:::

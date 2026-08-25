@@ -1,0 +1,49 @@
+---
+title: Get Started
+description: Learn how to install Alera and run your first CLI coding agent.
+---
+
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
+
+Alera is a native workbench for CLI coding agents. You run Claude Code, Codex, Amp, Antigravity, OpenCode, Cursor, Copilot, Pi, Grok Build, fx, or any other terminal agent in a real PTY, each in its own Git worktree when the project is Git-backed.
+
+It is not another AI IDE and it does not wrap a single chat backend. The desktop app is Flutter. The runtime host that owns your terminals is Rust. There is no Electron and no bundled Chromium.
+
+<LinkButton href="/download" variant="primary">Download Alera</LinkButton>
+<LinkButton href="/docs/install" variant="minimal">See Install Options</LinkButton>
+
+## First session
+
+1. [Install Alera](/docs/install) for your platform, then open the app.
+2. Register a [project](/docs/projects): an existing local folder, or a Git clone from a URL.
+3. For Git-backed projects, create a [linked worktree workspace](/docs/worktrees) for the task you want to run. Non-Git folders get a single primary workspace.
+4. Open a terminal tab and launch an [agent CLI](/docs/agents) the same way you would in any shell.
+
+That is the whole loop. Everything else in these docs is how to keep several of those loops running at once without colliding.
+
+## What to read next
+
+<CardGrid stagger>
+  <Card title="Projects And Workspaces" icon="open-book">
+    [How Alera models](/docs/projects) a folder, a working context, and a Git worktree.
+  </Card>
+  <Card title="CLI Agents" icon="laptop">
+    [First-class integrations](/docs/agents), plus the rule that any CLI still runs.
+  </Card>
+  <Card title="Alera.toml" icon="document">
+    [Copy ignored files](/docs/alera-toml) and run setup when a new worktree appears.
+  </Card>
+  <Card title="Orchestration" icon="puzzle">
+    [Coordinate several agents](/docs/orchestration) in one workspace with a durable run.
+  </Card>
+</CardGrid>
+
+## What these docs cover
+
+These pages are for people *using* Alera: install, the workbench, agents, and the companion app. They describe behavior that ships today.
+
+Contributor internals (architecture, CI, design-system rules, release signing) stay in the [GitHub repository](https://github.com/leynier/alera), not here.
+
+:::note
+Alera is in public beta. The core workflow is shipping: projects, worktree workspaces, multi-agent terminals, persistent sessions, live activity tracking, visual source control, pull requests and checks, and agent quota tracking.
+:::
