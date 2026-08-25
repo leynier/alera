@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/ai_dictation/infra/direct_ai_dictation_credential_store.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_credential_store.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
@@ -90,7 +91,7 @@ void main() {
 
     expect(find.text('Base URL'), findsOneWidget);
     expect(find.text('Model'), findsWidgets);
-    expect(find.text('API Token'), findsOneWidget);
+    expect(find.text('Runtime API Token'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey<String>('ai-dictation-api-token')),
       'test-token',
@@ -138,12 +139,46 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('allows direct OpenAI configuration without runtime support', (
+    tester,
+  ) async {
+    final storage = _FakeAiDictationSecureStorage();
+    await _pumpPane(
+      tester,
+      _FakeAiDictationModelStore(),
+      directCredentials: DirectAiDictationCredentialStore(storage: storage),
+      remoteSupported: false,
+      settings: AiDictationSettings.defaults.copyWith(
+        enabled: true,
+        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        remoteExecution: AiDictationRemoteExecution.thisDevice,
+        remoteConsentVersion: 1,
+      ),
+    );
+
+    expect(find.text('This Device API Token'), findsOneWidget);
+    expect(find.text('Runtime Update Required'), findsNothing);
+    expect(
+      find.text('Select the microphone, speak, then select Stop Dictation.'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ai-dictation-api-token')),
+      'direct-token',
+    );
+    await _tapVisible(tester, find.text('Save Token'));
+    await tester.pumpAndSettle();
+
+    expect(storage.values.values.single, contains('direct-token'));
+  });
 }
 
 Future<void> _pumpPane(
   WidgetTester tester,
   AiDictationModelStore store, {
   AiDictationCredentialStore? credentials,
+  DirectAiDictationCredentialStore? directCredentials,
   AiDictationSettings settings = AiDictationSettings.defaults,
   bool remoteSupported = true,
 }) async {
@@ -153,6 +188,12 @@ Future<void> _pumpPane(
         aiDictationModelStoreProvider.overrideWithValue(store),
         aiDictationCredentialStoreProvider.overrideWithValue(
           credentials ?? _FakeAiDictationCredentialStore(),
+        ),
+        directAiDictationCredentialStoreProvider.overrideWithValue(
+          directCredentials ??
+              DirectAiDictationCredentialStore(
+                storage: _FakeAiDictationSecureStorage(),
+              ),
         ),
         remoteAiDictationSupportedProvider.overrideWith(
           (ref) async => remoteSupported,
@@ -197,6 +238,23 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
   await tester.pump();
   await tester.tap(finder);
+}
+
+class _FakeAiDictationSecureStorage implements AiDictationSecureStorage {
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<void> delete(String key) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
 }
 
 class _FakeAiDictationCredentialStore implements AiDictationCredentialStore {

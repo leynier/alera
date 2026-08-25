@@ -154,6 +154,57 @@ final class AiDictationCredentialStoreProvider
 String _$aiDictationCredentialStoreHash() =>
     r'c066178e704125decc9c8a926d5bb6382510a3b4';
 
+@ProviderFor(directAiDictationCredentialStore)
+final directAiDictationCredentialStoreProvider =
+    DirectAiDictationCredentialStoreProvider._();
+
+final class DirectAiDictationCredentialStoreProvider
+    extends
+        $FunctionalProvider<
+          DirectAiDictationCredentialStore,
+          DirectAiDictationCredentialStore,
+          DirectAiDictationCredentialStore
+        >
+    with $Provider<DirectAiDictationCredentialStore> {
+  DirectAiDictationCredentialStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'directAiDictationCredentialStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$directAiDictationCredentialStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<DirectAiDictationCredentialStore> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  DirectAiDictationCredentialStore create(Ref ref) {
+    return directAiDictationCredentialStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DirectAiDictationCredentialStore value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DirectAiDictationCredentialStore>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$directAiDictationCredentialStoreHash() =>
+    r'161d82b88cee5f702644cdf37cc0479f87df774d';
+
 @ProviderFor(remoteAiDictationSupported)
 final remoteAiDictationSupportedProvider =
     RemoteAiDictationSupportedProvider._();
@@ -235,4 +286,4 @@ final class AiDictationServiceProvider
 }
 
 String _$aiDictationServiceHash() =>
-    r'3abfd1d8a3459a4073705ce028daeb82f6941da2';
+    r'8513a41762901f567b7eff5da5fa628e285f8126';
