@@ -337,6 +337,7 @@ final class SocketTerminalHostClient
     return next;
   }
 
+  @override
   Future<_TerminalHostConnection> _connectRuntime({
     bool requireOrchestration = false,
     bool launchIfMissing = true,
