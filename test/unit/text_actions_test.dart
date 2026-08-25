@@ -1,5 +1,5 @@
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/text_actions/application/text_action_prompt.dart';
 import 'package:alera/src/features/text_actions/application/text_action_replacement.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_mutations.dart';
@@ -63,7 +63,7 @@ void main() {
           name: 'Translate',
           prompt: 'Translate to Spanish.',
           enabled: false,
-          agentOverride: AiTextGenerationAgent.claude,
+          agentOverride: AiAssistAgent.claude,
           modelOverride: 'claude-sonnet-4-6',
           reasoningByModel: <String, String>{'claude-sonnet-4-6': 'high'},
         ),
@@ -85,7 +85,7 @@ void main() {
       id: 'overridden',
       name: 'Overridden',
       prompt: 'Improve.',
-      agentOverride: AiTextGenerationAgent.claude,
+      agentOverride: AiAssistAgent.claude,
       modelOverride: 'claude-sonnet-4-6',
     );
 
@@ -94,7 +94,7 @@ void main() {
     expect(overridden.inheritsAgent, isFalse);
     expect(overridden.inheritsModel, isFalse);
     expect(
-      overridden.effectiveModel(AiTextGenerationSettings.defaults),
+      overridden.effectiveModel(AiAssistSettings.defaults),
       'claude-sonnet-4-6',
     );
     expect(TextAction.fromJson(overridden.toMap()).toMap(), overridden.toMap());
@@ -199,9 +199,9 @@ void main() {
   });
 
   test('action reasoning overrides the global model reasoning', () {
-    const settings = AiTextGenerationSettings(
-      selectedModelByAgent: <AiTextGenerationAgent, String>{
-        AiTextGenerationAgent.codex: 'gpt-5.5',
+    const settings = AiAssistSettings(
+      selectedModelByAgent: <AiAssistAgent, String>{
+        AiAssistAgent.codex: 'gpt-5.5',
       },
       selectedThinkingByModel: <String, String>{'gpt-5.5': 'low'},
     );
@@ -219,15 +219,15 @@ void main() {
   });
 
   test('action inherits global agent, model, and reasoning by default', () {
-    const settings = AiTextGenerationSettings(
-      agent: AiTextGenerationAgent.claude,
-      selectedModelByAgent: <AiTextGenerationAgent, String>{
-        AiTextGenerationAgent.claude: 'claude-sonnet-4-6',
+    const settings = AiAssistSettings(
+      agent: AiAssistAgent.claude,
+      selectedModelByAgent: <AiAssistAgent, String>{
+        AiAssistAgent.claude: 'claude-sonnet-4-6',
       },
       selectedThinkingByModel: <String, String>{'claude-sonnet-4-6': 'medium'},
     );
 
-    expect(first.effectiveAgent(settings), AiTextGenerationAgent.claude);
+    expect(first.effectiveAgent(settings), AiAssistAgent.claude);
     expect(first.effectiveModel(settings), 'claude-sonnet-4-6');
     expect(
       first.reasoningFor(settings, model: first.effectiveModel(settings)),

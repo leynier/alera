@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use super::{
-    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeAiTextGenerationSettings,
+    RuntimeAgentQuotaSettings, RuntimeAgentStatusHookSettings, RuntimeAiAssistSettings,
     RuntimeAutomationSettings, RuntimeMobilePushSettings, RuntimeSettings, RuntimeStore,
     RuntimeTextActionsSettings,
 };
@@ -16,7 +16,7 @@ impl RuntimeStore {
             agent_status_hooks: self.agent_status_hook_settings().await?,
             agent_quotas: self.agent_quota_settings().await?,
             mobile_push_notifications: self.mobile_push_settings().await?,
-            ai_text_generation: self.ai_text_generation_settings().await?,
+            ai_assist: self.ai_assist_settings().await?,
             text_actions: self.text_actions_settings().await?,
             automation: self.automation_settings().await?,
         })
@@ -81,31 +81,22 @@ impl RuntimeStore {
         self.runtime_settings().await
     }
 
-    pub async fn ai_text_generation_settings(
-        &self,
-    ) -> Result<Option<RuntimeAiTextGenerationSettings>> {
+    pub async fn ai_assist_settings(&self) -> Result<Option<RuntimeAiAssistSettings>> {
         let Some(encoded) = self.get_metadata("settings.aiTextGeneration").await? else {
             return Ok(None);
         };
-        Ok(
-            serde_json::from_str::<RuntimeAiTextGenerationSettings>(&encoded)
-                .ok()
-                .map(RuntimeAiTextGenerationSettings::normalized),
-        )
+        Ok(serde_json::from_str::<RuntimeAiAssistSettings>(&encoded)
+            .ok()
+            .map(RuntimeAiAssistSettings::normalized))
     }
 
-    pub async fn effective_ai_text_generation_settings(
-        &self,
-    ) -> Result<RuntimeAiTextGenerationSettings> {
-        Ok(self
-            .ai_text_generation_settings()
-            .await?
-            .unwrap_or_default())
+    pub async fn effective_ai_assist_settings(&self) -> Result<RuntimeAiAssistSettings> {
+        Ok(self.ai_assist_settings().await?.unwrap_or_default())
     }
 
-    pub async fn set_ai_text_generation_settings(
+    pub async fn set_ai_assist_settings(
         &self,
-        settings: RuntimeAiTextGenerationSettings,
+        settings: RuntimeAiAssistSettings,
     ) -> Result<RuntimeSettings> {
         self.set_metadata(
             "settings.aiTextGeneration",

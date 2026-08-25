@@ -34,7 +34,7 @@
 543	lib/src/features/workbench/presentation/workspace_git_diff_panel_tree.dart
 555	test/widget/workspace_markdown_viewer_surface_test.dart
 556	test/unit/terminal_runtime_helper_group.dart
-562	lib/src/features/ai_text_generation/application/ai_text_generation_registry.dart
+562	lib/src/features/ai_assist/application/ai_assist_registry.dart
 620	rust/alera-cli/src/cli.rs
 566	lib/src/shared/infra/git/rust_git_backend.dart
 567	lib/src/shared/infra/git/git_diff_models.dart
@@ -65,7 +65,7 @@
 689	test/unit/workbench_controller_lifecycle_test_cases.dart
 702	test/unit/terminal_runtime_xterm_session_cases.dart
 715	test/widget/alera_shell_page_test_harness.dart
-724	test/unit/ai_text_generation_service_test.dart
+724	test/unit/ai_assist_service_test.dart
 732	test/unit/workbench_controller_view_prefs_test_cases.dart
 1273	rust/alera-cli/src/orchestration_commands.rs
 744	lib/src/features/workbench/presentation/workspace_git_diff_panel_toolbar.dart

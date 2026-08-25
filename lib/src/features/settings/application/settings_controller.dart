@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
 import 'package:alera/src/features/settings/application/runtime_settings_changes.dart';
@@ -59,8 +59,8 @@ class SettingsController extends _$SettingsController {
     await _save(state.copyWith(editor: settings));
   }
 
-  Future<void> updateAiTextGeneration(AiTextGenerationSettings settings) async {
-    await _save(state.copyWith(aiTextGeneration: settings));
+  Future<void> updateAiAssist(AiAssistSettings settings) async {
+    await _save(state.copyWith(aiAssist: settings));
   }
 
   Future<void> updateAiDictation(AiDictationSettings settings) async {
@@ -83,10 +83,8 @@ class SettingsController extends _$SettingsController {
     await _save(state.copyWith(textActions: TextActionsSettings.defaults));
   }
 
-  Future<void> resetAiTextGenerationSettings() async {
-    await _save(
-      state.copyWith(aiTextGeneration: AiTextGenerationSettings.defaults),
-    );
+  Future<void> resetAiAssistSettings() async {
+    await _save(state.copyWith(aiAssist: AiAssistSettings.defaults));
   }
 
   Future<void> resetEditorSettings() async {

@@ -20,8 +20,9 @@ pub struct RuntimeSettings {
     pub agent_quotas: RuntimeAgentQuotaSettings,
     #[serde(default)]
     pub mobile_push_notifications: RuntimeMobilePushSettings,
-    #[serde(default)]
-    pub ai_text_generation: Option<RuntimeAiTextGenerationSettings>,
+    // Wire and persisted key stays `aiTextGeneration` so older hosts and settings keep working.
+    #[serde(default, rename = "aiTextGeneration")]
+    pub ai_assist: Option<RuntimeAiAssistSettings>,
     #[serde(default)]
     pub text_actions: Option<RuntimeTextActionsSettings>,
     #[serde(default)]
@@ -38,7 +39,7 @@ impl Default for RuntimeSettings {
             agent_status_hooks: RuntimeAgentStatusHookSettings::default(),
             agent_quotas: RuntimeAgentQuotaSettings::default(),
             mobile_push_notifications: RuntimeMobilePushSettings::default(),
-            ai_text_generation: None,
+            ai_assist: None,
             text_actions: None,
             automation: RuntimeAutomationSettings::default(),
         }
@@ -109,10 +110,10 @@ impl Default for RuntimeMobilePushSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeAiTextGenerationSettings {
+pub struct RuntimeAiAssistSettings {
     #[serde(default = "default_true")]
     pub enabled: bool,
-    #[serde(default = "default_ai_text_agent")]
+    #[serde(default = "default_ai_assist_agent")]
     pub agent: String,
     #[serde(default)]
     pub selected_model_by_agent: HashMap<String, String>,
@@ -125,14 +126,14 @@ pub struct RuntimeAiTextGenerationSettings {
     #[serde(default)]
     pub instructions_by_operation: HashMap<String, String>,
     #[serde(default)]
-    pub prompt_settings_by_operation: HashMap<String, RuntimeAiTextPromptSettings>,
-    #[serde(default = "default_ai_text_timeout")]
+    pub prompt_settings_by_operation: HashMap<String, RuntimeAiAssistPromptSettings>,
+    #[serde(default = "default_ai_assist_timeout")]
     pub timeout_seconds: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeAiTextPromptSettings {
+pub struct RuntimeAiAssistPromptSettings {
     #[serde(default)]
     pub agent: Option<String>,
     #[serde(default)]
@@ -191,23 +192,23 @@ impl RuntimeTextAction {
     }
 }
 
-impl Default for RuntimeAiTextGenerationSettings {
+impl Default for RuntimeAiAssistSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            agent: default_ai_text_agent(),
+            agent: default_ai_assist_agent(),
             selected_model_by_agent: HashMap::new(),
             selected_thinking_by_model: HashMap::new(),
             selected_thinking_by_operation: HashMap::new(),
             custom_command: String::new(),
             instructions_by_operation: HashMap::new(),
             prompt_settings_by_operation: HashMap::new(),
-            timeout_seconds: default_ai_text_timeout(),
+            timeout_seconds: default_ai_assist_timeout(),
         }
     }
 }
 
-impl RuntimeAiTextGenerationSettings {
+impl RuntimeAiAssistSettings {
     pub fn normalized(mut self) -> Self {
         self.agent = self.agent.trim().to_ascii_lowercase();
         self.custom_command = self.custom_command.trim().to_string();
@@ -237,7 +238,7 @@ impl RuntimeAiTextGenerationSettings {
                     .map(|value| value.trim().to_string())
                     .filter(|value| !value.is_empty());
                 (!operation.is_empty() && (agent.is_some() || model.is_some()))
-                    .then_some((operation, RuntimeAiTextPromptSettings { agent, model }))
+                    .then_some((operation, RuntimeAiAssistPromptSettings { agent, model }))
             })
             .collect();
         self.timeout_seconds = self.timeout_seconds.clamp(10, 600);
@@ -256,11 +257,11 @@ fn normalized_string_map(values: HashMap<String, String>) -> HashMap<String, Str
         .collect()
 }
 
-fn default_ai_text_agent() -> String {
+fn default_ai_assist_agent() -> String {
     "codex".to_string()
 }
 
-fn default_ai_text_timeout() -> u64 {
+fn default_ai_assist_timeout() -> u64 {
     120
 }
 

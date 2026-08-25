@@ -92,17 +92,18 @@ class _FakeSystemFontService implements SystemFontService {
   Future<List<String>> listFontFamilies() async => fonts;
 }
 
-class _FakeAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
-  const _FakeAiTextModelDiscoveryService();
+class _FakeAiAssistModelDiscoveryService
+    implements AiAssistModelDiscoveryService {
+  const _FakeAiAssistModelDiscoveryService();
 
-  static const List<AiTextModel> _models = <AiTextModel>[
-    AiTextModel(
+  static const List<AiAssistModel> _models = <AiAssistModel>[
+    AiAssistModel(
       id: 'gpt-5.5',
       label: 'GPT-5.5',
       thinkingLevels: openAiThinkingLevels,
       defaultThinkingLevel: 'low',
     ),
-    AiTextModel(
+    AiAssistModel(
       id: 'gpt-5.4-mini',
       label: 'GPT-5.4 Mini',
       thinkingLevels: openAiThinkingLevels,
@@ -111,10 +112,8 @@ class _FakeAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
   ];
 
   @override
-  Future<AiTextModelDiscoveryResult> discover(
-    AiTextGenerationAgent agent,
-  ) async {
-    return AiTextModelDiscoveryResult(
+  Future<AiAssistModelDiscoveryResult> discover(AiAssistAgent agent) async {
+    return AiAssistModelDiscoveryResult(
       success: true,
       agent: agent,
       models: _models,

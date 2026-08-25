@@ -309,7 +309,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       if (creation == null) {
         throw collisionError ??
             StateError(
-              'AI Text could not generate an available workspace identity.',
+              'AI Assist could not generate an available workspace identity.',
             );
       }
       _created = creation;

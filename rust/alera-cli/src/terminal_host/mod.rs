@@ -1,4 +1,5 @@
 pub(crate) mod agent_profile_capabilities;
+pub(crate) mod ai_assist_capabilities;
 pub(crate) mod ai_dictation_capabilities;
 #[path = "../alera_account/mod.rs"]
 pub(crate) mod alera_account;

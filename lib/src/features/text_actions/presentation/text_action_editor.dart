@@ -4,8 +4,8 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +18,7 @@ class TextActionEditor extends StatelessWidget {
     required this.agentOverride,
     required this.modelOverride,
     required this.reasoningByModel,
-    required this.aiTextSettings,
+    required this.aiAssistSettings,
     required this.error,
     required this.onEnabledChanged,
     required this.onAgentChanged,
@@ -32,13 +32,13 @@ class TextActionEditor extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController promptController;
   final bool enabled;
-  final AiTextGenerationAgent? agentOverride;
+  final AiAssistAgent? agentOverride;
   final String? modelOverride;
   final Map<String, String> reasoningByModel;
-  final AiTextGenerationSettings aiTextSettings;
+  final AiAssistSettings aiAssistSettings;
   final String? error;
   final ValueChanged<bool> onEnabledChanged;
-  final ValueChanged<AiTextGenerationAgent?> onAgentChanged;
+  final ValueChanged<AiAssistAgent?> onAgentChanged;
   final ValueChanged<String?> onModelChanged;
   final ValueChanged<String?> onReasoningChanged;
   final VoidCallback onSave;
@@ -47,23 +47,23 @@ class TextActionEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final agent = agentOverride ?? aiTextSettings.agent;
-    final models = modelsForAgent(agent, aiTextSettings);
+    final agent = agentOverride ?? aiAssistSettings.agent;
+    final models = modelsForAgent(agent, aiAssistSettings);
     final globalModelId =
-        aiTextSettings.modelFor(agent) ??
-        defaultModelIdForAgent(agent, aiTextSettings);
+        aiAssistSettings.modelFor(agent) ??
+        defaultModelIdForAgent(agent, aiAssistSettings);
     final effectiveModelId = modelOverride?.trim().isNotEmpty == true
         ? modelOverride
         : globalModelId;
     final model = modelForAgent(
       agent,
       effectiveModelId,
-      extraModels: discoveredModelsForAgent(aiTextSettings, agent),
+      extraModels: discoveredModelsForAgent(aiAssistSettings, agent),
     );
     final reasoningLevels = model.thinkingLevels;
     final reasoningValue = reasoningByModel[model.id];
     final inheritedReasoning =
-        aiTextSettings.thinkingForModel(model.id) ??
+        aiAssistSettings.thinkingForModel(model.id) ??
         model.defaultThinkingLevel ??
         (reasoningLevels.isEmpty ? null : reasoningLevels.first.id);
     final inheritedReasoningLabel = reasoningLevels
@@ -117,16 +117,16 @@ class TextActionEditor extends StatelessWidget {
             children: <Widget>[
               AleraSettingRow(
                 title: 'Agent',
-                description: 'Inherit the global AI Text agent by default.',
-                child: AleraDropdownField<AiTextGenerationAgent?>(
+                description: 'Inherit the global AI Assist agent by default.',
+                child: AleraDropdownField<AiAssistAgent?>(
                   value: agentOverride,
-                  entries: <AleraDropdownFieldEntry<AiTextGenerationAgent?>>[
-                    AleraDropdownFieldEntry<AiTextGenerationAgent?>(
+                  entries: <AleraDropdownFieldEntry<AiAssistAgent?>>[
+                    AleraDropdownFieldEntry<AiAssistAgent?>(
                       value: null,
-                      label: 'Global (${aiTextSettings.agent.label})',
+                      label: 'Global (${aiAssistSettings.agent.label})',
                     ),
-                    for (final candidate in AiTextGenerationAgent.values)
-                      AleraDropdownFieldEntry<AiTextGenerationAgent?>(
+                    for (final candidate in AiAssistAgent.values)
+                      AleraDropdownFieldEntry<AiAssistAgent?>(
                         value: candidate,
                         label: candidate.label,
                       ),
