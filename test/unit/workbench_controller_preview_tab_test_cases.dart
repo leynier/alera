@@ -192,6 +192,126 @@ void _registerWorkbenchControllerPreviewTabTests() {
     expect(next.isPreview, isTrue);
     expect(next.filePath, 'lib/b.dart');
   });
+
+  test(
+    'opening a source control file replaces the explorer preview tab',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final explorer = await _controller.openFileTab(
+        workspace: workspace,
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+      final git = await _controller.openGitDiffTab(
+        workspace: workspace,
+        relativePath: 'lib/b.dart',
+        area: GitChangeArea.unstaged,
+        scope: WorkspaceGitDiffScope.file,
+        preview: true,
+      );
+      await _flush();
+
+      expect(git.id, explorer.id);
+      expect(git.kind, WorkspaceTabKind.gitDiff);
+      expect(git.filePath, 'lib/b.dart');
+      expect(git.isPreview, isTrue);
+      expect(
+        _controller.state.tabsFor(workspace.id).where(_isPreviewSlotTab),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'opening another source control file replaces the git preview',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final first = await _controller.openGitDiffTab(
+        workspace: workspace,
+        relativePath: 'lib/a.dart',
+        area: GitChangeArea.unstaged,
+        scope: WorkspaceGitDiffScope.file,
+        preview: true,
+      );
+      final second = await _controller.openGitDiffTab(
+        workspace: workspace,
+        relativePath: 'lib/b.dart',
+        area: GitChangeArea.staged,
+        scope: WorkspaceGitDiffScope.file,
+        preview: true,
+      );
+      await _flush();
+
+      expect(second.id, first.id);
+      expect(second.filePath, 'lib/b.dart');
+      expect(second.gitDiffArea, GitChangeArea.staged);
+      expect(second.isPreview, isTrue);
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where((tab) => tab.kind == WorkspaceTabKind.gitDiff),
+        hasLength(1),
+      );
+    },
+  );
+
+  test('opening all changes does not replace a preview tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final preview = await _controller.openFileTab(
+      workspace: workspace,
+      relativePath: 'lib/a.dart',
+      preview: true,
+    );
+    final allChanges = await _controller.openGitDiffTab(
+      workspace: workspace,
+      scope: WorkspaceGitDiffScope.all,
+    );
+    await _flush();
+
+    expect(allChanges.id, isNot(preview.id));
+    expect(allChanges.isPreview, isFalse);
+    expect(preview.isPreview, isTrue);
+    expect(
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      containsAll(<String>[preview.id, allChanges.id]),
+    );
+  });
+
+  test('permanent source control open pins the git preview tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final preview = await _controller.openGitDiffTab(
+      workspace: workspace,
+      relativePath: 'lib/a.dart',
+      area: GitChangeArea.unstaged,
+      scope: WorkspaceGitDiffScope.file,
+      preview: true,
+    );
+    final pinned = await _controller.openGitDiffTab(
+      workspace: workspace,
+      relativePath: 'lib/a.dart',
+      area: GitChangeArea.unstaged,
+      scope: WorkspaceGitDiffScope.file,
+    );
+    await _flush();
+
+    expect(pinned.id, preview.id);
+    expect(pinned.isPreview, isFalse);
+    expect(
+      _controller.state
+          .tabsFor(workspace.id)
+          .singleWhere((tab) => tab.kind == WorkspaceTabKind.gitDiff)
+          .isPreview,
+      isFalse,
+    );
+  });
 }
 
 bool _isFileTab(WorkspaceTabRecord tab) {
@@ -199,3 +319,5 @@ bool _isFileTab(WorkspaceTabRecord tab) {
       tab.kind == WorkspaceTabKind.markdownViewer ||
       tab.kind == WorkspaceTabKind.pdf;
 }
+
+bool _isPreviewSlotTab(WorkspaceTabRecord tab) => tab.isFilePreviewSlot;

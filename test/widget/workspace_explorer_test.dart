@@ -621,7 +621,13 @@ void main() {
               onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
               onOpenGitDiff:
-                  ({relativePath, area, gitDiffRoot, required scope}) async {},
+                  ({
+                    relativePath,
+                    area,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -633,6 +639,7 @@ void main() {
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
@@ -673,7 +680,13 @@ void main() {
               onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
               onOpenGitDiff:
-                  ({relativePath, area, gitDiffRoot, required scope}) async {},
+                  ({
+                    relativePath,
+                    area,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -685,6 +698,7 @@ void main() {
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
@@ -799,7 +813,14 @@ Widget _workspaceContextSidebar(Workspace workspace) {
     onSetGitDiffViewMode: (_) {},
     onSetGitDiffGroupMode: (_) {},
     onOpenFile: (_) {},
-    onOpenGitDiff: ({relativePath, area, gitDiffRoot, required scope}) async {},
+    onOpenGitDiff:
+        ({
+          relativePath,
+          area,
+          gitDiffRoot,
+          required scope,
+          bool preview = false,
+        }) async {},
     onOpenGitCommitDiff:
         ({
           relativePath,
@@ -811,6 +832,7 @@ Widget _workspaceContextSidebar(Workspace workspace) {
           required compareRef,
           subject,
           message,
+          bool preview = false,
         }) async {},
     onOpenSearchMatch: (_) {},
     onPathMoved: (_, _) async {},

@@ -62,6 +62,7 @@ class _SubmoduleChanges extends ConsumerWidget {
                     relativePath: child.path,
                     area: child.area,
                     scope: WorkspaceGitDiffScope.file,
+                    preview: true,
                   ),
                 ),
               ),

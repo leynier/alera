@@ -125,7 +125,13 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
               groupMode: GitDiffGroupMode.byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
-                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+                  ({
+                    area,
+                    relativePath,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -137,6 +143,7 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
             ),
           ),

@@ -7,10 +7,12 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'workspace_tab_path_moves_test_cases.dart';
+part 'workspace_tab_git_preview_test_cases.dart';
 
 void main() {
   group('WorkspaceTabService', () {
     _registerWorkspaceTabPathMoveTests();
+    _registerWorkspaceTabGitPreviewTests();
 
     test(
       'ensureInitialTerminalTab creates the first terminal workspace tab when none exist',

@@ -303,6 +303,7 @@ class _WorkspaceEditorSurfaceState
               area: entries.single.area,
               scope: WorkspaceGitDiffScope.file,
               gitDiffRoot: diffTarget.gitDiffRoot,
+              preview: true,
             );
         return;
       }
@@ -318,6 +319,7 @@ class _WorkspaceEditorSurfaceState
               relativePath: filePath,
               scope: WorkspaceGitDiffScope.fileAll,
               gitDiffRoot: diffTarget.gitDiffRoot,
+              preview: true,
             );
         return;
       }
@@ -329,6 +331,7 @@ class _WorkspaceEditorSurfaceState
             area: choice.area,
             scope: WorkspaceGitDiffScope.file,
             gitDiffRoot: diffTarget.gitDiffRoot,
+            preview: true,
           );
     } catch (_) {
       if (mounted) {

@@ -186,7 +186,13 @@ Future<void> _pumpSourceControl(
               groupMode: GitDiffGroupMode.byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
-                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+                  ({
+                    area,
+                    relativePath,
+                    gitDiffRoot,
+                    required scope,
+                    bool preview = false,
+                  }) async {},
               onOpenGitCommitDiff:
                   ({
                     relativePath,
@@ -198,6 +204,7 @@ Future<void> _pumpSourceControl(
                     required compareRef,
                     subject,
                     message,
+                    bool preview = false,
                   }) async {},
             ),
           ),

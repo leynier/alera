@@ -1,5 +1,20 @@
 part of 'workspace_tab_service.dart';
 
+WorkspaceTabRecord? _previewTabToReplace(
+  List<WorkspaceTabRecord> existing,
+  String? replacePreviewTabId,
+) {
+  if (replacePreviewTabId == null) {
+    return null;
+  }
+  for (final tab in existing) {
+    if (tab.id == replacePreviewTabId && tab.isFilePreviewSlot) {
+      return tab;
+    }
+  }
+  return null;
+}
+
 /// Opening file-backed tabs, including one replaceable preview slot per open.
 extension WorkspaceTabFileOpening on WorkspaceTabService {
   Future<WorkspaceTabRecord> openOrCreateEditorTab({
@@ -107,7 +122,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
       return next;
     }
     if (preview) {
-      final replace = _filePreviewTabToReplace(existing, replacePreviewTabId);
+      final replace = _previewTabToReplace(existing, replacePreviewTabId);
       if (replace != null) {
         final next = replace.copyWith(
           kind: kind,
@@ -136,21 +151,6 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     );
     await _repository.upsertWorkspaceTab(tab);
     return tab;
-  }
-
-  WorkspaceTabRecord? _filePreviewTabToReplace(
-    List<WorkspaceTabRecord> existing,
-    String? replacePreviewTabId,
-  ) {
-    if (replacePreviewTabId == null) {
-      return null;
-    }
-    for (final tab in existing) {
-      if (tab.id == replacePreviewTabId && tab.isFilePreviewSlot) {
-        return tab;
-      }
-    }
-    return null;
   }
 
   bool _canRetargetFileBackedTab({

@@ -259,6 +259,7 @@ void main() {
       WorkspaceTabKind.editor,
       WorkspaceTabKind.markdownViewer,
       WorkspaceTabKind.pdf,
+      WorkspaceTabKind.gitDiff,
     };
     for (final kind in WorkspaceTabKind.values) {
       final tab = WorkspaceTabRecord(
