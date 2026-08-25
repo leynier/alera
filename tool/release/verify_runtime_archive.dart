@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+// ignore: depend_on_referenced_packages
 import 'package:alera/src/features/updater/infra/update_manifest_signature.dart';
 
 const _requiredPlatforms = <String>{'macos', 'windows', 'linux'};

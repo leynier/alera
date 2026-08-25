@@ -360,6 +360,7 @@ class _QuickOpenTestController extends WorkbenchController {
     required Workspace workspace,
     required String relativePath,
     String? targetGroupId,
+    bool preview = false,
   }) async {
     openedFiles.add(relativePath);
     final now = DateTime.utc(2026);

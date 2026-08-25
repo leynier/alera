@@ -193,4 +193,88 @@ void main() {
       expect(restored.browserRuntimeTitle, 'Alera');
     },
   );
+
+  test('preview payload round-trips and file slots skip merman tabs', () {
+    final now = DateTime.utc(2026, 5, 25);
+    final preview = WorkspaceTabRecord(
+      id: 'tab-1',
+      workspaceId: 'workspace-1',
+      kind: WorkspaceTabKind.editor,
+      title: 'main.dart',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabFilePathPayloadKey: 'lib/main.dart',
+        workspaceTabPreviewPayloadKey: true,
+      },
+    );
+    final restored = WorkspaceTabRecord.fromJson(
+      Map<String, Object?>.from(preview.toMap()),
+    );
+    final merman = WorkspaceTabRecord(
+      id: 'tab-2',
+      workspaceId: 'workspace-1',
+      kind: WorkspaceTabKind.editor,
+      title: 'diagram.mmd preview',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+        workspaceTabPreviewPayloadKey: true,
+        workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
+      },
+    );
+    final terminalPreview = WorkspaceTabRecord(
+      id: 'tab-3',
+      workspaceId: 'workspace-1',
+      title: 'Terminal 1',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{workspaceTabPreviewPayloadKey: true},
+    );
+    final permanent = WorkspaceTabRecord(
+      id: 'tab-4',
+      workspaceId: 'workspace-1',
+      kind: WorkspaceTabKind.editor,
+      title: 'main.dart',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabFilePathPayloadKey: 'lib/main.dart',
+      },
+    );
+
+    expect(preview.isPreview, isTrue);
+    expect(preview.isFilePreviewSlot, isTrue);
+    expect(restored.isPreview, isTrue);
+    expect(restored.isFilePreviewSlot, isTrue);
+    expect(merman.isPreview, isTrue);
+    expect(merman.isFilePreviewSlot, isFalse);
+    expect(terminalPreview.isPreview, isTrue);
+    expect(terminalPreview.isFilePreviewSlot, isFalse);
+    expect(permanent.isPreview, isFalse);
+    expect(permanent.isFilePreviewSlot, isFalse);
+
+    const filePreviewKinds = <WorkspaceTabKind>{
+      WorkspaceTabKind.editor,
+      WorkspaceTabKind.markdownViewer,
+      WorkspaceTabKind.pdf,
+    };
+    for (final kind in WorkspaceTabKind.values) {
+      final tab = WorkspaceTabRecord(
+        id: 'tab-${kind.key}',
+        workspaceId: 'workspace-1',
+        kind: kind,
+        title: kind.key,
+        createdAt: now,
+        updatedAt: now,
+        payload: const <String, Object?>{workspaceTabPreviewPayloadKey: true},
+      );
+      expect(
+        tab.isFilePreviewSlot,
+        filePreviewKinds.contains(kind),
+        reason: kind.key,
+      );
+    }
+  });
 }

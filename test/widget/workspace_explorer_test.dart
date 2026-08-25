@@ -76,6 +76,30 @@ void main() {
     expect(opened, <String>['readme.md']);
   });
 
+  testWidgets('second tap on the same file keeps it open', (tester) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _file('readme.md'),
+      ];
+    final opened = <String>[];
+    final kept = <String>[];
+
+    await _pumpExplorer(
+      tester,
+      service,
+      onOpenFile: opened.add,
+      onOpenFilePermanently: kept.add,
+    );
+
+    await tester.tap(find.text('readme.md'));
+    await tester.pump();
+    await tester.tap(find.text('readme.md'));
+    await tester.pump();
+
+    expect(opened, <String>['readme.md', 'readme.md']);
+    expect(kept, <String>['readme.md']);
+  });
+
   testWidgets(
     'refresh prunes stale expanded children after a folder disappears',
     (tester) async {
@@ -682,6 +706,7 @@ Future<void> _pumpExplorer(
   WidgetTester tester,
   _FakeWorkspaceFileService service, {
   ValueChanged<String>? onOpenFile,
+  ValueChanged<String>? onOpenFilePermanently,
   EditorSessionRegistry? registry,
   WorkspaceFolderOpener? folderOpener,
   GitBackend? gitBackend,
@@ -705,6 +730,7 @@ Future<void> _pumpExplorer(
               mode: WorkspaceExplorerMode.hideIgnored,
               onModeChanged: (_) {},
               onOpenFile: onOpenFile ?? (_) {},
+              onOpenFilePermanently: onOpenFilePermanently,
               focusedSourceControlRoot: focusedSourceControlRoot,
               onFocusSourceControlFolder: onFocusSourceControlFolder,
               onClearSourceControlRoot: onClearSourceControlRoot,

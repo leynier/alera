@@ -141,6 +141,9 @@ class _WorkspaceFileTabContent extends StatelessWidget {
       autofocus: autofocus,
       onOpenMermanPreview: onOpenMermanPreview,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
+      onKeepPreview: tab.isPreview
+          ? () => _KeepPreviewTabScope.maybeOf(context)?.call(tab.id)
+          : null,
     );
   }
 }

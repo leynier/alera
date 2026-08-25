@@ -159,7 +159,11 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
   }
 
   void _handleControllerChanged() {
+    final wasDirty = _document.isDirty;
     _document.updateCurrentText(_controller.text);
+    if (!_loading && widget.tab.isPreview && !wasDirty && _document.isDirty) {
+      widget.onKeepPreview?.call();
+    }
     _autosave.notifyTextChanged();
     _refreshStateSafely();
   }

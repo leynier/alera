@@ -29,12 +29,14 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_sur
 import 'package:alera/src/features/workbench/presentation/workspace_image_preview_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_merman_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_pdf_viewer_surface.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_workbench_layout_view.dart';
 part 'workspace_workbench_pane.dart';
 part 'workspace_workbench_tab_content.dart';
 part 'workspace_workbench_tab_strip.dart';
+part 'workspace_workbench_new_tab_button.dart';
 part 'workspace_workbench_tab_strip_drop.dart';
 part 'workspace_workbench_tab_chips.dart';
 part 'workspace_workbench_resize_handle.dart';
@@ -200,6 +202,7 @@ class WorkspaceWorkbenchView extends StatefulWidget {
     required this.onMergeGroup,
     required this.onActivateGroup,
     required this.onUpdateSplitRatio,
+    this.onKeepPreviewTab,
   });
 
   final Project project;
@@ -228,6 +231,7 @@ class WorkspaceWorkbenchView extends StatefulWidget {
   final MergeWorkbenchGroupCallback onMergeGroup;
   final ActivateWorkbenchGroupCallback onActivateGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
+  final ValueChanged<String>? onKeepPreviewTab;
 
   @override
   State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
@@ -252,35 +256,38 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
         );
     return _WorkbenchTabDragScope(
       notifier: _tabDragController,
-      child: _MobileEmulatorOpenScope(
-        onOpen: widget.onOpenMobileEmulator,
-        child: _WorkbenchLayoutView(
-          workspace: widget.workspace,
-          sourceControlScope: widget.sourceControlScope,
-          tabs: widget.tabs,
-          layout: resolvedLayout,
-          node: resolvedLayout.root,
-          nodePath: const <int>[],
-          terminalRuntime: widget.terminalRuntime,
-          mobileDriverPresence: widget.mobileDriverPresence,
-          agentStatuses: widget.agentStatuses,
-          completionAcknowledgements: widget.completionAcknowledgements,
-          onCreateTab: widget.onCreateTab,
-          onCreateBrowserTab: widget.onCreateBrowserTab,
-          onCreateCodexTab: widget.onCreateCodexTab,
-          onOpenEditorTab: widget.onOpenEditorTab,
-          onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
-          onSelectTab: widget.onSelectTab,
-          onCloseTab: widget.onCloseTab,
-          onCloseTabs: widget.onCloseTabs,
-          onRenameTab: widget.onRenameTab,
-          onOpenEditor: widget.onOpenEditor,
-          onOpenMermanPreview: widget.onOpenMermanPreview,
-          onMoveTab: widget.onMoveTab,
-          onSplitGroup: widget.onSplitGroup,
-          onMergeGroup: widget.onMergeGroup,
-          onActivateGroup: widget.onActivateGroup,
-          onUpdateSplitRatio: widget.onUpdateSplitRatio,
+      child: _KeepPreviewTabScope(
+        onKeep: widget.onKeepPreviewTab,
+        child: _MobileEmulatorOpenScope(
+          onOpen: widget.onOpenMobileEmulator,
+          child: _WorkbenchLayoutView(
+            workspace: widget.workspace,
+            sourceControlScope: widget.sourceControlScope,
+            tabs: widget.tabs,
+            layout: resolvedLayout,
+            node: resolvedLayout.root,
+            nodePath: const <int>[],
+            terminalRuntime: widget.terminalRuntime,
+            mobileDriverPresence: widget.mobileDriverPresence,
+            agentStatuses: widget.agentStatuses,
+            completionAcknowledgements: widget.completionAcknowledgements,
+            onCreateTab: widget.onCreateTab,
+            onCreateBrowserTab: widget.onCreateBrowserTab,
+            onCreateCodexTab: widget.onCreateCodexTab,
+            onOpenEditorTab: widget.onOpenEditorTab,
+            onOpenMarkdownViewerTab: widget.onOpenMarkdownViewerTab,
+            onSelectTab: widget.onSelectTab,
+            onCloseTab: widget.onCloseTab,
+            onCloseTabs: widget.onCloseTabs,
+            onRenameTab: widget.onRenameTab,
+            onOpenEditor: widget.onOpenEditor,
+            onOpenMermanPreview: widget.onOpenMermanPreview,
+            onMoveTab: widget.onMoveTab,
+            onSplitGroup: widget.onSplitGroup,
+            onMergeGroup: widget.onMergeGroup,
+            onActivateGroup: widget.onActivateGroup,
+            onUpdateSplitRatio: widget.onUpdateSplitRatio,
+          ),
         ),
       ),
     );
@@ -355,4 +362,20 @@ class _MobileEmulatorOpenScope extends InheritedWidget {
   @override
   bool updateShouldNotify(_MobileEmulatorOpenScope oldWidget) =>
       onOpen != oldWidget.onOpen;
+}
+
+class _KeepPreviewTabScope extends InheritedWidget {
+  const _KeepPreviewTabScope({required this.onKeep, required super.child});
+
+  final ValueChanged<String>? onKeep;
+
+  static ValueChanged<String>? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_KeepPreviewTabScope>()
+        ?.onKeep;
+  }
+
+  @override
+  bool updateShouldNotify(_KeepPreviewTabScope oldWidget) =>
+      onKeep != oldWidget.onKeep;
 }
