@@ -2,8 +2,11 @@
 //! binary, connects over the loopback socket it advertises, and drives the full
 //! request/event sequence the Dart app relies on.
 
+mod agent_integration_home_isolation;
+
 mod terminal_host_test_platform;
 
+use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::process::Child;
@@ -214,7 +217,7 @@ fn spawn_host_with_env(
     token: &str,
     env: &[(&str, &str)],
 ) -> (HostGuard, u16) {
-    let mut command = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"));
+    let mut command = alera_command_with_isolated_home(runtime_dir);
     command.args([
         "terminal-host",
         "--runtime-dir",
@@ -307,7 +310,7 @@ fn full_protocol_sequence() {
     let control_path = dir.path().join("host.json");
     let token = "test-token";
 
-    let child = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_command_with_isolated_home(dir.path())
         .args([
             "terminal-host",
             "--runtime-dir",
@@ -1238,7 +1241,7 @@ fn rejects_bad_token() {
     let control_path = dir.path().join("host.json");
     let token = "good-token";
 
-    let child = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_command_with_isolated_home(dir.path())
         .args([
             "terminal-host",
             "--runtime-dir",
