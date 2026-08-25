@@ -36,7 +36,7 @@ Workbench view preferences shared by desktop and mobile are stored in runtime me
 
 Drift/SQLite remains active for local view preferences and legacy migration sources in `lib/src/shared/infra/storage/drift_database.dart`. Old Drift settings, project config, project, workspace, tab, and layout rows are intentionally left untouched after migration but are no longer authoritative for those domains.
 
-Project-specific worktree setup config is stored separately from global app settings. UI overrides live in runtime project config records and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
+Project-specific worktree setup config is stored separately from global app settings. UI overrides live in runtime project config records and take precedence over a repo-root `alera.toml`. A repo-root `.worktreeinclude` still copies matching gitignored files into new linked workspaces; see `docs/worktree-setup-config.md`.
 
 Project registration, rename, metadata-only removal, effective setup config, and Git cloning are runtime-owned. Desktop and Mobile call the same high-level requests; clients never construct project IDs or main workspace records. Clone jobs persist progress and results in `runtime.sqlite`, use the host's system Git credential helpers, and remove only their own newly-created partial destination after cancellation, failure, or runtime restart. Project removal terminates affected sessions and removes runtime metadata but never deletes repository or worktree files.
 

@@ -86,9 +86,10 @@ pub struct WorkspaceRemoveArgs {
 pub struct WorkspaceSetupArgs {
     #[arg(long)]
     pub id: String,
-    /// Apply only the `worktree.copy` rules and skip `worktree.setup`. This is
-    /// what the generated Setup terminal script calls, so the copy validation
-    /// stays in Rust instead of being rewritten in shell.
+    /// Apply only copy actions (`worktree.copy` plus `.worktreeinclude`) and
+    /// skip `worktree.setup`. This is what the generated Setup terminal script
+    /// calls, so the copy validation stays in Rust instead of being rewritten
+    /// in shell.
     #[arg(long = "copies-only")]
     pub copies_only: bool,
 }

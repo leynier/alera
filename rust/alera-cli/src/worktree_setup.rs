@@ -1,22 +1,27 @@
-//! Runs a project's worktree setup: the `worktree.copy` rules and the
-//! `worktree.setup` commands from `alera.toml` or the per-project UI override.
+//! Runs a project's worktree setup: the `worktree.copy` rules, gitignored
+//! matches from `.worktreeinclude`, and the `worktree.setup` commands from
+//! `alera.toml` or the per-project UI override.
 //!
 //! Split out of `managed_workspace.rs`, which keeps the lifecycle of the
 //! workspace itself: validating the request, creating and removing the Git
 //! worktree, and resolving where it lives on disk.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::process::Stdio;
 
 use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
-    Project, ProjectConfig, RuntimeStore, Workspace, WorktreeSetupReport, WorktreeSetupStepKind,
-    WorktreeSetupStepReport,
+    Project, ProjectConfig, RuntimeStore, Workspace, WorktreeCopyRule, WorktreeSetupReport,
+    WorktreeSetupStepKind, WorktreeSetupStepReport,
 };
 use anyhow::{anyhow, Context, Result};
 
 use crate::project_config_toml::parse_project_config_toml;
 use crate::worktree_copy::copy_rule;
+use crate::worktree_include::{
+    expand_worktree_include, has_worktree_include, WORKTREE_INCLUDE_FILE,
+};
 use tokio::io::AsyncReadExt;
 
 const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
@@ -36,7 +41,7 @@ pub(crate) async fn prepare_deferred_worktree_setup(
         Ok(config) => config,
         Err(error) => return (config_error_report(&error.to_string()), None),
     };
-    if config.worktree.copy.is_empty() && config.worktree.setup.is_empty() {
+    if !setup_has_copy_or_command_actions(project, &config) {
         return (WorktreeSetupReport::empty(), None);
     }
     let Some(script_directory) = script_directory else {
@@ -59,7 +64,7 @@ pub(crate) async fn prepare_deferred_worktree_setup(
         &workspace.id,
         &workspace.path,
         &config.worktree.setup,
-        !config.worktree.copy.is_empty(),
+        has_copy_actions(project, &config),
     ) {
         Ok(script) => (WorktreeSetupReport::empty(), Some(script.command)),
         Err(error) => (config_error_report(&error.to_string()), None),
@@ -82,11 +87,12 @@ fn config_error_report(message: &str) -> WorktreeSetupReport {
 
 /// Applies a project's worktree setup to an existing workspace.
 ///
-/// With `copies_only` this runs just the `worktree.copy` rules, which is what
-/// the deferred setup script invokes so the validation in [`copy_rule_inner`]
-/// stays in Rust instead of being rewritten in shell. Unlike the inline path
-/// the copies do not stop at the first failure, because the script keeps going
-/// too and the user reads the outcome in the terminal.
+/// With `copies_only` this runs just the copy actions (explicit `worktree.copy`
+/// rules plus `.worktreeinclude` matches), which is what the deferred setup
+/// script invokes so the validation in `copy_rule_inner` stays in Rust
+/// instead of being rewritten in shell. Unlike the inline path the copies do
+/// not stop at the first failure, because the script keeps going too and the
+/// user reads the outcome in the terminal.
 pub(crate) async fn run_workspace_setup(
     store: &RuntimeStore,
     workspace_id: &str,
@@ -104,10 +110,7 @@ pub(crate) async fn run_workspace_setup(
         Ok(config) => config,
         Err(error) => return Ok(config_error_report(&error.to_string())),
     };
-    let mut steps = Vec::new();
-    for rule in &config.worktree.copy {
-        steps.push(copy_rule(&project, &workspace, rule));
-    }
+    let mut steps = apply_copy_actions(&project, &workspace, &config, false);
     if copies_only {
         return Ok(WorktreeSetupReport { steps });
     }
@@ -128,10 +131,86 @@ pub(crate) async fn run_worktree_setup(
     workspace: &Workspace,
 ) -> WorktreeSetupReport {
     match effective_project_config(store, project).await {
-        Ok(config) if config.is_empty() => WorktreeSetupReport::empty(),
+        Ok(config) if !setup_has_copy_or_command_actions(project, &config) => {
+            WorktreeSetupReport::empty()
+        }
         Ok(config) => run_setup_config(project, workspace, &config).await,
         Err(error) => config_error_report(&error.to_string()),
     }
+}
+
+fn has_copy_actions(project: &Project, config: &ProjectConfig) -> bool {
+    !config.worktree.copy.is_empty() || has_worktree_include(Path::new(&project.repo_path))
+}
+
+fn setup_has_copy_or_command_actions(project: &Project, config: &ProjectConfig) -> bool {
+    has_copy_actions(project, config) || !config.worktree.setup.is_empty()
+}
+
+fn apply_copy_actions(
+    project: &Project,
+    workspace: &Workspace,
+    config: &ProjectConfig,
+    stop_on_failure: bool,
+) -> Vec<WorktreeSetupStepReport> {
+    let mut steps = Vec::new();
+    let include_rules = match expand_worktree_include(Path::new(&project.repo_path)) {
+        Ok(rules) => rules,
+        Err(error) => {
+            steps.push(WorktreeSetupStepReport {
+                kind: WorktreeSetupStepKind::Config,
+                label: WORKTREE_INCLUDE_FILE.to_string(),
+                succeeded: false,
+                message: Some(error.to_string()),
+                exit_code: None,
+                stdout_tail: None,
+                stderr_tail: None,
+            });
+            if stop_on_failure {
+                return steps;
+            }
+            Vec::new()
+        }
+    };
+    let explicit_from: HashSet<&str> = config
+        .worktree
+        .copy
+        .iter()
+        .map(|rule| rule.from.as_str())
+        .collect();
+    if append_copy_rules(
+        project,
+        workspace,
+        &config.worktree.copy,
+        stop_on_failure,
+        &mut steps,
+    ) {
+        return steps;
+    }
+    let extra: Vec<WorktreeCopyRule> = include_rules
+        .into_iter()
+        .filter(|rule| !explicit_from.contains(rule.from.as_str()))
+        .collect();
+    append_copy_rules(project, workspace, &extra, stop_on_failure, &mut steps);
+    steps
+}
+
+fn append_copy_rules(
+    project: &Project,
+    workspace: &Workspace,
+    rules: &[WorktreeCopyRule],
+    stop_on_failure: bool,
+    steps: &mut Vec<WorktreeSetupStepReport>,
+) -> bool {
+    for rule in rules {
+        let report = copy_rule(project, workspace, rule);
+        let succeeded = report.succeeded;
+        steps.push(report);
+        if stop_on_failure && !succeeded {
+            return true;
+        }
+    }
+    false
 }
 
 async fn effective_project_config(
@@ -155,14 +234,9 @@ async fn run_setup_config(
     workspace: &Workspace,
     config: &ProjectConfig,
 ) -> WorktreeSetupReport {
-    let mut steps = Vec::new();
-    for rule in &config.worktree.copy {
-        let report = copy_rule(project, workspace, rule);
-        let succeeded = report.succeeded;
-        steps.push(report);
-        if !succeeded {
-            return WorktreeSetupReport { steps };
-        }
+    let mut steps = apply_copy_actions(project, workspace, config, true);
+    if steps.iter().any(|step| !step.succeeded) {
+        return WorktreeSetupReport { steps };
     }
     let command_environment = if config.worktree.setup.is_empty() {
         Vec::new()
