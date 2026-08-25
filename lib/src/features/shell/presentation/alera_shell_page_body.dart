@@ -20,6 +20,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(agentCanvasRuntimeSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
     ref.watch(agentAwakeCoordinatorProvider);
+    ref.watch(keepAliveCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
     ref.watch(workspaceActivityCoordinatorProvider);
     ref.watch(terminalRuntimeActiveWorkspaceCoordinatorProvider);
@@ -292,6 +293,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         ResourceStatusBarControl(),
+                        KeepAliveStatusBarControl(),
                         RuntimeHostStatusBarControl(),
                       ],
                     ),

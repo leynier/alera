@@ -1338,6 +1338,13 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$keepAliveEnabled(GeneralSettings v) => v.keepAliveEnabled;
+  static const Field<GeneralSettings, bool> _f$keepAliveEnabled = Field(
+    'keepAliveEnabled',
+    _$keepAliveEnabled,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1345,6 +1352,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #starClicked: _f$starClicked,
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
+    #keepAliveEnabled: _f$keepAliveEnabled,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1353,6 +1361,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       starClicked: data.dec(_f$starClicked),
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
+      keepAliveEnabled: data.dec(_f$keepAliveEnabled),
     );
   }
 
@@ -1423,6 +1432,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? keepAliveEnabled,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1443,6 +1453,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? keepAliveEnabled,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1451,6 +1462,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
         #confirmProjectRemoval: confirmProjectRemoval,
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
+      if (keepAliveEnabled != null) #keepAliveEnabled: keepAliveEnabled,
     }),
   );
   @override
@@ -1468,6 +1480,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       #confirmWorkspaceRemoval,
       or: $value.confirmWorkspaceRemoval,
     ),
+    keepAliveEnabled: data.get(#keepAliveEnabled, or: $value.keepAliveEnabled),
   );
 
   @override

@@ -629,6 +629,7 @@ void _registerSettingsDialogCoreTests() {
       find.text('Keep Computer Awake While Agents Are Working'),
       findsOneWidget,
     );
+    expect(find.text('Keep Computer Awake'), findsNothing);
   });
 
   testWidgets('edits terminal color override via color picker dialog', (

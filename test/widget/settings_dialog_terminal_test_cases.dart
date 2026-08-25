@@ -73,6 +73,10 @@ void _registerSettingsDialogTerminalTests() {
       final before = container.read(settingsControllerProvider).terminal;
       expect(before.keepRuntimeOpenOnAppQuit, isFalse);
 
+      await tester.ensureVisible(find.text('Keep Computer Awake'));
+      await tester.pumpAndSettle();
+      expect(find.text('Keep Computer Awake'), findsOneWidget);
+
       final toggle = find.descendant(
         of: find.ancestor(
           of: find.text('Keep Runtime Open When App Quits'),

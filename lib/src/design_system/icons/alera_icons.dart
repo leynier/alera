@@ -171,6 +171,7 @@ abstract final class AleraIcons {
   static const IconData agent = LucideIcons.bot;
   static const IconData quota = LucideIcons.gauge;
   static const IconData resources = LucideIcons.activity;
+  static const IconData keepAlive = LucideIcons.coffee;
   static const IconData pulse = LucideIcons.activity;
   static const IconData profile = LucideIcons.circleUserRound;
   static const IconData devTools = LucideIcons.wrench;

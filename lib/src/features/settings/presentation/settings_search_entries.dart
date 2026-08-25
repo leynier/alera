@@ -21,6 +21,19 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'runtime': {
+    'Keep Computer Awake': SettingsSearchEntryDetails(
+      description:
+          'Prevent idle sleep and display sleep while Alera is running.',
+      keywords: <String>[
+        'keep-alive',
+        'awake',
+        'sleep',
+        'caffeinate',
+        'display',
+        'idle',
+        'power',
+      ],
+    ),
     'Keep Runtime Open When App Quits': SettingsSearchEntryDetails(
       description: 'Leave the app-launched sidecar running after a clean quit.',
       keywords: <String>[
