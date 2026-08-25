@@ -130,7 +130,7 @@ impl SkillKind {
             "cli" => Some(Self::Cli),
             "emulator" => Some(Self::Emulator),
             "orchestration" => Some(Self::Orchestration),
-            "agent-canvas" | "canvas" => Some(Self::AgentCanvas),
+            "alera-agent-canvas" | "agent-canvas" | "canvas" => Some(Self::AgentCanvas),
             _ => None,
         }
     }
@@ -415,5 +415,13 @@ mod tests {
     fn emulator_skill_uses_its_repository_package_name() {
         let kind = SkillKind::parse("emulator").expect("emulator skill");
         assert_eq!(kind.package_name(), "alera-emulator");
+    }
+
+    #[test]
+    fn agent_canvas_skill_uses_its_repository_package_name() {
+        for alias in ["alera-agent-canvas", "agent-canvas", "canvas"] {
+            let kind = SkillKind::parse(alias).expect(alias);
+            assert_eq!(kind.package_name(), "alera-agent-canvas");
+        }
     }
 }

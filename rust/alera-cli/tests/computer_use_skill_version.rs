@@ -11,7 +11,7 @@ use alera_core::child_process::windowless_command;
 /// command reports a compatibility that does not hold.
 #[test]
 fn the_computer_use_skill_guide_declares_the_version_the_binary_ships() {
-    let guide = repository_path(&["skills", "computer-use", "SKILL.md"]);
+    let guide = repository_path(&["skills", "alera-computer-use", "SKILL.md"]);
     let contents = std::fs::read_to_string(&guide)
         .unwrap_or_else(|error| panic!("cannot read {}: {error}", guide.display()));
 
@@ -45,7 +45,7 @@ fn the_guide_and_the_binary_offer_the_same_verbs() {
         .output()
         .expect("the alera binary runs");
     let help = String::from_utf8_lossy(&help.stdout);
-    let guide = std::fs::read_to_string(repository_path(&["skills", "computer-use", "SKILL.md"]))
+    let guide = std::fs::read_to_string(repository_path(&["skills", "alera-computer-use", "SKILL.md"]))
         .expect("guide is readable");
 
     for verb in [

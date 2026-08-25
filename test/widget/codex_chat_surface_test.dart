@@ -432,7 +432,7 @@ void main() {
         'data': <Object?>[
           <String, Object?>{
             'name': 'Agent Canvas',
-            'path': '/skills/agent-canvas',
+            'path': '/skills/alera-agent-canvas',
             'description': 'Publish structured canvas updates.',
           },
         ],
