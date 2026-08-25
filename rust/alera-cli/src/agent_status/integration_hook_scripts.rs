@@ -37,6 +37,14 @@ if [ "$ALERA_AGENT_TYPE" = "agy" ] && [ "$ALERA_AGENT_HOOK_EVENT" = "Stop" ]; th
 elif [ "$ALERA_AGENT_TYPE" = "agy" ] || [ "$ALERA_AGENT_TYPE" = "copilot" ]; then
   printf '{}\n'
 fi
+# The Claude commands live in the user's own settings.json, which Grok scans for
+# Claude Code compatibility and would otherwise run during a Grok turn, reporting
+# it as `/hook/claude`. Claude Code exports CLAUDECODE for every hook; Grok never
+# does, and exports GROK_HOOK_EVENT instead. CLAUDE_PROJECT_DIR is not a
+# discriminator: Grok exports that one too.
+if [ "$ALERA_AGENT_TYPE" = "claude" ] && { [ -z "$CLAUDECODE" ] || [ -n "$GROK_HOOK_EVENT" ]; }; then
+  exit 0
+fi
 if [ -z "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -n "$ALERA_RUNTIME_DIR" ]; then
   ALERA_AGENT_HOOK_ENDPOINT="$ALERA_RUNTIME_DIR/agent-hooks/endpoint.env"
 fi
@@ -75,6 +83,12 @@ if /I "%ALERA_AGENT_TYPE%"=="agy" (
 ) else if /I "%ALERA_AGENT_TYPE%"=="copilot" (
   echo {}
 )
+rem See the POSIX script: the Claude commands live in the user's settings.json,
+rem which Grok also scans. CLAUDECODE separates the two; CLAUDE_PROJECT_DIR does not.
+if /I "%ALERA_AGENT_TYPE%"=="claude" (
+  if "%CLAUDECODE%"=="" exit /b 0
+  if not "%GROK_HOOK_EVENT%"=="" exit /b 0
+)
 if not defined ALERA_AGENT_HOOK_ENDPOINT if defined ALERA_RUNTIME_DIR set "ALERA_AGENT_HOOK_ENDPOINT=%ALERA_RUNTIME_DIR%\agent-hooks\endpoint.cmd"
 if defined ALERA_AGENT_HOOK_ENDPOINT if exist "%ALERA_AGENT_HOOK_ENDPOINT%" call "%ALERA_AGENT_HOOK_ENDPOINT%" 2>nul
 if "%ALERA_AGENT_HOOK_PORT%"=="" exit /b 0
@@ -109,6 +123,23 @@ mod tests {
         assert!(POSIX_HOOK_SCRIPT.contains(r#"printf '{}\n'"#));
         // A hook that cannot reach Alera still owes the agent an answer.
         assert!(response < guard);
+    }
+
+    /// The Claude commands live in the user's own settings.json, which Grok
+    /// scans for Claude Code compatibility. Only Claude Code sets CLAUDECODE;
+    /// CLAUDE_PROJECT_DIR is no discriminator because Grok exports that too.
+    #[test]
+    fn managed_script_reports_claude_only_for_a_real_claude_code_session() {
+        assert!(POSIX_HOOK_SCRIPT.contains(r#"[ "$ALERA_AGENT_TYPE" = "claude" ]"#));
+        assert!(POSIX_HOOK_SCRIPT.contains(r#"[ -z "$CLAUDECODE" ]"#));
+        assert!(POSIX_HOOK_SCRIPT.contains(r#"[ -n "$GROK_HOOK_EVENT" ]"#));
+        assert!(!POSIX_HOOK_SCRIPT.contains("$CLAUDE_PROJECT_DIR"));
+
+        let guard = POSIX_HOOK_SCRIPT
+            .find(r#"[ -z "$CLAUDECODE" ]"#)
+            .expect("claude guard");
+        let post = POSIX_HOOK_SCRIPT.find("curl").expect("post");
+        assert!(guard < post);
     }
 
     #[test]

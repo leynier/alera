@@ -1,11 +1,13 @@
 //! End-to-end Agent Canvas conformance against the real runtime host.
 
+mod agent_integration_home_isolation;
+
+use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::process::Child;
 use std::time::{Duration, Instant};
 
-use alera_core::child_process::windowless_command;
 use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: i64 = 4;
@@ -32,7 +34,7 @@ fn start_host(
     control_path: &std::path::Path,
     token: &str,
 ) -> (HostGuard, u16) {
-    let child = windowless_command(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_command_with_isolated_home(runtime_dir)
         .args([
             "terminal-host",
             "--runtime-dir",

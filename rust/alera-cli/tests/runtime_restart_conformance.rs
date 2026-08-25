@@ -1,3 +1,6 @@
+mod agent_integration_home_isolation;
+
+use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
@@ -81,7 +84,7 @@ fn host_restart_replaces_the_process_and_accepts_a_new_connection() {
 }
 
 fn spawn_host(runtime_dir: &Path, control_path: &Path, token: &str) -> (HostGuard, u16) {
-    let child = alera_core::child_process::windowless_command(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_command_with_isolated_home(runtime_dir)
         .args([
             "terminal-host",
             "--runtime-dir",
