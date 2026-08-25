@@ -7,11 +7,13 @@ use crate::terminal_host::server::mobile_gateway_surface::MOBILE_HELLO_CAPABILIT
 use crate::terminal_host::server::mobile_hello_requests::MobileHelloRequest;
 // Only the hello-capabilities test needs this one, and importing it in the
 // parent would leave it unused in every non-test build.
+use crate::terminal_host::ai_assist_capabilities::{
+    RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
+};
 use crate::terminal_host::protocol::{
     PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
-    RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
-    RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY, RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY, RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
