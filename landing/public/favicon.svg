@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#181818" />
-  <image href="/logo.png" x="4" y="4" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#181818" rx="7"/><image width="24" height="24" x="4" y="4" href="/logo.png" preserveAspectRatio="xMidYMid meet"/></svg>
