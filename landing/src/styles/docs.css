@@ -157,3 +157,44 @@ site-search button {
   background: rgba(224, 224, 224, 0.2);
   color: #f5f5f5;
 }
+
+/* Keep the sidebar, article, and TOC as one column on wide screens.
+   Starlight pins the sidebars to the viewport edges and only caps the
+   article, so ultrawide monitors leave a large empty gap on both sides. */
+@media (min-width: 86rem) {
+  :root {
+    --alera-docs-max-width: 85.5rem;
+    --alera-docs-offset: max(0px, calc((100vw - var(--alera-docs-max-width)) / 2));
+  }
+
+  .page > .header {
+    inset-inline-start: var(--alera-docs-offset);
+    inset-inline-end: var(--alera-docs-offset);
+    width: auto;
+  }
+
+  .sidebar-pane {
+    inset-inline-start: var(--alera-docs-offset);
+  }
+
+  .main-frame {
+    max-width: var(--alera-docs-max-width);
+    margin-inline: auto;
+  }
+
+  .right-sidebar-container {
+    width: var(--sl-sidebar-width);
+    max-width: var(--sl-sidebar-width);
+    flex-grow: 0;
+  }
+
+  .right-sidebar {
+    width: var(--sl-sidebar-width);
+    inset-inline-start: auto;
+    inset-inline-end: var(--alera-docs-offset);
+  }
+
+  [data-has-sidebar][data-has-toc] .main-pane {
+    width: calc(100% - var(--sl-sidebar-width));
+  }
+}
