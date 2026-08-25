@@ -14,6 +14,21 @@ part 'alera_settings.mapper.dart';
 @MappableEnum()
 enum TerminalCursorShape { block, bar, underline }
 
+@MappableEnum()
+enum TerminalToolbarCorner {
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight;
+
+  String get label => switch (this) {
+    topLeft => 'Top Left',
+    topRight => 'Top Right',
+    bottomLeft => 'Bottom Left',
+    bottomRight => 'Bottom Right',
+  };
+}
+
 final _hexColorPattern = RegExp(r'^#?[0-9a-fA-F]{6}$');
 
 String? normalizeTerminalHexColor(Object? value) {
@@ -73,6 +88,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.clipboardOnSelect = false,
     this.allowOsc52Clipboard = false,
     this.showComposerByDefault = false,
+    this.toolbarCorner = TerminalToolbarCorner.topRight,
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
@@ -101,6 +117,9 @@ class TerminalSettings with TerminalSettingsMappable {
 
   /// Whether new terminal sessions open the prompt composer immediately.
   final bool showComposerByDefault;
+
+  /// Where the terminal action-button cluster sits inside the tab.
+  final TerminalToolbarCorner toolbarCorner;
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
@@ -143,6 +162,7 @@ class TerminalSettings with TerminalSettingsMappable {
     clipboardOnSelect: false,
     allowOsc52Clipboard: false,
     showComposerByDefault: false,
+    toolbarCorner: TerminalToolbarCorner.topRight,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
