@@ -22,25 +22,14 @@ pub(super) fn cleanup_claude_user_hooks(home: &Path) -> anyhow::Result<()> {
 }
 
 fn claude_settings_cleanup_paths(home: &Path) -> Vec<PathBuf> {
-    let mut paths = vec![
+    // Grok scans ~/.claude/settings.json by default. CCS instance
+    // settings.json usually symlinks there, so leftover cleanup must not
+    // walk CCS files: that would strip (or write through to) the user file
+    // and would also undo instance settings.local.json while Claude is on.
+    vec![
         home.join(".claude/settings.json"),
         home.join(".claude/settings.local.json"),
-        home.join(".ccs/shared/settings.json"),
-    ];
-    let instances = home.join(".ccs/instances");
-    let Ok(entries) = std::fs::read_dir(&instances) else {
-        return paths;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path().join("settings.json");
-        let Ok(metadata) = std::fs::symlink_metadata(&path) else {
-            continue;
-        };
-        if metadata.file_type().is_file() {
-            paths.push(path);
-        }
-    }
-    paths
+    ]
 }
 
 /// Strips Alera-managed hook definitions from a Claude- or Cursor-shaped JSON

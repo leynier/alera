@@ -11,6 +11,8 @@ use super::integration_plugins::{
     install_amp_plugin, install_opencode2_plugin, install_opencode_plugin, install_pi_plugin,
 };
 
+#[path = "integration_config_ccs.rs"]
+mod ccs;
 #[path = "integration_config_codex_trust.rs"]
 mod codex_hook_trust;
 #[path = "integration_config_cursor_overlay.rs"]
@@ -58,13 +60,22 @@ pub fn prepare_enabled_integrations(
         }
     }
     if settings.claude {
-        match prepare_claude(runtime_dir, &script) {
-            Ok(home) => {
+        match prepare_claude(runtime_dir, &script, environment) {
+            Ok((home, ccs_warnings)) => {
                 environment.insert("CLAUDE_CONFIG_DIR".to_string(), path_string(&home));
                 environment.insert("ALERA_CLAUDE_CONFIG_DIR".to_string(), path_string(&home));
+                warnings.extend(
+                    ccs_warnings
+                        .into_iter()
+                        .map(|warning| format!("Claude: {warning}")),
+                );
             }
             Err(error) => warnings.push(format!("Claude: {error}")),
         }
+    } else if let Err(error) =
+        home_dir().and_then(|home| ccs::remove_ccs_claude_hooks(&home, environment))
+    {
+        warnings.push(format!("Claude: {error}"));
     }
     // The Cursor plugin is per terminal session, so it can only be built when a
     // session is being launched. `reconcile_agent_integrations` has none.
@@ -195,8 +206,13 @@ fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
     Ok(runtime_home)
 }
 
-fn prepare_claude(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
-    let source = home_dir()?.join(".claude");
+fn prepare_claude(
+    runtime_dir: &Path,
+    script: &Path,
+    environment: &BTreeMap<String, String>,
+) -> anyhow::Result<(PathBuf, Vec<String>)> {
+    let home = home_dir()?;
+    let source = home.join(".claude");
     let runtime_home = runtime_dir.join("agent-runtime-homes/claude/home");
     std::fs::create_dir_all(&runtime_home)?;
     if source.exists() {
@@ -208,22 +224,34 @@ fn prepare_claude(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> 
         }
     }
     let mut settings = read_json_object(&source.join("settings.json"))?.unwrap_or_default();
-    let hooks = object_field(&mut settings, "hooks");
-    for (event, matcher) in [
-        ("UserPromptSubmit", None),
-        ("Stop", None),
-        ("PreToolUse", Some("*")),
-        ("PostToolUse", Some("*")),
-        ("PostToolUseFailure", Some("*")),
-        ("PermissionRequest", Some("*")),
-    ] {
-        let command = managed_command(script, "claude", event);
-        let mut definitions = clean_managed_definitions(hooks.remove(event));
-        definitions.push(managed_hook_definition(matcher, &command));
-        hooks.insert(event.to_string(), Value::Array(definitions));
-    }
+    install_claude_hooks_into(&mut settings, script);
     write_json_object(&runtime_home.join("settings.json"), &settings)?;
-    Ok(runtime_home)
+    // CCS instances override CLAUDE_CONFIG_DIR; keep the overlay even when
+    // one of those instance files cannot be updated.
+    let ccs_warnings = match ccs::install_ccs_claude_hooks(script, &home, environment) {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![error.to_string()],
+    };
+    Ok((runtime_home, ccs_warnings))
+}
+
+pub(super) const CLAUDE_HOOK_EVENTS: &[(&str, Option<&str>)] = &[
+    ("UserPromptSubmit", None),
+    ("Stop", None),
+    ("PreToolUse", Some("*")),
+    ("PostToolUse", Some("*")),
+    ("PostToolUseFailure", Some("*")),
+    ("PermissionRequest", Some("*")),
+];
+
+pub(super) fn install_claude_hooks_into(settings: &mut Map<String, Value>, script: &Path) {
+    let hooks = object_field(settings, "hooks");
+    for (event, matcher) in CLAUDE_HOOK_EVENTS {
+        let command = managed_command(script, "claude", event);
+        let mut definitions = clean_managed_definitions(hooks.remove(*event));
+        definitions.push(managed_hook_definition(*matcher, &command));
+        hooks.insert((*event).to_string(), Value::Array(definitions));
+    }
 }
 
 fn install_copilot(script: &Path) -> anyhow::Result<()> {
@@ -326,7 +354,7 @@ fn apply_agy_bundle(config: &mut Map<String, Value>, script: &Path) {
 
 // Non-tool events have nothing to match on. Their schemas expect the key to be
 // absent rather than null, so emitting `null` trips agent-side validation.
-fn managed_hook_definition(matcher: Option<&str>, command: &str) -> Value {
+pub(super) fn managed_hook_definition(matcher: Option<&str>, command: &str) -> Value {
     let mut definition = Map::new();
     if let Some(matcher) = matcher {
         definition.insert("matcher".to_string(), json!(matcher));
@@ -338,7 +366,7 @@ fn managed_hook_definition(matcher: Option<&str>, command: &str) -> Value {
     Value::Object(definition)
 }
 
-fn managed_command(script: &Path, agent: &str, event: &str) -> String {
+pub(super) fn managed_command(script: &Path, agent: &str, event: &str) -> String {
     #[cfg(windows)]
     {
         format!(
@@ -357,7 +385,7 @@ fn managed_command(script: &Path, agent: &str, event: &str) -> String {
     }
 }
 
-fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
+pub(super) fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
     value
         .and_then(|value| value.as_array().cloned())
         .unwrap_or_default()
@@ -366,7 +394,7 @@ fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
         .collect()
 }
 
-fn is_alera_managed_definition(definition: &Value) -> bool {
+pub(super) fn is_alera_managed_definition(definition: &Value) -> bool {
     let encoded = definition.to_string();
     encoded.contains(MANAGED_MARKER)
         || LEGACY_MANAGED_MARKERS
@@ -374,7 +402,10 @@ fn is_alera_managed_definition(definition: &Value) -> bool {
             .any(|marker| encoded.contains(marker))
 }
 
-fn object_field<'a>(object: &'a mut Map<String, Value>, key: &str) -> &'a mut Map<String, Value> {
+pub(super) fn object_field<'a>(
+    object: &'a mut Map<String, Value>,
+    key: &str,
+) -> &'a mut Map<String, Value> {
     if !object.get(key).is_some_and(Value::is_object) {
         object.insert(key.to_string(), Value::Object(Map::new()));
     }
@@ -397,7 +428,7 @@ fn table_field<'a>(
         .expect("table inserted")
 }
 
-fn read_json_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
+pub(super) fn read_json_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
     match std::fs::read_to_string(path) {
         Ok(contents) => Ok(serde_json::from_str::<Value>(&contents)?
             .as_object()
@@ -407,7 +438,7 @@ fn read_json_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
     }
 }
 
-fn write_json_object(path: &Path, value: &Map<String, Value>) -> anyhow::Result<()> {
+pub(super) fn write_json_object(path: &Path, value: &Map<String, Value>) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
