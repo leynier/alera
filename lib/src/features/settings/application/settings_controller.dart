@@ -145,6 +145,15 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setKeepAliveEnabled(bool value) async {
+    if (state.general.keepAliveEnabled == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(general: state.general.copyWith(keepAliveEnabled: value)),
+    );
+  }
+
   Future<void> setAgentStatusHookEnabled(
     AgentType agentType,
     bool value,

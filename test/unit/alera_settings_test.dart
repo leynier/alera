@@ -40,6 +40,7 @@ void main() {
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
+      expect(general.keepAliveEnabled, isFalse);
     });
 
     test('agent defaults are conservative', () {

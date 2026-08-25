@@ -4,6 +4,7 @@ pub mod clipboard;
 pub mod git;
 pub mod git_diff_blob;
 pub mod git_explorer_status;
+pub mod keep_alive;
 pub mod merman_viewer;
 pub mod process;
 pub mod reading_diff;

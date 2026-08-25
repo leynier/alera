@@ -278,6 +278,7 @@ class GeneralSettings with GeneralSettingsMappable {
     this.starClicked = false,
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
+    this.keepAliveEnabled = false,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -294,6 +295,11 @@ class GeneralSettings with GeneralSettingsMappable {
 
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
+
+  /// Prevent idle sleep and display sleep while Alera is running.
+  ///
+  /// Lid-close and explicit sleep still follow the device power policy.
+  final bool keepAliveEnabled;
 
   static const GeneralSettings defaults = GeneralSettings();
 
