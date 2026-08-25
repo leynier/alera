@@ -1,5 +1,5 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
@@ -18,10 +18,10 @@ void main() {
 
       await repository.save(
         AleraSettings.defaults.copyWith(
-          aiTextGeneration: const AiTextGenerationSettings(
+          aiAssist: const AiAssistSettings(
             selectedThinkingByOperation:
-                <AiTextGenerationOperation, Map<String, String>>{
-                  AiTextGenerationOperation.commitMessage: <String, String>{
+                <AiAssistOperation, Map<String, String>>{
+                  AiAssistOperation.commitMessage: <String, String>{
                     'gpt-5.5': 'high',
                   },
                 },
@@ -34,13 +34,16 @@ void main() {
       expect(payload['agentQuotas'], isA<Map<String, Object?>>());
       expect(payload['defaultAgentProfileId'], isNull);
       expect(payload['aiTextGeneration'], isA<Map<String, Object?>>());
-      final aiText = payload['aiTextGeneration']! as Map<String, Object?>;
-      expect(aiText['agent'], 'codex');
-      expect(aiText['promptSettingsByOperation'], isA<Map<String, Object?>>());
-      expect(aiText['selectedThinkingByOperation'], <String, Object?>{
+      final aiAssist = payload['aiTextGeneration']! as Map<String, Object?>;
+      expect(aiAssist['agent'], 'codex');
+      expect(
+        aiAssist['promptSettingsByOperation'],
+        isA<Map<String, Object?>>(),
+      );
+      expect(aiAssist['selectedThinkingByOperation'], <String, Object?>{
         'commitMessage': <String, String>{'gpt-5.5': 'high'},
       });
-      expect(aiText, isNot(contains('discoveredModelsByAgent')));
+      expect(aiAssist, isNot(contains('discoveredModelsByAgent')));
       expect(
         (payload['agentQuotas']! as Map<String, Object?>)['enabledProviders'],
         <String>[
@@ -125,15 +128,15 @@ void main() {
   });
 
   test(
-    'load combines shared AI Text execution settings with local discovery',
+    'load combines shared AI Assist execution settings with local discovery',
     () async {
       final legacyRepository = _MemorySettingsRepository();
       legacyRepository.settings = AleraSettings.defaults.copyWith(
-        aiTextGeneration: const AiTextGenerationSettings(
+        aiAssist: const AiAssistSettings(
           discoveredModelsByAgent:
-              <AiTextGenerationAgent, List<AiTextDiscoveredModel>>{
-                AiTextGenerationAgent.codex: <AiTextDiscoveredModel>[
-                  AiTextDiscoveredModel(
+              <AiAssistAgent, List<AiAssistDiscoveredModel>>{
+                AiAssistAgent.codex: <AiAssistDiscoveredModel>[
+                  AiAssistDiscoveredModel(
                     id: 'local-model',
                     label: 'Local Model',
                   ),
@@ -170,37 +173,28 @@ void main() {
 
       final loaded = await repository.load();
 
-      expect(loaded.aiTextGeneration.agent, AiTextGenerationAgent.claude);
+      expect(loaded.aiAssist.agent, AiAssistAgent.claude);
       expect(
-        loaded.aiTextGeneration.instructionsFor(
-          AiTextGenerationOperation.workspaceIdentity,
-        ),
+        loaded.aiAssist.instructionsFor(AiAssistOperation.workspaceIdentity),
         'Use feature branches.',
       );
       expect(
-        loaded.aiTextGeneration.agentFor(
-          AiTextGenerationOperation.workspaceIdentity,
-        ),
-        AiTextGenerationAgent.claude,
+        loaded.aiAssist.agentFor(AiAssistOperation.workspaceIdentity),
+        AiAssistAgent.claude,
       );
       expect(
-        loaded.aiTextGeneration.modelForOperation(
-          AiTextGenerationOperation.workspaceIdentity,
-        ),
+        loaded.aiAssist.modelForOperation(AiAssistOperation.workspaceIdentity),
         'opus',
       );
       expect(
-        loaded.aiTextGeneration.thinkingForOperation(
-          AiTextGenerationOperation.workspaceIdentity,
+        loaded.aiAssist.thinkingForOperation(
+          AiAssistOperation.workspaceIdentity,
           'opus',
         ),
         'high',
       );
       expect(
-        loaded.aiTextGeneration
-            .discoveredModelsFor(AiTextGenerationAgent.codex)
-            .single
-            .id,
+        loaded.aiAssist.discoveredModelsFor(AiAssistAgent.codex).single.id,
         'local-model',
       );
     },

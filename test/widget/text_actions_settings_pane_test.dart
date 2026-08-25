@@ -15,7 +15,7 @@ void main() {
           body: StatefulBuilder(
             builder: (context, setState) => TextActionsSettingsPane(
               settings: settings.textActions,
-              aiTextSettings: settings.aiTextGeneration,
+              aiAssistSettings: settings.aiAssist,
               onChanged: (next) {
                 setState(() {
                   settings = settings.copyWith(textActions: next);
@@ -70,7 +70,7 @@ void main() {
         home: Scaffold(
           body: TextActionsSettingsPane(
             settings: actions,
-            aiTextSettings: AleraSettings.defaults.aiTextGeneration,
+            aiAssistSettings: AleraSettings.defaults.aiAssist,
             onChanged: (_) {},
           ),
         ),
@@ -96,7 +96,7 @@ void main() {
           body: StatefulBuilder(
             builder: (context, setState) => TextActionsSettingsPane(
               settings: actions,
-              aiTextSettings: AleraSettings.defaults.aiTextGeneration,
+              aiAssistSettings: AleraSettings.defaults.aiAssist,
               onChanged: (next) => setState(() => actions = next),
             ),
           ),

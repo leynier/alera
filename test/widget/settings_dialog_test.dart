@@ -4,10 +4,10 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -48,7 +48,7 @@ import '../unit/fake_project_config.dart';
 part 'settings_dialog_core_test_cases.dart';
 part 'settings_dialog_editor_test_cases.dart';
 part 'settings_dialog_project_test_cases.dart';
-part 'settings_dialog_ai_text_test_cases.dart';
+part 'settings_dialog_ai_assist_test_cases.dart';
 part 'settings_dialog_quota_test_cases.dart';
 part 'settings_dialog_terminal_test_cases.dart';
 part 'settings_dialog_interaction_test_cases.dart';
@@ -60,7 +60,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
   AleraSettings initialSettings = AleraSettings.defaults,
   Size surfaceSize = const Size(1200, 900),
   SystemFontService? fontService,
-  AiTextModelDiscoveryService? modelDiscoveryService,
+  AiAssistModelDiscoveryService? modelDiscoveryService,
   String initialSectionId = 'application',
   String? initialProjectId,
   List<dynamic> extraOverrides = const <dynamic>[],
@@ -84,8 +84,8 @@ Future<ProviderContainer> _pumpSettingsDialog(
             ]),
       ),
       aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
-      aiTextModelDiscoveryServiceProvider.overrideWithValue(
-        modelDiscoveryService ?? const _FakeAiTextModelDiscoveryService(),
+      aiAssistModelDiscoveryServiceProvider.overrideWithValue(
+        modelDiscoveryService ?? const _FakeAiAssistModelDiscoveryService(),
       ),
       if (starController != null)
         gitHubStarControllerProvider.overrideWith(() => starController),
@@ -120,7 +120,7 @@ void main() {
   _registerSettingsDialogCoreTests();
   _registerSettingsDialogEditorTests();
   _registerSettingsDialogProjectTests();
-  _registerSettingsDialogAiTextTests();
+  _registerSettingsDialogAiAssistTests();
   _registerSettingsDialogQuotaTests();
   _registerSettingsDialogTerminalTests();
   _registerSettingsDialogAdvancedTests();

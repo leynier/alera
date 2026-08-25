@@ -8,7 +8,7 @@ class _SourceControlToolbar extends StatelessWidget {
     required this.viewMode,
     required this.groupMode,
     required this.state,
-    required this.aiTextSettings,
+    required this.aiAssistSettings,
     required this.generatingCommitMessage,
     required this.allCollapsed,
     required this.filterVisible,
@@ -34,7 +34,7 @@ class _SourceControlToolbar extends StatelessWidget {
   final GitDiffViewMode viewMode;
   final GitDiffGroupMode groupMode;
   final AsyncValue<WorkspaceSourceControlState> state;
-  final AiTextGenerationSettings aiTextSettings;
+  final AiAssistSettings aiAssistSettings;
   final bool generatingCommitMessage;
   final bool allCollapsed;
   final bool filterVisible;
@@ -60,7 +60,7 @@ class _SourceControlToolbar extends StatelessWidget {
     final hasStagedChanges = data?.hasStagedChanges ?? false;
     final hasConflicts = data?.repositoryState.hasConflicts ?? false;
     final canGenerateCommitMessage =
-        aiTextSettings.enabled && !busy && !hasConflicts && hasStagedChanges;
+        aiAssistSettings.enabled && !busy && !hasConflicts && hasStagedChanges;
     final canCommit =
         !busy &&
         !hasConflicts &&
@@ -101,7 +101,7 @@ class _SourceControlToolbar extends StatelessWidget {
                         ),
                         const SizedBox(width: AleraTokens.space2),
                       ],
-                      if (aiTextSettings.enabled ||
+                      if (aiAssistSettings.enabled ||
                           generatingCommitMessage) ...<Widget>[
                         _AiCommitMessageButton(
                           generating: generatingCommitMessage,

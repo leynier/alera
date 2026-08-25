@@ -40,7 +40,7 @@ mixin MobileRuntimeWorkspaceClient {
       runtimeCapabilities.contains(mobileWorkspaceMutationsCapability);
 
   bool get supportsPromptWorkspaceCreation =>
-      runtimeCapabilities.contains(aiTextWorkspaceIdentityCapability) &&
+      runtimeCapabilities.contains(aiAssistWorkspaceIdentityCapability) &&
       runtimeCapabilities.contains(agentProfilePromptLaunchCapability);
 
   bool get supportsIdempotentAgentProfileLaunch =>
@@ -50,7 +50,7 @@ mixin MobileRuntimeWorkspaceClient {
       runtimeCapabilities.contains(mobilePromptImageUploadCapability);
 
   bool get supportsSpeechMessageProcessing =>
-      runtimeCapabilities.contains(aiTextSpeechMessageCapability);
+      runtimeCapabilities.contains(aiAssistSpeechMessageCapability);
 
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
     await request('workspace.setPinned', <String, Object?>{

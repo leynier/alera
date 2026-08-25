@@ -7,7 +7,7 @@ void _registerSettingsDialogCoreTests() {
     AleraSettings initialSettings = AleraSettings.defaults,
     Size surfaceSize = const Size(1200, 900),
     SystemFontService? fontService,
-    AiTextModelDiscoveryService? modelDiscoveryService,
+    AiAssistModelDiscoveryService? modelDiscoveryService,
     List<dynamic> extraOverrides = const <dynamic>[],
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
@@ -29,8 +29,8 @@ void _registerSettingsDialogCoreTests() {
               ]),
         ),
         aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
-        aiTextModelDiscoveryServiceProvider.overrideWithValue(
-          modelDiscoveryService ?? const _FakeAiTextModelDiscoveryService(),
+        aiAssistModelDiscoveryServiceProvider.overrideWithValue(
+          modelDiscoveryService ?? const _FakeAiAssistModelDiscoveryService(),
         ),
         if (starController != null)
           gitHubStarControllerProvider.overrideWith(() => starController),
@@ -62,8 +62,11 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
   }
 
-  Future<void> selectAiTextSectionLocal(WidgetTester tester) async {
-    await tester.tap(find.text('AI Text').first);
+  Future<void> selectAiAssistSectionLocal(WidgetTester tester) async {
+    final nav = find.byKey(const ValueKey<String>('settings-nav-aiAssist'));
+    await tester.ensureVisible(nav);
+    await tester.pump();
+    await tester.tap(nav);
     await tester.pump();
   }
 
@@ -238,11 +241,11 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('pnpm install'), findsNothing);
   });
 
-  testWidgets('edits and resets AI text settings', (tester) async {
+  testWidgets('edits and resets AI Assist settings', (tester) async {
     final container = await pumpSettingsDialogLocal(tester);
-    await selectAiTextSectionLocal(tester);
+    await selectAiAssistSectionLocal(tester);
 
-    expect(find.text('AI Text'), findsWidgets);
+    expect(find.text('AI Assist'), findsWidgets);
     expect(find.text('Agent'), findsWidgets);
     expect(find.text('Model'), findsWidgets);
     expect(find.text('Commit Messages'), findsWidgets);
@@ -252,7 +255,7 @@ void _registerSettingsDialogCoreTests() {
       tester
           .widgetList<MouseRegion>(
             find.descendant(
-              of: find.byKey(const ValueKey<String>('ai-text-agent-codex')),
+              of: find.byKey(const ValueKey<String>('ai-assist-agent-codex')),
               matching: find.byType(MouseRegion),
             ),
           )
@@ -265,7 +268,7 @@ void _registerSettingsDialogCoreTests() {
           .widgetList<MouseRegion>(
             find.descendant(
               of: find.byKey(
-                const ValueKey<String>('ai-text-model-codex-gpt-5.5'),
+                const ValueKey<String>('ai-assist-model-codex-gpt-5.5'),
               ),
               matching: find.byType(MouseRegion),
             ),
@@ -278,7 +281,7 @@ void _registerSettingsDialogCoreTests() {
       tester
           .widgetList<MouseRegion>(
             find.descendant(
-              of: find.byKey(const ValueKey<String>('ai-text-thinking-low')),
+              of: find.byKey(const ValueKey<String>('ai-assist-thinking-low')),
               matching: find.byType(MouseRegion),
             ),
           )
@@ -287,16 +290,15 @@ void _registerSettingsDialogCoreTests() {
       SystemMouseCursors.click,
     );
 
-    await tester.tap(find.byKey(const ValueKey<String>('ai-text-agent-codex')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byType(AleraDropdownEntry<AiTextGenerationAgent>),
-      findsWidgets,
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ai-assist-agent-codex')),
     );
+    await tester.pumpAndSettle();
+    expect(find.byType(AleraDropdownEntry<AiAssistAgent>), findsWidgets);
     expect(
       tester
-          .widgetList<AleraDropdownEntry<AiTextGenerationAgent>>(
-            find.byType(AleraDropdownEntry<AiTextGenerationAgent>),
+          .widgetList<AleraDropdownEntry<AiAssistAgent>>(
+            find.byType(AleraDropdownEntry<AiAssistAgent>),
           )
           .first
           .enabled,
@@ -306,25 +308,25 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container.read(settingsControllerProvider).aiTextGeneration.agent,
-      AiTextGenerationAgent.agy,
+      container.read(settingsControllerProvider).aiAssist.agent,
+      AiAssistAgent.agy,
     );
     await tester.pump(const Duration(milliseconds: 50));
     expect(
       container
           .read(settingsControllerProvider)
-          .aiTextGeneration
-          .discoveredModelsFor(AiTextGenerationAgent.agy)
+          .aiAssist
+          .discoveredModelsFor(AiAssistAgent.agy)
           .map((model) => model.id),
       contains('gpt-5.5'),
     );
 
-    await tester.tap(find.text('Reset AI Text'));
+    await tester.tap(find.text('Reset AI Assist'));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container.read(settingsControllerProvider).aiTextGeneration.agent,
-      AiTextGenerationSettings.defaults.agent,
+      container.read(settingsControllerProvider).aiAssist.agent,
+      AiAssistSettings.defaults.agent,
     );
     expect(find.text('Codex').last, findsOneWidget);
 
@@ -342,30 +344,32 @@ void _registerSettingsDialogCoreTests() {
     expect(
       container
           .read(settingsControllerProvider)
-          .aiTextGeneration
-          .instructionsFor(AiTextGenerationOperation.commitMessage),
+          .aiAssist
+          .instructionsFor(AiAssistOperation.commitMessage),
       'Use conventional commits.',
     );
 
     await container
         .read(settingsControllerProvider.notifier)
-        .resetAiTextGenerationSettings();
+        .resetAiAssistSettings();
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container.read(settingsControllerProvider).aiTextGeneration.agent,
-      AiTextGenerationSettings.defaults.agent,
+      container.read(settingsControllerProvider).aiAssist.agent,
+      AiAssistSettings.defaults.agent,
     );
 
-    await selectAiTextSectionLocal(tester);
+    await selectAiAssistSectionLocal(tester);
     await tester.pump();
     await tester.enterText(
       find.widgetWithText(TextField, 'Optional instructions').first,
       'Draft that should not survive reset.',
     );
-    await tester.ensureVisible(find.text('Reset AI Text', skipOffstage: false));
+    await tester.ensureVisible(
+      find.text('Reset AI Assist', skipOffstage: false),
+    );
     await tester.pump();
-    await tester.tap(find.text('Reset AI Text'));
+    await tester.tap(find.text('Reset AI Assist'));
     await tester.pump(const Duration(milliseconds: 50));
     await selectTerminalSectionLocal(tester);
     await tester.pump(const Duration(milliseconds: 50));
@@ -373,8 +377,8 @@ void _registerSettingsDialogCoreTests() {
     expect(
       container
           .read(settingsControllerProvider)
-          .aiTextGeneration
-          .instructionsFor(AiTextGenerationOperation.commitMessage),
+          .aiAssist
+          .instructionsFor(AiAssistOperation.commitMessage),
       isEmpty,
     );
   });

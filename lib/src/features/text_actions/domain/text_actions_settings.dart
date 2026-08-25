@@ -1,4 +1,4 @@
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'text_actions_settings.mapper.dart';
@@ -20,7 +20,7 @@ class TextAction with TextActionMappable {
   final String name;
   final String prompt;
   final bool enabled;
-  final AiTextGenerationAgent? agentOverride;
+  final AiAssistAgent? agentOverride;
   final String? modelOverride;
   final Map<String, String> reasoningByModel;
 
@@ -28,11 +28,11 @@ class TextAction with TextActionMappable {
 
   bool get inheritsModel => modelOverride?.trim().isNotEmpty != true;
 
-  AiTextGenerationAgent effectiveAgent(AiTextGenerationSettings settings) {
+  AiAssistAgent effectiveAgent(AiAssistSettings settings) {
     return agentOverride ?? settings.agent;
   }
 
-  String? effectiveModel(AiTextGenerationSettings settings) {
+  String? effectiveModel(AiAssistSettings settings) {
     final override = modelOverride?.trim();
     if (override != null && override.isNotEmpty) {
       return override;
@@ -40,10 +40,7 @@ class TextAction with TextActionMappable {
     return settings.modelFor(effectiveAgent(settings));
   }
 
-  String? reasoningFor(
-    AiTextGenerationSettings settings, {
-    required String? model,
-  }) {
+  String? reasoningFor(AiAssistSettings settings, {required String? model}) {
     final modelId = model?.trim();
     if (modelId == null || modelId.isEmpty) {
       return null;

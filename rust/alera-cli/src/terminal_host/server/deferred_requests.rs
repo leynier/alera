@@ -29,7 +29,7 @@ impl ServerActor {
             "aiText.models.discover" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_model_discovery(client_id, request_id, payload)?;
+                self.start_ai_assist_model_discovery(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiDictation.transcribe" => {
@@ -41,13 +41,13 @@ impl ServerActor {
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
+                self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_speech_message(client_id, request_id, payload)?;
+                self.start_ai_assist_speech_message(client_id, request_id, payload)?;
                 Ok(true)
             }
             "mobile.workspaceQuickOpen.start"
@@ -77,19 +77,19 @@ impl ServerActor {
             "aiText.commitMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_commit_message(client_id, request_id, payload)?;
+                self.start_ai_assist_commit_message(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiText.pullRequestDetails.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_pull_request(client_id, request_id, payload)?;
+                self.start_ai_assist_pull_request(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiText.textAction.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_text_action(client_id, request_id, payload)?;
+                self.start_ai_assist_text_action(client_id, request_id, payload)?;
                 Ok(true)
             }
             "workspace.createManaged" => {

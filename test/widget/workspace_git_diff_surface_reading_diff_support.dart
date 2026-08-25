@@ -40,7 +40,7 @@ class _BlockingReadingDiffService extends ReadingDiffService {
   void completeCancellation() {
     final pending = _pending;
     if (pending != null && !pending.isCompleted) {
-      pending.completeError(const AiTextGenerationCanceledException());
+      pending.completeError(const AiAssistCanceledException());
     }
   }
 }
@@ -81,8 +81,8 @@ class _FailingReadingDiffRunner implements AgentTaskRunner {
   void cancel(String runId) {}
 
   @override
-  Future<AiTextAgentRunResult> run(AiTextAgentRunRequest request) {
-    throw const AiTextGenerationException(
+  Future<AiAssistAgentRunResult> run(AiAssistAgentRunRequest request) {
+    throw const AiAssistException(
       'Codex failed: Invalid schema for response format.',
     );
   }
@@ -159,7 +159,7 @@ class _RegenerationFailureReadingDiffService extends ReadingDiffService {
     if (preparationCount == 1) {
       return result;
     }
-    throw const AiTextGenerationException('Replacement generation failed.');
+    throw const AiAssistException('Replacement generation failed.');
   }
 }
 
@@ -193,7 +193,7 @@ ReadingDiffPreparation _preparation(
       ),
     ],
   ),
-  agent: AiTextGenerationAgent.codex,
+  agent: AiAssistAgent.codex,
   model: 'gpt-5.5',
   effort: 'low',
   accessPolicy: AgentTaskAccessPolicy.diffOnly,

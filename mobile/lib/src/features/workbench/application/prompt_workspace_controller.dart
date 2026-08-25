@@ -220,7 +220,7 @@ class PromptWorkspaceController extends _$PromptWorkspaceController {
       if (creation == null) {
         throw collisionError ??
             StateError(
-              'AI Text could not generate an available workspace identity.',
+              'AI Assist could not generate an available workspace identity.',
             );
       }
       state = state.copyWith(creation: creation, phase: 'Starting agent');

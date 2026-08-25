@@ -4,9 +4,9 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/text_actions/application/text_action_prompt.dart';
 import 'package:alera/src/features/text_actions/application/text_action_replacement.dart';
@@ -39,7 +39,7 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     );
     final enabled =
         _desktopPlatform &&
-        settings.aiTextGeneration.enabled &&
+        settings.aiAssist.enabled &&
         settings.textActions.enabledActions.isNotEmpty;
     return AleraTextActionsScope(
       enabled: enabled,
@@ -66,7 +66,7 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
     }
     final settings = ref.read(settingsControllerProvider);
     final actions = settings.textActions.enabledActions;
-    if (!settings.aiTextGeneration.enabled || actions.isEmpty) {
+    if (!settings.aiAssist.enabled || actions.isEmpty) {
       return;
     }
     final overlay = Navigator.of(context).overlay;
@@ -144,21 +144,17 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
       if (currentAction == null || !currentAction.enabled) {
         return;
       }
-      final agent = currentAction.effectiveAgent(
-        currentSettings.aiTextGeneration,
-      );
-      final model = currentAction.effectiveModel(
-        currentSettings.aiTextGeneration,
-      );
+      final agent = currentAction.effectiveAgent(currentSettings.aiAssist);
+      final model = currentAction.effectiveModel(currentSettings.aiAssist);
       final reasoning = currentAction.reasoningFor(
-        currentSettings.aiTextGeneration,
+        currentSettings.aiAssist,
         model: model,
       );
       final result = await ref
-          .read(aiTextAgentRunnerProvider)
+          .read(aiAssistAgentRunnerProvider)
           .run(
-            AiTextAgentRunRequest(
-              settings: currentSettings.aiTextGeneration,
+            AiAssistAgentRunRequest(
+              settings: currentSettings.aiAssist,
               prompt: buildTextActionPrompt(
                 instruction: currentAction.prompt,
                 selectedText: selectedText,
@@ -202,9 +198,9 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
         message: 'Text action applied.',
         tone: AleraToastTone.success,
       );
-    } on AiTextGenerationCanceledException {
+    } on AiAssistCanceledException {
       AleraToast.publish(message: 'Text action was canceled.');
-    } on AiTextGenerationException catch (error) {
+    } on AiAssistException catch (error) {
       AleraToast.publish(
         message: 'Text action failed: ${error.message}',
         tone: AleraToastTone.error,

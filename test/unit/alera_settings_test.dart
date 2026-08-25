@@ -1,4 +1,4 @@
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -98,17 +98,17 @@ void main() {
       );
     });
 
-    test('ai text generation defaults cover Alera agents conservatively', () {
-      const ai = AiTextGenerationSettings.defaults;
+    test('AI Assist defaults cover Alera agents conservatively', () {
+      const ai = AiAssistSettings.defaults;
 
       expect(ai.enabled, isTrue);
-      expect(ai.agent, AiTextGenerationAgent.codex);
+      expect(ai.agent, AiAssistAgent.codex);
       expect(ai.timeoutSeconds, 120);
       expect(ai.customCommand, isEmpty);
-      expect(ai.modelFor(AiTextGenerationAgent.codex), isNull);
+      expect(ai.modelFor(AiAssistAgent.codex), isNull);
       expect(
-        AiTextGenerationAgent.values
-            .where((agent) => agent != AiTextGenerationAgent.custom)
+        AiAssistAgent.values
+            .where((agent) => agent != AiAssistAgent.custom)
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,

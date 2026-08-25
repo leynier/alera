@@ -139,6 +139,7 @@ class SettingsNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
+      key: ValueKey<String>('settings-nav-${section.id}'),
       color: Colors.transparent,
       child: InkWell(
         onTap: () {

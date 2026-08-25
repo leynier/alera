@@ -324,16 +324,17 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
-const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
+const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
-    title: 'AI Text Generation',
-    description: 'Generate source control text with local agent CLIs.',
-    keywords: <String>['ai', 'commit', 'pull request', 'branch'],
+    title: 'AI Assist',
+    description:
+        'Run short local agent jobs for source control, workspace identity, and speech.',
+    keywords: <String>['ai', 'assist', 'commit', 'pull request', 'branch'],
     groupId: 'generation',
   ),
   SettingsSearchEntry(
-    title: 'AI Text Agent',
-    description: 'Choose the CLI used for generated text.',
+    title: 'AI Assist Agent',
+    description: 'Choose the CLI used for AI Assist jobs.',
     keywords: <String>[
       'codex',
       'claude',
@@ -350,7 +351,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
     groupId: 'generation',
   ),
   SettingsSearchEntry(
-    title: 'AI Text Commit Messages',
+    title: 'AI Assist Commit Messages',
     description:
         'Choose the agent, model, reasoning and instructions for commit messages.',
     keywords: <String>[
@@ -366,7 +367,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
     groupId: 'commitMessage',
   ),
   SettingsSearchEntry(
-    title: 'AI Text Pull Request Details',
+    title: 'AI Assist Pull Request Details',
     description:
         'Choose the agent, model, reasoning and instructions for pull request details.',
     keywords: <String>[
@@ -384,7 +385,7 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
   ),
   ...readingDiffSearchEntries,
   SettingsSearchEntry(
-    title: 'AI Text Workspace Identity',
+    title: 'AI Assist Workspace Identity',
     description:
         'Choose the agent, model, reasoning and instructions for workspace identity.',
     keywords: <String>[

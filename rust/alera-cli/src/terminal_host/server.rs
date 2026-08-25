@@ -59,22 +59,22 @@ mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
 mod agent_profile_persona_discovery;
-mod ai_text_commit_message;
+mod ai_assist_commit_message;
+mod ai_assist_failure_detail;
+mod ai_assist_fx_plan;
+mod ai_assist_grok_plan;
+mod ai_assist_model_defaults;
+mod ai_assist_open_code;
+mod ai_assist_requests;
+mod ai_assist_speech_message;
+mod ai_assist_workspace_identity;
 mod ai_dictation_credentials;
 mod ai_dictation_openai;
 mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
-mod ai_text_failure_detail;
-mod ai_text_fx_plan;
-mod ai_text_grok_plan;
-mod ai_text_model_discovery;
-mod ai_text_model_defaults;
-mod ai_text_pull_request;
-mod ai_text_open_code;
-mod ai_text_requests;
-mod ai_text_text_action;
-mod ai_text_speech_message;
-mod ai_text_workspace_identity;
+mod ai_assist_model_discovery;
+mod ai_assist_pull_request;
+mod ai_assist_text_action;
 mod automation_actor;
 mod automation_catalog_requests;
 mod automation_definition_requests;
@@ -535,11 +535,11 @@ impl ServerActor {
                 self.handle_workspace_setup_finished(client_id, request_id, result)
                     .await
             }
-            ServerCommand::AiTextGenerationFinished {
+            ServerCommand::AiAssistFinished {
                 client_id,
                 request_id,
                 result,
-            } => self.handle_ai_text_generation_finished(client_id, request_id, result),
+            } => self.handle_ai_assist_finished(client_id, request_id, result),
             ServerCommand::AiDictationFinished {
                 client_id,
                 request_id,

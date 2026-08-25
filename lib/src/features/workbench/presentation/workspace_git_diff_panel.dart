@@ -12,9 +12,9 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_submodule_status_provider.dart';
@@ -83,7 +83,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final Set<String> _collapsedSections = <String>{};
   final Set<String> _collapsedTreeNodes = <String>{};
   final Set<String> _expandedSubmodules = <String>{};
-  late final AiTextGenerationService _aiTextGenerationService;
+  late final AiAssistService _aiAssistService;
   bool _filterVisible = false;
   bool _generatingCommitMessage = false;
   bool _historyCollapsed = true;
@@ -100,16 +100,16 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   @override
   void initState() {
     super.initState();
-    _aiTextGenerationService = ref.read(aiTextGenerationServiceProvider);
+    _aiAssistService = ref.read(aiAssistServiceProvider);
   }
 
   @override
   void didUpdateWidget(covariant WorkspaceGitDiffPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sourceControlScope.path != widget.sourceControlScope.path) {
-      _aiTextGenerationService.cancel(
+      _aiAssistService.cancel(
         oldWidget.sourceControlScope.path,
-        AiTextGenerationOperation.commitMessage,
+        AiAssistOperation.commitMessage,
       );
       _commitMessageGenerationId += 1;
       _messageController.clear();
@@ -131,9 +131,9 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   @override
   void dispose() {
-    _aiTextGenerationService.cancel(
+    _aiAssistService.cancel(
       widget.sourceControlScope.path,
-      AiTextGenerationOperation.commitMessage,
+      AiAssistOperation.commitMessage,
     );
     _commitMessageGenerationId += 1;
     _messageController.dispose();
@@ -159,10 +159,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       _invalidateGitHistoryAfterRepositoryChange();
     });
     final state = ref.watch(sourceControlProvider);
-    final aiTextSettings = ref.watch(
-      settingsControllerProvider.select(
-        (settings) => settings.aiTextGeneration,
-      ),
+    final aiAssistSettings = ref.watch(
+      settingsControllerProvider.select((settings) => settings.aiAssist),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -174,7 +172,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           viewMode: widget.viewMode,
           groupMode: widget.groupMode,
           state: state,
-          aiTextSettings: aiTextSettings,
+          aiAssistSettings: aiAssistSettings,
           generatingCommitMessage: _generatingCommitMessage,
           allCollapsed: _allVisibleNodesCollapsed(state.asData?.value),
           filterVisible: _isFilterVisible,
@@ -458,7 +456,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         )
         .asData
         ?.value;
-    final settings = ref.read(settingsControllerProvider).aiTextGeneration;
+    final settings = ref.read(settingsControllerProvider).aiAssist;
     if (_generatingCommitMessage ||
         state == null ||
         !settings.enabled ||
@@ -476,10 +474,10 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     });
     try {
       final result = await ref
-          .read(aiTextGenerationServiceProvider)
+          .read(aiAssistServiceProvider)
           .generate(
-            AiTextGenerationRequest(
-              operation: AiTextGenerationOperation.commitMessage,
+            AiAssistRequest(
+              operation: AiAssistOperation.commitMessage,
               workspacePath: requestWorkspacePath,
               settings: settings,
             ),
@@ -512,7 +510,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           tone: AleraToastTone.info,
         );
       }
-    } on AiTextGenerationCanceledException {
+    } on AiAssistCanceledException {
       return;
     } catch (error) {
       if (_isCurrentCommitMessageGeneration(
@@ -545,9 +543,9 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   void _cancelGenerateCommitMessage() {
-    _aiTextGenerationService.cancel(
+    _aiAssistService.cancel(
       widget.sourceControlScope.path,
-      AiTextGenerationOperation.commitMessage,
+      AiAssistOperation.commitMessage,
     );
   }
 

@@ -5,8 +5,8 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_master_detail.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_mutations.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/text_actions/presentation/text_action_editor.dart';
@@ -18,13 +18,13 @@ class TextActionsSettingsPane extends StatefulWidget {
   const TextActionsSettingsPane({
     super.key,
     required this.settings,
-    required this.aiTextSettings,
+    required this.aiAssistSettings,
     required this.onChanged,
     this.groupKeys = const <String, GlobalKey>{},
   });
 
   final TextActionsSettings settings;
-  final AiTextGenerationSettings aiTextSettings;
+  final AiAssistSettings aiAssistSettings;
   final ValueChanged<TextActionsSettings> onChanged;
   final Map<String, GlobalKey> groupKeys;
 
@@ -39,7 +39,7 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
   String? _selectedId;
   bool _creatingNew = false;
   bool _enabled = true;
-  AiTextGenerationAgent? _agentOverride;
+  AiAssistAgent? _agentOverride;
   String? _modelOverride;
   Map<String, String> _reasoningByModel = <String, String>{};
   String? _error;
@@ -131,7 +131,7 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
       agentOverride: _agentOverride,
       modelOverride: _modelOverride,
       reasoningByModel: _reasoningByModel,
-      aiTextSettings: widget.aiTextSettings,
+      aiAssistSettings: widget.aiAssistSettings,
       error: _error,
       onEnabledChanged: (value) => setState(() => _enabled = value),
       onAgentChanged: (value) => setState(() {
@@ -144,11 +144,11 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
         _error = null;
       }),
       onReasoningChanged: (value) {
-        final agent = _agentOverride ?? widget.aiTextSettings.agent;
+        final agent = _agentOverride ?? widget.aiAssistSettings.agent;
         final modelId = _modelOverride?.trim().isNotEmpty == true
             ? _modelOverride!.trim()
-            : widget.aiTextSettings.modelFor(agent) ??
-                  defaultModelIdForAgent(agent, widget.aiTextSettings);
+            : widget.aiAssistSettings.modelFor(agent) ??
+                  defaultModelIdForAgent(agent, widget.aiAssistSettings);
         if (modelId.isEmpty) {
           return;
         }

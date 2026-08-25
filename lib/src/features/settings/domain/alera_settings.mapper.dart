@@ -3018,7 +3018,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       MapperContainer.globals.use(_instance = AleraSettingsMapper._());
       GeneralSettingsMapper.ensureInitialized();
       AgentSettingsMapper.ensureInitialized();
-      AiTextGenerationSettingsMapper.ensureInitialized();
+      AiAssistSettingsMapper.ensureInitialized();
       AiDictationSettingsMapper.ensureInitialized();
       TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
@@ -3045,14 +3045,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: AgentSettings.defaults,
   );
-  static AiTextGenerationSettings _$aiTextGeneration(AleraSettings v) =>
-      v.aiTextGeneration;
-  static const Field<AleraSettings, AiTextGenerationSettings>
-  _f$aiTextGeneration = Field(
-    'aiTextGeneration',
-    _$aiTextGeneration,
+  static AiAssistSettings _$aiAssist(AleraSettings v) => v.aiAssist;
+  static const Field<AleraSettings, AiAssistSettings> _f$aiAssist = Field(
+    'aiAssist',
+    _$aiAssist,
+    key: r'aiTextGeneration',
     opt: true,
-    def: AiTextGenerationSettings.defaults,
+    def: AiAssistSettings.defaults,
   );
   static AiDictationSettings _$aiDictation(AleraSettings v) => v.aiDictation;
   static const Field<AleraSettings, AiDictationSettings> _f$aiDictation = Field(
@@ -3102,7 +3101,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   final MappableFields<AleraSettings> fields = const {
     #general: _f$general,
     #agents: _f$agents,
-    #aiTextGeneration: _f$aiTextGeneration,
+    #aiAssist: _f$aiAssist,
     #aiDictation: _f$aiDictation,
     #textActions: _f$textActions,
     #editor: _f$editor,
@@ -3118,7 +3117,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     return AleraSettings(
       general: data.dec(_f$general),
       agents: data.dec(_f$agents),
-      aiTextGeneration: data.dec(_f$aiTextGeneration),
+      aiAssist: data.dec(_f$aiAssist),
       aiDictation: data.dec(_f$aiDictation),
       textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
@@ -3193,12 +3192,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general;
   AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents;
-  AiTextGenerationSettingsCopyWith<
-    $R,
-    AiTextGenerationSettings,
-    AiTextGenerationSettings
-  >
-  get aiTextGeneration;
+  AiAssistSettingsCopyWith<$R, AiAssistSettings, AiAssistSettings> get aiAssist;
   AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
   get aiDictation;
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
@@ -3218,7 +3212,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   $R call({
     GeneralSettings? general,
     AgentSettings? agents,
-    AiTextGenerationSettings? aiTextGeneration,
+    AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
@@ -3245,13 +3239,8 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents =>
       $value.agents.copyWith.$chain((v) => call(agents: v));
   @override
-  AiTextGenerationSettingsCopyWith<
-    $R,
-    AiTextGenerationSettings,
-    AiTextGenerationSettings
-  >
-  get aiTextGeneration =>
-      $value.aiTextGeneration.copyWith.$chain((v) => call(aiTextGeneration: v));
+  AiAssistSettingsCopyWith<$R, AiAssistSettings, AiAssistSettings>
+  get aiAssist => $value.aiAssist.copyWith.$chain((v) => call(aiAssist: v));
   @override
   AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
   get aiDictation =>
@@ -3284,7 +3273,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   $R call({
     GeneralSettings? general,
     AgentSettings? agents,
-    AiTextGenerationSettings? aiTextGeneration,
+    AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
@@ -3296,7 +3285,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     FieldCopyWithData({
       if (general != null) #general: general,
       if (agents != null) #agents: agents,
-      if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
+      if (aiAssist != null) #aiAssist: aiAssist,
       if (aiDictation != null) #aiDictation: aiDictation,
       if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
@@ -3310,7 +3299,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AleraSettings $make(CopyWithData data) => AleraSettings(
     general: data.get(#general, or: $value.general),
     agents: data.get(#agents, or: $value.agents),
-    aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
+    aiAssist: data.get(#aiAssist, or: $value.aiAssist),
     aiDictation: data.get(#aiDictation, or: $value.aiDictation),
     textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),

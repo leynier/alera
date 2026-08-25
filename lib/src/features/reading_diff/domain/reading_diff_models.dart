@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/rust/api/reading_diff.dart' as rust;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 
@@ -19,7 +19,7 @@ class ReadingDiffRequest {
   });
 
   final String workspacePath;
-  final AiTextGenerationSettings settings;
+  final AiAssistSettings settings;
   final String? filePath;
   final String? oldPath;
   final GitChangeArea? area;
@@ -45,7 +45,7 @@ class ReadingDiffPreparation {
   final ReadingDiffRequest request;
   final Uint8List rawDiff;
   final rust.ReadingDiffPreparation compiler;
-  final AiTextGenerationAgent agent;
+  final AiAssistAgent agent;
   final String model;
   final String? effort;
   final AgentTaskAccessPolicy accessPolicy;

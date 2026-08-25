@@ -6,7 +6,7 @@ class _GitDiffBar extends StatelessWidget {
     required this.filePath,
     required this.onRefresh,
     required this.onOpenFile,
-    required this.aiTextEnabled,
+    required this.aiAssistEnabled,
     required this.readingDiffReady,
     required this.showingReadingDiff,
     required this.readingDiffBusy,
@@ -20,7 +20,7 @@ class _GitDiffBar extends StatelessWidget {
   final String? filePath;
   final VoidCallback onRefresh;
   final VoidCallback? onOpenFile;
-  final bool aiTextEnabled;
+  final bool aiAssistEnabled;
   final bool readingDiffReady;
   final bool showingReadingDiff;
   final bool readingDiffBusy;
@@ -54,7 +54,7 @@ class _GitDiffBar extends StatelessWidget {
                 ),
               ),
             ),
-            if (aiTextEnabled ||
+            if (aiAssistEnabled ||
                 readingDiffReady ||
                 readingDiffBusy) ...<Widget>[
               AleraIconButton(
@@ -76,7 +76,7 @@ class _GitDiffBar extends StatelessWidget {
                     ? onToggleReadingDiff
                     : onGenerateReadingDiff,
               ),
-              if (aiTextEnabled &&
+              if (aiAssistEnabled &&
                   readingDiffReady &&
                   !readingDiffBusy) ...<Widget>[
                 const SizedBox(width: AleraTokens.space2),
