@@ -12,7 +12,7 @@ use std::path::PathBuf;
 #[test]
 fn the_skill_documents_every_error_code() {
     let error_source = read(&["rust", "alera-cli", "src", "computer_use", "error.rs"]);
-    let guide = read(&["skills", "computer-use", "SKILL.md"]);
+    let guide = read(&["skills", "alera-computer-use", "SKILL.md"]);
 
     let codes: Vec<&str> = error_source
         .lines()

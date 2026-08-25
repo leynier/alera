@@ -91,7 +91,7 @@ void main() {
           runner: AleraCliSkillRunner.bunx,
           skill: AleraAgentSkill.computerUse,
         ),
-        'bunx skills add https://github.com/leynier/alera --skill computer-use --agent codex --global --yes',
+        'bunx skills add https://github.com/leynier/alera --skill alera-computer-use --agent codex --global --yes',
       );
     });
 
@@ -111,7 +111,7 @@ void main() {
           runner: AleraCliSkillRunner.npx,
           skill: AleraAgentSkill.agentCanvas,
         ),
-        'npx skills add https://github.com/leynier/alera --skill agent-canvas --agent codex --global --yes',
+        'npx skills add https://github.com/leynier/alera --skill alera-agent-canvas --agent codex --global --yes',
       );
     });
 
