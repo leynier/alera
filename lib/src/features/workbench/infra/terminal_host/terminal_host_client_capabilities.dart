@@ -1,6 +1,14 @@
 part of 'terminal_host_client.dart';
 
-mixin _RuntimeHostCapabilitySupport on SocketTerminalHostClient {
+mixin _RuntimeHostCapabilitySupport {
+  _TerminalHostConnection? get _terminalConnection;
+  _TerminalHostConnection? get _runtimeConnection;
+
+  Future<_TerminalHostConnection> _connectRuntime({
+    bool requireOrchestration = false,
+    bool launchIfMissing = true,
+  });
+
   @override
   bool get supportsTerminalRestart =>
       _terminalConnection?.supportsTerminalRestart ??
