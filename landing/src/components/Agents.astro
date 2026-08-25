@@ -1,15 +1,27 @@
 ---
 const agents = [
-  { name: 'Claude Code', src: '/agents/claude.svg' },
-  { name: 'Codex', src: '/agents/codex.svg' },
-  { name: 'Amp', src: '/agents/amp.png' },
-  { name: 'Antigravity', src: '/agents/agy.png' },
-  { name: 'OpenCode', src: '/agents/opencode.svg' },
-  { name: 'Cursor', src: '/agents/cursor.png' },
-  { name: 'Copilot', src: '/agents/copilot.svg' },
-  { name: 'Pi', src: '/agents/pi.svg' },
-  { name: 'Grok Build', src: '/agents/grok.svg' },
-  { name: 'fx', src: '/agents/fx.svg' },
+  {
+    name: 'Claude Code',
+    src: '/agents/claude.svg',
+    href: 'https://docs.anthropic.com/claude/docs/claude-code',
+  },
+  { name: 'Codex', src: '/agents/codex.svg', href: 'https://github.com/openai/codex' },
+  { name: 'Amp', src: '/agents/amp.png', href: 'https://ampcode.com/manual#install' },
+  {
+    name: 'Antigravity',
+    src: '/agents/agy.png',
+    href: 'https://antigravity.google/docs/cli-overview',
+  },
+  { name: 'OpenCode', src: '/agents/opencode.svg', href: 'https://opencode.ai/docs/cli/' },
+  { name: 'Cursor', src: '/agents/cursor.png', href: 'https://cursor.com/cli' },
+  {
+    name: 'Copilot',
+    src: '/agents/copilot.svg',
+    href: 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli',
+  },
+  { name: 'Pi', src: '/agents/pi.svg', href: 'https://pi.dev' },
+  { name: 'Grok Build', src: '/agents/grok.svg', href: 'https://x.ai/cli' },
+  { name: 'fx', src: '/agents/fx.svg', href: 'https://fx.sh' },
 ];
 ---
 
@@ -24,21 +36,26 @@ const agents = [
 
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-8 md:gap-x-12">
       {agents.map((agent, i) => (
-        <div
-          class="flex flex-col items-center gap-3 group opacity-0-initial animate-fade-in-up min-w-0"
+        <a
+          href={agent.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex flex-col items-center gap-3 group opacity-0-initial animate-fade-in-up min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           style={`animation-delay: ${200 + i * 60}ms`}
+          aria-label={`Open ${agent.name} official site in a new tab`}
         >
           <div class="w-14 h-14 rounded-xl bg-surface border border-border flex items-center justify-center transition-all duration-mid group-hover:border-foreground-faint group-hover:bg-surface-variant group-hover:scale-105">
             <img
               src={agent.src}
-              alt={agent.name}
+              alt=""
+              aria-hidden="true"
               class="w-7 h-7 opacity-80 group-hover:opacity-100 transition-opacity duration-mid"
             />
           </div>
-          <span class="text-label-md text-foreground-faint tracking-wider font-mono">
+          <span class="text-label-md text-foreground-faint tracking-wider font-mono transition-colors duration-mid group-hover:text-foreground-muted">
             {agent.name}
           </span>
-        </div>
+        </a>
       ))}
     </div>
   </div>
