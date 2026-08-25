@@ -164,6 +164,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                   area,
                                   gitDiffRoot,
                                   required scope,
+                                  preview = false,
                                 }) {
                                   return controller.openGitDiffTab(
                                     workspace: workspace,
@@ -171,6 +172,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                     area: area,
                                     scope: scope,
                                     gitDiffRoot: gitDiffRoot,
+                                    preview: preview,
                                   );
                                 },
                             onOpenGitCommitDiff:
@@ -184,6 +186,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                   required compareRef,
                                   subject,
                                   message,
+                                  preview = false,
                                 }) {
                                   return controller.openGitCommitDiffTab(
                                     workspace: workspace,
@@ -196,6 +199,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                     compareRef: compareRef,
                                     subject: subject,
                                     message: message,
+                                    preview: preview,
                                   );
                                 },
                             onOpenSearchMatch: (target) {
@@ -203,6 +207,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                 final tab = await controller.openEditorTab(
                                   workspace: workspace,
                                   relativePath: target.relativePath,
+                                  preview: true,
                                 );
                                 ref
                                     .read(editorSessionRegistryProvider)

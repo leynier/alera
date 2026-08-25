@@ -1,6 +1,6 @@
 part of 'workbench_controller.dart';
 
-/// Opening and pinning file-backed tabs, including explorer preview replacement.
+/// Opening and pinning file-backed tabs, including shared preview replacement.
 mixin _WorkbenchControllerFileTabs
     on _$WorkbenchController, _WorkbenchControllerInternals {
   Future<WorkspaceTabRecord> openEditorTab({
@@ -9,12 +9,19 @@ mixin _WorkbenchControllerFileTabs
     String? targetGroupId,
     bool preview = false,
   }) {
-    return _openFileBackedTab(
+    return _openReplaceableTab(
       workspace: workspace,
-      relativePath: relativePath,
       targetGroupId: targetGroupId,
       preview: preview,
-      createTab: _workspaceTabService.openOrCreateEditorTab,
+      createTab:
+          ({required workspaceId, required preview, replacePreviewTabId}) {
+            return _workspaceTabService.openOrCreateEditorTab(
+              workspaceId: workspaceId,
+              relativePath: relativePath,
+              preview: preview,
+              replacePreviewTabId: replacePreviewTabId,
+            );
+          },
     );
   }
 
@@ -24,12 +31,19 @@ mixin _WorkbenchControllerFileTabs
     String? targetGroupId,
     bool preview = false,
   }) {
-    return _openFileBackedTab(
+    return _openReplaceableTab(
       workspace: workspace,
-      relativePath: relativePath,
       targetGroupId: targetGroupId,
       preview: preview,
-      createTab: _workspaceTabService.openOrCreateMarkdownViewerTab,
+      createTab:
+          ({required workspaceId, required preview, replacePreviewTabId}) {
+            return _workspaceTabService.openOrCreateMarkdownViewerTab(
+              workspaceId: workspaceId,
+              relativePath: relativePath,
+              preview: preview,
+              replacePreviewTabId: replacePreviewTabId,
+            );
+          },
     );
   }
 
@@ -39,12 +53,19 @@ mixin _WorkbenchControllerFileTabs
     String? targetGroupId,
     bool preview = false,
   }) {
-    return _openFileBackedTab(
+    return _openReplaceableTab(
       workspace: workspace,
-      relativePath: relativePath,
       targetGroupId: targetGroupId,
       preview: preview,
-      createTab: _workspaceTabService.openOrCreatePdfTab,
+      createTab:
+          ({required workspaceId, required preview, replacePreviewTabId}) {
+            return _workspaceTabService.openOrCreatePdfTab(
+              workspaceId: workspaceId,
+              relativePath: relativePath,
+              preview: preview,
+              replacePreviewTabId: replacePreviewTabId,
+            );
+          },
     );
   }
 
@@ -77,27 +98,90 @@ mixin _WorkbenchControllerFileTabs
           );
   }
 
+  Future<WorkspaceTabRecord> openGitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    GitChangeArea? area,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    String? targetGroupId,
+    bool preview = false,
+  }) {
+    return _openReplaceableTab(
+      workspace: workspace,
+      targetGroupId: targetGroupId,
+      preview: preview,
+      createTab:
+          ({required workspaceId, required preview, replacePreviewTabId}) {
+            return _workspaceTabService.openOrCreateGitDiffTab(
+              workspaceId: workspaceId,
+              relativePath: relativePath,
+              area: area,
+              scope: scope,
+              gitDiffRoot: gitDiffRoot,
+              preview: preview,
+              replacePreviewTabId: replacePreviewTabId,
+            );
+          },
+    );
+  }
+
+  Future<WorkspaceTabRecord> openGitCommitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    String? oldPath,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    required String commitOid,
+    String? parentOid,
+    required String compareRef,
+    String? subject,
+    String? message,
+    String? targetGroupId,
+    bool preview = false,
+  }) {
+    return _openReplaceableTab(
+      workspace: workspace,
+      targetGroupId: targetGroupId,
+      preview: preview,
+      createTab:
+          ({required workspaceId, required preview, replacePreviewTabId}) {
+            return _workspaceTabService.openOrCreateGitCommitDiffTab(
+              workspaceId: workspaceId,
+              relativePath: relativePath,
+              oldPath: oldPath,
+              scope: scope,
+              gitDiffRoot: gitDiffRoot,
+              commitOid: commitOid,
+              parentOid: parentOid,
+              compareRef: compareRef,
+              subject: subject,
+              message: message,
+              preview: preview,
+              replacePreviewTabId: replacePreviewTabId,
+            );
+          },
+    );
+  }
+
   Future<WorkspaceTabRecord> keepPreviewTab(String tabId) {
     return _serializedFileTabMutation(() => _keepPreviewTabUnlocked(tabId));
   }
 
-  Future<WorkspaceTabRecord> _openFileBackedTab({
+  Future<WorkspaceTabRecord> _openReplaceableTab({
     required Workspace workspace,
-    required String relativePath,
     String? targetGroupId,
     required bool preview,
     required Future<WorkspaceTabRecord> Function({
       required String workspaceId,
-      required String relativePath,
-      bool preview,
+      required bool preview,
       String? replacePreviewTabId,
     })
     createTab,
   }) {
     return _serializedFileTabMutation(
-      () => _openFileBackedTabUnlocked(
+      () => _openReplaceableTabUnlocked(
         workspace: workspace,
-        relativePath: relativePath,
         targetGroupId: targetGroupId,
         preview: preview,
         createTab: createTab,
@@ -138,15 +222,13 @@ mixin _WorkbenchControllerFileTabs
     }
   }
 
-  Future<WorkspaceTabRecord> _openFileBackedTabUnlocked({
+  Future<WorkspaceTabRecord> _openReplaceableTabUnlocked({
     required Workspace workspace,
-    required String relativePath,
     String? targetGroupId,
     required bool preview,
     required Future<WorkspaceTabRecord> Function({
       required String workspaceId,
-      required String relativePath,
-      bool preview,
+      required bool preview,
       String? replacePreviewTabId,
     })
     createTab,
@@ -156,7 +238,7 @@ mixin _WorkbenchControllerFileTabs
       final layout = _layoutForMutation(workspace.id, previousTabs);
       final groupId = targetGroupId ?? layout.activeGroupId;
       var replacePreviewTabId = preview
-          ? _filePreviewTabIdInGroup(
+          ? _previewTabIdInGroup(
               layout: layout,
               tabs: previousTabs,
               groupId: groupId,
@@ -172,7 +254,6 @@ mixin _WorkbenchControllerFileTabs
       }
       final tab = await createTab(
         workspaceId: workspace.id,
-        relativePath: relativePath,
         preview: preview,
         replacePreviewTabId: replacePreviewTabId,
       );
@@ -210,7 +291,7 @@ mixin _WorkbenchControllerFileTabs
     }
   }
 
-  String? _filePreviewTabIdInGroup({
+  String? _previewTabIdInGroup({
     required WorkbenchLayout layout,
     required List<WorkspaceTabRecord> tabs,
     required String groupId,

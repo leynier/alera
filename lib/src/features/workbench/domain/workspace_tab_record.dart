@@ -248,7 +248,7 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
         workspaceTabFileRoleMermanPreview;
   }
 
-  /// Explorer-opened file tabs stay replaceable until they are kept open.
+  /// Preview tabs stay replaceable until they are kept open.
   bool get isPreview => payload[workspaceTabPreviewPayloadKey] == true;
 
   bool get isFilePreviewSlot {
@@ -258,10 +258,10 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     return switch (kind) {
       WorkspaceTabKind.editor ||
       WorkspaceTabKind.markdownViewer ||
-      WorkspaceTabKind.pdf => true,
+      WorkspaceTabKind.pdf ||
+      WorkspaceTabKind.gitDiff => true,
       WorkspaceTabKind.terminal ||
       WorkspaceTabKind.codex ||
-      WorkspaceTabKind.gitDiff ||
       WorkspaceTabKind.browser ||
       WorkspaceTabKind.mobileEmulator => false,
     };

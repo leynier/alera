@@ -181,6 +181,7 @@ class _GitDiffGroup extends StatelessWidget {
                             relativePath: entry.path,
                             area: entry.area,
                             scope: WorkspaceGitDiffScope.file,
+                            preview: true,
                           ),
                         ),
                 ),

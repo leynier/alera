@@ -27,6 +27,7 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_history_graph.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +45,7 @@ part 'workspace_git_history_panel.dart';
 part 'workspace_git_history_panel_graph.dart';
 part 'workspace_git_history_panel_row.dart';
 part 'workspace_git_history_panel_files.dart';
+part 'workspace_git_diff_panel_preview_opening.dart';
 
 class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   const WorkspaceGitDiffPanel({
@@ -93,6 +95,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final Map<String, GitCommitCompareResult> _commitCompareCache =
       <String, GitCommitCompareResult>{};
   int _commitMessageGenerationId = 0;
+  final _GitDiffPreviewOpening _previewOpening = _GitDiffPreviewOpening();
 
   @override
   void initState() {
@@ -745,26 +748,6 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     ).notifier,
   );
 
-  Future<void> _openGitDiff({
-    String? relativePath,
-    GitChangeArea? area,
-    String? gitDiffRoot,
-    required WorkspaceGitDiffScope scope,
-  }) {
-    assert(
-      gitDiffRoot == null ||
-          gitDiffRoot == widget.sourceControlScope.relativeRoot,
-    );
-    return widget.onOpenGitDiff(
-      relativePath: widget.sourceControlScope.toWorkspaceRelativePath(
-        relativePath,
-      ),
-      area: area,
-      gitDiffRoot: widget.sourceControlScope.relativeRoot,
-      scope: scope,
-    );
-  }
-
   _GitHistoryPanelLoadState get _historyPanelState {
     final future = _historyFuture;
     final result = _historyResult;
@@ -878,41 +861,6 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       }
       await widget.onOpenGitCommitDiff(
         scope: WorkspaceGitDiffScope.all,
-        gitDiffRoot: widget.sourceControlScope.relativeRoot,
-        commitOid: compare.summary.commitOid,
-        parentOid: compare.summary.parentOid,
-        compareRef: compare.summary.compareRef,
-        subject: item.subject,
-        message: item.message,
-      );
-    } catch (error) {
-      if (mounted) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _openCommitFile(
-    GitHistoryItem item,
-    GitCommitChangeEntry entry,
-  ) async {
-    try {
-      final compare = await _commitCompareFor(item);
-      if (!mounted) {
-        return;
-      }
-      await widget.onOpenGitCommitDiff(
-        relativePath: widget.sourceControlScope.toWorkspaceRelativePath(
-          entry.path,
-        ),
-        oldPath: widget.sourceControlScope.toWorkspaceRelativePath(
-          entry.oldPath,
-        ),
-        scope: WorkspaceGitDiffScope.file,
         gitDiffRoot: widget.sourceControlScope.relativeRoot,
         commitOid: compare.summary.commitOid,
         parentOid: compare.summary.parentOid,
