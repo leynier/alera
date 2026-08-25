@@ -47,6 +47,7 @@ const String workspaceTabTerminalPulsePayloadKey = 'terminalPulse';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
+const String workspaceTabPreviewPayloadKey = 'preview';
 const String workspaceTabBrowserProfileIdPayloadKey = 'browserProfileId';
 const String workspaceTabBrowserUrlPayloadKey = 'browserUrl';
 const String workspaceTabBrowserRuntimeTitlePayloadKey = 'browserRuntimeTitle';
@@ -245,6 +246,25 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   bool get isMermanPreview {
     return payload[workspaceTabFileRolePayloadKey] ==
         workspaceTabFileRoleMermanPreview;
+  }
+
+  /// Explorer-opened file tabs stay replaceable until they are kept open.
+  bool get isPreview => payload[workspaceTabPreviewPayloadKey] == true;
+
+  bool get isFilePreviewSlot {
+    if (!isPreview || isMermanPreview) {
+      return false;
+    }
+    return switch (kind) {
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
+      WorkspaceTabKind.pdf => true,
+      WorkspaceTabKind.terminal ||
+      WorkspaceTabKind.codex ||
+      WorkspaceTabKind.gitDiff ||
+      WorkspaceTabKind.browser ||
+      WorkspaceTabKind.mobileEmulator => false,
+    };
   }
 
   String get browserProfileId =>

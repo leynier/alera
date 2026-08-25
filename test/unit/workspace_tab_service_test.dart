@@ -771,6 +771,210 @@ void main() {
         throwsStateError,
       );
     });
+
+    test('openOrCreateEditorTab marks a preview tab in payload', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/main.dart',
+        preview: true,
+      );
+
+      expect(tab.kind, WorkspaceTabKind.editor);
+      expect(tab.filePath, 'lib/main.dart');
+      expect(tab.isPreview, isTrue);
+      expect(tab.isFilePreviewSlot, isTrue);
+      expect(tab.payload[workspaceTabPreviewPayloadKey], isTrue);
+      expect(repository.tabs.single.isPreview, isTrue);
+    });
+
+    test('preview open retargets the replaceable file preview tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final first = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+      final second = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/b.dart',
+        preview: true,
+        replacePreviewTabId: first.id,
+      );
+
+      expect(second.id, first.id);
+      expect(second.filePath, 'lib/b.dart');
+      expect(second.title, 'b.dart');
+      expect(second.isPreview, isTrue);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('keepPreviewTab removes the preview payload key', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final preview = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+      final kept = await service.keepPreviewTab(preview.id);
+
+      expect(kept.id, preview.id);
+      expect(kept.isPreview, isFalse);
+      expect(kept.payload.containsKey(workspaceTabPreviewPayloadKey), isFalse);
+      expect(repository.tabs.single.isPreview, isFalse);
+    });
+
+    test('keepPreviewTab is a no-op for permanent tabs', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+      );
+      final kept = await service.keepPreviewTab(tab.id);
+
+      expect(kept.id, tab.id);
+      expect(kept.isPreview, isFalse);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('keepPreviewTab rejects a missing tab', () async {
+      final service = WorkspaceTabService(
+        repository: _FakeWorkbenchRepository(),
+      );
+
+      await expectLater(
+        service.keepPreviewTab('missing-tab'),
+        throwsStateError,
+      );
+    });
+
+    test('permanent open does not steal another file preview tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final preview = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+      final permanent = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/b.dart',
+        replacePreviewTabId: preview.id,
+      );
+
+      expect(permanent.id, isNot(preview.id));
+      expect(permanent.isPreview, isFalse);
+      expect(permanent.filePath, 'lib/b.dart');
+      expect(repository.tabs, hasLength(2));
+      expect(
+        repository.tabs.singleWhere((tab) => tab.id == preview.id).isPreview,
+        isTrue,
+      );
+    });
+
+    test('reopening the same preview path reuses the tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final first = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: './lib/a.dart',
+        preview: true,
+      );
+      final second = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+
+      expect(second.id, first.id);
+      expect(second.isPreview, isTrue);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test(
+      'replacePreviewTabId is ignored for non-preview and merman tabs',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+        final terminal = await service.ensureInitialTerminalTab('workspace-1');
+        final merman = await service.openOrCreateMermanPreviewTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'docs/diagram.mmd',
+        );
+
+        final fromTerminal = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/a.dart',
+          preview: true,
+          replacePreviewTabId: terminal.id,
+        );
+        final fromMerman = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/b.dart',
+          preview: true,
+          replacePreviewTabId: merman.id,
+        );
+
+        expect(fromTerminal.id, isNot(terminal.id));
+        expect(fromMerman.id, isNot(merman.id));
+        expect(fromMerman.id, isNot(fromTerminal.id));
+        expect(repository.tabs, hasLength(4));
+      },
+    );
+
+    test('permanent open of a preview path pins that tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final preview = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+        preview: true,
+      );
+      final pinned = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/a.dart',
+      );
+
+      expect(pinned.id, preview.id);
+      expect(pinned.isPreview, isFalse);
+      expect(repository.tabs, hasLength(1));
+      expect(repository.tabs.single.isPreview, isFalse);
+    });
   });
 }
 

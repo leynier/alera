@@ -28,6 +28,7 @@ part 'workspace_workbench_view_helper_test_cases.dart';
 part 'workspace_workbench_view_pane_test_cases.dart';
 part 'workspace_workbench_view_tab_drop_test_cases.dart';
 part 'workspace_workbench_view_tab_test_cases.dart';
+part 'workspace_workbench_view_preview_tab_test_cases.dart';
 part 'workspace_workbench_view_test_harness.dart';
 
 late _FakeTerminalRuntime terminalRuntime;
@@ -72,6 +73,7 @@ void main() {
 
     _registerWorkspaceWorkbenchViewPaneTests();
     _registerWorkspaceWorkbenchViewTabTests();
+    _registerWorkspaceWorkbenchViewPreviewTabTests();
     _registerWorkspaceWorkbenchViewTabDropTests();
   });
 }

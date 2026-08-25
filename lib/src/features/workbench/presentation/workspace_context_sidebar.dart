@@ -29,6 +29,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
     this.onFocusSourceControlFolder,
     this.onClearSourceControlRoot,
     required this.onOpenFile,
+    this.onOpenFilePermanently,
     required this.onOpenGitDiff,
     required this.onOpenGitCommitDiff,
     required this.onOpenSearchMatch,
@@ -52,6 +53,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
   final VoidCallback? onClearSourceControlRoot;
   final ValueChanged<String> onOpenFile;
+  final ValueChanged<String>? onOpenFilePermanently;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
@@ -92,6 +94,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                         mode: prefs.explorerMode,
                         onModeChanged: onSetExplorerMode,
                         onOpenFile: onOpenFile,
+                        onOpenFilePermanently: onOpenFilePermanently,
                         focusedSourceControlRoot: focusedSourceControlRoot,
                         onFocusSourceControlFolder: onFocusSourceControlFolder,
                         onClearSourceControlRoot: onClearSourceControlRoot,
@@ -142,7 +145,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                       WorkbenchContextPanelTab.agentCanvas => AgentCanvasPanel(
                         workspace: workspace,
                         onOpenFile: (relativePath) async {
-                          onOpenFile(relativePath);
+                          (onOpenFilePermanently ?? onOpenFile)(relativePath);
                         },
                         onOpenDiff: (relativePath) async {
                           final sourceRelativePath = sourceControlScope

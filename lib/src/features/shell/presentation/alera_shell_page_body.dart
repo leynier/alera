@@ -145,6 +145,15 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                 controller.openFileTab(
                                   workspace: workspace,
                                   relativePath: relativePath,
+                                  preview: true,
+                                ),
+                              );
+                            },
+                            onOpenFilePermanently: (relativePath) {
+                              unawaited(
+                                controller.openFileTab(
+                                  workspace: workspace,
+                                  relativePath: relativePath,
                                 ),
                               );
                             },

@@ -184,6 +184,12 @@ class _WorkspaceTabChip extends StatelessWidget {
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
+        if (tab.isPreview && _KeepPreviewTabScope.maybeOf(context) != null)
+          const AleraDropdownEntry<_TabMenuAction>(
+            value: _TabMenuAction.keepOpen,
+            label: 'Keep Open',
+            leading: Icon(AleraIcons.pin, size: 16),
+          ),
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.close,
           label: 'Close',
@@ -236,6 +242,8 @@ class _WorkspaceTabChip extends StatelessWidget {
         onSplit(WorkbenchDropZone.left);
       case _TabMenuAction.splitRight:
         onSplit(WorkbenchDropZone.right);
+      case _TabMenuAction.keepOpen:
+        _KeepPreviewTabScope.maybeOf(context)?.call(tab.id);
       case _TabMenuAction.close:
         onClose();
       case _TabMenuAction.closeOthers:
@@ -326,6 +334,9 @@ class _WorkspaceTabChip extends StatelessWidget {
                       color: active
                           ? AleraTokens.foreground
                           : AleraTokens.foregroundMuted,
+                      fontStyle: tab.isPreview
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                   ),
                 ),
@@ -357,6 +368,7 @@ enum _TabMenuAction {
   splitDown,
   splitLeft,
   splitRight,
+  keepOpen,
   close,
   closeOthers,
   closeRight,
@@ -465,6 +477,9 @@ class _DraggedTabFeedback extends StatelessWidget {
                 style: AleraTokens.monoStyle.copyWith(
                   fontSize: 11,
                   color: AleraTokens.foreground,
+                  fontStyle: tab.isPreview
+                      ? FontStyle.italic
+                      : FontStyle.normal,
                 ),
               ),
             ),

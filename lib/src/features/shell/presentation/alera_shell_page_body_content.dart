@@ -103,6 +103,9 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                   targetGroupId: targetGroupId,
                 );
               },
+          onKeepPreviewTab: (tabId) {
+            unawaited(controller.keepPreviewTab(tabId));
+          },
           onSelectTab: ({required groupId, required tabId}) {
             controller.setActiveWorkspaceTab(
               workspaceId: workspace.id,
