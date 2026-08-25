@@ -1,0 +1,35 @@
+---
+title: Worktrees
+description: Run CLI agents in parallel by giving each task its own Git worktree.
+---
+
+Parallelism in Alera is not "open more tabs." Two agents sharing one working tree last about ten minutes before they trample each other. The isolation primitive is a Git worktree.
+
+## One worktree per task
+
+When you create a linked workspace on a Git-backed [project](/docs/projects), Alera creates a real Git worktree:
+
+- a new local branch from a source branch, or
+- an existing local branch you already have
+
+Each agent then sees only its own checkout. Diffs stay scoped. You can jump between contexts without stashing or remembering what was half-done.
+
+## Why this changes how you delegate
+
+When handing a task to an agent costs one worktree instead of a negotiation with your current branch, smaller tasks get easier to start. The tooling nudges you toward the workflow that actually works with several CLIs at once.
+
+## From repo to running agents
+
+1. Register a Git-backed project (local folder or clone).
+2. Open a linked worktree workspace for each task you want in flight.
+3. Launch [Claude, Codex, Amp, fx, or any other CLI](/docs/agents) in that workspace's terminals.
+
+The remaining chore used to be setup: every new worktree needs its `.env`, its gitignored config, its install. That ritual now lives in [`alera.toml`](/docs/alera-toml). When the work is done, pull requests and CI checks stay scoped to the same worktree so what you review is what the agent produced.
+
+## What is not a worktree
+
+The primary workspace points at the project path itself. Use it for the default checkout. Linked workspaces are the extra checkouts.
+
+Non-Git projects cannot create linked workspaces. They still get terminals, agents, and persistence; they just share one tree.
+
+SSH worktrees (run the same model on a remote machine) are on the roadmap. They are not part of the current workbench.

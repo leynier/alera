@@ -1,0 +1,44 @@
+---
+title: Projects And Workspaces
+description: How Alera models a project, a workspace, and a Git worktree.
+---
+
+Three words carry the workbench. Getting them straight makes the rest of Alera obvious.
+
+## Project
+
+A **project** is a folder you register in Alera: an existing local path, or a clone from a Git URL. The project registry is the place you come back to when you want to open work, not a hidden list of recent files.
+
+Git is optional. A plain folder is a valid project.
+
+## Workspace
+
+A **workspace** is your working context inside that project. Every project has a primary workspace that points at the project path itself.
+
+Git-backed projects can add **linked workspaces**. Each linked workspace is a separate checkout, so two tasks can change the same repo without sharing a working tree.
+
+## Worktree
+
+A **worktree** is the Git mechanism behind a linked workspace. When you create one, Alera makes a new local branch from a source branch, or attaches the workspace to a branch you already have.
+
+Non-Git folders are not second-class; they just get the primary workspace, because there is nothing to link. See [Worktrees](/docs/worktrees) for the parallel-agent workflow that this unlocks.
+
+## What lives in a workspace
+
+Once a workspace is open you get:
+
+- Terminal tabs, each a full PTY owned by the [runtime host](/blog/how-alera-keeps-terminals-alive-after-you-quit)
+- Layout that belongs to that workspace, not to a global window
+- Source control, pull requests, and checks scoped to that checkout
+- Optional [setup](/docs/alera-toml) the first time Alera creates a linked workspace
+
+Closing the desktop window does not tear the terminals down. Sessions belong to the runtime host, so you can quit the UI, come back, and reattach.
+
+## Typical loop
+
+1. Register the project (local folder or clone).
+2. Stay on the primary workspace for the default branch, or create a linked workspace per task.
+3. Launch agents in that workspace's terminals.
+4. Review the diff and open a pull request from the same workspace when the task is done.
+
+If you are about to run two agents on the same files, create a second linked workspace first. Sharing one checkout is how parallel agents turn into stash fights.

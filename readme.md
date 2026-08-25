@@ -18,6 +18,7 @@
 <p align="center">
   <a href="#install"><strong>Get Alera →</strong></a> &nbsp;·&nbsp;
   <a href="https://alera.build"><strong>alera.build</strong></a> &nbsp;·&nbsp;
+  <a href="https://alera.build/docs"><strong>Docs</strong></a> &nbsp;·&nbsp;
   <a href="roadmap.md"><strong>Roadmap</strong></a>
 </p>
 
