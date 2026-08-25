@@ -16,7 +16,13 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - `src/pages/*.astro` for page composition: `index.astro` is the marketing home, `download.astro` is the install page, and the trust documents live at `privacy.astro`, `terms.astro`, and `account/delete.astro`.
   - `src/pages/blog/index.astro` is the blog index, and `src/pages/blog/[id].astro` renders individual posts from the `blog` content collection.
   - `src/pages/rss.xml.ts` emits the blog RSS feed at `/rss.xml`.
-  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader). Posts live as Markdown files under `src/content/blog/`.
+  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader) and the Starlight `docs` collection (`docsLoader` + `docsSchema`). Posts live as Markdown files under `src/content/blog/`.
+  - Product documentation is a Starlight section of the same Astro app, served at `/docs`. Doc pages live as MDX under `src/content/docs/docs/` so they do not take over `/`. Do not add a `src/content/docs/index.mdx` at the collection root; that route is the marketing home.
+  - `src/styles/docs.css` is Starlight's Tailwind v4 entry (`@astrojs/starlight-tailwind`) and the Alera token mapping. Marketing pages keep importing `src/styles/global.css`. Shared `@font-face` rules live in `src/styles/fonts.css`.
+  - Docs fenced code uses only the `github-dark` Expressive Code theme. Do not add a light theme: an OS light color scheme would paint dark syntax tokens on the dark block background.
+  - `src/components/docs/` holds Starlight component overrides (`Head`, `SocialIcons`, `ThemeSelect`). Docs stay dark-mode-only; do not restore Starlight's theme toggle.
+  - These `/docs` pages are for people using Alera. Contributor internals stay in the repository `docs/` directory, not in the landing Starlight tree.
+  - `@astrojs/starlight` is registered in `astro.config.mjs` ahead of `@astrojs/sitemap`. Keep the explicit `sitemap()` integration so marketing, blog, and docs routes stay in the sitemap.
   - `src/lib/blog.ts` holds shared blog helpers (`getPublishedBlogPosts`, date formatting). Draft posts (`draft: true`) MUST be omitted from production builds and remain visible in local/dev builds.
   - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`, `Prose`).
   - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.

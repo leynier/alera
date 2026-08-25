@@ -1,0 +1,69 @@
+---
+title: Alera.toml
+description: Describe copy rules and setup commands so every new linked worktree is ready to work.
+---
+
+Every new worktree used to need the same ritual: copy `.env`, restore gitignored config, install dependencies, bootstrap. `alera.toml` at the project root describes that ritual once.
+
+## What it looks like
+
+```toml
+[worktree]
+copy = [
+  { from = ".env", to = ".env", overwrite = false },
+  { from = ".claude/settings.local.json" }
+]
+setup = [
+  "pnpm install",
+  "make bootstrap"
+]
+
+[new_workspace]
+prompt_append = """
+Follow the project's contributor instructions.
+Run the focused tests before finishing.
+"""
+```
+
+- `copy` brings files or directories from the main project checkout into the new linked workspace. `to` defaults to `from`. `overwrite` defaults to `false`, so an existing file is never clobbered silently.
+- `setup` runs commands sequentially from the new workspace root.
+- `new_workspace.prompt_append` is optional text added last to the prompt when Alera starts the selected agent from the **New Workspace** flow.
+
+Paths are repo-relative literals. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of this version.
+
+## When it runs
+
+Setup applies only to **new linked workspaces that Alera creates**. It does not run for the primary workspace, for workspaces found during reconcile, or on removal.
+
+On desktop and mobile, Alera does not hold the New Workspace UI open until setup finishes. Creation completes when the Git worktree exists, and a terminal named **Setup** runs the copies and commands. You can keep working in `Terminal 1` while that runs.
+
+Inside the Setup terminal:
+
+- copy rules run first, through `alera workspace setup --copies-only`, so symlink and path-escape validation stays in the runtime
+- each `setup` command then runs in order, preceded by a `> <command>` marker
+- a failing command does **not** stop the ones after it; the output stays on screen so you can see what broke
+- the host closes the Setup terminal after a successful run, and leaves it open if anything failed
+
+The command is delivered once. Restarting the terminal, the app, or the host leaves a clean shell rather than reinstalling dependencies.
+
+`alera workspace add` still runs setup inline and stops on the first non-zero exit, because the CLI has no Setup tab. `alera workspace setup --id <workspace>` applies a project's setup to an existing workspace.
+
+If a copy or setup step fails after the Git worktree already exists, Alera keeps and opens the workspace. A half-configured worktree you can see beats a silent rollback.
+
+## Precedence
+
+Per-project settings in **Settings → Projects** are the source of truth when present. Choosing **Use Repo File** clears that override and falls back to `alera.toml`. When neither exists, there is no setup.
+
+A UI override replaces the complete repository config for that project, including `prompt_append`.
+
+## Git hosting provider
+
+The same file can declare how the Pull Requests panel talks to your forge:
+
+```toml
+git_hosting_provider = "github" # or "gitlab" / "azureDevops"
+```
+
+When it is absent, Alera auto-detects GitHub.com, GitLab.com, and Azure DevOps from `origin`. Set it explicitly for self-hosted instances. Authentication stays with `gh`, `glab`, or `az`.
+
+`githubEnterprise` / `github_enterprise` / `github-enterprise` are accepted aliases for GitHub Enterprise Server. GitLab self-managed uses `gitlab`. Azure aliases `azure`, `azure_devops`, and `azure-devops` are also accepted.

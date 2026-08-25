@@ -1,0 +1,45 @@
+---
+title: CLI Agents
+description: Run any CLI coding agent in Alera, with first-class tracking for the ones that ship integrations.
+---
+
+Alera does not invent an agent protocol. If a tool runs in a terminal, it runs in Alera.
+
+## First-class today
+
+These agents ship with icons, managed lifecycle integrations, and live activity tracking in the workbench:
+
+- Claude Code
+- Codex
+- Amp
+- Antigravity
+- OpenCode
+- Cursor
+- Copilot
+- Pi
+- Grok Build
+- fx
+
+The integrations stream status into Alera so the sidebar can tell you who is working, who is idle, and who is waiting for you. That glanceable state is the point of running several agents at once.
+
+## Everything else
+
+Any other CLI gets the full workbench as a normal terminal process: worktree isolation, persistent sessions, quotas, resource tracking. Launch it in a workspace tab the way you would in any shell.
+
+Gemini CLI, Goose, Aider, Kimi, Crush, Continue, or an in-house script nobody else has heard of: if your terminal can run it, so can Alera. Activity tracking rolls out per agent; the PTY does not wait on that list.
+
+## How to launch
+
+1. Open a [workspace](/docs/projects).
+2. Add a terminal tab.
+3. Run the agent CLI.
+
+For a first-class agent, you can also start from the workbench agent controls or from an [agent profile](/docs/orchestration) when orchestration is dispatching the launch. Profiles are yours: you approve the launch command, and Alera does not invent one.
+
+## Orchestration adapters
+
+If you coordinate agents through [orchestration](/docs/orchestration), profiles bind to a built-in adapter registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults). The adapter decides how the host detects readiness and delivers the starting prompt. It is not a second product; it is how a coordinator launches the same CLIs you already use.
+
+:::tip
+Give each long-running agent task its own [linked worktree](/docs/worktrees). Parallel agents sharing one checkout end in stash fights.
+:::

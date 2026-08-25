@@ -1,0 +1,42 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+import Analytics from '@vercel/analytics/astro';
+---
+
+<Default><slot /></Default>
+<meta name="theme-color" content="#101010" />
+<link
+  rel="preload"
+  href="/fonts/inter-400-latin.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link
+  rel="preload"
+  href="/fonts/inter-500-latin.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link
+  rel="preload"
+  href="/fonts/inter-600-latin.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link
+  rel="preload"
+  href="/fonts/jetbrains-mono-500-latin.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title="Alera Blog"
+  href="/rss.xml"
+/>
+<Analytics />

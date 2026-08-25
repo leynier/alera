@@ -1,0 +1,56 @@
+---
+title: Quotas And Resources
+description: Watch agent usage windows and per-tab CPU and memory without leaving the workbench.
+---
+
+Several agents in parallel drain different provider buckets and different amounts of machine. Alera puts both numbers in the status bar.
+
+## Agent quotas
+
+The quota bar shows subscription and usage windows for the providers you enable. Each provider uses its agent icon. Hovering a quota opens a card with remaining percentage, a completion bar, and a reset countdown such as `1d 3h 45m`. Clicking pins the card; only one card is open at a time.
+
+Quotas refresh every 15 minutes, can be refreshed from the button after the last agent, and keep the last successful snapshot marked as stale when a refresh fails.
+
+### Supported providers
+
+- Claude Code, including the default account and CCS profiles
+- Codex
+- Kimi Code
+- Grok Build
+- Cursor
+- Antigravity
+- MiniMax Token Plan
+- Z.ai
+- OpenCode Go and OpenCode Zen
+
+Provider order is configurable in **Settings → Quotas → Providers**. Claude CCS profiles can be reordered independently; Default stays first when it is enabled. Show the providers you actually use; hide the rest.
+
+### Credentials
+
+Alera stores environment variable *names* for API-based plans, never values. Local desktop and mobile requests go through the runtime-host quota service. For the local host, missing variables can be resolved from your login shell and held in memory without being persisted into quota responses. Restart Alera after changing those shell exports.
+
+SSH workspaces query through `alera runtime-proxy` on the remote host, so credentials stay on the machine where the agent runs.
+
+### Claude CCS profiles
+
+Configure Default and CCS profiles in **Settings → Quotas → Claude**. Each profile has an **Alias** (the familiar command name, such as `ccdev`) and a **Profile** (the CCS instance directory). Quota lookups set `CLAUDE_CONFIG_DIR` only for the lookup; they do not change how terminals launch Claude.
+
+When a profile is not healthy and the runtime supports it, the card can offer **Try With TUI**, which scrapes `/usage` for that account only.
+
+### Codex reset credits
+
+For the default Codex account, hover cards can show earned rate-limit resets and when the next credit expires. Alera always asks for confirmation before spending one.
+
+## Resource Manager
+
+A status-bar chip opens the Resource Manager. It attributes live CPU and memory to **Project → Workspace → Terminal tab**, sampled in the runtime host rather than on the UI isolate.
+
+Per row you get live CPU and memory with sparklines, plus Alera's own app and sidecar rows, plus machine-wide memory and load. CPU is a share of the machine (per-core samples divided by core count), so it reads on the same scale as memory. When the core count is unknown, that column stays empty rather than showing a raw number.
+
+Orphan rows are sessions the host still holds but no tab claims. You can kill them in one click. In a workbench with persistent terminals, orphans are how you catch the agent that outlived its tab.
+
+Sampling runs only while something is watching. An idle workbench does not pay for the panel.
+
+:::tip
+Open the Resource Manager while a few agents work. A stuck install or a runaway build is obvious once the cost is labeled by tab.
+:::
