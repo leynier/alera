@@ -41,10 +41,7 @@ void _registerTerminalSurfaceToolbarTests() {
 
     await _pumpTerminalSurface(tester, session);
 
-    await tester.tap(
-      find.byTooltip('Refresh Terminal'),
-      buttons: kSecondaryButton,
-    );
+    await tester.tap(find.byTooltip('Move Toolbar'), buttons: kSecondaryButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Top Left'));
     await tester.pumpAndSettle();

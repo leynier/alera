@@ -9,7 +9,6 @@ import 'package:alera/src/features/workbench/domain/terminal_toolbar_placement.d
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_pulse_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class TerminalSurfaceToolbar extends StatefulWidget {
@@ -198,12 +197,9 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
           onPressed: widget.onShowAgentCanvas,
         ),
     ];
-    return Listener(
-      onPointerDown: (event) {
-        if (event.kind == PointerDeviceKind.mouse &&
-            event.buttons == kSecondaryMouseButton) {
-          unawaited(_showCornerMenu(event.position));
-        }
+    return GestureDetector(
+      onSecondaryTapDown: (details) {
+        unawaited(_showCornerMenu(details.globalPosition));
       },
       child: Row(
         key: _toolbarKey,
@@ -257,30 +253,18 @@ class _MoveToolbarHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Move Toolbar',
-      child: MouseRegion(
-        cursor: SystemMouseCursors.move,
-        child: GestureDetector(
-          onPanStart: onPanStart,
-          onPanUpdate: onPanUpdate,
-          onPanEnd: onPanEnd,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AleraTokens.surfaceElevated,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              border: Border.all(color: AleraTokens.borderSubtle),
-            ),
-            child: const SizedBox(
-              width: AleraIconButton.defaultMinSize,
-              height: AleraIconButton.defaultMinSize,
-              child: Icon(
-                AleraIcons.dragHandle,
-                size: AleraIconButton.defaultIconSize,
-                color: AleraTokens.foregroundMuted,
-              ),
-            ),
-          ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.move,
+      child: GestureDetector(
+        onPanStart: onPanStart,
+        onPanUpdate: onPanUpdate,
+        onPanEnd: onPanEnd,
+        child: AleraIconButton(
+          tooltip: 'Move Toolbar',
+          icon: AleraIcons.dragHandle,
+          backgroundColor: AleraTokens.surfaceElevated,
+          borderColor: AleraTokens.borderSubtle,
+          onPressed: () {},
         ),
       ),
     );
