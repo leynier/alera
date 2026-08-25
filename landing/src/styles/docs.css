@@ -136,6 +136,23 @@ site-search button {
   background: #181818;
 }
 
+/* Keep fenced code on the dark surface even if the OS prefers a light scheme.
+   Dual-theme Expressive Code otherwise paints github-light tokens (#24292e)
+   on Starlight's dark block background. */
+.expressive-code {
+  --ec-codeFg: #e8e8e8;
+  --ec-codeBg: #181818;
+}
+
+.expressive-code pre,
+.expressive-code pre > code {
+  color: #e8e8e8;
+}
+
+.expressive-code .ec-line :where(span[style^='--']:not([class])) {
+  color: var(--0, #e8e8e8);
+}
+
 ::selection {
   background: rgba(224, 224, 224, 0.2);
   color: #f5f5f5;

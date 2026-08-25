@@ -37,12 +37,14 @@ export default defineConfig({
         ThemeSelect: './src/components/docs/ThemeSelect.astro',
       },
       expressiveCode: {
-        themes: ['github-dark', 'github-light'],
+        themes: ['github-dark'],
         useStarlightDarkModeSwitch: false,
-        useStarlightUiThemeColors: true,
+        useStarlightUiThemeColors: false,
         styleOverrides: {
           borderRadius: '10px',
           borderWidth: '1px',
+          borderColor: '#323232',
+          codeBackground: '#181818',
         },
       },
       sidebar: [
