@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.dart';
@@ -19,30 +19,27 @@ import 'fake_git_backend.dart';
 
 void main() {
   test('reading diff resolves the effective model effort before caching', () {
-    const model = AiTextModel(
+    const model = AiAssistModel(
       id: 'model',
       label: 'Model',
       defaultThinkingLevel: 'medium',
     );
     expect(
       effectiveReadingDiffEffort(
-        AiTextGenerationSettings.defaults,
-        AiTextGenerationOperation.readingDiff,
+        AiAssistSettings.defaults,
+        AiAssistOperation.readingDiff,
         model,
       ),
       'medium',
     );
     expect(
       effectiveReadingDiffEffort(
-        const AiTextGenerationSettings(
-          selectedThinkingByOperation:
-              <AiTextGenerationOperation, Map<String, String>>{
-                AiTextGenerationOperation.readingDiff: <String, String>{
-                  'model': 'high',
-                },
-              },
+        const AiAssistSettings(
+          selectedThinkingByOperation: <AiAssistOperation, Map<String, String>>{
+            AiAssistOperation.readingDiff: <String, String>{'model': 'high'},
+          },
         ),
-        AiTextGenerationOperation.readingDiff,
+        AiAssistOperation.readingDiff,
         model,
       ),
       'high',
@@ -65,11 +62,11 @@ void main() {
         service.prepare(
           ReadingDiffRequest(
             workspacePath: '/repo',
-            settings: AiTextGenerationSettings.defaults,
+            settings: AiAssistSettings.defaults,
           ),
         ),
         throwsA(
-          isA<AiTextGenerationException>().having(
+          isA<AiAssistException>().having(
             (error) => error.message,
             'message',
             contains('4 MiB safety limit'),
@@ -96,7 +93,7 @@ void main() {
     );
     final request = ReadingDiffRequest(
       workspacePath: '/repo',
-      settings: AiTextGenerationSettings.defaults,
+      settings: AiAssistSettings.defaults,
       baseRef: 'main',
       ignoreCache: true,
     );
@@ -104,7 +101,7 @@ void main() {
       request: request,
       rawDiff: Uint8List.fromList(<int>[1]),
       compiler: compiler,
-      agent: AiTextGenerationAgent.codex,
+      agent: AiAssistAgent.codex,
       model: 'agent-model',
       effort: 'medium',
       accessPolicy: AgentTaskAccessPolicy.diffOnly,
@@ -192,7 +189,7 @@ void main() {
       Future<String> key(String command) => buildReadingDiffCacheKey(
         rubricVersion: 'rubric-v1',
         schemaVersion: 1,
-        agent: AiTextGenerationAgent.custom,
+        agent: AiAssistAgent.custom,
         model: 'custom',
         effort: null,
         instructions: '',
@@ -420,7 +417,7 @@ class _UnusedAgentTaskRunner implements AgentTaskRunner {
   void cancel(String runId) {}
 
   @override
-  Future<AiTextAgentRunResult> run(AiTextAgentRunRequest request) {
+  Future<AiAssistAgentRunResult> run(AiAssistAgentRunRequest request) {
     throw StateError('The runner should not be used.');
   }
 }

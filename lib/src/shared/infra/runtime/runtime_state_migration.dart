@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/projects/application/project_config_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
@@ -24,7 +24,7 @@ const _legacyDriftRuntimeSettingsMigrationKey =
     'legacy_drift_runtime_settings_migrated_v1';
 const _legacyDriftPortableSettingsMigrationKey =
     'legacy_drift_portable_settings_migrated_v2';
-const _legacyDriftAiTextSettingsMigrationKey =
+const _legacyDriftAiAssistSettingsMigrationKey =
     'legacy_drift_ai_text_settings_migrated_v1';
 const _legacyDriftTextActionsSettingsMigrationKey =
     'legacy_drift_text_actions_settings_migrated_v1';
@@ -117,10 +117,10 @@ final class RuntimeStateMigration {
       await _migratePortableSettings(legacy);
       await _setMetadataValue(_legacyDriftPortableSettingsMigrationKey, 'true');
     }
-    if (await _metadataValue(_legacyDriftAiTextSettingsMigrationKey) !=
+    if (await _metadataValue(_legacyDriftAiAssistSettingsMigrationKey) !=
         'true') {
-      await _migrateAiTextSettings(legacy);
-      await _setMetadataValue(_legacyDriftAiTextSettingsMigrationKey, 'true');
+      await _migrateAiAssistSettings(legacy);
+      await _setMetadataValue(_legacyDriftAiAssistSettingsMigrationKey, 'true');
     }
     if (await _metadataValue(_legacyDriftTextActionsSettingsMigrationKey) !=
         'true') {
@@ -149,7 +149,7 @@ final class RuntimeStateMigration {
     }
   }
 
-  Future<void> _migrateAiTextSettings(
+  Future<void> _migrateAiAssistSettings(
     RuntimeStateLegacyRepositories legacy,
   ) async {
     if (await _metadataValue('settings.aiTextGeneration') != null) {
@@ -159,7 +159,7 @@ final class RuntimeStateMigration {
     await _runtimeClient.runtimeRequest(
       'runtimeSettings.update',
       <String, Object?>{
-        'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
+        'aiTextGeneration': _runtimeAiAssistSettings(settings.aiAssist),
       },
     );
   }
@@ -177,9 +177,7 @@ final class RuntimeStateMigration {
     );
   }
 
-  Map<String, Object?> _runtimeAiTextSettings(
-    AiTextGenerationSettings settings,
-  ) {
+  Map<String, Object?> _runtimeAiAssistSettings(AiAssistSettings settings) {
     return <String, Object?>{
       'enabled': settings.enabled,
       'agent': settings.agent.key,

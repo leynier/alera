@@ -15,7 +15,7 @@ class TextActionMapper extends ClassMapperBase<TextAction> {
   static TextActionMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = TextActionMapper._());
-      AiTextGenerationAgentMapper.ensureInitialized();
+      AiAssistAgentMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -36,10 +36,12 @@ class TextActionMapper extends ClassMapperBase<TextAction> {
     opt: true,
     def: true,
   );
-  static AiTextGenerationAgent? _$agentOverride(TextAction v) =>
-      v.agentOverride;
-  static const Field<TextAction, AiTextGenerationAgent> _f$agentOverride =
-      Field('agentOverride', _$agentOverride, opt: true);
+  static AiAssistAgent? _$agentOverride(TextAction v) => v.agentOverride;
+  static const Field<TextAction, AiAssistAgent> _f$agentOverride = Field(
+    'agentOverride',
+    _$agentOverride,
+    opt: true,
+  );
   static String? _$modelOverride(TextAction v) => v.modelOverride;
   static const Field<TextAction, String> _f$modelOverride = Field(
     'modelOverride',
@@ -146,7 +148,7 @@ abstract class TextActionCopyWith<$R, $In extends TextAction, $Out>
     String? name,
     String? prompt,
     bool? enabled,
-    AiTextGenerationAgent? agentOverride,
+    AiAssistAgent? agentOverride,
     String? modelOverride,
     Map<String, String>? reasoningByModel,
   });

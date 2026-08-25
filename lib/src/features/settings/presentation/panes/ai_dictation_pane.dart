@@ -162,7 +162,7 @@ class AiDictationSettingsPane extends ConsumerWidget {
             child: AleraSettingsGroup(
               title: 'Speech Processing',
               description:
-                  'Optionally improve the transcript with the agent subscription configured for Speech Messages in AI Text settings.',
+                  'Optionally improve the transcript with the agent subscription configured for Speech Messages in AI Assist settings.',
               children: <Widget>[
                 AleraSettingRow(
                   title: 'Automatic Processing',

@@ -29,13 +29,13 @@ impl ServerActor {
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_workspace_identity(client_id, request_id, payload)?;
+                self.start_ai_assist_workspace_identity(client_id, request_id, payload)?;
                 Ok(true)
             }
             "aiText.speechMessage.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.start_ai_text_speech_message(client_id, request_id, payload)?;
+                self.start_ai_assist_speech_message(client_id, request_id, payload)?;
                 Ok(true)
             }
             "mobile.workspaceQuickOpen.start"

@@ -155,7 +155,7 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     );
   });
 
-  testWidgets('diff surface keeps cancel visible when AI Text is disabled', (
+  testWidgets('diff surface keeps cancel visible when AI Assist is disabled', (
     tester,
   ) async {
     final backend = FakeGitBackend()
@@ -187,7 +187,7 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     await tester.tap(find.text('Generate Reading Diff').last);
     await tester.pump();
 
-    settingsController.setAiTextEnabled(false);
+    settingsController.setAiAssistEnabled(false);
     await tester.pump();
 
     expect(find.byTooltip('Cancel Reading Diff'), findsOneWidget);
@@ -323,46 +323,47 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
     expect(find.byTooltip('Generate Reading Diff'), findsOneWidget);
   });
 
-  testWidgets('diff surface keeps original toggle after AI Text is disabled', (
-    tester,
-  ) async {
-    final backend = FakeGitBackend()
-      ..gitDiffResult = const GitDiffResult(
-        files: <GitDiffFile>[
-          GitDiffFile(
-            path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
-            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
-            added: 1,
-            removed: 1,
-          ),
-        ],
+  testWidgets(
+    'diff surface keeps original toggle after AI Assist is disabled',
+    (tester) async {
+      final backend = FakeGitBackend()
+        ..gitDiffResult = const GitDiffResult(
+          files: <GitDiffFile>[
+            GitDiffFile(
+              path: 'lib/main.dart',
+              area: GitChangeArea.unstaged,
+              status: GitChangeStatus.modified,
+              lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+              added: 1,
+              removed: 1,
+            ),
+          ],
+        );
+      final settingsController = _MutableSettingsController(
+        AleraSettings.defaults,
       );
-    final settingsController = _MutableSettingsController(
-      AleraSettings.defaults,
-    );
-    await _pumpDiffSurface(
-      tester,
-      backend: backend,
-      readingDiffService: _CachedReadingDiffService(backend),
-      settingsController: settingsController,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Generate Reading Diff'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Show Original Diff'), findsOneWidget);
+      await _pumpDiffSurface(
+        tester,
+        backend: backend,
+        readingDiffService: _CachedReadingDiffService(backend),
+        settingsController: settingsController,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Generate Reading Diff'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Show Original Diff'), findsOneWidget);
 
-    settingsController.setAiTextEnabled(false);
-    await tester.pump();
+      settingsController.setAiAssistEnabled(false);
+      await tester.pump();
 
-    expect(find.byTooltip('Show Original Diff'), findsOneWidget);
-    expect(find.byTooltip('Regenerate Reading Diff'), findsNothing);
-    await tester.tap(find.byTooltip('Show Original Diff'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Show Reading Diff'), findsOneWidget);
-    expect(find.text('+snapshot-value'), findsOneWidget);
-  });
+      expect(find.byTooltip('Show Original Diff'), findsOneWidget);
+      expect(find.byTooltip('Regenerate Reading Diff'), findsNothing);
+      await tester.tap(find.byTooltip('Show Original Diff'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Show Reading Diff'), findsOneWidget);
+      expect(find.text('+snapshot-value'), findsOneWidget);
+    },
+  );
 
   testWidgets('failed regeneration preserves the prior original snapshot', (
     tester,

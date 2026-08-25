@@ -10,7 +10,7 @@ import 'package:alera/src/features/settings/presentation/ai_dictation_search_ent
 import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
-import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/ai_assist_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_dictation_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/browser_settings_pane.dart';
@@ -182,7 +182,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     const textActionsGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'actions', title: 'Actions'),
     ];
-    const aiTextGroups = <SettingsGroupSpec>[
+    const aiAssistGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'generation', title: 'Generation'),
       SettingsGroupSpec(id: 'commitMessage', title: 'Commit Messages'),
       SettingsGroupSpec(
@@ -270,17 +270,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         ),
       ),
       SettingsSectionData(
-        id: 'aiText',
-        title: 'AI Text',
-        description: 'AI-generated source control text.',
+        id: 'aiAssist',
+        title: 'AI Assist',
+        description:
+            'Local agent assistance for commits, pull requests, diffs, workspace identity, and speech.',
         icon: AleraIcons.ai,
-        entries: aiTextSearchEntries,
-        groups: aiTextGroups,
-        onReset: controller.resetAiTextGenerationSettings,
-        builder: (_) => AiTextSettingsPane(
-          settings: settings.aiTextGeneration,
-          groupKeys: _paneKeys('aiText', aiTextGroups),
-          onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
+        entries: aiAssistSearchEntries,
+        groups: aiAssistGroups,
+        onReset: controller.resetAiAssistSettings,
+        builder: (_) => AiAssistSettingsPane(
+          settings: settings.aiAssist,
+          groupKeys: _paneKeys('aiAssist', aiAssistGroups),
+          onChanged: (aiAssist) => controller.updateAiAssist(aiAssist),
         ),
       ),
       SettingsSectionData(
@@ -308,7 +309,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         navGroup: SettingsNavGroup.resources,
         builder: (_) => TextActionsSettingsPane(
           settings: settings.textActions,
-          aiTextSettings: settings.aiTextGeneration,
+          aiAssistSettings: settings.aiAssist,
           groupKeys: _paneKeys('textActions', textActionsGroups),
           onChanged: controller.updateTextActions,
         ),

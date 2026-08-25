@@ -895,7 +895,7 @@ impl ServerActor {
             "aiText.cancel" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                self.cancel_ai_text_generation(payload)
+                self.cancel_ai_assist(payload)
             }
             "mobile.aiDictation.transcribe" => {
                 self.require_auth(client_id)?;

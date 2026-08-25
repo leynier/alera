@@ -49,7 +49,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 - Landing UI values SHOULD come from the `@theme` tokens in `src/styles/global.css` before adding ad-hoc literals.
 - Keep the landing aligned with the app design direction: dark mode, grayscale-first palette, neutral accent emphasis, Inter for general text, and JetBrains Mono for terminal/code-adjacent text.
-- Visible UI copy (headings, labels, CTAs, tooltips, alt text, and messages) MUST use title case (e.g., "New Workspace", "AI Text").
+- Visible UI copy (headings, labels, CTAs, tooltips, alt text, and messages) MUST use title case (e.g., "New Workspace", "AI Assist").
 - New colors, spacing, radii, type sizes, animation durations, and shared effects SHOULD be added as Tailwind theme values or CSS variables before repeated use.
 - Existing token names and roles SHOULD remain consistent with the app baseline where practical: `bg`, `surface`, `surface-variant`, `surface-elevated`, `border`, `border-subtle`, `accent`, `on-accent`, `foreground`, `foreground-muted`, `foreground-faint`, `success`, `error`, `on-error`, and `warning`.
 - Do not introduce a second visual system, icon style, font stack, or unrelated palette for the landing page.

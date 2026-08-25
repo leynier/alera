@@ -39,8 +39,10 @@ const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
 const String mobileAgentQuotaClaudeTuiCapability = 'agentQuotaClaudeTuiV1';
 const String codexResetCreditsCapability = 'codexResetCreditsV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
-const String aiTextWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
-const String aiTextSpeechMessageCapability = 'aiTextSpeechMessageV1';
+// Capability strings stay on the historical `aiText*` names so older runtimes
+// keep advertising the same feature.
+const String aiAssistWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
+const String aiAssistSpeechMessageCapability = 'aiTextSpeechMessageV1';
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String agentProfileLaunchIdempotencyCapability =
     'agentProfileLaunchIdempotencyV1';

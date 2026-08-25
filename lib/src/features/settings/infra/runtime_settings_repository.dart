@@ -1,5 +1,5 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -26,14 +26,13 @@ class RuntimeSettingsRepository implements SettingsRepository {
         return legacy;
       }
       final legacyLocalQuotas = legacy.agents.quotas.forHost('local');
-      final runtimeAiText = _asMap(runtime['aiTextGeneration']);
-      final sharedAiText = runtimeAiText.isEmpty
-          ? legacy.aiTextGeneration
-          : AiTextGenerationSettings.fromJson(runtimeAiText).copyWith(
-              discoveredModelsByAgent:
-                  legacy.aiTextGeneration.discoveredModelsByAgent,
+      final runtimeAiAssist = _asMap(runtime['aiTextGeneration']);
+      final sharedAiAssist = runtimeAiAssist.isEmpty
+          ? legacy.aiAssist
+          : AiAssistSettings.fromJson(runtimeAiAssist).copyWith(
+              discoveredModelsByAgent: legacy.aiAssist.discoveredModelsByAgent,
               discoveredDefaultModelByAgent:
-                  legacy.aiTextGeneration.discoveredDefaultModelByAgent,
+                  legacy.aiAssist.discoveredDefaultModelByAgent,
             );
       final runtimeTextActions = _asMap(runtime['textActions']);
       final sharedTextActions = runtimeTextActions.isEmpty
@@ -70,7 +69,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
             ),
           ),
         ),
-        aiTextGeneration: sharedAiText,
+        aiAssist: sharedAiAssist,
         textActions: sharedTextActions,
       );
     } catch (_) {
@@ -89,13 +88,13 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'defaultAgentProfileId': settings.agents.defaultAgentProfileId,
       'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
       'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
-      'aiTextGeneration': _runtimeAiTextSettings(settings.aiTextGeneration),
+      'aiTextGeneration': _runtimeAiAssistSettings(settings.aiAssist),
       'textActions': settings.textActions.toMap(),
     });
   }
 }
 
-Map<String, Object?> _runtimeAiTextSettings(AiTextGenerationSettings settings) {
+Map<String, Object?> _runtimeAiAssistSettings(AiAssistSettings settings) {
   return <String, Object?>{
     'enabled': settings.enabled,
     'agent': settings.agent.key,

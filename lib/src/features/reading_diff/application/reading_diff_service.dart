@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_diff_only_execution.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_diff_only_execution.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_prompt.dart';
@@ -32,17 +32,15 @@ class ReadingDiffService {
 
   Future<ReadingDiffPreparation> prepare(ReadingDiffRequest request) async {
     if (!request.settings.enabled) {
-      throw const AiTextGenerationException('AI text generation is disabled.');
+      throw const AiAssistException('AI Assist is disabled.');
     }
-    final operation = AiTextGenerationOperation.readingDiff;
+    final operation = AiAssistOperation.readingDiff;
     final agent = readingDiffAgentForSettings(request.settings);
-    final spec = aiTextAgentSpecs[agent];
-    if (spec == null && agent != AiTextGenerationAgent.custom) {
-      throw AiTextGenerationException(
-        '${agent.label} does not support AI text generation.',
-      );
+    final spec = aiAssistAgentSpecs[agent];
+    if (spec == null && agent != AiAssistAgent.custom) {
+      throw AiAssistException('${agent.label} does not support AI Assist.');
     }
-    requireDiffOnlyAiTextAgent(agent);
+    requireDiffOnlyAiAssistAgent(agent);
     final model = modelForAgent(
       agent,
       readingDiffModelForSettings(request.settings, agent) ??
@@ -66,10 +64,10 @@ class ReadingDiffService {
         baseRef: request.baseRef,
       );
     } on GitException catch (error) {
-      throw AiTextGenerationException(error.context);
+      throw AiAssistException(error.context);
     }
     if (rawDiff.isEmpty) {
-      throw const AiTextGenerationException('No diff is available to read.');
+      throw const AiAssistException('No diff is available to read.');
     }
     final promptLimit = _promptLimit(agent, request.settings, spec);
     final chunkLimit = _chunkLimit(promptLimit);
@@ -80,7 +78,7 @@ class ReadingDiffService {
         maxChunkBytes: BigInt.from(chunkLimit),
       );
     } on rust.ReadingDiffError catch (error) {
-      throw AiTextGenerationException(error.message);
+      throw AiAssistException(error.message);
     }
     final instructions = request.settings.instructionsFor(operation);
     final oversizedChunk = await firstOversizedReadingDiffPromptChunk(
@@ -89,7 +87,7 @@ class ReadingDiffService {
       maxBytes: promptLimit - readingDiffRepairReserveBytes,
     );
     if (oversizedChunk != null) {
-      throw AiTextGenerationException(
+      throw AiAssistException(
         '${agent.label} cannot receive diff chunk ${oversizedChunk + 1} within its safe prompt limit.',
       );
     }
@@ -133,7 +131,7 @@ class ReadingDiffService {
     }
     final lane = _lane(preparation.request);
     if (_pending.contains(lane)) {
-      throw const AiTextGenerationException(
+      throw const AiAssistException(
         'Reading diff generation is already running.',
       );
     }
@@ -157,7 +155,7 @@ class ReadingDiffService {
           preparation: preparation.compiler,
           chunk: chunk,
           customInstructions: preparation.request.settings.instructionsFor(
-            AiTextGenerationOperation.readingDiff,
+            AiAssistOperation.readingDiff,
           ),
         );
         var plan = await _runPlan(preparation, lane, chunk.index, prompt);
@@ -196,7 +194,7 @@ class ReadingDiffService {
               planJson: plan.text,
             );
           } on rust.ReadingDiffError catch (repairError) {
-            throw AiTextGenerationException(
+            throw AiAssistException(
               'The replacement reading diff plan was invalid: ${repairError.message}',
             );
           }
@@ -234,7 +232,7 @@ class ReadingDiffService {
           sourceDiff: preparation.rawDiff,
         );
       } on rust.ReadingDiffError catch (error) {
-        throw AiTextGenerationException(error.message);
+        throw AiAssistException(error.message);
       }
       _throwIfCanceled(lane);
       final result = ReadingDiffResult(
@@ -269,7 +267,7 @@ class ReadingDiffService {
     }
   }
 
-  Future<AiTextAgentRunResult> _runPlan(
+  Future<AiAssistAgentRunResult> _runPlan(
     ReadingDiffPreparation preparation,
     String lane,
     int chunkIndex,
@@ -280,7 +278,7 @@ class ReadingDiffService {
     final runId = '$lane::chunk-$chunkIndex${repair ? '-repair' : ''}';
     _activeRunByLane[lane] = runId;
     final result = await runner.run(
-      AiTextAgentRunRequest(
+      AiAssistAgentRunRequest(
         settings: preparation.request.settings,
         prompt: prompt,
         runId: runId,
@@ -299,7 +297,7 @@ class ReadingDiffService {
 
   void _throwIfCanceled(String lane) {
     if (_canceled.contains(lane)) {
-      throw const AiTextGenerationCanceledException();
+      throw const AiAssistCanceledException();
     }
   }
 
@@ -318,11 +316,11 @@ const int _defaultReadingDiffChunkBytes = 160 * 1024;
 const int _argvPromptBytes = 24000;
 
 int _promptLimit(
-  AiTextGenerationAgent agent,
-  AiTextGenerationSettings settings,
-  AiTextAgentSpec? spec,
+  AiAssistAgent agent,
+  AiAssistSettings settings,
+  AiAssistAgentSpec? spec,
 ) {
-  if (agent == AiTextGenerationAgent.custom) {
+  if (agent == AiAssistAgent.custom) {
     return settings.customCommand.contains('{prompt}')
         ? _argvPromptBytes
         : 1024 * 1024;
@@ -336,9 +334,9 @@ int _chunkLimit(int promptLimit) {
 }
 
 String? effectiveReadingDiffEffort(
-  AiTextGenerationSettings settings,
-  AiTextGenerationOperation operation,
-  AiTextModel model,
+  AiAssistSettings settings,
+  AiAssistOperation operation,
+  AiAssistModel model,
 ) =>
     settings.thinkingForOperation(operation, model.id) ??
     model.defaultThinkingLevel;
@@ -346,7 +344,7 @@ String? effectiveReadingDiffEffort(
 Future<String> buildReadingDiffCacheKey({
   required String rubricVersion,
   required int schemaVersion,
-  required AiTextGenerationAgent agent,
+  required AiAssistAgent agent,
   required String model,
   required String? effort,
   required String instructions,
@@ -360,7 +358,7 @@ Future<String> buildReadingDiffCacheKey({
     'model': model,
     'effort': effort,
     'instructions': instructions,
-    'customCommand': agent == AiTextGenerationAgent.custom
+    'customCommand': agent == AiAssistAgent.custom
         ? customCommand.trim()
         : null,
   });

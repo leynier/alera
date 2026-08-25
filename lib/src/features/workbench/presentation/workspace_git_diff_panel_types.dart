@@ -16,7 +16,7 @@ String _messageFor(Object? error) {
   if (error is GitConflictException) {
     return 'Resolve conflicts before continuing.';
   }
-  if (error is AiTextGenerationException) {
+  if (error is AiAssistException) {
     return error.message;
   }
   if (error is GitException && error.context.trim().isNotEmpty) {
