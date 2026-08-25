@@ -6,7 +6,7 @@ void _registerClaudeRuntimeCcsTests(
   ClaudeRuntimeHomeService Function() readService,
 ) {
   test(
-    'installs status hooks into CCS shared settings, not user Claude settings',
+    'installs status hooks into CCS instance local settings, not user Claude settings',
     () async {
       final home = readHome();
       final service = readService();
@@ -27,22 +27,17 @@ void _registerClaudeRuntimeCcsTests(
         'shared',
         'settings.json',
       );
-      _writeJson(sharedSettingsPath, <String, Object?>{
-        'hooks': <String, Object?>{
-          'UserPromptSubmit': <Object?>[_userHook('echo orca-hook')],
-          'Stop': <Object?>[_userHook('echo orca-stop')],
-        },
-      });
-      // CCS instance settings.json is a symlink to the shared file.
+      File(sharedSettingsPath).parent.createSync(recursive: true);
+      Link(sharedSettingsPath).createSync(userClaudeSettingsPath);
       final instanceDir = Directory(
         p.join(home.path, '.ccs', 'instances', 'profile-a'),
       )..createSync(recursive: true);
       Link(
         p.join(instanceDir.path, 'settings.json'),
       ).createSync(sharedSettingsPath);
-      // Private credentials file must not be touched.
       final credentials = File(p.join(instanceDir.path, '.credentials.json'))
         ..writeAsStringSync('{"secret":"keep"}\n');
+      final localSettingsPath = p.join(instanceDir.path, 'settings.local.json');
 
       final preparation = await service.prepareForTerminalLaunch();
 
@@ -56,14 +51,10 @@ void _registerClaudeRuntimeCcsTests(
         contains('echo orca-hook'),
       );
       expect(_managedCommandCount(userHooks, 'alera-claude-hook.sh'), 0);
-      // Shared file also gets Alera hooks and keeps foreign hooks.
-      final sharedHooks = _hooks(sharedSettingsPath);
       expect(
-        _commandsFor(sharedHooks, 'UserPromptSubmit'),
-        contains('echo orca-hook'),
+        FileSystemEntity.typeSync(sharedSettingsPath, followLinks: false),
+        FileSystemEntityType.link,
       );
-      expect(_managedCommandCount(sharedHooks, 'alera-claude-hook.sh'), 6);
-      // Symlink still points at shared settings (not replaced by a regular file).
       expect(
         FileSystemEntity.typeSync(
           p.join(instanceDir.path, 'settings.json'),
@@ -72,7 +63,8 @@ void _registerClaudeRuntimeCcsTests(
         FileSystemEntityType.link,
       );
       expect(credentials.readAsStringSync(), '{"secret":"keep"}\n');
-      // Bare-claude runtime home still has hooks and env injection.
+      final localHooks = _hooks(localSettingsPath);
+      expect(_managedCommandCount(localHooks, 'alera-claude-hook.sh'), 6);
       expect(
         preparation.environment['CLAUDE_CONFIG_DIR'],
         preparation.runtimeHomePath,
@@ -92,29 +84,24 @@ void _registerClaudeRuntimeCcsTests(
         'echo orca-hook',
       ]);
       expect(_managedCommandCount(userAfter, 'alera-claude-hook.sh'), 0);
-      final sharedAfter = _hooks(sharedSettingsPath);
-      expect(_commandsFor(sharedAfter, 'UserPromptSubmit'), <String>[
-        'echo orca-hook',
-      ]);
-      expect(_managedCommandCount(sharedAfter, 'alera-claude-hook.sh'), 0);
-      expect(_commandsFor(sharedAfter, 'Stop'), <String>['echo orca-stop']);
+      expect(
+        _managedCommandCount(_hooks(localSettingsPath), 'alera-claude-hook.sh'),
+        0,
+      );
     },
   );
 
   test(
-    'reports partial when runtime is ready but CCS shared hooks are missing',
+    'reports partial when runtime is ready but CCS instance local hooks are missing',
     () async {
       final home = readHome();
       final service = readService();
       final preparation = await service.prepareForTerminalLaunch();
-      final sharedSettingsPath = p.join(
-        home.path,
-        '.ccs',
-        'shared',
-        'settings.json',
-      );
-      // Create CCS shared settings without Alera hooks after install.
-      _writeJson(sharedSettingsPath, <String, Object?>{
+      final instanceDir = Directory(
+        p.join(home.path, '.ccs', 'instances', 'profile-a'),
+      )..createSync(recursive: true);
+      final localSettingsPath = p.join(instanceDir.path, 'settings.local.json');
+      _writeJson(localSettingsPath, <String, Object?>{
         'hooks': <String, Object?>{
           'UserPromptSubmit': <Object?>[_userHook('echo only-orca')],
         },
@@ -124,7 +111,7 @@ void _registerClaudeRuntimeCcsTests(
 
       expect(status.state, ManagedAgentHookInstallState.partial);
       expect(status.managedHooksPresent, isTrue);
-      expect(status.detail, contains(sharedSettingsPath));
+      expect(status.detail, contains(localSettingsPath));
       expect(
         status.configPath,
         p.join(preparation.runtimeHomePath, 'settings.json'),

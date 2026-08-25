@@ -29,75 +29,123 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     return p.join(_homeDirectory, '.ccs');
   }
 
-  /// CCS settings files that still need Alera hooks because CCS aliases
-  /// override `CLAUDE_CONFIG_DIR` away from the runtime overlay.
-  ///
-  /// `~/.claude/settings.json` is not an install target: Grok scans it by
-  /// default, so Alera commands there steal Grok/Cursor identity.
+  /// CCS instance `settings.local.json` files. CCS aliases override
+  /// `CLAUDE_CONFIG_DIR` away from the runtime overlay, and instance
+  /// `settings.json` is usually a symlink chain to `~/.claude/settings.json`.
+  /// Grok scans that user file, so Alera hooks live in the instance-local
+  /// sibling instead.
   List<String> _ccsClaudeSettingsPaths() {
-    return _collectClaudeSettingsPaths(includeUserLeftovers: false);
+    return _ccsInstanceLocalSettingsPaths();
   }
 
-  /// User Claude files that older installs wrote. Strip leftovers on remove
-  /// and host start; never treat them as required for `status()`.
+  /// User Claude files and leftover CCS `settings.json` copies that older
+  /// installs wrote. Strip Alera commands on remove; never required for
+  /// `status()`.
   List<String> _leftoverClaudeSettingsPaths() {
-    return _collectClaudeSettingsPaths(includeUserLeftovers: true);
+    return <String>[
+      ..._existingSettingsFiles(<String>[
+        p.join(_homeDirectory, '.claude', 'settings.json'),
+        p.join(_homeDirectory, '.claude', 'settings.local.json'),
+      ]),
+      ..._ccsLeftoverSettingsJsonPaths(),
+    ];
   }
 
-  List<String> _collectClaudeSettingsPaths({
-    required bool includeUserLeftovers,
-  }) {
-    final seen = <String>{};
+  List<String> _ccsInstanceLocalSettingsPaths() {
     final paths = <String>[];
-
-    void consider(String path) {
-      final type = FileSystemEntity.typeSync(path, followLinks: false);
-      if (type == FileSystemEntityType.notFound) {
-        return;
+    final seen = <String>{};
+    for (final instanceDir in _ccsInstanceDirectories()) {
+      final localPath = p.join(instanceDir, 'settings.local.json');
+      if (_resolvesIntoUserClaudeHome(localPath)) {
+        continue;
       }
+      final key = _absoluteNormalizedPath(localPath);
+      if (seen.add(key)) {
+        paths.add(localPath);
+      }
+    }
+    return paths;
+  }
+
+  List<String> _ccsLeftoverSettingsJsonPaths() {
+    final candidates = <String>[
+      p.join(_ccsRootDirectory(), 'shared', 'settings.json'),
+      for (final instanceDir in _ccsInstanceDirectories())
+        p.join(instanceDir, 'settings.json'),
+    ];
+    return [
+      for (final path in _existingRegularSettingsFiles(candidates))
+        if (!_resolvesIntoUserClaudeHome(path)) path,
+    ];
+  }
+
+  List<String> _ccsInstanceDirectories() {
+    final instancesDir = Directory(p.join(_ccsRootDirectory(), 'instances'));
+    if (!instancesDir.existsSync()) {
+      return const <String>[];
+    }
+    final dirs = <String>[];
+    for (final entity in instancesDir.listSync(followLinks: false)) {
+      final name = p.basename(entity.path);
+      if (name.startsWith('.')) {
+        continue;
+      }
+      if (entity is Directory ||
+          (entity is Link && Directory(entity.path).existsSync())) {
+        dirs.add(entity.path);
+      }
+    }
+    dirs.sort();
+    return dirs;
+  }
+
+  List<String> _existingSettingsFiles(List<String> candidates) {
+    final paths = <String>[];
+    final seen = <String>{};
+    for (final path in candidates) {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
       if (type != FileSystemEntityType.file &&
           type != FileSystemEntityType.link) {
-        return;
+        continue;
       }
       final resolved = _resolvedWritablePath(path);
       if (!File(resolved).existsSync()) {
-        return;
+        continue;
       }
-      final key = _absoluteNormalizedPath(resolved);
-      if (seen.add(key)) {
+      if (seen.add(_absoluteNormalizedPath(resolved))) {
         paths.add(resolved);
       }
     }
-
-    if (includeUserLeftovers) {
-      final claudeHome = p.join(_homeDirectory, '.claude');
-      consider(p.join(claudeHome, 'settings.json'));
-      consider(p.join(claudeHome, 'settings.local.json'));
-    }
-
-    final ccsRoot = _ccsRootDirectory();
-    consider(p.join(ccsRoot, 'shared', 'settings.json'));
-
-    final instancesDir = Directory(p.join(ccsRoot, 'instances'));
-    if (instancesDir.existsSync()) {
-      for (final entity in instancesDir.listSync(followLinks: false)) {
-        if (entity is! Directory) {
-          continue;
-        }
-        final settingsPath = p.join(entity.path, 'settings.json');
-        final type = FileSystemEntity.typeSync(
-          settingsPath,
-          followLinks: false,
-        );
-        // Symlinks usually resolve to shared settings (already considered).
-        // Only install into private per-instance settings files.
-        if (type == FileSystemEntityType.file) {
-          consider(settingsPath);
-        }
-      }
-    }
-
     return paths;
+  }
+
+  List<String> _existingRegularSettingsFiles(List<String> candidates) {
+    return [
+      for (final path in candidates)
+        if (FileSystemEntity.typeSync(path, followLinks: false) ==
+            FileSystemEntityType.file)
+          path,
+    ];
+  }
+
+  bool _resolvesIntoUserClaudeHome(String path) {
+    final userClaude = _absoluteNormalizedPath(
+      p.join(_homeDirectory, '.claude'),
+    );
+    final resolved = _absoluteNormalizedPath(_canonicalExistingPath(path));
+    return _samePath(resolved, userClaude) || p.isWithin(userClaude, resolved);
+  }
+
+  String _canonicalExistingPath(String path) {
+    try {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.link ||
+          type == FileSystemEntityType.file ||
+          type == FileSystemEntityType.directory) {
+        return File(path).resolveSymbolicLinksSync();
+      }
+    } catch (_) {}
+    return path;
   }
 
   _ClaudeRuntimeHookDescriptor _descriptor(Directory runtimeHome) {
@@ -114,7 +162,13 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
         'agent-hooks',
         scriptFileName,
       ),
-      managedScriptFileNames: <String>{scriptFileName},
+      managedScriptFileNames: <String>{
+        scriptFileName,
+        'alera-claude-hook.sh',
+        'alera-claude-hook.cmd',
+        'alera-runtime-agent-hook.sh',
+        'alera-runtime-agent-hook.cmd',
+      },
     );
   }
 

@@ -48,8 +48,8 @@ class AgentProfileManagedEditor extends StatelessWidget {
           description:
               'Leave empty to run Claude directly. A profile launches ccs with '
               'the profile first and the same flags after it. CCS points '
-              'CLAUDE_CONFIG_DIR at its own directory, so Alera agent status '
-              'hooks reach that session only if the profile inherits them.',
+              'CLAUDE_CONFIG_DIR at its instance directory. Alera writes Claude '
+              'status hooks into that instance settings.local.json.',
           keyName: 'ccsProfile',
         ),
       if (agentProfileSupportsModel(adapter)) ...<Widget>[

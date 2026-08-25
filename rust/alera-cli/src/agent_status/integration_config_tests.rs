@@ -276,7 +276,7 @@ fn claude_cleanup_strips_alera_hooks_from_jsonc_settings() {
 }
 
 #[test]
-fn claude_cleanup_strips_ccs_shared_settings_and_skips_instance_symlinks() {
+fn claude_cleanup_leaves_ccs_files_alone() {
     let home = tempfile::tempdir().unwrap();
     let shared = home.path().join(".ccs/shared/settings.json");
     write_json_object(
@@ -293,11 +293,29 @@ fn claude_cleanup_strips_ccs_shared_settings_and_skips_instance_symlinks() {
     .unwrap();
     let instance = home.path().join(".ccs/instances/profile-a");
     std::fs::create_dir_all(&instance).unwrap();
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(&shared, instance.join("settings.json")).unwrap();
+    write_json_object(
+        &instance.join("settings.local.json"),
+        &Map::from_iter([(
+            "hooks".to_string(),
+            json!({
+                "Stop": [
+                    {"hooks": [{"type": "command", "command": "/home/user/.alera/agent-hooks/alera-runtime-agent-hook.sh"}]}
+                ]
+            }),
+        )]),
+    )
+    .unwrap();
 
     user_hooks::cleanup_claude_user_hooks(home.path()).unwrap();
 
-    let config = read_json_object(&shared).unwrap().unwrap();
-    assert!(!config.contains_key("hooks"));
+    let shared_config = read_json_object(&shared).unwrap().unwrap();
+    assert!(shared_config["hooks"]
+        .to_string()
+        .contains("alera-claude-hook"));
+    let local_config = read_json_object(&instance.join("settings.local.json"))
+        .unwrap()
+        .unwrap();
+    assert!(local_config["hooks"]
+        .to_string()
+        .contains("alera-runtime-agent-hook"));
 }
