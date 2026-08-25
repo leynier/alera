@@ -326,7 +326,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn ccs_install_keeps_existing_complete_managed_hooks() {
         let home = tempfile::tempdir().unwrap();
         let instance = home.path().join(".ccs/instances/work");
