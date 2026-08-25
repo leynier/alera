@@ -2,8 +2,8 @@
 //! workspace through the runtime host.
 //!
 //! The deferred setup script the desktop runs in its "Setup" terminal calls
-//! this with `--copies-only`, so the copy rules keep their Rust validation
-//! instead of being rewritten in shell.
+//! this with `--copies-only`, so copy rules and `.worktreeinclude` matches keep
+//! their Rust validation instead of being rewritten in shell.
 
 use serde_json::{json, Value};
 

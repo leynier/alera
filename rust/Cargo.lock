@@ -113,6 +113,7 @@ dependencies = [
  "hmac 0.12.1",
  "hound",
  "if-addrs",
+ "ignore",
  "jsonschema",
  "keyring",
  "libc",

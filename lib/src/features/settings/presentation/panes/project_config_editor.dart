@@ -136,7 +136,8 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Copy Rules',
-          description: 'Files and directories copied from the main worktree.',
+          description:
+              'Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.',
           children: <Widget>[
             if (copyRules.isEmpty)
               const _ProjectConfigEmptyRow(message: 'No copy rules')

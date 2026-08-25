@@ -59,6 +59,7 @@ dirs = "6"
 dunce = "1"
 regex = "1"
 git2 = { version = "0.21", default-features = false }
+ignore = "0.4"
 notify = "8"
 axum = { version = "0.8", features = ["http1", "tokio"] }
 bytes = "1"
