@@ -1,6 +1,6 @@
 # Agent Canvas
 
-Agent Canvas is the shared runtime surface for structured agent progress, decisions, validation results, and registered artifacts. The public feature name is Agent Canvas. The CLI entry point is `alera canvas`, and the installable agent skill is `agent-canvas`.
+Agent Canvas is the shared runtime surface for structured agent progress, decisions, validation results, and registered artifacts. The public feature name is Agent Canvas. The CLI entry point is `alera canvas`, and the installable agent skill is `alera-agent-canvas`.
 
 ## Runtime contract
 
