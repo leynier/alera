@@ -18,8 +18,9 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
   }
 
   void _writeJsonObject(String path, Map<String, Object?> config) {
-    // Resolve symlinks first so CCS instance settings.json -> shared/settings.json
-    // is updated in place without replacing the symlink with a regular file.
+    // Follow a symlink so a private settings file is updated in place. CCS
+    // install targets are regular settings.local.json files; callers skip
+    // anything that resolves into ~/.claude.
     final targetPath = _resolvedWritablePath(path);
     final file = File(targetPath);
     file.parent.createSync(recursive: true);
@@ -62,6 +63,10 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     final existing = baseConfig ?? _readJsonObject(settingsPath);
     if (existing == null) {
       return false;
+    }
+    if (baseConfig == null &&
+        _managedHooksComplete(existing, descriptor.managedScriptFileNames)) {
+      return true;
     }
     final nextConfig = <String, Object?>{...existing};
     final hooks = _hooksMap(nextConfig);
@@ -148,10 +153,12 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     var presentCount = 0;
     final hooks = _hooksMap(config);
     for (final event in _claudeEvents) {
-      final command = _managedCommand(descriptor: descriptor, event: event);
       final definitions = _definitionsFromValue(hooks[event.eventName]);
       final hasCommand = definitions.any(
-        (definition) => _definitionHasCommand(definition, command),
+        (definition) => _definitionHasManagedCommand(
+          definition,
+          descriptor.managedScriptFileNames,
+        ),
       );
       if (hasCommand) {
         presentCount += 1;
@@ -296,17 +303,37 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     ];
   }
 
-  bool _definitionHasCommand(Map<String, Object?> definition, String command) {
-    if (definition['command'] == command ||
-        definition['bash'] == command ||
-        definition['powershell'] == command) {
-      return true;
+  bool _managedHooksComplete(
+    Map<String, Object?> config,
+    Set<String> scriptFileNames,
+  ) {
+    final hooks = _hooksMap(config);
+    return _claudeEvents.every((event) {
+      final definitions = _definitionsFromValue(hooks[event.eventName]);
+      return definitions.any(
+        (definition) =>
+            _definitionHasManagedCommand(definition, scriptFileNames),
+      );
+    });
+  }
+
+  bool _definitionHasManagedCommand(
+    Map<String, Object?> definition,
+    Set<String> scriptFileNames,
+  ) {
+    for (final key in const <String>['command', 'bash', 'powershell']) {
+      if (_isManagedCommand(definition[key], scriptFileNames)) {
+        return true;
+      }
     }
     final hooks = definition['hooks'];
     if (hooks is! List) {
       return false;
     }
-    return hooks.any((hook) => hook is Map && hook['command'] == command);
+    return hooks.any(
+      (hook) =>
+          hook is Map && _isManagedCommand(hook['command'], scriptFileNames),
+    );
   }
 
   List<Map<String, Object?>> _removeManagedCommands(
