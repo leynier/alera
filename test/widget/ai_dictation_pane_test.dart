@@ -17,7 +17,7 @@ void main() {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download').first);
+    await _tapVisible(tester, find.text('Download').first);
     await tester.pump();
 
     expect(store.downloadCount, 1);
@@ -32,7 +32,7 @@ void main() {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download').first);
+    await _tapVisible(tester, find.text('Download').first);
     await tester.pump();
     await _closePane(tester, store);
     store.completeDownload();
@@ -47,9 +47,9 @@ void main() {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download').first);
+    await _tapVisible(tester, find.text('Download').first);
     await tester.pump();
-    await tester.tap(find.text('Queue Download').first);
+    await _tapVisible(tester, find.text('Queue Download').first);
     await tester.pump();
 
     expect(store.downloadCount, 1);
@@ -63,7 +63,7 @@ void main() {
     final store = _FakeAiDictationModelStore();
     await _pumpPane(tester, store);
 
-    await tester.tap(find.text('Download').first);
+    await _tapVisible(tester, find.text('Download').first);
     await tester.pump();
     store.completeDownload();
     await tester.pumpAndSettle();
@@ -95,7 +95,7 @@ void main() {
       find.byKey(const ValueKey<String>('ai-dictation-api-token')),
       'test-token',
     );
-    await tester.tap(find.text('Save Token'));
+    await _tapVisible(tester, find.text('Save Token'));
     await tester.pumpAndSettle();
 
     expect(credentials.savedTokens, <String>['test-token']);
@@ -154,6 +154,7 @@ Future<void> _closePane(
 ) async {
   await tester.pumpWidget(
     ProviderScope(
+      key: const ValueKey<String>('closed-ai-dictation-pane'),
       overrides: [aiDictationModelStoreProvider.overrideWithValue(store)],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
@@ -162,6 +163,12 @@ Future<void> _closePane(
     ),
   );
   await tester.pump();
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
+  await tester.pump();
+  await tester.tap(finder);
 }
 
 class _FakeAiDictationCredentialStore implements AiDictationCredentialStore {

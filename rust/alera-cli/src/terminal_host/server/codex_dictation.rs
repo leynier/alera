@@ -26,15 +26,12 @@ pub(super) async fn transcribe(
     let chunks = read_audio_chunks(audio_path).await?;
     let duration_millis =
         ((chunks.sample_count as u128 * 1000) / 16_000).min(i64::MAX as u128) as i64;
-    let mut thread_params = json!({
+    let thread_params = json!({
         "cwd": cwd.to_string_lossy(),
         "approvalPolicy": "never",
         "sandbox": "readOnly",
         "ephemeral": true,
     });
-    if let Some(model) = normalized(model) {
-        thread_params["model"] = json!(model);
-    }
     let thread = server.request("thread/start", thread_params).await?;
     let thread_id = thread
         .pointer("/thread/id")
@@ -47,7 +44,15 @@ pub(super) async fn transcribe(
         .session_state
         .begin_realtime_transcript(&thread_id)
         .await;
-    let result = transcribe_on_thread(server, &thread_id, chunks.frames, transcript, timeout).await;
+    let result = transcribe_on_thread(
+        server,
+        &thread_id,
+        chunks.frames,
+        transcript,
+        model,
+        timeout,
+    )
+    .await;
     server
         .session_state
         .remove_realtime_transcript(&thread_id)
@@ -66,20 +71,12 @@ async fn transcribe_on_thread(
     thread_id: &str,
     frames: Vec<String>,
     transcript: tokio::sync::oneshot::Receiver<HostResult<String>>,
+    model: Option<&str>,
     timeout: Duration,
 ) -> HostResult<String> {
+    let start_params = realtime_start_params(thread_id, model);
     server
-        .request(
-            "thread/realtime/start",
-            json!({
-                "threadId": thread_id,
-                "outputModality": "text",
-                "includeStartupContext": false,
-                "clientManagedHandoffs": true,
-                "prompt": null,
-                "version": "v2",
-            }),
-        )
+        .request("thread/realtime/start", start_params)
         .await
         .map_err(|error| {
             HostError::state(format!(
@@ -108,6 +105,21 @@ async fn transcribe_on_thread(
         .await
         .map_err(|_| HostError::state("Codex subscription dictation timed out"))?
         .map_err(|_| HostError::state("Codex subscription dictation ended unexpectedly"))?
+}
+
+fn realtime_start_params(thread_id: &str, model: Option<&str>) -> serde_json::Value {
+    let mut params = json!({
+        "threadId": thread_id,
+        "outputModality": "text",
+        "includeStartupContext": false,
+        "clientManagedHandoffs": true,
+        "prompt": null,
+        "version": "v2",
+    });
+    if let Some(model) = normalized(model) {
+        params["model"] = json!(model);
+    }
+    params
 }
 
 struct AudioChunks {
@@ -162,7 +174,7 @@ fn normalized(value: Option<&str>) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::read_audio_chunks;
+    use super::{read_audio_chunks, realtime_start_params};
 
     #[tokio::test]
     async fn wav_audio_is_encoded_as_little_endian_pcm() {
@@ -186,5 +198,14 @@ mod tests {
 
         assert_eq!(chunks.sample_count, 2);
         assert_eq!(chunks.frames, vec!["AQD+/w=="]);
+    }
+
+    #[test]
+    fn realtime_model_override_is_sent_to_realtime_start() {
+        let params = realtime_start_params("thread-1", Some(" realtime-model "));
+        assert_eq!(params["threadId"], "thread-1");
+        assert_eq!(params["model"], "realtime-model");
+        assert_eq!(params["clientManagedHandoffs"], true);
+        assert_eq!(params["includeStartupContext"], false);
     }
 }
