@@ -254,5 +254,27 @@ void main() {
     expect(terminalPreview.isFilePreviewSlot, isFalse);
     expect(permanent.isPreview, isFalse);
     expect(permanent.isFilePreviewSlot, isFalse);
+
+    const filePreviewKinds = <WorkspaceTabKind>{
+      WorkspaceTabKind.editor,
+      WorkspaceTabKind.markdownViewer,
+      WorkspaceTabKind.pdf,
+    };
+    for (final kind in WorkspaceTabKind.values) {
+      final tab = WorkspaceTabRecord(
+        id: 'tab-${kind.key}',
+        workspaceId: 'workspace-1',
+        kind: kind,
+        title: kind.key,
+        createdAt: now,
+        updatedAt: now,
+        payload: const <String, Object?>{workspaceTabPreviewPayloadKey: true},
+      );
+      expect(
+        tab.isFilePreviewSlot,
+        filePreviewKinds.contains(kind),
+        reason: kind.key,
+      );
+    }
   });
 }
