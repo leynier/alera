@@ -77,12 +77,18 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
 
 bool _canTest(AiDictationSettings settings, bool remoteSupported) {
   if (!settings.enabled) return false;
+  final requiresRuntime =
+      settings.transcriptionEngine ==
+          AiDictationTranscriptionEngine.codexSubscription ||
+      (settings.transcriptionEngine ==
+              AiDictationTranscriptionEngine.openAiCompatible &&
+          settings.remoteExecution == AiDictationRemoteExecution.runtime);
+  if (requiresRuntime && !remoteSupported) return false;
   final remote =
       settings.transcriptionEngine ==
           AiDictationTranscriptionEngine.codexSubscription ||
       settings.transcriptionEngine ==
           AiDictationTranscriptionEngine.openAiCompatible;
-  if (remote && !remoteSupported) return false;
   return !remote ||
       settings.remoteConsentVersion == aiDictationRemoteConsentVersion;
 }
@@ -96,12 +102,13 @@ String _testDescription(
     return 'Enable AI Dictation before testing.';
   }
   if (!enabled) {
-    final remote =
+    final requiresRuntime =
         settings.transcriptionEngine ==
             AiDictationTranscriptionEngine.codexSubscription ||
-        settings.transcriptionEngine ==
-            AiDictationTranscriptionEngine.openAiCompatible;
-    if (remote && !remoteSupported) {
+        (settings.transcriptionEngine ==
+                AiDictationTranscriptionEngine.openAiCompatible &&
+            settings.remoteExecution == AiDictationRemoteExecution.runtime);
+    if (requiresRuntime && !remoteSupported) {
       return 'Restart Alera to update the runtime before testing remote transcription.';
     }
     return 'Allow remote audio processing before testing this engine.';

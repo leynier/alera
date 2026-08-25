@@ -19,6 +19,23 @@ import 'package:record/record.dart';
 
 enum AiDictationStage { idle, recording, transcribing, improving }
 
+enum AiDictationProviderRoute { local, runtime, direct }
+
+AiDictationProviderRoute aiDictationProviderRoute(
+  AiDictationSettings settings,
+) {
+  if (settings.transcriptionEngine ==
+      AiDictationTranscriptionEngine.localWhisper) {
+    return AiDictationProviderRoute.local;
+  }
+  if (settings.transcriptionEngine ==
+          AiDictationTranscriptionEngine.openAiCompatible &&
+      settings.remoteExecution == AiDictationRemoteExecution.thisDevice) {
+    return AiDictationProviderRoute.direct;
+  }
+  return AiDictationProviderRoute.runtime;
+}
+
 class AiDictationRecordingPlan {
   const AiDictationRecordingPlan(this.settings);
 
@@ -45,6 +62,7 @@ class AiDictationService extends ChangeNotifier {
     required AiDictationTargetRegistry targets,
     required AiDictationProvider provider,
     required AiDictationProvider remoteProvider,
+    required AiDictationProvider directProvider,
     required AiDictationModelStore modelStore,
     required AiDictationSpeechProcessor speechProcessor,
     SystemAiDictationRecognizer? systemRecognizer,
@@ -53,6 +71,7 @@ class AiDictationService extends ChangeNotifier {
        _targets = targets,
        _provider = provider,
        _remoteProvider = remoteProvider,
+       _directProvider = directProvider,
        _modelStore = modelStore,
        _speechProcessor = speechProcessor,
        _systemRecognizer = systemRecognizer ?? SystemAiDictationRecognizer(),
@@ -62,6 +81,7 @@ class AiDictationService extends ChangeNotifier {
   final AiDictationTargetRegistry _targets;
   final AiDictationProvider _provider;
   final AiDictationProvider _remoteProvider;
+  final AiDictationProvider _directProvider;
   final AiDictationModelStore _modelStore;
   final AiDictationSpeechProcessor _speechProcessor;
   final SystemAiDictationRecognizer _systemRecognizer;
@@ -242,11 +262,11 @@ class AiDictationService extends ChangeNotifier {
       final plan = _recordingPlan ?? AiDictationRecordingPlan(_settings());
       plan.validateBeforeTranscription(_settings());
       final settings = plan.settings;
-      final provider =
-          settings.transcriptionEngine ==
-              AiDictationTranscriptionEngine.localWhisper
-          ? _provider
-          : _remoteProvider;
+      final provider = switch (aiDictationProviderRoute(settings)) {
+        AiDictationProviderRoute.local => _provider,
+        AiDictationProviderRoute.runtime => _remoteProvider,
+        AiDictationProviderRoute.direct => _directProvider,
+      };
       _activeProvider = provider;
       final result = await provider.transcribe(
         AiDictationRequest(

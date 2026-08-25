@@ -2,6 +2,8 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_service
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_target_registry.dart';
 import 'package:alera/src/features/ai_dictation/infra/native_ai_dictation_provider.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
+import 'package:alera/src/features/ai_dictation/infra/direct_ai_dictation_credential_store.dart';
+import 'package:alera/src/features/ai_dictation/infra/openai_compatible_ai_dictation_provider.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_credential_store.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_provider.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_speech_processor.dart';
@@ -29,6 +31,11 @@ AiDictationCredentialStore aiDictationCredentialStore(Ref ref) {
   return RuntimeAiDictationCredentialStore(ref.read(runtimeHostClientProvider));
 }
 
+@Riverpod(keepAlive: true)
+DirectAiDictationCredentialStore directAiDictationCredentialStore(Ref ref) {
+  return DirectAiDictationCredentialStore();
+}
+
 @riverpod
 Future<bool> remoteAiDictationSupported(Ref ref) async {
   final client = ref.read(runtimeHostClientProvider);
@@ -45,6 +52,9 @@ AiDictationService aiDictationService(Ref ref) {
     provider: NativeAiDictationProvider(),
     remoteProvider: RuntimeAiDictationProvider(
       ref.read(runtimeHostClientProvider),
+    ),
+    directProvider: OpenAiCompatibleAiDictationProvider(
+      credentials: ref.read(directAiDictationCredentialStoreProvider),
     ),
     modelStore: ref.read(aiDictationModelStoreProvider),
     speechProcessor: RuntimeAiDictationSpeechProcessor(

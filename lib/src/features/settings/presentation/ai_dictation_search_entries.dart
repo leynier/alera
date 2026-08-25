@@ -21,7 +21,17 @@ aiDictationSearchEntries = buildSettingsSearchEntryCatalog(const {
     'Remote Transcription': SettingsSearchEntryDetails(
       description:
           'Use a Codex subscription or an OpenAI-compatible API with a secure token.',
-      keywords: <String>['codex', 'openai', 'api', 'token', 'url', 'remote'],
+      keywords: <String>[
+        'codex',
+        'openai',
+        'api',
+        'token',
+        'url',
+        'remote',
+        'runtime',
+        'direct',
+        'this device',
+      ],
     ),
   },
   'models': {
