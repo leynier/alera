@@ -1076,6 +1076,96 @@ mod tests {
         assert!(worktree_path.join(".env").exists());
     }
 
+    #[tokio::test]
+    async fn setup_copies_only_applies_worktreeinclude_matches() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        std::fs::write(repo.join(".gitignore"), ".env.local\n").unwrap();
+        std::fs::write(repo.join(".worktreeinclude"), ".env.local\n").unwrap();
+        run_git(&repo, &["add", ".gitignore", ".worktreeinclude"]);
+        run_git(&repo, &["commit", "-m", "include"]);
+        std::fs::write(repo.join(".env.local"), "TOKEN=1\n").unwrap();
+        let store = seed_project(dir.path(), &repo).await;
+        let worktree_path = dir.path().join("workspaces").join("feature-include");
+        create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-include".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/include".to_string()),
+                branch: "feature/include".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                skip_setup: false,
+                setup_script_directory: Some(dir.path().join("scripts")),
+            },
+        )
+        .await
+        .unwrap();
+
+        let report = crate::worktree_setup::run_workspace_setup(&store, "workspace-include", true)
+            .await
+            .unwrap();
+
+        assert_eq!(report.steps.len(), 1);
+        assert!(report.steps[0].succeeded);
+        assert_eq!(report.steps[0].kind, WorktreeSetupStepKind::Copy);
+        assert_eq!(
+            std::fs::read_to_string(worktree_path.join(".env.local")).unwrap(),
+            "TOKEN=1\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn deferred_setup_runs_copies_when_only_worktreeinclude_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        std::fs::write(repo.join(".worktreeinclude"), ".env.local\n").unwrap();
+        run_git(&repo, &["add", ".worktreeinclude"]);
+        run_git(&repo, &["commit", "-m", "include"]);
+        let store = seed_project(dir.path(), &repo).await;
+        let scripts = dir.path().join("scripts");
+        let worktree_path = dir.path().join("workspaces").join("feature-include-only");
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-include-only".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/include-only".to_string()),
+                branch: "feature/include-only".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
+                defer_setup: true,
+                skip_setup: false,
+                setup_script_directory: Some(scripts.clone()),
+            },
+        )
+        .await
+        .unwrap();
+
+        let command = result.deferred_setup_command.expect("setup command");
+        let script = crate::worktree_setup_script::setup_script_path(
+            &scripts,
+            "workspace-include-only",
+            cfg!(windows),
+        );
+        assert!(script.exists(), "{}", script.display());
+        assert!(command.contains(&script.display().to_string()), "{command}");
+        let contents = std::fs::read_to_string(&script).unwrap();
+        assert!(contents.contains("--copies-only"), "{contents}");
+    }
+
     async fn seed_project(root: &Path, repo: &Path) -> RuntimeStore {
         let store = RuntimeStore::open(&root.join("runtime")).await.unwrap();
         let now = Utc::now();
