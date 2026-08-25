@@ -161,10 +161,17 @@ final class ClaudeRuntimeHomeService {
       );
     }
 
-    // CCS aliases override CLAUDE_CONFIG_DIR to instance homes whose
-    // settings.json usually symlinks to ~/.ccs/shared/settings.json.
+    // CCS aliases override CLAUDE_CONFIG_DIR to instance homes. Instance
+    // settings.json usually symlinks through to ~/.claude/settings.json, so
+    // hooks go in settings.local.json instead of following that chain.
     for (final settingsPath in _ccsClaudeSettingsPaths()) {
       _installManagedHooksAtSettings(
+        settingsPath: settingsPath,
+        descriptor: descriptor,
+      );
+    }
+    for (final settingsPath in _ccsLeftoverSettingsJsonPaths()) {
+      _removeManagedHooksAtSettings(
         settingsPath: settingsPath,
         descriptor: descriptor,
       );
