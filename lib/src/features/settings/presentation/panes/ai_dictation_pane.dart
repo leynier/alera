@@ -5,8 +5,11 @@ import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_model_transfers.dart';
+import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_remote_settings.dart';
+import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_settings_test.dart';
 import 'package:alera/src/features/ai_dictation/infra/system_ai_dictation_recognizer.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +40,9 @@ class AiDictationSettingsPane extends ConsumerWidget {
             .watch(aiDictationOnDeviceAvailableProvider(settings.language))
             .value ??
         false;
-    final engines = _availableEngines(onDeviceAvailable);
+    final remoteSupported =
+        ref.watch(remoteAiDictationSupportedProvider).value ?? false;
+    final engines = _availableEngines(onDeviceAvailable, remoteSupported);
     final selectedEngine = engines.contains(settings.transcriptionEngine)
         ? settings.transcriptionEngine
         : AiDictationTranscriptionEngine.localWhisper;
@@ -113,6 +118,13 @@ class AiDictationSettingsPane extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AleraTokens.space16),
+          AiDictationRemoteSettings(
+            settings: settings,
+            onChanged: onChanged,
+            groupKey: groupKeys['remote'],
+            supported: remoteSupported,
+          ),
+          const SizedBox(height: AleraTokens.space16),
           KeyedSubtree(
             key: groupKeys['models'],
             child: AleraSettingsGroup(
@@ -179,6 +191,12 @@ class AiDictationSettingsPane extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: AleraTokens.space16),
+          AiDictationSettingsTest(
+            settings: settings,
+            groupKey: groupKeys['test'],
+            remoteSupported: remoteSupported,
           ),
         ],
       ),
@@ -284,26 +302,41 @@ class _WhisperModelRow extends StatelessWidget {
   }
 }
 
-List<AiDictationTranscriptionEngine> _availableEngines(bool onDeviceAvailable) {
+List<AiDictationTranscriptionEngine> _availableEngines(
+  bool onDeviceAvailable,
+  bool remoteSupported,
+) {
+  final remoteEngines = remoteSupported
+      ? const <AiDictationTranscriptionEngine>[
+          AiDictationTranscriptionEngine.codexSubscription,
+          AiDictationTranscriptionEngine.openAiCompatible,
+        ]
+      : const <AiDictationTranscriptionEngine>[];
   if (Platform.isMacOS && onDeviceAvailable) {
-    return const <AiDictationTranscriptionEngine>[
+    return <AiDictationTranscriptionEngine>[
       AiDictationTranscriptionEngine.localWhisper,
+      ...remoteEngines,
       AiDictationTranscriptionEngine.systemOnDevice,
     ];
   }
   if (Platform.isWindows) {
-    return const <AiDictationTranscriptionEngine>[
+    return <AiDictationTranscriptionEngine>[
       AiDictationTranscriptionEngine.localWhisper,
+      ...remoteEngines,
       AiDictationTranscriptionEngine.systemRecognition,
     ];
   }
-  return const <AiDictationTranscriptionEngine>[
+  return <AiDictationTranscriptionEngine>[
     AiDictationTranscriptionEngine.localWhisper,
+    ...remoteEngines,
   ];
 }
 
 String _engineLabel(AiDictationTranscriptionEngine engine) => switch (engine) {
   AiDictationTranscriptionEngine.localWhisper => 'Local Whisper',
+  AiDictationTranscriptionEngine.codexSubscription =>
+    'Codex Subscription (Experimental)',
+  AiDictationTranscriptionEngine.openAiCompatible => 'OpenAI-Compatible API',
   AiDictationTranscriptionEngine.systemOnDevice => 'System On-Device',
   AiDictationTranscriptionEngine.systemRecognition => 'System Recognition',
 };
@@ -313,6 +346,10 @@ String _engineDescription(
 ) => switch (engine) {
   AiDictationTranscriptionEngine.localWhisper =>
     'Record locally and transcribe with the selected Whisper model.',
+  AiDictationTranscriptionEngine.codexSubscription =>
+    'Use the experimental Codex app-server realtime API with your Codex subscription.',
+  AiDictationTranscriptionEngine.openAiCompatible =>
+    'Send recordings to an OpenAI-compatible audio transcription endpoint.',
   AiDictationTranscriptionEngine.systemOnDevice =>
     'Use the platform recognizer only when it guarantees offline processing.',
   AiDictationTranscriptionEngine.systemRecognition =>

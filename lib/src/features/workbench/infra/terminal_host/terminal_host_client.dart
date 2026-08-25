@@ -23,6 +23,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
+part 'terminal_host_client_capabilities.dart';
 part 'terminal_host_client_guarded_requests.dart';
 part 'terminal_host_client_terminal_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
@@ -37,8 +38,13 @@ final class SocketTerminalHostClient
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport,
+        _RuntimeHostCapabilitySupport,
         _GuardedRuntimeHostClientSupport
-    implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
+    implements
+        TerminalHostClient,
+        TerminalPulseHostClient,
+        RuntimeHostClient,
+        RuntimeHostCapabilityClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
@@ -98,12 +104,6 @@ final class SocketTerminalHostClient
 
   @override
   Stream<TerminalHostEvent> get events => _events.stream;
-
-  @override
-  bool get supportsTerminalRestart =>
-      _terminalConnection?.supportsTerminalRestart ??
-      _runtimeConnection?.supportsTerminalRestart ??
-      false;
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => _runtimeEvents.stream;
@@ -337,6 +337,7 @@ final class SocketTerminalHostClient
     return next;
   }
 
+  @override
   Future<_TerminalHostConnection> _connectRuntime({
     bool requireOrchestration = false,
     bool launchIfMissing = true,

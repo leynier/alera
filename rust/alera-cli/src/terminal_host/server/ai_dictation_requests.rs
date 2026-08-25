@@ -36,21 +36,29 @@ impl Drop for DictationRequestGuard {
     }
 }
 
-pub(super) async fn transcribe(
+pub(super) async fn transcribe_mobile(
+    payload: &Value,
+    runtime_dir: &std::path::Path,
+) -> HostResult<Value> {
+    if payload
+        .get("engine")
+        .and_then(Value::as_str)
+        .unwrap_or("whisper")
+        != "whisper"
+    {
+        return Err(HostError::format(
+            "the paired runtime does not provide this system speech engine",
+        ));
+    }
+    transcribe_whisper(payload, false, runtime_dir).await
+}
+
+async fn transcribe_whisper(
     payload: &Value,
     allow_explicit_model_path: bool,
     runtime_dir: &std::path::Path,
 ) -> HostResult<Value> {
     let request_id = string(payload, "requestId")?;
-    let engine = payload
-        .get("engine")
-        .and_then(Value::as_str)
-        .unwrap_or("whisper");
-    if engine != "whisper" {
-        return Err(HostError::format(
-            "the paired runtime does not provide this system speech engine",
-        ));
-    }
     let model_path = resolve_model_path(payload, allow_explicit_model_path, runtime_dir)?;
     let cancelled = Arc::new(AtomicBool::new(false));
     {
@@ -306,12 +314,15 @@ fn normalize_whisper_language(language: Option<&str>) -> Option<String> {
 
 pub(super) fn cancel(payload: &Value) -> HostResult<Value> {
     let request_id = string(payload, "requestId")?;
+    let remote_cancelled = super::ai_dictation_remote_requests::cancel(&request_id)?;
+    let mut local_cancelled = false;
     if let Ok(requests) = active_requests().lock() {
         if let Some(cancelled) = requests.get(&request_id) {
             cancelled.store(true, Ordering::Relaxed);
+            local_cancelled = true;
         }
     }
-    Ok(json!({}))
+    Ok(json!({"canceled": remote_cancelled || local_cancelled}))
 }
 
 fn string(payload: &Value, key: &str) -> HostResult<String> {

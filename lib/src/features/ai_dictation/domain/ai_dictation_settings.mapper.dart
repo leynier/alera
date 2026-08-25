@@ -130,6 +130,10 @@ class AiDictationTranscriptionEngineMapper
     switch (value) {
       case r'localWhisper':
         return AiDictationTranscriptionEngine.localWhisper;
+      case r'codexSubscription':
+        return AiDictationTranscriptionEngine.codexSubscription;
+      case r'openAiCompatible':
+        return AiDictationTranscriptionEngine.openAiCompatible;
       case r'systemOnDevice':
         return AiDictationTranscriptionEngine.systemOnDevice;
       case r'systemRecognition':
@@ -144,6 +148,10 @@ class AiDictationTranscriptionEngineMapper
     switch (self) {
       case AiDictationTranscriptionEngine.localWhisper:
         return r'localWhisper';
+      case AiDictationTranscriptionEngine.codexSubscription:
+        return r'codexSubscription';
+      case AiDictationTranscriptionEngine.openAiCompatible:
+        return r'openAiCompatible';
       case AiDictationTranscriptionEngine.systemOnDevice:
         return r'systemOnDevice';
       case AiDictationTranscriptionEngine.systemRecognition:
@@ -300,11 +308,20 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
     'remoteBaseUrl',
     _$remoteBaseUrl,
     opt: true,
+    def: 'https://api.openai.com/v1',
   );
   static String? _$remoteModel(AiDictationSettings v) => v.remoteModel;
   static const Field<AiDictationSettings, String> _f$remoteModel = Field(
     'remoteModel',
     _$remoteModel,
+    opt: true,
+    def: 'gpt-4o-mini-transcribe',
+  );
+  static String? _$codexRealtimeModel(AiDictationSettings v) =>
+      v.codexRealtimeModel;
+  static const Field<AiDictationSettings, String> _f$codexRealtimeModel = Field(
+    'codexRealtimeModel',
+    _$codexRealtimeModel,
     opt: true,
   );
   static AiDictationFallbackProvider _$remoteProvider(AiDictationSettings v) =>
@@ -351,6 +368,7 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
     #providerFallbackEnabled: _f$providerFallbackEnabled,
     #remoteBaseUrl: _f$remoteBaseUrl,
     #remoteModel: _f$remoteModel,
+    #codexRealtimeModel: _f$codexRealtimeModel,
     #remoteProvider: _f$remoteProvider,
     #timeoutSeconds: _f$timeoutSeconds,
     #remoteConsentVersion: _f$remoteConsentVersion,
@@ -369,6 +387,7 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
       providerFallbackEnabled: data.dec(_f$providerFallbackEnabled),
       remoteBaseUrl: data.dec(_f$remoteBaseUrl),
       remoteModel: data.dec(_f$remoteModel),
+      codexRealtimeModel: data.dec(_f$codexRealtimeModel),
       remoteProvider: data.dec(_f$remoteProvider),
       timeoutSeconds: data.dec(_f$timeoutSeconds),
       remoteConsentVersion: data.dec(_f$remoteConsentVersion),
@@ -459,6 +478,7 @@ abstract class AiDictationSettingsCopyWith<
     bool? providerFallbackEnabled,
     String? remoteBaseUrl,
     String? remoteModel,
+    String? codexRealtimeModel,
     AiDictationFallbackProvider? remoteProvider,
     int? timeoutSeconds,
     int? remoteConsentVersion,
@@ -489,6 +509,7 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
     bool? providerFallbackEnabled,
     Object? remoteBaseUrl = $none,
     Object? remoteModel = $none,
+    Object? codexRealtimeModel = $none,
     AiDictationFallbackProvider? remoteProvider,
     int? timeoutSeconds,
     Object? remoteConsentVersion = $none,
@@ -508,6 +529,7 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
         #providerFallbackEnabled: providerFallbackEnabled,
       if (remoteBaseUrl != $none) #remoteBaseUrl: remoteBaseUrl,
       if (remoteModel != $none) #remoteModel: remoteModel,
+      if (codexRealtimeModel != $none) #codexRealtimeModel: codexRealtimeModel,
       if (remoteProvider != null) #remoteProvider: remoteProvider,
       if (timeoutSeconds != null) #timeoutSeconds: timeoutSeconds,
       if (remoteConsentVersion != $none)
@@ -537,6 +559,10 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
     ),
     remoteBaseUrl: data.get(#remoteBaseUrl, or: $value.remoteBaseUrl),
     remoteModel: data.get(#remoteModel, or: $value.remoteModel),
+    codexRealtimeModel: data.get(
+      #codexRealtimeModel,
+      or: $value.codexRealtimeModel,
+    ),
     remoteProvider: data.get(#remoteProvider, or: $value.remoteProvider),
     timeoutSeconds: data.get(#timeoutSeconds, or: $value.timeoutSeconds),
     remoteConsentVersion: data.get(

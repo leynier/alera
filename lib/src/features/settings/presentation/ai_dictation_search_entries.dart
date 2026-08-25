@@ -5,7 +5,8 @@ final List<SettingsSearchEntry>
 aiDictationSearchEntries = buildSettingsSearchEntryCatalog(const {
   'transcription': {
     'AI Dictation': SettingsSearchEntryDetails(
-      description: 'Transcribe microphone recordings locally with Whisper.',
+      description:
+          'Transcribe microphone recordings locally or with a remote speech API.',
       keywords: <String>[
         'ai',
         'dictation',
@@ -14,6 +15,13 @@ aiDictationSearchEntries = buildSettingsSearchEntryCatalog(const {
         'whisper',
         'microphone',
       ],
+    ),
+  },
+  'remote': {
+    'Remote Transcription': SettingsSearchEntryDetails(
+      description:
+          'Use a Codex subscription or an OpenAI-compatible API with a secure token.',
+      keywords: <String>['codex', 'openai', 'api', 'token', 'url', 'remote'],
     ),
   },
   'models': {
@@ -27,6 +35,13 @@ aiDictationSearchEntries = buildSettingsSearchEntryCatalog(const {
       description:
           'Clean up or summarize transcripts with an agent subscription.',
       keywords: <String>['agent', 'model', 'summary', 'cleanup', 'speech'],
+    ),
+  },
+  'test': {
+    'Test AI Dictation': SettingsSearchEntryDetails(
+      description:
+          'Record and transcribe a sample without leaving AI Dictation settings.',
+      keywords: <String>['test', 'record', 'microphone', 'transcript'],
     ),
   },
 });

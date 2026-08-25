@@ -1,23 +1,25 @@
+enum AiDictationRemoteEngine { codexSubscription, openAiCompatible }
+
 class AiDictationRequest {
   const AiDictationRequest({
     required this.requestId,
     required this.audioPath,
-    required this.modelPath,
+    this.modelPath,
     this.language,
     this.initialPrompt,
+    this.remoteEngine,
     this.providerBaseUrl,
     this.providerModel,
-    this.providerApiKey,
     this.timeout,
   });
 
   final String requestId;
   final String audioPath;
-  final String modelPath;
+  final String? modelPath;
   final String? language;
   final String? initialPrompt;
+  final AiDictationRemoteEngine? remoteEngine;
   final String? providerBaseUrl;
   final String? providerModel;
-  final String? providerApiKey;
   final Duration? timeout;
 }

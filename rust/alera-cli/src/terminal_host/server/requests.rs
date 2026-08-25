@@ -897,15 +897,10 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.cancel_ai_text_generation(payload)
             }
-            "aiDictation.transcribe" => {
-                self.require_auth(client_id)?;
-                self.require_request_allowed(client_id, request_type)?;
-                super::ai_dictation_requests::transcribe(payload, true, &self.runtime_dir).await
-            }
             "mobile.aiDictation.transcribe" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                super::ai_dictation_requests::transcribe(payload, false, &self.runtime_dir).await
+                super::ai_dictation_requests::transcribe_mobile(payload, &self.runtime_dir).await
             }
             "mobile.aiDictation.capabilities" => {
                 self.require_auth(client_id)?;
@@ -916,6 +911,18 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 super::ai_dictation_requests::cancel(payload)
+            }
+            "aiDictation.credentials.status" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.ai_dictation_credential_status(payload).await
+            }
+            "aiDictation.credentials.save" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.save_ai_dictation_credential(payload).await
+            }
+            "aiDictation.credentials.clear" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.clear_ai_dictation_credential().await
             }
             "agentProfile.upsert" => {
                 self.require_auth(client_id)?;

@@ -34,12 +34,14 @@ class AiDictationControl extends StatelessWidget {
           tooltip: busy
               ? service.isImproving
                     ? 'Improving Transcript'
-                    : 'Transcribing'
+                    : 'Cancel Transcription'
               : active && service.isRecording
               ? 'Stop Dictation'
               : 'Start Dictation',
           icon: busy
-              ? AleraIcons.loading
+              ? service.isImproving
+                    ? AleraIcons.loading
+                    : AleraIcons.stop
               : active && service.isRecording
               ? AleraIcons.stop
               : AleraIcons.mic,
@@ -48,9 +50,11 @@ class AiDictationControl extends StatelessWidget {
               : AleraTokens.foregroundMuted,
           backgroundColor: active ? AleraTokens.accent : null,
           borderRadius: AleraTokens.radiusPill,
-          onPressed: busy || !enabled
+          onPressed: !enabled || service.isImproving
               ? null
-              : () => unawaited(_toggle(service, active)),
+              : () => unawaited(
+                  busy ? _cancel(service) : _toggle(service, active),
+                ),
         );
       },
     );
@@ -78,6 +82,14 @@ class AiDictationControl extends StatelessWidget {
       } else {
         await service.start(targetId);
       }
+    } on Object catch (error) {
+      AleraToast.publish(message: error.toString(), tone: AleraToastTone.error);
+    }
+  }
+
+  Future<void> _cancel(AiDictationService service) async {
+    try {
+      await service.cancel();
     } on Object catch (error) {
       AleraToast.publish(message: error.toString(), tone: AleraToastTone.error);
     }
